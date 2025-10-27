@@ -5,9 +5,10 @@
   import type { Map, LngLatBoundsLike } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import { WarpedMapLayer } from '@allmaps/maplibre';
-  import type { Map as GeoreferencedMap } from '@allmaps/annotation';
   import { IIIF } from '@allmaps/iiif-parser';
   import { fetchAnnotationsFromApi } from '@allmaps/stdlib';
+
+  type GeoreferencedMap = unknown;
 
   // Props
   export let mapSource: string | GeoreferencedMap | undefined = undefined;
@@ -138,7 +139,7 @@
       // Create and add the new layer
       console.log(`Attempting to add layer ${mapId} with source:`, source);
       warpedMapLayer = new WarpedMapLayer(mapId);
-      map.addLayer(warpedMapLayer);
+      map.addLayer(warpedMapLayer as unknown as maplibregl.CustomLayerInterface);
 
       if (!warpedMapLayer) {
         throw new Error('Không thể khởi tạo WarpedMapLayer.');
