@@ -1,7 +1,6 @@
 import type { FeatureCollection, GeoJsonObject } from 'geojson';
 
 export type ViewMode = 'overlay' | 'side-x' | 'side-y' | 'spy';
-export type TabKey = 'map' | 'annotations';
 export type DrawingMode = 'point' | 'line' | 'polygon';
 
 export interface MapListItem {
@@ -40,6 +39,24 @@ export interface PersistedViewSettings {
   opacity: number;
 }
 
+export interface StoryScene {
+  id: string;
+  title: string;
+  details: string;
+  delay: number;
+  center: [number, number];
+  zoom: number;
+  rotation: number;
+  basemap: string;
+  overlayId: string | null;
+  opacity: number;
+  viewMode: ViewMode;
+  sideRatio: number;
+  lensRadius: number;
+  visibleAnnotations: string[];
+  hidden: boolean;
+}
+
 export interface PersistedAppState {
   basemapSelection?: string;
   selectedMapId?: string;
@@ -47,4 +64,5 @@ export interface PersistedAppState {
   mapView?: PersistedViewState;
   view?: PersistedViewSettings;
   annotations?: FeatureCollection;
+  storyScenes?: StoryScene[];
 }

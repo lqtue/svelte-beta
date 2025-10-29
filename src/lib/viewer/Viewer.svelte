@@ -15,12 +15,13 @@
   import { click } from 'ol/events/condition';
   import { fromLonLat } from 'ol/proj';
   import GeoJSON from 'ol/format/GeoJSON';
+  import { inAndOut } from 'ol/easing';
   import { unByKey } from 'ol/Observable';
   import Feature from 'ol/Feature';
   import type { Geometry } from 'ol/geom';
   import Point from 'ol/geom/Point';
   import type { EventsKey } from 'ol/events';
-  import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry } from 'geojson';
+  import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObject } from 'geojson';
   import { WarpedMapLayer } from '@allmaps/openlayers';
   import { IIIF } from '@allmaps/iiif-parser';
   import { fetchAnnotationsFromApi } from '@allmaps/stdlib';
@@ -34,6 +35,9 @@
     BASEMAP_DEFS,
     INITIAL_CENTER
   } from '$lib/viewer/constants';
+  import SearchOverlay from '$lib/viewer/components/SearchOverlay.svelte';
+  import BasemapButtons from '$lib/viewer/components/BasemapButtons.svelte';
+  import StoryPanel from '$lib/viewer/components/StoryPanel.svelte';
   import {
     ensureAnnotationDefaults,
     toAnnotationSummary,
@@ -42,15 +46,18 @@
   } from '$lib/viewer/annotations';
   import type {
     ViewMode,
-    TabKey,
     DrawingMode,
     MapListItem,
     AnnotationSummary,
     SearchResult,
-    PersistedAppState
+    PersistedAppState,
+    StoryScene
   } from '$lib/viewer/types';
 
   const geoJsonFormat = new GeoJSON();
+  const STORY_DELAY_MIN = 1;
+  const STORY_DELAY_MAX = 60;
+  const STORY_DEFAULT_DELAY = 5;
 
   let mapContainer: HTMLDivElement;
   let dividerXEl: HTMLDivElement;
@@ -60,7 +67,7 @@
   let lensEl: HTMLDivElement;
   let lensHandleEl: HTMLButtonElement;
 
-  let basemapSelection = 'esri-imagery';
+  let basemapSelection = 'g-streets';
   let mapTypeSelection = 'all';
   let selectedMapId = '';
   let statusMessage = 'Select a map from the list.';
@@ -70,8 +77,10 @@
   let statusError = false;
   let loading = false;
   let opacity = 0.8;
+  let showWelcome = true;
+  let appMode: 'explore' | 'create' = 'explore';
+  let modeMenuOpen = false;
 
-  let activeTab: TabKey = 'map';
   let drawingMode: DrawingMode | null = null;
 
   let annotations: AnnotationSummary[] = [];
@@ -88,6 +97,20 @@
   let annotationsNotice: string | null = null;
   let annotationsNoticeType: 'info' | 'error' | 'success' = 'info';
   let stateLoaded = false;
+
+  let storyScenes: StoryScene[] = [];
+  let storyEditingIndex: number | null = null;
+  let storyPresenting = false;
+  let storyActiveSceneIndex = 0;
+  let storyAutoplay = false;
+  let storyAutoplayTimer: ReturnType<typeof setTimeout> | null = null;
+  let createPanelTab: 'map' | 'annotations' | 'story' = 'map';
+
+  $: visibleStoryScenes = storyScenes.filter((scene) => !scene.hidden);
+  $: currentStoryScene = storyScenes[storyActiveSceneIndex] ?? null;
+  $: currentStoryVisiblePosition = currentStoryScene
+    ? visibleStoryScenes.findIndex((scene) => scene.id === currentStoryScene.id) + 1
+    : 0;
 
   let geoJsonInputEl: HTMLInputElement | null = null;
 
@@ -113,10 +136,14 @@
   let viewMode: ViewMode = 'overlay';
   let sideRatio = 0.5;
   let lensRadius = 150;
+  let settingsButtonEl: HTMLButtonElement | null = null;
+  let modeMenuEl: HTMLDivElement | null = null;
+  let handleDocumentClick: ((event: MouseEvent) => void) | null = null;
 
   $: basemapLabel = BASEMAP_DEFS.find((base) => base.key === basemapSelection)?.label ?? 'Basemap';
   $: selectedMapLabel = mapList.find((m) => m.id === selectedMapId)?.name ?? 'Select a map';
   $: opacityPercent = Math.round(opacity * 100);
+  $: modeLabel = appMode === 'explore' ? 'Exploring' : 'Creating';
 
   function setStatus(message: string, isError = false) {
     statusMessage = message;
@@ -180,6 +207,9 @@
           dataProjection: 'EPSG:4326'
         });
       }
+    }
+    if (storyScenes.length) {
+      state.storyScenes = storyScenes;
     }
     try {
       window.localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
@@ -250,6 +280,10 @@
       } else if (saved.selectedMapId && mapList.some((item) => item.id === saved.selectedMapId)) {
         selectedMapId = saved.selectedMapId;
       }
+
+      if (Array.isArray(saved.storyScenes)) {
+        storyScenes = saved.storyScenes.map((scene, index) => normalizeStoryScene(scene, index));
+      }
     } catch (error) {
       console.warn('Failed to load saved viewer state', error);
     } finally {
@@ -265,6 +299,87 @@
       console.warn('Failed to clear saved state', error);
     }
     window.location.reload();
+  }
+
+  function createSceneId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `scene-${crypto.randomUUID()}`;
+    }
+    const random = Math.random().toString(36).slice(2, 8);
+    return `scene-${Date.now().toString(36)}-${random}`;
+  }
+
+  function clampStoryDelay(value: number) {
+    if (!Number.isFinite(value)) return STORY_DEFAULT_DELAY;
+    return Math.max(STORY_DELAY_MIN, Math.min(STORY_DELAY_MAX, Math.round(value)));
+  }
+
+  function defaultAnnotationIds() {
+    return annotations.filter((item) => !item.hidden).map((item) => item.id);
+  }
+
+  function clearStoryAutoplayTimer() {
+    if (storyAutoplayTimer) {
+      window.clearTimeout(storyAutoplayTimer);
+      storyAutoplayTimer = null;
+    }
+  }
+
+  function normalizeStoryScene(scene: Partial<StoryScene>, index = 0): StoryScene {
+    let center: [number, number] = [
+      Number.isFinite(INITIAL_CENTER[0]) ? (INITIAL_CENTER[0] as number) : 0,
+      Number.isFinite(INITIAL_CENTER[1]) ? (INITIAL_CENTER[1] as number) : 0
+    ];
+    if (Array.isArray(scene.center) && scene.center.length === 2) {
+      const parsed = scene.center.map((value) => Number(value)) as [number, number];
+      if (parsed.every((value) => Number.isFinite(value))) {
+        center = parsed;
+      }
+    } else if (scene.center && typeof scene.center === 'object' && 'x' in scene.center && 'y' in scene.center) {
+      const x = Number((scene.center as { x: unknown }).x);
+      const y = Number((scene.center as { y: unknown }).y);
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        center = [x, y];
+      }
+    }
+
+    const validBasemap =
+      typeof scene.basemap === 'string' && BASEMAP_DEFS.some((item) => item.key === scene.basemap)
+        ? scene.basemap
+        : basemapSelection;
+
+    const view = map?.getView();
+    const zoomFallback = typeof scene.zoom === 'number' ? scene.zoom : view?.getZoom() ?? 14;
+    const rotationFallback = typeof scene.rotation === 'number' ? scene.rotation : 0;
+
+    const viewModeCandidate = scene.viewMode;
+    const viewModeValue: ViewMode =
+      viewModeCandidate === 'side-x' || viewModeCandidate === 'side-y' || viewModeCandidate === 'spy'
+        ? viewModeCandidate
+        : 'overlay';
+
+    const annotationsList = Array.isArray(scene.visibleAnnotations)
+      ? scene.visibleAnnotations.map((value) => String(value))
+      : defaultAnnotationIds();
+
+    return {
+      id: typeof scene.id === 'string' ? scene.id : createSceneId(),
+      title:
+        typeof scene.title === 'string' && scene.title.trim().length ? scene.title : `Scene ${Number(index) + 1}`,
+      details: typeof scene.details === 'string' ? scene.details : '',
+      delay: clampStoryDelay(typeof scene.delay === 'number' ? scene.delay : STORY_DEFAULT_DELAY),
+      center,
+      zoom: zoomFallback,
+      rotation: rotationFallback,
+      basemap: validBasemap,
+      overlayId: typeof scene.overlayId === 'string' && scene.overlayId.length ? scene.overlayId : null,
+      opacity: typeof scene.opacity === 'number' ? scene.opacity : opacity,
+      viewMode: viewModeValue,
+      sideRatio: typeof scene.sideRatio === 'number' ? scene.sideRatio : 0.5,
+      lensRadius: typeof scene.lensRadius === 'number' ? scene.lensRadius : 150,
+      visibleAnnotations: annotationsList,
+      hidden: Boolean(scene.hidden)
+    };
   }
 
   function applyBasemap(name: string) {
@@ -656,6 +771,20 @@
     queueSaveState();
   }
 
+  function chooseAppMode(mode: 'explore' | 'create') {
+    appMode = mode;
+    if (mode === 'explore') {
+      deactivateDrawing();
+      storyEditingIndex = null;
+      stopStoryPresentation();
+    }
+    if (mode === 'create') {
+      createPanelTab = 'map';
+    }
+    showWelcome = false;
+    modeMenuOpen = false;
+  }
+
   function handleModeClick(mode: ViewMode) {
     setViewMode(mode);
     queueSaveState();
@@ -768,6 +897,384 @@
     annotations = [];
     queueSaveState();
     setAnnotationsNotice('All annotations cleared.', 'info');
+  }
+
+  function clearOverlay() {
+    if (warpedLayer && currentMapId) {
+      try {
+        warpedLayer.setMapOpacity(currentMapId, 0);
+      } catch {
+        /* no-op */
+      }
+    }
+    currentMapId = null;
+    loadedOverlayId = null;
+    selectedMapId = '';
+  }
+
+  async function applyStoryScene(scene: StoryScene, options: { animate?: boolean } = {}) {
+    const animate = options.animate ?? true;
+    const nextBasemap =
+      scene.basemap && BASEMAP_DEFS.some((item) => item.key === scene.basemap) ? scene.basemap : basemapSelection;
+    if (nextBasemap !== basemapSelection) {
+      basemapSelection = nextBasemap;
+    }
+    applyBasemap(nextBasemap);
+
+    if (scene.overlayId) {
+      if (scene.overlayId !== loadedOverlayId) {
+        await loadOverlaySource(scene.overlayId);
+      } else if (currentMapId && warpedLayer) {
+        try {
+          warpedLayer.setMapOpacity(currentMapId, scene.opacity);
+        } catch {
+          /* no-op */
+        }
+      }
+      selectedMapId = scene.overlayId;
+    } else {
+      clearOverlay();
+    }
+
+    opacity = scene.opacity;
+    if (currentMapId && warpedLayer) {
+      try {
+        warpedLayer.setMapOpacity(currentMapId, opacity);
+      } catch {
+        /* no-op */
+      }
+    }
+
+    setViewMode(scene.viewMode ?? 'overlay');
+    sideRatio = scene.sideRatio ?? 0.5;
+    lensRadius = scene.lensRadius ?? 150;
+    refreshDecorations();
+
+    const view = map?.getView();
+    if (view) {
+      const rotation = scene.viewMode === 'overlay' ? scene.rotation ?? 0 : 0;
+      if (animate) {
+        view.animate({
+          center: scene.center,
+          zoom: scene.zoom,
+          rotation,
+          duration: 900,
+          easing: inAndOut
+        });
+      } else {
+        view.setCenter(scene.center);
+        view.setZoom(scene.zoom);
+        view.setRotation(rotation);
+      }
+    }
+
+    if (annotationSource) {
+      const visibleIds = new Set(scene.visibleAnnotations ?? []);
+      annotationSource.getFeatures().forEach((feature) => {
+        const id = String(feature.getId() ?? '');
+        feature.set('hidden', !visibleIds.has(id));
+      });
+      updateAnnotationSummaries();
+    }
+    queueSaveState();
+  }
+
+  function findFirstVisibleStoryIndex(startIndex = 0) {
+    if (!storyScenes.length) return null;
+    for (let i = 0; i < storyScenes.length; i += 1) {
+      const index = (startIndex + i) % storyScenes.length;
+      if (!storyScenes[index].hidden) {
+        return index;
+      }
+    }
+    return null;
+  }
+
+  function findNextVisibleStoryIndex(currentIndex: number, direction: 1 | -1) {
+    if (!storyScenes.length) return null;
+    for (let step = 1; step <= storyScenes.length; step += 1) {
+      const index = (currentIndex + direction * step + storyScenes.length) % storyScenes.length;
+      if (!storyScenes[index].hidden) {
+        return index;
+      }
+    }
+    return null;
+  }
+
+  async function goToStoryScene(index: number, options: { animate?: boolean } = {}) {
+    const scene = storyScenes[index];
+    if (!scene) return;
+    storyActiveSceneIndex = index;
+    await applyStoryScene(scene, options);
+    if (storyAutoplay) {
+      scheduleNextStoryScene();
+    }
+  }
+
+  async function startStoryPresentation(startIndex = 0) {
+    const targetIndex = findFirstVisibleStoryIndex(startIndex);
+    if (targetIndex === null) {
+      setStatus('Nothing to present — capture or show a scene first.', false);
+      return;
+    }
+    storyPresenting = true;
+    storyAutoplay = false;
+    clearStoryAutoplayTimer();
+    await goToStoryScene(targetIndex, { animate: false });
+  }
+
+  function stopStoryPresentation() {
+    storyPresenting = false;
+    storyAutoplay = false;
+    clearStoryAutoplayTimer();
+  }
+
+  function scheduleNextStoryScene() {
+    clearStoryAutoplayTimer();
+    if (!storyAutoplay) return;
+    const nextIndex = findNextVisibleStoryIndex(storyActiveSceneIndex, 1);
+    if (nextIndex === null || nextIndex === storyActiveSceneIndex) {
+      storyAutoplay = false;
+      return;
+    }
+    const scene = storyScenes[storyActiveSceneIndex];
+    const delayMs = clampStoryDelay(scene?.delay ?? STORY_DEFAULT_DELAY) * 1000;
+    storyAutoplayTimer = window.setTimeout(() => {
+      goToStoryScene(nextIndex).catch((error) => console.error('Failed to advance story scene', error));
+    }, delayMs);
+  }
+
+  async function nextStoryScene() {
+    const nextIndex = findNextVisibleStoryIndex(storyActiveSceneIndex, 1);
+    if (nextIndex !== null && nextIndex !== storyActiveSceneIndex) {
+      await goToStoryScene(nextIndex);
+    }
+  }
+
+  async function previousStoryScene() {
+    const prevIndex = findNextVisibleStoryIndex(storyActiveSceneIndex, -1);
+    if (prevIndex !== null && prevIndex !== storyActiveSceneIndex) {
+      await goToStoryScene(prevIndex);
+    }
+  }
+
+  function toggleStoryAutoplay() {
+    storyAutoplay = !storyAutoplay;
+    if (storyAutoplay) {
+      scheduleNextStoryScene();
+    } else {
+      clearStoryAutoplayTimer();
+    }
+  }
+
+  function handleStoryCapture(event: CustomEvent<{ title: string; details: string; delay: number; annotations: string[] }>) {
+    if (!map) return;
+    const view = map.getView();
+    const center = (view.getCenter() as [number, number]) ?? INITIAL_CENTER;
+    const zoom = view.getZoom() ?? 14;
+    const rotation = view.getRotation() ?? 0;
+    const { title: rawTitle, details, delay: rawDelay, annotations: selectedAnnotations } = event.detail;
+    const scene: StoryScene = {
+      id: storyEditingIndex !== null ? storyScenes[storyEditingIndex]?.id ?? createSceneId() : createSceneId(),
+      title: rawTitle.trim() || `Scene ${storyScenes.length + 1}`,
+      details,
+      delay: clampStoryDelay(rawDelay),
+      center,
+      zoom,
+      rotation,
+      basemap: basemapSelection,
+      overlayId: loadedOverlayId,
+      opacity,
+      viewMode,
+      sideRatio,
+      lensRadius,
+      visibleAnnotations: selectedAnnotations.length ? selectedAnnotations : defaultAnnotationIds(),
+      hidden: storyEditingIndex !== null ? storyScenes[storyEditingIndex]?.hidden ?? false : false
+    };
+    if (storyEditingIndex !== null && storyEditingIndex >= 0 && storyEditingIndex < storyScenes.length) {
+      storyScenes = storyScenes.map((existing, index) => (index === storyEditingIndex ? scene : existing));
+      storyEditingIndex = null;
+      setAnnotationsNotice('Scene updated.', 'success');
+    } else {
+      storyScenes = [...storyScenes, scene];
+      setAnnotationsNotice('Scene captured.', 'success');
+    }
+    queueSaveState();
+  }
+
+  async function handleStoryEdit(event: CustomEvent<{ index: number }>) {
+    const { index } = event.detail;
+    const scene = storyScenes[index];
+    if (!scene) return;
+    storyEditingIndex = index;
+    await applyStoryScene(scene, { animate: false });
+  }
+
+  function handleStoryCancelEdit() {
+    storyEditingIndex = null;
+  }
+
+  async function handleStoryApply(event: CustomEvent<{ index: number }>) {
+    const { index } = event.detail;
+    await goToStoryScene(index);
+  }
+
+  function handleStoryDuplicate(event: CustomEvent<{ index: number }>) {
+    const { index } = event.detail;
+    const scene = storyScenes[index];
+    if (!scene) return;
+    const copy: StoryScene = {
+      ...scene,
+      id: createSceneId(),
+      title: `${scene.title} (Copy)`
+    };
+    const updated = [...storyScenes];
+    updated.splice(index + 1, 0, copy);
+    storyScenes = updated;
+    queueSaveState();
+    setAnnotationsNotice('Scene duplicated.', 'success');
+  }
+
+  function handleStoryToggleHidden(event: CustomEvent<{ index: number }>) {
+    const { index } = event.detail;
+    const scene = storyScenes[index];
+    if (!scene) return;
+    storyScenes = storyScenes.map((existing, idx) =>
+      idx === index ? { ...existing, hidden: !existing.hidden } : existing
+    );
+    if (storyPresenting) {
+      const current = storyScenes[index];
+      if (current && current.hidden && storyActiveSceneIndex === index) {
+        const nextIndex = findFirstVisibleStoryIndex(index);
+        if (nextIndex === null) {
+          stopStoryPresentation();
+        } else {
+          goToStoryScene(nextIndex, { animate: false }).catch((error) =>
+            console.error('Failed to advance story scene', error)
+          );
+        }
+      }
+    }
+    queueSaveState();
+  }
+
+  function handleStoryDelete(event: CustomEvent<{ index: number }>) {
+    const { index } = event.detail;
+    if (index < 0 || index >= storyScenes.length) return;
+    const updated = [...storyScenes];
+    updated.splice(index, 1);
+    storyScenes = updated;
+    if (storyEditingIndex !== null) {
+      if (storyEditingIndex === index) {
+        storyEditingIndex = null;
+      } else if (storyEditingIndex > index) {
+        storyEditingIndex -= 1;
+      }
+    }
+    if (storyPresenting) {
+      const visibleIndex = findFirstVisibleStoryIndex(storyActiveSceneIndex);
+      if (visibleIndex === null) {
+        stopStoryPresentation();
+      } else {
+        storyActiveSceneIndex = visibleIndex;
+        goToStoryScene(visibleIndex, { animate: false }).catch((error) =>
+          console.error('Failed to advance story scene', error)
+        );
+      }
+    }
+    queueSaveState();
+  }
+
+  function handleStoryMove(event: CustomEvent<{ from: number; to: number }>) {
+    const { from, to } = event.detail;
+    if (from === to || from < 0 || to < 0 || from >= storyScenes.length || to >= storyScenes.length) return;
+    const updated = [...storyScenes];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    storyScenes = updated;
+    if (storyEditingIndex !== null) {
+      if (storyEditingIndex === from) {
+        storyEditingIndex = to;
+      } else if (storyEditingIndex > from && storyEditingIndex <= to) {
+        storyEditingIndex -= 1;
+      } else if (storyEditingIndex < from && storyEditingIndex >= to) {
+        storyEditingIndex += 1;
+      }
+    }
+    if (storyPresenting) {
+      if (storyActiveSceneIndex === from) {
+        storyActiveSceneIndex = to;
+      } else if (storyActiveSceneIndex > from && storyActiveSceneIndex <= to) {
+        storyActiveSceneIndex -= 1;
+      } else if (storyActiveSceneIndex < from && storyActiveSceneIndex >= to) {
+        storyActiveSceneIndex += 1;
+      }
+    }
+    queueSaveState();
+  }
+
+  function handleStoryPresent(event: CustomEvent<{ startIndex?: number }>) {
+    const { startIndex = 0 } = event.detail;
+    startStoryPresentation(startIndex).catch((error) => console.error('Failed to start presentation', error));
+  }
+
+  function handleStoryExport() {
+    if (!storyScenes.length) return;
+    const features = annotationSource?.getFeatures() ?? [];
+    const payload = {
+      scenes: storyScenes,
+      features: features.length
+        ? geoJsonFormat.writeFeaturesObject(features, {
+            featureProjection: 'EPSG:3857',
+            dataProjection: 'EPSG:4326'
+          })
+        : null
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const element = document.createElement('a');
+    element.href = url;
+    element.download = `story-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    element.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleStoryLoad(event: CustomEvent<{ file: File }>) {
+    const { file } = event.detail;
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as { scenes?: Partial<StoryScene>[]; features?: unknown };
+      if (!parsed || !Array.isArray(parsed.scenes)) {
+        setAnnotationsNotice('Invalid story file.', 'error');
+        return;
+      }
+
+      if (annotationSource && parsed.features) {
+        try {
+          const features = geoJsonFormat.readFeatures(parsed.features as GeoJsonObject, {
+            dataProjection: 'EPSG:4326',
+            featureProjection: 'EPSG:3857'
+          }) as Feature<Geometry>[];
+          annotationSource.clear();
+          features.forEach((feature) => ensureAnnotationDefaults(feature));
+          annotationSource.addFeatures(features);
+          updateAnnotationSummaries();
+        } catch (error) {
+          console.warn('Unable to load story features', error);
+          setAnnotationsNotice('Story loaded without annotations.', 'info');
+        }
+      }
+
+      storyScenes = parsed.scenes.map((scene, index) => normalizeStoryScene(scene, index));
+      storyEditingIndex = null;
+      stopStoryPresentation();
+      queueSaveState();
+      setAnnotationsNotice('Story loaded.', 'success');
+    } catch (error) {
+      console.error('Failed to load story file', error);
+      setAnnotationsNotice('Failed to load story file.', 'error');
+    }
   }
 
   function clearSearchResults() {
@@ -1122,6 +1629,15 @@
         stateLoaded = true;
       });
 
+    handleDocumentClick = (event: MouseEvent) => {
+      if (!modeMenuOpen) return;
+      const target = event.target as Node;
+      if (modeMenuEl && modeMenuEl.contains(target)) return;
+      if (settingsButtonEl && settingsButtonEl.contains(target)) return;
+      modeMenuOpen = false;
+    };
+    document.addEventListener('click', handleDocumentClick);
+
     window.addEventListener('pointermove', handlePointerDrag);
     window.addEventListener('pointerup', stopPointerDrag);
     window.addEventListener('pointercancel', stopPointerDrag);
@@ -1130,6 +1646,10 @@
   onDestroy(() => {
     currentLoadAbort?.abort();
     searchAbortController?.abort();
+    if (handleDocumentClick) {
+      document.removeEventListener('click', handleDocumentClick);
+      handleDocumentClick = null;
+    }
     window.removeEventListener('pointermove', handlePointerDrag);
     window.removeEventListener('pointerup', stopPointerDrag);
     window.removeEventListener('pointercancel', stopPointerDrag);
@@ -1151,6 +1671,7 @@
     searchSource = null;
     modifyInteraction = null;
     selectInteraction = null;
+    clearStoryAutoplayTimer();
   });
 
   $: applyBasemap(basemapSelection);
@@ -1158,6 +1679,29 @@
 </script>
 
 <div class="viewer">
+  {#if showWelcome}
+    <div class="welcome-overlay">
+      <div class="welcome-card">
+        <h1>Welcome to the viewer</h1>
+        <p>
+          This experience lets you explore historic maps alongside the modern web. Pick how you want to get started.
+        </p>
+        <div class="welcome-actions">
+          <button type="button" class:selected={appMode === 'explore'} on:click={() => chooseAppMode('explore')}>
+            Exploring
+          </button>
+          <button
+            type="button"
+            class:selected={appMode === 'create'}
+            on:click={() => chooseAppMode('create')}
+          >
+            Creating
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <div class="map-wrapper">
     <div bind:this={mapContainer} class="map"></div>
     <div bind:this={dividerXEl} class="divider vertical" aria-hidden="true"></div>
@@ -1204,25 +1748,132 @@
     ></button>
   </div>
 
-  <div class="control-bar">
-    <div class="control-panel" class:collapsed={panelCollapsed}>
-      <div class="panel-header">
-      <div class="panel-summary">
-        <span class="panel-title">{selectedMapLabel}</span>
-        <span class="panel-sub">{basemapLabel} · {opacityPercent}%</span>
+  <SearchOverlay
+    bind:searchQuery
+    {panelCollapsed}
+    {searchResults}
+    {searchLoading}
+    {searchNotice}
+    {searchNoticeType}
+    {appMode}
+    queueSearch={queueSearch}
+    locateUser={locateUser}
+    clearSearch={clearSearch}
+    zoomToSearchResult={zoomToSearchResult}
+    addSearchResultToAnnotations={addSearchResultToAnnotations}
+    presenting={storyPresenting}
+  />
+
+  {#if storyPresenting && currentStoryScene}
+    <div class="story-presenter">
+      <div class="story-presenter-content">
+        <div class="story-presenter-nav">
+          <span class="counter">
+            {currentStoryVisiblePosition || 1} / {Math.max(visibleStoryScenes.length, 1)}
+          </span>
+          <button
+            type="button"
+            class="chip ghost"
+            on:click={previousStoryScene}
+            disabled={visibleStoryScenes.length < 2}
+          >
+            ◀ Prev
+          </button>
+          <button
+            type="button"
+            class="chip"
+            class:active={storyAutoplay}
+            on:click={toggleStoryAutoplay}
+          >
+            {storyAutoplay ? 'Pause' : 'Play'}
+          </button>
+          <button
+            type="button"
+            class="chip ghost"
+            on:click={nextStoryScene}
+            disabled={visibleStoryScenes.length < 2}
+          >
+            Next ▶
+          </button>
+          <button type="button" class="chip danger" on:click={stopStoryPresentation}>
+            Exit
+          </button>
+        </div>
+        <div class="story-presenter-body">
+          <h2>{currentStoryScene.title}</h2>
+          {#if currentStoryScene.details?.trim().length}
+            <p>{currentStoryScene.details}</p>
+          {:else}
+            <p class="muted">No additional details for this scene.</p>
+          {/if}
+        </div>
       </div>
-      <button
-          type="button"
-          class="collapse-toggle"
-          on:click={togglePanel}
-          aria-expanded={!panelCollapsed}
-        >
-          {panelCollapsed ? 'Expand' : 'Collapse'}
-        </button>
+    </div>
+  {/if}
+
+  <div class="control-bar" class:presenting={storyPresenting}>
+    <div class="control-panel" class:collapsed={panelCollapsed} class:disabled={searchLoading || storyPresenting}>
+      <div class="panel-header">
+        <div class="panel-summary">
+          <span class="panel-title">{selectedMapLabel}</span>
+          <span class="panel-sub">{basemapLabel} · {opacityPercent}% · {modeLabel}</span>
+        </div>
+        <div class="panel-actions">
+          <div class="mode-control">
+            <button
+              bind:this={settingsButtonEl}
+              type="button"
+              class="settings-button"
+              on:click={() => (modeMenuOpen = !modeMenuOpen)}
+              aria-haspopup="true"
+              aria-expanded={modeMenuOpen}
+            >
+              Settings
+            </button>
+            {#if modeMenuOpen}
+              <div bind:this={modeMenuEl} class="mode-menu" role="menu">
+                <p class="menu-title">Choose mode</p>
+                <div class="menu-options">
+                  <button
+                    type="button"
+                    class:selected={appMode === 'explore'}
+                    on:click={() => chooseAppMode('explore')}
+                    role="menuitem"
+                  >
+                    Exploring
+                  </button>
+                  <button
+                    type="button"
+                    class:selected={appMode === 'create'}
+                    on:click={() => chooseAppMode('create')}
+                    role="menuitem"
+                  >
+                    Creating
+                  </button>
+                </div>
+              </div>
+            {/if}
+          </div>
+          <button
+            type="button"
+            class="collapse-toggle"
+            on:click={togglePanel}
+            aria-expanded={!panelCollapsed}
+          >
+            {panelCollapsed ? 'Expand' : 'Collapse'}
+          </button>
+        </div>
       </div>
 
       {#if panelCollapsed}
         <div class="collapsed-content">
+          <div class="collapsed-slider">
+            <span class="control-label">Opacity</span>
+            <div class="slider">
+              <input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleOpacityInput} />
+              <span>{opacityPercent}%</span>
+            </div>
+          </div>
           <div class="mini-modes">
             <button
               type="button"
@@ -1243,271 +1894,269 @@
           </div>
         </div>
       {:else}
-        <div class="tab-switcher">
-          <button
-            type="button"
-            class:selected={activeTab === 'map'}
-            on:click={() => (activeTab = 'map')}
-          >
-            Map
-          </button>
-          <button
-            type="button"
-            class:selected={activeTab === 'annotations'}
-            on:click={() => (activeTab = 'annotations')}
-          >
-            Annotations
-          </button>
-        </div>
-
-        {#if activeTab === 'map'}
-          <div class="tab-panel map-tab">
-            <div class="control-row wrap">
-              <label class="control-group">
-                <span class="control-label">Basemap</span>
-                <select bind:value={basemapSelection} on:change={queueSaveState}>
-                  {#each BASEMAP_DEFS as basemap}
-                    <option value={basemap.key}>{basemap.label}</option>
-                  {/each}
-                </select>
-              </label>
-
-              <label class="control-group">
-                <span class="control-label">Type</span>
-                <select bind:value={mapTypeSelection}>
-                  <option value="all">All ({mapList.length})</option>
-                  {#each [...new Set(mapList.map((item) => item.type))].sort() as type}
-                    <option value={type}>{type}</option>
-                  {/each}
-                </select>
-              </label>
-
-              <label class="control-group grow">
-                <span class="control-label">Map</span>
-                <select bind:value={selectedMapId} on:change={handleSelectChange}>
-                  <option value="" disabled selected>Select…</option>
-                  {#each filteredMapList as item}
-                    <option value={item.id}>{item.name}</option>
-                  {/each}
-                </select>
-              </label>
+        <div class="panel-content">
+          {#if appMode === 'create'}
+            <div class="create-tabs" role="tablist" aria-label="Create mode sections">
+              <button
+                type="button"
+                role="tab"
+                class:selected={createPanelTab === 'map'}
+                aria-selected={createPanelTab === 'map'}
+                on:click={() => (createPanelTab = 'map')}
+              >
+                Map
+              </button>
+              <button
+                type="button"
+                role="tab"
+                class:selected={createPanelTab === 'annotations'}
+                aria-selected={createPanelTab === 'annotations'}
+                on:click={() => (createPanelTab = 'annotations')}
+              >
+                Annotations
+              </button>
+              <button
+                type="button"
+                role="tab"
+                class:selected={createPanelTab === 'story'}
+                aria-selected={createPanelTab === 'story'}
+                on:click={() => (createPanelTab = 'story')}
+              >
+                Storytelling
+              </button>
             </div>
+          {/if}
 
-            <div class="control-row slider-row">
-              <div class="control-group slider-group">
-                <span class="control-label">Opacity</span>
-                <div class="slider">
-                  <input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleOpacityInput} />
-                  <span>{opacityPercent}%</span>
+          {#if appMode !== 'create' || createPanelTab === 'map'}
+            <section class="control-section">
+              <p class="section-title">Base map</p>
+              <div class="section-body">
+                <div class="control-group">
+                  <BasemapButtons
+                    basemaps={BASEMAP_DEFS}
+                    selected={basemapSelection}
+                    on:select={(event) => {
+                      basemapSelection = event.detail;
+                      queueSaveState();
+                    }}
+                  />
                 </div>
               </div>
-            </div>
+            </section>
 
-            <div class="mode-row">
-              <div class="mode-buttons">
-                <button
-                  type="button"
-                  class:selected={viewMode === 'overlay'}
-                  on:click={() => handleModeClick('overlay')}
-                >
-                  Overlay
-                </button>
-                <button type="button" class:selected={viewMode === 'side-x'} on:click={() => handleModeClick('side-x')}>
-                  Side X
-                </button>
-                <button type="button" class:selected={viewMode === 'side-y'} on:click={() => handleModeClick('side-y')}>
-                  Side Y
-                </button>
-                <button type="button" class:selected={viewMode === 'spy'} on:click={() => handleModeClick('spy')}>
-                  Spyglass
-                </button>
-              </div>
-            </div>
+            <section class="control-section">
+              <p class="section-title">Overlay map</p>
+              <div class="section-body overlay-grid">
+                <label class="control-group">
+                  <span class="control-label">Type</span>
+                  <select bind:value={mapTypeSelection}>
+                    <option value="all">All ({mapList.length})</option>
+                    {#each [...new Set(mapList.map((item) => item.type))].sort() as type}
+                      <option value={type}>{type}</option>
+                    {/each}
+                  </select>
+                </label>
 
-            <div class="panel-footer">
-              <div class="footer-actions">
-                <button type="button" class="btn footer" on:click={zoomToOverlayExtent} disabled={!currentMapId}>
-                  Zoom
-                </button>
-                <button type="button" class="btn footer ghost" on:click={clearSavedState}>
-                  Clear cache
-                </button>
+                <label class="control-group grow">
+                  <span class="control-label">Map</span>
+                  <select bind:value={selectedMapId} on:change={handleSelectChange}>
+                    <option value="" disabled selected>Select…</option>
+                    {#each filteredMapList as item}
+                      <option value={item.id}>{item.name}</option>
+                    {/each}
+                  </select>
+                </label>
               </div>
-              <div class="status-row">
-                {#if loading}
-                  <span class="spinner" aria-hidden="true"></span>
-                {/if}
-                <p class:errored={statusError}>{statusMessage}</p>
-              </div>
-            </div>
-          </div>
-        {:else}
-          <div class="tab-panel annotations-tab">
-            <div class="annotation-section">
-              <div class="control-label block">Search</div>
-              <div class="search-row">
-                <input
-                  type="text"
-                  placeholder="Search for a place or address…"
-                  bind:value={searchQuery}
-                  on:input={(event) => queueSearch((event.target as HTMLInputElement).value)}
-                />
-                <button type="button" class="chip" on:click={() => runSearch(searchQuery)} disabled={searchLoading}>
-                  Find
-                </button>
-                <button type="button" class="chip" on:click={locateUser} disabled={searchLoading}>
-                  Locate
-                </button>
-                <button type="button" class="chip ghost" on:click={clearSearch}>
-                  Clear
-                </button>
-              </div>
-              <div class="search-status">
-                {#if searchLoading}
-                  <span>Searching…</span>
-                {:else if searchNotice}
-                  <span
-                    class:errored={searchNoticeType === 'error'}
-                    class:success={searchNoticeType === 'success'}
+            </section>
+
+            <section class="control-section">
+              <p class="section-title">View Mode &amp; Opacity</p>
+              <div class="view-grid">
+                <div class="slider-group">
+                  <span class="control-label">Opacity</span>
+                  <div class="slider">
+                    <input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleOpacityInput} />
+                    <span>{opacityPercent}%</span>
+                  </div>
+                </div>
+                <div class="mode-buttons">
+                  <button
+                    type="button"
+                    class:selected={viewMode === 'overlay'}
+                    on:click={() => handleModeClick('overlay')}
                   >
-                    {searchNotice}
-                  </span>
-                {:else}
-                  <span>Tip: click a result to zoom, “Add” to save it.</span>
-                {/if}
-              </div>
-              <div class="search-results">
-                {#if searchResults.length}
-                  {#each searchResults as result (result.display_name)}
-                    <div class="search-result">
-                      <button type="button" on:click={() => zoomToSearchResult(result)}>
-                        <span class="result-title">{result.display_name}</span>
-                        {#if result.type}
-                          <span class="result-type">{result.type}</span>
-                        {/if}
-                      </button>
-                      <button type="button" class="chip add" on:click={() => addSearchResultToAnnotations(result)}>
-                        Add
-                      </button>
-                    </div>
-                  {/each}
-                {:else}
-                  <p class="search-placeholder">Results will appear here.</p>
-                {/if}
-              </div>
-            </div>
-
-            <div class="annotation-section">
-              <div class="control-label block">Draw</div>
-              <div class="draw-buttons">
-                <button type="button" class:selected={drawingMode === 'point'} on:click={() => setDrawingMode('point')}>
-                  Point
-                </button>
-                <button type="button" class:selected={drawingMode === 'line'} on:click={() => setDrawingMode('line')}>
-                  Line
-                </button>
-                <button
-                  type="button"
-                  class:selected={drawingMode === 'polygon'}
-                  on:click={() => setDrawingMode('polygon')}
-                >
-                  Polygon
-                </button>
-                <button type="button" class="ghost" on:click={deactivateDrawing} disabled={!drawingMode}>
-                  Done
-                </button>
-              </div>
-              <p class="hint">
-                Click on the map to draw. Press Enter to finish, Esc to cancel the current shape.
-              </p>
-            </div>
-
-            <div class="annotation-section">
-              <div class="annotation-header">
-                <span class="control-label block">Current annotations ({annotations.length})</span>
-                <button type="button" class="chip ghost" on:click={clearAnnotations} disabled={!annotations.length}>
-                  Clear all
-                </button>
-              </div>
-              {#if annotationsNotice}
-                <p
-                  class="annotations-notice"
-                  class:errored={annotationsNoticeType === 'error'}
-                  class:success={annotationsNoticeType === 'success'}
-                >
-                  {annotationsNotice}
-                </p>
-              {/if}
-              {#if annotations.length}
-                <div class="annotation-list custom-scrollbar">
-                  {#each annotations as annotation (annotation.id)}
-                    <div class="annotation-item" class:selected={annotation.id === selectedAnnotationId}>
-                      <div class="item-main">
-                        <button
-                          type="button"
-                          class="item-label"
-                          on:click={() => {
-                            selectedAnnotationId = annotation.id;
-                            zoomToAnnotation(annotation.id);
-                          }}
-                        >
-                          <span class="text">{annotation.label || 'Untitled'}</span>
-                          <span class="meta">{annotation.type}</span>
-                        </button>
-                        <div class="item-actions">
-                          <input
-                            type="color"
-                            value={annotation.color}
-                            title="Change colour"
-                            on:input={(event) =>
-                              updateAnnotationColor(annotation.id, (event.target as HTMLInputElement).value)}
-                          />
-                          <button type="button" class="chip ghost" on:click={() => toggleAnnotationVisibility(annotation.id)}>
-                            {annotation.hidden ? 'Show' : 'Hide'}
-                          </button>
-                          <button type="button" class="chip danger" on:click={() => deleteAnnotation(annotation.id)}>
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                      <input
-                        class="item-input"
-                        type="text"
-                        value={annotation.label}
-                        placeholder="Annotation label"
-                        on:input={(event) =>
-                          updateAnnotationLabel(annotation.id, (event.target as HTMLInputElement).value)}
-                      />
-                    </div>
-                  {/each}
+                    Overlay
+                  </button>
+                  <button type="button" class:selected={viewMode === 'side-x'} on:click={() => handleModeClick('side-x')}>
+                    Side X
+                  </button>
+                  <button type="button" class:selected={viewMode === 'side-y'} on:click={() => handleModeClick('side-y')}>
+                    Side Y
+                  </button>
+                  <button type="button" class:selected={viewMode === 'spy'} on:click={() => handleModeClick('spy')}>
+                    Spyglass
+                  </button>
                 </div>
-              {:else}
-                <p class="empty-state">
-                  Draw on the map or add a search result to create your first annotation.
-                </p>
-              {/if}
-            </div>
-
-            <div class="annotation-section">
-              <span class="control-label block">Data</span>
-              <div class="data-actions">
-                <button type="button" class="chip" on:click={exportAnnotationsAsGeoJSON}>
-                  Export GeoJSON
-                </button>
-                <button type="button" class="chip ghost" on:click={() => geoJsonInputEl?.click()}>
-                  Import GeoJSON
-                </button>
               </div>
-              <input
-                bind:this={geoJsonInputEl}
-                type="file"
-                accept=".geojson,.json,application/geo+json,application/json"
-                class="sr-only"
-                on:change={handleGeoJsonFileChange}
+            </section>
+          {/if}
+
+          {#if appMode === 'create' && createPanelTab === 'annotations'}
+              <section class="control-section">
+                <p class="section-title">Draw</p>
+                <div class="annotation-section">
+                  <div class="draw-buttons">
+                    <button type="button" class:selected={drawingMode === 'point'} on:click={() => setDrawingMode('point')}>
+                      Point
+                    </button>
+                    <button type="button" class:selected={drawingMode === 'line'} on:click={() => setDrawingMode('line')}>
+                      Line
+                    </button>
+                    <button
+                      type="button"
+                      class:selected={drawingMode === 'polygon'}
+                      on:click={() => setDrawingMode('polygon')}
+                    >
+                      Polygon
+                    </button>
+                    <button type="button" class="ghost" on:click={deactivateDrawing} disabled={!drawingMode}>
+                      Done
+                    </button>
+                  </div>
+                  <p class="hint">
+                    Click on the map to draw. Press Enter to finish, Esc to cancel the current shape.
+                  </p>
+                </div>
+              </section>
+
+              <section class="control-section">
+                <p class="section-title">Annotations</p>
+                <div class="annotation-section">
+                  <div class="annotation-header">
+                    <span class="control-label block">Current annotations ({annotations.length})</span>
+                    <button type="button" class="chip ghost" on:click={clearAnnotations} disabled={!annotations.length}>
+                      Clear all
+                    </button>
+                  </div>
+                  {#if annotationsNotice}
+                    <p
+                      class="annotations-notice"
+                      class:errored={annotationsNoticeType === 'error'}
+                      class:success={annotationsNoticeType === 'success'}
+                    >
+                      {annotationsNotice}
+                    </p>
+                  {/if}
+                  {#if annotations.length}
+                    <div class="annotation-list custom-scrollbar">
+                      {#each annotations as annotation (annotation.id)}
+                        <div class="annotation-item" class:selected={annotation.id === selectedAnnotationId}>
+                          <div class="item-main">
+                            <button
+                              type="button"
+                              class="item-label"
+                              on:click={() => {
+                                selectedAnnotationId = annotation.id;
+                                zoomToAnnotation(annotation.id);
+                              }}
+                            >
+                              <span class="text">{annotation.label || 'Untitled'}</span>
+                              <span class="meta">{annotation.type}</span>
+                            </button>
+                            <div class="item-actions">
+                              <input
+                                type="color"
+                                value={annotation.color}
+                                title="Change colour"
+                                on:input={(event) =>
+                                  updateAnnotationColor(annotation.id, (event.target as HTMLInputElement).value)}
+                              />
+                              <button type="button" class="chip ghost" on:click={() => toggleAnnotationVisibility(annotation.id)}>
+                                {annotation.hidden ? 'Show' : 'Hide'}
+                              </button>
+                              <button type="button" class="chip danger" on:click={() => deleteAnnotation(annotation.id)}>
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            class="item-input"
+                            type="text"
+                            value={annotation.label}
+                            placeholder="Annotation label"
+                            on:input={(event) =>
+                              updateAnnotationLabel(annotation.id, (event.target as HTMLInputElement).value)}
+                          />
+                        </div>
+                      {/each}
+                    </div>
+                  {:else}
+                    <p class="empty-state">
+                      Draw on the map or add a search result to create your first annotation.
+                    </p>
+                  {/if}
+                </div>
+              </section>
+
+              <section class="control-section">
+                <p class="section-title">Data</p>
+                <div class="annotation-section">
+                  <div class="data-actions">
+                    <button type="button" class="chip" on:click={exportAnnotationsAsGeoJSON}>
+                      Export GeoJSON
+                    </button>
+                    <button type="button" class="chip ghost" on:click={() => geoJsonInputEl?.click()}>
+                      Import GeoJSON
+                    </button>
+                  </div>
+                  <input
+                    bind:this={geoJsonInputEl}
+                    type="file"
+                    accept=".geojson,.json,application/geo+json,application/json"
+                    class="sr-only"
+                    on:change={handleGeoJsonFileChange}
+                  />
+                </div>
+              </section>
+          {/if}
+
+          {#if appMode === 'create' && createPanelTab === 'story'}
+              <StoryPanel
+                scenes={storyScenes}
+                annotations={annotations}
+                editingIndex={storyEditingIndex}
+                editingScene={storyEditingIndex !== null ? storyScenes[storyEditingIndex] : null}
+                on:capture={handleStoryCapture}
+                on:cancelEdit={handleStoryCancelEdit}
+                on:edit={handleStoryEdit}
+                on:apply={handleStoryApply}
+                on:duplicate={handleStoryDuplicate}
+                on:toggleHidden={handleStoryToggleHidden}
+                on:delete={handleStoryDelete}
+                on:move={handleStoryMove}
+                on:present={handleStoryPresent}
+                on:export={handleStoryExport}
+                on:load={handleStoryLoad}
               />
+          {/if}
+
+          <div class="panel-footer">
+            <div class="footer-actions">
+              <button type="button" class="btn footer" on:click={zoomToOverlayExtent} disabled={!currentMapId}>
+                Zoom
+              </button>
+              <button type="button" class="btn footer ghost" on:click={clearSavedState}>
+                Clear cache
+              </button>
+            </div>
+            <div class="status-row">
+              {#if loading}
+                <span class="spinner" aria-hidden="true"></span>
+              {/if}
+              <p class:errored={statusError}>{statusMessage}</p>
             </div>
           </div>
-        {/if}
+        </div>
       {/if}
     </div>
   </div>
@@ -1523,6 +2172,74 @@
     overflow: hidden;
   }
 
+  .welcome-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(10px);
+    z-index: 60;
+  }
+
+  .welcome-card {
+    max-width: 420px;
+    width: 100%;
+    background: rgba(17, 24, 39, 0.94);
+    border-radius: 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    text-align: left;
+    box-shadow: 0 18px 38px rgba(2, 6, 23, 0.6);
+  }
+
+  .welcome-card h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .welcome-card p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0;
+    color: rgba(226, 232, 240, 0.9);
+  }
+
+  .welcome-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .welcome-actions button {
+    flex: 1 1 160px;
+    padding: 0.65rem 0.85rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(129, 140, 248, 0.4);
+    background: rgba(30, 41, 59, 0.9);
+    color: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .welcome-actions button.selected {
+    background: rgba(129, 140, 248, 0.3);
+    border-color: rgba(129, 140, 248, 0.85);
+  }
+
+  .welcome-actions button:hover {
+    background: rgba(99, 102, 241, 0.28);
+    border-color: rgba(129, 140, 248, 0.9);
+    transform: translateY(-1px);
+  }
+
   .map-wrapper {
     position: absolute;
     inset: 0;
@@ -1531,6 +2248,78 @@
   .map {
     position: absolute;
     inset: 0;
+  }
+
+  .story-presenter {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 2.5rem 1.25rem;
+    pointer-events: none;
+    z-index: 50;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0) 40%, rgba(15, 23, 42, 0.65) 100%);
+  }
+
+  .story-presenter-content {
+    width: min(640px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    background: rgba(15, 23, 42, 0.92);
+    border-radius: 0.85rem;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    padding: 1rem 1.1rem;
+    box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
+    pointer-events: auto;
+  }
+
+  .story-presenter-nav {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .story-presenter-nav .chip {
+    min-width: 90px;
+  }
+
+  .story-presenter-nav .chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .story-presenter-nav .chip.active {
+    background: rgba(99, 102, 241, 0.65);
+    border-color: rgba(129, 140, 248, 0.95);
+    box-shadow: 0 12px 26px rgba(76, 29, 149, 0.35);
+  }
+
+  .story-presenter-nav .counter {
+    margin-right: auto;
+    font-size: 0.68rem;
+    color: rgba(203, 213, 225, 0.8);
+  }
+
+  .story-presenter-body h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .story-presenter-body p {
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: rgba(226, 232, 240, 0.9);
+    white-space: pre-wrap;
+  }
+
+  .story-presenter-body p.muted {
+    color: rgba(148, 163, 184, 0.75);
   }
 
   .control-bar {
@@ -1543,6 +2332,12 @@
     padding: 0.3rem 0.4rem calc(env(safe-area-inset-bottom) + 0.3rem);
     pointer-events: none;
     background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.55) 45%, rgba(15, 23, 42, 0.95) 100%);
+    z-index: 40;
+  }
+
+  .control-bar.presenting {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .control-panel {
@@ -1560,6 +2355,10 @@
     overflow-y: auto;
   }
 
+  .control-panel.disabled {
+    pointer-events: none;
+  }
+
   .control-panel::-webkit-scrollbar {
     width: 6px;
   }
@@ -1574,6 +2373,16 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
+  }
+
+  .panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .mode-control {
+    position: relative;
   }
 
   .panel-summary {
@@ -1595,6 +2404,22 @@
   .panel-sub {
     font-size: 0.65rem;
     color: rgba(203, 213, 225, 0.8);
+  }
+
+  .settings-button {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.8);
+    color: inherit;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .settings-button:hover {
+    background: rgba(129, 140, 248, 0.35);
+    border-color: rgba(129, 140, 248, 0.75);
   }
 
   .collapse-toggle {
@@ -1624,6 +2449,15 @@
 
   .collapsed-content {
     padding-top: 0.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .collapsed-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
   }
 
   .mini-modes {
@@ -1648,13 +2482,53 @@
     border-color: rgba(129, 140, 248, 0.85);
   }
 
-  .control-row {
-    display: flex;
-    gap: 0.55rem;
+  .mode-menu {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    min-width: 180px;
+    padding: 0.7rem;
+    border-radius: 0.75rem;
+    background: rgba(17, 24, 39, 0.96);
+    border: 1px solid rgba(129, 140, 248, 0.35);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    z-index: 5;
   }
 
-  .control-row.wrap {
-    flex-wrap: wrap;
+  .menu-title {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(203, 213, 225, 0.85);
+    margin-bottom: 0.45rem;
+  }
+
+  .menu-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .menu-options button {
+    padding: 0.4rem 0.65rem;
+    border-radius: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(15, 23, 42, 0.75);
+    color: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .menu-options button.selected {
+    background: rgba(129, 140, 248, 0.35);
+    border-color: rgba(129, 140, 248, 0.85);
+  }
+
+  .menu-options button:hover {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: rgba(129, 140, 248, 0.75);
   }
 
   .control-group {
@@ -1740,174 +2614,185 @@
     border-color: rgba(129, 140, 248, 0.9);
   }
 
-  .tab-switcher {
-    display: flex;
-    gap: 0.35rem;
-    background: rgba(15, 23, 42, 0.7);
-    border-radius: 0.65rem;
-    padding: 0.18rem;
-  }
-
-  .tab-switcher button {
-    flex: 1;
-    padding: 0.35rem 0.6rem;
-    border-radius: 0.55rem;
-    border: 1px solid transparent;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    transition: background 0.15s ease, border-color 0.15s ease;
-  }
-
-  .tab-switcher button.selected {
-    background: rgba(129, 140, 248, 0.25);
-    border-color: rgba(129, 140, 248, 0.8);
-  }
-
-  .tab-panel {
+  .panel-content {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     margin-top: 0.6rem;
   }
 
-  .annotations-tab {
-    gap: 0.65rem;
+  .control-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(129, 140, 248, 0.12);
+    border-radius: 0.7rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .create-tabs {
+    display: flex;
+    gap: 0.45rem;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(129, 140, 248, 0.28);
+    border-radius: 0.85rem;
+    padding: 0.45rem;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);
+  }
+
+  .create-tabs button {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.55rem 0.85rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(30, 41, 59, 0.65);
+    color: rgba(226, 232, 240, 0.92);
+    font-weight: 600;
+    font-size: 0.74rem;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .create-tabs button:hover {
+    background: rgba(67, 56, 202, 0.35);
+    border-color: rgba(129, 140, 248, 0.75);
+    box-shadow: 0 10px 24px rgba(67, 56, 202, 0.25);
+    transform: translateY(-1px);
+  }
+
+  .create-tabs button.selected {
+    background: rgba(99, 102, 241, 0.55);
+    border-color: rgba(129, 140, 248, 0.95);
+    color: #f9fafb;
+    box-shadow: 0 16px 28px rgba(79, 70, 229, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .create-tabs button:focus-visible {
+    outline: 2px solid rgba(129, 140, 248, 0.9);
+    outline-offset: 3px;
+  }
+
+  .section-title {
+    margin: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(203, 213, 225, 0.9);
+  }
+
+  .section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .overlay-grid {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .view-grid {
+    display: grid;
+    gap: 0.6rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: center;
+  }
+
+  .view-grid .mode-buttons {
+    justify-content: flex-start;
   }
 
   .annotation-section {
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
-    background: rgba(15, 23, 42, 0.55);
-    border: 1px solid rgba(129, 140, 248, 0.12);
-    border-radius: 0.7rem;
-    padding: 0.55rem 0.65rem;
   }
 
-  .search-row {
-    display: flex;
-    gap: 0.4rem;
+  :global(.chip) {
+    display: inline-flex;
     align-items: center;
-  }
-
-  .search-row input {
-    flex: 1;
-    padding: 0.4rem 0.55rem;
-    border-radius: 0.65rem;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: rgba(17, 24, 39, 0.85);
-    color: inherit;
-  }
-
-  .search-row input:focus {
-    outline: 2px solid rgba(129, 140, 248, 0.45);
-    outline-offset: 1px;
-  }
-
-  .chip {
-    padding: 0.36rem 0.7rem;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
     border-radius: 999px;
-    border: 1px solid rgba(129, 140, 248, 0.35);
-    background: rgba(129, 140, 248, 0.2);
-    color: inherit;
-    cursor: pointer;
-    font-size: 0.68rem;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: rgba(30, 41, 59, 0.82);
+    color: #f8fafc;
+    font-size: 0.72rem;
     font-weight: 600;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
-  .chip:hover:not(:disabled) {
-    background: rgba(129, 140, 248, 0.35);
-    border-color: rgba(129, 140, 248, 0.8);
+  :global(.chip:hover:not(:disabled)) {
+    background: rgba(79, 70, 229, 0.58);
+    border-color: rgba(129, 140, 248, 0.9);
+    box-shadow: 0 10px 22px rgba(30, 64, 175, 0.22);
     transform: translateY(-1px);
   }
 
-  .chip:disabled {
-    opacity: 0.6;
+  :global(.chip:focus-visible) {
+    outline: 2px solid rgba(129, 140, 248, 0.8);
+    outline-offset: 2px;
+  }
+
+  :global(.chip:disabled) {
+    opacity: 0.55;
     cursor: not-allowed;
+    box-shadow: none;
     transform: none;
   }
 
-  .chip.ghost {
-    background: transparent;
-    border-color: rgba(148, 163, 184, 0.35);
+  :global(.chip.ghost) {
+    background: rgba(15, 23, 42, 0.65);
+    border-color: rgba(148, 163, 184, 0.45);
+    color: rgba(226, 232, 240, 0.92);
   }
 
-  .chip.add {
-    background: rgba(22, 163, 74, 0.25);
-    border-color: rgba(22, 163, 74, 0.55);
+  :global(.chip.ghost:hover:not(:disabled)) {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(191, 219, 254, 0.75);
   }
 
-  .chip.add:hover {
-    background: rgba(22, 163, 74, 0.4);
-    border-color: rgba(22, 163, 74, 0.8);
+  :global(.chip.danger) {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: rgba(252, 165, 165, 0.6);
+    color: #fee2e2;
   }
 
-  .chip.danger {
-    background: rgba(248, 113, 113, 0.25);
-    border-color: rgba(248, 113, 113, 0.55);
+  :global(.chip.danger:hover:not(:disabled)) {
+    background: rgba(248, 113, 113, 0.35);
+    border-color: rgba(248, 113, 113, 0.85);
   }
 
-  .search-status {
-    font-size: 0.7rem;
-    color: rgba(148, 163, 184, 0.85);
+  :global(.chip.add) {
+    background: rgba(34, 197, 94, 0.25);
+    border-color: rgba(134, 239, 172, 0.55);
+    color: #bbf7d0;
   }
 
-  .search-status .errored {
-    color: #fca5a5;
+  :global(.chip.add:hover:not(:disabled)) {
+    background: rgba(34, 197, 94, 0.38);
+    border-color: rgba(134, 239, 172, 0.85);
   }
 
-  .search-status .success {
-    color: #86efac;
-  }
-
-  .search-results {
-    max-height: 180px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .search-result {
-    display: flex;
+  :global(.chip-icon) {
+    display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.45rem;
-    border-radius: 0.55rem;
-    background: rgba(15, 23, 42, 0.55);
-    border: 1px solid rgba(129, 140, 248, 0.12);
-  }
-
-  .search-result > button:first-child {
-    flex: 1;
-    text-align: left;
-    background: transparent;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 0.18rem;
-  }
-
-  .result-title {
-    font-size: 0.75rem;
-    font-weight: 600;
-  }
-
-  .result-type {
-    font-size: 0.62rem;
-    color: rgba(148, 163, 184, 0.85);
-  }
-
-  .search-placeholder {
-    font-size: 0.7rem;
-    color: rgba(148, 163, 184, 0.75);
-    text-align: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    opacity: 0.85;
   }
 
   .draw-buttons {
@@ -2075,7 +2960,10 @@
   }
 
   .slider-group {
-    flex: 1 1 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
   }
 
   .slider {
@@ -2086,15 +2974,6 @@
 
   .slider input[type='range'] {
     flex: 1;
-  }
-
-  .slider-row {
-    margin-top: 0.1rem;
-  }
-
-  .mode-row {
-    display: flex;
-    justify-content: center;
   }
 
   .status-row {
@@ -2117,7 +2996,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    margin-top: 0.35rem;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(129, 140, 248, 0.12);
+    border-radius: 0.7rem;
+    padding: 0.6rem 0.75rem;
   }
 
   .footer-actions {
@@ -2158,7 +3040,7 @@
   .divider {
     position: absolute;
     pointer-events: none;
-    z-index: 30;
+    z-index: 12;
     display: none;
     border-style: dashed;
     border-color: rgba(255, 255, 255, 0.45);
@@ -2184,7 +3066,7 @@
     background: #f9fafb;
     border: 2px solid rgba(31, 41, 55, 0.75);
     box-shadow: 0 6px 15px rgba(15, 23, 42, 0.25);
-    z-index: 35;
+    z-index: 18;
     display: none;
   }
 
@@ -2202,7 +3084,7 @@
     border-radius: 9999px;
     border: 2px solid rgba(15, 23, 42, 0.7);
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75) inset;
-    z-index: 30;
+    z-index: 12;
     display: none;
   }
 
@@ -2215,7 +3097,7 @@
     border: 2px solid rgba(31, 41, 55, 0.75);
     box-shadow: 0 6px 15px rgba(15, 23, 42, 0.25);
     cursor: nwse-resize;
-    z-index: 35;
+    z-index: 18;
     display: none;
   }
 
@@ -2273,36 +3155,16 @@
       max-height: min(60vh, 420px);
     }
 
-    .map-tab {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 0.6rem;
-      align-items: stretch;
+    .panel-content {
+      gap: 0.9rem;
     }
 
-    .map-tab .control-row,
-    .map-tab .slider-row {
-      margin-top: 0;
-    }
-
-    .map-tab .mode-row,
-    .map-tab .panel-footer {
-      grid-column: 1 / -1;
+    .view-grid {
+      grid-template-columns: minmax(240px, 1fr) minmax(220px, auto);
     }
 
     .panel-footer {
-      margin-top: 0;
-    }
-
-    .annotations-tab {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 0.6rem;
-      align-items: start;
-    }
-
-    .annotation-section {
-      height: 100%;
+      flex-direction: row;
     }
   }
 </style>

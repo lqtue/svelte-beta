@@ -24,23 +24,8 @@ export interface BasemapDefinition {
 
 export const BASEMAP_DEFS: BasemapDefinition[] = [
   {
-    key: 'esri-imagery',
-    label: 'ESRI World Imagery',
-    layer: () =>
-      new TileLayer({
-        source: new XYZ({
-          url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-          maxZoom: 22,
-          attributions: 'Tiles © Esri'
-        }),
-        visible: true,
-        properties: { name: 'esri-imagery', base: true },
-        zIndex: 0
-      })
-  },
-  {
     key: 'g-streets',
-    label: 'Google Streets',
+    label: 'Google Maps',
     layer: () =>
       new TileLayer({
         source: new XYZ({
@@ -54,7 +39,7 @@ export const BASEMAP_DEFS: BasemapDefinition[] = [
           maxZoom: 22,
           crossOrigin: 'anonymous'
         }),
-        visible: false,
+        visible: true,
         properties: { name: 'g-streets', base: true },
         zIndex: 0
       })
@@ -77,20 +62,6 @@ export const BASEMAP_DEFS: BasemapDefinition[] = [
         }),
         visible: false,
         properties: { name: 'g-satellite', base: true },
-        zIndex: 0
-      })
-  },
-  {
-    key: 'hcmc-planning',
-    label: 'HCMC Planning',
-    layer: () =>
-      new TileLayer({
-        source: new XYZ({
-          url: 'https://sqhkt-qlqh.tphcm.gov.vn/api/tiles/bandoso/{z}/{x}/{y}',
-          attributions: 'Tiles © HCMC Department of Planning and Architecture'
-        }),
-        visible: false,
-        properties: { name: 'hcmc-planning', base: true },
         zIndex: 0
       })
   }
