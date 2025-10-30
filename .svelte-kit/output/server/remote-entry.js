@@ -2,7 +2,8 @@ import { get_request_store, with_request_store } from "@sveltejs/kit/internal/se
 import { parse } from "devalue";
 import { error, json } from "@sveltejs/kit";
 import { a as stringify_remote_arg, s as stringify, c as create_remote_cache_key } from "./chunks/shared.js";
-import { b as base, c as app_dir, B as BROWSER, p as prerendering } from "./chunks/environment.js";
+import { B as BROWSER } from "./chunks/false.js";
+import { b as base, c as app_dir, p as prerendering } from "./chunks/environment.js";
 function create_validator(validate_or_fn, maybe_fn) {
   if (!maybe_fn) {
     return (arg) => {

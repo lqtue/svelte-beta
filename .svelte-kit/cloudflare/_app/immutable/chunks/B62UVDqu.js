@@ -1,0 +1,1 @@
+import{w as a}from"./Ch_7xMJZ.js";const o="vma:mode",n=()=>window.localStorage.getItem(o)==="create"?"create":"view",s=a(n(),e=>{const r=t=>{t.key===o&&t.newValue&&e(t.newValue==="create"?"create":"view")};return window.addEventListener("storage",r),()=>window.removeEventListener("storage",r)});s.subscribe(e=>{window.localStorage.setItem(o,e)});export{s as m};
