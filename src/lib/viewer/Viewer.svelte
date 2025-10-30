@@ -2164,8 +2164,13 @@
 
 <style>
   .viewer {
+    --layout-max-width: min(960px, calc(100vw - 2rem));
+    --layout-max-height: min(85vh, calc(100vh - 4rem));
     position: relative;
-    height: 100dvh;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100%;
     background: #0f172a;
     color: #f9fafb;
     font-family: system-ui, sans-serif;
@@ -2263,7 +2268,7 @@
   }
 
   .story-presenter-content {
-    width: min(640px, 100%);
+    width: min(var(--layout-max-width), 100%);
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
@@ -2341,7 +2346,7 @@
   }
 
   .control-panel {
-    width: min(960px, 100%);
+    width: min(var(--layout-max-width), 100%);
     background: rgba(17, 24, 39, 0.92);
     border-radius: 0.85rem 0.85rem 0.5rem 0.5rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
@@ -2351,7 +2356,7 @@
     gap: 0.55rem;
     pointer-events: auto;
     backdrop-filter: blur(16px);
-    max-height: min(75vh, 520px);
+    max-height: var(--layout-max-height);
     overflow-y: auto;
   }
 
@@ -3106,8 +3111,11 @@
       border-radius: 0.8rem 0.8rem 0 0;
       padding: 0.4rem 0.45rem calc(env(safe-area-inset-bottom) + 0.25rem);
       gap: 0.4rem;
-      max-height: none;
-      overflow: visible;
+      max-height: min(
+        var(--layout-max-height),
+        calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1.5rem)
+      );
+      overflow-y: auto;
     }
 
     .panel-header {
@@ -3152,7 +3160,7 @@
 
   @media (min-width: 1024px) {
     .control-panel {
-      max-height: min(60vh, 420px);
+      max-height: min(var(--layout-max-height), 70vh);
     }
 
     .panel-content {

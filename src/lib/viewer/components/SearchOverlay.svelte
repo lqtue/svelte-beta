@@ -102,7 +102,7 @@
   }
 
   .search-box {
-    width: min(640px, 100%);
+    width: min(var(--layout-max-width, 640px), 100%);
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
