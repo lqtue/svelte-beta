@@ -7,6 +7,10 @@ export interface MapListItem {
   id: string;
   name: string;
   type: string;
+  summary?: string;
+  description?: string;
+  thumbnail?: string;
+  isFeatured?: boolean;
 }
 
 export interface AnnotationSummary {

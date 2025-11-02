@@ -1,0 +1,95 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: rgba(79, 70, 229, 0.85);
+  color: var(--color-white);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  text-decoration: none;
+  flex-shrink: 0;
+  min-height: 2.25rem;
+}
+
+.chip:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.chip:focus-visible {
+  outline: 3px solid rgba(129, 140, 248, 0.55);
+  outline-offset: 2px;
+}
+
+.chip:disabled,
+.chip[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.chip.ghost {
+  background: rgba(15, 23, 42, 0.45);
+  color: var(--color-white);
+  border-color: rgba(129, 140, 248, 0.35);
+}
+
+.chip.ghost:hover {
+  background: rgba(129, 140, 248, 0.28);
+}
+
+.chip.danger {
+  background: rgba(220, 38, 38, 0.85);
+}
+
+.chip.danger:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.chip.add {
+  background: rgba(34, 197, 94, 0.85);
+}
+
+.chip.add:hover {
+  background: rgba(34, 197, 94, 0.92);
+}
+
+.chip.active {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
+}
+
+.chip.upload {
+  position: relative;
+  overflow: hidden;
+}
+
+.chip.upload input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chip-icon {
+  font-size: var(--text-base);
+  line-height: 1;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.button-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
