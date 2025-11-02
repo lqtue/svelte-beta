@@ -13,7 +13,7 @@
   import Modify from 'ol/interaction/Modify';
   import Select from 'ol/interaction/Select';
   import { click } from 'ol/events/condition';
-  import { fromLonLat } from 'ol/proj';
+import { fromLonLat, toLonLat } from 'ol/proj';
   import GeoJSON from 'ol/format/GeoJSON';
   import { inAndOut } from 'ol/easing';
   import { unByKey } from 'ol/Observable';
@@ -100,8 +100,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   let showWelcome = showWelcomeOverlay;
   let appMode: 'explore' | 'create' = initialMode;
   let isMobile = false;
+  let isCreatorCompact = false;
+  let isCreatorNarrow = false;
   let activeViewerSection: 'map' | 'control' | 'story' | 'info' = 'map';
-  let viewerPanelOpen = true;
+  let viewerPanelOpen = false;
   let creatorRightPane: 'annotations' | 'story' = 'annotations';
   let drawMenuOpen = false;
   let openAnnotationMenu: string | null = null;
@@ -111,6 +113,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   let shareCopied = false;
   let shareResetTimer: ReturnType<typeof setTimeout> | null = null;
   let editingEnabled = true;
+  let workspaceStyle: string | undefined;
   const annotationHistory = createAnnotationHistoryStore(HISTORY_LIMIT);
   const annotationState = createAnnotationStateStore();
   setAnnotationContext({ history: annotationHistory, state: annotationState });
@@ -211,6 +214,15 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   $: if (metadataOverlayOpen && metadataOverlayEl) {
     metadataOverlayEl.focus();
   }
+  $: workspaceStyle =
+    !isMobile && appMode === 'create'
+      ? `grid-template-columns: ${panelColumnSize(creatorLeftCollapsed)} minmax(0, ${mapColumnFraction(
+          creatorLeftCollapsed,
+          creatorRightCollapsed
+        )}fr) ${panelColumnSize(creatorRightCollapsed)}; gap: ${
+          isCreatorNarrow ? '1rem' : isCreatorCompact ? '1.1rem' : '1.2rem'
+        }; padding: ${isCreatorNarrow ? '1rem' : isCreatorCompact ? '1.2rem' : '1.4rem'};`
+      : undefined;
 
   function setStatus(message: string, isError = false) {
     statusMessage = message;
@@ -293,9 +305,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       stateLoaded = true;
       return;
     }
+    const searchParams = new URLSearchParams(window.location.search);
+    const shareParamKeys = ['map', 'view', 'lat', 'lon', 'zoom', 'rotation', 'basemap'];
+    const hasSharedParams = shareParamKeys.some((key) => searchParams.has(key));
+    let sharedStateApplied = false;
     const raw = window.localStorage.getItem(APP_STATE_KEY);
     if (!raw) {
+      if (hasSharedParams) {
+        const applied = await applySharedParams(searchParams);
+        if (applied) {
+          refreshDecorations();
+          sharedStateApplied = true;
+        }
+      }
       stateLoaded = true;
+      if (sharedStateApplied) queueSaveState();
       return;
     }
     try {
@@ -348,10 +372,19 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       if (Array.isArray(saved.storyScenes)) {
         storyScenes = saved.storyScenes.map((scene, index) => normalizeStoryScene(scene, index));
       }
+
+      if (hasSharedParams) {
+        const appliedShareState = await applySharedParams(searchParams);
+        if (appliedShareState) {
+          refreshDecorations();
+          sharedStateApplied = true;
+        }
+      }
     } catch (error) {
       console.warn('Failed to load saved viewer state', error);
     } finally {
       stateLoaded = true;
+      if (sharedStateApplied) queueSaveState();
     }
   }
 
@@ -1032,7 +1065,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       mode = 'explore';
     }
     appMode = mode;
-    viewerPanelOpen = true;
+    viewerPanelOpen = mode === 'create' ? viewerPanelOpen : false;
     if (mode === 'explore') {
       deactivateDrawing();
       storyEditingIndex = null;
@@ -1052,6 +1085,22 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   function toggleAppMode() {
     const next = appMode === 'explore' ? 'create' : 'explore';
     chooseAppMode(next);
+  }
+
+  function panelColumnSize(collapsed: boolean): string {
+    if (collapsed) return '0px';
+    if (isCreatorNarrow) return 'minmax(200px, 0.24fr)';
+    if (isCreatorCompact) return 'minmax(220px, 0.25fr)';
+    return 'minmax(260px, 0.25fr)';
+  }
+
+  function mapColumnFraction(leftCollapsed: boolean, rightCollapsed: boolean): string {
+    const bothCollapsed = 1;
+    const singleCollapsed = isCreatorNarrow ? 0.82 : isCreatorCompact ? 0.78 : 0.75;
+    const bothOpen = isCreatorNarrow ? 0.56 : isCreatorCompact ? 0.53 : 0.5;
+    if (leftCollapsed && rightCollapsed) return bothCollapsed.toString();
+    if (leftCollapsed || rightCollapsed) return singleCollapsed.toString();
+    return bothOpen.toString();
   }
 
   function handleClearState() {
@@ -1601,9 +1650,52 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     };
   }
 
+  function buildShareUrl(): string {
+    if (typeof window === 'undefined') return '';
+    const url = new URL(window.location.href);
+    const shareMapId = loadedOverlayId ?? selectedMapId;
+    if (shareMapId) {
+      url.searchParams.set('map', shareMapId);
+    } else {
+      url.searchParams.delete('map');
+    }
+    url.searchParams.set('view', viewMode);
+    url.searchParams.set('basemap', basemapSelection);
+    const view = map?.getView();
+    if (view) {
+      const center = view.getCenter();
+      if (center) {
+        const [lon, lat] = toLonLat(center);
+        url.searchParams.set('lat', lat.toFixed(6));
+        url.searchParams.set('lon', lon.toFixed(6));
+      } else {
+        url.searchParams.delete('lat');
+        url.searchParams.delete('lon');
+      }
+      const zoom = view.getZoom();
+      if (typeof zoom === 'number' && Number.isFinite(zoom)) {
+        url.searchParams.set('zoom', zoom.toFixed(2));
+      } else {
+        url.searchParams.delete('zoom');
+      }
+      const rotation = view.getRotation() ?? 0;
+      if (Math.abs(rotation) > 0.0001) {
+        url.searchParams.set('rotation', rotation.toFixed(3));
+      } else {
+        url.searchParams.delete('rotation');
+      }
+    } else {
+      url.searchParams.delete('lat');
+      url.searchParams.delete('lon');
+      url.searchParams.delete('zoom');
+      url.searchParams.delete('rotation');
+    }
+    return url.toString();
+  }
+
   async function copyShareLink() {
     if (typeof window === 'undefined') return;
-    const url = window.location.href;
+    const url = buildShareUrl() || window.location.href;
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
@@ -1629,6 +1721,64 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       console.warn('Failed to copy link', error);
       shareCopied = false;
     }
+  }
+
+  async function applySharedParams(params: URLSearchParams) {
+    if (!params.size) return false;
+    let applied = false;
+
+    const basemapParam = params.get('basemap');
+    if (basemapParam && BASEMAP_DEFS.some((item) => item.key === basemapParam)) {
+      basemapSelection = basemapParam;
+      applyBasemap(basemapParam);
+      applied = true;
+    }
+
+    const viewParam = params.get('view');
+    if (viewParam && ['overlay', 'side-x', 'side-y', 'spy'].includes(viewParam)) {
+      setViewMode(viewParam as ViewMode);
+      applied = true;
+    }
+
+    const overlayParam = params.get('map');
+    if (overlayParam && mapList.some((item) => item.id === overlayParam)) {
+      selectedMapId = overlayParam;
+      await loadOverlaySource(overlayParam);
+      applied = true;
+    }
+
+    const view = map?.getView();
+    if (view) {
+      const latParam = params.get('lat');
+      const lonParam = params.get('lon');
+      const zoomParam = params.get('zoom');
+      const rotationParam = params.get('rotation');
+
+      const lat = latParam ? Number(latParam) : NaN;
+      const lon = lonParam ? Number(lonParam) : NaN;
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        view.setCenter(fromLonLat([lon, lat]));
+        applied = true;
+      }
+
+      if (zoomParam) {
+        const zoom = Number(zoomParam);
+        if (Number.isFinite(zoom)) {
+          view.setZoom(zoom);
+          applied = true;
+        }
+      }
+
+      if (rotationParam) {
+        const rotation = Number(rotationParam);
+        if (Number.isFinite(rotation)) {
+          view.setRotation(rotation);
+          applied = true;
+        }
+      }
+    }
+
+    return applied;
   }
 
   function handleStoryPresent(event: CustomEvent<{ startIndex?: number }>) {
@@ -2064,18 +2214,26 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     });
     map.on('change:size', refreshDecorations);
 
-    const mediaQuery = window.matchMedia('(max-width: 900px)');
+    const mobileQuery = window.matchMedia('(max-width: 900px)');
+    const compactQuery = window.matchMedia('(max-width: 1400px)');
+    const narrowQuery = window.matchMedia('(max-width: 1180px)');
     const updateResponsiveFlags = () => {
-      isMobile = mediaQuery.matches;
+      isMobile = mobileQuery.matches;
       if (isMobile) {
         appMode = 'explore';
         showWelcome = false;
       }
+      isCreatorCompact = compactQuery.matches;
+      isCreatorNarrow = narrowQuery.matches;
     };
     updateResponsiveFlags();
-    mediaQuery.addEventListener('change', updateResponsiveFlags);
+    mobileQuery.addEventListener('change', updateResponsiveFlags);
+    compactQuery.addEventListener('change', updateResponsiveFlags);
+    narrowQuery.addEventListener('change', updateResponsiveFlags);
     responsiveCleanup = () => {
-      mediaQuery.removeEventListener('change', updateResponsiveFlags);
+      mobileQuery.removeEventListener('change', updateResponsiveFlags);
+      compactQuery.removeEventListener('change', updateResponsiveFlags);
+      narrowQuery.removeEventListener('change', updateResponsiveFlags);
     };
 
     applyBasemap(basemapSelection);
@@ -2189,18 +2347,23 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     </div>
   {/if}
 
-  <div class="workspace">
+  <div class="workspace" style={workspaceStyle}>
     {#if !isMobile && appMode === 'create'}
-      <aside class="creator-panel left" class:collapsed={creatorLeftCollapsed}>
-        <button
-          type="button"
-          class="panel-collapse"
-          on:click={() => (creatorLeftCollapsed = !creatorLeftCollapsed)}
-          aria-expanded={!creatorLeftCollapsed}
-        >
-          {creatorLeftCollapsed ? 'Show tools' : 'Hide tools'}
+      {#if creatorLeftCollapsed}
+        <button type="button" class="panel-toggle left" on:click={() => (creatorLeftCollapsed = false)}>
+          Show tools
         </button>
-        {#if !creatorLeftCollapsed}
+      {/if}
+      {#if !creatorLeftCollapsed}
+        <aside class="creator-panel left">
+          <button
+            type="button"
+            class="panel-collapse"
+            on:click={() => (creatorLeftCollapsed = true)}
+            aria-expanded="true"
+          >
+            Hide tools
+          </button>
           <div class="panel-scroll custom-scrollbar">
             <section class="panel-card">
               <header class="panel-card-header">
@@ -2308,8 +2471,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
               </section>
             </section>
           </div>
-        {/if}
-      </aside>
+        </aside>
+      {/if}
     {/if}
 
     <div class="map-stage">
@@ -2509,7 +2672,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
             </div>
           </div>
         </div>
-      {:else}
+      {:else if !showWelcome}
         <div class="viewer-panel" class:collapsed={!viewerPanelOpen}>
           <div class="viewer-tabs">
             <button
@@ -2603,43 +2766,43 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
                   </div>
                 </div>
                 <div class="section-block">
-              <h3>More historical maps</h3>
-              <details class="map-accordion">
-                <summary>Browse catalog ({viewerAllMaps.length})</summary>
-                <div class="catalog-filter">
-                  <label>
-                    <span>Filter by type</span>
-                    <select bind:value={mapTypeSelection}>
-                      <option value="all">All maps ({mapList.length})</option>
-                      {#each mapTypes as type}
-                        <option value={type}>{type}</option>
-                      {/each}
-                    </select>
-                  </label>
-                </div>
-                <div class="map-grid tall custom-scrollbar">
-                  {#if viewerAllMaps.length}
-                    {#each viewerAllMaps as item (item.id)}
-                      <button
-                        type="button"
-                        class="map-card"
-                        class:active={item.id === selectedMapId}
-                        on:click={() => void selectMapById(item.id)}
-                      >
-                        {#if item.thumbnail}
-                          <img src={item.thumbnail} alt={`Preview of ${item.name}`} loading="lazy" />
-                        {/if}
-                        <div class="map-card-body">
-                          <span class="map-card-title">{item.name}</span>
-                          <span class="map-card-meta">{item.summary || item.type}</span>
-                        </div>
-                      </button>
-                    {/each}
-                  {:else}
-                    <p class="empty-state">Map catalog is loading…</p>
-                  {/if}
-                </div>
-      </details>
+                  <h3>More historical maps</h3>
+                  <details class="map-accordion">
+                    <summary>Browse catalog ({viewerAllMaps.length})</summary>
+                    <div class="catalog-filter">
+                      <label>
+                        <span>Filter by type</span>
+                        <select bind:value={mapTypeSelection}>
+                          <option value="all">All maps ({mapList.length})</option>
+                          {#each mapTypes as type}
+                            <option value={type}>{type}</option>
+                          {/each}
+                        </select>
+                      </label>
+                    </div>
+                    <div class="catalog-list custom-scrollbar">
+                      {#if viewerAllMaps.length}
+                        {#each viewerAllMaps as item (item.id)}
+                          <button
+                            type="button"
+                            class="catalog-item"
+                            class:active={item.id === selectedMapId}
+                            on:click={() => void selectMapById(item.id)}
+                          >
+                            {#if item.thumbnail}
+                              <img src={item.thumbnail} alt={`Preview of ${item.name}`} loading="lazy" />
+                            {/if}
+                            <div class="catalog-text">
+                              <span class="catalog-title">{item.name}</span>
+                              <span class="catalog-meta">{item.summary || item.type}</span>
+                            </div>
+                          </button>
+                        {/each}
+                      {:else}
+                        <p class="empty-state">Map catalog is loading…</p>
+                      {/if}
+                    </div>
+                  </details>
                 </div>
               </div>
             {:else if activeViewerSection === 'control'}
@@ -2791,45 +2954,54 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
             </div>
           {/if}
         </div>
+      {:else}
+        <!-- Viewer panel hidden while welcome overlay is visible -->
       {/if}
     </div>
 
     {#if !isMobile && appMode === 'create'}
-      <aside class="creator-panel right" class:collapsed={creatorRightCollapsed}>
-        <header class="creator-right-header">
-          <div class="toggle-group">
-            <button type="button" class:selected={creatorRightPane === 'annotations'} on:click={() => (creatorRightPane = 'annotations')}>
-              Annotations
+      {#if creatorRightCollapsed}
+        <button type="button" class="panel-toggle right" on:click={() => (creatorRightCollapsed = false)}>
+          Show panel
+        </button>
+      {/if}
+      {#if !creatorRightCollapsed}
+        <aside class="creator-panel right">
+          <header class="creator-right-header">
+            <button
+              type="button"
+              class="panel-collapse"
+              on:click={() => (creatorRightCollapsed = !creatorRightCollapsed)}
+              aria-expanded={!creatorRightCollapsed}
+            >
+              Hide panel
             </button>
-            <button type="button" class:selected={creatorRightPane === 'story'} on:click={() => (creatorRightPane = 'story')}>
-              Story slides
-            </button>
-          </div>
-          <div class="right-actions">
-            <button type="button" class="chip ghost" on:click={clearAnnotations} disabled={!annotations.length}>
-              Clear
-            </button>
-            <button type="button" class="chip ghost" on:click={exportAnnotationsAsGeoJSON} disabled={!annotations.length}>
-              Export
-            </button>
-            <label class="chip ghost upload">
-              Import
-              <input type="file" accept="application/geo+json,.geojson,.json" on:change={handleGeoJsonFileChange} bind:this={geoJsonInputEl} />
-            </label>
-          </div>
-          <button
-            type="button"
-            class="panel-collapse"
-            on:click={() => (creatorRightCollapsed = !creatorRightCollapsed)}
-            aria-expanded={!creatorRightCollapsed}
-          >
-            {creatorRightCollapsed ? 'Show panel' : 'Hide panel'}
-          </button>
-        </header>
-        {#if !creatorRightCollapsed}
+            <div class="creator-right-controls">
+              <div class="toggle-group">
+                <button type="button" class:selected={creatorRightPane === 'annotations'} on:click={() => (creatorRightPane = 'annotations')}>
+                  Annotations
+                </button>
+                <button type="button" class:selected={creatorRightPane === 'story'} on:click={() => (creatorRightPane = 'story')}>
+                  Story slides
+                </button>
+              </div>
+              <div class="right-actions">
+                <button type="button" class="chip ghost" on:click={clearAnnotations} disabled={!annotations.length}>
+                  Clear
+                </button>
+                <button type="button" class="chip ghost" on:click={exportAnnotationsAsGeoJSON} disabled={!annotations.length}>
+                  Export
+                </button>
+                <label class="chip ghost upload">
+                  Import
+                  <input type="file" accept="application/geo+json,.geojson,.json" on:change={handleGeoJsonFileChange} bind:this={geoJsonInputEl} />
+                </label>
+              </div>
+            </div>
+          </header>
           <div class="creator-right-body custom-scrollbar">
-          {#if creatorRightPane === 'annotations'}
-            {#if annotationsNotice}
+            {#if creatorRightPane === 'annotations'}
+              {#if annotationsNotice}
               <p class="notice" class:errored={annotationsNoticeType === 'error'} class:success={annotationsNoticeType === 'success'}>
                 {annotationsNotice}
               </p>
@@ -2947,11 +3119,11 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
               {:else}
                 <p class="empty-state">Capture scenes to build your story.</p>
               {/if}
-            </div>
-          {/if}
-        </div>
-        {/if}
-      </aside>
+              </div>
+            {/if}
+          </div>
+        </aside>
+      {/if}
     {/if}
   </div>
 
@@ -3161,16 +3333,18 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .viewer.creator .workspace {
     position: relative;
-    display: block;
-    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(260px, 0.25fr) minmax(0, 0.5fr) minmax(260px, 0.25fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 1.2rem;
+    padding: 1.4rem;
+    align-items: stretch;
+    height: 100%;
   }
 
   .creator-panel.left,
   .creator-panel.right {
-    position: absolute;
-    top: 1.6rem;
-    width: min(320px, 90vw);
-    max-height: calc(100vh - 3.2rem);
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -3180,29 +3354,22 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     padding: 0.9rem;
     box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45);
     backdrop-filter: blur(18px);
-    z-index: 90;
+    height: 100%;
+    max-height: none;
+    overflow: hidden;
+    min-width: 0;
   }
 
-  .creator-panel.left {
-    left: 1.6rem;
+  .viewer.creator .creator-panel.left {
+    grid-column: 1;
   }
 
-  .creator-panel.right {
-    right: 1.6rem;
-  }
-
-  .creator-panel.collapsed {
-    padding: 0.55rem 0.75rem;
-    gap: 0;
-    width: auto;
-  }
-
-  .creator-panel.left.collapsed .panel-collapse {
-    align-self: center;
+  .viewer.creator .creator-panel.right {
+    grid-column: 3;
   }
 
   .panel-collapse {
-    align-self: flex-end;
+    align-self: flex-start;
     border: none;
     background: rgba(15, 23, 42, 0.7);
     border-radius: 999px;
@@ -3219,6 +3386,36 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     outline: none;
   }
 
+  .panel-toggle {
+    position: absolute;
+    top: 1rem;
+    border: none;
+    background: rgba(15, 23, 42, 0.75);
+    border-radius: 999px;
+    color: inherit;
+    font-size: 0.74rem;
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 14px 28px rgba(2, 6, 23, 0.45);
+    backdrop-filter: blur(12px);
+    transition: background 0.15s ease;
+    z-index: 95;
+  }
+
+  .panel-toggle.left {
+    left: 1rem;
+  }
+
+  .panel-toggle.right {
+    right: 1rem;
+  }
+
+  .panel-toggle:hover,
+  .panel-toggle:focus-visible {
+    background: rgba(99, 102, 241, 0.45);
+    outline: none;
+  }
+
   .panel-scroll {
     flex: 1 1 auto;
     display: flex;
@@ -3229,23 +3426,22 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     margin-top: 0.25rem;
   }
 
-  .creator-panel.left.collapsed .panel-scroll {
-    display: none;
-  }
-
-  .creator-panel.right.collapsed .creator-right-body {
-    display: none;
-  }
-
   .creator-right-header {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.6rem;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .creator-right-header .panel-collapse {
-    margin-left: auto;
+    align-self: flex-start;
+  }
+
+  .creator-right-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .creator-right-body {
@@ -3257,16 +3453,19 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     gap: 0.9rem;
   }
 
-  .creator-panel.right.collapsed .creator-right-body {
-    display: none;
-  }
-
   .map-stage {
     position: relative;
     min-height: calc(100vh - 3rem);
     border-radius: 1.1rem;
-    overflow: hidden;
+    overflow: visible;
     background: #020617;
+  }
+
+  .viewer.creator .map-stage {
+    grid-column: 2;
+    min-height: 0;
+    height: 100%;
+    min-width: 0;
   }
 
   .viewer:not(.creator) .map-stage {
@@ -3276,6 +3475,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   .map-surface {
     position: absolute;
     inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
   }
 
   .map {
@@ -3344,7 +3545,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .viewer-panel {
-    position: absolute;
+    position: fixed;
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom) + 1.4rem);
     transform: translateX(-50%);
@@ -3356,6 +3557,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
     display: flex;
     flex-direction: column;
+    z-index: 130;
+    pointer-events: auto;
   }
 
   .viewer-panel.collapsed {
@@ -3466,10 +3669,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 
-  .map-grid.tall {
-    max-height: 220px;
-  }
-
   .map-card {
     display: flex;
     flex-direction: column;
@@ -3497,6 +3696,63 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+  }
+
+  .catalog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    max-height: 240px;
+    padding-right: 0.2rem;
+  }
+
+  .catalog-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    border-radius: 0.85rem;
+    border: 1px solid transparent;
+    background: rgba(15, 23, 42, 0.55);
+    padding: 0.55rem 0.65rem;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .catalog-item:hover,
+  .catalog-item:focus-visible {
+    border-color: rgba(99, 102, 241, 0.5);
+    outline: none;
+  }
+
+  .catalog-item.active {
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 12px 24px rgba(67, 56, 202, 0.35);
+  }
+
+  .catalog-item img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 0.6rem;
+    flex-shrink: 0;
+  }
+
+  .catalog-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .catalog-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .catalog-meta {
+    font-size: 0.72rem;
+    color: rgba(148, 163, 184, 0.78);
   }
 
   .map-card-title {
@@ -3747,7 +4003,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .creator-toolbar {
-    position: absolute;
+    position: fixed;
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom) + 1.2rem);
     transform: translateX(-50%);
@@ -3760,6 +4016,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     align-items: center;
     box-shadow: 0 16px 32px rgba(2, 6, 23, 0.55);
     backdrop-filter: blur(16px);
+    z-index: 120;
+    pointer-events: auto;
   }
 
   .toolbar-cluster {
@@ -3973,13 +4231,16 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .welcome-overlay {
     position: absolute;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.7);
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(15, 23, 42, 0.72);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 90;
-    backdrop-filter: blur(12px);
+    z-index: 140;
+    backdrop-filter: blur(14px);
   }
 
   .welcome-card {
@@ -4301,26 +4562,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: rgba(148, 163, 184, 0.55);
     border-radius: 999px;
-  }
-
-  @media (max-width: 1024px) {
-    .creator-panel.left,
-    .creator-panel.right {
-      width: min(280px, 85vw);
-      top: 1rem;
-    }
-
-    .creator-panel.left {
-      left: 1rem;
-    }
-
-    .creator-panel.right {
-      right: 1rem;
-    }
-
-    .creator-toolbar {
-      bottom: calc(env(safe-area-inset-bottom) + 0.9rem);
-    }
   }
 
   @media (max-width: 768px) {
