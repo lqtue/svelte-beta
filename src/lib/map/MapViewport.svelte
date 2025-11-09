@@ -178,6 +178,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   let sideRatio = 0.5;
   let lensRadius = 150;
   let responsiveCleanup: (() => void) | null = null;
+  let pendingResizeHandle: number | null = null;
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
   $: basemapLabel = BASEMAP_DEFS.find((base) => base.key === basemapSelection)?.label ?? 'Basemap';
@@ -223,6 +224,16 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
           isCreatorNarrow ? '1rem' : isCreatorCompact ? '1.1rem' : '1.2rem'
         }; padding: ${isCreatorNarrow ? '1rem' : isCreatorCompact ? '1.2rem' : '1.4rem'};`
       : undefined;
+
+  $: if (map) {
+    appMode;
+    creatorLeftCollapsed;
+    creatorRightCollapsed;
+    showWelcome;
+    viewerPanelOpen;
+    isMobile;
+    scheduleMapResize();
+  }
 
   function setStatus(message: string, isError = false) {
     statusMessage = message;
@@ -385,6 +396,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     } finally {
       stateLoaded = true;
       if (sharedStateApplied) queueSaveState();
+      scheduleMapResize();
     }
   }
 
@@ -1075,16 +1087,30 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       creatorRightPane = 'annotations';
     }
     showWelcome = false;
+    scheduleMapResize();
   }
 
   function handleModeClick(mode: ViewMode) {
     setViewMode(mode);
     queueSaveState();
+    scheduleMapResize();
   }
 
   function toggleAppMode() {
     const next = appMode === 'explore' ? 'create' : 'explore';
     chooseAppMode(next);
+  }
+
+  function scheduleMapResize() {
+    if (!map) return;
+    if (pendingResizeHandle !== null) {
+      cancelAnimationFrame(pendingResizeHandle);
+    }
+    pendingResizeHandle = requestAnimationFrame(() => {
+      pendingResizeHandle = null;
+      map?.updateSize();
+      refreshDecorations();
+    });
   }
 
   function panelColumnSize(collapsed: boolean): string {
@@ -2138,6 +2164,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       }),
       controls
     });
+    scheduleMapResize();
 
     const warped = warpedLayer as unknown as { setMap?: (map: unknown) => void };
     warped.setMap?.(map as unknown);
@@ -2243,10 +2270,12 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         console.error('Failed to initialise dataset', error);
         stateLoaded = true;
       });
+    scheduleMapResize();
 
     window.addEventListener('pointermove', handlePointerDrag);
     window.addEventListener('pointerup', stopPointerDrag);
     window.addEventListener('pointercancel', stopPointerDrag);
+    window.addEventListener('resize', scheduleMapResize);
 
     keydownHandler = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -2281,6 +2310,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     window.removeEventListener('pointermove', handlePointerDrag);
     window.removeEventListener('pointerup', stopPointerDrag);
     window.removeEventListener('pointercancel', stopPointerDrag);
+    window.removeEventListener('resize', scheduleMapResize);
     if (keydownHandler) {
       window.removeEventListener('keydown', keydownHandler);
       keydownHandler = null;
@@ -2307,6 +2337,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     if (shareResetTimer) {
       clearTimeout(shareResetTimer);
       shareResetTimer = null;
+    }
+    if (pendingResizeHandle !== null) {
+      cancelAnimationFrame(pendingResizeHandle);
+      pendingResizeHandle = null;
     }
   });
 
@@ -3234,19 +3268,28 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         {#if searchResults.length}
           <div class="search-results-list custom-scrollbar">
             {#each searchResults as result (result.display_name)}
-              <button
-                type="button"
-                class="search-result-item"
-                on:click={() => {
-                  zoomToSearchResult(result);
-                  searchOverlayOpen = false;
-                }}
-              >
-                <span class="result-title">{result.display_name}</span>
-                {#if result.type}
-                  <span class="result-type">{result.type}</span>
+              <div class="search-result-item">
+                <button
+                  type="button"
+                  class="search-result-main"
+                  on:click={() => {
+                    zoomToSearchResult(result);
+                    searchOverlayOpen = false;
+                  }}
+                >
+                  <span class="result-title">{result.display_name}</span>
+                  {#if result.type}
+                    <span class="result-type">{result.type}</span>
+                  {/if}
+                </button>
+                {#if appMode === 'create'}
+                  <div class="search-result-actions">
+                    <button type="button" class="chip ghost" on:click={() => addSearchResultToAnnotations(result)}>
+                      Add to annotations
+                    </button>
+                  </div>
                 {/if}
-              </button>
+              </div>
             {/each}
           </div>
         {/if}
@@ -4467,23 +4510,45 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .search-result-item {
-    text-align: left;
     background: rgba(30, 41, 59, 0.75);
     border: 1px solid transparent;
     border-radius: 0.75rem;
-    padding: 0.6rem 0.7rem;
+    padding: 0.65rem 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
-    cursor: pointer;
-    color: inherit;
+    gap: 0.45rem;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   .search-result-item:hover,
-  .search-result-item:focus-visible {
+  .search-result-item:focus-within {
     border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
     outline: none;
+  }
+
+  .search-result-main {
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    cursor: pointer;
+  }
+
+  .search-result-main:focus-visible {
+    outline: 2px solid rgba(99, 102, 241, 0.6);
+    border-radius: 0.5rem;
+    outline-offset: 2px;
+  }
+
+  .search-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
   }
 
   .modal-backdrop {
