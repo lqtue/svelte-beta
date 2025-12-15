@@ -11,6 +11,8 @@ export interface MapListItem {
   description?: string;
   thumbnail?: string;
   isFeatured?: boolean;
+  year?: number;
+  bounds?: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
 }
 
 export interface AnnotationSummary {

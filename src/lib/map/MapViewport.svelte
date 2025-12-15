@@ -1719,7 +1719,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     return url.toString();
   }
 
-  async function copyShareLink() {
+    async function copyShareLink() {
+    console.log('copyShareLink called');
     if (typeof window === 'undefined') return;
     const url = buildShareUrl() || window.location.href;
     try {

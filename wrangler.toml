@@ -1,0 +1,11 @@
+# Configuration for Cloudflare Pages deployment
+# This is a SvelteKit application using @sveltejs/adapter-cloudflare
+
+name = "svelte-beta"
+compatibility_date = "2025-12-15"
+
+# Pages configuration
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+[build]
+command = "npm run build"
