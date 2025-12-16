@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { t } from './translations';
 
 	export let isVisible = false;
 
@@ -11,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 {#if isVisible}
@@ -24,14 +25,14 @@
 	<!-- Hint popup -->
 	<div class="hint-popup">
 		<div class="hint-content">
-			<div class="hint-icon">👆</div>
+			<div class="hint-icon">{$t.mapHint.icon}</div>
 			<div class="hint-text">
-				<div class="hint-title">Explore Historical Maps</div>
-				<div class="hint-description">Click here to browse our collection of vintage maps</div>
+				<div class="hint-title">{$t.mapHint.title}</div>
+				<div class="hint-description">{$t.mapHint.description}</div>
 			</div>
 		</div>
 		<button class="hint-dismiss" on:click={handleDismiss}>
-			Got it!
+			{$t.mapHint.button}
 		</button>
 	</div>
 {/if}
@@ -143,7 +144,7 @@
 	}
 
 	.hint-title {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 1rem;
 		font-weight: 700;
 		letter-spacing: 0.05em;
@@ -153,7 +154,7 @@
 	}
 
 	.hint-description {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		line-height: 1.5;
 		color: #4a3f35;
@@ -162,7 +163,7 @@
 	.hint-dismiss {
 		width: 100%;
 		padding: 0.875rem 1.5rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.8125rem;
 		font-weight: 600;
 		letter-spacing: 0.08em;

@@ -37,7 +37,7 @@
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="controls-container">
@@ -127,7 +127,7 @@
 		align-items: center;
 		justify-content: center;
 		padding: 0.75rem 1.5rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		letter-spacing: 0.05em;
@@ -194,7 +194,7 @@
 
 	.error-message p {
 		margin: 0;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		line-height: 1.6;
 		color: #4a3f35;

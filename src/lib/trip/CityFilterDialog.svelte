@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { t } from './translations';
 
 	export let cityName: string = '';
 	export let isOpen = false;
@@ -13,30 +14,37 @@
 	function handleNo() {
 		dispatch('confirm', { filter: false });
 	}
+
+	// Map city names to translation keys
+	function getCityName(city: string): string {
+		const cityKey = city.toLowerCase().replace(/\s+/g, '');
+		// @ts-ignore - dynamic key access
+		return $t.cities[cityKey] || city;
+	}
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 {#if isOpen}
 	<div class="dialog-overlay" on:click={handleNo}>
 		<div class="dialog-container" on:click|stopPropagation>
-			<div class="dialog-icon">🗺️</div>
+			<div class="dialog-icon">{$t.cityFilter.icon}</div>
 
 			<div class="dialog-content">
-				<h3 class="dialog-title">Filter Map Collection?</h3>
+				<h3 class="dialog-title">{$t.cityFilter.title}</h3>
 				<p class="dialog-message">
-					Would you like to filter the map collection to show only maps from <strong>{cityName}</strong>?
+					{$t.cityFilter.message} <strong>{getCityName(cityName)}</strong>?
 				</p>
 			</div>
 
 			<div class="dialog-actions">
 				<button class="dialog-button secondary" on:click={handleNo}>
-					No, Show All
+					{$t.cityFilter.noShowAll}
 				</button>
 				<button class="dialog-button primary" on:click={handleYes}>
-					Yes, Filter
+					{$t.cityFilter.yesFilter}
 				</button>
 			</div>
 		</div>
@@ -100,7 +108,7 @@
 	}
 
 	.dialog-title {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 1.25rem;
 		font-weight: 700;
 		letter-spacing: 0.05em;
@@ -110,7 +118,7 @@
 	}
 
 	.dialog-message {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 1.0625rem;
 		line-height: 1.6;
 		color: #4a3f35;
@@ -131,7 +139,7 @@
 	.dialog-button {
 		flex: 1;
 		padding: 0.875rem 1.5rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		letter-spacing: 0.05em;

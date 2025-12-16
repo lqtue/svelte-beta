@@ -6,6 +6,9 @@
 	],
 	"exclude": [
 		"/_app/*",
-		"/robots.txt"
+		"/favicon.ico",
+		"/favicon.png",
+		"/robots.txt",
+		"/sw.js"
 	]
 }

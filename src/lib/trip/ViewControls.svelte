@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { t } from './translations';
 
 	export let opacity: number = 1.0;
 
@@ -14,7 +15,7 @@
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="controls-container">
@@ -23,7 +24,7 @@
 		<div class="control-group">
 			<div class="control-label">
 				<span class="label-icon">◐</span>
-				<span class="label-text">Overlay Opacity</span>
+				<span class="label-text">{$t.viewControls.overlayOpacity}</span>
 			</div>
 			<div class="slider-container">
 				<span class="slider-value">{Math.round(opacity * 100)}%</span>
@@ -86,7 +87,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.75rem;
 		font-weight: 600;
 		letter-spacing: 0.05em;
@@ -110,7 +111,7 @@
 	}
 
 	.slider-value {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		color: #2b2520;

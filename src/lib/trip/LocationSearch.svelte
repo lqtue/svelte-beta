@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { t } from './translations';
 
 	export let isOpen = false;
 
@@ -81,19 +82,14 @@
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="search-container">
-	<button class="search-toggle" on:click={toggleOpen} title="Search location">
-		<span class="icon">
-			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<circle cx="11" cy="11" r="7" stroke="#6b5d52" stroke-width="1.5"/>
-				<path d="M16 16L21 21" stroke="#6b5d52" stroke-width="1.5" stroke-linecap="round"/>
-			</svg>
-		</span>
+	<button class="search-toggle" on:click={toggleOpen} title={$t.search.searchLocation}>
+		<span class="icon">⌕</span>
 		{#if !isOpen}
-			<span class="label">Search</span>
+			<span class="label">{$t.search.search}</span>
 		{/if}
 	</button>
 
@@ -101,14 +97,14 @@
 		<div class="search-panel">
 			<div class="search-header">
 				<span class="header-icon">📍</span>
-				<span class="header-text">Search Location</span>
+				<span class="header-text">{$t.search.searchLocation}</span>
 			</div>
 
 			<div class="search-input-container">
 				<input
 					type="text"
 					class="search-input"
-					placeholder="Enter city, address, or landmark..."
+					placeholder={$t.search.searchPlaceholder}
 					bind:value={searchQuery}
 					on:keydown={handleKeydown}
 					disabled={isSearching}
@@ -118,7 +114,7 @@
 					on:click={handleSearch}
 					disabled={isSearching || !searchQuery.trim()}
 				>
-					{isSearching ? '...' : 'Search'}
+					{isSearching ? $t.search.searching : $t.search.search}
 				</button>
 			</div>
 
@@ -173,16 +169,16 @@
 		align-items: center;
 		gap: 0.625rem;
 		padding: 0.875rem 1.5rem;
-		font-family: 'Cinzel', serif;
-		font-size: 0.8125rem;
+		font-family: 'Be Vietnam Pro', sans-serif;
+		font-size: 0.75rem;
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.05em;
 		text-transform: uppercase;
 		border: 2.5px solid #d4af37;
 		border-radius: 2px;
 		background: linear-gradient(160deg, rgba(244, 232, 216, 0.98) 0%, rgba(232, 213, 186, 0.98) 100%);
 		backdrop-filter: blur(16px);
-		color: #2b2520;
+		color: #6b5d52;
 		cursor: pointer;
 		transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 		box-shadow:
@@ -220,12 +216,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		font-size: 0.875rem;
+		color: #a84848;
 		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 		transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-
-	.icon svg {
-		display: block;
 	}
 
 	.search-toggle:hover .icon {
@@ -278,7 +272,7 @@
 	}
 
 	.header-text {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.8125rem;
 		font-weight: 600;
 		letter-spacing: 0.08em;
@@ -295,7 +289,7 @@
 	.search-input {
 		flex: 1;
 		padding: 0.75rem 1rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		border: 2px solid rgba(212, 175, 55, 0.35);
 		border-radius: 3px;
@@ -327,15 +321,15 @@
 
 	.search-button {
 		padding: 0.75rem 1.5rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.75rem;
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.05em;
 		text-transform: uppercase;
 		border: 2px solid #d4af37;
 		border-radius: 3px;
 		background: linear-gradient(135deg, rgba(212, 175, 55, 0.25) 0%, rgba(212, 175, 55, 0.15) 100%);
-		color: #2b2520;
+		color: #6b5d52;
 		cursor: pointer;
 		transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 		white-space: nowrap;
@@ -364,7 +358,7 @@
 
 	.error-message {
 		padding: 1rem 1.5rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		color: #a84848;
 		text-align: center;
@@ -455,7 +449,7 @@
 	}
 
 	.result-name {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		letter-spacing: 0.02em;
@@ -467,7 +461,7 @@
 	}
 
 	.result-address {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.8125rem;
 		color: #6b5d52;
 		line-height: 1.5;

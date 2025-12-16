@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { t } from './translations';
 
 	export let isTracking: boolean = false;
 	export let error: string | null = null;
@@ -16,7 +17,7 @@
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="location-button-container">
@@ -29,18 +30,12 @@
 	>
 		<span class="icon">
 			{#if isTracking}
-				<!-- Active tracking - filled pin -->
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" stroke="#6b5d52" stroke-width="1.5" fill="#d4af37" stroke-linejoin="round"/>
-				</svg>
+				◉
 			{:else}
-				<!-- Inactive - outline pin -->
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" stroke="#6b5d52" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
-				</svg>
+				◎
 			{/if}
 		</span>
-		<span class="label">{isTracking ? 'Tracking' : 'My Location'}</span>
+		<span class="label">{isTracking ? $t.location.tracking : $t.location.myLocation}</span>
 	</button>
 
 	{#if error}
@@ -74,16 +69,16 @@
 		align-items: center;
 		gap: 0.625rem;
 		padding: 0.875rem 1.5rem;
-		font-family: 'Cinzel', serif;
-		font-size: 0.8125rem;
+		font-family: 'Be Vietnam Pro', sans-serif;
+		font-size: 0.75rem;
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.05em;
 		text-transform: uppercase;
 		border: 2.5px solid #d4af37;
 		border-radius: 2px;
 		background: linear-gradient(160deg, rgba(244, 232, 216, 0.98) 0%, rgba(232, 213, 186, 0.98) 100%);
 		backdrop-filter: blur(16px);
-		color: #2b2520;
+		color: #6b5d52;
 		cursor: pointer;
 		transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 		box-shadow:
@@ -166,12 +161,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		font-size: 0.875rem;
+		color: #a84848;
 		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 		transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-
-	.icon svg {
-		display: block;
 	}
 
 	.location-button:hover .icon {
@@ -199,7 +192,7 @@
 		backdrop-filter: blur(12px);
 		border: 2.5px solid #c85a5a;
 		border-radius: 4px;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		line-height: 1.5;
 		color: #4a3f35;

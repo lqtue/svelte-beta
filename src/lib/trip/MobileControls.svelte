@@ -98,7 +98,7 @@
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="mobile-controls">
@@ -372,7 +372,7 @@
 	}
 
 	.panel-label {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.75rem;
 		font-weight: 600;
 		letter-spacing: 0.05em;
@@ -427,7 +427,7 @@
 	}
 
 	.panel-value {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		font-weight: 600;
 		color: #2b2520;
@@ -444,7 +444,7 @@
 		background: linear-gradient(160deg, #f4e8d8 0%, #ebe0d0 100%);
 		border: 2px solid #a84848;
 		border-radius: 12px;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.8125rem;
 		color: #4a3f35;
 		max-width: calc(100% - 2rem);
@@ -478,7 +478,7 @@
 	}
 
 	.header-text {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.75rem;
 		font-weight: 600;
 		letter-spacing: 0.08em;
@@ -495,7 +495,7 @@
 	.search-input {
 		flex: 1;
 		padding: 0.625rem 0.875rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		border: 2px solid rgba(212, 175, 55, 0.35);
 		border-radius: 3px;
@@ -540,7 +540,7 @@
 
 	.search-error {
 		padding: 0.625rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.875rem;
 		color: #a84848;
 		text-align: center;
@@ -587,7 +587,7 @@
 	}
 
 	.result-name {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.8125rem;
 		font-weight: 600;
 		color: #2b2520;
@@ -598,7 +598,7 @@
 	}
 
 	.result-address {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.75rem;
 		color: #6b5d52;
 		line-height: 1.4;

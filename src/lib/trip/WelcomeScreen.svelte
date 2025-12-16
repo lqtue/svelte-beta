@@ -52,7 +52,7 @@
 <svelte:head>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="welcome-overlay">
@@ -270,7 +270,7 @@
 	}
 
 	.header h1 {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 2.25rem;
 		font-weight: 700;
 		color: #2b2520;
@@ -280,7 +280,7 @@
 	}
 
 	.subtitle {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 1.125rem;
 		font-style: italic;
 		color: #6b5d52;
@@ -310,7 +310,7 @@
 
 	.permission-text,
 	.success-text {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 1.0625rem;
 		line-height: 1.7;
 		color: #4a3f35;
@@ -323,7 +323,7 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 1rem 2.5rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.9375rem;
 		font-weight: 600;
 		letter-spacing: 0.05em;
@@ -429,7 +429,7 @@
 	}
 
 	.button-label {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 1.0625rem;
 		font-weight: 600;
 		color: #2b2520;
@@ -438,7 +438,7 @@
 	}
 
 	.button-desc {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		font-style: italic;
 		color: #6b5d52;
@@ -454,7 +454,7 @@
 	}
 
 	.error-banner p {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		color: #7a3333;
 		font-size: 0.9375rem;
 		line-height: 1.6;
@@ -465,7 +465,7 @@
 		background: none;
 		border: none;
 		color: #a84848;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		letter-spacing: 0.05em;

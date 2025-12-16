@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { MapListItem } from '$lib/viewer/types';
 	import Stack from '$lib/layout/Stack.svelte';
+	import { t } from './translations';
 
 	export let maps: MapListItem[] = [];
 	export let selected: string | null = null;
@@ -66,19 +67,19 @@
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="selector-container">
 	<button class="selector-button" on:click={toggleOpen} disabled={loading}>
-		<span class="button-ornament">⧉</span>
+		<span class="button-ornament">{$t.mapSelector.buttonOrnament}</span>
 		<span class="button-text">
 			{#if loading}
-				Consulting Atlas...
+				{$t.mapSelector.consultingAtlas}
 			{:else if selectedMap}
 				{selectedMap.name}
 			{:else}
-				Map Collection
+				{$t.mapSelector.mapCollection}
 			{/if}
 		</span>
 		<span class="arrow" class:open={isOpen}>▼</span>
@@ -89,7 +90,7 @@
 			<Stack gap="var(--space-2)">
 				{#if cities.length > 0}
 					<select class="city-select" value={selectedCity} on:change={handleCityChange}>
-						<option value="all">All Regions</option>
+						<option value="all">{$t.mapSelector.allRegions}</option>
 						{#each cities as city (city)}
 							<option value={city}>{city}</option>
 						{/each}
@@ -99,7 +100,7 @@
 				<input
 					type="text"
 					class="search-input"
-					placeholder="Search by year or name"
+					placeholder={$t.mapSelector.searchPlaceholder}
 					bind:value={searchQuery}
 				/>
 
@@ -107,14 +108,14 @@
 					{#if selected && selectedMap?.bounds}
 						<button class="map-item zoom" on:click={handleZoomToMap}>
 							<span class="zoom-icon">🔍</span>
-							<span>Zoom to Map</span>
+							<span>{$t.mapSelector.zoomButton.replace('🔍 ', '')}</span>
 						</button>
 					{/if}
 
 					{#if filteredMaps.length === 0}
 						<div class="empty-state">
 							<div class="empty-icon">⊘</div>
-							<p>No maps discovered in this region</p>
+							<p>{$t.mapSelector.noMapsFound.replace('⊘ ', '')}</p>
 						</div>
 					{:else}
 						{#each filteredMaps as map (map.id)}
@@ -129,7 +130,7 @@
 										<div class="map-type">{map.type}</div>
 									{/if}
 									{#if map.year}
-										<div class="map-year">Anno {map.year}</div>
+										<div class="map-year">{$t.mapSelector.anno} {map.year}</div>
 									{/if}
 								</div>
 								{#if map.id === selected}
@@ -158,7 +159,7 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 0.875rem 1.25rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.9375rem;
 		font-weight: 600;
 		letter-spacing: 0.03em;
@@ -241,9 +242,9 @@
 	.city-select {
 		width: 100%;
 		padding: 0.625rem 0.875rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.9375rem;
-		font-weight: 600;
+		font-weight: 500;
 		border: 1px solid rgba(212, 175, 55, 0.4);
 		border-radius: 2px;
 		background: rgba(255, 255, 255, 0.5);
@@ -266,7 +267,7 @@
 	.search-input {
 		width: 100%;
 		padding: 0.625rem 0.875rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.9375rem;
 		border: 1px solid rgba(212, 175, 55, 0.4);
 		border-radius: 2px;
@@ -319,7 +320,7 @@
 		justify-content: space-between;
 		gap: 0.75rem;
 		padding: 0.75rem 1rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		text-align: left;
 		border: 1px solid transparent;
 		border-radius: 2px;
@@ -408,7 +409,7 @@
 
 	.empty-state p {
 		margin: 0;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		font-style: italic;
 		color: #6b5d52;

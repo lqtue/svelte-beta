@@ -41,6 +41,13 @@
 	import { setTripContext } from './context/tripContext';
 	import { fetchMultipleBounds } from './mapBounds';
 	import { startOrientationTracking, stopOrientationTracking } from './orientation';
+	import { registerServiceWorker } from './serviceWorker';
+	import {
+		cacheMapCatalog,
+		getCachedMapCatalog,
+		cacheAnnotation,
+		getCachedAnnotation
+	} from './mapCache';
 
 	let mapContainer: HTMLDivElement;
 	let map: Map | null = null;
@@ -76,6 +83,7 @@
 
 	// Welcome dialog state
 	let showWelcome = false;
+	let loadingCity: string | null = null;
 
 	// Map hint state
 	let showMapHint = false;
@@ -177,6 +185,13 @@
 
 		// Async initialization
 		(async () => {
+			// Register service worker for caching map tiles
+			registerServiceWorker().then((registration) => {
+				if (registration) {
+					console.log('[TripTracker] Service worker registered for map caching');
+				}
+			});
+
 			// Load map catalog
 			await loadMapCatalog();
 
@@ -211,6 +226,15 @@
 
 	async function loadMapCatalog() {
 		try {
+			// Try to load from cache first
+			const cached = await getCachedMapCatalog();
+			if (cached) {
+				mapList = cached;
+				console.log('[TripTracker] Loaded map catalog from cache');
+				return;
+			}
+
+			// Fetch from network
 			const response = await fetch(DATASET_URL);
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			const text = await response.text();
@@ -257,6 +281,10 @@
 			}
 
 			mapList = items;
+
+			// Cache the catalog for future use
+			await cacheMapCatalog(items);
+			console.log('[TripTracker] Cached map catalog');
 		} catch (err) {
 			console.error('Failed to load map catalog:', err);
 			mapList = [];
@@ -532,6 +560,9 @@
 		const city = event.detail.city;
 		console.log('[TripTracker] Selected starting city:', city);
 
+		// Set loading state
+		loadingCity = city;
+
 		// Set city filter
 		filterCity = city;
 
@@ -582,12 +613,13 @@
 
 			if (earliestMap) {
 				console.log('[TripTracker] Loading earliest map:', earliestMap.name, earliestMap.year);
-				loadMapOverlay(earliestMap.id);
+				await loadMapOverlay(earliestMap.id);
 			}
 		}
 
-		// Close dialog
+		// Close dialog and clear loading state
 		showWelcome = false;
+		loadingCity = null;
 
 		// Show map hint if not seen before
 		if (!$tripState.hasSeenMapHint) {
@@ -653,6 +685,7 @@
 	<WelcomeDialog
 		isOpen={showWelcome}
 		{cities}
+		{loadingCity}
 		on:select={handleWelcomeSelect}
 		on:skip={handleWelcomeSkip}
 	/>

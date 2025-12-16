@@ -9,52 +9,19 @@
       "_environment.js"
     ]
   },
-  "_MapViewport.B_zn-iq1.css": {
-    "file": "_app/immutable/assets/MapViewport.B_zn-iq1.css",
-    "src": "_MapViewport.B_zn-iq1.css"
+  "_constants.BtPuoxOl.css": {
+    "file": "_app/immutable/assets/constants.BtPuoxOl.css",
+    "src": "_constants.BtPuoxOl.css"
   },
-  "_MapViewport.js": {
-    "file": "chunks/MapViewport.js",
-    "name": "MapViewport",
+  "_constants.js": {
+    "file": "chunks/constants.js",
+    "name": "constants",
     "imports": [
-      "_index2.js",
       "_context.js"
     ],
     "css": [
-      "_app/immutable/assets/MapViewport.B_zn-iq1.css"
+      "_app/immutable/assets/constants.BtPuoxOl.css"
     ]
-  },
-  "_SidebarNav.FSomZA6X.css": {
-    "file": "_app/immutable/assets/SidebarNav.FSomZA6X.css",
-    "src": "_SidebarNav.FSomZA6X.css"
-  },
-  "_SidebarNav.js": {
-    "file": "chunks/SidebarNav.js",
-    "name": "SidebarNav",
-    "imports": [
-      "_context.js",
-      "_exports.js",
-      "_utils.js",
-      "_state.svelte.js",
-      "_index2.js"
-    ],
-    "css": [
-      "_app/immutable/assets/SidebarNav.FSomZA6X.css"
-    ]
-  },
-  "_breakpoints.js": {
-    "file": "chunks/breakpoints.js",
-    "name": "breakpoints",
-    "imports": [
-      "_index.js"
-    ],
-    "css": [
-      "_app/immutable/assets/breakpoints.yzSdU6gv.css"
-    ]
-  },
-  "_breakpoints.yzSdU6gv.css": {
-    "file": "_app/immutable/assets/breakpoints.yzSdU6gv.css",
-    "src": "_breakpoints.yzSdU6gv.css"
   },
   "_context.js": {
     "file": "chunks/context.js",
@@ -98,25 +65,11 @@
       "_environment.js"
     ]
   },
-  "_mode.js": {
-    "file": "chunks/mode.js",
-    "name": "mode",
-    "imports": [
-      "_index.js"
-    ]
-  },
   "_shared.js": {
     "file": "chunks/shared.js",
     "name": "shared",
     "imports": [
       "_utils.js"
-    ]
-  },
-  "_state.svelte.js": {
-    "file": "chunks/state.svelte.js",
-    "name": "state.svelte",
-    "imports": [
-      "_context.js"
     ]
   },
   "_utils.js": {
@@ -141,7 +94,6 @@
     "isEntry": true,
     "imports": [
       "_context.js",
-      "_state.svelte.js",
       "_exports.js",
       "_utils.js",
       "_index.js"
@@ -171,7 +123,7 @@
       "_index2.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.Cgbp4RAO.css"
+      "_app/immutable/assets/_layout.Buy76JVg.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -181,15 +133,12 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_exports.js",
-      "_utils.js",
-      "_context.js",
-      "_state.svelte.js",
-      "_breakpoints.js",
-      "_mode.js"
+      "_constants.js",
+      "_index.js",
+      "_context.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.BkziFlwD.css"
+      "_app/immutable/assets/_page.B1-Eoz19.css"
     ]
   },
   "src/routes/+page.ts": {
@@ -198,62 +147,19 @@
     "src": "src/routes/+page.ts",
     "isEntry": true
   },
-  "src/routes/create/+layout.svelte": {
-    "file": "entries/pages/create/_layout.svelte.js",
-    "name": "entries/pages/create/_layout.svelte",
-    "src": "src/routes/create/+layout.svelte",
+  "src/routes/trip/+page.svelte": {
+    "file": "entries/pages/trip/_page.svelte.js",
+    "name": "entries/pages/trip/_page.svelte",
+    "src": "src/routes/trip/+page.svelte",
     "isEntry": true,
     "imports": [
+      "_constants.js",
       "_index2.js",
-      "_SidebarNav.js",
-      "_breakpoints.js",
-      "_mode.js"
+      "_context.js",
+      "_index.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.BpDfismB.css"
-    ]
-  },
-  "src/routes/create/+page.svelte": {
-    "file": "entries/pages/create/_page.svelte.js",
-    "name": "entries/pages/create/_page.svelte",
-    "src": "src/routes/create/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_MapViewport.js",
-      "_breakpoints.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.CfPEs_yZ.css"
-    ]
-  },
-  "src/routes/view/+layout.svelte": {
-    "file": "entries/pages/view/_layout.svelte.js",
-    "name": "entries/pages/view/_layout.svelte",
-    "src": "src/routes/view/+layout.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_SidebarNav.js",
-      "_breakpoints.js",
-      "_mode.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_layout.C8mssoqu.css"
-    ]
-  },
-  "src/routes/view/+page.svelte": {
-    "file": "entries/pages/view/_page.svelte.js",
-    "name": "entries/pages/view/_page.svelte",
-    "src": "src/routes/view/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_MapViewport.js",
-      "_breakpoints.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.C5u61arx.css"
+      "_app/immutable/assets/_page.DsMLdXVq.css"
     ]
   }
 }

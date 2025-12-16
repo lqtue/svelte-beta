@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { t } from './translations';
+	import { currentLanguage, type Language } from './stores/languageState';
 
 	export let isOpen = false;
 	export let cities: string[] = [];
+	export let loadingCity: string | null = null;
 
 	const dispatch = createEventDispatcher();
 
@@ -13,10 +16,21 @@
 	function handleSkip() {
 		dispatch('skip');
 	}
+
+	function handleLanguageChange(lang: Language) {
+		currentLanguage.setLanguage(lang);
+	}
+
+	// Map city names to translation keys
+	function getCityName(city: string): string {
+		const cityKey = city.toLowerCase().replace(/\s+/g, '');
+		// @ts-ignore - dynamic key access
+		return $t.cities[cityKey] || city;
+	}
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 {#if isOpen}
@@ -24,30 +38,55 @@
 		<div class="dialog-container">
 			<div class="dialog-header">
 				<div class="dialog-icon">🗺️</div>
-				<h2 class="dialog-title">Welcome to Historical Maps</h2>
+				<h2 class="dialog-title">{$t.welcome.title}</h2>
+				<div class="language-toggle">
+					<button
+						class="lang-button"
+						class:active={$currentLanguage === 'en'}
+						on:click={() => handleLanguageChange('en')}
+					>
+						EN
+					</button>
+					<span class="lang-separator">|</span>
+					<button
+						class="lang-button"
+						class:active={$currentLanguage === 'vi'}
+						on:click={() => handleLanguageChange('vi')}
+					>
+						VI
+					</button>
+				</div>
 			</div>
 
 			<div class="dialog-content">
 				<p class="dialog-message">
-					Choose your starting city to explore historical maps from different eras.
+					{$t.welcome.message}
 				</p>
 
 				<div class="city-grid">
 					{#each cities as city (city)}
 						<button
 							class="city-button"
+							class:loading={loadingCity === city}
+							class:disabled={loadingCity && loadingCity !== city}
 							on:click={() => handleSelectCity(city)}
+							disabled={!!loadingCity}
 						>
-							<span class="city-icon">📍</span>
-							<span class="city-name">{city}</span>
+							{#if loadingCity === city}
+								<span class="loading-spinner">⏳</span>
+								<span class="city-name">{$t.loading.loadingCity}...</span>
+							{:else}
+								<span class="city-icon">{$t.welcome.cityIcon}</span>
+								<span class="city-name">{getCityName(city)}</span>
+							{/if}
 						</button>
 					{/each}
 				</div>
 			</div>
 
 			<div class="dialog-actions">
-				<button class="dialog-button secondary" on:click={handleSkip}>
-					Skip for Now
+				<button class="dialog-button secondary" on:click={handleSkip} disabled={!!loadingCity}>
+					{$t.welcome.skipButton}
 				</button>
 			</div>
 		</div>
@@ -112,13 +151,56 @@
 	}
 
 	.dialog-title {
-		font-family: 'Cinzel', serif;
+		font-family: 'Spectral', serif;
 		font-size: 1.5rem;
 		font-weight: 700;
-		letter-spacing: 0.05em;
+		letter-spacing: -0.02em;
 		text-transform: uppercase;
 		color: #2b2520;
 		margin: 0;
+	}
+
+	.language-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		margin-top: 1rem;
+		padding: 0.5rem;
+		background: rgba(255, 255, 255, 0.3);
+		border-radius: 2px;
+		border: 1px solid rgba(212, 175, 55, 0.3);
+	}
+
+	.lang-button {
+		font-family: 'Be Vietnam Pro', sans-serif;
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		padding: 0.375rem 0.75rem;
+		background: transparent;
+		border: none;
+		color: #6b5d52;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		border-radius: 2px;
+	}
+
+	.lang-button:hover {
+		background: rgba(212, 175, 55, 0.2);
+		color: #2b2520;
+	}
+
+	.lang-button.active {
+		background: rgba(212, 175, 55, 0.4);
+		color: #2b2520;
+		font-weight: 700;
+	}
+
+	.lang-separator {
+		font-family: 'Be Vietnam Pro', sans-serif;
+		color: rgba(107, 93, 82, 0.4);
+		font-weight: 300;
 	}
 
 	.dialog-content {
@@ -126,7 +208,7 @@
 	}
 
 	.dialog-message {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 1.125rem;
 		line-height: 1.6;
 		color: #4a3f35;
@@ -168,10 +250,11 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 1rem 0.75rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.9375rem;
 		font-weight: 600;
 		text-align: center;
+		letter-spacing: 0.02em;
 		border: 2px solid rgba(212, 175, 55, 0.3);
 		border-radius: 4px;
 		background: rgba(255, 255, 255, 0.3);
@@ -180,11 +263,39 @@
 		transition: all 0.2s ease;
 	}
 
-	.city-button:hover {
+	.city-button:hover:not(:disabled) {
 		background: rgba(212, 175, 55, 0.15);
 		border-color: rgba(212, 175, 55, 0.5);
 		transform: translateY(-2px);
 		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+	}
+
+	.city-button.loading {
+		background: linear-gradient(160deg, rgba(212, 175, 55, 0.25) 0%, rgba(212, 175, 55, 0.15) 100%);
+		border-color: #d4af37;
+	}
+
+	.city-button.disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.city-button:disabled {
+		cursor: not-allowed;
+	}
+
+	.loading-spinner {
+		font-size: 1.5rem;
+		animation: spin 2s linear infinite;
+	}
+
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.city-icon {
@@ -206,7 +317,7 @@
 
 	.dialog-button {
 		padding: 1rem 2rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		letter-spacing: 0.05em;
@@ -223,13 +334,18 @@
 		color: #6b5d52;
 	}
 
-	.dialog-button.secondary:hover {
+	.dialog-button.secondary:hover:not(:disabled) {
 		background: rgba(107, 93, 82, 0.1);
 		border-color: rgba(107, 93, 82, 0.6);
 		transform: translateY(-1px);
 	}
 
-	.dialog-button:active {
+	.dialog-button:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.dialog-button:active:not(:disabled) {
 		transform: translateY(0);
 	}
 

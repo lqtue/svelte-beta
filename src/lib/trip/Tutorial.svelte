@@ -59,7 +59,7 @@
 </script>
 
 <svelte:head>
-	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="tutorial-overlay">
@@ -203,7 +203,7 @@
 	}
 
 	.header-ornament {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		letter-spacing: 0.1em;
@@ -212,7 +212,7 @@
 	}
 
 	.progress-tracker {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.9375rem;
 		color: #9b8672;
 	}
@@ -278,7 +278,7 @@
 	}
 
 	.step-title {
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 2rem;
 		font-weight: 700;
 		color: #2b2520;
@@ -287,7 +287,7 @@
 	}
 
 	.step-description {
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 1.125rem;
 		line-height: 1.8;
 		color: #4a3f35;
@@ -307,7 +307,7 @@
 
 	.nav-button {
 		padding: 0.875rem 1.5rem;
-		font-family: 'Cinzel', serif;
+		font-family: 'Be Vietnam Pro', sans-serif;
 		font-size: 0.875rem;
 		font-weight: 600;
 		letter-spacing: 0.05em;
@@ -350,7 +350,7 @@
 		justify-self: center;
 		background: none;
 		border: none;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.875rem;
 		font-style: italic;
 		color: #9b8672;
@@ -370,7 +370,7 @@
 		position: absolute;
 		bottom: 1rem;
 		right: 2rem;
-		font-family: 'Crimson Text', serif;
+		font-family: 'Noto Serif', serif;
 		font-size: 0.75rem;
 		font-style: italic;
 		color: #9b8672;
