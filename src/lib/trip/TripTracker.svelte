@@ -13,8 +13,11 @@
 	import Stroke from 'ol/style/Stroke';
 	import Fill from 'ol/style/Fill';
 	import CircleStyle from 'ol/style/Circle';
-	import { Zoom, ScaleLine } from 'ol/control';
+	import { Zoom, ScaleLine, Rotate } from 'ol/control';
 	import { defaults as defaultControls } from 'ol/control/defaults';
+	import { defaults as defaultInteractions } from 'ol/interaction/defaults';
+	import DragRotate from 'ol/interaction/DragRotate';
+	import { platformModifierKeyOnly } from 'ol/events/condition';
 	import { fromLonLat, toLonLat } from 'ol/proj';
 	import type { FeatureLike } from 'ol/Feature';
 	import type { Coordinate } from 'ol/coordinate';
@@ -171,10 +174,16 @@
 					? fromLonLat([lastKnownPos.lon, lastKnownPos.lat])
 					: INITIAL_CENTER,
 				zoom: 16,
-				enableRotation: false
+				enableRotation: true
 			}),
+			interactions: defaultInteractions().extend([
+				new DragRotate({
+					condition: platformModifierKeyOnly
+				})
+			]),
 			controls: defaultControls({ attribution: false, rotate: false, zoom: false }).extend([
 				new Zoom(),
+				new Rotate(),
 				new ScaleLine()
 			])
 		});
