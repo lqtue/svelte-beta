@@ -2,6 +2,15 @@
   import { onMount, onDestroy } from 'svelte';
   import Map from 'ol/Map';
   import View from 'ol/View';
+  import WelcomeOverlay from './components/WelcomeOverlay.svelte';
+  import CreatorToolbar from './components/CreatorToolbar.svelte';
+  import CreatorLeftPanel from './components/CreatorLeftPanel.svelte';
+  import CreatorRightPanel from './components/CreatorRightPanel.svelte';
+  import ViewerPanel from './components/ViewerPanel.svelte';
+  import SearchDialog from './components/SearchDialog.svelte';
+  import MetadataDialog from './components/MetadataDialog.svelte';
+  import CaptureSceneModal from './components/CaptureSceneModal.svelte';
+  import StoryPresenter from './components/StoryPresenter.svelte';
   import VectorSource from 'ol/source/Vector';
   import VectorImageLayer from 'ol/layer/VectorImage';
   import BaseLayer from 'ol/layer/Base';
@@ -2354,32 +2363,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
 <div class="viewer" class:mobile={isMobile} class:creator={appMode === 'create'}>
   {#if !isMobile && showWelcome}
-    <div class="welcome-overlay">
-      <div class="welcome-card">
-        <h1>Welcome to the VMA studio</h1>
-        <p>
-          Choose how you want to start. Viewer lets you explore; Creator unlocks annotation and storytelling tools.
-        </p>
-        <div class="welcome-actions">
-          <button
-            type="button"
-            class="chip ghost"
-            class:active={appMode === 'explore'}
-            on:click={() => chooseAppMode('explore')}
-          >
-            Viewer
-          </button>
-          <button
-            type="button"
-            class="chip"
-            class:active={appMode === 'create'}
-            on:click={() => chooseAppMode('create')}
-          >
-            Creator
-          </button>
-        </div>
-      </div>
-    </div>
+    <WelcomeOverlay {appMode} on:choosemode={(e) => chooseAppMode(e.detail)} />
   {/if}
 
   <div class="workspace" style={workspaceStyle}>
@@ -2390,123 +2374,25 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         </button>
       {/if}
       {#if !creatorLeftCollapsed}
-        <aside class="creator-panel left">
-          <button
-            type="button"
-            class="panel-collapse"
-            on:click={() => (creatorLeftCollapsed = true)}
-            aria-expanded="true"
-          >
-            Hide tools
-          </button>
-          <div class="panel-scroll custom-scrollbar">
-            <section class="panel-card">
-              <header class="panel-card-header">
-                <h2>View control</h2>
-              </header>
-              <section class="panel-card-section">
-                <span class="section-title">View mode</span>
-                <div class="button-group wrap">
-                  <button type="button" class:selected={viewMode === 'overlay'} on:click={() => handleModeClick('overlay')}>
-                    Overlay
-                  </button>
-                  <button type="button" class:selected={viewMode === 'side-x'} on:click={() => handleModeClick('side-x')}>
-                    Side-X
-                  </button>
-                  <button type="button" class:selected={viewMode === 'side-y'} on:click={() => handleModeClick('side-y')}>
-                    Side-Y
-                  </button>
-                  <button type="button" class:selected={viewMode === 'spy'} on:click={() => handleModeClick('spy')}>
-                    Glass
-                  </button>
-                </div>
-              </section>
-              <section class="panel-card-section">
-                <span class="section-title">Overlay opacity</span>
-                <div class="slider">
-                  <input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleOpacityInput} />
-                  <span>{opacityPercent}%</span>
-                </div>
-              </section>
-            </section>
-
-            <section class="panel-card">
-              <header class="panel-card-header">
-                <h2>Historical maps</h2>
-              </header>
-              {#if viewerFeaturedMaps.length}
-                <section class="panel-card-section">
-                  <span class="section-title">Featured</span>
-                  <div class="history-featured">
-                    {#each viewerFeaturedMaps as item (item.id)}
-                      <button
-                        type="button"
-                        class="history-featured-card"
-                        class:selected={item.id === selectedMapId}
-                        on:click={() => void selectMapById(item.id)}
-                      >
-                        <span class="history-title">{item.name}</span>
-                        {#if item.summary}
-                          <span class="history-meta">{item.summary}</span>
-                        {/if}
-                      </button>
-                    {/each}
-                  </div>
-                </section>
-              {/if}
-              <section class="panel-card-section">
-                <label class="history-filter">
-                  <span>Filter by type</span>
-                  <select bind:value={mapTypeSelection}>
-                    <option value="all">All maps ({mapList.length})</option>
-                    {#each mapTypes as type}
-                      <option value={type}>{type}</option>
-                    {/each}
-                  </select>
-                </label>
-              </section>
-              <div class="history-list custom-scrollbar">
-                {#if viewerAllMaps.length}
-                  {#each viewerAllMaps as item (item.id)}
-                    <button
-                      type="button"
-                      class="history-item"
-                      class:selected={item.id === selectedMapId}
-                      on:click={() => void selectMapById(item.id)}
-                    >
-                      <span class="history-title">{item.name}</span>
-                      <span class="history-meta">{item.summary || item.type}</span>
-                    </button>
-                  {/each}
-                {:else}
-                  <p class="empty-state">Map catalog is loading…</p>
-                {/if}
-              </div>
-            </section>
-
-            <section class="panel-card">
-              <header class="panel-card-header">
-                <h2>Basemap</h2>
-              </header>
-              <section class="panel-card-section">
-                <div class="button-group wrap">
-                  {#each BASEMAP_DEFS as base}
-                    <button
-                      type="button"
-                      class:selected={basemapSelection === base.key}
-                      on:click={() => {
-                        basemapSelection = base.key;
-                        queueSaveState();
-                      }}
-                    >
-                      {base.label}
-                    </button>
-                  {/each}
-                </div>
-              </section>
-            </section>
-          </div>
-        </aside>
+        <CreatorLeftPanel
+          {viewMode}
+          {opacity}
+          {viewerFeaturedMaps}
+          {selectedMapId}
+          bind:mapTypeSelection
+          {mapList}
+          {mapTypes}
+          {viewerAllMaps}
+          {basemapSelection}
+          {BASEMAP_DEFS}
+          on:handleModeClick={(e) => handleModeClick(e.detail)}
+          on:handleOpacityInput={(e) => handleOpacityInput(e)}
+          on:selectMapById={(e) => selectMapById(e.detail)}
+          on:updateBasemap={(e) => {
+            basemapSelection = e.detail;
+            queueSaveState();
+          }}
+        />
       {/if}
     {/if}
 
@@ -2557,438 +2443,82 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         ></button>
       </div>
 
-      {#if storyPresenting && currentStoryScene}
-        <div class="story-presenter">
-          <div class="story-presenter-content">
-            <div class="story-presenter-nav">
-              <span class="counter">
-                {currentStoryVisiblePosition || 1} / {Math.max(visibleStoryScenes.length, 1)}
-              </span>
-              <button type="button" class="chip ghost" on:click={previousStoryScene} disabled={visibleStoryScenes.length < 2}>
-                ◀ Prev
-              </button>
-              <button type="button" class="chip" class:active={storyAutoplay} on:click={toggleStoryAutoplay}>
-                {storyAutoplay ? 'Pause' : 'Play'}
-              </button>
-              <button type="button" class="chip ghost" on:click={nextStoryScene} disabled={visibleStoryScenes.length < 2}>
-                Next ▶
-              </button>
-              <button type="button" class="chip danger" on:click={stopStoryPresentation}>
-                Exit
-              </button>
-            </div>
-            <div class="story-presenter-body">
-              <h2>{currentStoryScene.title}</h2>
-              {#if currentStoryScene.details?.trim().length}
-                <p>{currentStoryScene.details}</p>
-              {:else}
-                <p class="muted">No additional details for this scene.</p>
-              {/if}
-            </div>
-          </div>
-        </div>
-      {/if}
+      <StoryPresenter
+        {storyPresenting}
+        {currentStoryScene}
+        {currentStoryVisiblePosition}
+        {visibleStoryScenes}
+        {storyAutoplay}
+        on:previous={previousStoryScene}
+        on:toggleAutoplay={toggleStoryAutoplay}
+        on:next={nextStoryScene}
+        on:stop={stopStoryPresentation}
+      />
 
       {#if appMode === 'create'}
-        <div class="creator-toolbar">
-          <div class="toolbar-cluster">
-            <button
-              type="button"
-              on:click={() => (searchOverlayOpen = true)}
-              title="Search places"
-              aria-label="Search places"
-            >
-              <span class="toolbar-icon">🔍</span>
-            </button>
-          </div>
-          <div class="toolbar-cluster">
-            <button
-              type="button"
-              class:selected={!drawingMode}
-              on:click={deactivateDrawing}
-              title="Pan the map"
-              aria-label="Pan the map"
-            >
-              <span class="toolbar-icon">🖐</span>
-            </button>
-            <div class="toolbar-group">
-              <button
-                type="button"
-                class:selected={drawMenuOpen || !!drawingMode}
-                on:click={() => (drawMenuOpen = !drawMenuOpen)}
-                title="Draw annotations"
-                aria-label="Draw annotations"
-                aria-haspopup="true"
-                aria-expanded={drawMenuOpen}
-              >
-                <span class="toolbar-icon">✏️</span>
-              </button>
-              {#if drawMenuOpen}
-                <div class="toolbar-menu">
-                  <button type="button" class:selected={drawingMode === 'point'} on:click={() => { setDrawingMode('point'); drawMenuOpen = false; }}>
-                    Point
-                  </button>
-                  <button type="button" class:selected={drawingMode === 'line'} on:click={() => { setDrawingMode('line'); drawMenuOpen = false; }}>
-                    Line
-                  </button>
-                  <button type="button" class:selected={drawingMode === 'polygon'} on:click={() => { setDrawingMode('polygon'); drawMenuOpen = false; }}>
-                    Polygon
-                  </button>
-                  <button type="button" class:selected={editingEnabled} on:click={() => { toggleEditing(); drawMenuOpen = false; }}>
-                    {editingEnabled ? 'Disable edit' : 'Enable edit'}
-                  </button>
-                  <button type="button" on:click={() => { deactivateDrawing(); drawMenuOpen = false; }}>
-                    Finish drawing
-                  </button>
-                </div>
-              {/if}
-            </div>
-            <button
-              type="button"
-              title="Undo"
-              aria-label="Undo"
-              on:click={undoLastAction}
-              disabled={!canUndo}
-            >
-              <span class="toolbar-icon">↺</span>
-            </button>
-            <button
-              type="button"
-              title="Redo"
-              aria-label="Redo"
-              on:click={redoLastAction}
-              disabled={!canRedo}
-            >
-              <span class="toolbar-icon">↻</span>
-            </button>
-          </div>
-          <div class="toolbar-cluster">
-            <button
-              type="button"
-              on:click={() => openCaptureModal()}
-              title="Capture current view"
-              aria-label="Capture scene"
-            >
-              <span class="toolbar-icon">📷</span>
-            </button>
-            <button
-              type="button"
-              on:click={() => startStoryPresentation(0)}
-              title="Present story"
-              aria-label="Present story"
-              disabled={!visibleStoryScenes.length}
-            >
-              <span class="toolbar-icon">🎞</span>
-            </button>
-          </div>
-          <div class="toolbar-cluster">
-            <div class="toolbar-group">
-              <button
-                type="button"
-                class:selected={toolbarSettingsOpen}
-                on:click={() => (toolbarSettingsOpen = !toolbarSettingsOpen)}
-                title="Settings"
-                aria-label="Settings"
-                aria-haspopup="true"
-                aria-expanded={toolbarSettingsOpen}
-              >
-                <span class="toolbar-icon">⚙️</span>
-              </button>
-              {#if toolbarSettingsOpen}
-                <div class="toolbar-menu">
-                  <button type="button" on:click={() => { toggleAppMode(); toolbarSettingsOpen = false; }}>
-                    Switch to Viewer
-                  </button>
-                  <button type="button" on:click={() => { handleClearState(); toolbarSettingsOpen = false; }}>
-                    Clear cached state
-                  </button>
-                </div>
-              {/if}
-            </div>
-          </div>
-        </div>
+        <CreatorToolbar
+          {drawingMode}
+          bind:drawMenuOpen
+          {editingEnabled}
+          {canUndo}
+          {canRedo}
+          bind:toolbarSettingsOpen
+          {visibleStoryScenes}
+          on:searchclick={() => (searchOverlayOpen = true)}
+          on:deactivatedrawing={deactivateDrawing}
+          on:setdrawingmode={(e) => setDrawingMode(e.detail)}
+          on:toggleediting={toggleEditing}
+          on:undolastaction={undoLastAction}
+          on:redolastaction={redoLastAction}
+          on:opencapturemodal={() => openCaptureModal()}
+          on:startstorypresentation={() => startStoryPresentation(0)}
+          on:toggleappmode={toggleAppMode}
+          on:handleclearstate={handleClearState}
+        />
       {:else if !showWelcome}
-        <div class="viewer-panel" class:collapsed={!viewerPanelOpen}>
-          <div class="viewer-tabs">
-            <button
-              type="button"
-              class:selected={activeViewerSection === 'map'}
-              on:click={() => handleViewerTabClick('map')}
-              aria-expanded={activeViewerSection === 'map' && viewerPanelOpen}
-            >
-              Map
-            </button>
-            <button
-              type="button"
-              class:selected={activeViewerSection === 'control'}
-              on:click={() => handleViewerTabClick('control')}
-              aria-expanded={activeViewerSection === 'control' && viewerPanelOpen}
-            >
-              Controls
-            </button>
-            <button
-              type="button"
-              class:selected={activeViewerSection === 'story'}
-              on:click={() => handleViewerTabClick('story')}
-              aria-expanded={activeViewerSection === 'story' && viewerPanelOpen}
-            >
-              Story
-            </button>
-            <button
-              type="button"
-              class:selected={activeViewerSection === 'info'}
-              on:click={() => handleViewerTabClick('info')}
-              aria-expanded={activeViewerSection === 'info' && viewerPanelOpen}
-            >
-              Share & Settings
-            </button>
-          </div>
-          {#if viewerPanelOpen}
-          <div class="viewer-section custom-scrollbar">
-            {#if activeViewerSection === 'map'}
-              <div class="section-group">
-                <div class="section-block">
-                  <h3>Featured historical maps</h3>
-                  <div class="map-grid">
-                    {#if viewerFeaturedMaps.length}
-                      {#each viewerFeaturedMaps as item (item.id)}
-                        <button
-                          type="button"
-                          class="map-card"
-                          class:active={item.id === selectedMapId}
-                          on:click={() => void selectMapById(item.id)}
-                        >
-                          {#if item.thumbnail}
-                            <img src={item.thumbnail} alt={`Preview of ${item.name}`} loading="lazy" />
-                          {/if}
-                          <div class="map-card-body">
-                            <span class="map-card-title">{item.name}</span>
-                            <span class="map-card-meta">{item.summary || item.type}</span>
-                          </div>
-                        </button>
-                      {/each}
-                    {:else}
-                      <p class="empty-state">No featured maps yet.</p>
-                    {/if}
-                  </div>
-                </div>
-                <div class="section-block">
-                  <h3>Metadata</h3>
-                  {#if selectedMap}
-                    <p class="muted">View additional information about {selectedMap.name}.</p>
-                    <button type="button" class="chip ghost" on:click={() => (metadataOverlayOpen = true)}>
-                      Open metadata
-                    </button>
-                  {:else}
-                    <p class="empty-state">Select a map to view its metadata.</p>
-                  {/if}
-                </div>
-                <div class="section-block">
-                  <h3>Basemap</h3>
-                  <div class="button-group">
-                    {#each BASEMAP_DEFS as base}
-                      <button
-                        type="button"
-                        class:selected={basemapSelection === base.key}
-                        on:click={() => {
-                          basemapSelection = base.key;
-                          queueSaveState();
-                        }}
-                      >
-                        {base.label}
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-                <div class="section-block">
-                  <h3>More historical maps</h3>
-                  <details class="map-accordion">
-                    <summary>Browse catalog ({viewerAllMaps.length})</summary>
-                    <div class="catalog-filter">
-                      <label>
-                        <span>Filter by type</span>
-                        <select bind:value={mapTypeSelection}>
-                          <option value="all">All maps ({mapList.length})</option>
-                          {#each mapTypes as type}
-                            <option value={type}>{type}</option>
-                          {/each}
-                        </select>
-                      </label>
-                    </div>
-                    <div class="catalog-list custom-scrollbar">
-                      {#if viewerAllMaps.length}
-                        {#each viewerAllMaps as item (item.id)}
-                          <button
-                            type="button"
-                            class="catalog-item"
-                            class:active={item.id === selectedMapId}
-                            on:click={() => void selectMapById(item.id)}
-                          >
-                            {#if item.thumbnail}
-                              <img src={item.thumbnail} alt={`Preview of ${item.name}`} loading="lazy" />
-                            {/if}
-                            <div class="catalog-text">
-                              <span class="catalog-title">{item.name}</span>
-                              <span class="catalog-meta">{item.summary || item.type}</span>
-                            </div>
-                          </button>
-                        {/each}
-                      {:else}
-                        <p class="empty-state">Map catalog is loading…</p>
-                      {/if}
-                    </div>
-                  </details>
-                </div>
-              </div>
-            {:else if activeViewerSection === 'control'}
-              <div class="section-group">
-            <div class="section-block">
-              <h3>View mode</h3>
-              <div class="button-group wrap">
-                <button type="button" class:selected={viewMode === 'overlay'} on:click={() => handleModeClick('overlay')}>
-                  Overlay
-                </button>
-                <button type="button" class:selected={viewMode === 'side-x'} on:click={() => handleModeClick('side-x')}>
-                  Side-X
-                </button>
-                <button type="button" class:selected={viewMode === 'side-y'} on:click={() => handleModeClick('side-y')}>
-                  Side-Y
-                </button>
-                <button type="button" class:selected={viewMode === 'spy'} on:click={() => handleModeClick('spy')}>
-                  Glass
-                </button>
-              </div>
-            </div>
-            <div class="section-block">
-              <h3>Opacity</h3>
-              <div class="slider">
-                <input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleOpacityInput} />
-                <span>{opacityPercent}%</span>
-              </div>
-            </div>
-                <div class="section-block">
-                  <h3>Search</h3>
-                  <div class="search-row">
-                <input
-                  type="text"
-                  placeholder="Search for a place or address"
-                  value={searchQuery}
-                  on:input={(event) => queueSearch((event.target as HTMLInputElement).value)}
-                />
-                <button type="button" class="chip ghost" on:click={locateUser} disabled={searchLoading}>
-                  Locate
-                </button>
-                <button type="button" class="chip ghost" on:click={clearSearch} disabled={!searchQuery && !searchResults.length}>
-                  Clear
-                </button>
-              </div>
-              {#if searchLoading}
-                <p class="muted">Searching…</p>
-              {:else if searchNotice}
-                <p class:errored={searchNoticeType === 'error'} class:success={searchNoticeType === 'success'}>
-                  {searchNotice}
-                </p>
-              {/if}
-              {#if searchResults.length}
-                <div class="search-results custom-scrollbar">
-                  {#each searchResults as result (result.display_name)}
-                    <div class="search-result">
-                      <button type="button" class="result-main" on:click={() => zoomToSearchResult(result)}>
-                        <span class="result-title">{result.display_name}</span>
-                        {#if result.type}
-                          <span class="result-type">{result.type}</span>
-                        {/if}
-                      </button>
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-            </div>
-          </div>
-            {:else if activeViewerSection === 'story'}
-              <div class="section-group">
-                <div class="section-block">
-                  <h3>Feature stories</h3>
-                  <div class="story-grid">
-                    {#if visibleStoryScenes.length}
-                      {#each visibleStoryScenes.slice(0, 2) as scene, index (scene.id)}
-                        <div class="story-card">
-                          <h4>{scene.title}</h4>
-                          <p>{scene.details || 'No description yet.'}</p>
-                          <div class="story-card-actions">
-                            <button type="button" class="chip" on:click={() => goToStoryScene(index)}>
-                              View
-                            </button>
-                          </div>
-                        </div>
-                      {/each}
-                    {:else}
-                      <p class="empty-state">No stories captured yet. Switch to Creator to add one.</p>
-                    {/if}
-                  </div>
-                </div>
-                <div class="section-block">
-                  <div class="section-header">
-                    <h3>View all stories</h3>
-                    {#if visibleStoryScenes.length}
-                      <button type="button" class="chip ghost" on:click={() => startStoryPresentation(0)}>
-                        Present
-                      </button>
-                    {/if}
-                  </div>
-                  <div class="story-list custom-scrollbar">
-                    {#if visibleStoryScenes.length}
-                      {#each visibleStoryScenes as scene, index (scene.id)}
-                        <div class="story-row">
-                          <div class="story-info">
-                            <span class="story-title">{scene.title}</span>
-                            <span class="story-meta">{scene.details || 'No description provided.'}</span>
-                          </div>
-                          <div class="story-row-actions">
-                            <button type="button" class="chip ghost" on:click={() => goToStoryScene(index)}>
-                              View
-                            </button>
-                            <button type="button" class="chip ghost" on:click={() => startStoryPresentation(index)}>
-                              Play
-                            </button>
-                          </div>
-                        </div>
-                      {/each}
-                    {:else}
-                      <p class="empty-state">No story slides yet.</p>
-                    {/if}
-                  </div>
-                </div>
-              </div>
-            {:else}
-              <div class="section-group">
-                <div class="section-block">
-                  <h3>Share</h3>
-                  <p class="muted">Copy a link to this view to share it with your team.</p>
-                  <button type="button" class="chip" on:click={copyShareLink}>
-                    {shareCopied ? 'Copied!' : 'Copy link'}
-                  </button>
-                </div>
-                <div class="section-block">
-                  <h3>Status</h3>
-                  <p class:errored={statusError}>{statusMessage}</p>
-                </div>
-                <div class="section-block">
-                  <h3>Settings</h3>
-                  <div class="button-stack">
-                    <button type="button" class="chip ghost" on:click={toggleAppMode}>
-                      Switch to {appMode === 'explore' ? 'Creator' : 'Viewer'}
-                    </button>
-                    <button type="button" class="chip danger" on:click={handleClearState}>
-                      Clear cached state
-                    </button>
-                  </div>
-                </div>
-              </div>
-            {/if}
-            </div>
-          {/if}
-        </div>
+        <ViewerPanel
+          bind:viewerPanelOpen
+          bind:activeViewerSection
+          {viewerFeaturedMaps}
+          {selectedMapId}
+          {selectedMap}
+          bind:basemapSelection
+          {BASEMAP_DEFS}
+          {viewerAllMaps}
+          bind:mapTypeSelection
+          {mapList}
+          {mapTypes}
+          {viewMode}
+          bind:opacity
+          bind:searchQuery
+          {searchLoading}
+          {searchNotice}
+          {searchNoticeType}
+          {searchResults}
+          {visibleStoryScenes}
+          {shareCopied}
+          {statusError}
+          {statusMessage}
+          {appMode}
+          on:handleViewerTabClick={(e) => handleViewerTabClick(e.detail)}
+          on:selectMapById={(e) => selectMapById(e.detail)}
+          on:openMetadata={() => (metadataOverlayOpen = true)}
+          on:updateBasemap={(e) => {
+            basemapSelection = e.detail;
+            queueSaveState();
+          }}
+          on:handleModeClick={(e) => handleModeClick(e.detail)}
+          on:handleOpacityInput={(e) => handleOpacityInput(e)}
+          on:queueSearch={(e) => queueSearch(e.detail)}
+          on:locateUser={locateUser}
+          on:clearSearch={clearSearch}
+          on:zoomToSearchResult={(e) => zoomToSearchResult(e.detail)}
+          on:goToStoryScene={(e) => goToStoryScene(e.detail)}
+          on:startStoryPresentation={(e) => startStoryPresentation(e.detail)}
+          on:copyShareLink={copyShareLink}
+          on:toggleAppMode={toggleAppMode}
+          on:handleClearState={handleClearState}
+        />
       {:else}
         <!-- Viewer panel hidden while welcome overlay is visible -->
       {/if}
@@ -3001,349 +2531,82 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         </button>
       {/if}
       {#if !creatorRightCollapsed}
-        <aside class="creator-panel right">
-          <header class="creator-right-header">
-            <button
-              type="button"
-              class="panel-collapse"
-              on:click={() => (creatorRightCollapsed = !creatorRightCollapsed)}
-              aria-expanded={!creatorRightCollapsed}
-            >
-              Hide panel
-            </button>
-            <div class="creator-right-controls">
-              <div class="toggle-group">
-                <button type="button" class:selected={creatorRightPane === 'annotations'} on:click={() => (creatorRightPane = 'annotations')}>
-                  Annotations
-                </button>
-                <button type="button" class:selected={creatorRightPane === 'story'} on:click={() => (creatorRightPane = 'story')}>
-                  Story slides
-                </button>
-              </div>
-              <div class="right-actions">
-                <button type="button" class="chip ghost" on:click={clearAnnotations} disabled={!annotations.length}>
-                  Clear
-                </button>
-                <button type="button" class="chip ghost" on:click={exportAnnotationsAsGeoJSON} disabled={!annotations.length}>
-                  Export
-                </button>
-                <label class="chip ghost upload">
-                  Import
-                  <input type="file" accept="application/geo+json,.geojson,.json" on:change={handleGeoJsonFileChange} bind:this={geoJsonInputEl} />
-                </label>
-              </div>
-            </div>
-          </header>
-          <div class="creator-right-body custom-scrollbar">
-            {#if creatorRightPane === 'annotations'}
-              {#if annotationsNotice}
-              <p class="notice" class:errored={annotationsNoticeType === 'error'} class:success={annotationsNoticeType === 'success'}>
-                {annotationsNotice}
-              </p>
-            {/if}
-            {#if annotations.length}
-              {#each annotations as annotation (annotation.id)}
-                <div class="list-card" class:selected={annotation.id === selectedAnnotationId}>
-                  <div class="list-card-header">
-                    <input
-                      type="text"
-                      value={annotation.label}
-                      placeholder="Annotation name"
-                      on:input={(event) => updateAnnotationLabel(annotation.id, (event.target as HTMLInputElement).value)}
-                    />
-                    <div class="list-card-actions">
-                      <input
-                        type="color"
-                        value={annotation.color}
-                        title="Annotation colour"
-                        on:input={(event) => updateAnnotationColor(annotation.id, (event.target as HTMLInputElement).value)}
-                      />
-                      <button type="button" class="chip ghost" on:click={() => toggleAnnotationVisibility(annotation.id)}>
-                        {annotation.hidden ? 'Show' : 'Hide'}
-                      </button>
-                      <button type="button" class="chip danger" on:click={() => deleteAnnotation(annotation.id)}>
-                        Delete
-                      </button>
-                      <button
-                        type="button"
-                        class="icon-button"
-                        on:click={() => (openAnnotationMenu = openAnnotationMenu === annotation.id ? null : annotation.id)}
-                        aria-label="Annotation actions"
-                      >
-                        ☰
-                      </button>
-                    </div>
-                  </div>
-                  <textarea
-                    rows="2"
-                    value={annotation.details}
-                    placeholder="Annotation details"
-                    on:input={(event) => updateAnnotationDetails(annotation.id, (event.target as HTMLTextAreaElement).value)}
-                  ></textarea>
-                  {#if openAnnotationMenu === annotation.id}
-                    <div class="card-menu">
-                      <button type="button" on:click={() => { zoomToAnnotation(annotation.id); openAnnotationMenu = null; }}>
-                        Zoom to
-                      </button>
-                      <button type="button" on:click={() => { annotationState.setSelected(annotation.id); openAnnotationMenu = null; }}>
-                        Select
-                      </button>
-                    </div>
-                  {/if}
-                </div>
-              {/each}
-            {:else}
-              <p class="empty-state">Draw or import annotations to see them here.</p>
-            {/if}
-          {:else}
-            <div class="story-list-panel">
-              {#if storyScenes.length}
-                {#each storyScenes as scene, index (scene.id)}
-                  <div class="list-card" class:hidden={scene.hidden}>
-                    <div class="list-card-header">
-                      <input
-                        type="text"
-                        value={scene.title}
-                        placeholder="Scene title"
-                        on:input={(event) => {
-                          const value = (event.target as HTMLInputElement).value;
-                          storyScenes = storyScenes.map((existing, i) => (i === index ? { ...existing, title: value } : existing));
-                          queueSaveState();
-                        }}
-                      />
-                      <div class="list-card-actions">
-                        <button type="button" class="chip ghost" on:click={() => goToStoryScene(index)}>
-                          Go to
-                        </button>
-                        <button type="button" class="chip ghost" on:click={() => openCaptureModal({ editIndex: index })}>
-                          Edit
-                        </button>
-                        <button type="button" class="chip ghost" on:click={() => duplicateStoryScene(index)}>
-                          Duplicate
-                        </button>
-                        <button type="button" class="icon-button" on:click={() => (openStoryMenu = openStoryMenu === scene.id ? null : scene.id)}>
-                          ☰
-                        </button>
-                      </div>
-                    </div>
-                    <textarea
-                      rows="2"
-                      value={scene.details}
-                      placeholder="Scene details"
-                      on:input={(event) => {
-                        const value = (event.target as HTMLTextAreaElement).value;
-                        storyScenes = storyScenes.map((existing, i) => (i === index ? { ...existing, details: value } : existing));
-                        queueSaveState();
-                      }}
-                    ></textarea>
-                    {#if openStoryMenu === scene.id}
-                      <div class="card-menu">
-                        <button type="button" on:click={() => { applyStorySceneByIndex(index); openStoryMenu = null; }}>
-                          Apply view
-                        </button>
-                        <button type="button" on:click={() => { toggleStorySceneVisibility(index); openStoryMenu = null; }}>
-                          {scene.hidden ? 'Show slide' : 'Hide slide'}
-                        </button>
-                        <button type="button" on:click={() => { deleteStoryScene(index); openStoryMenu = null; }}>
-                          Delete
-                        </button>
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              {:else}
-                <p class="empty-state">Capture scenes to build your story.</p>
-              {/if}
-              </div>
-            {/if}
-          </div>
-        </aside>
+        <CreatorRightPanel
+          bind:creatorRightPane
+          {annotations}
+          {selectedAnnotationId}
+          bind:openAnnotationMenu
+          {storyScenes}
+          bind:openStoryMenu
+          {annotationsNotice}
+          {annotationsNoticeType}
+          on:updateCreatorRightPane={(e) => (creatorRightPane = e.detail)}
+          on:clearAnnotations={clearAnnotations}
+          on:exportAnnotations={exportAnnotationsAsGeoJSON}
+          on:importAnnotations={(e) => handleGeoJsonFileChange(e.detail)}
+          on:updateAnnotationLabel={(e) => updateAnnotationLabel(e.detail.id, e.detail.label)}
+          on:updateAnnotationColor={(e) => updateAnnotationColor(e.detail.id, e.detail.color)}
+          on:toggleAnnotationVisibility={(e) => toggleAnnotationVisibility(e.detail)}
+          on:deleteAnnotation={(e) => deleteAnnotation(e.detail)}
+          on:zoomToAnnotation={(e) => zoomToAnnotation(e.detail)}
+          on:selectAnnotation={(e) => annotationState.setSelected(e.detail)}
+          on:updateStoryTitle={(e) => {
+            const { index, title } = e.detail;
+            storyScenes = storyScenes.map((existing, i) => (i === index ? { ...existing, title } : existing));
+            queueSaveState();
+          }}
+          on:updateStoryDetails={(e) => {
+            const { index, details } = e.detail;
+            storyScenes = storyScenes.map((existing, i) => (i === index ? { ...existing, details } : existing));
+            queueSaveState();
+          }}
+          on:goToStoryScene={(e) => goToStoryScene(e.detail)}
+          on:openCaptureModal={(e) => openCaptureModal({ editIndex: e.detail })}
+          on:duplicateStoryScene={(e) => duplicateStoryScene(e.detail)}
+          on:applyStorySceneByIndex={(e) => applyStorySceneByIndex(e.detail)}
+          on:toggleStorySceneVisibility={(e) => toggleStorySceneVisibility(e.detail)}
+          on:deleteStoryScene={(e) => deleteStoryScene(e.detail)}
+        />
       {/if}
     {/if}
   </div>
 
   {#if metadataOverlayOpen}
-    <div
-      class="metadata-overlay"
-      role="dialog"
-      aria-modal="true"
-      tabindex="0"
-      bind:this={metadataOverlayEl}
-      on:keydown={(event) => {
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          metadataOverlayOpen = false;
-        }
-        if ((event.key === 'Enter' || event.key === ' ') && event.target === metadataOverlayEl) {
-          event.preventDefault();
-          metadataOverlayOpen = false;
-        }
-      }}
-    >
-      <div class="metadata-card">
-        <header>
-          <h2>Map metadata</h2>
-          <button type="button" class="chip ghost" on:click={() => (metadataOverlayOpen = false)}>
-            Close
-          </button>
-        </header>
-        {#if selectedMap}
-          <section class="metadata-section">
-            <h3>{selectedMap.name}</h3>
-            <dl>
-              <div>
-                <dt>Type</dt>
-                <dd>{selectedMap.type}</dd>
-              </div>
-              {#if selectedMap.summary}
-                <div>
-                  <dt>Summary</dt>
-                  <dd>{selectedMap.summary}</dd>
-                </div>
-              {/if}
-              {#if selectedMap.description}
-                <div>
-                  <dt>Details</dt>
-                  <dd>{selectedMap.description}</dd>
-                </div>
-              {/if}
-            </dl>
-          </section>
-        {:else}
-          <p class="empty-state">Select a map to view its metadata.</p>
-        {/if}
-      </div>
-    </div>
+    <MetadataDialog
+      bind:metadataOverlayOpen
+      {selectedMap}
+      on:close={() => (metadataOverlayOpen = false)}
+    />
   {/if}
 
   {#if searchOverlayOpen}
-    <div
-      class="search-dialog"
-      role="dialog"
-      aria-modal="true"
-      tabindex="0"
-      bind:this={searchOverlayEl}
-      on:keydown={(event) => {
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          searchOverlayOpen = false;
-        }
-        if ((event.key === 'Enter' || event.key === ' ') && event.target === searchOverlayEl) {
-          event.preventDefault();
-          searchOverlayOpen = false;
-        }
-      }}
-    >
-      <button type="button" class="dialog-backdrop" aria-label="Dismiss search" on:click={() => (searchOverlayOpen = false)}></button>
-      <div class="search-card">
-        <header>
-          <h2>Search</h2>
-          <button type="button" class="chip ghost" on:click={() => (searchOverlayOpen = false)}>
-            Close
-          </button>
-        </header>
-        <div class="search-form">
-          <input
-            type="text"
-            placeholder="Search for a place or address"
-            bind:value={searchQuery}
-            bind:this={searchInputEl}
-            on:input={(event) => queueSearch((event.target as HTMLInputElement).value)}
-          />
-          <div class="search-form-actions">
-            <button type="button" class="chip ghost" on:click={locateUser} disabled={searchLoading}>
-              Locate me
-            </button>
-            <button type="button" class="chip ghost" on:click={clearSearch} disabled={!searchQuery && !searchResults.length}>
-              Clear
-            </button>
-          </div>
-        </div>
-        {#if searchLoading}
-          <p class="muted">Searching…</p>
-        {:else if searchNotice}
-          <p class:errored={searchNoticeType === 'error'} class:success={searchNoticeType === 'success'}>
-            {searchNotice}
-          </p>
-        {/if}
-        {#if searchResults.length}
-          <div class="search-results-list custom-scrollbar">
-            {#each searchResults as result (result.display_name)}
-              <div class="search-result-item">
-                <button
-                  type="button"
-                  class="search-result-main"
-                  on:click={() => {
-                    zoomToSearchResult(result);
-                    searchOverlayOpen = false;
-                  }}
-                >
-                  <span class="result-title">{result.display_name}</span>
-                  {#if result.type}
-                    <span class="result-type">{result.type}</span>
-                  {/if}
-                </button>
-                {#if appMode === 'create'}
-                  <div class="search-result-actions">
-                    <button type="button" class="chip ghost" on:click={() => addSearchResultToAnnotations(result)}>
-                      Add to annotations
-                    </button>
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    </div>
+    <SearchDialog
+      bind:searchOverlayOpen
+      bind:searchQuery
+      {searchLoading}
+      {searchNotice}
+      {searchNoticeType}
+      {searchResults}
+      {appMode}
+      on:close={() => (searchOverlayOpen = false)}
+      on:queueSearch={(e) => queueSearch(e.detail)}
+      on:locateUser={locateUser}
+      on:clearSearch={clearSearch}
+      on:zoomToSearchResult={(e) => zoomToSearchResult(e.detail)}
+      on:addSearchResultToAnnotations={(e) => addSearchResultToAnnotations(e.detail)}
+    />
   {/if}
 
   {#if captureModalOpen}
-    <div class="modal-backdrop">
-      <div class="modal-card">
-        <header>
-          <h2>{storyEditingIndex !== null ? 'Update story scene' : 'Capture story scene'}</h2>
-        </header>
-        <div class="modal-body">
-          <label>
-            <span>Title</span>
-            <input type="text" bind:value={captureForm.title} placeholder="Scene title" />
-          </label>
-          <label>
-            <span>Details</span>
-            <textarea rows="3" bind:value={captureForm.details} placeholder="What should viewers know?"></textarea>
-          </label>
-          <label>
-            <span>Delay (seconds)</span>
-            <input type="number" min={STORY_DELAY_MIN} max={STORY_DELAY_MAX} bind:value={captureForm.delay} />
-          </label>
-          <fieldset>
-            <legend>Visible annotations</legend>
-            {#if annotations.length}
-              <div class="modal-chip-group">
-                {#each annotations as annotation (annotation.id)}
-                  <button
-                    type="button"
-                    class:selected={captureForm.annotations.includes(annotation.id)}
-                    on:click={() => toggleCaptureAnnotation(annotation.id)}
-                  >
-                    {annotation.label}
-                  </button>
-                {/each}
-              </div>
-            {:else}
-              <p class="muted">No annotations yet.</p>
-            {/if}
-          </fieldset>
-        </div>
-        <footer class="modal-footer">
-          <button type="button" class="ghost" on:click={closeCaptureModal}>Cancel</button>
-          <button type="button" on:click={submitCaptureForm}>
-            {storyEditingIndex !== null ? 'Update scene' : 'Add scene'}
-          </button>
-        </footer>
-      </div>
-    </div>
+    <CaptureSceneModal
+      bind:captureModalOpen
+      {storyEditingIndex}
+      bind:captureForm
+      {annotations}
+      on:close={closeCaptureModal}
+      on:submit={(e) => submitCaptureForm(e.detail)}
+      on:toggleAnnotation={(e) => toggleCaptureAnnotation(e.detail)}
+    />
   {/if}
 </div>
 
@@ -3386,116 +2649,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     height: 100%;
   }
 
-  .creator-panel.left,
-  .creator-panel.right {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 1rem;
-    padding: 0.9rem;
-    box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45);
-    backdrop-filter: blur(18px);
-    height: 100%;
-    max-height: none;
-    overflow: hidden;
-    min-width: 0;
-  }
 
-  .viewer.creator .creator-panel.left {
-    grid-column: 1;
-  }
 
-  .viewer.creator .creator-panel.right {
-    grid-column: 3;
-  }
-
-  .panel-collapse {
-    align-self: flex-start;
-    border: none;
-    background: rgba(15, 23, 42, 0.7);
-    border-radius: 999px;
-    color: inherit;
-    font-size: 0.72rem;
-    padding: 0.25rem 0.8rem;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .panel-collapse:hover,
-  .panel-collapse:focus-visible {
-    background: rgba(99, 102, 241, 0.35);
-    outline: none;
-  }
-
-  .panel-toggle {
-    position: absolute;
-    top: 1rem;
-    border: none;
-    background: rgba(15, 23, 42, 0.75);
-    border-radius: 999px;
-    color: inherit;
-    font-size: 0.74rem;
-    padding: 0.4rem 0.9rem;
-    cursor: pointer;
-    box-shadow: 0 14px 28px rgba(2, 6, 23, 0.45);
-    backdrop-filter: blur(12px);
-    transition: background 0.15s ease;
-    z-index: 95;
-  }
-
-  .panel-toggle.left {
-    left: 1rem;
-  }
-
-  .panel-toggle.right {
-    right: 1rem;
-  }
-
-  .panel-toggle:hover,
-  .panel-toggle:focus-visible {
-    background: rgba(99, 102, 241, 0.45);
-    outline: none;
-  }
-
-  .panel-scroll {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    overflow-y: auto;
-    padding-right: 0.25rem;
-    margin-top: 0.25rem;
-  }
-
-  .creator-right-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .creator-right-header .panel-collapse {
-    align-self: flex-start;
-  }
-
-  .creator-right-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .creator-right-body {
-    margin-top: 0.75rem;
-    padding-right: 0.2rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-  }
 
   .map-stage {
     position: relative;
@@ -3588,784 +2743,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     z-index: 13;
   }
 
-  .viewer-panel {
-    position: fixed;
-    left: 50%;
-    bottom: calc(env(safe-area-inset-bottom) + 1.4rem);
-    transform: translateX(-50%);
-    width: min(720px, calc(100% - 2rem));
-    background: rgba(15, 23, 42, 0.88);
-    border-radius: 1.2rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
-    display: flex;
-    flex-direction: column;
-    z-index: 130;
-    pointer-events: auto;
-  }
 
-  .viewer-panel.collapsed {
-    padding-bottom: 0.75rem;
-  }
 
-  .viewer-tabs {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.35rem;
-    padding: 0.75rem 0.85rem 0;
-  }
-
-  .viewer-tabs button,
-  .button-group button,
-  .toggle-group button,
-  .panel-card-section button,
-  .story-card-actions button,
-  .story-row-actions button,
-  .modal-chip-group button,
-  .toolbar-menu button {
-    border: none;
-    border-radius: 0.75rem;
-    background: rgba(30, 64, 175, 0.28);
-    color: inherit;
-    padding: 0.55rem 0.75rem;
-    font-size: 0.82rem;
-    cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
-  }
-
-  .viewer-tabs button.selected,
-  .button-group button.selected,
-  .toggle-group button.selected,
-  .toolbar-menu button.selected {
-    background: rgba(79, 70, 229, 0.85);
-    box-shadow: 0 12px 32px rgba(67, 56, 202, 0.35);
-  }
-
-  .viewer-tabs button:hover,
-  .button-group button:hover,
-  .toggle-group button:hover,
-  .toolbar-menu button:hover {
-    transform: translateY(-1px);
-  }
-
-  .viewer-section {
-    padding: 0.8rem 1rem 1rem;
-    max-height: 420px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .section-group {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .section-block {
-    background: rgba(15, 23, 42, 0.65);
-    border-radius: 0.95rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .section-block h3 {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
-  }
-
-  .button-group {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
-  }
-
-  .button-group.wrap {
-    flex-wrap: wrap;
-  }
-
-  .slider {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-  }
-
-  .slider input[type='range'] {
-    flex: 1 1 auto;
-  }
-
-  .map-grid {
-    display: grid;
-    gap: 0.6rem;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  }
-
-  .map-card {
-    display: flex;
-    flex-direction: column;
-    border-radius: 0.85rem;
-    background: rgba(30, 41, 59, 0.75);
-    border: 1px solid transparent;
-    overflow: hidden;
-    text-align: left;
-    gap: 0.45rem;
-  }
-
-  .map-card.active {
-    border-color: rgba(99, 102, 241, 0.85);
-    box-shadow: 0 16px 32px rgba(59, 130, 246, 0.35);
-  }
-
-  .map-card img {
-    width: 100%;
-    height: 110px;
-    object-fit: cover;
-  }
-
-  .map-card-body {
-    padding: 0 0.75rem 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .catalog-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    max-height: 240px;
-    padding-right: 0.2rem;
-  }
-
-  .catalog-item {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    border-radius: 0.85rem;
-    border: 1px solid transparent;
-    background: rgba(15, 23, 42, 0.55);
-    padding: 0.55rem 0.65rem;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .catalog-item:hover,
-  .catalog-item:focus-visible {
-    border-color: rgba(99, 102, 241, 0.5);
-    outline: none;
-  }
-
-  .catalog-item.active {
-    border-color: rgba(99, 102, 241, 0.8);
-    box-shadow: 0 12px 24px rgba(67, 56, 202, 0.35);
-  }
-
-  .catalog-item img {
-    width: 48px;
-    height: 48px;
-    object-fit: cover;
-    border-radius: 0.6rem;
-    flex-shrink: 0;
-  }
-
-  .catalog-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .catalog-title {
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
-  .catalog-meta {
-    font-size: 0.72rem;
-    color: rgba(148, 163, 184, 0.78);
-  }
-
-  .map-card-title {
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-
-  .map-card-meta {
-    font-size: 0.75rem;
-    color: rgba(148, 163, 184, 0.85);
-  }
-
-  .search-row {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .search-row input {
-    flex: 1 1 200px;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    padding: 0.55rem 0.75rem;
-    background: rgba(15, 23, 42, 0.75);
-    color: inherit;
-  }
-
-  .search-results {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    max-height: 220px;
-    overflow-y: auto;
-  }
-
-  .search-result {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.65rem 0.75rem;
-    border-radius: 0.8rem;
-    background: rgba(30, 41, 59, 0.75);
-  }
-
-  .result-main {
-    flex: 1 1 auto;
-    text-align: left;
-    color: inherit;
-    background: none;
-    border: none;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .result-title {
-    font-size: 0.82rem;
-    font-weight: 500;
-  }
-
-  .result-type {
-    font-size: 0.72rem;
-    color: rgba(148, 163, 184, 0.8);
-  }
-
-  .story-grid {
-    display: grid;
-    gap: 0.6rem;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  }
-
-  .story-card {
-    border-radius: 0.85rem;
-    background: rgba(30, 41, 59, 0.75);
-    padding: 0.8rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .story-card h4 {
-    margin: 0;
-  }
-
-  .story-card p {
-    margin: 0;
-    font-size: 0.78rem;
-    color: rgba(148, 163, 184, 0.85);
-  }
-
-  .story-card-actions {
-    margin-top: auto;
-    display: flex;
-    gap: 0.4rem;
-  }
-
-  .story-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    max-height: 220px;
-    overflow-y: auto;
-  }
-
-  .story-row {
-    display: flex;
-    gap: 0.45rem;
-    padding: 0.65rem 0.75rem;
-    border-radius: 0.8rem;
-    background: rgba(30, 41, 59, 0.75);
-    align-items: center;
-  }
-
-  .history-featured {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  .history-featured-card {
-    border: 1px solid transparent;
-    border-radius: 0.75rem;
-    background: rgba(30, 41, 59, 0.7);
-    padding: 0.55rem 0.65rem;
-    text-align: left;
-    color: inherit;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .history-featured-card.selected {
-    border-color: rgba(99, 102, 241, 0.75);
-    box-shadow: 0 12px 24px rgba(67, 56, 202, 0.35);
-  }
-
-  .history-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    max-height: 18rem;
-    overflow-y: auto;
-    padding-right: 0.2rem;
-  }
-
-  .history-item {
-    border-radius: 0.75rem;
-    border: 1px solid transparent;
-    background: rgba(15, 23, 42, 0.55);
-    padding: 0.55rem 0.65rem;
-    text-align: left;
-    color: inherit;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .history-item:hover,
-  .history-item:focus-visible {
-    border-color: rgba(99, 102, 241, 0.5);
-    outline: none;
-  }
-
-  .history-item.selected {
-    border-color: rgba(99, 102, 241, 0.8);
-    box-shadow: 0 12px 24px rgba(67, 56, 202, 0.35);
-  }
-
-  .history-title {
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
-  .history-meta {
-    font-size: 0.72rem;
-    color: rgba(148, 163, 184, 0.78);
-  }
-
-  .history-filter {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-
-  .history-filter select {
-    padding: 0.35rem 0.55rem;
-    border-radius: 0.5rem;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(15, 23, 42, 0.65);
-    color: inherit;
-  }
-
-  .story-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .story-title {
-    font-weight: 500;
-  }
-
-  .story-meta {
-    font-size: 0.72rem;
-    color: rgba(148, 163, 184, 0.8);
-  }
-
-  .story-row-actions {
-    display: flex;
-    gap: 0.4rem;
-  }
-
-  .panel-card {
-    background: rgba(15, 23, 42, 0.85);
-    border-radius: 1.1rem;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    padding: 1rem 1.1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-    backdrop-filter: blur(18px);
-  }
-
-  .panel-card-header h2 {
-    margin: 0;
-    font-size: 1.05rem;
-    font-weight: 600;
-  }
-
-  .panel-card-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .section-title {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(148, 163, 184, 0.8);
-  }
-
-  .creator-toolbar {
-    position: fixed;
-    left: 50%;
-    bottom: calc(env(safe-area-inset-bottom) + 1.2rem);
-    transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.88);
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    padding: 0.45rem 0.75rem;
-    display: flex;
-    gap: 0.6rem;
-    align-items: center;
-    box-shadow: 0 16px 32px rgba(2, 6, 23, 0.55);
-    backdrop-filter: blur(16px);
-    z-index: 120;
-    pointer-events: auto;
-  }
-
-  .toolbar-cluster {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-  }
-
-  .creator-toolbar button {
-    border: none;
-    background: none;
-    color: inherit;
-    border-radius: 0.75rem;
-    padding: 0.45rem 0.6rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-
-  .creator-toolbar button:hover,
-  .creator-toolbar button:focus-visible,
-  .creator-toolbar button.selected {
-    background: rgba(79, 70, 229, 0.55);
-    outline: none;
-  }
-
-  .creator-toolbar button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  .toolbar-group {
-    position: relative;
-  }
-
-  .toolbar-menu {
-    position: absolute;
-    bottom: calc(100% + 0.4rem);
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.95);
-    border-radius: 0.8rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    box-shadow: 0 16px 32px rgba(2, 6, 23, 0.45);
-    display: flex;
-    flex-direction: column;
-    min-width: 160px;
-    padding: 0.45rem;
-    z-index: 95;
-  }
-
-  .toolbar-menu button {
-    width: 100%;
-    background: none;
-    padding: 0.45rem 0.6rem;
-    border-radius: 0.65rem;
-    font-size: 0.78rem;
-    text-align: left;
-  }
-
-  .toolbar-menu button:hover,
-  .toolbar-menu button:focus-visible {
-    background: rgba(79, 70, 229, 0.35);
-    outline: none;
-  }
-
-  .toolbar-icon {
-    font-size: 1.05rem;
-    line-height: 1;
-  }
-
-  .toggle-group {
-    display: inline-flex;
-    gap: 0.35rem;
-    background: rgba(15, 23, 42, 0.8);
-    border-radius: 999px;
-    padding: 0.2rem;
-  }
-
-  .toggle-group button {
-    font-size: 0.78rem;
-    padding: 0.45rem 0.75rem;
-  }
-
-  .right-actions {
-    display: flex;
-    gap: 0.4rem;
-    align-items: center;
-  }
-
-  .icon-button {
-    border: none;
-    background: rgba(15, 23, 42, 0.65);
-    border-radius: 0.7rem;
-    padding: 0.35rem 0.5rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-
-  .list-card {
-    position: relative;
-    border-radius: 0.95rem;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    background: rgba(15, 23, 42, 0.7);
-    padding: 0.75rem 0.85rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .list-card.selected {
-    border-color: rgba(99, 102, 241, 0.8);
-    box-shadow: 0 16px 32px rgba(79, 70, 229, 0.35);
-  }
-
-  .list-card.hidden {
-    opacity: 0.6;
-  }
-
-  .list-card-header {
-    display: flex;
-    gap: 0.55rem;
-    align-items: center;
-  }
-
-  .list-card-header input {
-    flex: 1 1 auto;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    background: rgba(15, 23, 42, 0.75);
-    color: inherit;
-    padding: 0.45rem 0.6rem;
-  }
-
-  .list-card textarea {
-    border-radius: 0.75rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    background: rgba(15, 23, 42, 0.7);
-    color: inherit;
-    padding: 0.45rem 0.6rem;
-    resize: vertical;
-    min-height: 60px;
-    font-family: inherit;
-  }
-
-  .list-card-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .card-menu {
-    position: absolute;
-    top: calc(100% - 0.4rem);
-    right: 0.85rem;
-    background: rgba(15, 23, 42, 0.95);
-    border-radius: 0.75rem;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    box-shadow: 0 16px 32px rgba(2, 6, 23, 0.45);
-    padding: 0.35rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    z-index: 60;
-  }
-
-  .card-menu button {
-    background: none;
-    border: none;
-    color: inherit;
-    padding: 0.4rem 0.6rem;
-    text-align: left;
-    border-radius: 0.6rem;
-    font-size: 0.78rem;
-    cursor: pointer;
-  }
-
-  .story-list-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-  }
-
-  .empty-state {
-    margin: 0;
-    font-size: 0.78rem;
-    color: rgba(148, 163, 184, 0.8);
-  }
-
-  .muted {
-    color: rgba(148, 163, 184, 0.8);
-    font-size: 0.78rem;
-  }
-
-  .notice {
-    margin: 0;
-    font-size: 0.78rem;
-    color: rgba(148, 163, 184, 0.85);
-  }
-
-  .errored {
-    color: #fca5a5;
-  }
-
-  .success {
-    color: #86efac;
-  }
-
-  .welcome-overlay {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    background: rgba(15, 23, 42, 0.72);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 140;
-    backdrop-filter: blur(14px);
-  }
-
-  .welcome-card {
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(129, 140, 248, 0.25);
-    border-radius: 1.2rem;
-    padding: 2.2rem 2.6rem;
-    max-width: 520px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
-    box-shadow: 0 32px 64px rgba(30, 41, 59, 0.45);
-  }
-
-  .welcome-card h1 {
-    margin: 0;
-    font-size: 2rem;
-  }
-
-  .welcome-card p {
-    margin: 0;
-    color: rgba(191, 219, 254, 0.85);
-  }
-
-  .welcome-actions {
-    display: inline-flex;
-    gap: 0.75rem;
-    justify-content: center;
-  }
-
-  .welcome-actions .chip {
-    min-width: 120px;
-    font-size: 1rem;
-    padding: 0.75rem 1.5rem;
-  }
-
-  .welcome-actions .chip.active {
-    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.4);
-  }
-
-  .map-accordion {
-    border-radius: 0.85rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    background: rgba(15, 23, 42, 0.5);
-    padding: 0.6rem 0.75rem;
-  }
-
-  .map-accordion summary {
-    cursor: pointer;
-    font-weight: 600;
-    list-style: none;
-  }
-
-  .map-accordion summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .map-accordion[open] summary {
-    margin-bottom: 0.6rem;
-  }
-
-  .catalog-filter {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 0.75rem;
-  }
-
-  .catalog-filter label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .catalog-filter select {
-    padding: 0.35rem 0.55rem;
-    border-radius: 0.5rem;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(15, 23, 42, 0.65);
-    color: inherit;
-  }
 
   .metadata-overlay {
     position: fixed;
