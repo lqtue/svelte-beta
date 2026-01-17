@@ -67,7 +67,12 @@ export const en = {
 	// View Controls
 	viewControls: {
 		overlayOpacity: 'Overlay Opacity',
-		opacity: 'Opacity'
+		opacity: 'Opacity',
+		viewMode: 'View Mode',
+		overlay: 'Overlay',
+		sideX: 'Side X',
+		sideY: 'Side Y',
+		spyglass: 'Spyglass'
 	},
 
 	// Loading messages

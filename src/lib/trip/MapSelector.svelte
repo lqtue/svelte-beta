@@ -8,16 +8,18 @@
 	export let selected: string | null = null;
 	export let loading = false;
 	export let filterCity: string | null = null;
+	export let initialOpen = false;
 
 	const dispatch = createEventDispatcher();
 
 	let searchQuery = '';
 	let selectedCity = 'all';
-	let isOpen = false;
+	let isOpen = initialOpen;
 
-	// Update selectedCity when filterCity prop changes
+	// Update selectedCity and open panel when filterCity prop changes
 	$: if (filterCity) {
 		selectedCity = filterCity;
+		isOpen = true;
 	}
 
 	// Extract unique cities from map types

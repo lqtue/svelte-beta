@@ -2,5 +2,6 @@
 	"/": [
 		"src/routes/+page.ts"
 	],
+	"/temp-viewer": [],
 	"/trip": []
 }

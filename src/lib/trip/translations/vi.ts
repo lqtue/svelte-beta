@@ -69,7 +69,12 @@ export const vi: TranslationKeys = {
 	// View Controls
 	viewControls: {
 		overlayOpacity: 'Độ trong suốt',
-		opacity: 'Độ mờ'
+		opacity: 'Độ mờ',
+		viewMode: 'Chế độ xem',
+		overlay: 'Phủ',
+		sideX: 'Chia ngang',
+		sideY: 'Chia dọc',
+		spyglass: 'Kính lúp'
 	},
 
 	// Loading messages

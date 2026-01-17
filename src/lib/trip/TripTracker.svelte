@@ -27,7 +27,7 @@
 	import 'ol/ol.css';
 
 	import { DATASET_URL, INITIAL_CENTER } from '$lib/viewer/constants';
-	import type { MapListItem } from '$lib/viewer/types';
+	import type { MapListItem, ViewMode } from '$lib/viewer/types';
 	import { startTracking, stopTracking, formatError } from './geolocation';
 	import type { TrackingState } from './types';
 	import MapSelector from './MapSelector.svelte';
@@ -51,6 +51,10 @@
 		cacheAnnotation,
 		getCachedAnnotation
 	} from './mapCache';
+
+	// Props
+	export let initialMapId: string | null = null;
+	export let initialCity: string | null = null;
 
 	let mapContainer: HTMLDivElement;
 	let map: Map | null = null;
@@ -96,6 +100,20 @@
 
 	// View controls state
 	let mapOpacity = 0.8;
+	let viewMode: ViewMode = 'overlay';
+	let sideRatio = 0.5;
+	let lensRadius = 150;
+
+	// DOM elements for view mode decorations
+	let dividerXEl: HTMLDivElement;
+	let dividerYEl: HTMLDivElement;
+	let dividerHandleXEl: HTMLDivElement;
+	let dividerHandleYEl: HTMLDivElement;
+	let lensEl: HTMLDivElement;
+	let lensHandleEl: HTMLDivElement;
+
+	// Drag state for dividers/lens
+	let dragging = { sideX: false, sideY: false, lensR: false };
 
 	// Extract unique cities from map types
 	$: cities = Array.from(new Set(mapList.map((m) => m.type).filter(Boolean))).sort();
@@ -192,6 +210,11 @@
 		const warped = warpedLayer as unknown as { setMap?: (map: unknown) => void };
 		warped.setMap?.(map);
 
+		// Listen for map resize to update view mode decorations
+		map.on('change:size', () => {
+			refreshDecorations();
+		});
+
 		// Async initialization
 		(async () => {
 			// Register service worker for caching map tiles
@@ -204,8 +227,21 @@
 			// Load map catalog
 			await loadMapCatalog();
 
-			// Show welcome dialog on every load
-			showWelcome = true;
+			// If initial city provided, set the filter and zoom to it
+			if (initialCity) {
+				filterCity = initialCity;
+				geocodeAndZoomToCity(initialCity);
+			}
+
+			// If initial map ID provided, load it directly (skip welcome)
+			if (initialMapId) {
+				loadMapOverlay(initialMapId);
+			} else if (initialCity) {
+				// City filter set and zoomed, skip welcome dialog
+			} else {
+				// Show welcome dialog on every load
+				showWelcome = true;
+			}
 
 			// Fetch map bounds in background
 			const mapIds = mapList.map((m) => m.id);
@@ -373,6 +409,140 @@
 			warpedLayer.clear();
 		}
 		selectedMapId = null;
+	}
+
+	// View mode functions
+	function getWarpedCanvas(): HTMLCanvasElement | null {
+		return warpedLayer?.getCanvas() ?? null;
+	}
+
+	function updateClipMask() {
+		const canvas = getWarpedCanvas();
+		if (!canvas || !map) return;
+		const size = map.getSize();
+		if (!size) return;
+		const [w, h] = size;
+		if (viewMode === 'overlay') {
+			canvas.style.clipPath = '';
+		} else if (viewMode === 'side-x') {
+			const x = w * sideRatio;
+			canvas.style.clipPath = `polygon(${x}px 0, ${w}px 0, ${w}px ${h}px, ${x}px ${h}px)`;
+		} else if (viewMode === 'side-y') {
+			const y = h * sideRatio;
+			canvas.style.clipPath = `polygon(0 ${y}px, ${w}px ${y}px, ${w}px ${h}px, 0 ${h}px)`;
+		} else if (viewMode === 'spy') {
+			const r = lensRadius;
+			canvas.style.clipPath = `circle(${r}px at ${w / 2}px ${h / 2}px)`;
+		}
+	}
+
+	function updateDividersAndHandles() {
+		if (!map) return;
+		const size = map.getSize();
+		if (!size) return;
+		const [w, h] = size;
+		const showX = viewMode === 'side-x';
+		const showY = viewMode === 'side-y';
+		if (dividerXEl) {
+			dividerXEl.style.display = showX ? 'block' : 'none';
+			if (showX) {
+				const x = w * sideRatio;
+				dividerXEl.style.left = `${x}px`;
+				dividerXEl.style.height = `${h}px`;
+			}
+		}
+		if (dividerHandleXEl) {
+			dividerHandleXEl.style.display = showX ? 'block' : 'none';
+			if (showX) {
+				const x = w * sideRatio - 8;
+				dividerHandleXEl.style.left = `${x}px`;
+				dividerHandleXEl.style.top = `${h / 2 - 8}px`;
+			}
+		}
+		if (dividerYEl) {
+			dividerYEl.style.display = showY ? 'block' : 'none';
+			if (showY) {
+				const y = h * sideRatio;
+				dividerYEl.style.top = `${y}px`;
+				dividerYEl.style.width = `${w}px`;
+			}
+		}
+		if (dividerHandleYEl) {
+			dividerHandleYEl.style.display = showY ? 'block' : 'none';
+			if (showY) {
+				const y = h * sideRatio - 8;
+				dividerHandleYEl.style.left = `${w / 2 - 8}px`;
+				dividerHandleYEl.style.top = `${y}px`;
+			}
+		}
+	}
+
+	function updateLens() {
+		if (!map) return;
+		const size = map.getSize();
+		if (!size) return;
+		const [w, h] = size;
+		const show = viewMode === 'spy';
+		if (lensEl) {
+			lensEl.style.display = show ? 'block' : 'none';
+			if (show) {
+				const diameter = Math.max(20, lensRadius * 2);
+				lensEl.style.width = `${diameter}px`;
+				lensEl.style.height = `${diameter}px`;
+				lensEl.style.left = `${w / 2 - lensRadius}px`;
+				lensEl.style.top = `${h / 2 - lensRadius}px`;
+			}
+		}
+		if (lensHandleEl) {
+			lensHandleEl.style.display = show ? 'block' : 'none';
+			if (show) {
+				lensHandleEl.style.left = `${w / 2 + lensRadius - 8}px`;
+				lensHandleEl.style.top = `${h / 2 - 8}px`;
+			}
+		}
+	}
+
+	function refreshDecorations() {
+		updateClipMask();
+		updateDividersAndHandles();
+		updateLens();
+	}
+
+	function setViewMode(next: ViewMode) {
+		viewMode = next;
+		refreshDecorations();
+	}
+
+	function handleViewModeChange(event: CustomEvent<{ viewMode: ViewMode }>) {
+		setViewMode(event.detail.viewMode);
+	}
+
+	function handlePointerDrag(event: PointerEvent) {
+		if (!map) return;
+		if (!dragging.sideX && !dragging.sideY && !dragging.lensR) return;
+		const rect = mapContainer.getBoundingClientRect();
+		const x = event.clientX - rect.left;
+		const y = event.clientY - rect.top;
+		const size = map.getSize();
+		if (!size) return;
+		const [w, h] = size;
+		if (dragging.sideX) {
+			sideRatio = Math.max(0.1, Math.min(0.9, x / w));
+			refreshDecorations();
+		} else if (dragging.sideY) {
+			sideRatio = Math.max(0.1, Math.min(0.9, y / h));
+			refreshDecorations();
+		} else if (dragging.lensR) {
+			const cx = w / 2;
+			const cy = h / 2;
+			const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+			lensRadius = Math.max(50, Math.min(Math.min(w, h) / 2 - 20, dist));
+			refreshDecorations();
+		}
+	}
+
+	function handlePointerUp() {
+		dragging = { sideX: false, sideY: false, lensR: false };
 	}
 
 	async function handlePositionUpdate(position: GeolocationPosition) {
@@ -543,6 +713,38 @@
 		});
 	}
 
+	async function geocodeAndZoomToCity(city: string): Promise<void> {
+		try {
+			const response = await fetch(
+				`https://nominatim.openstreetmap.org/search?` +
+					new URLSearchParams({
+						q: city,
+						format: 'json',
+						limit: '1'
+					})
+			);
+
+			if (response.ok) {
+				const results = await response.json();
+				if (results.length > 0) {
+					const { lat, lon } = results[0];
+					console.log('[TripTracker] Zooming to city:', city, lat, lon);
+
+					if (map) {
+						const coord = fromLonLat([parseFloat(lon), parseFloat(lat)]);
+						map.getView().animate({
+							center: coord,
+							zoom: 14,
+							duration: 1000
+						});
+					}
+				}
+			}
+		} catch (err) {
+			console.error('[TripTracker] Failed to geocode city:', err);
+		}
+	}
+
 	function handleCityFilterConfirm(event: CustomEvent<{ filter: boolean }>) {
 		showCityDialog = false;
 
@@ -576,36 +778,7 @@
 		filterCity = city;
 
 		// Geocode the city and zoom to it
-		try {
-			const response = await fetch(
-				`https://nominatim.openstreetmap.org/search?` +
-					new URLSearchParams({
-						q: city,
-						format: 'json',
-						limit: '1'
-					})
-			);
-
-			if (response.ok) {
-				const results = await response.json();
-				if (results.length > 0) {
-					const { lat, lon } = results[0];
-					console.log('[TripTracker] Zooming to city:', city, lat, lon);
-
-					// Zoom to city
-					if (map) {
-						const coord = fromLonLat([parseFloat(lon), parseFloat(lat)]);
-						map.getView().animate({
-							center: coord,
-							zoom: 14,
-							duration: 1000
-						});
-					}
-				}
-			}
-		} catch (err) {
-			console.error('[TripTracker] Failed to geocode city:', err);
-		}
+		await geocodeAndZoomToCity(city);
 
 		// Find maps for this city
 		const cityMaps = mapList.filter((m) =>
@@ -660,10 +833,52 @@
 		const _opacity = mapOpacity;
 		applyWarpedLayerSettings();
 	}
+
+	// Reactive: Apply view mode changes
+	$: if (map && selectedMapId) {
+		const _viewMode = viewMode;
+		const _sideRatio = sideRatio;
+		const _lensRadius = lensRadius;
+		refreshDecorations();
+	}
 </script>
+
+<svelte:window on:pointermove={handlePointerDrag} on:pointerup={handlePointerUp} />
 
 <div class="trip-container">
 	<div bind:this={mapContainer} class="map"></div>
+
+	<!-- View mode dividers and handles -->
+	<div bind:this={dividerXEl} class="divider divider-x"></div>
+	<div
+		bind:this={dividerHandleXEl}
+		class="divider-handle divider-handle-x"
+		on:pointerdown={() => { dragging.sideX = true; }}
+		role="slider"
+		aria-label="Adjust horizontal split"
+		aria-valuenow={Math.round(sideRatio * 100)}
+		tabindex="0"
+	></div>
+	<div bind:this={dividerYEl} class="divider divider-y"></div>
+	<div
+		bind:this={dividerHandleYEl}
+		class="divider-handle divider-handle-y"
+		on:pointerdown={() => { dragging.sideY = true; }}
+		role="slider"
+		aria-label="Adjust vertical split"
+		aria-valuenow={Math.round(sideRatio * 100)}
+		tabindex="0"
+	></div>
+	<div bind:this={lensEl} class="lens"></div>
+	<div
+		bind:this={lensHandleEl}
+		class="lens-handle"
+		on:pointerdown={() => { dragging.lensR = true; }}
+		role="slider"
+		aria-label="Adjust lens size"
+		aria-valuenow={lensRadius}
+		tabindex="0"
+	></div>
 
 	<LocationButton
 		isTracking={trackingState === 'active'}
@@ -707,7 +922,9 @@
 	{#if selectedMapId}
 		<ViewControls
 			opacity={mapOpacity}
+			{viewMode}
 			on:opacityChange={handleOpacityChange}
+			on:viewModeChange={handleViewModeChange}
 		/>
 	{/if}
 
@@ -715,11 +932,13 @@
 		isTracking={trackingState === 'active'}
 		{error}
 		opacity={mapOpacity}
+		{viewMode}
 		hasMapSelected={!!selectedMapId}
 		searchOpen={searchOpen}
 		on:startTracking={handleStartTracking}
 		on:stopTracking={handleStopTracking}
 		on:opacityChange={handleOpacityChange}
+		on:viewModeChange={handleViewModeChange}
 		on:toggleSearch={() => searchOpen = !searchOpen}
 		on:locationSelect={handleLocationSearch}
 	/>
@@ -736,5 +955,80 @@
 	.map {
 		width: 100%;
 		height: 100%;
+	}
+
+	/* View mode dividers */
+	.divider {
+		position: absolute;
+		background: #d4af37;
+		pointer-events: none;
+		z-index: 50;
+		display: none;
+	}
+
+	.divider-x {
+		width: 3px;
+		top: 0;
+		box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+	}
+
+	.divider-y {
+		height: 3px;
+		left: 0;
+		box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+	}
+
+	.divider-handle {
+		position: absolute;
+		width: 16px;
+		height: 16px;
+		background: linear-gradient(135deg, #d4af37 0%, #b8942f 100%);
+		border: 2px solid #f4e8d8;
+		border-radius: 50%;
+		cursor: ew-resize;
+		z-index: 51;
+		display: none;
+		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+		transition: transform 0.15s ease;
+	}
+
+	.divider-handle:hover {
+		transform: scale(1.2);
+	}
+
+	.divider-handle-y {
+		cursor: ns-resize;
+	}
+
+	/* Spyglass lens */
+	.lens {
+		position: absolute;
+		border: 3px solid #d4af37;
+		border-radius: 50%;
+		pointer-events: none;
+		z-index: 50;
+		display: none;
+		box-shadow:
+			0 0 0 2px rgba(244, 232, 216, 0.5),
+			0 4px 16px rgba(0, 0, 0, 0.3),
+			inset 0 0 20px rgba(212, 175, 55, 0.1);
+	}
+
+	.lens-handle {
+		position: absolute;
+		width: 16px;
+		height: 16px;
+		background: linear-gradient(135deg, #d4af37 0%, #b8942f 100%);
+		border: 2px solid #f4e8d8;
+		border-radius: 50%;
+		cursor: nwse-resize;
+		z-index: 51;
+		display: none;
+		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+		transition: transform 0.15s ease;
+	}
+
+	.lens-handle:hover {
+		transform: scale(1.2);
 	}
 </style>

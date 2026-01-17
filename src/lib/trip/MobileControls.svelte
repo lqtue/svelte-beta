@@ -1,15 +1,19 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { t } from './translations';
+	import type { ViewMode } from '$lib/viewer/types';
 
 	export let isTracking: boolean = false;
 	export let error: string | null = null;
 	export let opacity: number = 1.0;
 	export let hasMapSelected: boolean = false;
 	export let searchOpen: boolean = false;
+	export let viewMode: ViewMode = 'overlay';
 
 	const dispatch = createEventDispatcher();
 
 	let showOpacity = false;
+	let showViewMode = false;
 	let searchQuery = '';
 	let searchResults: any[] = [];
 	let isSearching = false;
@@ -17,6 +21,17 @@
 
 	function toggleOpacity() {
 		showOpacity = !showOpacity;
+		if (showOpacity) showViewMode = false;
+	}
+
+	function toggleViewMode() {
+		showViewMode = !showViewMode;
+		if (showViewMode) showOpacity = false;
+	}
+
+	function handleViewModeSelect(mode: ViewMode) {
+		dispatch('viewModeChange', { viewMode: mode });
+		showViewMode = false;
 	}
 
 	function toggleSearch() {
@@ -139,6 +154,39 @@
 			</span>
 		</button>
 
+		<!-- View Mode Toggle (only when map selected) -->
+		{#if hasMapSelected}
+			<button
+				class="control-btn"
+				class:active={showViewMode}
+				on:click={toggleViewMode}
+				title="View mode"
+			>
+				<span class="btn-icon">
+					{#if viewMode === 'overlay'}
+						<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b5d52" stroke-width="1.5">
+							<rect x="3" y="3" width="18" height="18" rx="2" />
+						</svg>
+					{:else if viewMode === 'side-x'}
+						<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b5d52" stroke-width="1.5">
+							<rect x="3" y="3" width="18" height="18" rx="2" />
+							<line x1="12" y1="3" x2="12" y2="21" />
+						</svg>
+					{:else if viewMode === 'side-y'}
+						<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b5d52" stroke-width="1.5">
+							<rect x="3" y="3" width="18" height="18" rx="2" />
+							<line x1="3" y1="12" x2="21" y2="12" />
+						</svg>
+					{:else}
+						<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b5d52" stroke-width="1.5">
+							<rect x="3" y="3" width="18" height="18" rx="2" />
+							<circle cx="12" cy="12" r="5" />
+						</svg>
+					{/if}
+				</span>
+			</button>
+		{/if}
+
 		<!-- Opacity Toggle (only when map selected) -->
 		{#if hasMapSelected}
 			<button
@@ -152,11 +200,66 @@
 		{/if}
 	</div>
 
+	<!-- View Mode Panel -->
+	{#if showViewMode && hasMapSelected}
+		<div class="expansion-panel view-mode-panel">
+			<div class="panel-header">
+				<span class="header-icon">◫</span>
+				<span class="header-text">{$t.viewControls.viewMode}</span>
+			</div>
+			<div class="view-mode-grid">
+				<button
+					class="view-mode-btn"
+					class:selected={viewMode === 'overlay'}
+					on:click={() => handleViewModeSelect('overlay')}
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+						<rect x="3" y="3" width="18" height="18" rx="2" />
+					</svg>
+					<span>{$t.viewControls.overlay}</span>
+				</button>
+				<button
+					class="view-mode-btn"
+					class:selected={viewMode === 'side-x'}
+					on:click={() => handleViewModeSelect('side-x')}
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+						<rect x="3" y="3" width="18" height="18" rx="2" />
+						<line x1="12" y1="3" x2="12" y2="21" />
+					</svg>
+					<span>{$t.viewControls.sideX}</span>
+				</button>
+				<button
+					class="view-mode-btn"
+					class:selected={viewMode === 'side-y'}
+					on:click={() => handleViewModeSelect('side-y')}
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+						<rect x="3" y="3" width="18" height="18" rx="2" />
+						<line x1="3" y1="12" x2="21" y2="12" />
+					</svg>
+					<span>{$t.viewControls.sideY}</span>
+				</button>
+				<button
+					class="view-mode-btn"
+					class:selected={viewMode === 'spy'}
+					on:click={() => handleViewModeSelect('spy')}
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+						<rect x="3" y="3" width="18" height="18" rx="2" />
+						<circle cx="12" cy="12" r="5" />
+					</svg>
+					<span>{$t.viewControls.spyglass}</span>
+				</button>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Expandable Opacity Panel -->
 	{#if showOpacity && hasMapSelected}
 		<div class="expansion-panel opacity-panel">
 			<div class="panel-content">
-				<span class="panel-label">Overlay</span>
+				<span class="panel-label">{$t.viewControls.opacity}</span>
 				<input
 					type="range"
 					min="0"
@@ -606,5 +709,73 @@
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+	}
+
+	/* View Mode Panel */
+	.panel-header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding-bottom: 0.75rem;
+		margin-bottom: 0.75rem;
+		border-bottom: 1.5px solid rgba(212, 175, 55, 0.3);
+	}
+
+	.header-icon {
+		font-size: 1rem;
+		color: #a84848;
+	}
+
+	.header-text {
+		font-family: 'Be Vietnam Pro', sans-serif;
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: #2b2520;
+	}
+
+	.view-mode-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 0.5rem;
+	}
+
+	.view-mode-btn {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.75rem 0.5rem;
+		border: 2px solid rgba(212, 175, 55, 0.3);
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.3);
+		color: #6b5d52;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.view-mode-btn svg {
+		width: 28px;
+		height: 28px;
+	}
+
+	.view-mode-btn span {
+		font-family: 'Be Vietnam Pro', sans-serif;
+		font-size: 0.625rem;
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.view-mode-btn:active {
+		transform: scale(0.95);
+	}
+
+	.view-mode-btn.selected {
+		background: rgba(212, 175, 55, 0.25);
+		border-color: #d4af37;
+		color: #2b2520;
 	}
 </style>
