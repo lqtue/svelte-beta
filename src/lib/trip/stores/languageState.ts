@@ -1,38 +1,25 @@
-import { writable, derived } from 'svelte/store';
+// Language state management with localStorage persistence
+
+import { derived } from 'svelte/store';
+import { createPersistedStore } from '$lib/core/persistence';
 
 export type Language = 'en' | 'vi';
 
 const STORAGE_KEY = 'vma-trip-language-v1';
 
 function createLanguageStore() {
-	// Load from localStorage or default to English
-	const initialLanguage = (() => {
-		if (typeof window !== 'undefined') {
-			const stored = localStorage.getItem(STORAGE_KEY);
-			if (stored === 'vi' || stored === 'en') {
-				return stored as Language;
-			}
-		}
-		return 'en' as Language;
-	})();
-
-	const { subscribe, set } = writable<Language>(initialLanguage);
+	const store = createPersistedStore({
+		key: STORAGE_KEY,
+		defaultValue: 'en' as Language
+	});
 
 	return {
-		subscribe,
+		subscribe: store.subscribe,
 		setLanguage: (lang: Language) => {
-			if (typeof window !== 'undefined') {
-				localStorage.setItem(STORAGE_KEY, lang);
-			}
-			set(lang);
+			store.set(lang);
 		},
 		toggleLanguage: () => {
-			if (typeof window !== 'undefined') {
-				const current = localStorage.getItem(STORAGE_KEY) || 'en';
-				const newLang = current === 'en' ? 'vi' : 'en';
-				localStorage.setItem(STORAGE_KEY, newLang);
-				set(newLang);
-			}
+			store.update((current) => (current === 'en' ? 'vi' : 'en'));
 		}
 	};
 }

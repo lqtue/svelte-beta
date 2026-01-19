@@ -9,13 +9,14 @@ import Text from 'ol/style/Text';
 
 import { DEFAULT_ANNOTATION_COLOR } from './constants';
 import type { AnnotationSummary } from './types';
+import { randomId as coreRandomId } from '$lib/core/utils/id';
 
+/**
+ * Generates a random ID for annotations
+ * Uses the core randomId utility with 'anno' prefix
+ */
 export function randomId(prefix = 'anno') {
-  const random = Math.random().toString(36).slice(2, 8);
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-  return `${prefix}-${Date.now().toString(36)}-${random}`;
+  return coreRandomId(prefix);
 }
 
 export function ensureAnnotationDefaults(feature: Feature<Geometry>) {
