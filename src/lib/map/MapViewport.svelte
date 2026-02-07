@@ -2352,38 +2352,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 </script>
 
-<div class="viewer" class:mobile={isMobile} class:creator={appMode === 'create'}>
-  {#if !isMobile && showWelcome}
-    <div class="welcome-overlay">
-      <div class="welcome-card">
-        <h1>Welcome to the VMA studio</h1>
-        <p>
-          Choose how you want to start. Viewer lets you explore; Creator unlocks annotation and storytelling tools.
-        </p>
-        <div class="welcome-actions">
-          <button
-            type="button"
-            class="chip ghost"
-            class:active={appMode === 'explore'}
-            on:click={() => chooseAppMode('explore')}
-          >
-            Viewer
-          </button>
-          <button
-            type="button"
-            class="chip"
-            class:active={appMode === 'create'}
-            on:click={() => chooseAppMode('create')}
-          >
-            Creator
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
+<div class="viewer" class:mobile={isMobile} class:creator={true}>
 
   <div class="workspace" style={workspaceStyle}>
-    {#if !isMobile && appMode === 'create'}
+    {#if !isMobile}
       {#if creatorLeftCollapsed}
         <button type="button" class="panel-toggle left" on:click={() => (creatorLeftCollapsed = false)}>
           Show tools
@@ -2557,40 +2529,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         ></button>
       </div>
 
-      {#if storyPresenting && currentStoryScene}
-        <div class="story-presenter">
-          <div class="story-presenter-content">
-            <div class="story-presenter-nav">
-              <span class="counter">
-                {currentStoryVisiblePosition || 1} / {Math.max(visibleStoryScenes.length, 1)}
-              </span>
-              <button type="button" class="chip ghost" on:click={previousStoryScene} disabled={visibleStoryScenes.length < 2}>
-                ◀ Prev
-              </button>
-              <button type="button" class="chip" class:active={storyAutoplay} on:click={toggleStoryAutoplay}>
-                {storyAutoplay ? 'Pause' : 'Play'}
-              </button>
-              <button type="button" class="chip ghost" on:click={nextStoryScene} disabled={visibleStoryScenes.length < 2}>
-                Next ▶
-              </button>
-              <button type="button" class="chip danger" on:click={stopStoryPresentation}>
-                Exit
-              </button>
-            </div>
-            <div class="story-presenter-body">
-              <h2>{currentStoryScene.title}</h2>
-              {#if currentStoryScene.details?.trim().length}
-                <p>{currentStoryScene.details}</p>
-              {:else}
-                <p class="muted">No additional details for this scene.</p>
-              {/if}
-            </div>
-          </div>
-        </div>
-      {/if}
-
-      {#if appMode === 'create'}
-        <div class="creator-toolbar">
+      <div class="creator-toolbar">
           <div class="toolbar-cluster">
             <button
               type="button"
@@ -2663,25 +2602,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
             </button>
           </div>
           <div class="toolbar-cluster">
-            <button
-              type="button"
-              on:click={() => openCaptureModal()}
-              title="Capture current view"
-              aria-label="Capture scene"
-            >
-              <span class="toolbar-icon">📷</span>
-            </button>
-            <button
-              type="button"
-              on:click={() => startStoryPresentation(0)}
-              title="Present story"
-              aria-label="Present story"
-              disabled={!visibleStoryScenes.length}
-            >
-              <span class="toolbar-icon">🎞</span>
-            </button>
-          </div>
-          <div class="toolbar-cluster">
             <div class="toolbar-group">
               <button
                 type="button"
@@ -2696,9 +2616,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
               </button>
               {#if toolbarSettingsOpen}
                 <div class="toolbar-menu">
-                  <button type="button" on:click={() => { toggleAppMode(); toolbarSettingsOpen = false; }}>
-                    Switch to Viewer
-                  </button>
                   <button type="button" on:click={() => { handleClearState(); toolbarSettingsOpen = false; }}>
                     Clear cached state
                   </button>
@@ -2707,294 +2624,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
             </div>
           </div>
         </div>
-      {:else if !showWelcome}
-        <div class="viewer-panel" class:collapsed={!viewerPanelOpen}>
-          <div class="viewer-tabs">
-            <button
-              type="button"
-              class:selected={activeViewerSection === 'map'}
-              on:click={() => handleViewerTabClick('map')}
-              aria-expanded={activeViewerSection === 'map' && viewerPanelOpen}
-            >
-              Map
-            </button>
-            <button
-              type="button"
-              class:selected={activeViewerSection === 'control'}
-              on:click={() => handleViewerTabClick('control')}
-              aria-expanded={activeViewerSection === 'control' && viewerPanelOpen}
-            >
-              Controls
-            </button>
-            <button
-              type="button"
-              class:selected={activeViewerSection === 'story'}
-              on:click={() => handleViewerTabClick('story')}
-              aria-expanded={activeViewerSection === 'story' && viewerPanelOpen}
-            >
-              Story
-            </button>
-            <button
-              type="button"
-              class:selected={activeViewerSection === 'info'}
-              on:click={() => handleViewerTabClick('info')}
-              aria-expanded={activeViewerSection === 'info' && viewerPanelOpen}
-            >
-              Share & Settings
-            </button>
-          </div>
-          {#if viewerPanelOpen}
-          <div class="viewer-section custom-scrollbar">
-            {#if activeViewerSection === 'map'}
-              <div class="section-group">
-                <div class="section-block">
-                  <h3>Featured historical maps</h3>
-                  <div class="map-grid">
-                    {#if viewerFeaturedMaps.length}
-                      {#each viewerFeaturedMaps as item (item.id)}
-                        <button
-                          type="button"
-                          class="map-card"
-                          class:active={item.id === selectedMapId}
-                          on:click={() => void selectMapById(item.id)}
-                        >
-                          {#if item.thumbnail}
-                            <img src={item.thumbnail} alt={`Preview of ${item.name}`} loading="lazy" />
-                          {/if}
-                          <div class="map-card-body">
-                            <span class="map-card-title">{item.name}</span>
-                            <span class="map-card-meta">{item.summary || item.type}</span>
-                          </div>
-                        </button>
-                      {/each}
-                    {:else}
-                      <p class="empty-state">No featured maps yet.</p>
-                    {/if}
-                  </div>
-                </div>
-                <div class="section-block">
-                  <h3>Metadata</h3>
-                  {#if selectedMap}
-                    <p class="muted">View additional information about {selectedMap.name}.</p>
-                    <button type="button" class="chip ghost" on:click={() => (metadataOverlayOpen = true)}>
-                      Open metadata
-                    </button>
-                  {:else}
-                    <p class="empty-state">Select a map to view its metadata.</p>
-                  {/if}
-                </div>
-                <div class="section-block">
-                  <h3>Basemap</h3>
-                  <div class="button-group">
-                    {#each BASEMAP_DEFS as base}
-                      <button
-                        type="button"
-                        class:selected={basemapSelection === base.key}
-                        on:click={() => {
-                          basemapSelection = base.key;
-                          queueSaveState();
-                        }}
-                      >
-                        {base.label}
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-                <div class="section-block">
-                  <h3>More historical maps</h3>
-                  <details class="map-accordion">
-                    <summary>Browse catalog ({viewerAllMaps.length})</summary>
-                    <div class="catalog-filter">
-                      <label>
-                        <span>Filter by type</span>
-                        <select bind:value={mapTypeSelection}>
-                          <option value="all">All maps ({mapList.length})</option>
-                          {#each mapTypes as type}
-                            <option value={type}>{type}</option>
-                          {/each}
-                        </select>
-                      </label>
-                    </div>
-                    <div class="catalog-list custom-scrollbar">
-                      {#if viewerAllMaps.length}
-                        {#each viewerAllMaps as item (item.id)}
-                          <button
-                            type="button"
-                            class="catalog-item"
-                            class:active={item.id === selectedMapId}
-                            on:click={() => void selectMapById(item.id)}
-                          >
-                            {#if item.thumbnail}
-                              <img src={item.thumbnail} alt={`Preview of ${item.name}`} loading="lazy" />
-                            {/if}
-                            <div class="catalog-text">
-                              <span class="catalog-title">{item.name}</span>
-                              <span class="catalog-meta">{item.summary || item.type}</span>
-                            </div>
-                          </button>
-                        {/each}
-                      {:else}
-                        <p class="empty-state">Map catalog is loading…</p>
-                      {/if}
-                    </div>
-                  </details>
-                </div>
-              </div>
-            {:else if activeViewerSection === 'control'}
-              <div class="section-group">
-            <div class="section-block">
-              <h3>View mode</h3>
-              <div class="button-group wrap">
-                <button type="button" class:selected={viewMode === 'overlay'} on:click={() => handleModeClick('overlay')}>
-                  Overlay
-                </button>
-                <button type="button" class:selected={viewMode === 'side-x'} on:click={() => handleModeClick('side-x')}>
-                  Side-X
-                </button>
-                <button type="button" class:selected={viewMode === 'side-y'} on:click={() => handleModeClick('side-y')}>
-                  Side-Y
-                </button>
-                <button type="button" class:selected={viewMode === 'spy'} on:click={() => handleModeClick('spy')}>
-                  Glass
-                </button>
-              </div>
-            </div>
-            <div class="section-block">
-              <h3>Opacity</h3>
-              <div class="slider">
-                <input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleOpacityInput} />
-                <span>{opacityPercent}%</span>
-              </div>
-            </div>
-                <div class="section-block">
-                  <h3>Search</h3>
-                  <div class="search-row">
-                <input
-                  type="text"
-                  placeholder="Search for a place or address"
-                  value={searchQuery}
-                  on:input={(event) => queueSearch((event.target as HTMLInputElement).value)}
-                />
-                <button type="button" class="chip ghost" on:click={locateUser} disabled={searchLoading}>
-                  Locate
-                </button>
-                <button type="button" class="chip ghost" on:click={clearSearch} disabled={!searchQuery && !searchResults.length}>
-                  Clear
-                </button>
-              </div>
-              {#if searchLoading}
-                <p class="muted">Searching…</p>
-              {:else if searchNotice}
-                <p class:errored={searchNoticeType === 'error'} class:success={searchNoticeType === 'success'}>
-                  {searchNotice}
-                </p>
-              {/if}
-              {#if searchResults.length}
-                <div class="search-results custom-scrollbar">
-                  {#each searchResults as result (result.display_name)}
-                    <div class="search-result">
-                      <button type="button" class="result-main" on:click={() => zoomToSearchResult(result)}>
-                        <span class="result-title">{result.display_name}</span>
-                        {#if result.type}
-                          <span class="result-type">{result.type}</span>
-                        {/if}
-                      </button>
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-            </div>
-          </div>
-            {:else if activeViewerSection === 'story'}
-              <div class="section-group">
-                <div class="section-block">
-                  <h3>Feature stories</h3>
-                  <div class="story-grid">
-                    {#if visibleStoryScenes.length}
-                      {#each visibleStoryScenes.slice(0, 2) as scene, index (scene.id)}
-                        <div class="story-card">
-                          <h4>{scene.title}</h4>
-                          <p>{scene.details || 'No description yet.'}</p>
-                          <div class="story-card-actions">
-                            <button type="button" class="chip" on:click={() => goToStoryScene(index)}>
-                              View
-                            </button>
-                          </div>
-                        </div>
-                      {/each}
-                    {:else}
-                      <p class="empty-state">No stories captured yet. Switch to Creator to add one.</p>
-                    {/if}
-                  </div>
-                </div>
-                <div class="section-block">
-                  <div class="section-header">
-                    <h3>View all stories</h3>
-                    {#if visibleStoryScenes.length}
-                      <button type="button" class="chip ghost" on:click={() => startStoryPresentation(0)}>
-                        Present
-                      </button>
-                    {/if}
-                  </div>
-                  <div class="story-list custom-scrollbar">
-                    {#if visibleStoryScenes.length}
-                      {#each visibleStoryScenes as scene, index (scene.id)}
-                        <div class="story-row">
-                          <div class="story-info">
-                            <span class="story-title">{scene.title}</span>
-                            <span class="story-meta">{scene.details || 'No description provided.'}</span>
-                          </div>
-                          <div class="story-row-actions">
-                            <button type="button" class="chip ghost" on:click={() => goToStoryScene(index)}>
-                              View
-                            </button>
-                            <button type="button" class="chip ghost" on:click={() => startStoryPresentation(index)}>
-                              Play
-                            </button>
-                          </div>
-                        </div>
-                      {/each}
-                    {:else}
-                      <p class="empty-state">No story slides yet.</p>
-                    {/if}
-                  </div>
-                </div>
-              </div>
-            {:else}
-              <div class="section-group">
-                <div class="section-block">
-                  <h3>Share</h3>
-                  <p class="muted">Copy a link to this view to share it with your team.</p>
-                  <button type="button" class="chip" on:click={copyShareLink}>
-                    {shareCopied ? 'Copied!' : 'Copy link'}
-                  </button>
-                </div>
-                <div class="section-block">
-                  <h3>Status</h3>
-                  <p class:errored={statusError}>{statusMessage}</p>
-                </div>
-                <div class="section-block">
-                  <h3>Settings</h3>
-                  <div class="button-stack">
-                    <button type="button" class="chip ghost" on:click={toggleAppMode}>
-                      Switch to {appMode === 'explore' ? 'Creator' : 'Viewer'}
-                    </button>
-                    <button type="button" class="chip danger" on:click={handleClearState}>
-                      Clear cached state
-                    </button>
-                  </div>
-                </div>
-              </div>
-            {/if}
-            </div>
-          {/if}
-        </div>
-      {:else}
-        <!-- Viewer panel hidden while welcome overlay is visible -->
-      {/if}
     </div>
 
-    {#if !isMobile && appMode === 'create'}
+    {#if !isMobile}
       {#if creatorRightCollapsed}
         <button type="button" class="panel-toggle right" on:click={() => (creatorRightCollapsed = false)}>
           Show panel
@@ -3012,14 +2644,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
               Hide panel
             </button>
             <div class="creator-right-controls">
-              <div class="toggle-group">
-                <button type="button" class:selected={creatorRightPane === 'annotations'} on:click={() => (creatorRightPane = 'annotations')}>
-                  Annotations
-                </button>
-                <button type="button" class:selected={creatorRightPane === 'story'} on:click={() => (creatorRightPane = 'story')}>
-                  Story slides
-                </button>
-              </div>
+              <h2 class="panel-heading">Annotations</h2>
               <div class="right-actions">
                 <button type="button" class="chip ghost" on:click={clearAnnotations} disabled={!annotations.length}>
                   Clear
@@ -3035,7 +2660,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
             </div>
           </header>
           <div class="creator-right-body custom-scrollbar">
-            {#if creatorRightPane === 'annotations'}
               {#if annotationsNotice}
               <p class="notice" class:errored={annotationsNoticeType === 'error'} class:success={annotationsNoticeType === 'success'}>
                 {annotationsNotice}
@@ -3094,67 +2718,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
               {/each}
             {:else}
               <p class="empty-state">Draw or import annotations to see them here.</p>
-            {/if}
-          {:else}
-            <div class="story-list-panel">
-              {#if storyScenes.length}
-                {#each storyScenes as scene, index (scene.id)}
-                  <div class="list-card" class:hidden={scene.hidden}>
-                    <div class="list-card-header">
-                      <input
-                        type="text"
-                        value={scene.title}
-                        placeholder="Scene title"
-                        on:input={(event) => {
-                          const value = (event.target as HTMLInputElement).value;
-                          storyScenes = storyScenes.map((existing, i) => (i === index ? { ...existing, title: value } : existing));
-                          queueSaveState();
-                        }}
-                      />
-                      <div class="list-card-actions">
-                        <button type="button" class="chip ghost" on:click={() => goToStoryScene(index)}>
-                          Go to
-                        </button>
-                        <button type="button" class="chip ghost" on:click={() => openCaptureModal({ editIndex: index })}>
-                          Edit
-                        </button>
-                        <button type="button" class="chip ghost" on:click={() => duplicateStoryScene(index)}>
-                          Duplicate
-                        </button>
-                        <button type="button" class="icon-button" on:click={() => (openStoryMenu = openStoryMenu === scene.id ? null : scene.id)}>
-                          ☰
-                        </button>
-                      </div>
-                    </div>
-                    <textarea
-                      rows="2"
-                      value={scene.details}
-                      placeholder="Scene details"
-                      on:input={(event) => {
-                        const value = (event.target as HTMLTextAreaElement).value;
-                        storyScenes = storyScenes.map((existing, i) => (i === index ? { ...existing, details: value } : existing));
-                        queueSaveState();
-                      }}
-                    ></textarea>
-                    {#if openStoryMenu === scene.id}
-                      <div class="card-menu">
-                        <button type="button" on:click={() => { applyStorySceneByIndex(index); openStoryMenu = null; }}>
-                          Apply view
-                        </button>
-                        <button type="button" on:click={() => { toggleStorySceneVisibility(index); openStoryMenu = null; }}>
-                          {scene.hidden ? 'Show slide' : 'Hide slide'}
-                        </button>
-                        <button type="button" on:click={() => { deleteStoryScene(index); openStoryMenu = null; }}>
-                          Delete
-                        </button>
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              {:else}
-                <p class="empty-state">Capture scenes to build your story.</p>
-              {/if}
-              </div>
             {/if}
           </div>
         </aside>
@@ -3283,13 +2846,11 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
                     <span class="result-type">{result.type}</span>
                   {/if}
                 </button>
-                {#if appMode === 'create'}
-                  <div class="search-result-actions">
+                <div class="search-result-actions">
                     <button type="button" class="chip ghost" on:click={() => addSearchResultToAnnotations(result)}>
                       Add to annotations
                     </button>
                   </div>
-                {/if}
               </div>
             {/each}
           </div>
@@ -3298,59 +2859,15 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     </div>
   {/if}
 
-  {#if captureModalOpen}
-    <div class="modal-backdrop">
-      <div class="modal-card">
-        <header>
-          <h2>{storyEditingIndex !== null ? 'Update story scene' : 'Capture story scene'}</h2>
-        </header>
-        <div class="modal-body">
-          <label>
-            <span>Title</span>
-            <input type="text" bind:value={captureForm.title} placeholder="Scene title" />
-          </label>
-          <label>
-            <span>Details</span>
-            <textarea rows="3" bind:value={captureForm.details} placeholder="What should viewers know?"></textarea>
-          </label>
-          <label>
-            <span>Delay (seconds)</span>
-            <input type="number" min={STORY_DELAY_MIN} max={STORY_DELAY_MAX} bind:value={captureForm.delay} />
-          </label>
-          <fieldset>
-            <legend>Visible annotations</legend>
-            {#if annotations.length}
-              <div class="modal-chip-group">
-                {#each annotations as annotation (annotation.id)}
-                  <button
-                    type="button"
-                    class:selected={captureForm.annotations.includes(annotation.id)}
-                    on:click={() => toggleCaptureAnnotation(annotation.id)}
-                  >
-                    {annotation.label}
-                  </button>
-                {/each}
-              </div>
-            {:else}
-              <p class="muted">No annotations yet.</p>
-            {/if}
-          </fieldset>
-        </div>
-        <footer class="modal-footer">
-          <button type="button" class="ghost" on:click={closeCaptureModal}>Cancel</button>
-          <button type="button" on:click={submitCaptureForm}>
-            {storyEditingIndex !== null ? 'Update scene' : 'Add scene'}
-          </button>
-        </footer>
-      </div>
-    </div>
-  {/if}
 </div>
 
 <style>
   :global(body) {
     margin: 0;
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Be Vietnam Pro', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     background: #0f172a;
     color: #e2e8f0;
   }
@@ -3393,8 +2910,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     flex-direction: column;
     gap: 0.75rem;
     background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 1rem;
+    border: 2px solid rgba(212, 175, 55, 0.3);
+    border-radius: 4px;
     padding: 0.9rem;
     box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45);
     backdrop-filter: blur(18px);
@@ -3488,6 +3005,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     justify-content: space-between;
   }
 
+  .panel-heading {
+    margin: 0;
+    font-family: 'Spectral', serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
   .creator-right-body {
     margin-top: 0.75rem;
     padding-right: 0.2rem;
@@ -3531,18 +3056,19 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   .divider {
     position: absolute;
     pointer-events: none;
-    background: rgba(14, 116, 144, 0.65);
+    background: #d4af37;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
     z-index: 10;
   }
 
   .divider.vertical {
-    width: 2px;
+    width: 3px;
     top: 0;
     bottom: 0;
   }
 
   .divider.horizontal {
-    height: 2px;
+    height: 3px;
     left: 0;
     right: 0;
   }
@@ -3552,10 +3078,16 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     z-index: 11;
     width: 16px;
     height: 16px;
-    background: rgba(148, 163, 184, 0.85);
-    border: none;
+    background: linear-gradient(135deg, #d4af37 0%, #b8942f 100%);
+    border: 2px solid #f4e8d8;
     border-radius: 999px;
     cursor: grab;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.15s ease;
+  }
+
+  .handle:hover {
+    transform: scale(1.2);
   }
 
   .handle.vertical {
@@ -3563,66 +3095,50 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     transform: translateY(-50%);
   }
 
+  .handle.vertical:hover {
+    transform: translateY(-50%) scale(1.2);
+  }
+
   .handle.horizontal {
     left: 50%;
     transform: translateX(-50%);
   }
 
+  .handle.horizontal:hover {
+    transform: translateX(-50%) scale(1.2);
+  }
+
   .lens {
     position: absolute;
-    border: 3px solid rgba(148, 163, 184, 0.9);
+    border: 3px solid #d4af37;
     border-radius: 999px;
     pointer-events: none;
     z-index: 12;
+    box-shadow:
+      0 0 0 2px rgba(244, 232, 216, 0.5),
+      0 4px 16px rgba(0, 0, 0, 0.3),
+      inset 0 0 20px rgba(212, 175, 55, 0.1);
   }
 
   .lens-handle {
     position: absolute;
-    width: 18px;
-    height: 18px;
-    border: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f4e8d8;
     border-radius: 999px;
-    background: rgba(37, 99, 235, 0.9);
-    color: #0f172a;
-    cursor: grab;
+    background: linear-gradient(135deg, #d4af37 0%, #b8942f 100%);
+    cursor: nwse-resize;
     z-index: 13;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.15s ease;
   }
 
-  .viewer-panel {
-    position: fixed;
-    left: 50%;
-    bottom: calc(env(safe-area-inset-bottom) + 1.4rem);
-    transform: translateX(-50%);
-    width: min(720px, calc(100% - 2rem));
-    background: rgba(15, 23, 42, 0.88);
-    border-radius: 1.2rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 24px 48px rgba(2, 6, 23, 0.55);
-    display: flex;
-    flex-direction: column;
-    z-index: 130;
-    pointer-events: auto;
+  .lens-handle:hover {
+    transform: scale(1.2);
   }
 
-  .viewer-panel.collapsed {
-    padding-bottom: 0.75rem;
-  }
-
-  .viewer-tabs {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.35rem;
-    padding: 0.75rem 0.85rem 0;
-  }
-
-  .viewer-tabs button,
   .button-group button,
-  .toggle-group button,
   .panel-card-section button,
-  .story-card-actions button,
-  .story-row-actions button,
-  .modal-chip-group button,
   .toolbar-menu button {
     border: none;
     border-radius: 0.75rem;
@@ -3634,28 +3150,15 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     transition: background 0.15s ease, transform 0.15s ease;
   }
 
-  .viewer-tabs button.selected,
   .button-group button.selected,
-  .toggle-group button.selected,
   .toolbar-menu button.selected {
     background: rgba(79, 70, 229, 0.85);
     box-shadow: 0 12px 32px rgba(67, 56, 202, 0.35);
   }
 
-  .viewer-tabs button:hover,
   .button-group button:hover,
-  .toggle-group button:hover,
   .toolbar-menu button:hover {
     transform: translateY(-1px);
-  }
-
-  .viewer-section {
-    padding: 0.8rem 1rem 1rem;
-    max-height: 420px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
   }
 
   .section-group {
@@ -3676,8 +3179,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .section-block h3 {
     margin: 0;
+    font-family: 'Spectral', serif;
     font-size: 0.95rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .section-header {
@@ -3705,210 +3210,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .slider input[type='range'] {
     flex: 1 1 auto;
-  }
-
-  .map-grid {
-    display: grid;
-    gap: 0.6rem;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  }
-
-  .map-card {
-    display: flex;
-    flex-direction: column;
-    border-radius: 0.85rem;
-    background: rgba(30, 41, 59, 0.75);
-    border: 1px solid transparent;
-    overflow: hidden;
-    text-align: left;
-    gap: 0.45rem;
-  }
-
-  .map-card.active {
-    border-color: rgba(99, 102, 241, 0.85);
-    box-shadow: 0 16px 32px rgba(59, 130, 246, 0.35);
-  }
-
-  .map-card img {
-    width: 100%;
-    height: 110px;
-    object-fit: cover;
-  }
-
-  .map-card-body {
-    padding: 0 0.75rem 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .catalog-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    max-height: 240px;
-    padding-right: 0.2rem;
-  }
-
-  .catalog-item {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    border-radius: 0.85rem;
-    border: 1px solid transparent;
-    background: rgba(15, 23, 42, 0.55);
-    padding: 0.55rem 0.65rem;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .catalog-item:hover,
-  .catalog-item:focus-visible {
-    border-color: rgba(99, 102, 241, 0.5);
-    outline: none;
-  }
-
-  .catalog-item.active {
-    border-color: rgba(99, 102, 241, 0.8);
-    box-shadow: 0 12px 24px rgba(67, 56, 202, 0.35);
-  }
-
-  .catalog-item img {
-    width: 48px;
-    height: 48px;
-    object-fit: cover;
-    border-radius: 0.6rem;
-    flex-shrink: 0;
-  }
-
-  .catalog-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .catalog-title {
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
-  .catalog-meta {
-    font-size: 0.72rem;
-    color: rgba(148, 163, 184, 0.78);
-  }
-
-  .map-card-title {
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-
-  .map-card-meta {
-    font-size: 0.75rem;
-    color: rgba(148, 163, 184, 0.85);
-  }
-
-  .search-row {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .search-row input {
-    flex: 1 1 200px;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    padding: 0.55rem 0.75rem;
-    background: rgba(15, 23, 42, 0.75);
-    color: inherit;
-  }
-
-  .search-results {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    max-height: 220px;
-    overflow-y: auto;
-  }
-
-  .search-result {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.65rem 0.75rem;
-    border-radius: 0.8rem;
-    background: rgba(30, 41, 59, 0.75);
-  }
-
-  .result-main {
-    flex: 1 1 auto;
-    text-align: left;
-    color: inherit;
-    background: none;
-    border: none;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .result-title {
-    font-size: 0.82rem;
-    font-weight: 500;
-  }
-
-  .result-type {
-    font-size: 0.72rem;
-    color: rgba(148, 163, 184, 0.8);
-  }
-
-  .story-grid {
-    display: grid;
-    gap: 0.6rem;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  }
-
-  .story-card {
-    border-radius: 0.85rem;
-    background: rgba(30, 41, 59, 0.75);
-    padding: 0.8rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .story-card h4 {
-    margin: 0;
-  }
-
-  .story-card p {
-    margin: 0;
-    font-size: 0.78rem;
-    color: rgba(148, 163, 184, 0.85);
-  }
-
-  .story-card-actions {
-    margin-top: auto;
-    display: flex;
-    gap: 0.4rem;
-  }
-
-  .story-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    max-height: 220px;
-    overflow-y: auto;
-  }
-
-  .story-row {
-    display: flex;
-    gap: 0.45rem;
-    padding: 0.65rem 0.75rem;
-    border-radius: 0.8rem;
-    background: rgba(30, 41, 59, 0.75);
-    align-items: center;
   }
 
   .history-featured {
@@ -3995,27 +3296,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     color: inherit;
   }
 
-  .story-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .story-title {
-    font-weight: 500;
-  }
-
-  .story-meta {
-    font-size: 0.72rem;
-    color: rgba(148, 163, 184, 0.8);
-  }
-
-  .story-row-actions {
-    display: flex;
-    gap: 0.4rem;
-  }
-
   .panel-card {
     background: rgba(15, 23, 42, 0.85);
     border-radius: 1.1rem;
@@ -4029,8 +3309,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .panel-card-header h2 {
     margin: 0;
+    font-family: 'Spectral', serif;
     font-size: 1.05rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .panel-card-section {
@@ -4040,7 +3322,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .section-title {
+    font-family: 'Be Vietnam Pro', sans-serif;
     font-size: 0.75rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: rgba(148, 163, 184, 0.8);
@@ -4053,7 +3337,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     transform: translateX(-50%);
     background: rgba(15, 23, 42, 0.88);
     border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    border: 2px solid rgba(212, 175, 55, 0.35);
     padding: 0.45rem 0.75rem;
     display: flex;
     gap: 0.6rem;
@@ -4134,19 +3418,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   .toolbar-icon {
     font-size: 1.05rem;
     line-height: 1;
-  }
-
-  .toggle-group {
-    display: inline-flex;
-    gap: 0.35rem;
-    background: rgba(15, 23, 42, 0.8);
-    border-radius: 999px;
-    padding: 0.2rem;
-  }
-
-  .toggle-group button {
-    font-size: 0.78rem;
-    padding: 0.45rem 0.75rem;
   }
 
   .right-actions {
@@ -4242,12 +3513,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     cursor: pointer;
   }
 
-  .story-list-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-  }
-
   .empty-state {
     margin: 0;
     font-size: 0.78rem;
@@ -4273,100 +3538,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     color: #86efac;
   }
 
-  .welcome-overlay {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    background: rgba(15, 23, 42, 0.72);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 140;
-    backdrop-filter: blur(14px);
-  }
-
-  .welcome-card {
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(129, 140, 248, 0.25);
-    border-radius: 1.2rem;
-    padding: 2.2rem 2.6rem;
-    max-width: 520px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
-    box-shadow: 0 32px 64px rgba(30, 41, 59, 0.45);
-  }
-
-  .welcome-card h1 {
-    margin: 0;
-    font-size: 2rem;
-  }
-
-  .welcome-card p {
-    margin: 0;
-    color: rgba(191, 219, 254, 0.85);
-  }
-
-  .welcome-actions {
-    display: inline-flex;
-    gap: 0.75rem;
-    justify-content: center;
-  }
-
-  .welcome-actions .chip {
-    min-width: 120px;
-    font-size: 1rem;
-    padding: 0.75rem 1.5rem;
-  }
-
-  .welcome-actions .chip.active {
-    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.4);
-  }
-
-  .map-accordion {
-    border-radius: 0.85rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    background: rgba(15, 23, 42, 0.5);
-    padding: 0.6rem 0.75rem;
-  }
-
-  .map-accordion summary {
-    cursor: pointer;
-    font-weight: 600;
-    list-style: none;
-  }
-
-  .map-accordion summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .map-accordion[open] summary {
-    margin-bottom: 0.6rem;
-  }
-
-  .catalog-filter {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 0.75rem;
-  }
-
-  .catalog-filter label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .catalog-filter select {
-    padding: 0.35rem 0.55rem;
-    border-radius: 0.5rem;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(15, 23, 42, 0.65);
-    color: inherit;
-  }
-
   .metadata-overlay {
     position: fixed;
     inset: 0;
@@ -4382,8 +3553,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   .metadata-card {
     width: min(420px, 100%);
     background: rgba(15, 23, 42, 0.92);
-    border-radius: 1rem;
-    border: 1px solid rgba(129, 140, 248, 0.3);
+    border-radius: 4px;
+    border: 2px solid rgba(212, 175, 55, 0.4);
     box-shadow: 0 32px 64px rgba(2, 6, 23, 0.6);
     padding: 1.1rem 1.3rem;
     display: flex;
@@ -4400,12 +3571,17 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .metadata-card h2 {
     margin: 0;
+    font-family: 'Spectral', serif;
     font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .metadata-section h3 {
     margin: 0 0 0.5rem;
+    font-family: 'Spectral', serif;
     font-size: 1.05rem;
+    font-weight: 700;
   }
 
   .metadata-section dl {
@@ -4459,8 +3635,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   .search-card {
     width: min(520px, 100%);
     background: rgba(15, 23, 42, 0.92);
-    border-radius: 1rem;
-    border: 1px solid rgba(129, 140, 248, 0.3);
+    border-radius: 4px;
+    border: 2px solid rgba(212, 175, 55, 0.4);
     box-shadow: 0 32px 64px rgba(2, 6, 23, 0.55);
     padding: 1.15rem 1.3rem;
     display: flex;
@@ -4479,7 +3655,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .search-card h2 {
     margin: 0;
+    font-family: 'Spectral', serif;
     font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .search-form {
@@ -4552,69 +3731,6 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     gap: 0.4rem;
   }
 
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 120;
-    backdrop-filter: blur(12px);
-    padding: 1rem;
-  }
-
-  .modal-card {
-    background: rgba(15, 23, 42, 0.92);
-    border-radius: 1rem;
-    border: 1px solid rgba(129, 140, 248, 0.25);
-    width: min(420px, 100%);
-    padding: 1.2rem 1.4rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .modal-body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .modal-body label,
-  .modal-body fieldset {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    font-size: 0.82rem;
-  }
-
-  .modal-body input,
-  .modal-body textarea {
-    border-radius: 0.75rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    background: rgba(15, 23, 42, 0.75);
-    color: inherit;
-    padding: 0.5rem 0.65rem;
-    font-family: inherit;
-  }
-
-  .modal-body textarea {
-    resize: vertical;
-  }
-
-  .modal-chip-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-  }
-
-  .modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.6rem;
-  }
-
   .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
@@ -4639,16 +3755,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       padding-bottom: 90px;
     }
 
-    .viewer-panel {
-      border-radius: 1rem;
-    }
-
     .section-block {
       padding: 0.75rem 0.85rem;
-    }
-
-    .map-grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
   }
 </style>
