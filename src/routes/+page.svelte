@@ -134,7 +134,7 @@
 
 	<main class="main">
 		<section class="features">
-			<a href="/trip" class="feature-card featured">
+			<a href="/trip" class="feature-card">
 				<div class="feature-icon">📍</div>
 				<div class="feature-content">
 					<h2 class="feature-title">Viewer</h2>
@@ -497,20 +497,7 @@
 			0 0 0 1px rgba(212, 175, 55, 0.2);
 	}
 
-	.feature-card.featured {
-		background: linear-gradient(160deg,
-			rgba(212, 175, 55, 0.2) 0%,
-			rgba(212, 175, 55, 0.1) 100%);
-		border-color: rgba(212, 175, 55, 0.6);
-	}
-
-	.feature-card.featured:hover {
-		background: linear-gradient(160deg,
-			rgba(212, 175, 55, 0.3) 0%,
-			rgba(212, 175, 55, 0.15) 100%);
-	}
-
-	.feature-icon {
+.feature-icon {
 		font-size: 2.5rem;
 		margin-bottom: 1rem;
 	}
