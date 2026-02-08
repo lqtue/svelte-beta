@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { DATASET_URL } from '$lib/viewer/constants';
 	import type { MapListItem } from '$lib/viewer/types';
+	import { getSupabaseContext } from '$lib/supabase/context';
+	import { fetchMaps, fetchFeaturedMaps } from '$lib/supabase/maps';
+
+	const { supabase, session } = getSupabaseContext();
 
 	let mounted = false;
 	let maps: MapListItem[] = [];
@@ -18,16 +21,12 @@
 
 			const annotation = await response.json();
 
-			// Extract IIIF image source from annotation
-			// Structure: annotation.items[0].target.source.id
 			const items = annotation.items;
 			if (!items || items.length === 0) return null;
 
 			const source = items[0]?.target?.source;
 			if (!source?.id) return null;
 
-			// Construct thumbnail URL from IIIF Image API
-			// The source.id is the IIIF image service URL
 			const imageServiceUrl = source.id;
 			return `${imageServiceUrl}/full/,400/0/default.jpg`;
 		} catch (err) {
@@ -38,99 +37,25 @@
 
 	async function loadMapCatalog() {
 		try {
-			const response = await fetch(DATASET_URL);
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-			const text = await response.text();
+			const [allMaps, featured] = await Promise.all([
+				fetchMaps(supabase),
+				fetchFeaturedMaps(supabase)
+			]);
 
-			const lines = text.trim().split(/\r?\n/);
+			maps = allMaps;
+			featuredMaps = featured.length > 0 ? featured : allMaps.slice(0, 6);
 
-			// Parse header line handling quoted fields
-			const headerLine = lines.shift() || '';
-			const header: string[] = [];
-			let headerCurrent = '';
-			let headerInQuotes = false;
-			for (let i = 0; i < headerLine.length; i++) {
-				const char = headerLine[i];
-				if (char === '"') {
-					headerInQuotes = !headerInQuotes;
-				} else if (char === ',' && !headerInQuotes) {
-					header.push(headerCurrent.replace(/^"|"$/g, '').trim().toLowerCase());
-					headerCurrent = '';
-				} else {
-					headerCurrent += char;
-				}
-			}
-			header.push(headerCurrent.replace(/^"|"$/g, '').trim().toLowerCase());
-
-			const items: MapListItem[] = [];
-			for (const line of lines) {
-				if (!line.trim()) continue;
-
-				// Parse CSV properly handling quoted fields and empty values
-				const cells: string[] = [];
-				let current = '';
-				let inQuotes = false;
-				for (let i = 0; i < line.length; i++) {
-					const char = line[i];
-					if (char === '"') {
-						inQuotes = !inQuotes;
-					} else if (char === ',' && !inQuotes) {
-						cells.push(current.replace(/^"|"$/g, '').trim());
-						current = '';
-					} else {
-						current += char;
-					}
-				}
-				cells.push(current.replace(/^"|"$/g, '').trim());
-
-				const row: Record<string, string> = {};
-				header.forEach((key, i) => {
-					row[key] = cells[i] || '';
-				});
-
-				const idKey = header.find((h) => h === 'id');
-				const nameKey = header.find((h) => h === 'name');
-				const typeKey = header.find((h) => h === 'type');
-
-				if (!idKey || !nameKey || !row[idKey] || !row[nameKey]) continue;
-
-				const year = parseInt(row['year'], 10);
-
-				const item: MapListItem = {
-					id: row[idKey],
-					name: row[nameKey],
-					type: (typeKey && row[typeKey]) || '',
-					summary: row['summary'] || undefined,
-					description: row['description'] || row['details'] || row['detail'] || undefined,
-					thumbnail: row['thumbnail'] || row['image'] || undefined,
-					isFeatured: row['featured']?.toLowerCase() === 'true' || row['featured']?.toLowerCase() === 'x' || row['is_featured'] === 'TRUE',
-					year: isNaN(year) ? undefined : year
-				};
-
-				items.push(item);
-			}
-
-			maps = items;
-
-			// Get featured maps, or fallback to first 6 maps with georef=TRUE
-			featuredMaps = items.filter(m => m.isFeatured);
-			if (featuredMaps.length === 0) {
-				featuredMaps = items.slice(0, 6);
-			}
-
-			// Fetch thumbnails in parallel (limit concurrency)
-			loading = false; // Show cards while loading thumbnails
+			loading = false;
 
 			const fetchPromises = featuredMaps.map(async (map) => {
 				const url = await fetchThumbnailUrl(map.id);
 				if (url) {
 					thumbnails.set(map.id, url);
-					thumbnails = thumbnails; // trigger reactivity
+					thumbnails = thumbnails;
 				}
 			});
 
 			await Promise.all(fetchPromises);
-
 		} catch (err) {
 			console.error('Failed to load map catalog:', err);
 		} finally {
@@ -149,13 +74,26 @@
 		? featuredMaps
 		: featuredMaps.filter((m) => m.type === selectedFeaturedCity);
 
+	async function handleGoogleLogin() {
+		await supabase.auth.signInWithOAuth({
+			provider: 'google',
+			options: {
+				redirectTo: window.location.origin + '/auth/callback'
+			}
+		});
+	}
+
+	async function handleSignOut() {
+		await supabase.auth.signOut();
+		window.location.reload();
+	}
+
 	onMount(() => {
 		mounted = true;
 		loadMapCatalog();
 	});
 
 	function handleImageError(event: Event, mapId: string) {
-		// On error, remove the thumbnail so we show the placeholder
 		const target = event.target as HTMLImageElement;
 		target.style.display = 'none';
 	}
@@ -169,9 +107,24 @@
 
 <div class="page" class:mounted>
 	<header class="hero">
+		<div class="auth-bar">
+			{#if session}
+				<span class="auth-user">{session.user.user_metadata?.full_name || session.user.email}</span>
+				<button class="auth-btn auth-btn-signout" on:click={handleSignOut}>Sign Out</button>
+			{:else}
+				<button class="auth-btn auth-btn-google" on:click={handleGoogleLogin}>
+					<svg class="google-icon" viewBox="0 0 24 24" width="16" height="16">
+						<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+						<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+						<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+						<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+					</svg>
+					Sign in with Google
+				</button>
+			{/if}
+		</div>
 		<div class="hero-content">
-			<div class="hero-icon">🗺️</div>
-			<h1 class="hero-title">Vietnam Map Archive</h1>
+			<h1 class="hero-title"><span class="hero-icon">🗺️</span> Vietnam Map Archive</h1>
 			<p class="hero-subtitle">
 				Explore historical maps of Vietnam overlaid on the modern world
 			</p>
@@ -191,6 +144,36 @@
 					</p>
 					<span class="feature-cta">
 						<span class="cta-text">Start Exploring</span>
+						<span class="cta-arrow">→</span>
+					</span>
+				</div>
+			</a>
+
+			<a href="/georef" class="feature-card">
+				<div class="feature-icon">🧭</div>
+				<div class="feature-content">
+					<h2 class="feature-title">Georeference</h2>
+					<p class="feature-description">
+						Help us bring more maps online. Pick an unprocessed map, georeference it
+						using Allmaps, and submit for review.
+					</p>
+					<span class="feature-cta">
+						<span class="cta-text">Contribute</span>
+						<span class="cta-arrow">→</span>
+					</span>
+				</div>
+			</a>
+
+			<a href="/hunt" class="feature-card">
+				<div class="feature-icon">🏴‍☠️</div>
+				<div class="feature-content">
+					<h2 class="feature-title">Hunt <span class="beta-badge">Beta</span></h2>
+					<p class="feature-description">
+						GPS-guided treasure hunts through historic neighborhoods.
+						Follow clues, discover hidden stories, and explore on foot.
+					</p>
+					<span class="feature-cta">
+						<span class="cta-text">Start a Hunt</span>
 						<span class="cta-arrow">→</span>
 					</span>
 				</div>
@@ -349,7 +332,7 @@
 	/* Hero Section */
 	.hero {
 		position: relative;
-		padding: 4rem 2rem 3rem;
+		padding: 2rem 2rem 1.5rem;
 		text-align: center;
 		background: linear-gradient(180deg,
 			rgba(212, 175, 55, 0.15) 0%,
@@ -367,6 +350,63 @@
 		pointer-events: none;
 	}
 
+	.auth-bar {
+		position: absolute;
+		top: 1rem;
+		right: 1.5rem;
+		z-index: 2;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.auth-user {
+		font-family: 'Be Vietnam Pro', sans-serif;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: #4a3f35;
+	}
+
+	.auth-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		border: 1px solid rgba(212, 175, 55, 0.4);
+		border-radius: 4px;
+		font-family: 'Be Vietnam Pro', sans-serif;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.auth-btn-google {
+		background: rgba(255, 255, 255, 0.7);
+		color: #4a3f35;
+	}
+
+	.auth-btn-google:hover {
+		background: rgba(255, 255, 255, 0.9);
+		border-color: #d4af37;
+	}
+
+	.google-icon {
+		flex-shrink: 0;
+	}
+
+	.auth-btn-signout {
+		background: transparent;
+		color: #8b7355;
+		font-size: 0.75rem;
+		padding: 0.375rem 0.75rem;
+	}
+
+	.auth-btn-signout:hover {
+		color: #d4af37;
+		border-color: #d4af37;
+	}
+
 	.hero-content {
 		position: relative;
 		z-index: 1;
@@ -375,30 +415,25 @@
 	}
 
 	.hero-icon {
-		font-size: 4rem;
-		margin-bottom: 1rem;
-		animation: float 3s ease-in-out infinite;
-	}
-
-	@keyframes float {
-		0%, 100% { transform: translateY(0); }
-		50% { transform: translateY(-8px); }
+		font-size: 1.75rem;
+		vertical-align: middle;
+		margin-right: 0.25rem;
 	}
 
 	.hero-title {
 		font-family: 'Spectral', serif;
-		font-size: clamp(2rem, 6vw, 3rem);
+		font-size: clamp(1.5rem, 5vw, 2.25rem);
 		font-weight: 800;
 		letter-spacing: -0.02em;
 		color: #2b2520;
-		margin: 0 0 1rem 0;
+		margin: 0 0 0.5rem 0;
 		text-transform: uppercase;
 	}
 
 	.hero-subtitle {
 		font-family: 'Noto Serif', serif;
-		font-size: clamp(1rem, 3vw, 1.25rem);
-		line-height: 1.6;
+		font-size: clamp(0.875rem, 2.5vw, 1.0625rem);
+		line-height: 1.5;
 		color: #4a3f35;
 		margin: 0;
 	}
@@ -868,11 +903,7 @@
 	/* Responsive */
 	@media (max-width: 640px) {
 		.hero {
-			padding: 3rem 1.5rem 2rem;
-		}
-
-		.hero-icon {
-			font-size: 3rem;
+			padding: 1.5rem 1rem 1.25rem;
 		}
 
 		.main {

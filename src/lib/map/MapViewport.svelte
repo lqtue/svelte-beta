@@ -28,13 +28,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   import 'ol/ol.css';
 
   import {
-    DATASET_URL,
     DEFAULT_ANNOTATION_COLOR,
     APP_STATE_KEY,
     DRAW_TYPE_MAP,
     BASEMAP_DEFS,
     INITIAL_CENTER
   } from '$lib/viewer/constants';
+  import { getSupabaseContext } from '$lib/supabase/context';
+  import { fetchMaps } from '$lib/supabase/maps';
   import {
     ensureAnnotationDefaults,
     toAnnotationSummary,
@@ -66,6 +67,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   const STORY_DELAY_MAX = 60;
   const STORY_DEFAULT_DELAY = 5;
   const HISTORY_LIMIT = 100;
+
+  const { supabase } = getSupabaseContext();
 
   let mapContainer: HTMLDivElement;
   let dividerXEl: HTMLDivElement;
@@ -823,56 +826,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   async function loadDataset() {
     try {
       setStatus('Loading map list…');
-      const response = await fetch(DATASET_URL);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const text = await response.text();
-      const lines = text.trim().split(/\r?\n/);
-      if (!lines.length) throw new Error('No rows.');
-      const header = (lines.shift() ?? '')
-        .split(',')
-        .map((h) => h.trim().toLowerCase());
-      const nameIndex = header.indexOf('name');
-      const idIndex = header.indexOf('id');
-      const typeIndex = header.indexOf('type');
-      const summaryIndex = header.indexOf('summary');
-      const descriptionIndex =
-        header.indexOf('description') !== -1
-          ? header.indexOf('description')
-          : header.indexOf('details') !== -1
-            ? header.indexOf('details')
-            : header.indexOf('detail');
-      const thumbnailIndex =
-        header.indexOf('thumbnail') !== -1
-          ? header.indexOf('thumbnail')
-          : header.indexOf('image');
-      const featuredIndex =
-        header.indexOf('featured') !== -1
-          ? header.indexOf('featured')
-          : header.indexOf('is_featured');
-      if (nameIndex === -1 || idIndex === -1) throw new Error("Missing 'name' or 'id' column.");
-      const items: MapListItem[] = lines
-        .map((line) => line.match(/(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g) || [])
-        .map((cols) => {
-          const name = (cols[nameIndex] || '').replace(/"/g, '').trim();
-          const id = (cols[idIndex] || '').replace(/"/g, '').trim();
-          const type =
-            typeIndex > -1 ? (cols[typeIndex] || '').replace(/"/g, '').trim() || 'Uncategorized' : 'Uncategorized';
-          const summary = summaryIndex > -1 ? (cols[summaryIndex] || '').replace(/"/g, '').trim() : '';
-          const description =
-            descriptionIndex > -1 ? (cols[descriptionIndex] || '').replace(/"/g, '').trim() : '';
-          const thumbnail =
-            thumbnailIndex > -1 ? (cols[thumbnailIndex] || '').replace(/"/g, '').trim() : '';
-          const featuredValue = featuredIndex > -1 ? (cols[featuredIndex] || '').replace(/"/g, '').trim() : '';
-          const isFeatured = /^y(es)?$/i.test(featuredValue) || /^true$/i.test(featuredValue) || featuredValue === '1';
-          if (!name || !id) return null;
-          const entry: MapListItem = { id, name, type };
-          if (summary) entry.summary = summary;
-          if (description) entry.description = description;
-          if (thumbnail) entry.thumbnail = thumbnail;
-          if (isFeatured) entry.isFeatured = true;
-          return entry;
-        })
-        .filter((item): item is MapListItem => !!item);
+      const items = await fetchMaps(supabase);
       mapList = items;
       setStatus('Select a map from the list.');
     } catch (error) {

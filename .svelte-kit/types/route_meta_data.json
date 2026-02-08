@@ -1,7 +1,28 @@
 {
 	"/": [
-		"src/routes/+page.ts"
+		"src/routes/+page.ts",
+		"src/routes/+layout.server.ts",
+		"src/routes/+layout.server.ts"
 	],
-	"/temp-viewer": [],
-	"/trip": []
+	"/auth/callback": [
+		"src/routes/auth/callback/+server.ts"
+	],
+	"/georef": [
+		"src/routes/+layout.server.ts"
+	],
+	"/hunt": [
+		"src/routes/+layout.server.ts"
+	],
+	"/login": [
+		"src/routes/+layout.server.ts"
+	],
+	"/signup": [
+		"src/routes/+layout.server.ts"
+	],
+	"/temp-viewer": [
+		"src/routes/+layout.server.ts"
+	],
+	"/trip": [
+		"src/routes/+layout.server.ts"
+	]
 }

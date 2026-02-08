@@ -26,8 +26,10 @@
 	import { WarpedMapLayer } from '@allmaps/openlayers';
 	import 'ol/ol.css';
 
-	import { DATASET_URL, INITIAL_CENTER } from '$lib/viewer/constants';
+	import { INITIAL_CENTER } from '$lib/viewer/constants';
 	import type { MapListItem, ViewMode } from '$lib/viewer/types';
+	import { getSupabaseContext } from '$lib/supabase/context';
+	import { fetchMaps } from '$lib/supabase/maps';
 	import { startTracking, stopTracking, formatError } from './geolocation';
 	import type { TrackingState } from './types';
 	import MapSelector from './MapSelector.svelte';
@@ -55,6 +57,8 @@
 	// Props
 	export let initialMapId: string | null = null;
 	export let initialCity: string | null = null;
+
+	const { supabase } = getSupabaseContext();
 
 	let mapContainer: HTMLDivElement;
 	let map: Map | null = null;
@@ -279,52 +283,7 @@
 				return;
 			}
 
-			// Fetch from network
-			const response = await fetch(DATASET_URL);
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-			const text = await response.text();
-
-			const lines = text.trim().split(/\r?\n/);
-			const header = lines.shift()?.split(',').map((h) => h.trim().toLowerCase()) || [];
-
-			const items: MapListItem[] = [];
-			for (const line of lines) {
-				if (!line.trim()) continue;
-
-				const cells: string[] = [];
-				const matches = line.matchAll(/(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g);
-				for (const match of matches) {
-					cells.push(match[1].replace(/^"|"$/g, '').trim());
-				}
-
-				const row: Record<string, string> = {};
-				header.forEach((key, i) => {
-					row[key] = cells[i] || '';
-				});
-
-				const idKey = header.find((h) => h === 'id');
-				const nameKey = header.find((h) => h === 'name');
-				const typeKey = header.find((h) => h === 'type');
-
-				if (!idKey || !nameKey || !row[idKey] || !row[nameKey]) continue;
-
-				const year = parseInt(row['year'], 10);
-
-				const item: MapListItem = {
-					id: row[idKey],
-					name: row[nameKey],
-					type: (typeKey && row[typeKey]) || '',
-					summary: row['summary'] || undefined,
-					description:
-						row['description'] || row['details'] || row['detail'] || undefined,
-					thumbnail: row['thumbnail'] || row['image'] || undefined,
-					isFeatured: row['featured'] === 'TRUE' || row['is_featured'] === 'TRUE',
-					year: isNaN(year) ? undefined : year
-				};
-
-				items.push(item);
-			}
-
+			const items = await fetchMaps(supabase);
 			mapList = items;
 
 			// Cache the catalog for future use

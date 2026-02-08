@@ -19,7 +19,6 @@ export {
 
 // Re-export constants
 export {
-	DATASET_URL,
 	DEFAULT_ANNOTATION_COLOR,
 	APP_STATE_KEY,
 	DRAW_TYPE_MAP,

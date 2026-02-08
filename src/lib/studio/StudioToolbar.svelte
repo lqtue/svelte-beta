@@ -9,11 +9,13 @@
     openSearch: void;
     openMetadata: void;
     clearState: void;
+    huntMode: void;
   }>();
 
   export let drawingMode: DrawingMode | null = null;
   export let canUndo = false;
   export let canRedo = false;
+  export let studioMode: 'annotate' | 'hunt' = 'annotate';
 
   let drawMenuOpen = false;
   let settingsOpen = false;
@@ -91,6 +93,17 @@
       disabled={!canRedo}
     >
       <span class="toolbar-icon">&#x21BB;</span>
+    </button>
+  </div>
+  <div class="toolbar-cluster">
+    <button
+      type="button"
+      class:selected={studioMode === 'hunt'}
+      on:click={() => dispatch('huntMode')}
+      title={studioMode === 'hunt' ? 'Switch to annotations' : 'Switch to treasure hunt'}
+      aria-label={studioMode === 'hunt' ? 'Switch to annotations' : 'Switch to treasure hunt'}
+    >
+      <span class="toolbar-icon">&#x1F3F4;</span>
     </button>
   </div>
   <div class="toolbar-cluster">

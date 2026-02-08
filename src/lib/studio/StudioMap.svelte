@@ -13,7 +13,8 @@
   import Modify from 'ol/interaction/Modify';
   import Select from 'ol/interaction/Select';
   import { click } from 'ol/events/condition';
-  import { fromLonLat } from 'ol/proj';
+  import { fromLonLat, toLonLat } from 'ol/proj';
+  import LineString from 'ol/geom/LineString';
   import GeoJSON from 'ol/format/GeoJSON';
   import Feature from 'ol/Feature';
   import type { Geometry } from 'ol/geom';
@@ -52,10 +53,17 @@
   } from '$lib/map/stores/annotationHistory';
   import { getAnnotationContext } from '$lib/map/context/annotationContext';
   import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObject } from 'geojson';
+  import Style from 'ol/style/Style';
+  import Fill from 'ol/style/Fill';
+  import Stroke from 'ol/style/Stroke';
+  import CircleStyle from 'ol/style/Circle';
+  import Text from 'ol/style/Text';
+  import type { HuntStop } from '$lib/hunt/types';
 
   const dispatch = createEventDispatcher<{
     mapReady: { map: Map };
     statusChange: { message: string; error: boolean };
+    mapClick: { coordinate: [number, number] };
   }>();
 
   const { history: annotationHistory, state: annotationState } = getAnnotationContext();
@@ -84,6 +92,10 @@
   let annotationSource: VectorSource | null = null;
   let searchLayer: VectorImageLayer<VectorSource> | null = null;
   let searchSource: VectorSource | null = null;
+  let huntLayer: VectorImageLayer<VectorSource> | null = null;
+  let huntSource: VectorSource | null = null;
+  let positionLayer: VectorImageLayer<VectorSource> | null = null;
+  let positionSource: VectorSource | null = null;
   let drawInteraction: Draw | null = null;
   let modifyInteraction: Modify | null = null;
   let selectInteraction: Select | null = null;
@@ -754,6 +766,109 @@
     );
   }
 
+  // --- Hunt stops layer ---
+
+  function createHuntStopStyle(feature: Feature<Geometry>): Style | Style[] | undefined {
+    const geomType = feature.getGeometry()?.getType();
+    if (geomType === 'LineString') {
+      return new Style({
+        stroke: new Stroke({ color: 'rgba(212, 175, 55, 0.6)', width: 3, lineDash: [10, 8] })
+      });
+    }
+    const completed = Boolean(feature.get('completed'));
+    const active = Boolean(feature.get('active'));
+    const order = feature.get('order') as number | undefined;
+    const radius = active ? 14 : 10;
+    const bgColor = completed ? '#2d7a4f' : '#d4af37';
+    const label = completed ? '\u2713' : (order !== undefined ? String(order + 1) : '');
+    return new Style({
+      image: new CircleStyle({
+        radius,
+        fill: new Fill({ color: bgColor }),
+        stroke: new Stroke({ color: '#ffffff', width: 3 })
+      }),
+      text: new Text({
+        text: label,
+        font: `bold ${active ? 14 : 12}px "Be Vietnam Pro", system-ui, sans-serif`,
+        fill: new Fill({ color: '#ffffff' }),
+        offsetY: 1
+      })
+    });
+  }
+
+  function createPositionStyle(): Style {
+    return new Style({
+      image: new CircleStyle({
+        radius: 8,
+        fill: new Fill({ color: '#ffffff' }),
+        stroke: new Stroke({ color: '#ea580c', width: 3 })
+      })
+    });
+  }
+
+  export function setHuntStops(stops: HuntStop[]) {
+    if (!huntSource) return;
+    huntSource.clear();
+    stops.forEach((stop) => {
+      const point = new Point(fromLonLat(stop.coordinates));
+      const feature = new Feature({ geometry: point });
+      feature.setId(stop.id);
+      feature.set('order', stop.order);
+      feature.set('stopId', stop.id);
+      feature.set('completed', false);
+      feature.set('active', false);
+      huntSource!.addFeature(feature);
+    });
+    if (stops.length >= 2) {
+      const coords = stops.map((s) => fromLonLat(s.coordinates));
+      const routeLine = new Feature({ geometry: new LineString(coords) });
+      routeLine.setId('hunt-route');
+      huntSource.addFeature(routeLine);
+    }
+  }
+
+  export function updateHuntStopState(stopId: string, state: { completed?: boolean; active?: boolean }) {
+    if (!huntSource) return;
+    const feature = huntSource.getFeatureById(stopId) as Feature<Geometry> | null;
+    if (!feature) return;
+    if (state.completed !== undefined) feature.set('completed', state.completed);
+    if (state.active !== undefined) feature.set('active', state.active);
+    feature.changed?.();
+  }
+
+  export function clearHuntStops() {
+    huntSource?.clear();
+  }
+
+  export function updatePlayerPosition(lonLat: [number, number]) {
+    if (!positionSource) return;
+    positionSource.clear();
+    const point = new Point(fromLonLat(lonLat));
+    const feature = new Feature({ geometry: point });
+    feature.setId('player-position');
+    positionSource.addFeature(feature);
+  }
+
+  export function clearPlayerPosition() {
+    positionSource?.clear();
+  }
+
+  export function zoomToHuntStops() {
+    if (!map || !huntSource) return;
+    const extent = huntSource.getExtent();
+    if (!extent || extent.every((v) => !isFinite(v))) return;
+    map.getView().fit(extent, { padding: [80, 80, 80, 80], maxZoom: 17, duration: 500 });
+  }
+
+  export function zoomToHuntStop(stopId: string) {
+    if (!map || !huntSource) return;
+    const feature = huntSource.getFeatureById(stopId) as Feature<Geometry> | null;
+    const geometry = feature?.getGeometry();
+    if (!geometry || geometry.getType() !== 'Point') return;
+    const coords = (geometry as Point).getCoordinates() as [number, number];
+    map.getView().animate({ center: coords, zoom: Math.max(map.getView().getZoom() ?? 16, 17), duration: 350 });
+  }
+
   // --- State persistence helpers ---
 
   export function getMapInstance() { return map; }
@@ -836,6 +951,22 @@
     });
     searchSource = searchLayer.getSource() ?? new VectorSource();
 
+    huntLayer = new VectorImageLayer({
+      source: new VectorSource(),
+      zIndex: 22,
+      properties: { name: 'hunt-stops' }
+    });
+    huntLayer.setStyle((f) => createHuntStopStyle(f as Feature<Geometry>));
+    huntSource = huntLayer.getSource() ?? new VectorSource();
+
+    positionLayer = new VectorImageLayer({
+      source: new VectorSource(),
+      zIndex: 30,
+      properties: { name: 'player-position' },
+      style: () => createPositionStyle()
+    });
+    positionSource = positionLayer.getSource() ?? new VectorSource();
+
     const controls = defaultControls({ attribution: false, rotate: false, zoom: false }).extend([
       new Attribution({ collapsible: false }),
       new Rotate({ autoHide: false }),
@@ -846,7 +977,9 @@
     const mapLayers: BaseLayer[] = [
       ...basemapLayers,
       annotationLayer as unknown as BaseLayer,
-      searchLayer as unknown as BaseLayer
+      huntLayer as unknown as BaseLayer,
+      searchLayer as unknown as BaseLayer,
+      positionLayer as unknown as BaseLayer
     ];
 
     map = new Map({
@@ -921,6 +1054,11 @@
     window.addEventListener('pointercancel', stopPointerDrag);
     window.addEventListener('resize', scheduleMapResize);
 
+    map.on('singleclick', (event) => {
+      const lonLat = toLonLat(event.coordinate) as [number, number];
+      dispatch('mapClick', { coordinate: lonLat });
+    });
+
     dispatch('mapReady', { map });
   });
 
@@ -942,6 +1080,10 @@
     annotationSource = null;
     searchLayer = null;
     searchSource = null;
+    huntLayer = null;
+    huntSource = null;
+    positionLayer = null;
+    positionSource = null;
     modifyInteraction = null;
     selectInteraction = null;
     if (pendingResizeHandle !== null) {

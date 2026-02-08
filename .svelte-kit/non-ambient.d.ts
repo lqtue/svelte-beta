@@ -27,16 +27,22 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/temp-viewer" | "/trip";
+		RouteId(): "/" | "/auth" | "/auth/callback" | "/georef" | "/hunt" | "/login" | "/signup" | "/temp-viewer" | "/trip";
 		RouteParams(): {
 			
 		};
 		LayoutParams(): {
 			"/": Record<string, never>;
+			"/auth": Record<string, never>;
+			"/auth/callback": Record<string, never>;
+			"/georef": Record<string, never>;
+			"/hunt": Record<string, never>;
+			"/login": Record<string, never>;
+			"/signup": Record<string, never>;
 			"/temp-viewer": Record<string, never>;
 			"/trip": Record<string, never>
 		};
-		Pathname(): "/" | "/temp-viewer" | "/temp-viewer/" | "/trip" | "/trip/";
+		Pathname(): "/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/georef" | "/georef/" | "/hunt" | "/hunt/" | "/login" | "/login/" | "/signup" | "/signup/" | "/temp-viewer" | "/temp-viewer/" | "/trip" | "/trip/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/favicon.ico" | "/favicon.png" | "/robots.txt" | "/sw.js" | string & {};
 	}

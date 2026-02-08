@@ -1,1 +1,1 @@
-export { default as component } from "../../../../src/routes/temp-viewer/+page.svelte";
+export { default as component } from "../../../../src/routes/georef/+page.svelte";

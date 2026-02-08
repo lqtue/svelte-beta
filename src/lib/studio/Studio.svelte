@@ -3,7 +3,6 @@
   import type Map from 'ol/Map';
 
   import {
-    DATASET_URL,
     APP_STATE_KEY,
     BASEMAP_DEFS,
     INITIAL_CENTER
@@ -16,6 +15,8 @@
     PersistedAppState,
     SearchResult
   } from '$lib/viewer/types';
+  import { getSupabaseContext } from '$lib/supabase/context';
+  import { fetchMaps } from '$lib/supabase/maps';
   import { createAnnotationHistoryStore } from '$lib/map/stores/annotationHistory';
   import { createAnnotationStateStore } from '$lib/map/stores/annotationState';
   import { setAnnotationContext } from '$lib/map/context/annotationContext';
@@ -27,8 +28,14 @@
   import AnnotationsPanel from './AnnotationsPanel.svelte';
   import SearchDialog from './SearchDialog.svelte';
   import MetadataDialog from './MetadataDialog.svelte';
+  import HuntCreator from '$lib/hunt/HuntCreator.svelte';
+  import { createHuntLibraryStore } from '$lib/hunt/stores/huntStore';
+  import type { TreasureHunt, HuntStop } from '$lib/hunt/types';
+  import { SAIGON_WALK } from '$lib/hunt/mocks/saigon-walk';
 
   const HISTORY_LIMIT = 100;
+
+  const { supabase, session } = getSupabaseContext();
 
   const annotationHistory = createAnnotationHistoryStore(HISTORY_LIMIT);
   const annotationState = createAnnotationStateStore();
@@ -50,6 +57,15 @@
   let isMobile = false;
   let isCompact = false;
   let isNarrow = false;
+
+  type StudioMode = 'annotate' | 'hunt';
+  let studioMode: StudioMode = 'annotate';
+  let activeHuntId: string | null = null;
+  let selectedStopId: string | null = null;
+  let placingStop = false;
+  const huntLibrary = createHuntLibraryStore(supabase, session?.user?.id);
+
+  $: activeHunt = $huntLibrary.hunts.find((h) => h.id === activeHuntId) ?? null;
 
   let statusMessage = 'Select a map from the list.';
   let statusError = false;
@@ -98,45 +114,7 @@
     try {
       statusMessage = 'Loading map list\u2026';
       statusError = false;
-      const response = await fetch(DATASET_URL);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const text = await response.text();
-      const lines = text.trim().split(/\r?\n/);
-      if (!lines.length) throw new Error('No rows.');
-      const header = (lines.shift() ?? '').split(',').map((h) => h.trim().toLowerCase());
-      const nameIndex = header.indexOf('name');
-      const idIndex = header.indexOf('id');
-      const typeIndex = header.indexOf('type');
-      const summaryIndex = header.indexOf('summary');
-      const descriptionIndex =
-        header.indexOf('description') !== -1 ? header.indexOf('description')
-          : header.indexOf('details') !== -1 ? header.indexOf('details')
-          : header.indexOf('detail');
-      const thumbnailIndex =
-        header.indexOf('thumbnail') !== -1 ? header.indexOf('thumbnail') : header.indexOf('image');
-      const featuredIndex =
-        header.indexOf('featured') !== -1 ? header.indexOf('featured') : header.indexOf('is_featured');
-      if (nameIndex === -1 || idIndex === -1) throw new Error("Missing 'name' or 'id' column.");
-      const items: MapListItem[] = lines
-        .map((line) => line.match(/(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g) || [])
-        .map((cols) => {
-          const name = (cols[nameIndex] || '').replace(/"/g, '').trim();
-          const id = (cols[idIndex] || '').replace(/"/g, '').trim();
-          const type = typeIndex > -1 ? (cols[typeIndex] || '').replace(/"/g, '').trim() || 'Uncategorized' : 'Uncategorized';
-          const summary = summaryIndex > -1 ? (cols[summaryIndex] || '').replace(/"/g, '').trim() : '';
-          const description = descriptionIndex > -1 ? (cols[descriptionIndex] || '').replace(/"/g, '').trim() : '';
-          const thumbnail = thumbnailIndex > -1 ? (cols[thumbnailIndex] || '').replace(/"/g, '').trim() : '';
-          const featuredValue = featuredIndex > -1 ? (cols[featuredIndex] || '').replace(/"/g, '').trim() : '';
-          const isFeatured = /^y(es)?$/i.test(featuredValue) || /^true$/i.test(featuredValue) || featuredValue === '1';
-          if (!name || !id) return null;
-          const entry: MapListItem = { id, name, type };
-          if (summary) entry.summary = summary;
-          if (description) entry.description = description;
-          if (thumbnail) entry.thumbnail = thumbnail;
-          if (isFeatured) entry.isFeatured = true;
-          return entry;
-        })
-        .filter((item): item is MapListItem => !!item);
+      const items = await fetchMaps(supabase);
       mapList = items;
       statusMessage = 'Select a map from the list.';
     } catch (error) {
@@ -358,6 +336,133 @@
     studioMapRef?.locateUser();
   }
 
+  // --- Hunt mode handlers ---
+
+  function handleToggleHuntMode() {
+    if (studioMode === 'hunt') {
+      studioMode = 'annotate';
+      placingStop = false;
+      studioMapRef?.clearHuntStops();
+      activeHuntId = null;
+      selectedStopId = null;
+    } else {
+      studioMode = 'hunt';
+      drawingMode = null;
+      studioMapRef?.deactivateDrawing();
+      if (!activeHuntId) {
+        // If Saigon walk exists, load it; otherwise create a new empty hunt
+        const existing = $huntLibrary.hunts.find((h) => h.id === SAIGON_WALK.id);
+        if (existing) {
+          activeHuntId = existing.id;
+        } else if ($huntLibrary.hunts.length > 0) {
+          activeHuntId = $huntLibrary.hunts[0].id;
+        } else {
+          // Seed the Saigon walk
+          huntLibrary.update((lib) => ({ hunts: [...lib.hunts, SAIGON_WALK] }));
+          activeHuntId = SAIGON_WALK.id;
+        }
+      }
+      refreshHuntStopsOnMap();
+    }
+  }
+
+  function handleCloseHuntMode() {
+    studioMode = 'annotate';
+    placingStop = false;
+    studioMapRef?.clearHuntStops();
+    activeHuntId = null;
+    selectedStopId = null;
+  }
+
+  function refreshHuntStopsOnMap() {
+    if (!studioMapRef || !activeHunt) return;
+    studioMapRef.setHuntStops(activeHunt.stops);
+  }
+
+  function handleMapClick(event: CustomEvent<{ coordinate: [number, number] }>) {
+    if (studioMode !== 'hunt' || !placingStop || !activeHuntId) return;
+    huntLibrary.addStop(activeHuntId, event.detail.coordinate);
+    // Reactive update will trigger refreshHuntStopsOnMap via $: block below
+  }
+
+  function handleHuntUpdateHunt(event: CustomEvent<{ title?: string; description?: string }>) {
+    if (!activeHuntId) return;
+    huntLibrary.updateHunt(activeHuntId, event.detail);
+  }
+
+  function handleHuntUpdateStop(event: CustomEvent<{ stopId: string; updates: Partial<HuntStop> }>) {
+    if (!activeHuntId) return;
+    huntLibrary.updateStop(activeHuntId, event.detail.stopId, event.detail.updates);
+  }
+
+  function handleHuntRemoveStop(event: CustomEvent<{ stopId: string }>) {
+    if (!activeHuntId) return;
+    huntLibrary.removeStop(activeHuntId, event.detail.stopId);
+    if (selectedStopId === event.detail.stopId) selectedStopId = null;
+  }
+
+  function handleHuntSelectStop(event: CustomEvent<{ stopId: string | null }>) {
+    selectedStopId = event.detail.stopId;
+    if (event.detail.stopId) {
+      studioMapRef?.updateHuntStopState(event.detail.stopId, { active: true });
+    }
+    // Deactivate other stops
+    if (activeHunt) {
+      activeHunt.stops.forEach((s) => {
+        if (s.id !== event.detail.stopId) {
+          studioMapRef?.updateHuntStopState(s.id, { active: false });
+        }
+      });
+    }
+  }
+
+  function handleHuntZoomToStop(event: CustomEvent<{ stopId: string }>) {
+    studioMapRef?.zoomToHuntStop(event.detail.stopId);
+  }
+
+  function handleHuntZoomToAll() {
+    studioMapRef?.zoomToHuntStops();
+  }
+
+  function handleHuntTogglePlacing() {
+    placingStop = !placingStop;
+    if (placingStop) {
+      drawingMode = null;
+      studioMapRef?.deactivateDrawing();
+    }
+  }
+
+  function handleHuntExport() {
+    if (!activeHunt) return;
+    const blob = new Blob([JSON.stringify(activeHunt, null, 2)], { type: 'application/json;charset=utf-8;' });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `hunt-${activeHunt.title.replace(/\s+/g, '-').toLowerCase()}-${stamp}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleHuntImport(event: CustomEvent<{ data: TreasureHunt }>) {
+    const imported = event.detail.data;
+    // Store it in the library
+    huntLibrary.update((lib) => {
+      const exists = lib.hunts.some((h) => h.id === imported.id);
+      if (exists) {
+        return { hunts: lib.hunts.map((h) => (h.id === imported.id ? imported : h)) };
+      }
+      return { hunts: [...lib.hunts, imported] };
+    });
+    activeHuntId = imported.id;
+    refreshHuntStopsOnMap();
+  }
+
+  // Keep hunt stops in sync with store changes
+  $: if (studioMode === 'hunt' && activeHunt && studioMapRef) {
+    studioMapRef.setHuntStops(activeHunt.stops);
+  }
+
   // Reactive: resize map when panels collapse/expand
   $: if (studioMapRef) {
     leftCollapsed;
@@ -450,27 +555,46 @@
         {editingEnabled}
         on:mapReady={handleMapReady}
         on:statusChange={handleStatusChange}
+        on:mapClick={handleMapClick}
       />
     </div>
 
     {#if !isMobile}
-      <AnnotationsPanel
-        bind:this={annotationsPanelRef}
-        {annotations}
-        {selectedAnnotationId}
-        collapsed={rightCollapsed}
-        on:select={handleAnnotationSelect}
-        on:rename={handleAnnotationRename}
-        on:changeColor={handleAnnotationChangeColor}
-        on:updateDetails={handleAnnotationUpdateDetails}
-        on:toggleVisibility={handleAnnotationToggleVisibility}
-        on:delete={handleAnnotationDelete}
-        on:zoomTo={handleAnnotationZoomTo}
-        on:clear={handleAnnotationClear}
-        on:exportGeoJSON={handleAnnotationExport}
-        on:importFile={handleAnnotationImport}
-        on:toggleCollapse={() => (rightCollapsed = !rightCollapsed)}
-      />
+      {#if studioMode === 'hunt'}
+        <HuntCreator
+          hunt={activeHunt}
+          {selectedStopId}
+          {placingStop}
+          on:updateHunt={handleHuntUpdateHunt}
+          on:updateStop={handleHuntUpdateStop}
+          on:removeStop={handleHuntRemoveStop}
+          on:selectStop={handleHuntSelectStop}
+          on:zoomToStop={handleHuntZoomToStop}
+          on:zoomToAll={handleHuntZoomToAll}
+          on:togglePlacing={handleHuntTogglePlacing}
+          on:exportHunt={handleHuntExport}
+          on:importHunt={handleHuntImport}
+          on:close={handleCloseHuntMode}
+        />
+      {:else}
+        <AnnotationsPanel
+          bind:this={annotationsPanelRef}
+          {annotations}
+          {selectedAnnotationId}
+          collapsed={rightCollapsed}
+          on:select={handleAnnotationSelect}
+          on:rename={handleAnnotationRename}
+          on:changeColor={handleAnnotationChangeColor}
+          on:updateDetails={handleAnnotationUpdateDetails}
+          on:toggleVisibility={handleAnnotationToggleVisibility}
+          on:delete={handleAnnotationDelete}
+          on:zoomTo={handleAnnotationZoomTo}
+          on:clear={handleAnnotationClear}
+          on:exportGeoJSON={handleAnnotationExport}
+          on:importFile={handleAnnotationImport}
+          on:toggleCollapse={() => (rightCollapsed = !rightCollapsed)}
+        />
+      {/if}
     {/if}
   </div>
 
@@ -478,12 +602,14 @@
     {drawingMode}
     {canUndo}
     {canRedo}
+    {studioMode}
     on:setDrawingMode={handleSetDrawingMode}
     on:undo={handleUndo}
     on:redo={handleRedo}
     on:openSearch={() => (searchOverlayOpen = true)}
     on:openMetadata={() => (metadataOverlayOpen = true)}
     on:clearState={clearSavedState}
+    on:huntMode={handleToggleHuntMode}
   />
 
   <SearchDialog
