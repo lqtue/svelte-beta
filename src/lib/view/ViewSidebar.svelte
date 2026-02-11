@@ -8,6 +8,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem } from '$lib/viewer/types';
   import type { Story } from '$lib/story/types';
+  import { shareContent, getMapShareData, getStoryShareData } from '$lib/utils/share';
 
   const dispatch = createEventDispatcher<{
     selectStory: { story: Story };
@@ -18,6 +19,30 @@
   export let selectedMap: MapListItem | null = null;
   export let stories: Story[] = [];
   export let activeStoryId: string | null = null;
+
+  let shareStatus: 'idle' | 'success' | 'error' = 'idle';
+  let shareStatusTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function handleShareMap() {
+    if (!selectedMap) return;
+
+    const shareData = getMapShareData(selectedMap.id, selectedMap.name);
+    const success = await shareContent(shareData);
+
+    shareStatus = success ? 'success' : 'error';
+    if (shareStatusTimer) clearTimeout(shareStatusTimer);
+    shareStatusTimer = setTimeout(() => {
+      shareStatus = 'idle';
+    }, 2000);
+  }
+
+  async function handleShareStory(story: Story) {
+    const shareData = getStoryShareData(story.id, story.title);
+    const success = await shareContent(shareData);
+
+    // Could show a toast notification here
+    return success;
+  }
 </script>
 
 <aside class="panel">
@@ -67,6 +92,24 @@
               <path d="M11 8v6M8 11h6" />
             </svg>
             Zoom to map
+          </button>
+          <button
+            type="button"
+            class="action-btn"
+            class:success={shareStatus === 'success'}
+            on:click={handleShareMap}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              {#if shareStatus === 'success'}
+                <path d="M20 6L9 17l-5-5" />
+              {:else}
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" />
+              {/if}
+            </svg>
+            {shareStatus === 'success' ? 'Link copied!' : 'Share map'}
           </button>
           <a href="/annotate?map={selectedMap.id}" class="action-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -282,6 +325,12 @@
     background: rgba(212, 175, 55, 0.15);
     border-color: #d4af37;
     color: #2b2520;
+  }
+
+  .action-btn.success {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.5);
+    color: #059669;
   }
 
   /* No map state */

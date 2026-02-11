@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 	import { createSupabaseBrowserClient } from '$lib/supabase/client';
 	import { setSupabaseContext } from '$lib/supabase/context';
+	import { registerServiceWorker } from '$lib/utils/pwa';
 
 	let { data, children } = $props();
 
@@ -22,6 +23,9 @@
 			}
 			currentSession = newSession;
 		});
+
+		// Register service worker for PWA support and offline caching
+		registerServiceWorker();
 
 		return () => subscription.unsubscribe();
 	});

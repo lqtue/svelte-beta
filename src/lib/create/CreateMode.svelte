@@ -1050,8 +1050,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 2px solid #d4af37;
     background: linear-gradient(
@@ -1064,11 +1064,16 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transition: all 0.15s ease;
     text-decoration: none;
+    touch-action: manipulation;
   }
 
   .ctrl-btn:hover {
     background: rgba(212, 175, 55, 0.25);
     transform: scale(1.05);
+  }
+
+  .ctrl-btn:active {
+    transform: scale(0.95);
   }
 
   /* ---------- Top Controls ---------- */
@@ -1092,6 +1097,12 @@
     gap: 0.5rem;
     z-index: 50;
     pointer-events: auto;
+  }
+
+  @media (max-width: 900px) {
+    .floating-controls {
+      bottom: calc(env(safe-area-inset-bottom) + 5rem);
+    }
   }
 
   /* ---------- FAT Map Toolbar ---------- */
@@ -1120,7 +1131,7 @@
   }
 
   .map-toolbar.mobile {
-    bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+    bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
     padding: 0.35rem 0.5rem;
     max-width: calc(100vw - 5rem);
   }
@@ -1310,6 +1321,12 @@
     z-index: 60;
     pointer-events: auto;
     max-width: calc(100vw - 8rem);
+  }
+
+  @media (max-width: 900px) {
+    .overlay-error {
+      bottom: calc(env(safe-area-inset-bottom) + 8rem);
+    }
   }
 
   .overlay-error svg {

@@ -119,6 +119,12 @@
     color: #2b2520;
   }
 
+  @media (max-width: 900px) {
+    .playback {
+      bottom: calc(env(safe-area-inset-bottom) + 7.75rem);
+    }
+  }
+
   .playback-header {
     display: flex;
     align-items: center;
