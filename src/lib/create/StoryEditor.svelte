@@ -19,6 +19,8 @@
     togglePlacing: void;
     toggleMoving: void;
     save: void;
+    togglePublish: void;
+    preview: void;
     toggleCollapse: void;
     zoomToMap: { map: MapListItem };
     backToLibrary: void;
@@ -32,6 +34,8 @@
   export let collapsed = false;
   export let isSaving = false;
   export let saveSuccess = false;
+  export let isPublishing = false;
+  export let publishSuccess = false;
 
   let expandedPointId: string | null = null;
   let lastSelectedPointId: string | null = null;
@@ -174,6 +178,32 @@
               disabled={isSaving || saveSuccess}
             >
               {saveSuccess ? "Saved!" : isSaving ? "Saving..." : "Save"}
+            </button>
+            <button
+              type="button"
+              class="chip"
+              class:active={story?.isPublic}
+              class:success={publishSuccess}
+              on:click={() => dispatch("togglePublish")}
+              disabled={isPublishing || publishSuccess}
+              title={story?.isPublic ? "Story is public - click to unpublish" : "Story is private - click to publish"}
+            >
+              {#if publishSuccess}
+                {story?.isPublic ? "Published!" : "Unpublished!"}
+              {:else if isPublishing}
+                {story?.isPublic ? "Unpublishing..." : "Publishing..."}
+              {:else}
+                {story?.isPublic ? "🌍 Published" : "🔒 Private"}
+              {/if}
+            </button>
+            <button
+              type="button"
+              class="chip ghost"
+              on:click={() => dispatch("preview")}
+              disabled={!story || points.length === 0}
+              title="Preview your story"
+            >
+              ▶️ Preview
             </button>
           </div>
         </div>

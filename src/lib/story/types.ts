@@ -37,6 +37,7 @@ export interface Story {
 	updatedAt: number;
 	isPublic: boolean;
 	authorId: string;
+	authorName?: string; // Display name of the story creator
 }
 
 export interface StoryProgress {

@@ -440,66 +440,22 @@
 
 					<!-- Browsing Links -->
 					<div class="action-footer">
-						<div class="action-footer-left">
-							{#if cities.length > 0}
-								<div class="mini-cities-row">
-									<span class="mini-label">Quick Cities:</span
-									>
-									{#each cities.slice(0, 5) as city}
-										<a
-											href="/view?city={encodeURIComponent(
-												city,
-											)}"
-											class="mini-city-link">{city}</a
-										>
-									{/each}
-								</div>
-							{/if}
-						</div>
-						<div class="action-footer-right">
-							<a href="/catalog" class="browse-link"
-								>Browse full collection</a
-							>
-							<a href="/view" class="feature-cta-btn">
-								<span class="cta-text">Enter Map Viewer</span>
-								<span class="cta-arrow">→</span>
-							</a>
-						</div>
+						<a href="/catalog" class="browse-link"
+							>Browse full collection</a
+						>
+						<a href="/view" class="feature-cta-btn">
+							<span class="cta-text">Enter Map Viewer</span>
+							<span class="cta-arrow">→</span>
+						</a>
 					</div>
 				</div>
 			</div>
 		</section>
 
 		<div class="split-sections">
-			<!-- 
+			<!--
         ============================================
-        SECTION 2: CREATE (Storytelling)
-        ============================================
-      -->
-			<section class="mode-section" id="create-mode">
-				<div class="feature-card">
-					<div class="feature-icon">✏️</div>
-					<div class="feature-content">
-						<h2 class="feature-title">
-							Create Stories <span class="beta-badge">Beta</span>
-						</h2>
-						<p class="feature-description">
-							Design interactive scrollytelling experiences.
-							Combine narrative with historical maps to publish
-							your own map-based stories and share them with the
-							community.
-						</p>
-						<a href="/create" class="feature-cta-btn">
-							<span class="cta-text">Design a Story</span>
-							<span class="cta-arrow">→</span>
-						</a>
-					</div>
-				</div>
-			</section>
-
-			<!-- 
-        ============================================
-        SECTION 3: ANNOTATE & CONTRIBUTE (Tools)
+        SECTION 2: ANNOTATE & CONTRIBUTE (Tools)
         ============================================
       -->
 			<section class="mode-section" id="annotate-mode">
@@ -548,6 +504,32 @@
 								</a>
 							</div>
 						</div>
+					</div>
+				</div>
+			</section>
+
+			<!--
+        ============================================
+        SECTION 3: CREATE (Storytelling)
+        ============================================
+      -->
+			<section class="mode-section" id="create-mode">
+				<div class="feature-card">
+					<div class="feature-icon">✏️</div>
+					<div class="feature-content">
+						<h2 class="feature-title">
+							Create Stories <span class="beta-badge">Beta</span>
+						</h2>
+						<p class="feature-description">
+							Design interactive scrollytelling experiences.
+							Combine narrative with historical maps to publish
+							your own map-based stories and share them with the
+							community.
+						</p>
+						<a href="/create" class="feature-cta-btn">
+							<span class="cta-text">Design a Story</span>
+							<span class="cta-arrow">→</span>
+						</a>
 					</div>
 				</div>
 			</section>
@@ -883,17 +865,10 @@
 	.action-footer {
 		margin-top: 2rem;
 		display: flex;
-		justify-content: space-between;
+		justify-content: flex-end;
 		align-items: center;
 		border-top: 1px solid rgba(212, 175, 55, 0.2);
 		padding-top: 1.5rem;
-		flex-wrap: wrap;
-		gap: 1.5rem;
-	}
-
-	.action-footer-right {
-		display: flex;
-		align-items: center;
 		gap: 1.5rem;
 	}
 
@@ -908,34 +883,6 @@
 
 	.browse-link:hover {
 		color: #d4af37;
-	}
-
-	.mini-cities-row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-	}
-
-	.mini-label {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.75rem;
-		color: #8b7355;
-		text-transform: uppercase;
-		font-weight: 600;
-	}
-
-	.mini-city-link {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.8125rem;
-		color: #4a3f35;
-		text-decoration: none;
-		border-bottom: 1px dotted rgba(212, 175, 55, 0.5);
-	}
-
-	.mini-city-link:hover {
-		color: #d4af37;
-		border-bottom-style: solid;
 	}
 
 	/* Collection Tabs */
@@ -1384,11 +1331,6 @@
 			flex-direction: column;
 			gap: 1rem;
 			text-align: center;
-		}
-
-		.action-footer-right {
-			flex-direction: column;
-			width: 100%;
 		}
 
 		.about {

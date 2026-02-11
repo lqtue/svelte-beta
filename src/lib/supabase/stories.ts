@@ -106,6 +106,19 @@ export async function fetchPublicStories(
 	const typedHunts = asHunts(hunts);
 	if (typedHunts.length === 0) return [];
 
+	// Fetch profiles for all unique user IDs
+	const userIds = [...new Set(typedHunts.map((h) => h.user_id))];
+	const { data: profiles } = await supabase
+		.from('profiles')
+		.select('id, display_name')
+		.in('id', userIds);
+
+	// Create a lookup map for profiles
+	const profileMap = new Map(
+		(profiles || []).map((p: any) => [p.id, p.display_name])
+	);
+
+	// Fetch stops
 	const huntIds = typedHunts.map((h) => h.id);
 	const { data: stops } = await supabase
 		.from('hunt_stops')
@@ -113,7 +126,13 @@ export async function fetchPublicStories(
 		.in('hunt_id', huntIds)
 		.order('sort_order');
 
-	return typedHunts.map((hunt) => dbHuntToStory(hunt, asStops(stops || [])));
+	return typedHunts.map((hunt) => {
+		const story = dbHuntToStory(hunt, asStops(stops || []));
+		return {
+			...story,
+			authorName: profileMap.get(hunt.user_id) || 'Unknown'
+		};
+	});
 }
 
 export async function createStory(
@@ -176,6 +195,20 @@ export async function deleteStory(
 		return false;
 	}
 	return true;
+}
+
+export async function publishStory(
+	supabase: SupabaseClient<Database>,
+	storyId: string
+): Promise<boolean> {
+	return updateStory(supabase, storyId, { is_public: true });
+}
+
+export async function unpublishStory(
+	supabase: SupabaseClient<Database>,
+	storyId: string
+): Promise<boolean> {
+	return updateStory(supabase, storyId, { is_public: false });
 }
 
 export async function addStop(

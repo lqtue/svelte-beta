@@ -14,6 +14,7 @@
   import { createLayerStore } from "$lib/stores/layerStore";
   import { getSupabaseContext } from "$lib/supabase/context";
   import { fetchMaps } from "$lib/supabase/maps";
+  import { publishStory, unpublishStory } from "$lib/supabase/stories";
   import { createStoryLibraryStore } from "$lib/story/stores/storyStore";
   import { fetchAnnotationBounds } from "$lib/trip/mapBounds";
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
@@ -25,6 +26,7 @@
   import StoryEditor from "./StoryEditor.svelte";
   import MapSearchBar from "$lib/ui/MapSearchBar.svelte";
   import StoryMarkers from "$lib/view/StoryMarkers.svelte";
+  import StoryPlayback from "$lib/view/StoryPlayback.svelte";
   import CatalogPage from "$lib/ui/catalog/CatalogPage.svelte";
   import CatalogHeader from "$lib/ui/catalog/CatalogHeader.svelte";
   import CatalogGrid from "$lib/ui/catalog/CatalogGrid.svelte";
@@ -60,6 +62,8 @@
   let movingPoint = false;
   let isSaving = false;
   let saveSuccess = false;
+  let isPublishing = false;
+  let publishSuccess = false;
   let sidebarCollapsed = false;
   let isMobile = false;
   let isCompact = false;
@@ -77,6 +81,10 @@
 
   let showZoomPrompt = false; // Show "Zoom to Map" if loading takes too long
   let loadingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Preview mode state
+  let previewMode = false;
+  let previewProgress: import("$lib/story/types").StoryProgress | null = null;
 
   $: points = currentStory?.points ?? [];
 
@@ -302,6 +310,136 @@
     if (movingPoint) placingPoint = false;
   }
 
+  async function handleTogglePublish() {
+    if (!currentStory) return;
+    isPublishing = true;
+    publishSuccess = false;
+
+    const newPublishState = !currentStory.isPublic;
+
+    // Update in database
+    const success = newPublishState
+      ? await publishStory(supabase, currentStory.id)
+      : await unpublishStory(supabase, currentStory.id);
+
+    if (!success) {
+      console.error("[CreateMode] Failed to update publish status");
+      isPublishing = false;
+      return;
+    }
+
+    // Update local state after successful DB update
+    currentStory = { ...currentStory, isPublic: newPublishState };
+
+    // Update in library
+    storyLibrary.update((lib) => ({
+      stories: lib.stories.map((s) =>
+        s.id === currentStory!.id ? currentStory! : s,
+      ),
+    }));
+
+    console.log(
+      `[CreateMode] Story ${newPublishState ? "published" : "unpublished"}:`,
+      currentStory.id,
+    );
+
+    // Show success feedback
+    isPublishing = false;
+    publishSuccess = true;
+    setTimeout(() => {
+      publishSuccess = false;
+    }, 2000);
+  }
+
+  function handlePreview() {
+    if (!currentStory || currentStory.points.length === 0) return;
+
+    // Initialize preview progress
+    previewProgress = {
+      storyId: currentStory.id,
+      huntId: currentStory.id,
+      currentPointIndex: 0,
+      currentStopIndex: 0,
+      completedPoints: [],
+      completedStops: [],
+      startedAt: Date.now(),
+    };
+
+    previewMode = true;
+
+    // Navigate to first point
+    const firstPoint = currentStory.points[0];
+    if (firstPoint.coordinates) {
+      mapStore.setView({
+        lng: firstPoint.coordinates[0],
+        lat: firstPoint.coordinates[1],
+        zoom: 17,
+      });
+    }
+    if (firstPoint.overlayMapId) {
+      mapStore.setActiveMap(firstPoint.overlayMapId);
+    }
+
+    console.log("[CreateMode] Preview started");
+  }
+
+  function handlePreviewNavigate(
+    event: CustomEvent<{ index: number; point: import("$lib/story/types").StoryPoint }>,
+  ) {
+    const { index, point } = event.detail;
+    if (!previewProgress) return;
+
+    previewProgress = { ...previewProgress, currentPointIndex: index, currentStopIndex: index };
+
+    // Navigate to point
+    if (point.coordinates) {
+      mapStore.setView({
+        lng: point.coordinates[0],
+        lat: point.coordinates[1],
+        zoom: 17,
+      });
+    }
+    if (point.overlayMapId) {
+      mapStore.setActiveMap(point.overlayMapId);
+    }
+  }
+
+  function handlePreviewComplete(
+    event: CustomEvent<{ storyId: string; pointId: string }>,
+  ) {
+    if (!previewProgress || !currentStory) return;
+
+    const { pointId } = event.detail;
+    const completedSet = new Set(previewProgress.completedPoints);
+    completedSet.add(pointId);
+
+    previewProgress = {
+      ...previewProgress,
+      completedPoints: Array.from(completedSet),
+      completedStops: Array.from(completedSet),
+      currentPointIndex: Math.min(
+        previewProgress.currentPointIndex + 1,
+        currentStory.points.length,
+      ),
+      currentStopIndex: Math.min(
+        previewProgress.currentStopIndex + 1,
+        currentStory.points.length,
+      ),
+    };
+  }
+
+  function handlePreviewClose() {
+    previewMode = false;
+    previewProgress = null;
+    console.log("[CreateMode] Preview closed");
+  }
+
+  function handlePreviewFinish() {
+    previewMode = false;
+    previewProgress = null;
+    console.log("[CreateMode] Preview finished");
+  }
+
   async function handleSave() {
     if (!currentStory) return;
     isSaving = true;
@@ -328,11 +466,6 @@
     setTimeout(() => {
       saveSuccess = false;
     }, 2000);
-  }
-
-  function handlePreview() {
-    // TODO: open story playback in preview mode
-    console.log("[CreateMode] Preview story:", currentStory?.id);
   }
 
   function handleBackToLibrary() {
@@ -636,6 +769,9 @@
               <span class="meta-tag date">
                 {new Date(story.updatedAt).toLocaleDateString("en-GB")}
               </span>
+              <span class="meta-tag publish-status" class:published={story.isPublic}>
+                {story.isPublic ? "🌍 Public" : "🔒 Private"}
+              </span>
             </div>
 
             <div slot="description" class="description">
@@ -691,6 +827,8 @@
           {movingPoint}
           {isSaving}
           {saveSuccess}
+          {isPublishing}
+          {publishSuccess}
           collapsed={false}
           on:updateStory={handleUpdateStory}
           on:updatePoint={handleUpdatePoint}
@@ -701,6 +839,8 @@
           on:togglePlacing={handleTogglePlacing}
           on:toggleMoving={handleToggleMoving}
           on:save={handleSave}
+          on:togglePublish={handleTogglePublish}
+          on:preview={handlePreview}
           on:zoomToMap={handleZoomToMap}
           on:toggleCollapse={() => (sidebarCollapsed = true)}
           on:backToLibrary={handleBackToLibrary}
@@ -730,7 +870,18 @@
           {#if currentStory}
             <StoryMarkers
               points={currentStory.points}
-              currentIndex={currentPointIndex}
+              currentIndex={previewMode ? (previewProgress?.currentPointIndex ?? 0) : currentPointIndex}
+            />
+          {/if}
+
+          {#if previewMode && currentStory}
+            <StoryPlayback
+              story={currentStory}
+              progress={previewProgress}
+              on:navigatePoint={handlePreviewNavigate}
+              on:completePoint={handlePreviewComplete}
+              on:close={handlePreviewClose}
+              on:finish={handlePreviewFinish}
             />
           {/if}
         </MapShell>
@@ -1642,6 +1793,16 @@
     background: rgba(212, 175, 55, 0.15);
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
+  }
+
+  .meta-tag.publish-status {
+    background: rgba(107, 93, 82, 0.15);
+    color: #6b5d52;
+  }
+
+  .meta-tag.publish-status.published {
+    background: rgba(34, 197, 94, 0.15);
+    color: #059669;
   }
 
   .description {

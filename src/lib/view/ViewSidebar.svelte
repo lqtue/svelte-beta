@@ -144,12 +144,23 @@
           {#each stories as story (story.id)}
             <button
               type="button"
-              class="story-item"
+              class="story-card"
               class:active={story.id === activeStoryId}
               on:click={() => dispatch('selectStory', { story })}
             >
-              <span class="story-title">{story.title}</span>
-              <span class="story-meta">{story.points.length} point{story.points.length !== 1 ? 's' : ''} &middot; {story.mode}</span>
+              <h3 class="story-title">{story.title}</h3>
+              {#if story.description}
+                <p class="story-description">{story.description}</p>
+              {/if}
+              <div class="story-footer">
+                <span class="story-author" title="Creator">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  {story.authorName || 'Unknown'}
+                </span>
+              </div>
             </button>
           {/each}
         </div>
@@ -357,45 +368,75 @@
   .story-list {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.65rem;
   }
 
-  .story-item {
-    border-radius: 4px;
-    border: 1px solid transparent;
-    background: rgba(255, 255, 255, 0.3);
-    padding: 0.55rem 0.65rem;
+  .story-card {
+    border-radius: 6px;
+    border: 2px solid rgba(212, 175, 55, 0.25);
+    background: rgba(255, 255, 255, 0.4);
+    padding: 0.75rem 0.85rem;
     text-align: left;
     color: #4a3f35;
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
   }
 
-  .story-item:hover,
-  .story-item:focus-visible {
-    border-color: rgba(212, 175, 55, 0.5);
-    background: rgba(212, 175, 55, 0.1);
+  .story-card:hover,
+  .story-card:focus-visible {
+    border-color: rgba(212, 175, 55, 0.6);
+    background: rgba(255, 255, 255, 0.55);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     outline: none;
   }
 
-  .story-item.active {
+  .story-card.active {
     border-color: #d4af37;
-    background: rgba(212, 175, 55, 0.2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    background: rgba(212, 175, 55, 0.15);
+    box-shadow: 0 6px 16px rgba(212, 175, 55, 0.2);
   }
 
   .story-title {
-    font-size: 0.85rem;
-    font-weight: 600;
+    margin: 0;
+    font-family: 'Spectral', serif;
+    font-size: 0.95rem;
+    font-weight: 700;
     color: #2b2520;
+    line-height: 1.3;
   }
 
-  .story-meta {
-    font-size: 0.72rem;
+  .story-description {
+    margin: 0;
+    font-family: 'Noto Serif', serif;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: #6b5d52;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .story-footer {
+    display: flex;
+    align-items: center;
+    font-size: 0.7rem;
     color: #8b7355;
+  }
+
+  .story-author {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .story-author svg {
+    flex-shrink: 0;
+    opacity: 0.7;
   }
 
   .custom-scrollbar {
