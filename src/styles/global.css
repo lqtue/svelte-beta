@@ -11,10 +11,18 @@ html,
 body {
   min-height: 100%;
   min-height: 100dvh; /* Dynamic viewport height for mobile */
+  overscroll-behavior: none; /* Prevent pull-to-refresh/bounce */
+  -webkit-tap-highlight-color: transparent; /* Remove gray tap highlight */
 }
 
 body {
   margin: 0;
+  /* Safe area padding for notches (iPhone X+) */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  
   font-family: var(--font-family-base);
   font-size: var(--text-base);
   font-weight: var(--font-normal);

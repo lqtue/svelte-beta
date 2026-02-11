@@ -1,0 +1,20 @@
+{
+  "name": "Vietnam Map Archive",
+  "short_name": "VN Map Archive",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4e8d8",
+  "theme_color": "#d4af37",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
