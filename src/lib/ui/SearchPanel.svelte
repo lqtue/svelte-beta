@@ -591,6 +591,12 @@
     font-family: "Be Vietnam Pro", sans-serif;
   }
 
+  @media (max-width: 768px) {
+    .search-form input {
+      font-size: 16px;
+    }
+  }
+
   .search-form input:focus {
     outline: none;
     border-color: #d4af37;
