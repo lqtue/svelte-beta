@@ -1345,6 +1345,23 @@
 			padding: 1.5rem 1rem 1.25rem;
 		}
 
+		.auth-bar {
+			position: static;
+			width: 100%;
+			justify-content: center;
+			margin-bottom: 1.5rem;
+			padding: 0 1rem;
+		}
+
+		.auth-btn {
+			font-size: 0.8125rem;
+			padding: 0.45rem 0.75rem;
+		}
+
+		.hero-content {
+			text-align: center;
+		}
+
 		.main {
 			padding: 2rem 1rem;
 		}
