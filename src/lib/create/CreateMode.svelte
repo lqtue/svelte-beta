@@ -1085,8 +1085,8 @@
   /* ---------- Floating Controls (bottom-right) ---------- */
   .floating-controls {
     position: absolute;
-    bottom: 1rem;
-    right: 1rem;
+    bottom: calc(env(safe-area-inset-bottom) + 1rem);
+    right: calc(env(safe-area-inset-right) + 1rem);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -1097,7 +1097,7 @@
   /* ---------- FAT Map Toolbar ---------- */
   .map-toolbar {
     position: absolute;
-    bottom: 0.75rem;
+    bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
     left: 50%;
     transform: translateX(-50%);
     z-index: 40;
@@ -1120,7 +1120,7 @@
   }
 
   .map-toolbar.mobile {
-    bottom: 0.5rem;
+    bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
     padding: 0.35rem 0.5rem;
     max-width: calc(100vw - 5rem);
   }
@@ -1293,7 +1293,7 @@
   /* ---------- Overlay Error ---------- */
   .overlay-error {
     position: absolute;
-    bottom: 4rem;
+    bottom: calc(env(safe-area-inset-bottom) + 4rem);
     left: 50%;
     transform: translateX(-50%);
     display: flex;

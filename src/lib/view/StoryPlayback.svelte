@@ -105,7 +105,7 @@
 <style>
   .playback {
     position: absolute;
-    bottom: 3.75rem;
+    bottom: calc(env(safe-area-inset-bottom) + 3.75rem);
     left: 50%;
     transform: translateX(-50%);
     width: min(90%, 480px);

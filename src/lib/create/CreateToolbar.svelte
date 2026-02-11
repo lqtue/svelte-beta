@@ -114,7 +114,7 @@
 <style>
   .toolbar {
     position: fixed;
-    bottom: 1rem;
+    bottom: calc(env(safe-area-inset-bottom) + 1rem);
     left: 50%;
     transform: translateX(-50%);
     z-index: 100;

@@ -52,6 +52,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/" | "/annotate" | "/annotate/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/catalog" | "/catalog/" | "/contribute" | "/contribute/" | "/contribute/georef" | "/contribute/georef/" | "/contribute/label" | "/contribute/label/" | "/create" | "/create/" | "/georef" | "/georef/" | "/hunt" | "/hunt/" | "/login" | "/login/" | "/shell" | "/shell/" | "/signup" | "/signup/" | "/studio" | "/studio/" | "/trip" | "/trip/" | "/view" | "/view/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/favicon.ico" | "/favicon.png" | "/robots.txt" | "/sw.js" | string & {};
+		Asset(): "/favicon.ico" | "/favicon.png" | "/manifest.json" | "/robots.txt" | "/sw.js" | string & {};
 	}
 }
