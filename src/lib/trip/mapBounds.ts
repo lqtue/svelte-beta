@@ -69,11 +69,13 @@ function extractGCPs(annotation: unknown): GroundControlPoint[] {
 		return [];
 	}
 
-	const ann = annotation as Record<string, unknown>;
+	let ann = annotation as Record<string, unknown>;
 
-	// Allmaps annotations follow W3C Web Annotation model
-	// GCPs are typically in the 'body' or nested within 'target'
-	// The exact structure depends on annotation version
+	// Allmaps API returns an AnnotationPage with items array
+	// Unwrap to the first Annotation item
+	if (ann.items && Array.isArray(ann.items) && ann.items.length > 0) {
+		ann = ann.items[0] as Record<string, unknown>;
+	}
 
 	// Try to find resourceCoords (Georeference Annotation format)
 	if (ann.body && typeof ann.body === 'object') {

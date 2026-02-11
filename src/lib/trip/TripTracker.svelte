@@ -28,6 +28,9 @@
 
 	import { INITIAL_CENTER } from '$lib/viewer/constants';
 	import type { MapListItem, ViewMode } from '$lib/viewer/types';
+	import { createMapStore } from '$lib/stores/mapStore';
+	import { createLayerStore } from '$lib/stores/layerStore';
+	import { initUrlSync } from '$lib/stores/urlStore';
 	import { getSupabaseContext } from '$lib/supabase/context';
 	import { fetchMaps } from '$lib/supabase/maps';
 	import { startTracking, stopTracking, formatError } from './geolocation';
@@ -77,7 +80,19 @@
 	let autoFollow = true;
 	let error: string | null = null;
 
-	let selectedMapId: string | null = null;
+	// Central stores — shared with Studio
+	const mapStore = createMapStore();
+	const layerStore = createLayerStore();
+	let urlTeardown: (() => void) | null = null;
+	let suppressViewSync = false;
+
+	// Reactive aliases (read from stores)
+	$: selectedMapId = $mapStore.activeMapId;
+	$: mapOpacityStore = $layerStore.overlayOpacity;
+	$: viewModeStore = $layerStore.viewMode;
+	$: sideRatioStore = $layerStore.sideRatio;
+	$: lensRadiusStore = $layerStore.lensRadius;
+
 	let mapList: MapListItem[] = [];
 	let loadingMap = false;
 	let filterCity: string | null = null;
@@ -102,11 +117,18 @@
 	// Search state
 	let searchOpen = false;
 
-	// View controls state
+	// View controls state — local copies synced from stores
+	// (local vars needed because view mode decorations read them synchronously)
 	let mapOpacity = 0.8;
 	let viewMode: ViewMode = 'overlay';
 	let sideRatio = 0.5;
 	let lensRadius = 150;
+
+	// Keep local copies in sync with stores
+	$: mapOpacity = mapOpacityStore;
+	$: viewMode = viewModeStore;
+	$: sideRatio = sideRatioStore;
+	$: lensRadius = lensRadiusStore;
 
 	// DOM elements for view mode decorations
 	let dividerXEl: HTMLDivElement;
@@ -258,6 +280,21 @@
 			});
 		})();
 
+		// OL View → mapStore on moveend
+		map.on('moveend', () => {
+			if (suppressViewSync || !map) return;
+			const view = map.getView();
+			const center = view.getCenter();
+			if (!center) return;
+			const [lng, lat] = toLonLat(center);
+			suppressViewSync = true;
+			mapStore.setView({ lng, lat, zoom: view.getZoom() ?? 16, rotation: view.getRotation() });
+			requestAnimationFrame(() => { suppressViewSync = false; });
+		});
+
+		// URL ↔ store sync
+		urlTeardown = initUrlSync({ mapStore, layerStore });
+
 		// Start orientation tracking
 		startOrientationTracking((orientation) => {
 			console.log('[TripTracker] Orientation update:', orientation);
@@ -265,6 +302,7 @@
 		});
 
 		return () => {
+			urlTeardown?.();
 			if (watchId !== null) {
 				stopTracking(watchId);
 			}
@@ -310,11 +348,11 @@
 			// Apply opacity and view mode to warped map layers
 			applyWarpedLayerSettings();
 
-			selectedMapId = mapId;
+			mapStore.setActiveMap(mapId);
 		} catch (err) {
 			console.error('Failed to load map overlay:', err);
 			error = 'Could not load historical map';
-			selectedMapId = null;
+			mapStore.setActiveMap(null);
 		} finally {
 			loadingMap = false;
 		}
@@ -367,7 +405,7 @@
 		if (warpedLayer) {
 			warpedLayer.clear();
 		}
-		selectedMapId = null;
+		mapStore.setActiveMap(null);
 	}
 
 	// View mode functions
@@ -468,7 +506,7 @@
 	}
 
 	function setViewMode(next: ViewMode) {
-		viewMode = next;
+		layerStore.setViewMode(next);
 		refreshDecorations();
 	}
 
@@ -486,16 +524,16 @@
 		if (!size) return;
 		const [w, h] = size;
 		if (dragging.sideX) {
-			sideRatio = Math.max(0.1, Math.min(0.9, x / w));
+			layerStore.setSideRatio(Math.max(0.1, Math.min(0.9, x / w)));
 			refreshDecorations();
 		} else if (dragging.sideY) {
-			sideRatio = Math.max(0.1, Math.min(0.9, y / h));
+			layerStore.setSideRatio(Math.max(0.1, Math.min(0.9, y / h)));
 			refreshDecorations();
 		} else if (dragging.lensR) {
 			const cx = w / 2;
 			const cy = h / 2;
 			const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-			lensRadius = Math.max(50, Math.min(Math.min(w, h) / 2 - 20, dist));
+			layerStore.setLensRadius(Math.max(50, Math.min(Math.min(w, h) / 2 - 20, dist)));
 			refreshDecorations();
 		}
 	}
@@ -588,8 +626,7 @@
 	}
 
 	function handleOpacityChange(event: CustomEvent<{ opacity: number }>) {
-		mapOpacity = event.detail.opacity;
-		console.log('[TripTracker] Opacity changed to:', mapOpacity);
+		layerStore.setOverlayOpacity(event.detail.opacity);
 	}
 
 	function handleStartTracking() {

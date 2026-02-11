@@ -27,22 +27,30 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/auth" | "/auth/callback" | "/georef" | "/hunt" | "/login" | "/signup" | "/temp-viewer" | "/trip";
+		RouteId(): "/" | "/annotate" | "/auth" | "/auth/callback" | "/catalog" | "/contribute" | "/contribute/georef" | "/contribute/label" | "/create" | "/georef" | "/hunt" | "/login" | "/shell" | "/signup" | "/studio" | "/trip" | "/view";
 		RouteParams(): {
 			
 		};
 		LayoutParams(): {
 			"/": Record<string, never>;
+			"/annotate": Record<string, never>;
 			"/auth": Record<string, never>;
 			"/auth/callback": Record<string, never>;
+			"/catalog": Record<string, never>;
+			"/contribute": Record<string, never>;
+			"/contribute/georef": Record<string, never>;
+			"/contribute/label": Record<string, never>;
+			"/create": Record<string, never>;
 			"/georef": Record<string, never>;
 			"/hunt": Record<string, never>;
 			"/login": Record<string, never>;
+			"/shell": Record<string, never>;
 			"/signup": Record<string, never>;
-			"/temp-viewer": Record<string, never>;
-			"/trip": Record<string, never>
+			"/studio": Record<string, never>;
+			"/trip": Record<string, never>;
+			"/view": Record<string, never>
 		};
-		Pathname(): "/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/georef" | "/georef/" | "/hunt" | "/hunt/" | "/login" | "/login/" | "/signup" | "/signup/" | "/temp-viewer" | "/temp-viewer/" | "/trip" | "/trip/";
+		Pathname(): "/" | "/annotate" | "/annotate/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/catalog" | "/catalog/" | "/contribute" | "/contribute/" | "/contribute/georef" | "/contribute/georef/" | "/contribute/label" | "/contribute/label/" | "/create" | "/create/" | "/georef" | "/georef/" | "/hunt" | "/hunt/" | "/login" | "/login/" | "/shell" | "/shell/" | "/signup" | "/signup/" | "/studio" | "/studio/" | "/trip" | "/trip/" | "/view" | "/view/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/favicon.ico" | "/favicon.png" | "/robots.txt" | "/sw.js" | string & {};
 	}

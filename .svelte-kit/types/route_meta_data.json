@@ -4,25 +4,55 @@
 		"src/routes/+layout.server.ts",
 		"src/routes/+layout.server.ts"
 	],
+	"/annotate": [
+		"src/routes/annotate/+page.ts",
+		"src/routes/+layout.server.ts"
+	],
 	"/auth/callback": [
 		"src/routes/auth/callback/+server.ts"
 	],
+	"/catalog": [
+		"src/routes/+layout.server.ts"
+	],
+	"/contribute/georef": [
+		"src/routes/+layout.server.ts"
+	],
+	"/contribute/label": [
+		"src/routes/contribute/label/+page.ts",
+		"src/routes/+layout.server.ts"
+	],
+	"/create": [
+		"src/routes/create/+page.ts",
+		"src/routes/+layout.server.ts"
+	],
 	"/georef": [
+		"src/routes/georef/+page.server.ts",
 		"src/routes/+layout.server.ts"
 	],
 	"/hunt": [
+		"src/routes/hunt/+page.server.ts",
 		"src/routes/+layout.server.ts"
 	],
 	"/login": [
 		"src/routes/+layout.server.ts"
 	],
+	"/shell": [
+		"src/routes/shell/+page.server.ts",
+		"src/routes/+layout.server.ts"
+	],
 	"/signup": [
 		"src/routes/+layout.server.ts"
 	],
-	"/temp-viewer": [
+	"/studio": [
+		"src/routes/studio/+page.server.ts",
 		"src/routes/+layout.server.ts"
 	],
 	"/trip": [
+		"src/routes/trip/+page.server.ts",
+		"src/routes/+layout.server.ts"
+	],
+	"/view": [
+		"src/routes/view/+page.ts",
 		"src/routes/+layout.server.ts"
 	]
 }

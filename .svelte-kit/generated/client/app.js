@@ -9,19 +9,33 @@ export const nodes = [
 	() => import('./nodes/5'),
 	() => import('./nodes/6'),
 	() => import('./nodes/7'),
-	() => import('./nodes/8')
+	() => import('./nodes/8'),
+	() => import('./nodes/9'),
+	() => import('./nodes/10'),
+	() => import('./nodes/11'),
+	() => import('./nodes/12'),
+	() => import('./nodes/13'),
+	() => import('./nodes/14'),
+	() => import('./nodes/15')
 ];
 
 export const server_loads = [0];
 
 export const dictionary = {
 		"/": [2],
-		"/georef": [3],
-		"/hunt": [4],
-		"/login": [5],
-		"/signup": [6],
-		"/temp-viewer": [7],
-		"/trip": [8]
+		"/annotate": [3],
+		"/catalog": [4],
+		"/contribute/georef": [5],
+		"/contribute/label": [6],
+		"/create": [7],
+		"/georef": [~8],
+		"/hunt": [~9],
+		"/login": [10],
+		"/shell": [~11],
+		"/signup": [12],
+		"/studio": [~13],
+		"/trip": [~14],
+		"/view": [15]
 	};
 
 export const hooks = {

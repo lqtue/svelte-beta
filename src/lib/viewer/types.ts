@@ -13,6 +13,7 @@ export interface MapListItem {
   isFeatured?: boolean;
   year?: number;
   bounds?: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
+  allmaps_id?: string;
 }
 
 export interface AnnotationSummary {
@@ -71,4 +72,15 @@ export interface PersistedAppState {
   view?: PersistedViewSettings;
   annotations?: FeatureCollection;
   storyScenes?: StoryScene[];
+}
+
+export interface AnnotationSet {
+  id: string;
+  title: string;
+  mapId: string;
+  authorId: string;
+  features: FeatureCollection;
+  isPublic: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
