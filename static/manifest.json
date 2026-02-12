@@ -10,19 +10,19 @@
   "theme_color": "#d4af37",
   "icons": [
     {
-      "src": "/favicon.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/favicon.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/favicon.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
@@ -35,14 +35,14 @@
       "short_name": "View",
       "description": "Browse and explore historical maps",
       "url": "/view",
-      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Create Story",
       "short_name": "Create",
       "description": "Create a new map story",
       "url": "/create",
-      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
