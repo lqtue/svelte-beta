@@ -1,8 +1,10 @@
 export interface LabelTask {
 	id: string;
 	mapId: string;
+	allmapsId: string;
 	region: { x: number; y: number; width: number; height: number };
 	status: 'open' | 'in_progress' | 'consensus' | 'verified';
+	legend: string[];
 }
 
 export interface LabelPin {
@@ -13,6 +15,7 @@ export interface LabelPin {
 	pixelX: number;
 	pixelY: number;
 	confidence: number;
+	data?: { vietnameseName?: string; notes?: string;[key: string]: any };
 }
 
 export interface LabelConsensus {

@@ -7,7 +7,13 @@
   import { onMount, onDestroy } from "svelte";
   import { toLonLat } from "ol/proj";
 
-  import type { ViewMode, MapListItem, SearchResult, AnnotationSummary, DrawingMode } from "$lib/viewer/types";
+  import type {
+    ViewMode,
+    MapListItem,
+    SearchResult,
+    AnnotationSummary,
+    DrawingMode,
+  } from "$lib/viewer/types";
   import { createMapStore } from "$lib/stores/mapStore";
   import { createLayerStore } from "$lib/stores/layerStore";
   import { createAnnotationHistoryStore } from "$lib/map/stores/annotationHistory";
@@ -15,7 +21,7 @@
   import { setAnnotationContext } from "$lib/map/context/annotationContext";
   import { getSupabaseContext } from "$lib/supabase/context";
   import { fetchMaps } from "$lib/supabase/maps";
-  import { fetchAnnotationBounds } from "$lib/trip/mapBounds";
+  import { fetchAnnotationBounds } from "$lib/geo/mapBounds";
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
 
   import StudioMap from "$lib/studio/StudioMap.svelte";
@@ -149,7 +155,9 @@
     });
   }
 
-  function handleStatusChange(event: CustomEvent<{ message: string; error: boolean }>) {
+  function handleStatusChange(
+    event: CustomEvent<{ message: string; error: boolean }>,
+  ) {
     if (event.detail.error) {
       overlayError = event.detail.message;
     }
@@ -223,29 +231,45 @@
 
   // ── Panel event handlers (delegate to StudioMap) ──────────────
 
-  function handleSetDrawingMode(event: CustomEvent<{ mode: DrawingMode | null }>) {
+  function handleSetDrawingMode(
+    event: CustomEvent<{ mode: DrawingMode | null }>,
+  ) {
     drawingMode = event.detail.mode;
     if (!drawingMode) studioMapRef?.deactivateDrawing();
   }
 
-  function handleUpdateProject(event: CustomEvent<{ title?: string; description?: string }>) {
+  function handleUpdateProject(
+    event: CustomEvent<{ title?: string; description?: string }>,
+  ) {
     if (event.detail.title !== undefined) projectTitle = event.detail.title;
-    if (event.detail.description !== undefined) projectDescription = event.detail.description;
+    if (event.detail.description !== undefined)
+      projectDescription = event.detail.description;
   }
 
-  function handleAnnotationRename(event: CustomEvent<{ id: string; label: string }>) {
+  function handleAnnotationRename(
+    event: CustomEvent<{ id: string; label: string }>,
+  ) {
     studioMapRef?.updateAnnotationLabel(event.detail.id, event.detail.label);
   }
 
-  function handleAnnotationUpdateDetails(event: CustomEvent<{ id: string; details: string }>) {
-    studioMapRef?.updateAnnotationDetails(event.detail.id, event.detail.details);
+  function handleAnnotationUpdateDetails(
+    event: CustomEvent<{ id: string; details: string }>,
+  ) {
+    studioMapRef?.updateAnnotationDetails(
+      event.detail.id,
+      event.detail.details,
+    );
   }
 
-  function handleAnnotationChangeColor(event: CustomEvent<{ id: string; color: string }>) {
+  function handleAnnotationChangeColor(
+    event: CustomEvent<{ id: string; color: string }>,
+  ) {
     studioMapRef?.updateAnnotationColor(event.detail.id, event.detail.color);
   }
 
-  function handleAnnotationToggleVisibility(event: CustomEvent<{ id: string }>) {
+  function handleAnnotationToggleVisibility(
+    event: CustomEvent<{ id: string }>,
+  ) {
     studioMapRef?.toggleAnnotationVisibility(event.detail.id);
   }
 
@@ -629,18 +653,9 @@
 <style>
   :global(body) {
     margin: 0;
-    font-family:
-      "Be Vietnam Pro",
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    background: #2b2520;
-    color: #2b2520;
+    font-family: var(--font-family-base);
+    background: var(--color-bg);
+    color: var(--color-text);
   }
 
   .annotate-mode {
@@ -648,11 +663,13 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, #f4e8d8 0%, #ebe0d0 50%, #e8d5ba 100%);
+    background-color: var(--color-bg);
+    background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
+    background-size: 32px 32px;
     overflow: hidden;
   }
 
-  /* Workspace: single column by default, two columns when sidebar visible */
+  /* Workspace */
   .workspace {
     flex: 1 1 0%;
     min-height: 0;
@@ -664,30 +681,27 @@
   }
 
   .workspace.with-sidebar {
-    grid-template-columns: minmax(260px, 0.25fr) minmax(0, 1fr);
-    gap: 0;
-    padding: 0;
+    grid-template-columns: minmax(320px, 0.25fr) minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem;
   }
 
   .workspace.with-sidebar.compact {
-    grid-template-columns: minmax(200px, 0.24fr) minmax(0, 1fr);
-    gap: 0;
-    padding: 0;
+    grid-template-columns: minmax(260px, 0.3fr) minmax(0, 1fr);
   }
 
   .map-stage {
     position: relative;
     min-height: 0;
     height: 100%;
-    min-width: 0;
-    border-radius: 4px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
-    background: #2b2520;
-    border: 2px solid #d4af37;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    background: var(--color-gray-100);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-solid);
   }
 
-  /* Full-bleed map when no sidebar (collapsed or mobile) */
+  /* Full-bleed map when no sidebar */
   .workspace:not(.with-sidebar) .map-stage {
     border-radius: 0;
     border: none;
@@ -695,264 +709,184 @@
   }
 
   .annotate-mode.mobile .workspace {
-    grid-template-columns: minmax(0, 1fr);
     padding: 0;
     gap: 0;
   }
 
-  .annotate-mode.mobile .map-stage {
-    min-height: 100vh;
-  }
-
-  /* ---------- Control Buttons (shared) ---------- */
+  /* Control Buttons */
   .ctrl-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    border: 2px solid #d4af37;
-    background: linear-gradient(
-      160deg,
-      rgba(244, 232, 216, 0.95) 0%,
-      rgba(232, 213, 186, 0.95) 100%
-    );
-    color: #4a3f35;
+    border: var(--border-thick);
+    background: var(--color-white);
+    color: var(--color-text);
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: all 0.15s ease;
-    text-decoration: none;
-    touch-action: manipulation;
+    box-shadow: var(--shadow-solid-sm);
+    transition: all 0.1s;
   }
 
   .ctrl-btn:hover {
-    background: rgba(212, 175, 55, 0.25);
-    transform: scale(1.05);
+    background: var(--color-yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-solid);
   }
 
   .ctrl-btn:active {
-    transform: scale(0.95);
+    transform: translate(0, 0);
+    box-shadow: 0 0 0 var(--color-border);
   }
 
-  /* ---------- Top Controls ---------- */
+  /* Top Controls */
   .top-controls {
     position: absolute;
     top: 1rem;
     left: 1rem;
-    display: flex;
-    gap: 0.5rem;
     z-index: 50;
-    pointer-events: auto;
   }
 
-  /* ---------- Floating Controls (bottom-right) ---------- */
+  /* Floating Controls */
   .floating-controls {
     position: absolute;
-    bottom: calc(env(safe-area-inset-bottom) + 1rem);
-    right: calc(env(safe-area-inset-right) + 1rem);
+    bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
+    right: calc(env(safe-area-inset-right) + 1.5rem);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 1rem;
     z-index: 50;
-    pointer-events: auto;
   }
 
-  @media (max-width: 900px) {
-    .floating-controls {
-      bottom: calc(env(safe-area-inset-bottom) + 5rem);
-    }
-  }
-
-  /* ---------- FAT Map Toolbar ---------- */
+  /* Map Toolbar */
   .map-toolbar {
     position: absolute;
-    bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+    bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
     left: 50%;
     transform: translateX(-50%);
     z-index: 40;
     display: flex;
     flex-direction: column;
     gap: 0;
-    background: linear-gradient(
-      160deg,
-      rgba(244, 232, 216, 0.96) 0%,
-      rgba(232, 213, 186, 0.96) 100%
-    );
-    border: 2px solid #d4af37;
-    border-radius: 6px;
-    padding: 0.4rem 0.6rem;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
-    backdrop-filter: blur(12px);
+    background: var(--color-white);
+    border: var(--border-thick);
+    border-radius: var(--radius-pill);
+    padding: 0.5rem 1rem;
+    box-shadow: var(--shadow-solid);
     pointer-events: auto;
     min-width: 320px;
-    max-width: calc(100vw - 7rem);
   }
 
   .map-toolbar.mobile {
-    bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
-    padding: 0.35rem 0.5rem;
-    max-width: calc(100vw - 5rem);
+    bottom: calc(env(safe-area-inset-bottom) + 5rem);
+    width: calc(100% - 2rem);
+    max-width: 400px;
   }
 
   .toolbar-row {
     display: flex;
     align-items: center;
-    gap: 0;
-    width: 100%;
+    gap: 1.5rem;
+    justify-content: center;
   }
 
   .toolbar-group {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0 0.5rem;
-  }
-
-  .toolbar-group:first-child {
-    padding-left: 0;
-  }
-
-  .toolbar-group:last-child {
-    padding-right: 0;
-  }
-
-  .toolbar-sep {
-    width: 1px;
-    height: 24px;
-    background: rgba(212, 175, 55, 0.35);
-    flex-shrink: 0;
+    gap: 0.25rem;
   }
 
   .toolbar-label {
-    font-family: "Be Vietnam Pro", sans-serif;
-    font-size: 0.6rem;
-    font-weight: 700;
+    font-family: var(--font-family-display);
+    font-size: 0.65rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #8b7355;
-    white-space: nowrap;
+    color: var(--color-text);
+    opacity: 0.6;
+    letter-spacing: 0.05em;
   }
 
   .toolbar-btns {
     display: flex;
-    gap: 2px;
+    gap: 0.5rem;
   }
 
   .tb {
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    border-radius: 3px;
-    background: rgba(255, 255, 255, 0.45);
-    color: #4a3f35;
-    padding: 0.3rem 0.55rem;
-    font-family: "Be Vietnam Pro", sans-serif;
-    font-size: 0.72rem;
-    font-weight: 500;
+    border: var(--border-thin);
+    background: var(--color-white);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-family-base);
+    font-weight: 700;
+    font-size: 0.85rem;
     cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    line-height: 1.2;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
+    box-shadow: 2px 2px 0px var(--color-border);
+    transition: transform 0.1s;
   }
 
-  .tb:hover:not(:disabled) {
-    background: rgba(212, 175, 55, 0.15);
-    border-color: rgba(212, 175, 55, 0.6);
+  .tb:hover {
+    transform: translate(-1px, -1px);
+    background: var(--color-yellow);
   }
 
   .tb.active {
-    background: rgba(212, 175, 55, 0.3);
-    border-color: #d4af37;
-    color: #2b2520;
+    background: var(--color-blue);
+    color: white;
+    transform: translate(1px, 1px);
+    box-shadow: none;
+  }
+
+  .toolbar-sep {
+    width: 2px;
+    height: 32px;
+    background: var(--color-gray-300);
+  }
+
+  .toolbar-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .toolbar-slider {
+    width: 100px;
+    accent-color: var(--color-blue);
+  }
+
+  .toolbar-slider-val {
+    font-family: var(--font-family-display);
     font-weight: 700;
+    font-size: 0.85rem;
+    width: 3ch;
   }
 
-  .tb:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-
-  /* ---------- Lens Resize Knob ---------- */
-  .lens-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 45;
-    pointer-events: none;
-  }
-
-  .lens-ring {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border: 2px dashed rgba(212, 175, 55, 0.5);
-    border-radius: 50%;
-    pointer-events: none;
-  }
-
-  .lens-knob {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 18px;
-    height: 18px;
-    margin: -9px 0 0 -9px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #d4af37 0%, #b8942f 100%);
-    border: 2px solid #f4e8d8;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    cursor: grab;
-    pointer-events: auto;
-    transition: box-shadow 0.15s ease;
-  }
-
-  .lens-knob:hover {
-    box-shadow: 0 2px 12px rgba(212, 175, 55, 0.5);
-  }
-
-  .lens-knob:active {
-    cursor: grabbing;
-    box-shadow:
-      0 0 0 4px rgba(212, 175, 55, 0.3),
-      0 2px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  /* ---------- Overlay Loading ---------- */
+  /* Overlay Loading */
   .overlay-loading {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    background: var(--color-white);
+    border: var(--border-thick);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.65rem;
-    padding: 0.6rem 1.2rem;
-    background: linear-gradient(
-      160deg,
-      rgba(244, 232, 216, 0.95) 0%,
-      rgba(232, 213, 186, 0.95) 100%
-    );
-    border: 2px solid #d4af37;
-    border-radius: 6px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-    z-index: 55;
-    pointer-events: none;
-    font-family: "Be Vietnam Pro", sans-serif;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #4a3f35;
+    gap: 0.75rem;
+    box-shadow: var(--shadow-solid);
+    z-index: 60;
   }
 
   .loading-spinner {
-    width: 18px;
-    height: 18px;
-    border: 2.5px solid rgba(212, 175, 55, 0.3);
-    border-top-color: #d4af37;
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--color-gray-300);
+    border-top-color: var(--color-blue);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 1s linear infinite;
   }
 
   @keyframes spin {
@@ -962,38 +896,18 @@
   }
 
   .loading-zoom-btn {
-    margin-top: 0.5rem;
-    padding: 0.4rem 0.8rem;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--color-blue);
     color: white;
-    font-size: 0.8rem;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
     cursor: pointer;
-    pointer-events: auto;
-    transition: background 0.2s;
   }
 
-  .loading-zoom-btn:hover {
-    background: rgba(0, 0, 0, 0.5);
-  }
-
-  /* ---------- Overlay Error ---------- */
+  /* Overlay Error */
   .overlay-error {
     position: absolute;
-    bottom: calc(env(safe-area-inset-bottom) + 4rem);
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.55rem 0.75rem;
-    background: rgba(160, 40, 40, 0.92);
-    color: #fff;
-    font-family: "Be Vietnam Pro", sans-serif;
-    font-size: 0.78rem;
-    font-weight: 500;
-    border-radius: 5px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
     z-index: 60;
     pointer-events: auto;

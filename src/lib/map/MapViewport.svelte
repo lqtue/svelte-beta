@@ -1,47 +1,51 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import Map from 'ol/Map';
-  import View from 'ol/View';
-  import VectorSource from 'ol/source/Vector';
-  import VectorImageLayer from 'ol/layer/VectorImage';
-  import BaseLayer from 'ol/layer/Base';
-  import { Attribution, Rotate, ScaleLine, Zoom } from 'ol/control';
-  import { defaults as defaultControls } from 'ol/control/defaults';
-  import DragRotate from 'ol/interaction/DragRotate';
-  import PinchRotate from 'ol/interaction/PinchRotate';
-  import Draw from 'ol/interaction/Draw';
-  import Modify from 'ol/interaction/Modify';
-  import Select from 'ol/interaction/Select';
-  import { click } from 'ol/events/condition';
-import { fromLonLat, toLonLat } from 'ol/proj';
-  import GeoJSON from 'ol/format/GeoJSON';
-  import { inAndOut } from 'ol/easing';
-  import { unByKey } from 'ol/Observable';
-import Feature from 'ol/Feature';
-import type { Geometry } from 'ol/geom';
-  import Point from 'ol/geom/Point';
-  import type { EventsKey } from 'ol/events';
-import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObject } from 'geojson';
-  import { WarpedMapLayer } from '@allmaps/openlayers';
-  import { IIIF } from '@allmaps/iiif-parser';
-  import { fetchAnnotationsFromApi } from '@allmaps/stdlib';
-  import 'ol/ol.css';
+  import { onMount, onDestroy } from "svelte";
+  import Map from "ol/Map";
+  import View from "ol/View";
+  import VectorSource from "ol/source/Vector";
+  import VectorImageLayer from "ol/layer/VectorImage";
+  import BaseLayer from "ol/layer/Base";
+  import { Attribution, Rotate, ScaleLine, Zoom } from "ol/control";
+  import { defaults as defaultControls } from "ol/control/defaults";
+  import DragRotate from "ol/interaction/DragRotate";
+  import PinchRotate from "ol/interaction/PinchRotate";
+  import Draw from "ol/interaction/Draw";
+  import Modify from "ol/interaction/Modify";
+  import Select from "ol/interaction/Select";
+  import { click } from "ol/events/condition";
+  import { fromLonLat, toLonLat } from "ol/proj";
+  import GeoJSON from "ol/format/GeoJSON";
+  import { inAndOut } from "ol/easing";
+  import { unByKey } from "ol/Observable";
+  import Feature from "ol/Feature";
+  import type { Geometry } from "ol/geom";
+  import Point from "ol/geom/Point";
+  import type { EventsKey } from "ol/events";
+  import type {
+    Feature as GeoJsonFeature,
+    Geometry as GeoJsonGeometry,
+    GeoJsonObject,
+  } from "geojson";
+  import { WarpedMapLayer } from "@allmaps/openlayers";
+  import { IIIF } from "@allmaps/iiif-parser";
+  import { fetchAnnotationsFromApi } from "@allmaps/stdlib";
+  import "ol/ol.css";
 
   import {
     DEFAULT_ANNOTATION_COLOR,
     APP_STATE_KEY,
     DRAW_TYPE_MAP,
     BASEMAP_DEFS,
-    INITIAL_CENTER
-  } from '$lib/viewer/constants';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchMaps } from '$lib/supabase/maps';
+    INITIAL_CENTER,
+  } from "$lib/viewer/constants";
+  import { getSupabaseContext } from "$lib/supabase/context";
+  import { fetchMaps } from "$lib/supabase/maps";
   import {
     ensureAnnotationDefaults,
     toAnnotationSummary,
     createAnnotationStyle,
-    searchResultStyle
-  } from '$lib/viewer/annotations';
+    searchResultStyle,
+  } from "$lib/viewer/annotations";
   import type {
     ViewMode,
     DrawingMode,
@@ -49,18 +53,18 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     AnnotationSummary,
     SearchResult,
     PersistedAppState,
-    StoryScene
-  } from '$lib/viewer/types';
+    StoryScene,
+  } from "$lib/viewer/types";
   import {
     createAnnotationHistoryStore,
     captureFeatureSnapshot as snapshotFeature,
     restoreFeatureFromSnapshot as restoreSnapshot,
     type FeatureSnapshot,
     type HistoryEntry,
-    type AnnotationField
-  } from '$lib/map/stores/annotationHistory';
-  import { createAnnotationStateStore } from '$lib/map/stores/annotationState';
-  import { setAnnotationContext } from '$lib/map/context/annotationContext';
+    type AnnotationField,
+  } from "$lib/map/stores/annotationHistory";
+  import { createAnnotationStateStore } from "$lib/map/stores/annotationState";
+  import { setAnnotationContext } from "$lib/map/context/annotationContext";
 
   const geoJsonFormat = new GeoJSON();
   const STORY_DELAY_MIN = 1;
@@ -78,7 +82,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   let lensEl: HTMLDivElement;
   let lensHandleEl: HTMLButtonElement;
 
-  export let initialMode: 'explore' | 'create' = 'explore';
+  export let initialMode: "explore" | "create" = "explore";
   export let showWelcomeOverlay = true;
 
   let selectedMap: MapListItem | null = null;
@@ -91,28 +95,33 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   let creatorRightCollapsed = false;
   let toolbarSettingsOpen = false;
 
-  let basemapSelection = 'g-streets';
-  let mapTypeSelection = 'all';
-  let selectedMapId = '';
-  let statusMessage = 'Select a map from the list.';
+  let basemapSelection = "g-streets";
+  let mapTypeSelection = "all";
+  let selectedMapId = "";
+  let statusMessage = "Select a map from the list.";
   let mapList: MapListItem[] = [];
   let filteredMapList: MapListItem[] = [];
   let statusError = false;
   let loading = false;
   let opacity = 0.8;
   let showWelcome = showWelcomeOverlay;
-  let appMode: 'explore' | 'create' = initialMode;
+  let appMode: "explore" | "create" = initialMode;
   let isMobile = false;
   let isCreatorCompact = false;
   let isCreatorNarrow = false;
-  let activeViewerSection: 'map' | 'control' | 'story' | 'info' = 'map';
+  let activeViewerSection: "map" | "control" | "story" | "info" = "map";
   let viewerPanelOpen = false;
-  let creatorRightPane: 'annotations' | 'story' = 'annotations';
+  let creatorRightPane: "annotations" | "story" = "annotations";
   let drawMenuOpen = false;
   let openAnnotationMenu: string | null = null;
   let openStoryMenu: string | null = null;
   let captureModalOpen = false;
-  let captureForm = { title: '', details: '', delay: STORY_DEFAULT_DELAY, annotations: [] as string[] };
+  let captureForm = {
+    title: "",
+    details: "",
+    delay: STORY_DEFAULT_DELAY,
+    annotations: [] as string[],
+  };
   let shareCopied = false;
   let shareResetTimer: ReturnType<typeof setTimeout> | null = null;
   let editingEnabled = true;
@@ -121,23 +130,24 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   const annotationState = createAnnotationStateStore();
   setAnnotationContext({ history: annotationHistory, state: annotationState });
   let suppressHistory = false;
-  let pendingGeometrySnapshots: globalThis.Map<string, FeatureSnapshot> = new globalThis.Map();
+  let pendingGeometrySnapshots: globalThis.Map<string, FeatureSnapshot> =
+    new globalThis.Map();
 
   let drawingMode: DrawingMode | null = null;
 
   let annotations: AnnotationSummary[] = [];
   let selectedAnnotationId: string | null = null;
-  let searchQuery = '';
+  let searchQuery = "";
   let searchResults: SearchResult[] = [];
   let searchLoading = false;
   let searchNotice: string | null = null;
-  let searchNoticeType: 'info' | 'error' | 'success' = 'info';
+  let searchNoticeType: "info" | "error" | "success" = "info";
 
   let searchDebounce: ReturnType<typeof setTimeout> | null = null;
   let stateSaveTimer: ReturnType<typeof setTimeout> | null = null;
   let searchAbortController: AbortController | null = null;
   let annotationsNotice: string | null = null;
-  let annotationsNoticeType: 'info' | 'error' | 'success' = 'info';
+  let annotationsNoticeType: "info" | "error" | "success" = "info";
   let stateLoaded = false;
 
   let storyScenes: StoryScene[] = [];
@@ -150,7 +160,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   $: visibleStoryScenes = storyScenes.filter((scene) => !scene.hidden);
   $: currentStoryScene = storyScenes[storyActiveSceneIndex] ?? null;
   $: currentStoryVisiblePosition = currentStoryScene
-    ? visibleStoryScenes.findIndex((scene) => scene.id === currentStoryScene.id) + 1
+    ? visibleStoryScenes.findIndex(
+        (scene) => scene.id === currentStoryScene.id,
+      ) + 1
     : 0;
 
   let geoJsonInputEl: HTMLInputElement | null = null;
@@ -177,18 +189,22 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   let currentLoadAbort: AbortController | null = null;
 
   let dragging = { sideX: false, sideY: false, lensR: false };
-  let viewMode: ViewMode = 'overlay';
+  let viewMode: ViewMode = "overlay";
   let sideRatio = 0.5;
   let lensRadius = 150;
   let responsiveCleanup: (() => void) | null = null;
   let pendingResizeHandle: number | null = null;
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
-  $: basemapLabel = BASEMAP_DEFS.find((base) => base.key === basemapSelection)?.label ?? 'Basemap';
+  $: basemapLabel =
+    BASEMAP_DEFS.find((base) => base.key === basemapSelection)?.label ??
+    "Basemap";
   $: opacityPercent = Math.round(opacity * 100);
-  $: modeLabel = appMode === 'explore' ? 'Exploring' : 'Creating';
+  $: modeLabel = appMode === "explore" ? "Exploring" : "Creating";
   $: selectedMap = mapList.find((m) => m.id === selectedMapId) ?? null;
-  $: mapTypes = Array.from(new Set(mapList.map((item) => item.type || 'Uncategorized')))
+  $: mapTypes = Array.from(
+    new Set(mapList.map((item) => item.type || "Uncategorized")),
+  )
     .filter((type) => type && type.trim().length)
     .sort((a, b) => a.localeCompare(b));
   $: viewerFeaturedMaps = (() => {
@@ -197,8 +213,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     return source.slice(0, 4);
   })();
   $: viewerAllMaps = filteredMapList;
-  $: if (creatorRightPane !== 'annotations') openAnnotationMenu = null;
-  $: if (creatorRightPane !== 'story') openStoryMenu = null;
+  $: if (creatorRightPane !== "annotations") openAnnotationMenu = null;
+  $: if (creatorRightPane !== "story") openStoryMenu = null;
   $: canUndo = $annotationHistory.history.length > 0;
   $: canRedo = $annotationHistory.future.length > 0;
   $: annotations = $annotationState.list;
@@ -206,7 +222,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   $: if (showWelcome) metadataOverlayOpen = false;
   $: if (!selectedMap) metadataOverlayOpen = false;
   $: if (showWelcome) searchOverlayOpen = false;
-  $: if (appMode !== 'create') {
+  $: if (appMode !== "create") {
     creatorLeftCollapsed = false;
     creatorRightCollapsed = false;
     searchOverlayOpen = false;
@@ -219,13 +235,13 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     metadataOverlayEl.focus();
   }
   $: workspaceStyle =
-    !isMobile && appMode === 'create'
+    !isMobile && appMode === "create"
       ? `grid-template-columns: ${panelColumnSize(creatorLeftCollapsed)} minmax(0, ${mapColumnFraction(
           creatorLeftCollapsed,
-          creatorRightCollapsed
+          creatorRightCollapsed,
         )}fr) ${panelColumnSize(creatorRightCollapsed)}; gap: ${
-          isCreatorNarrow ? '1rem' : isCreatorCompact ? '1.1rem' : '1.2rem'
-        }; padding: ${isCreatorNarrow ? '1rem' : isCreatorCompact ? '1.2rem' : '1.4rem'};`
+          isCreatorNarrow ? "1rem" : isCreatorCompact ? "1.1rem" : "1.2rem"
+        }; padding: ${isCreatorNarrow ? "1rem" : isCreatorCompact ? "1.2rem" : "1.4rem"};`
       : undefined;
 
   $: if (map) {
@@ -249,7 +265,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   function updateAnnotationSummaries() {
     const list = annotationSource
-      ? annotationSource.getFeatures().map((feature) => toAnnotationSummary(feature))
+      ? annotationSource
+          .getFeatures()
+          .map((feature) => toAnnotationSummary(feature))
       : [];
     annotationState.setList(list);
   }
@@ -258,13 +276,16 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     return annotationSource?.getFeatureById(id) ?? null;
   }
 
-  function setAnnotationsNotice(message: string | null, tone: 'info' | 'error' | 'success' = 'info') {
+  function setAnnotationsNotice(
+    message: string | null,
+    tone: "info" | "error" | "success" = "info",
+  ) {
     annotationsNotice = message;
     annotationsNoticeType = tone;
   }
 
   function saveAppState() {
-    if (typeof window === 'undefined' || !stateLoaded) return;
+    if (typeof window === "undefined" || !stateLoaded) return;
     const view = map?.getView();
     const state: PersistedAppState = {
       basemapSelection,
@@ -274,18 +295,18 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         mode: viewMode,
         sideRatio,
         lensRadius,
-        opacity
-      }
+        opacity,
+      },
     };
     if (view) {
       const center = view.getCenter();
       const zoom = view.getZoom();
       const rotation = view.getRotation();
-      if (center && typeof zoom === 'number' && typeof rotation === 'number') {
+      if (center && typeof zoom === "number" && typeof rotation === "number") {
         state.mapView = {
           center: center as [number, number],
           zoom,
-          rotation
+          rotation,
         };
       }
     }
@@ -293,8 +314,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       const features = annotationSource.getFeatures();
       if (features.length) {
         state.annotations = geoJsonFormat.writeFeaturesObject(features, {
-          featureProjection: 'EPSG:3857',
-          dataProjection: 'EPSG:4326'
+          featureProjection: "EPSG:3857",
+          dataProjection: "EPSG:4326",
         });
       }
     }
@@ -304,23 +325,31 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     try {
       window.localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
     } catch (error) {
-      console.warn('Unable to save viewer state', error);
+      console.warn("Unable to save viewer state", error);
     }
   }
 
   function queueSaveState() {
-    if (typeof window === 'undefined' || !stateLoaded) return;
+    if (typeof window === "undefined" || !stateLoaded) return;
     if (stateSaveTimer) window.clearTimeout(stateSaveTimer);
     stateSaveTimer = window.setTimeout(saveAppState, 500);
   }
 
   async function loadAppState() {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       stateLoaded = true;
       return;
     }
     const searchParams = new URLSearchParams(window.location.search);
-    const shareParamKeys = ['map', 'view', 'lat', 'lon', 'zoom', 'rotation', 'basemap'];
+    const shareParamKeys = [
+      "map",
+      "view",
+      "lat",
+      "lon",
+      "zoom",
+      "rotation",
+      "basemap",
+    ];
     const hasSharedParams = shareParamKeys.some((key) => searchParams.has(key));
     let sharedStateApplied = false;
     const raw = window.localStorage.getItem(APP_STATE_KEY);
@@ -340,7 +369,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       stateLoaded = false;
       const saved = JSON.parse(raw) as PersistedAppState;
 
-      if (saved.basemapSelection && BASEMAP_DEFS.some((item) => item.key === saved.basemapSelection)) {
+      if (
+        saved.basemapSelection &&
+        BASEMAP_DEFS.some((item) => item.key === saved.basemapSelection)
+      ) {
         basemapSelection = saved.basemapSelection;
       }
 
@@ -354,15 +386,15 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       if (annotationSource && saved.annotations) {
         try {
           const features = geoJsonFormat.readFeatures(saved.annotations, {
-            dataProjection: 'EPSG:4326',
-            featureProjection: 'EPSG:3857'
+            dataProjection: "EPSG:4326",
+            featureProjection: "EPSG:3857",
           }) as Feature<Geometry>[];
           annotationSource.clear();
           features.forEach((feature) => ensureAnnotationDefaults(feature));
           annotationSource.addFeatures(features);
           updateAnnotationSummaries();
         } catch (error) {
-          console.warn('Could not restore saved annotations', error);
+          console.warn("Could not restore saved annotations", error);
           annotationSource.clear();
         }
       }
@@ -371,20 +403,25 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       if (view && saved.mapView) {
         const { center, zoom, rotation } = saved.mapView;
         if (center) view.setCenter(center);
-        if (typeof zoom === 'number') view.setZoom(zoom);
-        if (typeof rotation === 'number') view.setRotation(rotation);
+        if (typeof zoom === "number") view.setZoom(zoom);
+        if (typeof rotation === "number") view.setRotation(rotation);
       }
 
       const overlayId = saved.overlayId ?? saved.selectedMapId;
       if (overlayId && mapList.some((item) => item.id === overlayId)) {
         selectedMapId = overlayId;
         await loadOverlaySource(overlayId);
-      } else if (saved.selectedMapId && mapList.some((item) => item.id === saved.selectedMapId)) {
+      } else if (
+        saved.selectedMapId &&
+        mapList.some((item) => item.id === saved.selectedMapId)
+      ) {
         selectedMapId = saved.selectedMapId;
       }
 
       if (Array.isArray(saved.storyScenes)) {
-        storyScenes = saved.storyScenes.map((scene, index) => normalizeStoryScene(scene, index));
+        storyScenes = saved.storyScenes.map((scene, index) =>
+          normalizeStoryScene(scene, index),
+        );
       }
 
       if (hasSharedParams) {
@@ -395,7 +432,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         }
       }
     } catch (error) {
-      console.warn('Failed to load saved viewer state', error);
+      console.warn("Failed to load saved viewer state", error);
     } finally {
       stateLoaded = true;
       if (sharedStateApplied) queueSaveState();
@@ -404,17 +441,20 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   function clearSavedState() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     try {
       window.localStorage.removeItem(APP_STATE_KEY);
     } catch (error) {
-      console.warn('Failed to clear saved state', error);
+      console.warn("Failed to clear saved state", error);
     }
     window.location.reload();
   }
 
   function createSceneId() {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
       return `scene-${crypto.randomUUID()}`;
     }
     const random = Math.random().toString(36).slice(2, 8);
@@ -423,7 +463,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   function clampStoryDelay(value: number) {
     if (!Number.isFinite(value)) return STORY_DEFAULT_DELAY;
-    return Math.max(STORY_DELAY_MIN, Math.min(STORY_DELAY_MAX, Math.round(value)));
+    return Math.max(
+      STORY_DELAY_MIN,
+      Math.min(STORY_DELAY_MAX, Math.round(value)),
+    );
   }
 
   function defaultAnnotationIds() {
@@ -435,15 +478,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     return snapshotFeature(feature, { geoJson: geoJsonFormat });
   }
 
-  function restoreFeatureFromSnapshot(snapshot: FeatureSnapshot): Feature<Geometry> {
+  function restoreFeatureFromSnapshot(
+    snapshot: FeatureSnapshot,
+  ): Feature<Geometry> {
     const restored = restoreSnapshot(snapshot, { geoJson: geoJsonFormat });
     ensureAnnotationDefaults(restored);
     return restored;
   }
 
-  function addSnapshotToSource(snapshot: FeatureSnapshot): Feature<Geometry> | null {
+  function addSnapshotToSource(
+    snapshot: FeatureSnapshot,
+  ): Feature<Geometry> | null {
     if (!annotationSource) return null;
-    const existing = annotationSource.getFeatureById(snapshot.id) as Feature<Geometry> | null;
+    const existing = annotationSource.getFeatureById(
+      snapshot.id,
+    ) as Feature<Geometry> | null;
     if (existing) {
       annotationSource.removeFeature(existing);
     }
@@ -454,7 +503,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   function removeFeatureById(id: string): Feature<Geometry> | null {
     if (!annotationSource) return null;
-    const feature = annotationSource.getFeatureById(id) as Feature<Geometry> | null;
+    const feature = annotationSource.getFeatureById(
+      id,
+    ) as Feature<Geometry> | null;
     if (feature) {
       annotationSource.removeFeature(feature);
     }
@@ -467,38 +518,60 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   function recordAnnotationAdd(feature: Feature<Geometry>) {
-    pushHistoryEntry({ kind: 'annotation-add', snapshot: captureFeatureSnapshot(feature) });
+    pushHistoryEntry({
+      kind: "annotation-add",
+      snapshot: captureFeatureSnapshot(feature),
+    });
   }
 
   function recordAnnotationDelete(feature: Feature<Geometry>) {
-    pushHistoryEntry({ kind: 'annotation-delete', snapshot: captureFeatureSnapshot(feature) });
+    pushHistoryEntry({
+      kind: "annotation-delete",
+      snapshot: captureFeatureSnapshot(feature),
+    });
   }
 
-  function recordAnnotationFieldChange(feature: Feature<Geometry>, field: AnnotationField, before: unknown, after: unknown) {
+  function recordAnnotationFieldChange(
+    feature: Feature<Geometry>,
+    field: AnnotationField,
+    before: unknown,
+    after: unknown,
+  ) {
     if (before === after) return;
-    pushHistoryEntry({ kind: 'annotation-update', id: String(feature.getId()), changes: [{ field, before, after }] });
+    pushHistoryEntry({
+      kind: "annotation-update",
+      id: String(feature.getId()),
+      changes: [{ field, before, after }],
+    });
   }
 
   function recordAnnotationClear(features: Feature<Geometry>[]) {
     if (!features.length) return;
-    const snapshots = features.map((feature) => captureFeatureSnapshot(feature));
-    pushHistoryEntry({ kind: 'annotation-clear', snapshots });
+    const snapshots = features.map((feature) =>
+      captureFeatureSnapshot(feature),
+    );
+    pushHistoryEntry({ kind: "annotation-clear", snapshots });
   }
 
   function recordAnnotationBulkAdd(features: Feature<Geometry>[]) {
     if (!features.length) return;
-    const snapshots = features.map((feature) => captureFeatureSnapshot(feature));
-    pushHistoryEntry({ kind: 'annotation-bulk-add', snapshots });
+    const snapshots = features.map((feature) =>
+      captureFeatureSnapshot(feature),
+    );
+    pushHistoryEntry({ kind: "annotation-bulk-add", snapshots });
   }
 
-  function recordAnnotationGeometryChange(before: FeatureSnapshot, after: FeatureSnapshot) {
-    pushHistoryEntry({ kind: 'annotation-geometry', before, after });
+  function recordAnnotationGeometryChange(
+    before: FeatureSnapshot,
+    after: FeatureSnapshot,
+  ) {
+    pushHistoryEntry({ kind: "annotation-geometry", before, after });
   }
 
-  function applyHistoryEntry(entry: HistoryEntry, direction: 'undo' | 'redo') {
+  function applyHistoryEntry(entry: HistoryEntry, direction: "undo" | "redo") {
     switch (entry.kind) {
-      case 'annotation-add': {
-        if (direction === 'undo') {
+      case "annotation-add": {
+        if (direction === "undo") {
           removeFeatureById(entry.snapshot.id);
           annotationState.clearSelectionIfMatches(entry.snapshot.id);
         } else {
@@ -509,8 +582,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         }
         break;
       }
-      case 'annotation-delete': {
-        if (direction === 'undo') {
+      case "annotation-delete": {
+        if (direction === "undo") {
           const added = addSnapshotToSource(entry.snapshot);
           if (added) {
             annotationState.setSelected(entry.snapshot.id);
@@ -521,13 +594,15 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         }
         break;
       }
-      case 'annotation-update': {
-        const feature = annotationSource?.getFeatureById(entry.id) as Feature<Geometry> | null;
+      case "annotation-update": {
+        const feature = annotationSource?.getFeatureById(
+          entry.id,
+        ) as Feature<Geometry> | null;
         if (!feature) break;
         entry.changes.forEach((change) => {
-          const value = direction === 'undo' ? change.before : change.after;
-          if (change.field === 'hidden') {
-            feature.set('hidden', Boolean(value));
+          const value = direction === "undo" ? change.before : change.after;
+          if (change.field === "hidden") {
+            feature.set("hidden", Boolean(value));
           } else {
             feature.set(change.field, value);
           }
@@ -535,14 +610,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         feature.changed?.();
         break;
       }
-      case 'annotation-geometry': {
-        const snapshot = direction === 'undo' ? entry.before : entry.after;
+      case "annotation-geometry": {
+        const snapshot = direction === "undo" ? entry.before : entry.after;
         addSnapshotToSource(snapshot);
         annotationState.setSelected(snapshot.id);
         break;
       }
-      case 'annotation-clear': {
-        if (direction === 'undo') {
+      case "annotation-clear": {
+        if (direction === "undo") {
           annotationSource?.clear();
           entry.snapshots.forEach((snapshot) => addSnapshotToSource(snapshot));
         } else {
@@ -551,8 +626,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         }
         break;
       }
-      case 'annotation-bulk-add': {
-        if (direction === 'undo') {
+      case "annotation-bulk-add": {
+        if (direction === "undo") {
           entry.snapshots.forEach((snapshot) => {
             removeFeatureById(snapshot.id);
             annotationState.clearSelectionIfMatches(snapshot.id);
@@ -572,9 +647,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const entry = annotationHistory.undo();
     if (!entry) return;
     suppressHistory = true;
-    applyHistoryEntry(entry, 'undo');
+    applyHistoryEntry(entry, "undo");
     suppressHistory = false;
-    setAnnotationsNotice('Undid last action.', 'info');
+    setAnnotationsNotice("Undid last action.", "info");
     queueSaveState();
   }
 
@@ -582,9 +657,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const entry = annotationHistory.redo();
     if (!entry) return;
     suppressHistory = true;
-    applyHistoryEntry(entry, 'redo');
+    applyHistoryEntry(entry, "redo");
     suppressHistory = false;
-    setAnnotationsNotice('Redid last action.', 'info');
+    setAnnotationsNotice("Redid last action.", "info");
     queueSaveState();
   }
 
@@ -595,17 +670,28 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     }
   }
 
-  function normalizeStoryScene(scene: Partial<StoryScene>, index = 0): StoryScene {
+  function normalizeStoryScene(
+    scene: Partial<StoryScene>,
+    index = 0,
+  ): StoryScene {
     let center: [number, number] = [
       Number.isFinite(INITIAL_CENTER[0]) ? (INITIAL_CENTER[0] as number) : 0,
-      Number.isFinite(INITIAL_CENTER[1]) ? (INITIAL_CENTER[1] as number) : 0
+      Number.isFinite(INITIAL_CENTER[1]) ? (INITIAL_CENTER[1] as number) : 0,
     ];
     if (Array.isArray(scene.center) && scene.center.length === 2) {
-      const parsed = scene.center.map((value) => Number(value)) as [number, number];
+      const parsed = scene.center.map((value) => Number(value)) as [
+        number,
+        number,
+      ];
       if (parsed.every((value) => Number.isFinite(value))) {
         center = parsed;
       }
-    } else if (scene.center && typeof scene.center === 'object' && 'x' in scene.center && 'y' in scene.center) {
+    } else if (
+      scene.center &&
+      typeof scene.center === "object" &&
+      "x" in scene.center &&
+      "y" in scene.center
+    ) {
       const x = Number((scene.center as { x: unknown }).x);
       const y = Number((scene.center as { y: unknown }).y);
       if (Number.isFinite(x) && Number.isFinite(y)) {
@@ -614,41 +700,53 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     }
 
     const validBasemap =
-      typeof scene.basemap === 'string' && BASEMAP_DEFS.some((item) => item.key === scene.basemap)
+      typeof scene.basemap === "string" &&
+      BASEMAP_DEFS.some((item) => item.key === scene.basemap)
         ? scene.basemap
         : basemapSelection;
 
     const view = map?.getView();
-    const zoomFallback = typeof scene.zoom === 'number' ? scene.zoom : view?.getZoom() ?? 14;
-    const rotationFallback = typeof scene.rotation === 'number' ? scene.rotation : 0;
+    const zoomFallback =
+      typeof scene.zoom === "number" ? scene.zoom : (view?.getZoom() ?? 14);
+    const rotationFallback =
+      typeof scene.rotation === "number" ? scene.rotation : 0;
 
     const viewModeCandidate = scene.viewMode;
     const viewModeValue: ViewMode =
-      viewModeCandidate === 'side-x' || viewModeCandidate === 'side-y' || viewModeCandidate === 'spy'
+      viewModeCandidate === "side-x" ||
+      viewModeCandidate === "side-y" ||
+      viewModeCandidate === "spy"
         ? viewModeCandidate
-        : 'overlay';
+        : "overlay";
 
     const annotationsList = Array.isArray(scene.visibleAnnotations)
       ? scene.visibleAnnotations.map((value) => String(value))
       : defaultAnnotationIds();
 
     return {
-      id: typeof scene.id === 'string' ? scene.id : createSceneId(),
+      id: typeof scene.id === "string" ? scene.id : createSceneId(),
       title:
-        typeof scene.title === 'string' && scene.title.trim().length ? scene.title : `Scene ${Number(index) + 1}`,
-      details: typeof scene.details === 'string' ? scene.details : '',
-      delay: clampStoryDelay(typeof scene.delay === 'number' ? scene.delay : STORY_DEFAULT_DELAY),
+        typeof scene.title === "string" && scene.title.trim().length
+          ? scene.title
+          : `Scene ${Number(index) + 1}`,
+      details: typeof scene.details === "string" ? scene.details : "",
+      delay: clampStoryDelay(
+        typeof scene.delay === "number" ? scene.delay : STORY_DEFAULT_DELAY,
+      ),
       center,
       zoom: zoomFallback,
       rotation: rotationFallback,
       basemap: validBasemap,
-      overlayId: typeof scene.overlayId === 'string' && scene.overlayId.length ? scene.overlayId : null,
-      opacity: typeof scene.opacity === 'number' ? scene.opacity : opacity,
+      overlayId:
+        typeof scene.overlayId === "string" && scene.overlayId.length
+          ? scene.overlayId
+          : null,
+      opacity: typeof scene.opacity === "number" ? scene.opacity : opacity,
       viewMode: viewModeValue,
-      sideRatio: typeof scene.sideRatio === 'number' ? scene.sideRatio : 0.5,
-      lensRadius: typeof scene.lensRadius === 'number' ? scene.lensRadius : 150,
+      sideRatio: typeof scene.sideRatio === "number" ? scene.sideRatio : 0.5,
+      lensRadius: typeof scene.lensRadius === "number" ? scene.lensRadius : 150,
       visibleAnnotations: annotationsList,
-      hidden: Boolean(scene.hidden)
+      hidden: Boolean(scene.hidden),
     };
   }
 
@@ -675,15 +773,15 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const size = map.getSize();
     if (!size) return;
     const [w, h] = size;
-    if (viewMode === 'overlay') {
-      canvas.style.clipPath = '';
-    } else if (viewMode === 'side-x') {
+    if (viewMode === "overlay") {
+      canvas.style.clipPath = "";
+    } else if (viewMode === "side-x") {
       const x = w * sideRatio;
       canvas.style.clipPath = `polygon(${x}px 0, ${w}px 0, ${w}px ${h}px, ${x}px ${h}px)`;
-    } else if (viewMode === 'side-y') {
+    } else if (viewMode === "side-y") {
       const y = h * sideRatio;
       canvas.style.clipPath = `polygon(0 ${y}px, ${w}px ${y}px, ${w}px ${h}px, 0 ${h}px)`;
-    } else if (viewMode === 'spy') {
+    } else if (viewMode === "spy") {
       const r = lensRadius;
       canvas.style.clipPath = `circle(${r}px at ${w / 2}px ${h / 2}px)`;
     }
@@ -694,10 +792,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const size = map.getSize();
     if (!size) return;
     const [w, h] = size;
-    const showX = viewMode === 'side-x';
-    const showY = viewMode === 'side-y';
+    const showX = viewMode === "side-x";
+    const showY = viewMode === "side-y";
     if (dividerXEl) {
-      dividerXEl.style.display = showX ? 'block' : 'none';
+      dividerXEl.style.display = showX ? "block" : "none";
       if (showX) {
         const x = w * sideRatio;
         dividerXEl.style.left = `${x}px`;
@@ -705,7 +803,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       }
     }
     if (dividerHandleXEl) {
-      dividerHandleXEl.style.display = showX ? 'block' : 'none';
+      dividerHandleXEl.style.display = showX ? "block" : "none";
       if (showX) {
         const x = w * sideRatio - 8;
         dividerHandleXEl.style.left = `${x}px`;
@@ -713,7 +811,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       }
     }
     if (dividerYEl) {
-      dividerYEl.style.display = showY ? 'block' : 'none';
+      dividerYEl.style.display = showY ? "block" : "none";
       if (showY) {
         const y = h * sideRatio;
         dividerYEl.style.top = `${y}px`;
@@ -721,7 +819,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       }
     }
     if (dividerHandleYEl) {
-      dividerHandleYEl.style.display = showY ? 'block' : 'none';
+      dividerHandleYEl.style.display = showY ? "block" : "none";
       if (showY) {
         const y = h * sideRatio - 8;
         dividerHandleYEl.style.left = `${w / 2 - 8}px`;
@@ -735,9 +833,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const size = map.getSize();
     if (!size) return;
     const [w, h] = size;
-    const show = viewMode === 'spy';
+    const show = viewMode === "spy";
     if (lensEl) {
-      lensEl.style.display = show ? 'block' : 'none';
+      lensEl.style.display = show ? "block" : "none";
       if (show) {
         const diameter = Math.max(20, lensRadius * 2);
         lensEl.style.width = `${diameter}px`;
@@ -747,7 +845,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       }
     }
     if (lensHandleEl) {
-      lensHandleEl.style.display = show ? 'block' : 'none';
+      lensHandleEl.style.display = show ? "block" : "none";
       if (show) {
         lensHandleEl.style.left = `${w / 2 + lensRadius - 8}px`;
         lensHandleEl.style.top = `${h / 2 - 8}px`;
@@ -763,7 +861,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   function setViewMode(next: ViewMode) {
     viewMode = next;
-    applyRotationLock(next !== 'overlay');
+    applyRotationLock(next !== "overlay");
     refreshDecorations();
   }
 
@@ -820,32 +918,36 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     if (!map || !warpedLayer) return;
     const extent = warpedLayer.getExtent();
     if (!extent) return;
-    map.getView().fit(extent, { padding: [80, 80, 80, 80], maxZoom: 18, duration: 500 });
+    map
+      .getView()
+      .fit(extent, { padding: [80, 80, 80, 80], maxZoom: 18, duration: 500 });
   }
 
   async function loadDataset() {
     try {
-      setStatus('Loading map list…');
+      setStatus("Loading map list…");
       const items = await fetchMaps(supabase);
       mapList = items;
-      setStatus('Select a map from the list.');
+      setStatus("Select a map from the list.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       setStatus(`Failed to load map list: ${message}`, true);
       mapList = [];
     }
   }
 
   $: filteredMapList =
-    mapTypeSelection === 'all'
+    mapTypeSelection === "all"
       ? mapList
-      : mapList.filter((item) => item.type.toLowerCase() === mapTypeSelection.toLowerCase());
+      : mapList.filter(
+          (item) => item.type.toLowerCase() === mapTypeSelection.toLowerCase(),
+        );
 
   function isHttpUrl(value: string) {
     if (!value) return false;
     try {
       const url = new URL(value);
-      return url.protocol === 'http:' || url.protocol === 'https:';
+      return url.protocol === "http:" || url.protocol === "https:";
     } catch {
       return false;
     }
@@ -854,7 +956,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   async function resolveAnnotations(source: string, signal: AbortSignal) {
     if (isHttpUrl(source)) {
       const response = await fetch(source, { signal });
-      if (!response.ok) throw new Error(`IIIF resource not accessible (HTTP ${response.status})`);
+      if (!response.ok)
+        throw new Error(
+          `IIIF resource not accessible (HTTP ${response.status})`,
+        );
       const iiifJson = await response.json();
       if (signal.aborted) return { annotations: [], cacheKey: source };
       let parsed;
@@ -868,7 +973,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       try {
         annotations = await fetchAnnotationsFromApi(parsed);
       } catch (error) {
-        lookupError = error instanceof Error ? error : new Error('Unknown Allmaps API error.');
+        lookupError =
+          error instanceof Error
+            ? error
+            : new Error("Unknown Allmaps API error.");
       }
       if (!annotations.length) {
         try {
@@ -878,34 +986,48 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
             const fallbackJson = await fallbackResponse.json();
             if (Array.isArray(fallbackJson)) {
               annotations = fallbackJson;
-            } else if (fallbackJson && Array.isArray(fallbackJson.annotations)) {
+            } else if (
+              fallbackJson &&
+              Array.isArray(fallbackJson.annotations)
+            ) {
               annotations = fallbackJson.annotations;
             }
           } else {
             const text = await fallbackResponse.text();
-            lookupError ??= new Error(`Fallback lookup failed (HTTP ${fallbackResponse.status}): ${text || 'No body'}`);
+            lookupError ??= new Error(
+              `Fallback lookup failed (HTTP ${fallbackResponse.status}): ${text || "No body"}`,
+            );
           }
         } catch (error) {
           if (!lookupError) {
-            lookupError = error instanceof Error ? error : new Error('Unknown fallback lookup error.');
+            lookupError =
+              error instanceof Error
+                ? error
+                : new Error("Unknown fallback lookup error.");
           }
         }
       }
       if (!annotations.length) {
-        const details = lookupError ? ` ${lookupError.message}` : '';
-        throw new Error(`No Allmaps annotations found for that IIIF resource.${details ? ` ${details}` : ''}`);
+        const details = lookupError ? ` ${lookupError.message}` : "";
+        throw new Error(
+          `No Allmaps annotations found for that IIIF resource.${details ? ` ${details}` : ""}`,
+        );
       }
       return { annotations, cacheKey: source };
     } else {
       const annotationUrl = `https://annotations.allmaps.org/images/${source}`;
       const response = await fetch(annotationUrl, { signal });
-      if (!response.ok) throw new Error(`Annotation not found (HTTP ${response.status})`);
+      if (!response.ok)
+        throw new Error(`Annotation not found (HTTP ${response.status})`);
       const annotation = await response.json();
       return { annotations: [annotation], cacheKey: source };
     }
   }
 
-  async function addAnnotationsToLayer(annotations: unknown[], signal: AbortSignal) {
+  async function addAnnotationsToLayer(
+    annotations: unknown[],
+    signal: AbortSignal,
+  ) {
     if (!warpedLayer) return [];
     const collectedIds: string[] = [];
     for (const annotation of annotations) {
@@ -950,7 +1072,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     }
 
     setLoading(true);
-    setStatus('Loading map…');
+    setStatus("Loading map…");
 
     try {
       let mapIds: string[] = [];
@@ -962,14 +1084,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         if (signal.aborted) return;
         mapIds = await addAnnotationsToLayer(annotations, signal);
         if (!mapIds.length) {
-          throw new Error('Map could not be added to the viewer.');
+          throw new Error("Map could not be added to the viewer.");
         }
         mapCache[cacheKey] = { mapIds };
       }
 
       const primaryMapId = mapIds[0];
 
-      if (!primaryMapId) throw new Error('Could not determine map identifier.');
+      if (!primaryMapId) throw new Error("Could not determine map identifier.");
 
       currentMapId = primaryMapId;
       loadedOverlayId = cacheKey;
@@ -982,12 +1104,12 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         /* no-op */
       }
 
-      setStatus('Map loaded. Tiles may take a moment to appear.');
+      setStatus("Map loaded. Tiles may take a moment to appear.");
       refreshDecorations();
       queueSaveState();
     } catch (error) {
-      if ((error as Error).name === 'AbortError') return;
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      if ((error as Error).name === "AbortError") return;
+      const message = error instanceof Error ? error.message : "Unknown error";
       setStatus(`Failed to load map: ${message}`, true);
     } finally {
       if (!signal.aborted) {
@@ -998,7 +1120,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   async function selectMapById(mapId: string) {
-    const value = mapId?.trim() ?? '';
+    const value = mapId?.trim() ?? "";
     selectedMapId = value;
     if (value) {
       await loadOverlaySource(value);
@@ -1026,19 +1148,19 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     queueSaveState();
   }
 
-  function chooseAppMode(mode: 'explore' | 'create') {
+  function chooseAppMode(mode: "explore" | "create") {
     if (isMobile) {
-      mode = 'explore';
+      mode = "explore";
     }
     appMode = mode;
-    viewerPanelOpen = mode === 'create' ? viewerPanelOpen : false;
-    if (mode === 'explore') {
+    viewerPanelOpen = mode === "create" ? viewerPanelOpen : false;
+    if (mode === "explore") {
       deactivateDrawing();
       storyEditingIndex = null;
       stopStoryPresentation();
     } else {
       drawMenuOpen = false;
-      creatorRightPane = 'annotations';
+      creatorRightPane = "annotations";
     }
     showWelcome = false;
     scheduleMapResize();
@@ -1051,7 +1173,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   function toggleAppMode() {
-    const next = appMode === 'explore' ? 'create' : 'explore';
+    const next = appMode === "explore" ? "create" : "explore";
     chooseAppMode(next);
   }
 
@@ -1068,15 +1190,22 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   function panelColumnSize(collapsed: boolean): string {
-    if (collapsed) return '0px';
-    if (isCreatorNarrow) return 'minmax(200px, 0.24fr)';
-    if (isCreatorCompact) return 'minmax(220px, 0.25fr)';
-    return 'minmax(260px, 0.25fr)';
+    if (collapsed) return "0px";
+    if (isCreatorNarrow) return "minmax(200px, 0.24fr)";
+    if (isCreatorCompact) return "minmax(220px, 0.25fr)";
+    return "minmax(260px, 0.25fr)";
   }
 
-  function mapColumnFraction(leftCollapsed: boolean, rightCollapsed: boolean): string {
+  function mapColumnFraction(
+    leftCollapsed: boolean,
+    rightCollapsed: boolean,
+  ): string {
     const bothCollapsed = 1;
-    const singleCollapsed = isCreatorNarrow ? 0.82 : isCreatorCompact ? 0.78 : 0.75;
+    const singleCollapsed = isCreatorNarrow
+      ? 0.82
+      : isCreatorCompact
+        ? 0.78
+        : 0.75;
     const bothOpen = isCreatorNarrow ? 0.56 : isCreatorCompact ? 0.53 : 0.5;
     if (leftCollapsed && rightCollapsed) return bothCollapsed.toString();
     if (leftCollapsed || rightCollapsed) return singleCollapsed.toString();
@@ -1087,7 +1216,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     clearSavedState();
   }
 
-  function handleViewerTabClick(section: 'map' | 'control' | 'story' | 'info') {
+  function handleViewerTabClick(section: "map" | "control" | "story" | "info") {
     if (activeViewerSection === section) {
       viewerPanelOpen = !viewerPanelOpen;
     } else {
@@ -1109,19 +1238,19 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const drawType = DRAW_TYPE_MAP[drawingMode];
     const draw = new Draw({
       source: annotationSource,
-      type: drawType
+      type: drawType,
     });
-    draw.on('drawstart', () => {
+    draw.on("drawstart", () => {
       selectInteraction?.getFeatures().clear();
     });
-    draw.on('drawend', (event) => {
+    draw.on("drawend", (event) => {
       const feature = event.feature as Feature<Geometry>;
       ensureAnnotationDefaults(feature);
       annotationState.setSelected(String(feature.getId()));
       updateAnnotationSummaries();
       recordAnnotationAdd(feature);
       queueSaveState();
-      setAnnotationsNotice('Annotation added.', 'success');
+      setAnnotationsNotice("Annotation added.", "success");
     });
     drawInteraction = draw;
     map.addInteraction(draw);
@@ -1158,10 +1287,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   function updateAnnotationLabel(id: string, label: string) {
     const feature = getAnnotationFeature(id);
     if (!feature) return;
-    const previous = feature.get('label') ?? '';
+    const previous = feature.get("label") ?? "";
     if (previous === label) return;
-    feature.set('label', label);
-    recordAnnotationFieldChange(feature, 'label', previous, label);
+    feature.set("label", label);
+    recordAnnotationFieldChange(feature, "label", previous, label);
     updateAnnotationSummaries();
     queueSaveState();
   }
@@ -1169,10 +1298,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   function updateAnnotationDetails(id: string, details: string) {
     const feature = getAnnotationFeature(id);
     if (!feature) return;
-    const previous = feature.get('details') ?? '';
+    const previous = feature.get("details") ?? "";
     if (previous === details) return;
-    feature.set('details', details);
-    recordAnnotationFieldChange(feature, 'details', previous, details);
+    feature.set("details", details);
+    recordAnnotationFieldChange(feature, "details", previous, details);
     updateAnnotationSummaries();
     queueSaveState();
   }
@@ -1180,10 +1309,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   function updateAnnotationColor(id: string, color: string) {
     const feature = getAnnotationFeature(id);
     if (!feature) return;
-    const previous = feature.get('color') ?? '';
+    const previous = feature.get("color") ?? "";
     if (previous === color) return;
-    feature.set('color', color);
-    recordAnnotationFieldChange(feature, 'color', previous, color);
+    feature.set("color", color);
+    recordAnnotationFieldChange(feature, "color", previous, color);
     updateAnnotationSummaries();
     queueSaveState();
   }
@@ -1191,9 +1320,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   function toggleAnnotationVisibility(id: string) {
     const feature = getAnnotationFeature(id);
     if (!feature) return;
-    const hidden = Boolean(feature.get('hidden'));
-    feature.set('hidden', !hidden);
-    recordAnnotationFieldChange(feature, 'hidden', hidden, !hidden);
+    const hidden = Boolean(feature.get("hidden"));
+    feature.set("hidden", !hidden);
+    recordAnnotationFieldChange(feature, "hidden", hidden, !hidden);
     updateAnnotationSummaries();
     queueSaveState();
   }
@@ -1203,15 +1332,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const feature = getAnnotationFeature(id);
     const geometry = feature?.getGeometry();
     if (!geometry) return;
-    if (geometry.getType() === 'Point') {
+    if (geometry.getType() === "Point") {
       const coords = (geometry as Point).getCoordinates() as [number, number];
       map.getView().animate({
         center: coords,
         zoom: Math.max(map.getView().getZoom() ?? 16, 17),
-        duration: 350
+        duration: 350,
       });
     } else {
-      map.getView().fit(geometry.getExtent(), { padding: [80, 80, 80, 80], duration: 400, maxZoom: 18 });
+      map
+        .getView()
+        .fit(geometry.getExtent(), {
+          padding: [80, 80, 80, 80],
+          duration: 400,
+          maxZoom: 18,
+        });
     }
   }
 
@@ -1232,7 +1367,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     annotationSource.clear();
     annotationState.reset();
     queueSaveState();
-    setAnnotationsNotice('All annotations cleared.', 'info');
+    setAnnotationsNotice("All annotations cleared.", "info");
   }
 
   function clearOverlay() {
@@ -1245,13 +1380,18 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     }
     currentMapId = null;
     loadedOverlayId = null;
-    selectedMapId = '';
+    selectedMapId = "";
   }
 
-  async function applyStoryScene(scene: StoryScene, options: { animate?: boolean } = {}) {
+  async function applyStoryScene(
+    scene: StoryScene,
+    options: { animate?: boolean } = {},
+  ) {
     const animate = options.animate ?? true;
     const nextBasemap =
-      scene.basemap && BASEMAP_DEFS.some((item) => item.key === scene.basemap) ? scene.basemap : basemapSelection;
+      scene.basemap && BASEMAP_DEFS.some((item) => item.key === scene.basemap)
+        ? scene.basemap
+        : basemapSelection;
     if (nextBasemap !== basemapSelection) {
       basemapSelection = nextBasemap;
     }
@@ -1281,21 +1421,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       }
     }
 
-    setViewMode(scene.viewMode ?? 'overlay');
+    setViewMode(scene.viewMode ?? "overlay");
     sideRatio = scene.sideRatio ?? 0.5;
     lensRadius = scene.lensRadius ?? 150;
     refreshDecorations();
 
     const view = map?.getView();
     if (view) {
-      const rotation = scene.viewMode === 'overlay' ? scene.rotation ?? 0 : 0;
+      const rotation = scene.viewMode === "overlay" ? (scene.rotation ?? 0) : 0;
       if (animate) {
         view.animate({
           center: scene.center,
           zoom: scene.zoom,
           rotation,
           duration: 900,
-          easing: inAndOut
+          easing: inAndOut,
         });
       } else {
         view.setCenter(scene.center);
@@ -1307,8 +1447,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     if (annotationSource) {
       const visibleIds = new Set(scene.visibleAnnotations ?? []);
       annotationSource.getFeatures().forEach((feature) => {
-        const id = String(feature.getId() ?? '');
-        feature.set('hidden', !visibleIds.has(id));
+        const id = String(feature.getId() ?? "");
+        feature.set("hidden", !visibleIds.has(id));
       });
       updateAnnotationSummaries();
     }
@@ -1329,7 +1469,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   function findNextVisibleStoryIndex(currentIndex: number, direction: 1 | -1) {
     if (!storyScenes.length) return null;
     for (let step = 1; step <= storyScenes.length; step += 1) {
-      const index = (currentIndex + direction * step + storyScenes.length) % storyScenes.length;
+      const index =
+        (currentIndex + direction * step + storyScenes.length) %
+        storyScenes.length;
       if (!storyScenes[index].hidden) {
         return index;
       }
@@ -1337,7 +1479,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     return null;
   }
 
-  async function goToStoryScene(index: number, options: { animate?: boolean } = {}) {
+  async function goToStoryScene(
+    index: number,
+    options: { animate?: boolean } = {},
+  ) {
     const scene = storyScenes[index];
     if (!scene) return;
     storyActiveSceneIndex = index;
@@ -1350,7 +1495,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   async function startStoryPresentation(startIndex = 0) {
     const targetIndex = findFirstVisibleStoryIndex(startIndex);
     if (targetIndex === null) {
-      setStatus('Nothing to present — capture or show a scene first.', false);
+      setStatus("Nothing to present — capture or show a scene first.", false);
       return;
     }
     storyPresenting = true;
@@ -1376,7 +1521,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const scene = storyScenes[storyActiveSceneIndex];
     const delayMs = clampStoryDelay(scene?.delay ?? STORY_DEFAULT_DELAY) * 1000;
     storyAutoplayTimer = window.setTimeout(() => {
-      goToStoryScene(nextIndex).catch((error) => console.error('Failed to advance story scene', error));
+      goToStoryScene(nextIndex).catch((error) =>
+        console.error("Failed to advance story scene", error),
+      );
     }, delayMs);
   }
 
@@ -1403,15 +1550,30 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     }
   }
 
-  function handleStoryCapture(event: CustomEvent<{ title: string; details: string; delay: number; annotations: string[] }>) {
+  function handleStoryCapture(
+    event: CustomEvent<{
+      title: string;
+      details: string;
+      delay: number;
+      annotations: string[];
+    }>,
+  ) {
     if (!map) return;
     const view = map.getView();
     const center = (view.getCenter() as [number, number]) ?? INITIAL_CENTER;
     const zoom = view.getZoom() ?? 14;
     const rotation = view.getRotation() ?? 0;
-    const { title: rawTitle, details, delay: rawDelay, annotations: selectedAnnotations } = event.detail;
+    const {
+      title: rawTitle,
+      details,
+      delay: rawDelay,
+      annotations: selectedAnnotations,
+    } = event.detail;
     const scene: StoryScene = {
-      id: storyEditingIndex !== null ? storyScenes[storyEditingIndex]?.id ?? createSceneId() : createSceneId(),
+      id:
+        storyEditingIndex !== null
+          ? (storyScenes[storyEditingIndex]?.id ?? createSceneId())
+          : createSceneId(),
       title: rawTitle.trim() || `Scene ${storyScenes.length + 1}`,
       details,
       delay: clampStoryDelay(rawDelay),
@@ -1424,16 +1586,27 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       viewMode,
       sideRatio,
       lensRadius,
-      visibleAnnotations: selectedAnnotations.length ? selectedAnnotations : defaultAnnotationIds(),
-      hidden: storyEditingIndex !== null ? storyScenes[storyEditingIndex]?.hidden ?? false : false
+      visibleAnnotations: selectedAnnotations.length
+        ? selectedAnnotations
+        : defaultAnnotationIds(),
+      hidden:
+        storyEditingIndex !== null
+          ? (storyScenes[storyEditingIndex]?.hidden ?? false)
+          : false,
     };
-    if (storyEditingIndex !== null && storyEditingIndex >= 0 && storyEditingIndex < storyScenes.length) {
-      storyScenes = storyScenes.map((existing, index) => (index === storyEditingIndex ? scene : existing));
+    if (
+      storyEditingIndex !== null &&
+      storyEditingIndex >= 0 &&
+      storyEditingIndex < storyScenes.length
+    ) {
+      storyScenes = storyScenes.map((existing, index) =>
+        index === storyEditingIndex ? scene : existing,
+      );
       storyEditingIndex = null;
-      setAnnotationsNotice('Scene updated.', 'success');
+      setAnnotationsNotice("Scene updated.", "success");
     } else {
       storyScenes = [...storyScenes, scene];
-      setAnnotationsNotice('Scene captured.', 'success');
+      setAnnotationsNotice("Scene captured.", "success");
     }
     queueSaveState();
   }
@@ -1462,13 +1635,13 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const copy: StoryScene = {
       ...scene,
       id: createSceneId(),
-      title: `${scene.title} (Copy)`
+      title: `${scene.title} (Copy)`,
     };
     const updated = [...storyScenes];
     updated.splice(index + 1, 0, copy);
     storyScenes = updated;
     queueSaveState();
-    setAnnotationsNotice('Scene duplicated.', 'success');
+    setAnnotationsNotice("Scene duplicated.", "success");
   }
 
   function handleStoryToggleHidden(event: CustomEvent<{ index: number }>) {
@@ -1476,7 +1649,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     const scene = storyScenes[index];
     if (!scene) return;
     storyScenes = storyScenes.map((existing, idx) =>
-      idx === index ? { ...existing, hidden: !existing.hidden } : existing
+      idx === index ? { ...existing, hidden: !existing.hidden } : existing,
     );
     if (storyPresenting) {
       const current = storyScenes[index];
@@ -1486,7 +1659,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
           stopStoryPresentation();
         } else {
           goToStoryScene(nextIndex, { animate: false }).catch((error) =>
-            console.error('Failed to advance story scene', error)
+            console.error("Failed to advance story scene", error),
           );
         }
       }
@@ -1514,7 +1687,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       } else {
         storyActiveSceneIndex = visibleIndex;
         goToStoryScene(visibleIndex, { animate: false }).catch((error) =>
-          console.error('Failed to advance story scene', error)
+          console.error("Failed to advance story scene", error),
         );
       }
     }
@@ -1523,7 +1696,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   function handleStoryMove(event: CustomEvent<{ from: number; to: number }>) {
     const { from, to } = event.detail;
-    if (from === to || from < 0 || to < 0 || from >= storyScenes.length || to >= storyScenes.length) return;
+    if (
+      from === to ||
+      from < 0 ||
+      to < 0 ||
+      from >= storyScenes.length ||
+      to >= storyScenes.length
+    )
+      return;
     const updated = [...storyScenes];
     const [moved] = updated.splice(from, 1);
     updated.splice(to, 0, moved);
@@ -1554,11 +1734,15 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   function duplicateStoryScene(index: number) {
-    handleStoryDuplicate({ detail: { index } } as CustomEvent<{ index: number }>);
+    handleStoryDuplicate({ detail: { index } } as CustomEvent<{
+      index: number;
+    }>);
   }
 
   function toggleStorySceneVisibility(index: number) {
-    handleStoryToggleHidden({ detail: { index } } as CustomEvent<{ index: number }>);
+    handleStoryToggleHidden({ detail: { index } } as CustomEvent<{
+      index: number;
+    }>);
   }
 
   function deleteStoryScene(index: number) {
@@ -1568,22 +1752,28 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   function openCaptureModal(options: { editIndex?: number } = {}) {
     const { editIndex } = options;
     const defaultSelection = defaultAnnotationIds();
-    if (typeof editIndex === 'number' && editIndex >= 0 && editIndex < storyScenes.length) {
+    if (
+      typeof editIndex === "number" &&
+      editIndex >= 0 &&
+      editIndex < storyScenes.length
+    ) {
       const scene = storyScenes[editIndex];
       storyEditingIndex = editIndex;
       captureForm = {
         title: scene.title,
         details: scene.details,
         delay: clampStoryDelay(scene.delay),
-        annotations: scene.visibleAnnotations.length ? [...scene.visibleAnnotations] : defaultSelection
+        annotations: scene.visibleAnnotations.length
+          ? [...scene.visibleAnnotations]
+          : defaultSelection,
       };
     } else {
       storyEditingIndex = null;
       captureForm = {
-        title: '',
-        details: '',
+        title: "",
+        details: "",
         delay: STORY_DEFAULT_DELAY,
-        annotations: defaultSelection
+        annotations: defaultSelection,
       };
     }
     captureModalOpen = true;
@@ -1594,10 +1784,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     drawMenuOpen = false;
     storyEditingIndex = null;
     captureForm = {
-      title: '',
-      details: '',
+      title: "",
+      details: "",
       delay: STORY_DEFAULT_DELAY,
-      annotations: defaultAnnotationIds()
+      annotations: defaultAnnotationIds(),
     };
   }
 
@@ -1607,7 +1797,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       ...captureForm,
       annotations: exists
         ? captureForm.annotations.filter((value) => value !== id)
-        : [...captureForm.annotations, id]
+        : [...captureForm.annotations, id],
     };
   }
 
@@ -1618,77 +1808,82 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         title: captureForm.title,
         details: captureForm.details,
         delay,
-        annotations: captureForm.annotations
-      }
-    } as CustomEvent<{ title: string; details: string; delay: number; annotations: string[] }>);
+        annotations: captureForm.annotations,
+      },
+    } as CustomEvent<{
+      title: string;
+      details: string;
+      delay: number;
+      annotations: string[];
+    }>);
     captureModalOpen = false;
     captureForm = {
-      title: '',
-      details: '',
+      title: "",
+      details: "",
       delay: STORY_DEFAULT_DELAY,
-      annotations: defaultAnnotationIds()
+      annotations: defaultAnnotationIds(),
     };
   }
 
   function buildShareUrl(): string {
-    if (typeof window === 'undefined') return '';
+    if (typeof window === "undefined") return "";
     const url = new URL(window.location.href);
     const shareMapId = loadedOverlayId ?? selectedMapId;
     if (shareMapId) {
-      url.searchParams.set('map', shareMapId);
+      url.searchParams.set("map", shareMapId);
     } else {
-      url.searchParams.delete('map');
+      url.searchParams.delete("map");
     }
-    url.searchParams.set('view', viewMode);
-    url.searchParams.set('basemap', basemapSelection);
+    url.searchParams.set("view", viewMode);
+    url.searchParams.set("basemap", basemapSelection);
     const view = map?.getView();
     if (view) {
       const center = view.getCenter();
       if (center) {
         const [lon, lat] = toLonLat(center);
-        url.searchParams.set('lat', lat.toFixed(6));
-        url.searchParams.set('lon', lon.toFixed(6));
+        url.searchParams.set("lat", lat.toFixed(6));
+        url.searchParams.set("lon", lon.toFixed(6));
       } else {
-        url.searchParams.delete('lat');
-        url.searchParams.delete('lon');
+        url.searchParams.delete("lat");
+        url.searchParams.delete("lon");
       }
       const zoom = view.getZoom();
-      if (typeof zoom === 'number' && Number.isFinite(zoom)) {
-        url.searchParams.set('zoom', zoom.toFixed(2));
+      if (typeof zoom === "number" && Number.isFinite(zoom)) {
+        url.searchParams.set("zoom", zoom.toFixed(2));
       } else {
-        url.searchParams.delete('zoom');
+        url.searchParams.delete("zoom");
       }
       const rotation = view.getRotation() ?? 0;
       if (Math.abs(rotation) > 0.0001) {
-        url.searchParams.set('rotation', rotation.toFixed(3));
+        url.searchParams.set("rotation", rotation.toFixed(3));
       } else {
-        url.searchParams.delete('rotation');
+        url.searchParams.delete("rotation");
       }
     } else {
-      url.searchParams.delete('lat');
-      url.searchParams.delete('lon');
-      url.searchParams.delete('zoom');
-      url.searchParams.delete('rotation');
+      url.searchParams.delete("lat");
+      url.searchParams.delete("lon");
+      url.searchParams.delete("zoom");
+      url.searchParams.delete("rotation");
     }
     return url.toString();
   }
 
-    async function copyShareLink() {
-    console.log('copyShareLink called');
-    if (typeof window === 'undefined') return;
+  async function copyShareLink() {
+    console.log("copyShareLink called");
+    if (typeof window === "undefined") return;
     const url = buildShareUrl() || window.location.href;
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
       } else {
-        const element = document.createElement('textarea');
+        const element = document.createElement("textarea");
         element.value = url;
-        element.setAttribute('readonly', 'true');
-        element.style.position = 'absolute';
-        element.style.left = '-9999px';
+        element.setAttribute("readonly", "true");
+        element.style.position = "absolute";
+        element.style.left = "-9999px";
         document.body.appendChild(element);
         element.select();
-        document.execCommand('copy');
+        document.execCommand("copy");
         document.body.removeChild(element);
       }
       shareCopied = true;
@@ -1699,7 +1894,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         shareCopied = false;
       }, 2000);
     } catch (error) {
-      console.warn('Failed to copy link', error);
+      console.warn("Failed to copy link", error);
       shareCopied = false;
     }
   }
@@ -1708,20 +1903,26 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     if (!params.size) return false;
     let applied = false;
 
-    const basemapParam = params.get('basemap');
-    if (basemapParam && BASEMAP_DEFS.some((item) => item.key === basemapParam)) {
+    const basemapParam = params.get("basemap");
+    if (
+      basemapParam &&
+      BASEMAP_DEFS.some((item) => item.key === basemapParam)
+    ) {
       basemapSelection = basemapParam;
       applyBasemap(basemapParam);
       applied = true;
     }
 
-    const viewParam = params.get('view');
-    if (viewParam && ['overlay', 'side-x', 'side-y', 'spy'].includes(viewParam)) {
+    const viewParam = params.get("view");
+    if (
+      viewParam &&
+      ["overlay", "side-x", "side-y", "spy"].includes(viewParam)
+    ) {
       setViewMode(viewParam as ViewMode);
       applied = true;
     }
 
-    const overlayParam = params.get('map');
+    const overlayParam = params.get("map");
     if (overlayParam && mapList.some((item) => item.id === overlayParam)) {
       selectedMapId = overlayParam;
       await loadOverlaySource(overlayParam);
@@ -1730,10 +1931,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
     const view = map?.getView();
     if (view) {
-      const latParam = params.get('lat');
-      const lonParam = params.get('lon');
-      const zoomParam = params.get('zoom');
-      const rotationParam = params.get('rotation');
+      const latParam = params.get("lat");
+      const lonParam = params.get("lon");
+      const zoomParam = params.get("zoom");
+      const rotationParam = params.get("rotation");
 
       const lat = latParam ? Number(latParam) : NaN;
       const lon = lonParam ? Number(lonParam) : NaN;
@@ -1764,7 +1965,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   function handleStoryPresent(event: CustomEvent<{ startIndex?: number }>) {
     const { startIndex = 0 } = event.detail;
-    startStoryPresentation(startIndex).catch((error) => console.error('Failed to start presentation', error));
+    startStoryPresentation(startIndex).catch((error) =>
+      console.error("Failed to start presentation", error),
+    );
   }
 
   function handleStoryExport() {
@@ -1774,16 +1977,18 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       scenes: storyScenes,
       features: features.length
         ? geoJsonFormat.writeFeaturesObject(features, {
-            featureProjection: 'EPSG:3857',
-            dataProjection: 'EPSG:4326'
+            featureProjection: "EPSG:3857",
+            dataProjection: "EPSG:4326",
           })
-        : null
+        : null,
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
-    const element = document.createElement('a');
+    const element = document.createElement("a");
     element.href = url;
-    element.download = `story-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    element.download = `story-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
     element.click();
     URL.revokeObjectURL(url);
   }
@@ -1793,68 +1998,86 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     if (!file) return;
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text) as { scenes?: Partial<StoryScene>[]; features?: unknown };
+      const parsed = JSON.parse(text) as {
+        scenes?: Partial<StoryScene>[];
+        features?: unknown;
+      };
       if (!parsed || !Array.isArray(parsed.scenes)) {
-        setAnnotationsNotice('Invalid story file.', 'error');
+        setAnnotationsNotice("Invalid story file.", "error");
         return;
       }
 
       if (annotationSource && parsed.features) {
         try {
-          const features = geoJsonFormat.readFeatures(parsed.features as GeoJsonObject, {
-            dataProjection: 'EPSG:4326',
-            featureProjection: 'EPSG:3857'
-          }) as Feature<Geometry>[];
+          const features = geoJsonFormat.readFeatures(
+            parsed.features as GeoJsonObject,
+            {
+              dataProjection: "EPSG:4326",
+              featureProjection: "EPSG:3857",
+            },
+          ) as Feature<Geometry>[];
           annotationSource.clear();
           features.forEach((feature) => ensureAnnotationDefaults(feature));
           annotationSource.addFeatures(features);
           updateAnnotationSummaries();
         } catch (error) {
-          console.warn('Unable to load story features', error);
-          setAnnotationsNotice('Story loaded without annotations.', 'info');
+          console.warn("Unable to load story features", error);
+          setAnnotationsNotice("Story loaded without annotations.", "info");
         }
       }
 
-      storyScenes = parsed.scenes.map((scene, index) => normalizeStoryScene(scene, index));
+      storyScenes = parsed.scenes.map((scene, index) =>
+        normalizeStoryScene(scene, index),
+      );
       storyEditingIndex = null;
       stopStoryPresentation();
       queueSaveState();
-      setAnnotationsNotice('Story loaded.', 'success');
+      setAnnotationsNotice("Story loaded.", "success");
     } catch (error) {
-      console.error('Failed to load story file', error);
-      setAnnotationsNotice('Failed to load story file.', 'error');
+      console.error("Failed to load story file", error);
+      setAnnotationsNotice("Failed to load story file.", "error");
     }
   }
 
   function clearSearchResults() {
     searchResults = [];
     searchNotice = null;
-    searchNoticeType = 'info';
+    searchNoticeType = "info";
     searchLoading = false;
   }
 
-  function featureFromSearchResult(result: SearchResult): Feature<Geometry> | null {
+  function featureFromSearchResult(
+    result: SearchResult,
+  ): Feature<Geometry> | null {
     try {
       if (result.geojson) {
         const feature = geoJsonFormat.readFeature(
           {
-            type: 'Feature',
+            type: "Feature",
             geometry: result.geojson as GeoJsonGeometry,
-            properties: {}
+            properties: {},
           } as GeoJsonFeature,
-          { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }
+          { dataProjection: "EPSG:4326", featureProjection: "EPSG:3857" },
         ) as Feature<Geometry>;
-        feature.set('label', result.display_name ?? result.type ?? 'Search result');
+        feature.set(
+          "label",
+          result.display_name ?? result.type ?? "Search result",
+        );
         return feature;
       }
       if (result.lon && result.lat) {
-        const point = new Point(fromLonLat([Number(result.lon), Number(result.lat)]));
+        const point = new Point(
+          fromLonLat([Number(result.lon), Number(result.lat)]),
+        );
         const feature = new Feature({ geometry: point });
-        feature.set('label', result.display_name ?? result.type ?? 'Search result');
+        feature.set(
+          "label",
+          result.display_name ?? result.type ?? "Search result",
+        );
         return feature;
       }
     } catch (error) {
-      console.warn('Unable to create feature from search result', error);
+      console.warn("Unable to create feature from search result", error);
     }
     return null;
   }
@@ -1873,35 +2096,38 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     searchAbortController = new AbortController();
     searchLoading = true;
     searchNotice = null;
-    searchNoticeType = 'info';
+    searchNoticeType = "info";
     try {
       const params = new URLSearchParams({
-        format: 'jsonv2',
+        format: "jsonv2",
         q: trimmed,
-        addressdetails: '1',
-        polygon_geojson: '1',
-        limit: '10'
+        addressdetails: "1",
+        polygon_geojson: "1",
+        limit: "10",
       });
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-        signal: searchAbortController.signal,
-        headers: {
-          Accept: 'application/json'
-        }
-      });
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+        {
+          signal: searchAbortController.signal,
+          headers: {
+            Accept: "application/json",
+          },
+        },
+      );
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       const data = (await response.json()) as SearchResult[];
       searchResults = data;
       if (!data.length) {
-        searchNotice = 'No results found.';
-        searchNoticeType = 'info';
+        searchNotice = "No results found.";
+        searchNoticeType = "info";
       }
     } catch (error) {
-      if ((error as Error).name === 'AbortError') return;
-      searchNotice = 'Search failed. Please try again.';
-      searchNoticeType = 'error';
-      console.error('Search error:', error);
+      if ((error as Error).name === "AbortError") return;
+      searchNotice = "Search failed. Please try again.";
+      searchNoticeType = "error";
+      console.error("Search error:", error);
       searchResults = [];
     } finally {
       searchLoading = false;
@@ -1925,15 +2151,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     searchSource.addFeature(feature);
     const geometry = feature.getGeometry();
     if (!geometry) return;
-    if (geometry.getType() === 'Point') {
+    if (geometry.getType() === "Point") {
       const coords = (geometry as Point).getCoordinates() as [number, number];
       map.getView().animate({
         center: coords,
         zoom: Math.max(map.getView().getZoom() ?? 12, 16),
-        duration: 400
+        duration: 400,
       });
     } else {
-      map.getView().fit(geometry.getExtent(), { padding: [80, 80, 80, 80], duration: 400, maxZoom: 18 });
+      map
+        .getView()
+        .fit(geometry.getExtent(), {
+          padding: [80, 80, 80, 80],
+          duration: 400,
+          maxZoom: 18,
+        });
     }
   }
 
@@ -1948,60 +2180,64 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     updateAnnotationSummaries();
     queueSaveState();
     clearSearchResults();
-    searchNotice = 'Feature added to annotations.';
-    searchNoticeType = 'success';
+    searchNotice = "Feature added to annotations.";
+    searchNoticeType = "success";
     searchSource?.clear();
-    searchQuery = '';
-    setAnnotationsNotice('Annotation added from search.', 'success');
+    searchQuery = "";
+    setAnnotationsNotice("Annotation added from search.", "success");
   }
 
   function clearSearch() {
-    searchQuery = '';
+    searchQuery = "";
     clearSearchResults();
     searchSource?.clear();
     searchAbortController?.abort();
     searchAbortController = null;
     searchNotice = null;
-    searchNoticeType = 'info';
+    searchNoticeType = "info";
   }
 
   function locateUser() {
     const currentMap = map;
     const currentSearchSource = searchSource;
     if (!currentMap || !currentSearchSource) return;
-    if (!('geolocation' in navigator)) {
-      searchNotice = 'Geolocation is not available.';
-      searchNoticeType = 'error';
+    if (!("geolocation" in navigator)) {
+      searchNotice = "Geolocation is not available.";
+      searchNoticeType = "error";
       return;
     }
     searchLoading = true;
     searchNotice = null;
-    searchNoticeType = 'info';
+    searchNoticeType = "info";
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         const coords = fromLonLat([longitude, latitude]);
         currentSearchSource.clear();
         const feature = new Feature({ geometry: new Point(coords) });
-        feature.set('label', 'Current location');
+        feature.set("label", "Current location");
         currentSearchSource.addFeature(feature);
         const view = currentMap.getView();
-        view.animate({ center: coords, zoom: Math.max(view.getZoom() ?? 12, 16), duration: 450 });
+        view.animate({
+          center: coords,
+          zoom: Math.max(view.getZoom() ?? 12, 16),
+          duration: 450,
+        });
         searchLoading = false;
-        searchNotice = 'Centered on your location.';
-        searchNoticeType = 'success';
+        searchNotice = "Centered on your location.";
+        searchNoticeType = "success";
       },
       (error) => {
         searchLoading = false;
         searchNotice = `Could not get location: ${error.message}`;
-        searchNoticeType = 'error';
-      }
+        searchNoticeType = "error";
+      },
     );
   }
 
   function downloadBlob(content: Blob, filename: string) {
     const url = URL.createObjectURL(content);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = filename;
     link.click();
@@ -2012,23 +2248,26 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     if (!annotationSource) return;
     const features = annotationSource.getFeatures();
     if (!features.length) {
-      setAnnotationsNotice('Nothing to export — the annotation list is empty.', 'info');
+      setAnnotationsNotice(
+        "Nothing to export — the annotation list is empty.",
+        "info",
+      );
       return;
     }
     const collection = geoJsonFormat.writeFeaturesObject(features, {
-      featureProjection: 'EPSG:3857',
-      dataProjection: 'EPSG:4326'
+      featureProjection: "EPSG:3857",
+      dataProjection: "EPSG:4326",
     });
     const blob = new Blob([JSON.stringify(collection, null, 2)], {
-      type: 'application/geo+json;charset=utf-8;'
+      type: "application/geo+json;charset=utf-8;",
     });
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     downloadBlob(blob, `annotations-${stamp}.geojson`);
-    setAnnotationsNotice('GeoJSON downloaded.', 'success');
+    setAnnotationsNotice("GeoJSON downloaded.", "success");
   }
 
   function csvEscape(value: unknown) {
-    if (value == null) return '';
+    if (value == null) return "";
     const str = String(value);
     return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
   }
@@ -2038,18 +2277,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     try {
       const json = JSON.parse(text);
       const features = geoJsonFormat.readFeatures(json, {
-        dataProjection: 'EPSG:4326',
-        featureProjection: 'EPSG:3857'
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
       }) as Feature<Geometry>[];
       features.forEach((feature) => ensureAnnotationDefaults(feature));
       annotationSource.addFeatures(features);
       recordAnnotationBulkAdd(features);
       updateAnnotationSummaries();
-      setAnnotationsNotice(`Imported ${features.length} feature${features.length !== 1 ? 's' : ''}.`, 'success');
+      setAnnotationsNotice(
+        `Imported ${features.length} feature${features.length !== 1 ? "s" : ""}.`,
+        "success",
+      );
       queueSaveState();
     } catch (error) {
-      console.error('GeoJSON import failed', error);
-      setAnnotationsNotice('Failed to import GeoJSON file.', 'error');
+      console.error("GeoJSON import failed", error);
+      setAnnotationsNotice("Failed to import GeoJSON file.", "error");
     }
   }
 
@@ -2060,16 +2302,15 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     try {
       await importGeoJsonText(await file.text());
     } finally {
-      input.value = '';
+      input.value = "";
     }
   }
-
 
   onMount(() => {
     const basemapLayers = BASEMAP_DEFS.map((def) => def.layer());
     warpedLayer = new WarpedMapLayer();
     warpedLayer.setZIndex(10);
-    warpedLayer.setProperties({ name: 'allmaps-overlay' });
+    warpedLayer.setProperties({ name: "allmaps-overlay" });
     const warpedCompat = warpedLayer as unknown as {
       getDeclutter?: () => boolean;
       renderDeferred?: (...args: unknown[]) => boolean;
@@ -2083,30 +2324,34 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     annotationLayer = new VectorImageLayer({
       source: new VectorSource(),
       zIndex: 20,
-      properties: { name: 'annotations' },
-      declutter: true
+      properties: { name: "annotations" },
+      declutter: true,
     });
     annotationLayer.setStyle(createAnnotationStyle);
     annotationSource = annotationLayer.getSource() ?? new VectorSource();
     searchLayer = new VectorImageLayer({
       source: new VectorSource(),
       zIndex: 25,
-      properties: { name: 'search' },
-      style: (_feature) => searchResultStyle
+      properties: { name: "search" },
+      style: (_feature) => searchResultStyle,
     });
     searchSource = searchLayer.getSource() ?? new VectorSource();
 
-    const controls = defaultControls({ attribution: false, rotate: false, zoom: false }).extend([
+    const controls = defaultControls({
+      attribution: false,
+      rotate: false,
+      zoom: false,
+    }).extend([
       new Attribution({ collapsible: false }),
       new Rotate({ autoHide: false }),
       new Zoom(),
-      new ScaleLine()
+      new ScaleLine(),
     ]);
 
     const mapLayers: BaseLayer[] = [
       ...basemapLayers,
       annotationLayer as unknown as BaseLayer,
-      searchLayer as unknown as BaseLayer
+      searchLayer as unknown as BaseLayer,
     ];
 
     map = new Map({
@@ -2115,16 +2360,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       view: new View({
         center: INITIAL_CENTER,
         zoom: 14,
-        enableRotation: true
+        enableRotation: true,
       }),
-      controls
+      controls,
     });
     scheduleMapResize();
 
-    const warped = warpedLayer as unknown as { setMap?: (map: unknown) => void };
+    const warped = warpedLayer as unknown as {
+      setMap?: (map: unknown) => void;
+    };
     warped.setMap?.(map as unknown);
 
-    dragRotate = new DragRotate({ condition: (event) => event.originalEvent.ctrlKey || event.originalEvent.metaKey });
+    dragRotate = new DragRotate({
+      condition: (event) =>
+        event.originalEvent.ctrlKey || event.originalEvent.metaKey,
+    });
     pinchRotate = new PinchRotate();
     map.addInteraction(dragRotate);
     map.addInteraction(pinchRotate);
@@ -2132,16 +2382,19 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     if (annotationSource) {
       modifyInteraction = new Modify({ source: annotationSource });
       map.addInteraction(modifyInteraction);
-      modifyInteraction.on('modifystart', (event) => {
+      modifyInteraction.on("modifystart", (event) => {
         pendingGeometrySnapshots.clear();
         event.features.forEach((feature) => {
           const target = feature as Feature<Geometry>;
           const id = target.getId();
           if (!id) return;
-          pendingGeometrySnapshots.set(String(id), captureFeatureSnapshot(target));
+          pendingGeometrySnapshots.set(
+            String(id),
+            captureFeatureSnapshot(target),
+          );
         });
       });
-      modifyInteraction.on('modifyend', (event) => {
+      modifyInteraction.on("modifyend", (event) => {
         event.features.forEach((feature) => {
           const target = feature as Feature<Geometry>;
           const id = target.getId();
@@ -2162,99 +2415,103 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
       selectInteraction = new Select({
         condition: click,
-        layers: (layer) => layer === annotationLayer
+        layers: (layer) => layer === annotationLayer,
       });
       map.addInteraction(selectInteraction);
-      selectInteraction.on('select', (event) => {
+      selectInteraction.on("select", (event) => {
         const feature = event.selected[0] ?? null;
         annotationState.setSelected(feature ? String(feature.getId()) : null);
       });
 
       annotationListenerKeys = [
-        annotationSource.on('addfeature', () => {
+        annotationSource.on("addfeature", () => {
           updateAnnotationSummaries();
           queueSaveState();
         }),
-        annotationSource.on('removefeature', () => {
+        annotationSource.on("removefeature", () => {
           updateAnnotationSummaries();
           queueSaveState();
         }),
-        annotationSource.on('changefeature', () => {
+        annotationSource.on("changefeature", () => {
           updateAnnotationSummaries();
           queueSaveState();
         }),
-        annotationSource.on('clear', () => {
+        annotationSource.on("clear", () => {
           updateAnnotationSummaries();
           queueSaveState();
-        })
+        }),
       ];
     }
 
-    map.on('moveend', () => {
+    map.on("moveend", () => {
       refreshDecorations();
       queueSaveState();
     });
-    map.on('change:size', refreshDecorations);
+    map.on("change:size", refreshDecorations);
 
-    const mobileQuery = window.matchMedia('(max-width: 900px)');
-    const compactQuery = window.matchMedia('(max-width: 1400px)');
-    const narrowQuery = window.matchMedia('(max-width: 1180px)');
+    const mobileQuery = window.matchMedia("(max-width: 900px)");
+    const compactQuery = window.matchMedia("(max-width: 1400px)");
+    const narrowQuery = window.matchMedia("(max-width: 1180px)");
     const updateResponsiveFlags = () => {
       isMobile = mobileQuery.matches;
       if (isMobile) {
-        appMode = 'explore';
+        appMode = "explore";
         showWelcome = false;
       }
       isCreatorCompact = compactQuery.matches;
       isCreatorNarrow = narrowQuery.matches;
     };
     updateResponsiveFlags();
-    mobileQuery.addEventListener('change', updateResponsiveFlags);
-    compactQuery.addEventListener('change', updateResponsiveFlags);
-    narrowQuery.addEventListener('change', updateResponsiveFlags);
+    mobileQuery.addEventListener("change", updateResponsiveFlags);
+    compactQuery.addEventListener("change", updateResponsiveFlags);
+    narrowQuery.addEventListener("change", updateResponsiveFlags);
     responsiveCleanup = () => {
-      mobileQuery.removeEventListener('change', updateResponsiveFlags);
-      compactQuery.removeEventListener('change', updateResponsiveFlags);
-      narrowQuery.removeEventListener('change', updateResponsiveFlags);
+      mobileQuery.removeEventListener("change", updateResponsiveFlags);
+      compactQuery.removeEventListener("change", updateResponsiveFlags);
+      narrowQuery.removeEventListener("change", updateResponsiveFlags);
     };
 
     applyBasemap(basemapSelection);
     loadDataset()
       .then(() => loadAppState())
       .catch((error) => {
-        console.error('Failed to initialise dataset', error);
+        console.error("Failed to initialise dataset", error);
         stateLoaded = true;
       });
     scheduleMapResize();
 
-    window.addEventListener('pointermove', handlePointerDrag);
-    window.addEventListener('pointerup', stopPointerDrag);
-    window.addEventListener('pointercancel', stopPointerDrag);
-    window.addEventListener('resize', scheduleMapResize);
+    window.addEventListener("pointermove", handlePointerDrag);
+    window.addEventListener("pointerup", stopPointerDrag);
+    window.addEventListener("pointercancel", stopPointerDrag);
+    window.addEventListener("resize", scheduleMapResize);
 
     keydownHandler = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName))) {
+      if (
+        target &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA"].includes(target.tagName))
+      ) {
         return;
       }
       const meta = event.metaKey || event.ctrlKey;
       if (!meta) return;
       const shift = event.shiftKey;
       const key = event.key.toLowerCase();
-      if (key === 'z') {
+      if (key === "z") {
         event.preventDefault();
         if (shift) {
           redoLastAction();
         } else {
           undoLastAction();
         }
-      } else if (key === 'y') {
+      } else if (key === "y") {
         event.preventDefault();
         redoLastAction();
       }
     };
-    window.addEventListener('keydown', keydownHandler);
+    window.addEventListener("keydown", keydownHandler);
   });
 
   onDestroy(() => {
@@ -2262,12 +2519,12 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     searchAbortController?.abort();
     responsiveCleanup?.();
     responsiveCleanup = null;
-    window.removeEventListener('pointermove', handlePointerDrag);
-    window.removeEventListener('pointerup', stopPointerDrag);
-    window.removeEventListener('pointercancel', stopPointerDrag);
-    window.removeEventListener('resize', scheduleMapResize);
+    window.removeEventListener("pointermove", handlePointerDrag);
+    window.removeEventListener("pointerup", stopPointerDrag);
+    window.removeEventListener("pointercancel", stopPointerDrag);
+    window.removeEventListener("resize", scheduleMapResize);
     if (keydownHandler) {
-      window.removeEventListener('keydown', keydownHandler);
+      window.removeEventListener("keydown", keydownHandler);
       keydownHandler = null;
     }
     annotationListenerKeys.forEach((key) => unByKey(key));
@@ -2302,16 +2559,19 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   $: applyBasemap(basemapSelection);
   $: refreshDecorations();
   $: if (annotationLayer) {
-    annotationLayer.setVisible(appMode === 'create');
+    annotationLayer.setVisible(appMode === "create");
   }
 </script>
 
 <div class="viewer" class:mobile={isMobile} class:creator={true}>
-
   <div class="workspace" style={workspaceStyle}>
     {#if !isMobile}
       {#if creatorLeftCollapsed}
-        <button type="button" class="panel-toggle left" on:click={() => (creatorLeftCollapsed = false)}>
+        <button
+          type="button"
+          class="panel-toggle left"
+          on:click={() => (creatorLeftCollapsed = false)}
+        >
           Show tools
         </button>
       {/if}
@@ -2333,16 +2593,32 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
               <section class="panel-card-section">
                 <span class="section-title">View mode</span>
                 <div class="button-group wrap">
-                  <button type="button" class:selected={viewMode === 'overlay'} on:click={() => handleModeClick('overlay')}>
+                  <button
+                    type="button"
+                    class:selected={viewMode === "overlay"}
+                    on:click={() => handleModeClick("overlay")}
+                  >
                     Overlay
                   </button>
-                  <button type="button" class:selected={viewMode === 'side-x'} on:click={() => handleModeClick('side-x')}>
+                  <button
+                    type="button"
+                    class:selected={viewMode === "side-x"}
+                    on:click={() => handleModeClick("side-x")}
+                  >
                     Side-X
                   </button>
-                  <button type="button" class:selected={viewMode === 'side-y'} on:click={() => handleModeClick('side-y')}>
+                  <button
+                    type="button"
+                    class:selected={viewMode === "side-y"}
+                    on:click={() => handleModeClick("side-y")}
+                  >
                     Side-Y
                   </button>
-                  <button type="button" class:selected={viewMode === 'spy'} on:click={() => handleModeClick('spy')}>
+                  <button
+                    type="button"
+                    class:selected={viewMode === "spy"}
+                    on:click={() => handleModeClick("spy")}
+                  >
                     Glass
                   </button>
                 </div>
@@ -2350,7 +2626,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
               <section class="panel-card-section">
                 <span class="section-title">Overlay opacity</span>
                 <div class="slider">
-                  <input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleOpacityInput} />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    bind:value={opacity}
+                    on:input={handleOpacityInput}
+                  />
                   <span>{opacityPercent}%</span>
                 </div>
               </section>
@@ -2401,7 +2684,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
                       on:click={() => void selectMapById(item.id)}
                     >
                       <span class="history-title">{item.name}</span>
-                      <span class="history-meta">{item.summary || item.type}</span>
+                      <span class="history-meta"
+                        >{item.summary || item.type}</span
+                      >
                     </button>
                   {/each}
                 {:else}
@@ -2439,8 +2724,16 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     <div class="map-stage">
       <div class="map-surface">
         <div bind:this={mapContainer} class="map"></div>
-        <div bind:this={dividerXEl} class="divider vertical" aria-hidden="true"></div>
-        <div bind:this={dividerYEl} class="divider horizontal" aria-hidden="true"></div>
+        <div
+          bind:this={dividerXEl}
+          class="divider vertical"
+          aria-hidden="true"
+        ></div>
+        <div
+          bind:this={dividerYEl}
+          class="divider horizontal"
+          aria-hidden="true"
+        ></div>
         <button
           bind:this={dividerHandleXEl}
           class="handle vertical"
@@ -2448,9 +2741,11 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
           aria-label="Drag vertical split"
           title="Drag vertical split"
           on:pointerdown={(event) => {
-            if (viewMode !== 'side-x') return;
+            if (viewMode !== "side-x") return;
             dragging = { sideX: true, sideY: false, lensR: false };
-            (event.currentTarget as HTMLElement)?.setPointerCapture(event.pointerId);
+            (event.currentTarget as HTMLElement)?.setPointerCapture(
+              event.pointerId,
+            );
             event.preventDefault();
           }}
         ></button>
@@ -2461,9 +2756,11 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
           aria-label="Drag horizontal split"
           title="Drag horizontal split"
           on:pointerdown={(event) => {
-            if (viewMode !== 'side-y') return;
+            if (viewMode !== "side-y") return;
             dragging = { sideX: false, sideY: true, lensR: false };
-            (event.currentTarget as HTMLElement)?.setPointerCapture(event.pointerId);
+            (event.currentTarget as HTMLElement)?.setPointerCapture(
+              event.pointerId,
+            );
             event.preventDefault();
           }}
         ></button>
@@ -2475,114 +2772,160 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
           aria-label="Adjust spyglass radius"
           title="Adjust spyglass radius"
           on:pointerdown={(event) => {
-            if (viewMode !== 'spy') return;
+            if (viewMode !== "spy") return;
             dragging = { sideX: false, sideY: false, lensR: true };
-            (event.currentTarget as HTMLElement)?.setPointerCapture(event.pointerId);
+            (event.currentTarget as HTMLElement)?.setPointerCapture(
+              event.pointerId,
+            );
             event.preventDefault();
           }}
         ></button>
       </div>
 
       <div class="creator-toolbar">
-          <div class="toolbar-cluster">
+        <div class="toolbar-cluster">
+          <button
+            type="button"
+            on:click={() => (searchOverlayOpen = true)}
+            title="Search places"
+            aria-label="Search places"
+          >
+            <span class="toolbar-icon">🔍</span>
+          </button>
+        </div>
+        <div class="toolbar-cluster">
+          <button
+            type="button"
+            class:selected={!drawingMode}
+            on:click={deactivateDrawing}
+            title="Pan the map"
+            aria-label="Pan the map"
+          >
+            <span class="toolbar-icon">🖐</span>
+          </button>
+          <div class="toolbar-group">
             <button
               type="button"
-              on:click={() => (searchOverlayOpen = true)}
-              title="Search places"
-              aria-label="Search places"
+              class:selected={drawMenuOpen || !!drawingMode}
+              on:click={() => (drawMenuOpen = !drawMenuOpen)}
+              title="Draw annotations"
+              aria-label="Draw annotations"
+              aria-haspopup="true"
+              aria-expanded={drawMenuOpen}
             >
-              <span class="toolbar-icon">🔍</span>
+              <span class="toolbar-icon">✏️</span>
             </button>
+            {#if drawMenuOpen}
+              <div class="toolbar-menu">
+                <button
+                  type="button"
+                  class:selected={drawingMode === "point"}
+                  on:click={() => {
+                    setDrawingMode("point");
+                    drawMenuOpen = false;
+                  }}
+                >
+                  Point
+                </button>
+                <button
+                  type="button"
+                  class:selected={drawingMode === "line"}
+                  on:click={() => {
+                    setDrawingMode("line");
+                    drawMenuOpen = false;
+                  }}
+                >
+                  Line
+                </button>
+                <button
+                  type="button"
+                  class:selected={drawingMode === "polygon"}
+                  on:click={() => {
+                    setDrawingMode("polygon");
+                    drawMenuOpen = false;
+                  }}
+                >
+                  Polygon
+                </button>
+                <button
+                  type="button"
+                  class:selected={editingEnabled}
+                  on:click={() => {
+                    toggleEditing();
+                    drawMenuOpen = false;
+                  }}
+                >
+                  {editingEnabled ? "Disable edit" : "Enable edit"}
+                </button>
+                <button
+                  type="button"
+                  on:click={() => {
+                    deactivateDrawing();
+                    drawMenuOpen = false;
+                  }}
+                >
+                  Finish drawing
+                </button>
+              </div>
+            {/if}
           </div>
-          <div class="toolbar-cluster">
+          <button
+            type="button"
+            title="Undo"
+            aria-label="Undo"
+            on:click={undoLastAction}
+            disabled={!canUndo}
+          >
+            <span class="toolbar-icon">↺</span>
+          </button>
+          <button
+            type="button"
+            title="Redo"
+            aria-label="Redo"
+            on:click={redoLastAction}
+            disabled={!canRedo}
+          >
+            <span class="toolbar-icon">↻</span>
+          </button>
+        </div>
+        <div class="toolbar-cluster">
+          <div class="toolbar-group">
             <button
               type="button"
-              class:selected={!drawingMode}
-              on:click={deactivateDrawing}
-              title="Pan the map"
-              aria-label="Pan the map"
+              class:selected={toolbarSettingsOpen}
+              on:click={() => (toolbarSettingsOpen = !toolbarSettingsOpen)}
+              title="Settings"
+              aria-label="Settings"
+              aria-haspopup="true"
+              aria-expanded={toolbarSettingsOpen}
             >
-              <span class="toolbar-icon">🖐</span>
+              <span class="toolbar-icon">⚙️</span>
             </button>
-            <div class="toolbar-group">
-              <button
-                type="button"
-                class:selected={drawMenuOpen || !!drawingMode}
-                on:click={() => (drawMenuOpen = !drawMenuOpen)}
-                title="Draw annotations"
-                aria-label="Draw annotations"
-                aria-haspopup="true"
-                aria-expanded={drawMenuOpen}
-              >
-                <span class="toolbar-icon">✏️</span>
-              </button>
-              {#if drawMenuOpen}
-                <div class="toolbar-menu">
-                  <button type="button" class:selected={drawingMode === 'point'} on:click={() => { setDrawingMode('point'); drawMenuOpen = false; }}>
-                    Point
-                  </button>
-                  <button type="button" class:selected={drawingMode === 'line'} on:click={() => { setDrawingMode('line'); drawMenuOpen = false; }}>
-                    Line
-                  </button>
-                  <button type="button" class:selected={drawingMode === 'polygon'} on:click={() => { setDrawingMode('polygon'); drawMenuOpen = false; }}>
-                    Polygon
-                  </button>
-                  <button type="button" class:selected={editingEnabled} on:click={() => { toggleEditing(); drawMenuOpen = false; }}>
-                    {editingEnabled ? 'Disable edit' : 'Enable edit'}
-                  </button>
-                  <button type="button" on:click={() => { deactivateDrawing(); drawMenuOpen = false; }}>
-                    Finish drawing
-                  </button>
-                </div>
-              {/if}
-            </div>
-            <button
-              type="button"
-              title="Undo"
-              aria-label="Undo"
-              on:click={undoLastAction}
-              disabled={!canUndo}
-            >
-              <span class="toolbar-icon">↺</span>
-            </button>
-            <button
-              type="button"
-              title="Redo"
-              aria-label="Redo"
-              on:click={redoLastAction}
-              disabled={!canRedo}
-            >
-              <span class="toolbar-icon">↻</span>
-            </button>
-          </div>
-          <div class="toolbar-cluster">
-            <div class="toolbar-group">
-              <button
-                type="button"
-                class:selected={toolbarSettingsOpen}
-                on:click={() => (toolbarSettingsOpen = !toolbarSettingsOpen)}
-                title="Settings"
-                aria-label="Settings"
-                aria-haspopup="true"
-                aria-expanded={toolbarSettingsOpen}
-              >
-                <span class="toolbar-icon">⚙️</span>
-              </button>
-              {#if toolbarSettingsOpen}
-                <div class="toolbar-menu">
-                  <button type="button" on:click={() => { handleClearState(); toolbarSettingsOpen = false; }}>
-                    Clear cached state
-                  </button>
-                </div>
-              {/if}
-            </div>
+            {#if toolbarSettingsOpen}
+              <div class="toolbar-menu">
+                <button
+                  type="button"
+                  on:click={() => {
+                    handleClearState();
+                    toolbarSettingsOpen = false;
+                  }}
+                >
+                  Clear cached state
+                </button>
+              </div>
+            {/if}
           </div>
         </div>
+      </div>
     </div>
 
     {#if !isMobile}
       {#if creatorRightCollapsed}
-        <button type="button" class="panel-toggle right" on:click={() => (creatorRightCollapsed = false)}>
+        <button
+          type="button"
+          class="panel-toggle right"
+          on:click={() => (creatorRightCollapsed = false)}
+        >
           Show panel
         </button>
       {/if}
@@ -2600,52 +2943,95 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
             <div class="creator-right-controls">
               <h2 class="panel-heading">Annotations</h2>
               <div class="right-actions">
-                <button type="button" class="chip ghost" on:click={clearAnnotations} disabled={!annotations.length}>
+                <button
+                  type="button"
+                  class="chip ghost"
+                  on:click={clearAnnotations}
+                  disabled={!annotations.length}
+                >
                   Clear
                 </button>
-                <button type="button" class="chip ghost" on:click={exportAnnotationsAsGeoJSON} disabled={!annotations.length}>
+                <button
+                  type="button"
+                  class="chip ghost"
+                  on:click={exportAnnotationsAsGeoJSON}
+                  disabled={!annotations.length}
+                >
                   Export
                 </button>
                 <label class="chip ghost upload">
                   Import
-                  <input type="file" accept="application/geo+json,.geojson,.json" on:change={handleGeoJsonFileChange} bind:this={geoJsonInputEl} />
+                  <input
+                    type="file"
+                    accept="application/geo+json,.geojson,.json"
+                    on:change={handleGeoJsonFileChange}
+                    bind:this={geoJsonInputEl}
+                  />
                 </label>
               </div>
             </div>
           </header>
           <div class="creator-right-body custom-scrollbar">
-              {#if annotationsNotice}
-              <p class="notice" class:errored={annotationsNoticeType === 'error'} class:success={annotationsNoticeType === 'success'}>
+            {#if annotationsNotice}
+              <p
+                class="notice"
+                class:errored={annotationsNoticeType === "error"}
+                class:success={annotationsNoticeType === "success"}
+              >
                 {annotationsNotice}
               </p>
             {/if}
             {#if annotations.length}
               {#each annotations as annotation (annotation.id)}
-                <div class="list-card" class:selected={annotation.id === selectedAnnotationId}>
+                <div
+                  class="list-card"
+                  class:selected={annotation.id === selectedAnnotationId}
+                >
                   <div class="list-card-header">
                     <input
                       type="text"
                       value={annotation.label}
                       placeholder="Annotation name"
-                      on:input={(event) => updateAnnotationLabel(annotation.id, (event.target as HTMLInputElement).value)}
+                      on:input={(event) =>
+                        updateAnnotationLabel(
+                          annotation.id,
+                          (event.target as HTMLInputElement).value,
+                        )}
                     />
                     <div class="list-card-actions">
                       <input
                         type="color"
                         value={annotation.color}
                         title="Annotation colour"
-                        on:input={(event) => updateAnnotationColor(annotation.id, (event.target as HTMLInputElement).value)}
+                        on:input={(event) =>
+                          updateAnnotationColor(
+                            annotation.id,
+                            (event.target as HTMLInputElement).value,
+                          )}
                       />
-                      <button type="button" class="chip ghost" on:click={() => toggleAnnotationVisibility(annotation.id)}>
-                        {annotation.hidden ? 'Show' : 'Hide'}
+                      <button
+                        type="button"
+                        class="chip ghost"
+                        on:click={() =>
+                          toggleAnnotationVisibility(annotation.id)}
+                      >
+                        {annotation.hidden ? "Show" : "Hide"}
                       </button>
-                      <button type="button" class="chip danger" on:click={() => deleteAnnotation(annotation.id)}>
+                      <button
+                        type="button"
+                        class="chip danger"
+                        on:click={() => deleteAnnotation(annotation.id)}
+                      >
                         Delete
                       </button>
                       <button
                         type="button"
                         class="icon-button"
-                        on:click={() => (openAnnotationMenu = openAnnotationMenu === annotation.id ? null : annotation.id)}
+                        on:click={() =>
+                          (openAnnotationMenu =
+                            openAnnotationMenu === annotation.id
+                              ? null
+                              : annotation.id)}
                         aria-label="Annotation actions"
                       >
                         ☰
@@ -2656,14 +3042,30 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
                     rows="2"
                     value={annotation.details}
                     placeholder="Annotation details"
-                    on:input={(event) => updateAnnotationDetails(annotation.id, (event.target as HTMLTextAreaElement).value)}
+                    on:input={(event) =>
+                      updateAnnotationDetails(
+                        annotation.id,
+                        (event.target as HTMLTextAreaElement).value,
+                      )}
                   ></textarea>
                   {#if openAnnotationMenu === annotation.id}
                     <div class="card-menu">
-                      <button type="button" on:click={() => { zoomToAnnotation(annotation.id); openAnnotationMenu = null; }}>
+                      <button
+                        type="button"
+                        on:click={() => {
+                          zoomToAnnotation(annotation.id);
+                          openAnnotationMenu = null;
+                        }}
+                      >
                         Zoom to
                       </button>
-                      <button type="button" on:click={() => { annotationState.setSelected(annotation.id); openAnnotationMenu = null; }}>
+                      <button
+                        type="button"
+                        on:click={() => {
+                          annotationState.setSelected(annotation.id);
+                          openAnnotationMenu = null;
+                        }}
+                      >
                         Select
                       </button>
                     </div>
@@ -2671,7 +3073,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
                 </div>
               {/each}
             {:else}
-              <p class="empty-state">Draw or import annotations to see them here.</p>
+              <p class="empty-state">
+                Draw or import annotations to see them here.
+              </p>
             {/if}
           </div>
         </aside>
@@ -2687,11 +3091,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       tabindex="0"
       bind:this={metadataOverlayEl}
       on:keydown={(event) => {
-        if (event.key === 'Escape') {
+        if (event.key === "Escape") {
           event.preventDefault();
           metadataOverlayOpen = false;
         }
-        if ((event.key === 'Enter' || event.key === ' ') && event.target === metadataOverlayEl) {
+        if (
+          (event.key === "Enter" || event.key === " ") &&
+          event.target === metadataOverlayEl
+        ) {
           event.preventDefault();
           metadataOverlayOpen = false;
         }
@@ -2700,7 +3107,11 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       <div class="metadata-card">
         <header>
           <h2>Map metadata</h2>
-          <button type="button" class="chip ghost" on:click={() => (metadataOverlayOpen = false)}>
+          <button
+            type="button"
+            class="chip ghost"
+            on:click={() => (metadataOverlayOpen = false)}
+          >
             Close
           </button>
         </header>
@@ -2741,21 +3152,33 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       tabindex="0"
       bind:this={searchOverlayEl}
       on:keydown={(event) => {
-        if (event.key === 'Escape') {
+        if (event.key === "Escape") {
           event.preventDefault();
           searchOverlayOpen = false;
         }
-        if ((event.key === 'Enter' || event.key === ' ') && event.target === searchOverlayEl) {
+        if (
+          (event.key === "Enter" || event.key === " ") &&
+          event.target === searchOverlayEl
+        ) {
           event.preventDefault();
           searchOverlayOpen = false;
         }
       }}
     >
-      <button type="button" class="dialog-backdrop" aria-label="Dismiss search" on:click={() => (searchOverlayOpen = false)}></button>
+      <button
+        type="button"
+        class="dialog-backdrop"
+        aria-label="Dismiss search"
+        on:click={() => (searchOverlayOpen = false)}
+      ></button>
       <div class="search-card">
         <header>
           <h2>Search</h2>
-          <button type="button" class="chip ghost" on:click={() => (searchOverlayOpen = false)}>
+          <button
+            type="button"
+            class="chip ghost"
+            on:click={() => (searchOverlayOpen = false)}
+          >
             Close
           </button>
         </header>
@@ -2765,13 +3188,24 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
             placeholder="Search for a place or address"
             bind:value={searchQuery}
             bind:this={searchInputEl}
-            on:input={(event) => queueSearch((event.target as HTMLInputElement).value)}
+            on:input={(event) =>
+              queueSearch((event.target as HTMLInputElement).value)}
           />
           <div class="search-form-actions">
-            <button type="button" class="chip ghost" on:click={locateUser} disabled={searchLoading}>
+            <button
+              type="button"
+              class="chip ghost"
+              on:click={locateUser}
+              disabled={searchLoading}
+            >
               Locate me
             </button>
-            <button type="button" class="chip ghost" on:click={clearSearch} disabled={!searchQuery && !searchResults.length}>
+            <button
+              type="button"
+              class="chip ghost"
+              on:click={clearSearch}
+              disabled={!searchQuery && !searchResults.length}
+            >
               Clear
             </button>
           </div>
@@ -2779,7 +3213,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
         {#if searchLoading}
           <p class="muted">Searching…</p>
         {:else if searchNotice}
-          <p class:errored={searchNoticeType === 'error'} class:success={searchNoticeType === 'success'}>
+          <p
+            class:errored={searchNoticeType === "error"}
+            class:success={searchNoticeType === "success"}
+          >
             {searchNotice}
           </p>
         {/if}
@@ -2801,10 +3238,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
                   {/if}
                 </button>
                 <div class="search-result-actions">
-                    <button type="button" class="chip ghost" on:click={() => addSearchResultToAnnotations(result)}>
-                      Add to annotations
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    class="chip ghost"
+                    on:click={() => addSearchResultToAnnotations(result)}
+                  >
+                    Add to annotations
+                  </button>
+                </div>
               </div>
             {/each}
           </div>
@@ -2812,13 +3253,18 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
       </div>
     </div>
   {/if}
-
 </div>
 
 <style>
   :global(body) {
     margin: 0;
-    font-family: 'Be Vietnam Pro', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family:
+      "Be Vietnam Pro",
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -2831,11 +3277,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: radial-gradient(circle at top left, rgba(30, 64, 175, 0.25), transparent 55%), #0f172a;
+    background: radial-gradient(
+        circle at top left,
+        rgba(30, 64, 175, 0.25),
+        transparent 55%
+      ),
+      #0f172a;
   }
 
   .viewer.creator {
-    background: radial-gradient(circle at top, rgba(30, 64, 175, 0.35), transparent 60%), #0f172a;
+    background: radial-gradient(
+        circle at top,
+        rgba(30, 64, 175, 0.35),
+        transparent 60%
+      ),
+      #0f172a;
   }
 
   .workspace {
@@ -2843,13 +3299,16 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'map';
+    grid-template-areas: "map";
   }
 
   .viewer.creator .workspace {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(260px, 0.25fr) minmax(0, 0.5fr) minmax(260px, 0.25fr);
+    grid-template-columns: minmax(260px, 0.25fr) minmax(0, 0.5fr) minmax(
+        260px,
+        0.25fr
+      );
     grid-template-rows: minmax(0, 1fr);
     gap: 1.2rem;
     padding: 1.4rem;
@@ -2961,7 +3420,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .panel-heading {
     margin: 0;
-    font-family: 'Spectral', serif;
+    font-family: "Spectral", serif;
     font-size: 1.05rem;
     font-weight: 700;
     letter-spacing: -0.02em;
@@ -3094,25 +3553,35 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   .button-group button,
   .panel-card-section button,
   .toolbar-menu button {
-    border: none;
-    border-radius: 0.75rem;
-    background: rgba(30, 64, 175, 0.28);
-    color: inherit;
-    padding: 0.55rem 0.75rem;
-    font-size: 0.82rem;
+    border: var(--border-thin);
+    border-radius: var(--radius-pill);
+    background: var(--color-white);
+    color: var(--color-text);
+    padding: 0.55rem 1rem;
+    font-family: var(--font-family-base);
+    font-size: 0.85rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+      transform 0.1s,
+      box-shadow 0.1s,
+      background 0.1s;
+    box-shadow: 2px 2px 0px var(--color-border);
   }
 
   .button-group button.selected,
   .toolbar-menu button.selected {
-    background: rgba(79, 70, 229, 0.85);
-    box-shadow: 0 12px 32px rgba(67, 56, 202, 0.35);
+    background: var(--color-blue);
+    color: var(--color-white);
+    box-shadow: 2px 2px 0px var(--color-border); /* Keep shadow */
+    transform: translate(-1px, -1px);
   }
 
   .button-group button:hover,
   .toolbar-menu button:hover {
-    transform: translateY(-1px);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px var(--color-border);
+    background: var(--color-yellow);
   }
 
   .section-group {
@@ -3122,10 +3591,11 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .section-block {
-    background: rgba(15, 23, 42, 0.65);
-    border-radius: 0.95rem;
+    background: var(--color-white);
+    border-radius: var(--radius-md);
     padding: 0.85rem 1rem;
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-solid-sm);
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
@@ -3133,10 +3603,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .section-block h3 {
     margin: 0;
-    font-family: 'Spectral', serif;
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--font-family-display);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0;
   }
 
   .section-header {
@@ -3162,7 +3632,7 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     gap: 0.65rem;
   }
 
-  .slider input[type='range'] {
+  .slider input[type="range"] {
     flex: 1 1 auto;
   }
 
@@ -3173,22 +3643,27 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .history-featured-card {
-    border: 1px solid transparent;
-    border-radius: 0.75rem;
-    background: rgba(30, 41, 59, 0.7);
-    padding: 0.55rem 0.65rem;
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-white);
+    padding: 0.65rem 0.75rem;
     text-align: left;
     color: inherit;
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
     cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      transform 0.1s,
+      box-shadow 0.1s;
+    box-shadow: var(--shadow-solid-sm);
   }
 
   .history-featured-card.selected {
-    border-color: rgba(99, 102, 241, 0.75);
-    box-shadow: 0 12px 24px rgba(67, 56, 202, 0.35);
+    border-color: var(--color-border);
+    background: var(--color-yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-solid);
   }
 
   .history-list {
@@ -3201,9 +3676,9 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .history-item {
-    border-radius: 0.75rem;
-    border: 1px solid transparent;
-    background: rgba(15, 23, 42, 0.55);
+    border-radius: var(--radius-sm);
+    border: var(--border-thin);
+    background: var(--color-white);
     padding: 0.55rem 0.65rem;
     text-align: left;
     color: inherit;
@@ -3211,18 +3686,22 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     flex-direction: column;
     gap: 0.15rem;
     cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      transform 0.1s,
+      box-shadow 0.1s;
   }
 
   .history-item:hover,
   .history-item:focus-visible {
-    border-color: rgba(99, 102, 241, 0.5);
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 2px 0px var(--color-border);
     outline: none;
   }
 
   .history-item.selected {
-    border-color: rgba(99, 102, 241, 0.8);
-    box-shadow: 0 12px 24px rgba(67, 56, 202, 0.35);
+    background: var(--color-yellow);
+    border-color: var(--color-border);
+    box-shadow: 2px 2px 0px var(--color-border);
   }
 
   .history-title {
@@ -3244,29 +3723,30 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .history-filter select {
     padding: 0.35rem 0.55rem;
-    border-radius: 0.5rem;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(15, 23, 42, 0.65);
+    border-radius: var(--radius-pill);
+    border: var(--border-thin);
+    background: var(--color-white);
     color: inherit;
+    font-weight: 600;
   }
 
   .panel-card {
-    background: rgba(15, 23, 42, 0.85);
-    border-radius: 1.1rem;
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: var(--color-bg);
+    border-radius: var(--radius-lg);
+    border: var(--border-thick);
     padding: 1rem 1.1rem;
     display: flex;
     flex-direction: column;
     gap: 0.9rem;
-    backdrop-filter: blur(18px);
+    box-shadow: var(--shadow-solid);
   }
 
   .panel-card-header h2 {
     margin: 0;
-    font-family: 'Spectral', serif;
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--font-family-display);
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 0;
   }
 
   .panel-card-section {
@@ -3276,12 +3756,12 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .section-title {
-    font-family: 'Be Vietnam Pro', sans-serif;
+    font-family: var(--font-family-base);
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(148, 163, 184, 0.8);
+    color: #666;
   }
 
   .creator-toolbar {
@@ -3289,15 +3769,14 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom) + 1.2rem);
     transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.88);
-    border-radius: 999px;
-    border: 2px solid rgba(212, 175, 55, 0.35);
-    padding: 0.45rem 0.75rem;
+    background: var(--color-white);
+    border-radius: var(--radius-pill);
+    border: var(--border-thick);
+    padding: 0.5rem 0.85rem;
     display: flex;
     gap: 0.6rem;
     align-items: center;
-    box-shadow: 0 16px 32px rgba(2, 6, 23, 0.55);
-    backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-solid);
     z-index: 120;
     pointer-events: auto;
   }
@@ -3319,14 +3798,18 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     justify-content: center;
     font-size: 1rem;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
   }
 
   .creator-toolbar button:hover,
   .creator-toolbar button:focus-visible,
   .creator-toolbar button.selected {
-    background: rgba(79, 70, 229, 0.55);
+    background: var(--color-yellow);
+    transform: translateY(-2px);
     outline: none;
+    box-shadow: 2px 2px 0px var(--color-border);
   }
 
   .creator-toolbar button:disabled {
@@ -3343,10 +3826,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
     bottom: calc(100% + 0.4rem);
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.95);
-    border-radius: 0.8rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    box-shadow: 0 16px 32px rgba(2, 6, 23, 0.45);
+    background: var(--color-white);
+    border-radius: var(--radius-md);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-solid);
     display: flex;
     flex-direction: column;
     min-width: 160px;
@@ -3365,7 +3848,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .toolbar-menu button:hover,
   .toolbar-menu button:focus-visible {
-    background: rgba(79, 70, 229, 0.35);
+    background: var(--color-yellow);
+    transform: translateX(2px);
     outline: none;
   }
 
@@ -3381,12 +3865,18 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .icon-button {
-    border: none;
-    background: rgba(15, 23, 42, 0.65);
-    border-radius: 0.7rem;
+    border: var(--border-thin);
+    background: var(--color-white);
+    border-radius: var(--radius-sm);
     padding: 0.35rem 0.5rem;
     cursor: pointer;
     font-size: 0.85rem;
+    box-shadow: 2px 2px 0px var(--color-border);
+    transition: transform 0.1s;
+  }
+  .icon-button:hover {
+    transform: translate(-1px, -1px);
+    background: var(--color-yellow);
   }
 
   .list-card {
@@ -3495,8 +3985,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   .metadata-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.78);
-    backdrop-filter: blur(10px);
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3506,11 +3996,11 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .metadata-card {
     width: min(420px, 100%);
-    background: rgba(15, 23, 42, 0.92);
-    border-radius: 4px;
-    border: 2px solid rgba(212, 175, 55, 0.4);
-    box-shadow: 0 32px 64px rgba(2, 6, 23, 0.6);
-    padding: 1.1rem 1.3rem;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-solid-hover);
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -3525,16 +4015,16 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .metadata-card h2 {
     margin: 0;
-    font-family: 'Spectral', serif;
-    font-size: 1.25rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--font-family-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0;
   }
 
   .metadata-section h3 {
     margin: 0 0 0.5rem;
-    font-family: 'Spectral', serif;
-    font-size: 1.05rem;
+    font-family: var(--font-family-display);
+    font-size: 1.1rem;
     font-weight: 700;
   }
 
@@ -3560,6 +4050,8 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .metadata-card .chip {
     align-self: flex-end;
+    background: var(--color-blue);
+    color: white;
   }
 
   .search-dialog {
@@ -3588,11 +4080,11 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .search-card {
     width: min(520px, 100%);
-    background: rgba(15, 23, 42, 0.92);
-    border-radius: 4px;
-    border: 2px solid rgba(212, 175, 55, 0.4);
-    box-shadow: 0 32px 64px rgba(2, 6, 23, 0.55);
-    padding: 1.15rem 1.3rem;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-solid-hover);
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -3609,10 +4101,10 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
 
   .search-card h2 {
     margin: 0;
-    font-family: 'Spectral', serif;
-    font-size: 1.25rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--font-family-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0;
   }
 
   .search-form {
@@ -3622,12 +4114,21 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .search-form input {
-    padding: 0.65rem 0.75rem;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(15, 23, 42, 0.85);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-pill);
+    border: var(--border-thick);
+    background: var(--color-white);
     color: inherit;
-    font-size: 0.85rem;
+    font-family: var(--font-family-display);
+    font-size: 1rem;
+    font-weight: 700;
+    box-shadow: 2px 2px 0px var(--color-border);
+  }
+
+  .search-form input:focus {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px var(--color-border);
+    outline: none;
   }
 
   .search-form-actions {
@@ -3644,20 +4145,25 @@ import type { Feature as GeoJsonFeature, Geometry as GeoJsonGeometry, GeoJsonObj
   }
 
   .search-result-item {
-    background: rgba(30, 41, 59, 0.75);
-    border: 1px solid transparent;
-    border-radius: 0.75rem;
+    background: var(--color-white);
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
     padding: 0.65rem 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      transform 0.1s,
+      box-shadow 0.1s;
+    box-shadow: 2px 2px 0px var(--color-border);
   }
 
   .search-result-item:hover,
   .search-result-item:focus-within {
-    border-color: rgba(99, 102, 241, 0.5);
-    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
+    border-color: var(--color-border);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px var(--color-border);
+    background: var(--color-bg);
     outline: none;
   }
 

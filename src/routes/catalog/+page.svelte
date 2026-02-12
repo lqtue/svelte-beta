@@ -22,7 +22,7 @@
 	let filterCollection: "all" | "featured" | "favorites" = "all";
 	let searchQuery: string = "";
 	let sortBy: "name" | "year" | "newest" = "name";
-	let favoriteIds: Set<string> = new Set();
+	let favoriteIds: string[] = []; // Using array for reliable Svelte reactivity
 
 	// Restore view mode from localStorage
 	function restoreViewMode() {
@@ -65,7 +65,7 @@
 			// Fetch favorites if logged in
 			if (session?.user?.id) {
 				const favs = await fetchFavorites(supabase, session.user.id);
-				favoriteIds = new Set(favs);
+				favoriteIds = favs || [];
 			}
 
 			// Fetch thumbnails for all maps
@@ -73,7 +73,7 @@
 				const url = await fetchThumbnailUrl(map.id);
 				if (url) {
 					thumbnails.set(map.id, url);
-					thumbnails = thumbnails;
+					thumbnails = thumbnails; // Trigger reactivity
 				}
 			});
 			await Promise.all(fetchPromises);
@@ -87,15 +87,14 @@
 	async function toggleFavorite(mapId: string) {
 		if (!session?.user?.id) return;
 		const userId = session.user.id;
-		const wasFavorited = favoriteIds.has(mapId);
+		const wasFavorited = favoriteIds.includes(mapId);
 
 		// Optimistic update
 		if (wasFavorited) {
-			favoriteIds.delete(mapId);
+			favoriteIds = favoriteIds.filter((id) => id !== mapId);
 		} else {
-			favoriteIds.add(mapId);
+			favoriteIds = [...favoriteIds, mapId];
 		}
-		favoriteIds = favoriteIds;
 
 		// Persist
 		const success = wasFavorited
@@ -105,11 +104,10 @@
 		// Revert on failure
 		if (!success) {
 			if (wasFavorited) {
-				favoriteIds.add(mapId);
+				favoriteIds = [...favoriteIds, mapId];
 			} else {
-				favoriteIds.delete(mapId);
+				favoriteIds = favoriteIds.filter((id) => id !== mapId);
 			}
-			favoriteIds = favoriteIds;
 		}
 	}
 
@@ -135,7 +133,7 @@
 		if (filterCollection === "featured") {
 			result = result.filter((m) => m.isFeatured);
 		} else if (filterCollection === "favorites") {
-			result = result.filter((m) => favoriteIds.has(m.id));
+			result = result.filter((m) => favoriteIds.includes(m.id));
 		}
 
 		// Search
@@ -176,7 +174,7 @@
 		content="Browse the full collection of historical maps of Vietnam."
 	/>
 	<link
-		href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+		href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Outfit:wght@400;600;800&family=Be+Vietnam+Pro:wght@400;600;800&display=swap"
 		rel="stylesheet"
 	/>
 </svelte:head>
@@ -185,179 +183,228 @@
 	<!-- Top Bar -->
 	<header class="top-bar">
 		<div class="top-bar-left">
-			<a href="/" class="back-link" aria-label="Back to home">
-				<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-					<path
-						d="M12.5 15L7.5 10L12.5 5"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					/>
+			<a href="/" class="icon-btn back-btn" aria-label="Back to home">
+				<svg
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M19 12H5M12 19l-7-7 7-7" />
 				</svg>
 			</a>
-			<h1 class="page-title">Map Catalog</h1>
+			<h1 class="page-title">
+				The Archive <span class="sparkle">✨</span>
+			</h1>
 		</div>
 		<div class="top-bar-right">
 			<div class="search-box">
-				<svg
-					class="search-icon"
-					width="16"
-					height="16"
-					viewBox="0 0 16 16"
-					fill="none"
-				>
-					<circle
-						cx="7"
-						cy="7"
-						r="5.5"
-						stroke="currentColor"
-						stroke-width="1.5"
-					/>
-					<path
-						d="M11 11L14 14"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-					/>
-				</svg>
+				<span class="search-emoji">🔍</span>
 				<input
 					type="text"
 					placeholder="Search maps..."
 					bind:value={searchQuery}
-					class="search-input"
+					class="chunky-input"
 				/>
 			</div>
-			<div class="view-toggle">
-				<button
-					class="view-toggle-btn"
-					class:active={viewMode === "grid"}
-					on:click={() => setViewMode("grid")}
-					aria-label="Grid view"
-				>
-					<svg
-						width="16"
-						height="16"
-						viewBox="0 0 16 16"
-						fill="currentColor"
+
+			<div class="controls-group">
+				<div class="view-toggle">
+					<button
+						class="toggle-btn"
+						class:active={viewMode === "grid"}
+						on:click={() => setViewMode("grid")}
+						aria-label="Grid view"
 					>
-						<rect x="1" y="1" width="6" height="6" rx="1" />
-						<rect x="9" y="1" width="6" height="6" rx="1" />
-						<rect x="1" y="9" width="6" height="6" rx="1" />
-						<rect x="9" y="9" width="6" height="6" rx="1" />
-					</svg>
-				</button>
-				<button
-					class="view-toggle-btn"
-					class:active={viewMode === "list"}
-					on:click={() => setViewMode("list")}
-					aria-label="List view"
-				>
-					<svg
-						width="16"
-						height="16"
-						viewBox="0 0 16 16"
-						fill="currentColor"
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="currentColor"
+						>
+							<rect x="3" y="3" width="7" height="7" rx="1" />
+							<rect x="14" y="3" width="7" height="7" rx="1" />
+							<rect x="3" y="14" width="7" height="7" rx="1" />
+							<rect x="14" y="14" width="7" height="7" rx="1" />
+						</svg>
+					</button>
+					<button
+						class="toggle-btn"
+						class:active={viewMode === "list"}
+						on:click={() => setViewMode("list")}
+						aria-label="List view"
 					>
-						<rect x="1" y="2" width="14" height="2.5" rx="1" />
-						<rect x="1" y="6.75" width="14" height="2.5" rx="1" />
-						<rect x="1" y="11.5" width="14" height="2.5" rx="1" />
-					</svg>
-				</button>
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="currentColor"
+						>
+							<rect x="3" y="4" width="18" height="4" rx="1" />
+							<rect x="3" y="10" width="18" height="4" rx="1" />
+							<rect x="3" y="16" width="18" height="4" rx="1" />
+						</svg>
+					</button>
+				</div>
+				<select class="chunky-select" bind:value={sortBy}>
+					<option value="name">Name A–Z</option>
+					<option value="year">Oldest First</option>
+					<option value="newest">Newest First</option>
+				</select>
 			</div>
-			<select class="sort-select" bind:value={sortBy}>
-				<option value="name">Name A–Z</option>
-				<option value="year">Year (oldest)</option>
-				<option value="newest">Year (newest)</option>
-			</select>
 		</div>
 	</header>
 
-	<!-- Filter Bar -->
-	<div class="filter-bar">
-		<div class="collection-tabs">
-			<button
-				class="tab-btn"
-				class:active={filterCollection === "all"}
-				on:click={() => (filterCollection = "all")}>All</button
-			>
-			<button
-				class="tab-btn"
-				class:active={filterCollection === "featured"}
-				on:click={() => (filterCollection = "featured")}
-				>Featured</button
-			>
-			<button
-				class="tab-btn"
-				class:active={filterCollection === "favorites"}
-				on:click={() => (filterCollection = "favorites")}
-			>
-				<svg
-					class="tab-heart"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="currentColor"
-				>
-					<path
-						d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-					/>
-				</svg>
-				Favorites
-			</button>
-		</div>
-		{#if cities.length > 1}
-			<div class="city-pills">
-				<button
-					class="city-pill"
-					class:active={filterCity === "all"}
-					on:click={() => (filterCity = "all")}>All Cities</button
-				>
-				{#each cities as city}
-					<button
-						class="city-pill"
-						class:active={filterCity === city}
-						on:click={() => (filterCity = city)}>{city}</button
-					>
-				{/each}
-			</div>
-		{/if}
-	</div>
-
-	<!-- Content -->
+	<!-- Content Area -->
 	<main class="content">
+		<!-- Filter Box -->
+		<div class="controls-card">
+			<div class="collection-tabs">
+				<button
+					class="chunky-tab"
+					class:active={filterCollection === "all"}
+					on:click={() => (filterCollection = "all")}
+				>
+					📚 All Maps
+				</button>
+				<button
+					class="chunky-tab"
+					class:active={filterCollection === "featured"}
+					on:click={() => (filterCollection = "featured")}
+				>
+					🌟 Featured
+				</button>
+				<button
+					class="chunky-tab"
+					class:active={filterCollection === "favorites"}
+					on:click={() => (filterCollection = "favorites")}
+				>
+					❤️ Favorites
+				</button>
+			</div>
+
+			{#if cities.length > 1}
+				<div class="city-filters">
+					<button
+						class="filter-pill"
+						class:active={filterCity === "all"}
+						on:click={() => (filterCity = "all")}
+					>
+						All Cities
+					</button>
+					{#each cities as city}
+						<button
+							class="filter-pill"
+							class:active={filterCity === city}
+							on:click={() => (filterCity = city)}
+						>
+							{city}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
 		{#if loading}
-			<div class="loading-state">
-				<span class="loading-spinner">⏳</span>
-				<span>Loading collection...</span>
+			<div class="state-panel">
+				<div class="spinner">🌎</div>
+				<h2 class="state-title">Digging through the archives...</h2>
 			</div>
 		{:else if filterCollection === "favorites" && !session}
-			<div class="empty-state">
-				<span class="empty-icon">🔒</span>
-				<p class="empty-text">
-					Sign in to save and view your favorite maps.
+			<div class="state-panel">
+				<div class="empty-emoji">🙈</div>
+				<h2 class="state-title">Oops! You're not logged in.</h2>
+				<p class="state-desc">
+					Sign in from the homepage to save and view your favorite
+					maps.
 				</p>
-				<a href="/" class="empty-link">Sign in from the homepage</a>
+				<a href="/" class="action-btn primary-btn mt-4">Go Home</a>
 			</div>
 		{:else if filteredMaps.length === 0}
-			<div class="empty-state">
-				<span class="empty-icon">🗺️</span>
-				<p class="empty-text">
+			<div class="state-panel">
+				<div class="empty-emoji">🏜️</div>
+				<h2 class="state-title">Nothing here!</h2>
+				<p class="state-desc">
 					{#if searchQuery.trim()}
-						No maps match "{searchQuery}".
+						No maps match "{searchQuery}". Try another search term!
 					{:else if filterCollection === "favorites"}
-						You haven't favorited any maps yet.
+						You haven't favorited any maps yet. Get exploring!
 					{:else}
-						No maps found.
+						No maps found in this category.
 					{/if}
 				</p>
 			</div>
-		{:else if viewMode === "grid"}
-			<div class="catalog-grid">
-				{#each filteredMaps as map (map.id)}
-					<div class="card">
-						<a href="/view?map={map.id}" class="card-link">
-							<div class="card-thumb">
+		{:else}
+			<!-- Grid View -->
+			{#if viewMode === "grid"}
+				<div class="catalog-grid">
+					{#each filteredMaps as map (map.id)}
+						<div class="map-card-wrapper">
+							<a href="/view?map={map.id}" class="map-card">
+								<div class="map-thumbnail">
+									{#if thumbnails.get(map.id)}
+										<img
+											src={thumbnails.get(map.id)}
+											alt={map.name}
+											loading="lazy"
+											on:error={handleImageError}
+										/>
+									{:else}
+										<div class="placeholder-pattern"></div>
+									{/if}
+									<div class="map-badges">
+										{#if map.year}
+											<span class="badge year-badge"
+												>{map.year}</span
+											>
+										{/if}
+									</div>
+								</div>
+								<div class="map-info">
+									<h3 class="map-name">{map.name}</h3>
+									{#if map.type}
+										<span class="map-city">{map.type}</span>
+									{/if}
+								</div>
+							</a>
+							{#if session}
+								<button
+									class="fav-btn"
+									on:click|stopPropagation={() =>
+										toggleFavorite(map.id)}
+									aria-label="Toggle Favorite"
+								>
+									<span
+										class="notranslate"
+										style="display: {favoriteIds.includes(
+											map.id,
+										)
+											? 'block'
+											: 'none'}">❤️</span
+									>
+									<span
+										class="notranslate"
+										style="display: {!favoriteIds.includes(
+											map.id,
+										)
+											? 'block'
+											: 'none'}">🤍</span
+									>
+								</button>
+							{/if}
+						</div>
+					{/each}
+				</div>
+				<!-- List View -->
+			{:else}
+				<div class="catalog-list">
+					{#each filteredMaps as map (map.id)}
+						<a href="/view?map={map.id}" class="list-row">
+							<div class="list-thumb">
 								{#if thumbnails.get(map.id)}
 									<img
 										src={thumbnails.get(map.id)}
@@ -365,155 +412,110 @@
 										loading="lazy"
 										on:error={handleImageError}
 									/>
+								{:else}
+									<div class="placeholder-pattern"></div>
 								{/if}
 							</div>
-							<div class="card-body">
-								<h3 class="card-name">{map.name}</h3>
-								<div class="card-meta">
+							<div class="list-info">
+								<h3 class="list-name">{map.name}</h3>
+								{#if map.summary}
+									<p class="list-summary">{map.summary}</p>
+								{/if}
+								<div class="list-meta">
 									{#if map.year}
-										<span class="meta-year">{map.year}</span
+										<span class="badge year-badge"
+											>{map.year}</span
 										>
 									{/if}
 									{#if map.type}
-										<span class="meta-city">{map.type}</span
+										<span class="badge city-badge"
+											>{map.type}</span
 										>
 									{/if}
 								</div>
 							</div>
+							{#if session}
+								<button
+									class="fav-btn-list"
+									on:click|preventDefault|stopPropagation={() =>
+										toggleFavorite(map.id)}
+									aria-label="Toggle Favorite"
+								>
+									<span
+										class="notranslate"
+										style="display: {favoriteIds.includes(
+											map.id,
+										)
+											? 'block'
+											: 'none'}">❤️</span
+									>
+									<span
+										class="notranslate"
+										style="display: {!favoriteIds.includes(
+											map.id,
+										)
+											? 'block'
+											: 'none'}">🤍</span
+									>
+								</button>
+							{/if}
 						</a>
-						{#if session}
-							<button
-								class="fav-btn"
-								class:faved={favoriteIds.has(map.id)}
-								on:click|stopPropagation={() =>
-									toggleFavorite(map.id)}
-								aria-label={favoriteIds.has(map.id)
-									? "Remove from favorites"
-									: "Add to favorites"}
-							>
-								{#if favoriteIds.has(map.id)}
-									<svg
-										width="18"
-										height="18"
-										viewBox="0 0 24 24"
-										fill="currentColor"
-									>
-										<path
-											d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-										/>
-									</svg>
-								{:else}
-									<svg
-										width="18"
-										height="18"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-									>
-										<path
-											d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-										/>
-									</svg>
-								{/if}
-							</button>
-						{/if}
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<!-- List view -->
-			<div class="catalog-list">
-				{#each filteredMaps as map (map.id)}
-					<a href="/view?map={map.id}" class="list-row">
-						<div class="list-thumb">
-							{#if thumbnails.get(map.id)}
-								<img
-									src={thumbnails.get(map.id)}
-									alt={map.name}
-									loading="lazy"
-									on:error={handleImageError}
-								/>
-							{/if}
-						</div>
-						<div class="list-info">
-							<h3 class="list-name">{map.name}</h3>
-							{#if map.summary}
-								<p class="list-summary">{map.summary}</p>
-							{/if}
-							<div class="list-meta">
-								{#if map.year}
-									<span class="meta-year">{map.year}</span>
-								{/if}
-								{#if map.type}
-									<span class="meta-city">{map.type}</span>
-								{/if}
-							</div>
-						</div>
-						{#if session}
-							<button
-								class="fav-btn fav-btn-list"
-								class:faved={favoriteIds.has(map.id)}
-								on:click|preventDefault|stopPropagation={() =>
-									toggleFavorite(map.id)}
-								aria-label={favoriteIds.has(map.id)
-									? "Remove from favorites"
-									: "Add to favorites"}
-							>
-								{#if favoriteIds.has(map.id)}
-									<svg
-										width="18"
-										height="18"
-										viewBox="0 0 24 24"
-										fill="currentColor"
-									>
-										<path
-											d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-										/>
-									</svg>
-								{:else}
-									<svg
-										width="18"
-										height="18"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-									>
-										<path
-											d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-										/>
-									</svg>
-								{/if}
-							</button>
-						{/if}
-					</a>
-				{/each}
-			</div>
-		{/if}
+					{/each}
+				</div>
+			{/if}
 
-		{#if !loading && filteredMaps.length > 0}
 			<p class="result-count">
-				{filteredMaps.length} map{filteredMaps.length === 1 ? "" : "s"}
+				<span class="count-bubble">{filteredMaps.length}</span> maps found
 			</p>
 		{/if}
 	</main>
 </div>
 
 <style>
+	/* ========================================
+      NEO-BRUTALIST / PLAYFUL DESIGN SYSTEM
+      ========================================
+    */
+	:root {
+		--color-bg: #faf6f0;
+		--color-text: #111111;
+		--color-border: #111111;
+		--color-white: #ffffff;
+
+		--color-primary: #ff4d4d;
+		--color-blue: #4d94ff;
+		--color-yellow: #ffd23f;
+		--color-green: #00cc99;
+		--color-orange: #ff8c42;
+		--color-purple: #9d4edd;
+
+		--border-thick: 3px solid var(--color-border);
+		--border-thin: 2px solid var(--color-border);
+		--shadow-solid: 6px 6px 0px var(--color-border);
+		--shadow-solid-sm: 4px 4px 0px var(--color-border);
+		--shadow-solid-hover: 10px 10px 0px var(--color-border);
+
+		--radius-lg: 24px;
+		--radius-md: 16px;
+		--radius-sm: 8px;
+		--radius-pill: 999px;
+	}
+
 	:global(body) {
 		margin: 0;
-		background: #2b2520;
+		background-color: var(--color-bg);
+		color: var(--color-text);
+		font-family: "Outfit", "Be Vietnam Pro", sans-serif;
 	}
 
 	.page {
 		min-height: 100vh;
-		background: linear-gradient(
-			180deg,
-			#f4e8d8 0%,
-			#ebe0d0 50%,
-			#e8d5ba 100%
+		background-image: radial-gradient(
+			var(--color-border) 1px,
+			transparent 1px
 		);
+		background-size: 32px 32px;
+		background-position: 0 0;
 		opacity: 0;
 		transition: opacity 0.5s ease;
 	}
@@ -522,446 +524,541 @@
 		opacity: 1;
 	}
 
-	/* Top Bar */
+	/* ========================================
+      TOP BAR
+      ========================================
+    */
 	.top-bar {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 1rem;
-		padding: 1rem 1.5rem;
-		background: linear-gradient(
-			180deg,
-			rgba(212, 175, 55, 0.15) 0%,
-			rgba(212, 175, 55, 0.05) 100%
-		);
-		border-bottom: 2px solid rgba(212, 175, 55, 0.4);
+		gap: 1.5rem;
+		padding: 1.5rem 2rem;
+		background: var(--color-yellow);
+		border-bottom: var(--border-thick);
 		flex-wrap: wrap;
+		position: sticky;
+		top: 0;
+		z-index: 100;
 	}
 
 	.top-bar-left {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: 1rem;
 	}
 
-	.back-link {
+	.icon-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 36px;
-		height: 36px;
-		border-radius: 4px;
-		color: #4a3f35;
+		width: 48px;
+		height: 48px;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: 50%;
+		color: var(--color-text);
 		text-decoration: none;
-		transition: all 0.2s ease;
-		border: 1px solid rgba(212, 175, 55, 0.3);
-		background: rgba(255, 255, 255, 0.4);
+		box-shadow: 2px 2px 0px var(--color-border);
+		transition:
+			transform 0.1s,
+			box-shadow 0.1s;
 	}
 
-	.back-link:hover {
-		background: rgba(212, 175, 55, 0.15);
-		border-color: #d4af37;
-		color: #2b2520;
+	.icon-btn:hover {
+		transform: translate(-2px, -2px);
+		box-shadow: 4px 4px 0px var(--color-border);
+		background: var(--color-blue);
+		color: var(--color-white);
+	}
+
+	.icon-btn:active {
+		transform: translate(0, 0);
+		box-shadow: 0px 0px 0px var(--color-border);
 	}
 
 	.page-title {
-		font-family: "Spectral", serif;
-		font-size: 1.5rem;
-		font-weight: 700;
-		letter-spacing: -0.02em;
-		color: #2b2520;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 2rem;
+		font-weight: 800;
 		margin: 0;
+		text-transform: uppercase;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.sparkle {
+		animation: pulse 2s infinite;
+		font-size: 1.5rem;
+	}
+
+	@keyframes pulse {
+		0%,
+		100% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(1.2);
+		}
 	}
 
 	.top-bar-right {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: 1rem;
+		flex-wrap: wrap;
 	}
 
-	/* Search */
 	.search-box {
 		position: relative;
 		display: flex;
 		align-items: center;
 	}
 
-	.search-icon {
+	.search-emoji {
 		position: absolute;
-		left: 0.75rem;
-		color: #8b7355;
+		left: 1rem;
+		font-size: 1.25rem;
 		pointer-events: none;
 	}
 
-	.search-input {
-		width: 200px;
-		padding: 0.5rem 0.75rem 0.5rem 2.25rem;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.875rem;
-		border: 1px solid rgba(212, 175, 55, 0.3);
-		border-radius: 4px;
-		background: rgba(255, 255, 255, 0.6);
-		color: #2b2520;
+	.chunky-input {
+		width: 250px;
+		padding: 0.75rem 1rem 0.75rem 3rem;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1rem;
+		font-weight: 700;
+		border: var(--border-thick);
+		border-radius: var(--radius-pill);
+		background: var(--color-white);
+		color: var(--color-text);
 		outline: none;
+		box-shadow: 2px 2px 0px var(--color-border);
 		transition: all 0.2s ease;
 	}
 
-	.search-input::placeholder {
-		color: #8b7355;
+	.chunky-input:focus {
+		transform: translate(-2px, -2px);
+		box-shadow: 4px 4px 0px var(--color-border);
+		background: var(--color-bg);
 	}
 
-	.search-input:focus {
-		border-color: #d4af37;
-		background: rgba(255, 255, 255, 0.8);
-		box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
+	.controls-group {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
 	}
 
 	/* View Toggle */
 	.view-toggle {
 		display: flex;
-		border: 1px solid rgba(212, 175, 55, 0.3);
-		border-radius: 4px;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-pill);
 		overflow: hidden;
+		box-shadow: 2px 2px 0px var(--color-border);
 	}
 
-	.view-toggle-btn {
+	.toggle-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 36px;
-		height: 36px;
+		padding: 0.6rem 1rem;
 		border: none;
-		background: rgba(255, 255, 255, 0.4);
-		color: #8b7355;
+		background: transparent;
+		color: var(--color-text);
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: all 0.1s;
 	}
 
-	.view-toggle-btn:not(:last-child) {
-		border-right: 1px solid rgba(212, 175, 55, 0.3);
+	.toggle-btn:not(:last-child) {
+		border-right: var(--border-thick);
 	}
 
-	.view-toggle-btn:hover {
-		background: rgba(212, 175, 55, 0.15);
+	.toggle-btn:hover {
+		background: var(--color-yellow);
 	}
 
-	.view-toggle-btn.active {
-		background: rgba(212, 175, 55, 0.25);
-		color: #2b2520;
+	.toggle-btn.active {
+		background: var(--color-blue);
+		color: var(--color-white);
 	}
 
 	/* Sort */
-	.sort-select {
-		padding: 0.5rem 0.75rem;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.8125rem;
-		border: 1px solid rgba(212, 175, 55, 0.3);
-		border-radius: 4px;
-		background: rgba(255, 255, 255, 0.6);
-		color: #2b2520;
+	.chunky-select {
+		padding: 0.75rem 2rem 0.75rem 1rem;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1rem;
+		font-weight: 700;
+		border: var(--border-thick);
+		border-radius: var(--radius-pill);
+		background: var(--color-white);
+		color: var(--color-text);
 		cursor: pointer;
 		outline: none;
+		box-shadow: 2px 2px 0px var(--color-border);
+		appearance: none;
+		background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23111111%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+		background-repeat: no-repeat;
+		background-position: right 1rem top 50%;
+		background-size: 0.65rem auto;
 	}
 
-	.sort-select:focus {
-		border-color: #d4af37;
+	/* ========================================
+      CONTENT & CONTROLS BOX
+      ========================================
+    */
+	.content {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 2rem 1.5rem;
 	}
 
-	/* Filter Bar */
-	.filter-bar {
-		padding: 0.75rem 1.5rem;
-		border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
+	.controls-card {
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-lg);
+		padding: 1.5rem;
+		box-shadow: var(--shadow-solid-sm);
+		margin-bottom: 2rem;
 	}
 
 	.collection-tabs {
 		display: flex;
-		gap: 0.25rem;
+		gap: 1rem;
+		flex-wrap: wrap;
 	}
 
-	.tab-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.5rem 1rem;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.8125rem;
-		font-weight: 600;
-		border: 1px solid transparent;
-		border-radius: 4px;
-		background: transparent;
-		color: #6b5d52;
+	.chunky-tab {
+		padding: 0.75rem 1.5rem;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1rem;
+		font-weight: 700;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-md);
 		cursor: pointer;
-		transition: all 0.2s ease;
+		box-shadow: 2px 2px 0px var(--color-border);
+		transition: all 0.1s;
 	}
 
-	.tab-btn:hover {
-		background: rgba(212, 175, 55, 0.1);
-		color: #4a3f35;
+	.chunky-tab:hover {
+		transform: translateY(-2px);
+		box-shadow: 4px 4px 0px var(--color-border);
 	}
 
-	.tab-btn.active {
-		background: rgba(212, 175, 55, 0.2);
-		border-color: rgba(212, 175, 55, 0.4);
-		color: #2b2520;
+	.chunky-tab.active {
+		background: var(--color-purple);
+		color: white;
+		transform: translate(2px, 2px);
+		box-shadow: 0 0 0 var(--color-border);
 	}
 
-	.tab-heart {
-		opacity: 0.7;
-	}
-
-	.tab-btn.active .tab-heart {
-		opacity: 1;
-		color: #c0392b;
-	}
-
-	.city-pills {
+	.city-filters {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.375rem;
-	}
-
-	.city-pill {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.8125rem;
-		font-weight: 500;
-		padding: 0.375rem 0.75rem;
-		background: rgba(255, 255, 255, 0.4);
-		border: 1px solid rgba(212, 175, 55, 0.25);
-		border-radius: 2px;
-		color: #4a3f35;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.city-pill:hover {
-		background: rgba(212, 175, 55, 0.1);
-		border-color: rgba(212, 175, 55, 0.4);
-	}
-
-	.city-pill.active {
-		background: rgba(212, 175, 55, 0.25);
-		border-color: #d4af37;
-		color: #2b2520;
-		font-weight: 600;
-	}
-
-	/* Content */
-	.content {
-		max-width: 1100px;
-		margin: 0 auto;
-		padding: 1.5rem;
-	}
-
-	/* Loading & Empty */
-	.loading-state {
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		gap: 0.75rem;
-		padding: 4rem 2rem;
-		font-family: "Noto Serif", serif;
-		font-size: 1rem;
-		color: #6b5d52;
+		margin-top: 1.5rem;
+		padding-top: 1.5rem;
+		border-top: var(--border-thick);
 	}
 
-	.loading-spinner {
+	.filter-pill {
+		padding: 0.5rem 1rem;
+		font-family: "Outfit", sans-serif;
+		font-weight: 700;
+		font-size: 0.875rem;
+		background: var(--color-white);
+		border: var(--border-thin);
+		border-radius: var(--radius-pill);
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.filter-pill:hover {
+		background: var(--color-yellow);
+	}
+
+	.filter-pill.active {
+		background: var(--color-text);
+		color: var(--color-white);
+	}
+
+	/* ========================================
+      STATES
+      ========================================
+    */
+	.state-panel {
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-lg);
+		padding: 5rem 2rem;
+		text-align: center;
+		box-shadow: var(--shadow-solid);
+		margin-top: 2rem;
+	}
+
+	.spinner {
+		font-size: 4rem;
+		display: inline-block;
 		animation: spin 2s linear infinite;
+		margin-bottom: 1rem;
 	}
 
 	@keyframes spin {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
+		100% {
 			transform: rotate(360deg);
 		}
 	}
 
-	.empty-state {
-		text-align: center;
-		padding: 4rem 2rem;
-	}
-
-	.empty-icon {
-		font-size: 2.5rem;
-		display: block;
+	.empty-emoji {
+		font-size: 5rem;
 		margin-bottom: 1rem;
 	}
 
-	.empty-text {
-		font-family: "Noto Serif", serif;
-		font-size: 1rem;
-		color: #6b5d52;
-		margin: 0 0 1rem 0;
+	.state-title {
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 2rem;
+		font-weight: 800;
+		margin: 0 0 0.5rem 0;
 	}
 
-	.empty-link {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: #8b7355;
-		text-decoration: underline;
-		text-underline-offset: 2px;
+	.state-desc {
+		font-size: 1.125rem;
+		font-weight: 500;
+		color: #444;
+		margin: 0;
 	}
 
-	.empty-link:hover {
-		color: #d4af37;
+	.mt-4 {
+		margin-top: 1.5rem;
 	}
 
-	/* Grid View */
+	/* ========================================
+      BUTTONS
+      ========================================
+    */
+	.action-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1rem 2rem;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1.125rem;
+		font-weight: 800;
+		border: var(--border-thick);
+		border-radius: var(--radius-pill);
+		text-decoration: none;
+		cursor: pointer;
+		box-shadow: var(--shadow-solid-sm);
+		transition:
+			transform 0.1s,
+			box-shadow 0.1s;
+	}
+
+	.action-btn:hover {
+		transform: translate(-4px, -4px);
+		box-shadow: var(--shadow-solid);
+	}
+
+	.action-btn:active {
+		transform: translate(0, 0);
+		box-shadow: 0px 0px 0px var(--color-border);
+	}
+
+	.primary-btn {
+		background: var(--color-blue);
+		color: var(--color-white);
+	}
+
+	/* ========================================
+      GRID VIEW
+      ========================================
+    */
 	.catalog-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-		gap: 1.25rem;
+		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		gap: 2rem;
 	}
 
-	.card {
+	.map-card-wrapper {
 		position: relative;
-		background: rgba(255, 255, 255, 0.4);
-		border: 2px solid rgba(212, 175, 55, 0.3);
-		border-radius: 4px;
+	}
+
+	.map-card {
+		display: flex;
+		flex-direction: column;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-md);
 		overflow: hidden;
-		transition: all 0.3s ease;
-	}
-
-	.card:hover {
-		border-color: #d4af37;
-		transform: translateY(-4px);
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-	}
-
-	.card-link {
-		display: block;
 		text-decoration: none;
 		color: inherit;
+		box-shadow: var(--shadow-solid-sm);
+		transition:
+			transform 0.2s,
+			box-shadow 0.2s;
+		height: 100%;
 	}
 
-	.card-thumb {
+	.map-card:hover {
+		transform: translate(-4px, -4px) rotate(-1deg);
+		box-shadow: var(--shadow-solid-hover);
+	}
+
+	.map-card-wrapper:nth-child(even) .map-card:hover {
+		transform: translate(-4px, -4px) rotate(1.5deg);
+	}
+
+	.map-thumbnail {
 		position: relative;
 		aspect-ratio: 4 / 3;
-		background: linear-gradient(135deg, #e8d5ba 0%, #d4c4a8 100%);
+		background: var(--color-bg);
+		border-bottom: var(--border-thick);
 		overflow: hidden;
 	}
 
-	.card-thumb img {
-		position: absolute;
-		inset: 0;
+	.map-thumbnail img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		transition: transform 0.3s ease;
 	}
 
-	.card:hover .card-thumb img {
-		transform: scale(1.05);
+	.placeholder-pattern {
+		width: 100%;
+		height: 100%;
+		background-image: repeating-linear-gradient(
+			45deg,
+			var(--color-yellow) 0,
+			var(--color-yellow) 10px,
+			var(--color-white) 10px,
+			var(--color-white) 20px
+		);
 	}
 
-	.card-body {
-		padding: 1rem;
+	.map-badges {
+		position: absolute;
+		bottom: 0.75rem;
+		left: 0.75rem;
+		display: flex;
+		gap: 0.5rem;
 	}
 
-	.card-name {
-		font-family: "Spectral", serif;
-		font-size: 1rem;
-		font-weight: 600;
-		color: #2b2520;
+	.badge {
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 0.75rem;
+		font-weight: 800;
+		padding: 0.25rem 0.6rem;
+		background: var(--color-white);
+		border: var(--border-thin);
+		border-radius: var(--radius-sm);
+		box-shadow: 2px 2px 0px var(--color-border);
+	}
+
+	.year-badge {
+		background: var(--color-green);
+		color: var(--color-text);
+	}
+
+	.city-badge {
+		background: var(--color-white);
+		color: var(--color-text);
+	}
+
+	.map-info {
+		padding: 1.25rem;
+		flex-grow: 1;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.map-name {
+		font-family: "Outfit", sans-serif;
+		font-size: 1.125rem;
+		font-weight: 800;
 		margin: 0 0 0.5rem 0;
 		line-height: 1.3;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
-		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
 
-	.card-meta {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.75rem;
+	.map-city {
+		font-size: 0.875rem;
+		font-weight: 700;
+		color: #666;
+		margin-top: auto;
 	}
 
-	.meta-year {
-		padding: 0.25rem 0.5rem;
-		background: rgba(212, 175, 55, 0.2);
-		border-radius: 2px;
-		color: #8b7355;
-		font-weight: 600;
-	}
-
-	.meta-city {
-		padding: 0.25rem 0.5rem;
-		background: rgba(107, 93, 82, 0.1);
-		border-radius: 2px;
-		color: #6b5d52;
-	}
-
-	/* Favorite Button */
 	.fav-btn {
 		position: absolute;
-		top: 0.5rem;
-		right: 0.5rem;
+		top: -10px;
+		right: -10px;
+		width: 44px;
+		height: 44px;
+		font-size: 1.5rem;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: 50%;
+		cursor: pointer;
+		box-shadow: var(--shadow-solid-sm);
+		z-index: 2;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.85);
-		color: #8b7355;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-		z-index: 1;
+		transition: transform 0.1s;
 	}
 
 	.fav-btn:hover {
-		background: white;
-		transform: scale(1.1);
+		transform: scale(1.1) rotate(10deg);
 	}
 
-	.fav-btn.faved {
-		color: #c0392b;
+	.fav-btn:active {
+		transform: scale(0.95);
 	}
 
-	/* List View */
+	/* ========================================
+      LIST VIEW
+      ========================================
+    */
 	.catalog-list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 1.5rem;
 	}
 
 	.list-row {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
-		padding: 0.75rem;
-		background: rgba(255, 255, 255, 0.35);
-		border: 1px solid rgba(212, 175, 55, 0.2);
-		border-radius: 4px;
+		gap: 1.5rem;
+		padding: 1rem;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-md);
 		text-decoration: none;
 		color: inherit;
-		transition: all 0.2s ease;
+		box-shadow: var(--shadow-solid-sm);
+		transition:
+			transform 0.1s,
+			box-shadow 0.1s;
 		position: relative;
 	}
 
 	.list-row:hover {
-		background: rgba(255, 255, 255, 0.55);
-		border-color: rgba(212, 175, 55, 0.5);
+		transform: translate(-2px, -2px);
+		box-shadow: var(--shadow-solid);
 	}
 
 	.list-thumb {
 		flex-shrink: 0;
-		width: 80px;
-		height: 60px;
-		border-radius: 3px;
+		width: 120px;
+		height: 90px;
+		border: var(--border-thick);
+		border-radius: var(--radius-sm);
 		overflow: hidden;
-		background: linear-gradient(135deg, #e8d5ba 0%, #d4c4a8 100%);
+		background: var(--color-bg);
 	}
 
 	.list-thumb img {
@@ -976,22 +1073,21 @@
 	}
 
 	.list-name {
-		font-family: "Spectral", serif;
-		font-size: 1rem;
-		font-weight: 600;
-		color: #2b2520;
-		margin: 0 0 0.25rem 0;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1.25rem;
+		font-weight: 800;
+		margin: 0 0 0.5rem 0;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
 	.list-summary {
-		font-family: "Noto Serif", serif;
-		font-size: 0.8125rem;
-		line-height: 1.4;
-		color: #6b5d52;
-		margin: 0 0 0.375rem 0;
+		font-family: "Outfit", sans-serif;
+		font-size: 1rem;
+		font-weight: 500;
+		color: #555;
+		margin: 0 0 0.75rem 0;
 		display: -webkit-box;
 		-webkit-line-clamp: 1;
 		line-clamp: 1;
@@ -1002,76 +1098,109 @@
 	.list-meta {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.75rem;
+		gap: 0.75rem;
 	}
 
 	.fav-btn-list {
 		position: static;
 		flex-shrink: 0;
-		box-shadow: none;
-		background: rgba(255, 255, 255, 0.5);
+		width: 44px;
+		height: 44px;
+		font-size: 1.5rem;
+		background: var(--color-bg);
+		border: var(--border-thick);
+		border-radius: 50%;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: transform 0.1s;
+	}
+
+	.fav-btn-list:hover {
+		background: var(--color-yellow);
+		transform: scale(1.1);
 	}
 
 	/* Result count */
 	.result-count {
 		text-align: center;
-		padding: 1.5rem 0 0;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.8125rem;
-		color: #8b7355;
+		padding: 3rem 0 1rem;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1.125rem;
+		font-weight: 700;
+		color: #666;
 		margin: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
 	}
 
-	/* Responsive */
-	@media (max-width: 640px) {
+	.count-bubble {
+		background: var(--color-text);
+		color: var(--color-white);
+		padding: 0.25rem 0.75rem;
+		border-radius: var(--radius-pill);
+	}
+
+	/* ========================================
+      RESPONSIVE
+      ========================================
+    */
+	@media (max-width: 768px) {
 		.top-bar {
-			padding: 0.75rem 1rem;
+			padding: 1rem;
 		}
 
 		.top-bar-right {
 			width: 100%;
-			flex-wrap: wrap;
+			flex-direction: column;
+			align-items: stretch;
 		}
 
-		.search-input {
+		.search-box,
+		.chunky-input {
 			width: 100%;
-			flex: 1;
 		}
 
-		.search-box {
-			flex: 1;
+		.controls-group {
+			justify-content: space-between;
 		}
 
-		.filter-bar {
-			padding: 0.75rem 1rem;
+		.chunky-select {
+			flex-grow: 1;
 		}
 
 		.content {
 			padding: 1rem;
 		}
 
+		.controls-card {
+			padding: 1rem;
+		}
+
 		.catalog-grid {
-			grid-template-columns: repeat(2, 1fr);
-			gap: 0.75rem;
+			grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+			gap: 1.5rem;
 		}
 
-		.card-body {
-			padding: 0.75rem;
-		}
-
-		.card-name {
-			font-size: 0.875rem;
+		.list-row {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 1rem;
 		}
 
 		.list-thumb {
-			width: 64px;
-			height: 48px;
+			width: 100%;
+			height: 160px;
 		}
 
-		.page-title {
-			font-size: 1.25rem;
+		.fav-btn-list {
+			position: absolute;
+			top: 1rem;
+			right: 1rem;
+			box-shadow: var(--shadow-solid-sm);
 		}
 	}
 </style>

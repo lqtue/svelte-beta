@@ -4,9 +4,28 @@
 		"src/routes/+layout.server.ts",
 		"src/routes/+layout.server.ts"
 	],
+	"/admin": [
+		"src/routes/admin/+page.ts",
+		"src/routes/+layout.server.ts"
+	],
 	"/annotate": [
 		"src/routes/annotate/+page.ts",
 		"src/routes/+layout.server.ts"
+	],
+	"/api/admin/labels": [
+		"src/routes/api/admin/labels/+server.ts"
+	],
+	"/api/admin/labels/[id]": [
+		"src/routes/api/admin/labels/[id]/+server.ts"
+	],
+	"/api/admin/maps": [
+		"src/routes/api/admin/maps/+server.ts"
+	],
+	"/api/admin/maps/[id]": [
+		"src/routes/api/admin/maps/[id]/+server.ts"
+	],
+	"/api/admin/maps/[id]/image": [
+		"src/routes/api/admin/maps/[id]/image/+server.ts"
 	],
 	"/auth/callback": [
 		"src/routes/auth/callback/+server.ts"
@@ -25,30 +44,10 @@
 		"src/routes/create/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/georef": [
-		"src/routes/georef/+page.server.ts",
-		"src/routes/+layout.server.ts"
-	],
-	"/hunt": [
-		"src/routes/hunt/+page.server.ts",
-		"src/routes/+layout.server.ts"
-	],
 	"/login": [
 		"src/routes/+layout.server.ts"
 	],
-	"/shell": [
-		"src/routes/shell/+page.server.ts",
-		"src/routes/+layout.server.ts"
-	],
 	"/signup": [
-		"src/routes/+layout.server.ts"
-	],
-	"/studio": [
-		"src/routes/studio/+page.server.ts",
-		"src/routes/+layout.server.ts"
-	],
-	"/trip": [
-		"src/routes/trip/+page.server.ts",
 		"src/routes/+layout.server.ts"
 	],
 	"/view": [

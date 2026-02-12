@@ -97,86 +97,92 @@
 </div>
 
 <style>
-    /* ---------- Top Search Bar ---------- */
-    .top-search-bar {
-        position: absolute;
-        top: 0.75rem;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 50;
-        pointer-events: auto;
-    }
 
-    .top-search-bar.hidden {
-        display: none;
-    }
+/* ---------- Top Search Bar ---------- */
+.top-search-bar {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    pointer-events: auto;
+}
 
-    .search-trigger {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        width: 100%;
-        border: 2px solid #d4af37;
-        border-radius: 6px;
-        background: linear-gradient(
-            160deg,
-            rgba(244, 232, 216, 0.96) 0%,
-            rgba(232, 213, 186, 0.96) 100%
-        );
-        color: #8b7355;
-        font-family: "Be Vietnam Pro", sans-serif;
-        font-size: 0.82rem;
-        cursor: pointer;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
-        backdrop-filter: blur(12px);
-        transition: all 0.15s ease;
-    }
+.top-search-bar.hidden {
+    display: none;
+}
 
-    .search-trigger:hover {
-        background: linear-gradient(
-            160deg,
-            rgba(244, 232, 216, 1) 0%,
-            rgba(232, 213, 186, 1) 100%
-        );
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
-        border-color: #c9a430;
-    }
+.search-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    min-width: 320px;
+    border: var(--border-thick);
+    border-radius: var(--radius-pill);
+    background: var(--color-white);
+    color: var(--color-text);
+    font-family: var(--font-family-base);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-solid);
+    transition: all 0.1s;
+}
 
-    .search-trigger svg {
-        flex-shrink: 0;
-        color: #8b7355;
-    }
+.search-trigger:hover {
+    background: var(--color-yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-solid-hover);
+}
 
-    .search-trigger-text {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        text-align: left;
-        flex: 1;
-    }
+.search-trigger:active {
+    transform: translate(0, 0);
+    box-shadow: 0 0 0 var(--color-border);
+}
 
-    /* ---------- Search Anchor ---------- */
-    .search-anchor {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 100;
-        pointer-events: none;
-    }
+.search-trigger svg {
+    flex-shrink: 0;
+    color: var(--color-text);
+}
 
-    .search-anchor :global(.search-backdrop) {
-        pointer-events: auto;
-    }
+.search-trigger-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    flex: 1;
+    opacity: 0.7;
+}
 
-    .search-anchor :global(.search-panel) {
-        top: 0.75rem;
-        left: 50%;
-        right: auto;
-        transform: translateX(-50%);
-        pointer-events: auto;
-        width: var(--toolbar-width);
-    }
+/* ---------- Search Anchor ---------- */
+.search-anchor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.search-anchor :global(.search-backdrop) {
+    pointer-events: auto;
+}
+
+.search-anchor :global(.search-panel) {
+    top: 1rem;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    width: var(--toolbar-width);
+    min-width: 320px;
+    background: var(--color-white);
+    border: var(--border-thick);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-solid);
+}
+
 </style>

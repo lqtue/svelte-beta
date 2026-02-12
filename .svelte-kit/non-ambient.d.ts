@@ -27,13 +27,23 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/annotate" | "/auth" | "/auth/callback" | "/catalog" | "/contribute" | "/contribute/georef" | "/contribute/label" | "/create" | "/georef" | "/hunt" | "/login" | "/shell" | "/signup" | "/studio" | "/trip" | "/view";
+		RouteId(): "/" | "/admin" | "/annotate" | "/api" | "/api/admin" | "/api/admin/labels" | "/api/admin/labels/[id]" | "/api/admin/maps" | "/api/admin/maps/[id]" | "/api/admin/maps/[id]/image" | "/auth" | "/auth/callback" | "/catalog" | "/contribute" | "/contribute/georef" | "/contribute/label" | "/create" | "/login" | "/signup" | "/view";
 		RouteParams(): {
-			
+			"/api/admin/labels/[id]": { id: string };
+			"/api/admin/maps/[id]": { id: string };
+			"/api/admin/maps/[id]/image": { id: string }
 		};
 		LayoutParams(): {
-			"/": Record<string, never>;
+			"/": { id?: string };
+			"/admin": Record<string, never>;
 			"/annotate": Record<string, never>;
+			"/api": { id?: string };
+			"/api/admin": { id?: string };
+			"/api/admin/labels": { id?: string };
+			"/api/admin/labels/[id]": { id: string };
+			"/api/admin/maps": { id?: string };
+			"/api/admin/maps/[id]": { id: string };
+			"/api/admin/maps/[id]/image": { id: string };
 			"/auth": Record<string, never>;
 			"/auth/callback": Record<string, never>;
 			"/catalog": Record<string, never>;
@@ -41,17 +51,12 @@ declare module "$app/types" {
 			"/contribute/georef": Record<string, never>;
 			"/contribute/label": Record<string, never>;
 			"/create": Record<string, never>;
-			"/georef": Record<string, never>;
-			"/hunt": Record<string, never>;
 			"/login": Record<string, never>;
-			"/shell": Record<string, never>;
 			"/signup": Record<string, never>;
-			"/studio": Record<string, never>;
-			"/trip": Record<string, never>;
 			"/view": Record<string, never>
 		};
-		Pathname(): "/" | "/annotate" | "/annotate/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/catalog" | "/catalog/" | "/contribute" | "/contribute/" | "/contribute/georef" | "/contribute/georef/" | "/contribute/label" | "/contribute/label/" | "/create" | "/create/" | "/georef" | "/georef/" | "/hunt" | "/hunt/" | "/login" | "/login/" | "/shell" | "/shell/" | "/signup" | "/signup/" | "/studio" | "/studio/" | "/trip" | "/trip/" | "/view" | "/view/";
+		Pathname(): "/" | "/admin" | "/admin/" | "/annotate" | "/annotate/" | "/api" | "/api/" | "/api/admin" | "/api/admin/" | "/api/admin/labels" | "/api/admin/labels/" | `/api/admin/labels/${string}` & {} | `/api/admin/labels/${string}/` & {} | "/api/admin/maps" | "/api/admin/maps/" | `/api/admin/maps/${string}` & {} | `/api/admin/maps/${string}/` & {} | `/api/admin/maps/${string}/image` & {} | `/api/admin/maps/${string}/image/` & {} | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/catalog" | "/catalog/" | "/contribute" | "/contribute/" | "/contribute/georef" | "/contribute/georef/" | "/contribute/label" | "/contribute/label/" | "/create" | "/create/" | "/login" | "/login/" | "/signup" | "/signup/" | "/view" | "/view/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/favicon.ico" | "/favicon.png" | "/manifest.json" | "/robots.txt" | "/sw.js" | string & {};
+		Asset(): "/favicon.ico" | "/favicon.png" | "/icon-192.png" | "/icon-512.png" | "/manifest.json" | "/robots.txt" | "/sw.js" | string & {};
 	}
 }

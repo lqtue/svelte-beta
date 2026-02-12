@@ -1,42 +1,42 @@
 <script lang="ts">
-	import { getSupabaseContext } from '$lib/supabase/context';
-	import { goto } from '$app/navigation';
+	import { getSupabaseContext } from "$lib/supabase/context";
+	import { goto } from "$app/navigation";
 
 	const { supabase, session } = getSupabaseContext();
 
-	let email = $state('');
-	let password = $state('');
-	let error = $state('');
+	let email = $state("");
+	let password = $state("");
+	let error = $state("");
 	let loading = $state(false);
 
 	// Redirect if already logged in
 	$effect(() => {
-		if (session) goto('/');
+		if (session) goto("/");
 	});
 
 	async function handleEmailLogin(e: SubmitEvent) {
 		e.preventDefault();
-		error = '';
+		error = "";
 		loading = true;
 
 		const { error: authError } = await supabase.auth.signInWithPassword({
 			email,
-			password
+			password,
 		});
 
 		if (authError) {
 			error = authError.message;
 			loading = false;
 		} else {
-			goto('/');
+			goto("/");
 		}
 	}
 
 	async function handleGoogleLogin() {
-		error = '';
+		error = "";
 		const { error: authError } = await supabase.auth.signInWithOAuth({
-			provider: 'google',
-			options: { redirectTo: `${window.location.origin}/auth/callback` }
+			provider: "google",
+			options: { redirectTo: `${window.location.origin}/auth/callback` },
 		});
 		if (authError) {
 			error = authError.message;
@@ -59,14 +59,24 @@
 		<form onsubmit={handleEmailLogin} class="auth-form">
 			<label class="auth-field">
 				<span>Email</span>
-				<input type="email" bind:value={email} required autocomplete="email" />
+				<input
+					type="email"
+					bind:value={email}
+					required
+					autocomplete="email"
+				/>
 			</label>
 			<label class="auth-field">
 				<span>Password</span>
-				<input type="password" bind:value={password} required autocomplete="current-password" />
+				<input
+					type="password"
+					bind:value={password}
+					required
+					autocomplete="current-password"
+				/>
 			</label>
 			<button type="submit" class="auth-btn primary" disabled={loading}>
-				{loading ? 'Logging in...' : 'Login'}
+				{loading ? "Logging in..." : "Login"}
 			</button>
 		</form>
 
@@ -89,140 +99,170 @@
 		align-items: center;
 		justify-content: center;
 		padding: 2rem;
-		background: linear-gradient(180deg, #f4e8d8 0%, #ebe0d0 50%, #e8d5ba 100%);
+		background-color: var(--color-bg);
+		background-image: radial-gradient(
+			var(--color-border) 1px,
+			transparent 1px
+		);
+		background-size: 32px 32px;
 	}
 
 	.auth-card {
 		width: 100%;
 		max-width: 400px;
 		padding: 2.5rem;
-		background: rgba(255, 255, 255, 0.6);
-		border: 2px solid rgba(212, 175, 55, 0.4);
-		border-radius: 4px;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-solid);
 	}
 
 	.auth-title {
-		font-family: 'Spectral', serif;
-		font-size: 1.75rem;
-		font-weight: 700;
-		color: #2b2520;
+		font-family: var(--font-family-display);
+		font-size: 2rem;
+		font-weight: 800;
+		color: var(--color-text);
 		margin: 0 0 1.5rem;
 		text-align: center;
+		text-transform: uppercase;
 	}
 
 	.auth-error {
 		padding: 0.75rem 1rem;
-		background: rgba(220, 38, 38, 0.1);
-		border: 1px solid rgba(220, 38, 38, 0.3);
-		border-radius: 4px;
-		color: #dc2626;
+		background: #fee2e2;
+		border: 2px solid #ef4444;
+		border-radius: var(--radius-md);
+		color: #b91c1c;
 		font-size: 0.875rem;
+		font-weight: 600;
 		margin-bottom: 1rem;
+		box-shadow: 4px 4px 0px #ef4444;
 	}
 
 	.auth-form {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 1.25rem;
 	}
 
 	.auth-field {
 		display: flex;
 		flex-direction: column;
-		gap: 0.375rem;
+		gap: 0.5rem;
 	}
 
 	.auth-field span {
-		font-family: 'Be Vietnam Pro', sans-serif;
+		font-family: var(--font-family-display);
 		font-size: 0.875rem;
-		font-weight: 500;
-		color: #4a3f35;
+		font-weight: 700;
+		color: var(--color-text);
+		text-transform: uppercase;
 	}
 
 	.auth-field input {
-		padding: 0.625rem 0.75rem;
-		border: 1px solid rgba(212, 175, 55, 0.4);
-		border-radius: 4px;
-		background: rgba(255, 255, 255, 0.8);
+		padding: 0.75rem 1rem;
+		border: var(--border-thick);
+		border-radius: var(--radius-pill);
+		background: var(--color-white);
+		font-family: var(--font-family-base);
 		font-size: 1rem;
-		color: #2b2520;
+		font-weight: 600;
+		color: var(--color-text);
 		outline: none;
-		transition: border-color 0.2s;
+		box-shadow: 2px 2px 0px var(--color-border);
+		transition: all 0.1s;
 	}
 
 	.auth-field input:focus {
-		border-color: #d4af37;
+		transform: translate(-2px, -2px);
+		box-shadow: 4px 4px 0px var(--color-border);
+		background: var(--color-bg);
 	}
 
 	.auth-btn {
 		padding: 0.75rem 1rem;
-		border: none;
-		border-radius: 4px;
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.9375rem;
-		font-weight: 600;
+		border: var(--border-thick);
+		border-radius: var(--radius-pill);
+		font-family: var(--font-family-display);
+		font-size: 1rem;
+		font-weight: 800;
 		cursor: pointer;
-		transition: all 0.2s;
+		transition: all 0.1s;
+		box-shadow: 2px 2px 0px var(--color-border);
+		text-transform: uppercase;
+	}
+
+	.auth-btn:hover:not(:disabled) {
+		transform: translate(-2px, -2px);
+		box-shadow: 4px 4px 0px var(--color-border);
+	}
+
+	.auth-btn:active:not(:disabled) {
+		transform: translate(0, 0);
+		box-shadow: 0 0 0 var(--color-border);
 	}
 
 	.auth-btn.primary {
-		background: #2b2520;
-		color: #f4e8d8;
+		background: var(--color-blue);
+		color: var(--color-white);
 	}
 
 	.auth-btn.primary:hover:not(:disabled) {
-		background: #4a3f35;
+		background: var(--color-primary-700);
 	}
 
 	.auth-btn.primary:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
+		background: var(--color-gray-300);
 	}
 
 	.auth-btn.google {
 		width: 100%;
-		background: white;
-		color: #2b2520;
-		border: 1px solid rgba(212, 175, 55, 0.4);
+		background: var(--color-white);
+		color: var(--color-text);
 	}
 
 	.auth-btn.google:hover {
-		border-color: #d4af37;
-		background: rgba(255, 255, 255, 0.9);
+		background: var(--color-yellow);
 	}
 
 	.auth-divider {
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		margin: 1.25rem 0;
-		color: #8b7355;
-		font-size: 0.8125rem;
+		margin: 1.5rem 0;
+		color: var(--color-text);
+		font-size: 0.875rem;
+		font-weight: 700;
+		text-transform: uppercase;
 	}
 
 	.auth-divider::before,
 	.auth-divider::after {
-		content: '';
+		content: "";
 		flex: 1;
-		height: 1px;
-		background: rgba(212, 175, 55, 0.3);
+		height: 3px;
+		background: var(--color-border);
 	}
 
 	.auth-link {
 		text-align: center;
-		margin: 1.25rem 0 0;
-		font-family: 'Be Vietnam Pro', sans-serif;
+		margin: 1.5rem 0 0;
+		font-family: var(--font-family-base);
 		font-size: 0.875rem;
-		color: #4a3f35;
+		font-weight: 600;
+		color: var(--color-text);
 	}
 
 	.auth-link a {
-		color: #8b7355;
-		text-decoration: underline;
-		text-underline-offset: 2px;
+		color: var(--color-blue);
+		text-decoration: none;
+		font-weight: 800;
 	}
 
 	.auth-link a:hover {
-		color: #d4af37;
+		text-decoration: underline;
+		color: var(--color-primary);
 	}
 </style>

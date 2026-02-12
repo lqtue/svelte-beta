@@ -169,288 +169,311 @@
   </div>
 </aside>
 
-<style>
-  .panel {
+<style>.panel {
     position: relative;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(160deg, rgba(244, 232, 216, 0.95) 0%, rgba(232, 213, 186, 0.95) 100%);
-    border: 2px solid #d4af37;
-    border-radius: 4px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    backdrop-filter: blur(12px);
+    background: var(--color-bg);
+    border-right: var(--border-thick);
     height: 100%;
     max-height: none;
     overflow: hidden;
     min-width: 0;
-    color: #2b2520;
-  }
+    color: var(--color-text);
+    box-shadow: var(--shadow-solid);
+}
 
-  .panel-header {
+.panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
-  }
+    padding: 1rem;
+    border-bottom: var(--border-thick);
+    background: var(--color-white);
+}
 
-  .home-link {
+.home-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    font-family: 'Be Vietnam Pro', sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #4a3f35;
+    gap: 0.5rem;
+    font-family: var(--font-family-display);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text);
     text-decoration: none;
-    transition: color 0.15s ease;
-  }
+    text-transform: uppercase;
+    transition: color 0.1s;
+}
 
-  .home-link:hover {
-    color: #d4af37;
-  }
+.home-link:hover {
+    color: var(--color-primary);
+}
 
-  .panel-close {
+.panel-close {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.4);
-    color: #6b5d52;
+    width: 32px;
+    height: 32px;
+    border: var(--border-thin);
+    border-radius: 50%;
+    background: var(--color-white);
+    color: var(--color-text);
     cursor: pointer;
-    transition: all 0.15s ease;
-  }
+    box-shadow: 2px 2px 0px var(--color-border);
+    transition: all 0.1s;
+}
 
-  .panel-close:hover {
-    background: rgba(212, 175, 55, 0.2);
-    border-color: #d4af37;
-    color: #2b2520;
-  }
+.panel-close:hover {
+    background: var(--color-yellow);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px var(--color-border);
+}
 
-  .panel-scroll {
+.panel-scroll {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
     overflow-y: auto;
-    padding: 0.9rem;
-  }
+    padding: 1.5rem;
+}
 
-  .panel-card {
-    background: rgba(255, 255, 255, 0.4);
-    border-radius: 4px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    padding: 1rem 1.1rem;
+.panel-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-thick);
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-  }
+    gap: 1rem;
+    box-shadow: var(--shadow-solid-sm);
+}
 
-  .panel-card-header h2 {
+.panel-card-header h2 {
     margin: 0;
-    font-family: 'Spectral', serif;
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #2b2520;
-  }
+    font-family: var(--font-family-display);
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--color-text);
+    text-transform: uppercase;
+}
 
-  /* Map Info */
-  .map-title {
+/* Map Info */
+.map-title {
     margin: 0;
-    font-family: 'Spectral', serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #2b2520;
-    line-height: 1.3;
-  }
+    font-family: var(--font-family-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-text);
+    line-height: 1.1;
+}
 
-  .map-meta {
+.map-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-  }
+}
 
-  .meta-badge {
-    font-family: 'Be Vietnam Pro', sans-serif;
+.meta-badge {
+    font-family: var(--font-family-base);
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
     padding: 0.25rem 0.6rem;
-    border-radius: 2px;
-  }
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: var(--color-white);
+}
 
-  .meta-year {
-    background: rgba(212, 175, 55, 0.2);
-    color: #8b7355;
-  }
+.meta-year {
+    background: var(--color-yellow);
+}
 
-  .meta-city {
-    background: rgba(107, 93, 82, 0.1);
-    color: #6b5d52;
-  }
+.meta-city {
+    background: var(--color-bg);
+}
 
-  .map-summary {
+.map-summary {
     margin: 0;
-    font-family: 'Noto Serif', serif;
-    font-size: 0.875rem;
+    font-family: var(--font-family-base);
+    font-size: 0.9rem;
     line-height: 1.5;
-    color: #4a3f35;
-  }
+    color: var(--color-text);
+    opacity: 0.9;
+}
 
-  .map-description {
+.map-description {
     margin: 0;
-    font-family: 'Noto Serif', serif;
-    font-size: 0.8125rem;
+    font-family: var(--font-family-base);
+    font-size: 0.85rem;
     line-height: 1.5;
-    color: #6b5d52;
-  }
+    color: var(--color-text);
+    opacity: 0.7;
+}
 
-  .map-actions {
+.map-actions {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
-  }
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
 
-  .action-btn {
+.action-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.6rem 0.85rem;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(212, 175, 55, 0.35);
-    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    background: var(--color-white);
+    border: var(--border-thick);
+    border-radius: var(--radius-pill);
     text-decoration: none;
-    color: #4a3f35;
-    font-family: 'Be Vietnam Pro', sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    transition: all 0.2s ease;
-  }
+    color: var(--color-text);
+    font-family: var(--font-family-base);
+    font-size: 0.9rem;
+    font-weight: 700;
+    transition: all 0.1s;
+    box-shadow: 2px 2px 0px var(--color-border);
+    cursor: pointer;
+}
 
-  .action-btn:hover {
-    background: rgba(212, 175, 55, 0.15);
-    border-color: #d4af37;
-    color: #2b2520;
-  }
+.action-btn:hover {
+    background: var(--color-yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px var(--color-border);
+}
 
-  .action-btn.success {
-    background: rgba(34, 197, 94, 0.15);
-    border-color: rgba(34, 197, 94, 0.5);
-    color: #059669;
-  }
+.action-btn.success {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #166534;
+}
 
-  /* No map state */
-  .no-map-card {
+/* No map state */
+.no-map-card {
     align-items: center;
     text-align: center;
-    padding: 2rem 1.5rem;
-  }
+    padding: 3rem 1.5rem;
+    border-style: dashed;
+    background: transparent;
+    box-shadow: none;
+}
 
-  .no-map-icon {
-    font-size: 2rem;
-    margin-bottom: 0.25rem;
-  }
+.no-map-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
 
-  .no-map-text {
+.no-map-text {
     margin: 0;
-    font-family: 'Noto Serif', serif;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: #6b5d52;
-  }
+    font-family: var(--font-family-base);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    opacity: 0.6;
+}
 
-  /* Stories */
-  .story-list {
+/* Stories */
+.story-list {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
-  }
+    gap: 1rem;
+}
 
-  .story-card {
-    border-radius: 6px;
-    border: 2px solid rgba(212, 175, 55, 0.25);
-    background: rgba(255, 255, 255, 0.4);
-    padding: 0.75rem 0.85rem;
+.story-card {
+    border-radius: var(--radius-md);
+    border: var(--border-thick);
+    background: var(--color-white);
+    padding: 1rem;
     text-align: left;
-    color: #4a3f35;
+    color: var(--color-text);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     cursor: pointer;
-    transition: all 0.2s ease;
-  }
+    transition: all 0.1s;
+    box-shadow: 2px 2px 0px var(--color-border);
+}
 
-  .story-card:hover,
-  .story-card:focus-visible {
-    border-color: rgba(212, 175, 55, 0.6);
-    background: rgba(255, 255, 255, 0.55);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.story-card:hover,
+.story-card:focus-visible {
+    background: var(--color-yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px var(--color-border);
     outline: none;
-  }
+}
 
-  .story-card.active {
-    border-color: #d4af37;
-    background: rgba(212, 175, 55, 0.15);
-    box-shadow: 0 6px 16px rgba(212, 175, 55, 0.2);
-  }
+.story-card.active {
+    background: var(--color-blue);
+    color: white;
+    box-shadow: none;
+    transform: translate(1px, 1px);
+}
 
-  .story-title {
+.story-card.active .story-title,
+.story-card.active .story-description,
+.story-card.active .story-footer,
+.story-card.active .story-author {
+    color: white;
+}
+
+.story-title {
     margin: 0;
-    font-family: 'Spectral', serif;
-    font-size: 0.95rem;
+    font-family: var(--font-family-display);
+    font-size: 1.1rem;
     font-weight: 700;
-    color: #2b2520;
-    line-height: 1.3;
-  }
+    line-height: 1.2;
+}
 
-  .story-description {
+.story-description {
     margin: 0;
-    font-family: 'Noto Serif', serif;
-    font-size: 0.78rem;
+    font-family: var(--font-family-base);
+    font-size: 0.85rem;
     line-height: 1.4;
-    color: #6b5d52;
+    opacity: 0.8;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-  }
+}
 
-  .story-footer {
+.story-footer {
     display: flex;
     align-items: center;
-    font-size: 0.7rem;
-    color: #8b7355;
-  }
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0.6;
+    margin-top: 0.25rem;
+}
 
-  .story-author {
+.story-author {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-  }
+}
 
-  .story-author svg {
+.story-author svg {
     flex-shrink: 0;
-    opacity: 0.7;
-  }
+}
 
-  .custom-scrollbar {
+.custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(212, 175, 55, 0.4) transparent;
-  }
+    scrollbar-color: var(--color-gray-300) transparent;
+}
 
-  .custom-scrollbar::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
-  }
+}
 
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.4);
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-gray-300);
     border-radius: 999px;
-  }
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-400);
+}
+
 </style>

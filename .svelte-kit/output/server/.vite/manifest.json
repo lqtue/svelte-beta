@@ -9,15 +9,54 @@
       "_environment.js"
     ]
   },
-  "_constants.js": {
-    "file": "chunks/constants.js",
-    "name": "constants"
+  "_MapSearchBar.CaB7_K8M.css": {
+    "file": "_app/immutable/assets/MapSearchBar.CaB7_K8M.css",
+    "src": "_MapSearchBar.CaB7_K8M.css"
+  },
+  "_MapSearchBar.js": {
+    "file": "chunks/MapSearchBar.js",
+    "name": "MapSearchBar",
+    "imports": [
+      "_index2.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_context.js"
+    ]
+  },
+  "_MapSearchBar.svelte_svelte_type_style_lang.js": {
+    "file": "chunks/MapSearchBar.svelte_svelte_type_style_lang.js",
+    "name": "MapSearchBar.svelte_svelte_type_style_lang",
+    "imports": [
+      "_context.js",
+      "_index.js"
+    ],
+    "css": [
+      "_app/immutable/assets/MapSearchBar.CaB7_K8M.css"
+    ]
+  },
+  "_StoryPlayback.qSdUb-2v.css": {
+    "file": "_app/immutable/assets/StoryPlayback.qSdUb-2v.css",
+    "src": "_StoryPlayback.qSdUb-2v.css"
+  },
+  "_StoryPlayback.svelte_svelte_type_style_lang.js": {
+    "file": "chunks/StoryPlayback.svelte_svelte_type_style_lang.js",
+    "name": "StoryPlayback.svelte_svelte_type_style_lang",
+    "imports": [
+      "_index.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js"
+    ],
+    "css": [
+      "_app/immutable/assets/StoryPlayback.qSdUb-2v.css"
+    ]
   },
   "_context.js": {
     "file": "chunks/context.js",
+    "name": "context"
+  },
+  "_context2.js": {
+    "file": "chunks/context2.js",
     "name": "context",
     "imports": [
-      "_false.js"
+      "_context.js"
     ]
   },
   "_environment.js": {
@@ -43,31 +82,33 @@
     "file": "chunks/index2.js",
     "name": "index",
     "imports": [
-      "_context.js"
+      "_context.js",
+      "_false.js"
     ]
   },
   "_internal.js": {
     "file": "chunks/internal.js",
     "name": "internal",
     "imports": [
-      "_context.js",
       "_index2.js",
+      "_context.js",
       "_environment.js"
+    ],
+    "dynamicImports": [
+      "src/hooks.server.ts"
     ]
   },
   "_ol.BtPuoxOl.css": {
     "file": "_app/immutable/assets/ol.BtPuoxOl.css",
     "src": "_ol.BtPuoxOl.css"
   },
-  "_ol.js": {
-    "file": "chunks/ol.js",
-    "name": "ol",
-    "imports": [
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/ol.BtPuoxOl.css"
-    ]
+  "_private.js": {
+    "file": "chunks/private.js",
+    "name": "private"
+  },
+  "_public.js": {
+    "file": "chunks/public.js",
+    "name": "public"
   },
   "_shared.js": {
     "file": "chunks/shared.js",
@@ -126,16 +167,36 @@
       "_shared.js"
     ]
   },
+  "src/hooks.server.ts": {
+    "file": "chunks/hooks.server.js",
+    "name": "hooks.server",
+    "src": "src/hooks.server.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_public.js"
+    ]
+  },
+  "src/routes/+layout.server.ts": {
+    "file": "entries/pages/_layout.server.ts.js",
+    "name": "entries/pages/_layout.server.ts",
+    "src": "src/routes/+layout.server.ts",
+    "isEntry": true
+  },
   "src/routes/+layout.svelte": {
     "file": "entries/pages/_layout.svelte.js",
     "name": "entries/pages/_layout.svelte",
     "src": "src/routes/+layout.svelte",
     "isEntry": true,
     "imports": [
-      "_index2.js"
+      "_index2.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_public.js",
+      "_context2.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.Buy76JVg.css"
+      "_app/immutable/assets/_layout.BvEVajSC.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -145,11 +206,11 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_constants.js",
+      "_context2.js",
       "_context.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.CSh8h2Ha.css"
+      "_app/immutable/assets/_page.DtX0AVXN.css"
     ]
   },
   "src/routes/+page.ts": {
@@ -158,39 +219,239 @@
     "src": "src/routes/+page.ts",
     "isEntry": true
   },
-  "src/routes/temp-viewer/+page.svelte": {
-    "file": "entries/pages/temp-viewer/_page.svelte.js",
-    "name": "entries/pages/temp-viewer/_page.svelte",
-    "src": "src/routes/temp-viewer/+page.svelte",
+  "src/routes/admin/+page.svelte": {
+    "file": "entries/pages/admin/_page.svelte.js",
+    "name": "entries/pages/admin/_page.svelte",
+    "src": "src/routes/admin/+page.svelte",
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_ol.js",
-      "_constants.js",
+      "_context2.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.Cu2vGFvN.css"
+    ]
+  },
+  "src/routes/admin/+page.ts": {
+    "file": "entries/pages/admin/_page.ts.js",
+    "name": "entries/pages/admin/_page.ts",
+    "src": "src/routes/admin/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/annotate/+page.svelte": {
+    "file": "entries/pages/annotate/_page.svelte.js",
+    "name": "entries/pages/annotate/_page.svelte",
+    "src": "src/routes/annotate/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js",
       "_index.js",
+      "_context.js",
+      "_context2.js",
+      "_MapSearchBar.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.DnC1sFfi.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css"
+    ]
+  },
+  "src/routes/annotate/+page.ts": {
+    "file": "entries/pages/annotate/_page.ts.js",
+    "name": "entries/pages/annotate/_page.ts",
+    "src": "src/routes/annotate/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/api/admin/labels/+server.ts": {
+    "file": "entries/endpoints/api/admin/labels/_server.ts.js",
+    "name": "entries/endpoints/api/admin/labels/_server.ts",
+    "src": "src/routes/api/admin/labels/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
+  "src/routes/api/admin/labels/[id]/+server.ts": {
+    "file": "entries/endpoints/api/admin/labels/_id_/_server.ts.js",
+    "name": "entries/endpoints/api/admin/labels/_id_/_server.ts",
+    "src": "src/routes/api/admin/labels/[id]/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
+  "src/routes/api/admin/maps/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_server.ts",
+    "src": "src/routes/api/admin/maps/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
+  "src/routes/api/admin/maps/[id]/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
+  "src/routes/api/admin/maps/[id]/image/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/image/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/image/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/image/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
+  "src/routes/auth/callback/+server.ts": {
+    "file": "entries/endpoints/auth/callback/_server.ts.js",
+    "name": "entries/endpoints/auth/callback/_server.ts",
+    "src": "src/routes/auth/callback/+server.ts",
+    "isEntry": true
+  },
+  "src/routes/catalog/+page.svelte": {
+    "file": "entries/pages/catalog/_page.svelte.js",
+    "name": "entries/pages/catalog/_page.svelte",
+    "src": "src/routes/catalog/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
       "_context.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.jZR5_Cw5.css"
+      "_app/immutable/assets/_page.dC7IEDJw.css"
     ]
   },
-  "src/routes/trip/+page.svelte": {
-    "file": "entries/pages/trip/_page.svelte.js",
-    "name": "entries/pages/trip/_page.svelte",
-    "src": "src/routes/trip/+page.svelte",
+  "src/routes/contribute/georef/+page.svelte": {
+    "file": "entries/pages/contribute/georef/_page.svelte.js",
+    "name": "entries/pages/contribute/georef/_page.svelte",
+    "src": "src/routes/contribute/georef/+page.svelte",
     "isEntry": true,
     "imports": [
       "_index2.js",
+      "_context2.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CFUe8JvJ.css"
+    ]
+  },
+  "src/routes/contribute/label/+page.svelte": {
+    "file": "entries/pages/contribute/label/_page.svelte.js",
+    "name": "entries/pages/contribute/label/_page.svelte",
+    "src": "src/routes/contribute/label/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.7A2umi1O.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css"
+    ]
+  },
+  "src/routes/contribute/label/+page.ts": {
+    "file": "entries/pages/contribute/label/_page.ts.js",
+    "name": "entries/pages/contribute/label/_page.ts",
+    "src": "src/routes/contribute/label/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/create/+page.svelte": {
+    "file": "entries/pages/create/_page.svelte.js",
+    "name": "entries/pages/create/_page.svelte",
+    "src": "src/routes/create/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_context2.js",
+      "_StoryPlayback.svelte_svelte_type_style_lang.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.DLR1kJwl.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css"
+    ]
+  },
+  "src/routes/create/+page.ts": {
+    "file": "entries/pages/create/_page.ts.js",
+    "name": "entries/pages/create/_page.ts",
+    "src": "src/routes/create/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/login/+page.svelte": {
+    "file": "entries/pages/login/_page.svelte.js",
+    "name": "entries/pages/login/_page.svelte",
+    "src": "src/routes/login/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.BvsEncdf.css"
+    ]
+  },
+  "src/routes/signup/+page.svelte": {
+    "file": "entries/pages/signup/_page.svelte.js",
+    "name": "entries/pages/signup/_page.svelte",
+    "src": "src/routes/signup/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.BCx_-o9u.css"
+    ]
+  },
+  "src/routes/view/+page.svelte": {
+    "file": "entries/pages/view/_page.svelte.js",
+    "name": "entries/pages/view/_page.svelte",
+    "src": "src/routes/view/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js",
       "_context.js",
       "_exports.js",
       "_utils.js",
       "_state.svelte.js",
-      "_ol.js",
-      "_constants.js",
-      "_index.js"
+      "_context2.js",
+      "_StoryPlayback.svelte_svelte_type_style_lang.js",
+      "_index.js",
+      "_MapSearchBar.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.ZMoROTv0.css"
+      "_app/immutable/assets/_page.DhV3kFFk.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css"
     ]
+  },
+  "src/routes/view/+page.ts": {
+    "file": "entries/pages/view/_page.ts.js",
+    "name": "entries/pages/view/_page.ts",
+    "src": "src/routes/view/+page.ts",
+    "isEntry": true
   }
 }

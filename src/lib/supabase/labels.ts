@@ -4,8 +4,10 @@ import type { LabelTask, LabelPin } from '$lib/contribute/label/types';
 interface DbLabelTask {
 	id: string;
 	map_id: string;
+	allmaps_id: string;
 	region: object;
 	status: string;
+	legend: string[] | null;
 }
 
 interface DbLabelPin {
@@ -16,14 +18,17 @@ interface DbLabelPin {
 	pixel_x: number;
 	pixel_y: number;
 	confidence: number;
+	data: Record<string, any> | null;
 }
 
 function toLabelTask(row: DbLabelTask): LabelTask {
 	return {
 		id: row.id,
 		mapId: row.map_id,
+		allmapsId: row.allmaps_id,
 		region: row.region as LabelTask['region'],
-		status: row.status as LabelTask['status']
+		status: row.status as LabelTask['status'],
+		legend: Array.isArray(row.legend) ? row.legend : []
 	};
 }
 
@@ -63,11 +68,7 @@ export async function fetchTaskPins(
 		.select('*')
 		.eq('task_id', taskId);
 
-	if (error || !data) {
-		console.error('Failed to fetch label pins:', error);
-		return [];
-	}
-
+	if (error) throw new Error(error.message);
 	return (data as unknown as DbLabelPin[]).map(toLabelPin);
 }
 
@@ -80,6 +81,7 @@ export async function createPin(
 		pixelX: number;
 		pixelY: number;
 		confidence: number;
+		data?: Record<string, any>;
 	}
 ): Promise<string | null> {
 	const { data, error } = await supabase
@@ -90,7 +92,8 @@ export async function createPin(
 			label: params.label,
 			pixel_x: params.pixelX,
 			pixel_y: params.pixelY,
-			confidence: params.confidence
+			confidence: params.confidence,
+			data: params.data || {}
 		} as never)
 		.select('id')
 		.single();

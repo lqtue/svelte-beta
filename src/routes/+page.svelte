@@ -17,7 +17,7 @@
 	let loading = true;
 	let thumbnails: Map<string, string> = new Map();
 	let selectedFeaturedCity: string = "all";
-	let favoriteIds: Set<string> = new Set();
+	let favoriteIds: string[] = [];
 	let filterCollection: "featured" | "favorites" = "featured";
 	let isVietnamese = false;
 
@@ -49,8 +49,7 @@
 		if (isVietnamese) {
 			// Switch to English
 			document.cookie =
-				"googtrans=/en/en; path=/; domain=" +
-				window.location.hostname;
+				"googtrans=/en/en; path=/; domain=" + window.location.hostname;
 			document.cookie = "googtrans=/en/en; path=/";
 			document.cookie =
 				"googtrans=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
@@ -63,8 +62,7 @@
 			// Switch to Vietnamese
 			document.cookie = "googtrans=/en/vi; path=/";
 			document.cookie =
-				"googtrans=/en/vi; path=/; domain=" +
-				window.location.hostname;
+				"googtrans=/en/vi; path=/; domain=" + window.location.hostname;
 			window.location.reload();
 		}
 	}
@@ -81,7 +79,7 @@
 
 			if (session?.user?.id) {
 				const favs = await fetchFavorites(supabase, session.user.id);
-				favoriteIds = new Set(favs);
+				favoriteIds = favs || [];
 			}
 
 			loading = false;
@@ -90,7 +88,7 @@
 				// Only fetch thumbnails for what might be visible
 				if (
 					featuredMaps.some((m) => m.id === map.id) ||
-					favoriteIds.has(map.id)
+					favoriteIds.includes(map.id)
 				) {
 					const url = await fetchThumbnailUrl(map.id);
 					if (url) {
@@ -110,15 +108,14 @@
 	async function toggleFavorite(mapId: string) {
 		if (!session?.user?.id) return;
 		const userId = session.user.id;
-		const wasFavorited = favoriteIds.has(mapId);
+		const wasFavorited = favoriteIds.includes(mapId);
 
-		// Optimistic update
+		// Optimistic update: use array reassignment for guaranteed Svelte reactivity
 		if (wasFavorited) {
-			favoriteIds.delete(mapId);
+			favoriteIds = favoriteIds.filter((id) => id !== mapId);
 		} else {
-			favoriteIds.add(mapId);
+			favoriteIds = [...favoriteIds, mapId];
 		}
-		favoriteIds = favoriteIds;
 
 		// Persist
 		const success = wasFavorited
@@ -128,11 +125,10 @@
 		// Revert on failure
 		if (!success) {
 			if (wasFavorited) {
-				favoriteIds.add(mapId);
+				favoriteIds = [...favoriteIds, mapId];
 			} else {
-				favoriteIds.delete(mapId);
+				favoriteIds = favoriteIds.filter((id) => id !== mapId);
 			}
-			favoriteIds = favoriteIds;
 		}
 	}
 
@@ -152,12 +148,10 @@
 			? featuredMaps
 			: featuredMaps.filter((m) => m.type === selectedFeaturedCity);
 
-	$: favoriteMaps = maps.filter((m) => favoriteIds.has(m.id));
+	$: favoriteMaps = maps.filter((m) => favoriteIds.includes(m.id));
 
 	$: displayedMaps =
-		filterCollection === "featured"
-			? displayedFeaturedMaps
-			: favoriteMaps;
+		filterCollection === "featured" ? displayedFeaturedMaps : favoriteMaps;
 
 	async function handleGoogleLogin() {
 		await supabase.auth.signInWithOAuth({
@@ -188,13 +182,13 @@
 </script>
 
 <svelte:head>
-	<title>Vietnam Map Archive — Historical Maps of Vietnam</title>
+	<title>Vietnam Map Archive — Make Old Maps Fun Again</title>
 	<meta
 		name="description"
 		content="Explore georeferenced historical maps of Vietnam. Overlay vintage cartography on modern basemaps, track your location through history."
 	/>
 	<link
-		href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+		href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&family=Be+Vietnam+Pro:wght@400;600;800&display=swap"
 		rel="stylesheet"
 	/>
 </svelte:head>
@@ -202,25 +196,23 @@
 <div class="page" class:mounted>
 	<header class="hero">
 		<div class="auth-bar">
-			<button class="auth-btn" on:click={toggleLanguage}>
-				{isVietnamese ? "🇬🇧 English" : "🇻🇳 Tiếng Việt"}
+			<button class="pill-btn lang-btn" on:click={toggleLanguage}>
+				{isVietnamese ? "🇬🇧 EN" : "🇻🇳 VN"}
 			</button>
 			{#if session}
-				<!-- Profile button removed as requested -->
-				<button
-					class="auth-btn auth-btn-signout"
-					on:click={handleSignOut}>Sign Out</button
+				<button class="pill-btn signout-btn" on:click={handleSignOut}
+					>Sign Out</button
 				>
 			{:else}
 				<button
-					class="auth-btn auth-btn-google"
+					class="pill-btn google-btn"
 					on:click={handleGoogleLogin}
 				>
 					<svg
 						class="google-icon"
 						viewBox="0 0 24 24"
-						width="16"
-						height="16"
+						width="18"
+						height="18"
 					>
 						<path
 							d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -239,110 +231,111 @@
 							fill="#EA4335"
 						/>
 					</svg>
-					Sign in with Google
+					Sign in
 				</button>
 			{/if}
 		</div>
 		<!-- Hidden element for Google Translate to attach to -->
 		<div id="google_translate_element" style="display:none"></div>
+
 		<div class="hero-content">
+			<div class="tagline-badge">
+				<span class="sparkle">✨</span> Make old maps fun again.
+			</div>
 			<h1 class="hero-title">
-				<span class="hero-icon">🗺️</span> Vietnam Map Archive
+				Vietnam<br /><span class="text-highlight">Map Archive</span>
 			</h1>
 			<p class="hero-subtitle">
-				Explore historical maps of Vietnam overlaid on the modern world
+				Explore vintage cartography overlaid on the modern world.
+				Time-travel from your browser! 🚀
 			</p>
 		</div>
-		<div class="hero-decoration"></div>
 	</header>
 
 	<main class="main">
 		<!-- 
       ============================================
-      SECTION 1: VIEW & EXPLORE (The Core Experience)
+      SECTION 1: VIEW & EXPLORE
       ============================================
     -->
 		<section class="mode-section" id="view-mode">
-			<div class="feature-card feature-card-primary">
+			<div class="feature-card mega-card">
 				<div class="feature-header-split">
-					<div class="feature-icon">📍</div>
+					<div class="icon-blob color-blue">📍</div>
 					<div class="feature-content-full">
 						<h2 class="feature-title">Explore & View</h2>
 						<p class="feature-description">
-							Discover historical maps of Vietnam overlaid on the
-							modern world. Compare past and present, track your
-							GPS position on vintage cartography, and browse the
-							archive.
+							Compare the past and present. Track your GPS on
+							vintage maps and browse our colorful archive of
+							history.
 						</p>
 					</div>
 				</div>
 
-				<!-- Embedded Featured Maps -->
 				<div class="embedded-maps-area">
-					<div class="collection-tabs">
-						<button
-							class="tab-btn"
-							class:active={filterCollection === "featured"}
-							on:click={() => (filterCollection = "featured")}
-						>
-							Featured
-						</button>
-						<button
-							class="tab-btn"
-							class:active={filterCollection === "favorites"}
-							on:click={() => (filterCollection = "favorites")}
-						>
-							<svg
-								class="tab-heart"
-								width="14"
-								height="14"
-								viewBox="0 0 24 24"
-								fill="currentColor"
-							>
-								<path
-									d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-								/>
-							</svg>
-							Favorites
-						</button>
-					</div>
-
-					{#if filterCollection === "featured" && featuredCities.length > 1}
-						<div class="city-filter">
+					<div class="controls-row">
+						<div class="collection-tabs">
 							<button
-								class="city-filter-btn"
-								class:active={selectedFeaturedCity === "all"}
-								on:click={() => (selectedFeaturedCity = "all")}
+								class="chunky-tab"
+								class:active={filterCollection === "featured"}
+								on:click={() => (filterCollection = "featured")}
 							>
-								All
+								🌟 Featured
 							</button>
-							{#each featuredCities as city}
-								<button
-									class="city-filter-btn"
-									class:active={selectedFeaturedCity === city}
-									on:click={() =>
-										(selectedFeaturedCity = city)}
-								>
-									{city}
-								</button>
-							{/each}
+							<button
+								class="chunky-tab"
+								class:active={filterCollection === "favorites"}
+								on:click={() =>
+									(filterCollection = "favorites")}
+							>
+								❤️ Favorites
+							</button>
 						</div>
-					{/if}
+
+						{#if filterCollection === "featured" && featuredCities.length > 1}
+							<div class="city-filters">
+								<button
+									class="filter-pill"
+									class:active={selectedFeaturedCity ===
+										"all"}
+									on:click={() =>
+										(selectedFeaturedCity = "all")}
+								>
+									All Cities
+								</button>
+								{#each featuredCities as city}
+									<button
+										class="filter-pill"
+										class:active={selectedFeaturedCity ===
+											city}
+										on:click={() =>
+											(selectedFeaturedCity = city)}
+									>
+										{city}
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
 
 					{#if loading}
 						<div class="maps-loading">
-							<span class="loading-icon">⏳</span>
-							<span>Loading collection...</span>
+							<div class="spinner">🌎</div>
+							<span>Loading the archive...</span>
 						</div>
 					{:else if filterCollection === "favorites" && !session}
-						<div class="maps-empty-state">
-							<span class="empty-icon">🔒</span>
-							<p>Sign in to view your favorite maps.</p>
+						<div class="empty-state">
+							<div class="empty-emoji">🙈</div>
+							<h3>Oops! You're not logged in.</h3>
+							<p>
+								Sign in to build your own collection of favorite
+								maps.
+							</p>
 							<button
-								class="auth-btn auth-btn-google"
+								class="action-btn"
 								on:click={handleGoogleLogin}
 							>
-								Sign in with Google
+								Let's Go!
 							</button>
 						</div>
 					{:else if displayedMaps.length > 0}
@@ -367,85 +360,72 @@
 															map.id,
 														)}
 												/>
+											{:else}
+												<div
+													class="placeholder-pattern"
+												></div>
 											{/if}
-										</div>
-										<div class="map-info">
-											<h3 class="map-name">{map.name}</h3>
-											<div class="map-meta">
+											<div class="map-badges">
 												{#if map.year}
-													<span class="map-year"
+													<span
+														class="badge year-badge"
 														>{map.year}</span
 													>
 												{/if}
-												{#if map.type}
-													<span class="map-city"
-														>{map.type}</span
-													>
-												{/if}
 											</div>
+										</div>
+										<div class="map-info">
+											<h3 class="map-name">{map.name}</h3>
+											{#if map.type}
+												<span class="map-city"
+													>{map.type}</span
+												>
+											{/if}
 										</div>
 									</a>
 									{#if session}
 										<button
 											class="fav-btn"
-											class:faved={favoriteIds.has(
+											class:faved={favoriteIds.includes(
 												map.id,
 											)}
 											on:click|stopPropagation={() =>
 												toggleFavorite(map.id)}
-											aria-label={favoriteIds.has(map.id)
-												? "Remove from favorites"
-												: "Add to favorites"}
+											aria-label="Toggle Favorite"
 										>
-											{#if favoriteIds.has(map.id)}
-												<svg
-													width="18"
-													height="18"
-													viewBox="0 0 24 24"
-													fill="currentColor"
-												>
-													<path
-														d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-													/>
-												</svg>
-											{:else}
-												<svg
-													width="18"
-													height="18"
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-												>
-													<path
-														d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-													/>
-												</svg>
-											{/if}
+											<span
+												class="notranslate"
+												style="display: {favoriteIds.includes(
+													map.id,
+												)
+													? 'block'
+													: 'none'}">❤️</span
+											>
+											<span
+												class="notranslate"
+												style="display: {!favoriteIds.includes(
+													map.id,
+												)
+													? 'block'
+													: 'none'}">🤍</span
+											>
 										</button>
 									{/if}
 								</div>
 							{/each}
 						</div>
 					{:else}
-						<div class="maps-empty-state">
-							<span class="empty-icon">🗺️</span>
-							<p>
-								{filterCollection === "favorites"
-									? "You haven't favorited any maps yet."
-									: "No maps found in collection."}
-							</p>
+						<div class="empty-state">
+							<div class="empty-emoji">🏜️</div>
+							<h3>It's pretty quiet here.</h3>
+							<p>No maps found in this section right now.</p>
 						</div>
 					{/if}
 
-					<!-- Browsing Links -->
 					<div class="action-footer">
-						<a href="/catalog" class="browse-link"
-							>Browse full collection</a
-						>
-						<a href="/view" class="feature-cta-btn">
-							<span class="cta-text">Enter Map Viewer</span>
-							<span class="cta-arrow">→</span>
+						<a href="/catalog" class="text-link">See all maps →</a>
+						<a href="/view" class="action-btn primary-btn">
+							Enter Viewer 🚀
 						</a>
 					</div>
 				</div>
@@ -455,54 +435,34 @@
 		<div class="split-sections">
 			<!--
         ============================================
-        SECTION 2: ANNOTATE & CONTRIBUTE (Tools)
+        SECTION 2: ANNOTATE & CONTRIBUTE
         ============================================
       -->
 			<section class="mode-section" id="annotate-mode">
-				<div class="feature-card">
-					<div class="feature-icon">🖼️</div>
+				<div class="feature-card hover-lift">
+					<div class="icon-blob color-orange">🖼️</div>
 					<div class="feature-content">
 						<h2 class="feature-title">
-							Annotate & Tools <span class="beta-badge">Beta</span
-							>
+							Tools <span class="fun-badge">Beta</span>
 						</h2>
 						<p class="feature-description">
-							Work directly with historical maps. Draw points,
-							lines, and regions to create searchable records of
-							the past.
+							Get your hands dirty! Draw points, lines, and
+							regions on historical maps to create searchable
+							records.
 						</p>
 
-						<div class="tools-actions">
-							<a href="/annotate" class="feature-cta-btn">
-								<span class="cta-text">Open Annotator</span>
-								<span class="cta-arrow">→</span>
-							</a>
-						</div>
+						<a href="/annotate" class="action-btn secondary-btn">
+							Open Annotator ✏️
+						</a>
 
-						<div class="contribute-links">
-							<p class="contribute-label">
-								Help improve the archive:
-							</p>
-							<div class="feature-links">
-								<a
-									href="/contribute/georef"
-									class="feature-link"
-								>
-									<span class="feature-link-text"
-										>Georeference Maps</span
-									>
-									<span class="cta-arrow">→</span>
-								</a>
-								<a
-									href="/contribute/label"
-									class="feature-link"
-								>
-									<span class="feature-link-text"
-										>Label Studio</span
-									>
-									<span class="cta-arrow">→</span>
-								</a>
-							</div>
+						<div class="micro-links">
+							<span class="micro-label">Help the community:</span>
+							<a href="/contribute/georef" class="micro-link"
+								>Georeference Maps →</a
+							>
+							<a href="/contribute/label" class="micro-link"
+								>Label Studio →</a
+							>
 						</div>
 					</div>
 				</div>
@@ -510,45 +470,45 @@
 
 			<!--
         ============================================
-        SECTION 3: CREATE (Storytelling)
+        SECTION 3: CREATE
         ============================================
       -->
 			<section class="mode-section" id="create-mode">
-				<div class="feature-card">
-					<div class="feature-icon">✏️</div>
+				<div class="feature-card hover-lift">
+					<div class="icon-blob color-green">✨</div>
 					<div class="feature-content">
 						<h2 class="feature-title">
-							Create Stories <span class="beta-badge">Beta</span>
+							Create Stories <span class="fun-badge">Beta</span>
 						</h2>
 						<p class="feature-description">
 							Design interactive scrollytelling experiences.
 							Combine narrative with historical maps to publish
-							your own map-based stories and share them with the
-							community.
+							your own stories.
 						</p>
-						<a href="/create" class="feature-cta-btn">
-							<span class="cta-text">Design a Story</span>
-							<span class="cta-arrow">→</span>
+						<a
+							href="/create"
+							class="action-btn secondary-btn mt-auto"
+						>
+							Design a Story 🎨
 						</a>
 					</div>
 				</div>
 			</section>
 		</div>
 
-		<section class="about">
+		<section class="about-card">
 			<div class="about-header">
-				<span class="about-icon">✦</span>
-				<h2 class="about-title">About This Project</h2>
+				<div class="icon-blob color-yellow">✦</div>
+				<h2 class="feature-title">About the Project</h2>
 			</div>
-			<p class="about-text">
+			<p class="feature-description">
 				Vietnam Map Archive brings historical cartography to life by
 				georeferencing vintage maps and overlaying them on modern
-				satellite imagery. Using the <a
+				satellite imagery. Powered by the open-source <a
 					href="https://allmaps.org"
 					target="_blank"
 					rel="noopener">Allmaps</a
-				> platform, we transform static historical documents into interactive
-				explorations of how places have changed over time.
+				> platform, we're turning static images into interactive time machines.
 			</p>
 		</section>
 	</main>
@@ -556,20 +516,15 @@
 	<footer class="footer">
 		<div class="footer-content">
 			<p class="footer-text">
-				Built with <a
+				Built playfully with <a
 					href="https://allmaps.org"
-					target="_blank"
-					rel="noopener">Allmaps</a
+					target="_blank">Allmaps</a
 				>,
-				<a href="https://openlayers.org" target="_blank" rel="noopener"
-					>OpenLayers</a
-				>, and
-				<a href="https://svelte.dev" target="_blank" rel="noopener"
-					>SvelteKit</a
-				>
+				<a href="https://openlayers.org" target="_blank">OpenLayers</a>,
+				& <a href="https://svelte.dev" target="_blank">SvelteKit</a>.
 			</p>
 			<p class="footer-contact">
-				Contact: <a href="mailto:vietnamma.project@gmail.com"
+				Say hi! 👋 <a href="mailto:vietnamma.project@gmail.com"
 					>vietnamma.project@gmail.com</a
 				>
 			</p>
@@ -578,25 +533,52 @@
 </div>
 
 <style>
-	:global(body) {
-		margin: 0;
-		background: #2b2520;
+	/* ========================================
+      NEO-BRUTALIST / PLAYFUL DESIGN SYSTEM
+      ========================================
+    */
+	:root {
+		--color-bg: #faf6f0; /* Soft warm cream */
+		--color-text: #111111;
+		--color-border: #111111;
+		--color-white: #ffffff;
+
+		/* Playful Accents */
+		--color-primary: #ff4d4d; /* Punchy red/coral */
+		--color-blue: #4d94ff;
+		--color-yellow: #ffd23f;
+		--color-green: #00cc99;
+		--color-orange: #ff8c42;
+		--color-purple: #9d4edd;
+
+		--border-thick: 3px solid var(--color-border);
+		--border-thin: 2px solid var(--color-border);
+		--shadow-solid: 6px 6px 0px var(--color-border);
+		--shadow-solid-sm: 4px 4px 0px var(--color-border);
+		--shadow-solid-hover: 10px 10px 0px var(--color-border);
+
+		--radius-lg: 24px;
+		--radius-md: 16px;
+		--radius-sm: 8px;
+		--radius-pill: 999px;
 	}
 
-	:global(html) {
-		-webkit-font-smoothing: antialiased;
-		-moz-osx-font-smoothing: grayscale;
-		text-rendering: optimizeLegibility;
+	:global(body) {
+		margin: 0;
+		background-color: var(--color-bg);
+		color: var(--color-text);
+		font-family: "Outfit", "Be Vietnam Pro", sans-serif;
 	}
 
 	.page {
 		min-height: 100vh;
-		background: linear-gradient(
-			180deg,
-			#f4e8d8 0%,
-			#ebe0d0 50%,
-			#e8d5ba 100%
+		/* Playful dot grid background */
+		background-image: radial-gradient(
+			var(--color-border) 1px,
+			transparent 1px
 		);
+		background-size: 32px 32px;
+		background-position: 0 0;
 		opacity: 0;
 		transition: opacity 0.5s ease;
 	}
@@ -605,522 +587,457 @@
 		opacity: 1;
 	}
 
-	/* Hero Section */
+	/* ========================================
+      HERO SECTION
+      ========================================
+    */
 	.hero {
 		position: relative;
-		padding: 2rem 2rem 1.5rem;
+		padding: 5rem 2rem 4rem;
 		text-align: center;
-		background: linear-gradient(
-			180deg,
-			rgba(212, 175, 55, 0.15) 0%,
-			rgba(212, 175, 55, 0.05) 100%
-		);
-		border-bottom: 3px solid #d4af37;
+		background: var(--color-yellow);
+		border-bottom: var(--border-thick);
 		overflow: hidden;
-	}
-
-	.hero-decoration {
-		position: absolute;
-		inset: 0;
-		background-image: radial-gradient(
-				circle at 20% 80%,
-				rgba(212, 175, 55, 0.1) 0%,
-				transparent 50%
-			),
-			radial-gradient(
-				circle at 80% 20%,
-				rgba(212, 175, 55, 0.1) 0%,
-				transparent 50%
-			);
-		pointer-events: none;
 	}
 
 	.auth-bar {
 		position: absolute;
-		top: 1rem;
+		top: 1.5rem;
 		right: 1.5rem;
-		z-index: 2;
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+		z-index: 10;
 	}
 
-	.auth-btn {
+	.pill-btn {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 1rem;
-		border: 1px solid rgba(212, 175, 55, 0.4);
-		border-radius: 4px;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.8125rem;
-		font-weight: 600;
+		border: var(--border-thin);
+		border-radius: var(--radius-pill);
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 0.875rem;
+		font-weight: 700;
+		background: var(--color-white);
+		color: var(--color-text);
 		cursor: pointer;
-		transition: all 0.2s ease;
+		box-shadow: 2px 2px 0px var(--color-border);
+		transition:
+			transform 0.1s,
+			box-shadow 0.1s;
 	}
 
-	.auth-btn-google {
-		background: rgba(255, 255, 255, 0.7);
-		color: #4a3f35;
+	.pill-btn:hover {
+		transform: translate(-2px, -2px);
+		box-shadow: 4px 4px 0px var(--color-border);
 	}
 
-	.auth-btn-google:hover {
-		background: rgba(255, 255, 255, 0.9);
-		border-color: #d4af37;
+	.pill-btn:active {
+		transform: translate(0, 0);
+		box-shadow: 0px 0px 0px var(--color-border);
 	}
 
-	.google-icon {
-		flex-shrink: 0;
+	.google-btn {
+		background: var(--color-white);
 	}
-
-	.auth-btn-signout {
-		background: transparent;
-		color: #8b7355;
-		font-size: 0.75rem;
-		padding: 0.375rem 0.75rem;
+	.lang-btn {
+		background: var(--color-blue);
+		color: white;
 	}
-
-	.auth-btn-signout:hover {
-		color: #d4af37;
-		border-color: #d4af37;
+	.signout-btn {
+		background: var(--color-bg);
 	}
 
 	.hero-content {
 		position: relative;
 		z-index: 1;
-		max-width: 600px;
+		max-width: 700px;
 		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 	}
 
-	.hero-icon {
-		font-size: 1.75rem;
-		vertical-align: middle;
-		margin-right: 0.25rem;
+	.tagline-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1.25rem;
+		background: var(--color-white);
+		border: var(--border-thin);
+		border-radius: var(--radius-pill);
+		font-family: "Space Grotesk", sans-serif;
+		font-weight: 700;
+		font-size: 1rem;
+		margin-bottom: 2rem;
+		box-shadow: var(--shadow-solid-sm);
+		transform: rotate(-2deg);
+	}
+
+	.sparkle {
+		animation: pulse 2s infinite;
+	}
+
+	@keyframes pulse {
+		0%,
+		100% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(1.2);
+		}
 	}
 
 	.hero-title {
-		font-family: "Spectral", serif;
-		font-size: clamp(1.5rem, 5vw, 2.25rem);
+		font-family: "Space Grotesk", sans-serif;
+		font-size: clamp(3rem, 8vw, 5.5rem);
 		font-weight: 800;
-		letter-spacing: -0.02em;
-		color: #2b2520;
-		margin: 0 0 0.5rem 0;
+		line-height: 1.1;
+		letter-spacing: -0.03em;
+		margin: 0 0 1.5rem 0;
 		text-transform: uppercase;
 	}
 
+	.text-highlight {
+		color: var(--color-white);
+		-webkit-text-stroke: 2px var(--color-text);
+		text-shadow: 4px 4px 0px var(--color-text);
+	}
+
 	.hero-subtitle {
-		font-family: "Noto Serif", serif;
-		font-size: clamp(0.875rem, 2.5vw, 1.0625rem);
+		font-family: "Outfit", sans-serif;
+		font-size: clamp(1.1rem, 3vw, 1.25rem);
+		font-weight: 600;
 		line-height: 1.5;
-		color: #4a3f35;
-		margin: 0;
+		max-width: 500px;
+		background: rgba(255, 255, 255, 0.9);
+		padding: 1rem 1.5rem;
+		border: var(--border-thin);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-solid-sm);
+		transform: rotate(1deg);
 	}
 
-	/* Main Content */
+	/* ========================================
+      MAIN CONTENT & CARDS
+      ========================================
+    */
 	.main {
-		max-width: 1000px;
+		max-width: 1100px;
 		margin: 0 auto;
-		padding: 3rem 1.5rem;
+		padding: 4rem 1.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 3rem;
 	}
 
-	/* Sections */
-	.mode-section {
-		margin-bottom: 2rem;
+	.feature-card {
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-lg);
+		padding: 2.5rem;
+		box-shadow: var(--shadow-solid);
+		position: relative;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.mega-card {
+		padding-bottom: 3rem;
+	}
+
+	.hover-lift {
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease;
+	}
+
+	.hover-lift:hover {
+		transform: translate(-4px, -4px);
+		box-shadow: var(--shadow-solid-hover);
 	}
 
 	.split-sections {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 2rem;
-		margin-bottom: 3rem;
-	}
-
-	.feature-card {
-		position: relative;
-		display: block;
-		padding: 2rem;
-		background: linear-gradient(
-			160deg,
-			rgba(255, 255, 255, 0.6) 0%,
-			rgba(255, 255, 255, 0.3) 100%
-		);
-		border: 2px solid rgba(212, 175, 55, 0.4);
-		border-radius: 4px;
-		text-decoration: none;
-		color: inherit;
-		transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-		overflow: hidden;
-		height: 100%;
-		box-sizing: border-box;
-	}
-
-	.feature-card-primary {
-		padding-bottom: 3rem;
-	}
-
-	.feature-card:hover {
-		border-color: #d4af37;
-		box-shadow:
-			0 12px 32px rgba(0, 0, 0, 0.15),
-			0 0 0 1px rgba(212, 175, 55, 0.2);
-	}
-
-	.feature-icon {
-		font-size: 2.5rem;
-		margin-bottom: 1rem;
-	}
-
-	.feature-content {
-		position: relative;
-		z-index: 1;
+		gap: 3rem;
 	}
 
 	.feature-header-split {
 		display: flex;
 		gap: 1.5rem;
+		align-items: flex-start;
 		margin-bottom: 2rem;
 	}
 
-	.feature-content-full {
-		flex: 1;
-	}
-
-	.feature-title {
-		font-family: "Spectral", serif;
-		font-size: 1.5rem;
-		font-weight: 700;
-		letter-spacing: -0.02em;
-		color: #2b2520;
-		margin: 0 0 0.75rem 0;
-	}
-
-	.beta-badge {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.625rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 0.2rem 0.5rem;
-		background: rgba(212, 175, 55, 0.25);
-		border: 1px solid rgba(212, 175, 55, 0.5);
-		border-radius: 2px;
-		color: #8b7355;
-		vertical-align: middle;
-		margin-left: 0.5rem;
-	}
-
-	.feature-description {
-		font-family: "Noto Serif", serif;
-		font-size: 1rem;
-		line-height: 1.6;
-		color: #4a3f35;
-		margin: 0 0 1.5rem 0;
-	}
-
-	.feature-cta-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.8125rem 1.75rem;
-		background: rgba(255, 255, 255, 0.4);
-		border: 1px solid rgba(212, 175, 55, 0.6);
-		border-radius: 4px;
-		color: #4a3f35;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.875rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		text-decoration: none;
-		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		cursor: pointer;
-	}
-
-	.feature-card:hover .feature-cta-btn {
-		border-color: #d4af37;
-		background: rgba(212, 175, 55, 0.1);
-		color: #2b2520;
-	}
-
-	.feature-cta-btn:hover {
-		background: #d4af37 !important;
-		color: #fff !important;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
-	}
-
-	.cta-arrow {
-		transition: transform 0.2s ease;
-	}
-
-	.feature-card:hover .cta-arrow {
-		transform: translateX(4px);
-	}
-
-	/* View Section Specifics */
-	.embedded-maps-area {
-		margin-top: 1rem;
-	}
-
-	.action-footer {
-		margin-top: 2rem;
-		display: flex;
-		justify-content: flex-end;
-		align-items: center;
-		border-top: 1px solid rgba(212, 175, 55, 0.2);
-		padding-top: 1.5rem;
-		gap: 1.5rem;
-	}
-
-	.browse-link {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.9375rem;
-		font-weight: 600;
-		color: #8b7355;
-		text-decoration: none;
-		transition: color 0.2s ease;
-	}
-
-	.browse-link:hover {
-		color: #d4af37;
-	}
-
-	/* Collection Tabs */
-	.collection-tabs {
-		display: flex;
-		gap: 0.5rem;
-		margin-bottom: 1.5rem;
-		border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-		padding-bottom: 0.5rem;
-	}
-
-	.tab-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.625rem 1.25rem;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.875rem;
-		font-weight: 600;
-		border: 1px solid transparent;
-		border-radius: 4px;
-		background: transparent;
-		color: #6b5d52;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.tab-btn:hover {
-		background: rgba(212, 175, 55, 0.1);
-		color: #4a3f35;
-	}
-
-	.tab-btn.active {
-		background: rgba(212, 175, 55, 0.2);
-		border-color: rgba(212, 175, 55, 0.4);
-		color: #2b2520;
-	}
-
-	.tab-heart {
-		opacity: 0.7;
-	}
-
-	.tab-btn.active .tab-heart {
-		opacity: 1;
-		color: #c0392b;
-	}
-
-	/* Annotate specific */
-	.contribute-links {
-		margin-top: 2rem;
-		padding-top: 1rem;
-		border-top: 1px solid rgba(212, 175, 55, 0.2);
-	}
-
-	.contribute-label {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		font-weight: 600;
-		color: #8b7355;
-		margin-bottom: 0.75rem;
-	}
-
-	.feature-links {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.feature-link {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.5rem 0.75rem;
-		background: rgba(255, 255, 255, 0.4);
-		border: 1px solid rgba(212, 175, 55, 0.3);
-		border-radius: 4px;
-		text-decoration: none;
-		color: #4a3f35;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.8125rem;
-		font-weight: 600;
-		transition: all 0.2s ease;
-	}
-
-	.feature-link:hover {
-		background: rgba(212, 175, 55, 0.15);
-		border-color: #d4af37;
-		color: #2b2520;
-	}
-
-	.feature-link:hover .cta-arrow {
-		transform: translateX(4px);
-	}
-
-	/* Maps Grid Styles */
-	.city-filter {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		margin-bottom: 1.5rem;
-	}
-
-	.city-filter-btn {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.875rem;
-		font-weight: 500;
-		padding: 0.5rem 1rem;
-		background: rgba(255, 255, 255, 0.5);
-		border: 1px solid rgba(212, 175, 55, 0.3);
-		border-radius: 2px;
-		color: #4a3f35;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.city-filter-btn:hover {
-		background: rgba(212, 175, 55, 0.15);
-		border-color: rgba(212, 175, 55, 0.5);
-	}
-
-	.city-filter-btn.active {
-		background: rgba(212, 175, 55, 0.25);
-		border-color: #d4af37;
-		color: #2b2520;
-		font-weight: 600;
-	}
-
-	.maps-loading {
+	.icon-blob {
+		font-size: 2.5rem;
+		width: 80px;
+		height: 80px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		border: var(--border-thick);
+		border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; /* Playful blob shape */
+		background: var(--color-bg);
+		box-shadow: var(--shadow-solid-sm);
+		flex-shrink: 0;
+	}
+
+	.color-blue {
+		background: var(--color-blue);
+	}
+	.color-orange {
+		background: var(--color-orange);
+	}
+	.color-green {
+		background: var(--color-green);
+	}
+	.color-yellow {
+		background: var(--color-yellow);
+	}
+
+	.feature-title {
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 2rem;
+		font-weight: 800;
+		margin: 0 0 1rem 0;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.fun-badge {
+		font-size: 0.8rem;
+		background: var(--color-purple);
+		color: white;
+		padding: 0.25rem 0.75rem;
+		border-radius: var(--radius-pill);
+		border: var(--border-thin);
+		box-shadow: 2px 2px 0px var(--color-border);
+		text-transform: uppercase;
+		transform: rotate(5deg);
+	}
+
+	.feature-description {
+		font-size: 1.125rem;
+		line-height: 1.6;
+		color: #333;
+		margin: 0 0 2rem 0;
+		font-weight: 500;
+	}
+
+	/* Buttons */
+	.action-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		gap: 0.75rem;
-		padding: 3rem;
-		font-family: "Noto Serif", serif;
+		padding: 1rem 2rem;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1.125rem;
+		font-weight: 800;
+		border: var(--border-thick);
+		border-radius: var(--radius-pill);
+		text-decoration: none;
+		cursor: pointer;
+		box-shadow: var(--shadow-solid-sm);
+		transition:
+			transform 0.1s,
+			box-shadow 0.1s;
+		width: max-content;
+	}
+
+	.action-btn:hover {
+		transform: translate(-4px, -4px);
+		box-shadow: var(--shadow-solid);
+	}
+
+	.action-btn:active {
+		transform: translate(0, 0);
+		box-shadow: 0px 0px 0px var(--color-border);
+	}
+
+	.primary-btn {
+		background: var(--color-primary);
+		color: var(--color-white);
+	}
+
+	.secondary-btn {
+		background: var(--color-bg);
+		color: var(--color-text);
+	}
+
+	/* Controls: Tabs & Filters */
+	.controls-row {
+		background: var(--color-bg);
+		padding: 1.5rem;
+		border: var(--border-thick);
+		border-radius: var(--radius-md);
+		margin-bottom: 2rem;
+		box-shadow: inset 4px 4px 0px rgba(0, 0, 0, 0.05);
+	}
+
+	.collection-tabs {
+		display: flex;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.chunky-tab {
+		padding: 0.75rem 1.5rem;
+		font-family: "Space Grotesk", sans-serif;
 		font-size: 1rem;
-		color: #6b5d52;
+		font-weight: 700;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		box-shadow: var(--shadow-solid-sm);
+		transition: all 0.1s;
 	}
 
-	.loading-icon {
-		animation: spin 2s linear infinite;
+	.chunky-tab:hover {
+		transform: translateY(-2px);
 	}
 
-	@keyframes spin {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
-			transform: rotate(360deg);
-		}
+	.chunky-tab.active {
+		background: var(--color-blue);
+		color: white;
+		transform: translate(2px, 2px);
+		box-shadow: 0 0 0 var(--color-border);
 	}
 
+	.city-filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		padding-top: 1.5rem;
+		border-top: var(--border-thick);
+	}
+
+	.filter-pill {
+		padding: 0.5rem 1rem;
+		font-family: "Outfit", sans-serif;
+		font-weight: 700;
+		font-size: 0.875rem;
+		background: var(--color-white);
+		border: var(--border-thin);
+		border-radius: var(--radius-pill);
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.filter-pill:hover {
+		background: var(--color-yellow);
+	}
+
+	.filter-pill.active {
+		background: var(--color-text);
+		color: var(--color-white);
+	}
+
+	/* Maps Grid */
 	.maps-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-		gap: 1.25rem;
+		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		gap: 2rem;
 	}
 
 	.map-card-wrapper {
 		position: relative;
-		height: 100%;
 	}
 
 	.map-card {
-		display: block;
-		background: rgba(255, 255, 255, 0.4);
-		border: 2px solid rgba(212, 175, 55, 0.3);
-		border-radius: 4px;
+		display: flex;
+		flex-direction: column;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-md);
 		overflow: hidden;
 		text-decoration: none;
 		color: inherit;
-		transition: all 0.3s ease;
+		box-shadow: var(--shadow-solid-sm);
+		transition:
+			transform 0.2s,
+			box-shadow 0.2s;
 		height: 100%;
 	}
 
 	.map-card:hover {
-		border-color: #d4af37;
-		transform: translateY(-4px);
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+		transform: translate(-4px, -4px) rotate(-1deg);
+		box-shadow: var(--shadow-solid-hover);
 	}
 
-	.fav-btn {
-		position: absolute;
-		top: 0.5rem;
-		right: 0.5rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.85);
-		color: #8b7355;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-		z-index: 1;
-	}
-
-	.fav-btn:hover {
-		background: white;
-		transform: scale(1.1);
-	}
-
-	.fav-btn.faved {
-		color: #c0392b;
+	/* Alternate rotations for playfulness */
+	.map-card-wrapper:nth-child(even) .map-card:hover {
+		transform: translate(-4px, -4px) rotate(1.5deg);
 	}
 
 	.map-thumbnail {
 		position: relative;
 		aspect-ratio: 4 / 3;
-		background: linear-gradient(135deg, #e8d5ba 0%, #d4c4a8 100%);
+		background: var(--color-bg);
+		border-bottom: var(--border-thick);
 		overflow: hidden;
 	}
 
 	.map-thumbnail img {
-		position: absolute;
-		inset: 0;
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		transition: transform 0.3s ease;
 	}
 
-	.map-card:hover .map-thumbnail img {
-		transform: scale(1.05);
+	.placeholder-pattern {
+		width: 100%;
+		height: 100%;
+		background-image: repeating-linear-gradient(
+			45deg,
+			var(--color-yellow) 0,
+			var(--color-yellow) 10px,
+			var(--color-white) 10px,
+			var(--color-white) 20px
+		);
+	}
+
+	.map-badges {
+		position: absolute;
+		bottom: 0.75rem;
+		left: 0.75rem;
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.badge {
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 0.75rem;
+		font-weight: 800;
+		padding: 0.25rem 0.5rem;
+		background: var(--color-white);
+		border: var(--border-thin);
+		border-radius: var(--radius-sm);
+		box-shadow: 2px 2px 0px var(--color-border);
+	}
+
+	.year-badge {
+		background: var(--color-green);
+		color: var(--color-text);
 	}
 
 	.map-info {
-		padding: 1rem;
+		padding: 1.25rem;
+		flex-grow: 1;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.map-name {
-		font-family: "Spectral", serif;
-		font-size: 1rem;
-		font-weight: 600;
-		color: #2b2520;
+		font-family: "Outfit", sans-serif;
+		font-size: 1.125rem;
+		font-weight: 800;
 		margin: 0 0 0.5rem 0;
 		line-height: 1.3;
 		display: -webkit-box;
@@ -1129,225 +1046,261 @@
 		overflow: hidden;
 	}
 
-	.map-meta {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.75rem;
-	}
-
-	.map-year {
-		padding: 0.25rem 0.5rem;
-		background: rgba(212, 175, 55, 0.2);
-		border-radius: 2px;
-		color: #8b7355;
-		font-weight: 600;
-	}
-
 	.map-city {
-		padding: 0.25rem 0.5rem;
-		background: rgba(107, 93, 82, 0.1);
-		border-radius: 2px;
-		color: #6b5d52;
+		font-size: 0.875rem;
+		font-weight: 700;
+		color: #666;
+		margin-top: auto;
 	}
 
-	.maps-empty-state {
+	.fav-btn {
+		position: absolute;
+		top: -10px;
+		right: -10px;
+		width: 44px;
+		height: 44px;
+		font-size: 1.5rem;
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: 50%;
+		cursor: pointer;
+		box-shadow: var(--shadow-solid-sm);
+		z-index: 2;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: transform 0.1s;
+	}
+
+	.fav-btn:hover {
+		transform: scale(1.1) rotate(10deg);
+	}
+
+	.fav-btn:active {
+		transform: scale(0.95);
+	}
+
+	/* States & Micro UI */
+	.maps-loading {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+		padding: 4rem;
+		font-weight: 700;
+		font-size: 1.25rem;
+	}
+
+	.spinner {
+		font-size: 3rem;
+		animation: spin 2s linear infinite;
+	}
+
+	@keyframes spin {
+		100% {
+			transform: rotate(360deg);
+		}
+	}
+
+	.empty-state {
 		text-align: center;
-		padding: 3rem 1.5rem;
-		background: rgba(255, 255, 255, 0.2);
-		border: 1px dashed rgba(212, 175, 55, 0.4);
-		border-radius: 4px;
+		padding: 4rem 2rem;
+		background: var(--color-bg);
+		border: var(--border-thick);
+		border-radius: var(--radius-md);
+		border-style: dashed;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 1rem;
 	}
 
-	.maps-empty-state p {
-		font-family: "Noto Serif", serif;
-		color: #6b5d52;
+	.empty-emoji {
+		font-size: 4rem;
+	}
+	.empty-state h3 {
 		margin: 0;
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1.5rem;
+	}
+	.empty-state p {
+		margin: 0 0 1rem 0;
+		font-weight: 500;
 	}
 
-	.empty-icon {
-		font-size: 2rem;
+	.action-footer {
+		margin-top: 3rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding-top: 2rem;
+		border-top: var(--border-thick);
 	}
 
-	.maps-empty {
-		text-align: center;
-		padding: 2rem;
-		font-family: "Noto Serif", serif;
-		color: #6b5d52;
-		font-style: italic;
+	.text-link {
+		font-family: "Space Grotesk", sans-serif;
+		font-size: 1.125rem;
+		font-weight: 800;
+		color: var(--color-text);
+		text-decoration: none;
+		position: relative;
+	}
+
+	.text-link::after {
+		content: "";
+		position: absolute;
+		bottom: -4px;
+		left: 0;
+		width: 100%;
+		height: 4px;
+		background: var(--color-primary);
+		transform: scaleX(0);
+		transform-origin: right;
+		transition: transform 0.3s ease;
+	}
+
+	.text-link:hover::after {
+		transform: scaleX(1);
+		transform-origin: left;
+	}
+
+	/* Micro Links */
+	.micro-links {
+		margin-top: auto;
+		padding-top: 2rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.micro-label {
+		font-weight: 800;
+		font-size: 0.875rem;
+		text-transform: uppercase;
+		color: #666;
+	}
+
+	.micro-link {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.75rem 1rem;
+		background: var(--color-bg);
+		border: var(--border-thin);
+		border-radius: var(--radius-sm);
+		text-decoration: none;
+		color: var(--color-text);
+		font-weight: 700;
+		transition: all 0.2s;
+	}
+
+	.micro-link:hover {
+		background: var(--color-yellow);
+		transform: translateX(4px);
+		box-shadow: 2px 2px 0px var(--color-border);
 	}
 
 	/* About Section */
-	.about {
-		margin-bottom: 3rem;
-		padding: 2rem;
-		background: rgba(255, 255, 255, 0.3);
-		border: 1px solid rgba(212, 175, 55, 0.3);
-		border-radius: 4px;
+	.about-card {
+		background: var(--color-white);
+		border: var(--border-thick);
+		border-radius: var(--radius-lg);
+		padding: 2.5rem;
+		box-shadow: var(--shadow-solid-sm);
 	}
 
 	.about-header {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 1.25rem;
+		gap: 1.5rem;
+		margin-bottom: 1.5rem;
 	}
 
-	.about-icon {
-		font-size: 1.25rem;
-		color: #d4af37;
+	.about-header .icon-blob {
+		width: 60px;
+		height: 60px;
+		font-size: 1.5rem;
 	}
 
-	.about-title {
-		font-family: "Spectral", serif;
-		font-size: 1.25rem;
-		font-weight: 700;
-		letter-spacing: -0.02em;
-		color: #2b2520;
-		margin: 0;
-	}
-
-	.about-text {
-		font-family: "Noto Serif", serif;
-		font-size: 1rem;
-		line-height: 1.7;
-		color: #4a3f35;
-		margin: 0 0 1rem 0;
-	}
-
-	.about-text:last-child {
-		margin-bottom: 0;
-	}
-
-	.about-text a {
-		color: #8b7355;
+	.about-card a {
+		color: var(--color-blue);
+		font-weight: 800;
 		text-decoration: underline;
-		text-underline-offset: 2px;
-		transition: color 0.2s ease;
-	}
-
-	.about-text a:hover {
-		color: #d4af37;
+		text-decoration-thickness: 3px;
 	}
 
 	/* Footer */
 	.footer {
-		padding: 2rem;
-		background: linear-gradient(
-			180deg,
-			transparent 0%,
-			rgba(212, 175, 55, 0.1) 100%
-		);
-		border-top: 1px solid rgba(212, 175, 55, 0.3);
+		background: var(--color-text);
+		color: var(--color-white);
+		padding: 3rem 2rem;
+		margin-top: 2rem;
 	}
 
 	.footer-content {
-		max-width: 900px;
+		max-width: 1100px;
 		margin: 0 auto;
 		text-align: center;
 	}
 
-	.footer-text {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.875rem;
-		color: #6b5d52;
-		margin: 0;
+	.footer p {
+		font-family: "Outfit", sans-serif;
+		font-weight: 600;
+		font-size: 1.125rem;
+		margin: 0.5rem 0;
 	}
 
-	.footer-text a {
-		color: #8b7355;
+	.footer a {
+		color: var(--color-yellow);
 		text-decoration: none;
-		transition: color 0.2s ease;
+		font-weight: 800;
+		border-bottom: 2px solid transparent;
+		transition: border-color 0.2s;
 	}
 
-	.footer-text a:hover {
-		color: #d4af37;
-	}
-
-	.footer-contact {
-		font-family: "Be Vietnam Pro", sans-serif;
-		font-size: 0.875rem;
-		color: #6b5d52;
-		margin: 0.75rem 0 0 0;
-	}
-
-	.footer-contact a {
-		color: #8b7355;
-		text-decoration: none;
-		transition: color 0.2s ease;
-	}
-
-	.footer-contact a:hover {
-		color: #d4af37;
+	.footer a:hover {
+		border-color: var(--color-yellow);
 	}
 
 	/* Responsive */
-	@media (max-width: 640px) {
-		.hero {
-			padding: 1.5rem 1rem 1.25rem;
-		}
-
-		.auth-bar {
-			position: static;
-			width: 100%;
-			justify-content: center;
-			margin-bottom: 1.5rem;
-			padding: 0 1rem;
-		}
-
-		.auth-btn {
-			font-size: 0.8125rem;
-			padding: 0.45rem 0.75rem;
-		}
-
-		.hero-content {
-			text-align: center;
-		}
-
-		.main {
-			padding: 2rem 1rem;
-		}
-
-		.feature-card {
-			padding: 1.5rem;
-		}
-
+	@media (max-width: 768px) {
 		.split-sections {
 			grid-template-columns: 1fr;
-			gap: 1.5rem;
+		}
+
+		.hero {
+			padding: 6rem 1rem 3rem;
+		}
+
+		.hero-title {
+			font-size: 3rem;
+		}
+
+		.tagline-badge {
+			font-size: 0.875rem;
 		}
 
 		.feature-header-split {
 			flex-direction: column;
-			gap: 0;
+			gap: 1rem;
 		}
 
 		.action-footer {
 			flex-direction: column;
-			gap: 1rem;
+			gap: 1.5rem;
 			text-align: center;
 		}
 
-		.about {
-			padding: 1.5rem;
+		.action-btn {
+			width: 100%;
+		}
+
+		.controls-row {
+			padding: 1rem;
 		}
 
 		.maps-grid {
-			grid-template-columns: repeat(2, 1fr);
-			gap: 1rem;
-		}
-
-		.map-info {
-			padding: 0.75rem;
-		}
-
-		.map-name {
-			font-size: 0.875rem;
+			grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+			gap: 1.5rem;
 		}
 	}
 </style>

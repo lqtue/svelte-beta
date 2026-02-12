@@ -271,6 +271,68 @@ export interface Database {
           }
         ];
       };
+      iiif_migrations: {
+        Row: {
+          id: string;
+          map_id: string;
+          map_name: string;
+          old_allmaps_id: string;
+          new_allmaps_id: string | null;
+          old_iiif_url: string;
+          new_iiif_url: string | null;
+          ia_identifier: string | null;
+          ia_filename: string | null;
+          status: 'pending' | 'uploaded' | 'iiif_ready' | 'annotation_posted' | 'complete' | 'error';
+          error_message: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          map_id: string;
+          map_name: string;
+          old_allmaps_id: string;
+          new_allmaps_id?: string | null;
+          old_iiif_url: string;
+          new_iiif_url?: string | null;
+          ia_identifier?: string | null;
+          ia_filename?: string | null;
+          status?: 'pending' | 'uploaded' | 'iiif_ready' | 'annotation_posted' | 'complete' | 'error';
+          error_message?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          map_id?: string;
+          map_name?: string;
+          old_allmaps_id?: string;
+          new_allmaps_id?: string | null;
+          old_iiif_url?: string;
+          new_iiif_url?: string | null;
+          ia_identifier?: string | null;
+          ia_filename?: string | null;
+          status?: 'pending' | 'uploaded' | 'iiif_ready' | 'annotation_posted' | 'complete' | 'error';
+          error_message?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'iiif_migrations_map_id_fkey';
+            columns: ['map_id'];
+            isOneToOne: false;
+            referencedRelation: 'maps';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

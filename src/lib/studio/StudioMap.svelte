@@ -58,7 +58,7 @@
   import Stroke from 'ol/style/Stroke';
   import CircleStyle from 'ol/style/Circle';
   import Text from 'ol/style/Text';
-  import type { HuntStop } from '$lib/hunt/types';
+  import type { HuntStop } from '$lib/story/types';
 
   const dispatch = createEventDispatcher<{
     mapReady: { map: Map };

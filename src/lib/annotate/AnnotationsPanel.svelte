@@ -5,7 +5,11 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { MapListItem, AnnotationSummary, DrawingMode } from "$lib/viewer/types";
+  import type {
+    MapListItem,
+    AnnotationSummary,
+    DrawingMode,
+  } from "$lib/viewer/types";
 
   const dispatch = createEventDispatcher<{
     updateProject: { title?: string; description?: string };
@@ -405,20 +409,14 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(
-      160deg,
-      rgba(244, 232, 216, 0.95) 0%,
-      rgba(232, 213, 186, 0.95) 100%
-    );
-    border: 2px solid #d4af37;
-    border-radius: 4px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    backdrop-filter: blur(12px);
+    background: var(--color-bg);
+    border-right: var(--border-thick);
     height: 100%;
     max-height: none;
     overflow: hidden;
     min-width: 0;
-    color: #2b2520;
+    color: var(--color-text);
+    box-shadow: var(--shadow-solid);
   }
 
   .panel-header {
@@ -426,47 +424,53 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+    border-bottom: var(--border-thick);
+    background: var(--color-white);
   }
 
   .home-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    font-family: "Be Vietnam Pro", sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #4a3f35;
+    gap: 0.5rem;
+    font-family: var(--font-family-base);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text);
     text-decoration: none;
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
-    transition: color 0.15s ease;
+    text-transform: uppercase;
+    transition: all 0.1s;
+    opacity: 0.7;
   }
 
   .home-link:hover {
-    color: #d4af37;
+    opacity: 1;
+    color: var(--color-primary);
+    transform: translateX(-1px);
   }
 
   .panel-close {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.4);
-    color: #6b5d52;
+    width: 32px;
+    height: 32px;
+    border: var(--border-thin);
+    border-radius: 50%;
+    background: var(--color-white);
+    color: var(--color-text);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.1s;
+    box-shadow: 1px 1px 0px var(--color-border);
   }
 
   .panel-close:hover {
-    background: rgba(212, 175, 55, 0.2);
-    border-color: #d4af37;
-    color: #2b2520;
+    background: var(--color-yellow);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0px var(--color-border);
   }
 
   .panel-scroll {
@@ -475,57 +479,54 @@
     flex-direction: column;
     gap: 1rem;
     overflow-y: auto;
-    padding: 0.9rem;
+    padding: 1rem;
   }
 
   .panel-toggle {
     position: absolute;
     top: 1rem;
     right: 1rem;
-    border: 1px solid rgba(212, 175, 55, 0.5);
-    background: linear-gradient(
-      160deg,
-      rgba(244, 232, 216, 0.95) 0%,
-      rgba(232, 213, 186, 0.95) 100%
-    );
-    border-radius: 2px;
-    color: #4a3f35;
-    font-size: 0.74rem;
-    padding: 0.4rem 0.9rem;
+    border: var(--border-thick);
+    background: var(--color-white);
+    border-radius: var(--radius-pill);
+    color: var(--color-text);
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.5rem 1rem;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    backdrop-filter: blur(12px);
-    transition: all 0.15s ease;
+    box-shadow: var(--shadow-solid-sm);
+    transition: all 0.1s;
     z-index: 95;
   }
 
   .panel-toggle:hover,
   .panel-toggle:focus-visible {
-    background: rgba(212, 175, 55, 0.25);
-    border-color: #d4af37;
+    background: var(--color-yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-solid);
     outline: none;
   }
 
   /* ---------- Panel Card (shared) ---------- */
   .panel-card {
-    background: rgba(255, 255, 255, 0.4);
-    border-radius: 4px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    padding: 1rem 1.1rem;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: var(--border-thick);
+    padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    box-shadow: var(--shadow-solid-sm);
   }
 
   /* ---------- Map Info Card ---------- */
   .map-title {
     margin: 0;
-    font-family: "Spectral", serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #2b2520;
-    line-height: 1.3;
+    font-family: var(--font-family-display);
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--color-text);
+    line-height: 1.2;
   }
 
   .map-meta {
@@ -535,73 +536,100 @@
   }
 
   .meta-badge {
-    font-family: "Be Vietnam Pro", sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.6rem;
-    border-radius: 2px;
+    font-family: var(--font-family-base);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: var(--border-thin);
+    color: var(--color-text);
   }
 
   .meta-year {
-    background: rgba(212, 175, 55, 0.2);
-    color: #8b7355;
+    background: var(--color-yellow);
   }
 
   .meta-city {
-    background: rgba(107, 93, 82, 0.1);
-    color: #6b5d52;
+    background: var(--color-bg);
   }
 
   .map-summary {
     margin: 0;
-    font-family: "Noto Serif", serif;
-    font-size: 0.875rem;
+    font-family: var(--font-family-base);
+    font-size: 0.85rem;
     line-height: 1.5;
-    color: #4a3f35;
+    color: var(--color-text);
+    opacity: 0.8;
   }
 
   .map-actions {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    margin-top: 0.25rem;
+    margin-top: 0.5rem;
   }
 
   .action-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.6rem 0.85rem;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(212, 175, 55, 0.35);
-    border-radius: 4px;
+    padding: 0.6rem 1rem;
+    background: var(--color-white);
+    border: var(--border-thin);
+    border-radius: var(--radius-pill);
     text-decoration: none;
-    color: #4a3f35;
-    font-family: "Be Vietnam Pro", sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 600;
+    color: var(--color-text);
+    font-family: var(--font-family-base);
+    font-size: 0.85rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.1s;
+    box-shadow: 1px 1px 0px var(--color-border);
   }
 
   .action-btn:hover {
-    background: rgba(212, 175, 55, 0.15);
-    border-color: #d4af37;
-    color: #2b2520;
+    background: var(--color-yellow);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0px var(--color-border);
   }
 
   .no-map-card {
     align-items: center;
     text-align: center;
     padding: 2rem 1.5rem;
+    border-style: dashed;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .instruction-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .step-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--color-text);
+    color: var(--color-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.9rem;
   }
 
   .no-map-text {
     margin: 0;
-    font-family: "Noto Serif", serif;
-    font-size: 0.875rem;
+    font-family: var(--font-family-base);
+    font-size: 0.9rem;
     line-height: 1.5;
-    color: #6b5d52;
+    color: var(--color-text);
+    opacity: 0.8;
   }
 
   /* ---------- Editor Card ---------- */
@@ -611,108 +639,143 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    padding: 0;
+    background: var(--color-white);
   }
 
   .editor-card-header {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
+    gap: 0.5rem;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.5rem;
+    padding: 1rem 1rem 0.5rem;
+    border-bottom: var(--border-thin);
+    background: var(--color-bg);
   }
 
   .panel-card-title {
     margin: 0;
-    font-family: "Spectral", serif;
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #2b2520;
+    font-family: var(--font-family-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--color-text);
+    text-transform: uppercase;
   }
 
-  /* ---------- Story/Project Meta ---------- */
+  /* ---------- Story Meta ---------- */
   .story-meta {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--color-bg);
+    border-bottom: var(--border-thin);
   }
 
   .story-meta input,
   .story-meta textarea {
-    border-radius: 2px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    background: rgba(255, 255, 255, 0.6);
-    color: #2b2520;
-    padding: 0.45rem 0.6rem;
-    font-family: inherit;
+    border-radius: var(--radius-md);
+    border: var(--border-thin);
+    background: var(--color-white);
+    color: var(--color-text);
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-family-base);
+    font-size: 0.9rem;
+    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.05);
+  }
+
+  .story-meta input:focus,
+  .story-meta textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 2px 2px 0px var(--color-border);
   }
 
   .story-meta textarea {
     resize: vertical;
-    min-height: 40px;
+    min-height: 60px;
   }
 
   .draw-controls {
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    margin-top: 0.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-white);
+    border-bottom: var(--border-thin);
   }
 
   /* ---------- Chip Buttons ---------- */
   .chip {
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    border-radius: 2px;
-    padding: 0.35rem 0.65rem;
-    font-size: 0.75rem;
+    border: var(--border-thin);
+    border-radius: var(--radius-pill);
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    font-family: var(--font-family-base);
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.15s ease;
-    background: rgba(255, 255, 255, 0.5);
-    color: #4a3f35;
+    transition: all 0.1s;
+    background: var(--color-white);
+    color: var(--color-text);
+    box-shadow: 1px 1px 0px var(--color-border);
+  }
+
+  .chip:hover:not(:disabled) {
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0px var(--color-border);
+    background: var(--color-yellow);
+  }
+
+  .chip:active:not(:disabled) {
+    transform: translate(0, 0);
+    box-shadow: 0 0 0 var(--color-border);
   }
 
   .chip.placing {
-    background: rgba(212, 175, 55, 0.3);
-    border-color: #d4af37;
-    color: #2b2520;
-    font-weight: 600;
+    background: var(--color-blue);
+    border-color: var(--color-blue);
+    color: white;
+    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.2);
+    transform: none;
   }
 
   .chip.ghost {
-    background: rgba(255, 255, 255, 0.5);
-    color: #4a3f35;
+    background: transparent;
+    border-style: dashed;
+    box-shadow: none;
   }
 
-  .chip.ghost:hover {
-    background: rgba(212, 175, 55, 0.2);
-    border-color: rgba(212, 175, 55, 0.6);
+  .chip.ghost:hover:not(:disabled) {
+    background: var(--color-bg);
+    border-style: solid;
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0px var(--color-border);
   }
 
   .chip.ghost:disabled {
-    opacity: 0.45;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 
   .chip.danger {
-    background: rgba(168, 72, 72, 0.12);
-    border-color: rgba(168, 72, 72, 0.3);
-    color: #a84848;
+    background: #fee2e2;
+    border-color: #b91c1c;
+    color: #b91c1c;
   }
 
   .chip.danger:hover {
-    background: rgba(168, 72, 72, 0.2);
-    border-color: rgba(168, 72, 72, 0.5);
+    background: #fecaca;
   }
 
   .chip.small {
-    padding: 0.2rem 0.45rem;
+    padding: 0.25rem 0.5rem;
     font-size: 0.7rem;
   }
 
   .right-actions {
     display: flex;
-    gap: 0.4rem;
+    gap: 0.5rem;
     align-items: center;
   }
 
@@ -726,52 +789,68 @@
     display: none;
   }
 
+  .notice {
+    padding: 0.75rem 1rem;
+    margin: 0;
+    background: var(--color-gray-100);
+    font-size: 0.8rem;
+    border-bottom: var(--border-thin);
+  }
+
+  .notice.success {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .notice.errored {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
   /* ---------- Points List ---------- */
   .points-list {
-    margin-top: 0.25rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
     flex: 1;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(212, 175, 55, 0.4) transparent;
-  }
-
-  .points-list::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .points-list::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.4);
-    border-radius: 999px;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--color-gray-100);
   }
 
   .list-card {
     position: relative;
-    border-radius: 4px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    background: rgba(255, 255, 255, 0.4);
-    padding: 0.75rem 0.85rem;
+    border-radius: var(--radius-md);
+    border: var(--border-thin);
+    background: var(--color-white);
+    padding: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0.75rem;
     cursor: pointer;
+    box-shadow: 2px 2px 0px var(--color-border);
+    transition: all 0.1s;
+  }
+
+  .list-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px var(--color-border);
   }
 
   .list-card.selected {
-    border-color: #d4af37;
-    background: rgba(212, 175, 55, 0.12);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: var(--border-thick);
+    background: var(--color-white);
+    box-shadow: 4px 4px 0px var(--color-border);
+    transform: translate(-2px, -2px);
+    z-index: 10;
   }
 
   .list-card-header {
     display: flex;
-    gap: 0.55rem;
+    gap: 0.75rem;
     align-items: center;
   }
 
-  /* ---------- Type Badge ---------- */
   .type-badge {
     display: inline-flex;
     align-items: center;
@@ -779,144 +858,116 @@
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    font-size: 0.62rem;
-    font-weight: 700;
+    font-size: 0.65rem;
+    font-weight: 800;
     flex-shrink: 0;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    border: var(--border-thin);
+    color: white;
   }
 
   .type-point {
     background: #d4af37;
-    color: #fff;
   }
 
   .type-line {
     background: #5b8a72;
-    color: #fff;
   }
 
   .type-polygon {
     background: #7b6b9e;
-    color: #fff;
+  }
+
+  .list-card.selected .type-badge {
+    border: 2px solid var(--color-text);
   }
 
   .list-card-header input[type="text"] {
     flex: 1 1 auto;
-    border-radius: 2px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    background: rgba(255, 255, 255, 0.6);
-    color: #2b2520;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.82rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: var(--font-family-base);
+  }
+
+  .list-card-header input[type="text"]:focus,
+  .list-card-header input[type="text"]:hover {
+    background: var(--color-bg);
+    border-color: var(--color-gray-300);
+    outline: none;
   }
 
   .list-card-actions {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.5rem;
     flex-shrink: 0;
   }
 
   .point-details {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding-top: 0.25rem;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: var(--border-thin);
   }
 
   .point-details textarea {
-    border-radius: 2px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    background: rgba(255, 255, 255, 0.5);
-    color: #2b2520;
-    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-sm);
+    border: var(--border-thin);
+    background: var(--color-bg);
+    color: var(--color-text);
+    padding: 0.5rem;
     resize: vertical;
-    min-height: 48px;
+    min-height: 60px;
     font-family: inherit;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
   }
 
   .color-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 1rem;
   }
 
   .color-row input[type="color"] {
-    width: 28px;
-    height: 28px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    border-radius: 4px;
-    background: none;
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    width: 40px;
+    height: 32px;
     cursor: pointer;
     padding: 0;
+    overflow: hidden;
   }
 
   .field-label {
-    font-size: 0.68rem;
-    color: #6b5d52;
-    font-weight: 600;
-  }
-
-  .notice {
-    margin: 0;
-    font-size: 0.78rem;
-    color: #6b5d52;
-  }
-
-  .errored {
-    color: #a84848;
-  }
-
-  .success {
-    color: #2d7a4f;
-  }
-
-  .instruction-step {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-start;
-  }
-
-  .step-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(212, 175, 55, 0.2);
-    color: #8b7355;
     font-size: 0.75rem;
     font-weight: 700;
-    flex-shrink: 0;
-    margin-top: 0.1rem;
-  }
-
-  .instruction-list {
-    margin: 0.5rem 0 0 2.25rem;
-    padding: 0;
-    list-style: disc;
-    font-size: 0.8rem;
-    color: #6b5d52;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .instruction-list strong {
-    color: #4a3f35;
-    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-text);
+    opacity: 0.7;
   }
 
   .empty-state-guide {
-    padding: 0.5rem 0.25rem;
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text);
+    opacity: 0.8;
   }
 
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(212, 175, 55, 0.4) transparent;
+  .instruction-list {
+    text-align: left;
+    margin: 1rem 0 0;
+    padding-left: 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  .instruction-list li {
+    margin-bottom: 0.5rem;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -925,7 +976,11 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.4);
+    background: var(--color-gray-300);
     border-radius: 999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-400);
   }
 </style>

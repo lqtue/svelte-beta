@@ -1,0 +1,65 @@
+import { json, error } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { SUPABASE_SERVICE_KEY } from '$env/static/private';
+import type { RequestHandler } from './$types';
+import type { Database } from '$lib/supabase/types';
+
+async function getAdminClient(locals: App.Locals) {
+    const { session, user } = await locals.safeGetSession();
+    if (!session || !user) throw error(401, 'Unauthorized');
+
+    const adminSupabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profile?.role !== 'admin') throw error(403, 'Forbidden');
+
+    return adminSupabase;
+}
+
+/** GET — list all maps (raw DB rows) */
+export const GET: RequestHandler = async ({ locals }) => {
+    const adminSupabase = await getAdminClient(locals);
+
+    const { data, error: dbError } = await adminSupabase
+        .from('maps')
+        .select('*')
+        .order('name');
+
+    if (dbError) throw error(500, dbError.message);
+    return json(data);
+};
+
+/** POST — create a new map */
+export const POST: RequestHandler = async ({ locals, request }) => {
+    const adminSupabase = await getAdminClient(locals);
+
+    const body = await request.json();
+    const { name, allmaps_id, type, year, summary, description, is_featured } = body;
+
+    if (!name || !allmaps_id) {
+        throw error(400, 'name and allmaps_id are required');
+    }
+
+    const { data, error: dbError } = await adminSupabase
+        .from('maps')
+        .insert({
+            name,
+            allmaps_id,
+            type: type || null,
+            year: year ? Number(year) : null,
+            summary: summary || null,
+            description: description || null,
+            is_featured: is_featured || false
+        })
+        .select()
+        .single();
+
+    if (dbError) throw error(500, dbError.message);
+    return json(data, { status: 201 });
+};

@@ -1,0 +1,60 @@
+@import './mode-shared.css';
+
+.view-mode {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-bg);
+    background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
+    background-size: 32px 32px;
+    overflow: hidden;
+}
+
+.view-mode.mobile .workspace {
+    padding: 0;
+    gap: 0;
+}
+
+/* Map Toolbar */
+.map-toolbar {
+    position: absolute;
+    bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    background: var(--color-white);
+    border: var(--border-thick);
+    border-radius: var(--radius-pill);
+    padding: 0.5rem 1rem;
+    box-shadow: var(--shadow-solid);
+    pointer-events: auto;
+    min-width: 320px;
+}
+
+.map-toolbar.mobile {
+    bottom: calc(env(safe-area-inset-bottom) + 5rem);
+    width: calc(100% - 2rem);
+    max-width: 400px;
+}
+
+/* GPS Error */
+.gps-error {
+    position: absolute;
+    top: 4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-orange);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-pill);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-solid);
+    font-weight: 700;
+    z-index: 70;
+}

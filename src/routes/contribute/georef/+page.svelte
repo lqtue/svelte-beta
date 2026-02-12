@@ -469,483 +469,440 @@
 	{/if}
 </div>
 
-<style>
-	:global(body) {
-		margin: 0;
-		background: #2b2520;
-	}
-
-	.page {
-		min-height: 100vh;
-		background: linear-gradient(180deg, #f4e8d8 0%, #ebe0d0 50%, #e8d5ba 100%);
-		opacity: 0;
-		transition: opacity 0.5s ease;
-	}
-
-	.page.mounted {
-		opacity: 1;
-	}
-
-	/* Hero */
-	.hero {
-		position: relative;
-		padding: 3rem 2rem 2rem;
-		text-align: center;
-		background: linear-gradient(180deg,
-			rgba(212, 175, 55, 0.15) 0%,
-			rgba(212, 175, 55, 0.05) 100%);
-		border-bottom: 3px solid #d4af37;
-	}
-
-	.hero-content {
-		max-width: 600px;
-		margin: 0 auto;
-	}
-
-	.back-link {
-		display: inline-block;
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: #8b7355;
-		text-decoration: none;
-		margin-bottom: 1rem;
-		transition: color 0.2s;
-	}
-
-	.back-link:hover {
-		color: #d4af37;
-	}
-
-	.hero-title {
-		font-family: 'Spectral', serif;
-		font-size: clamp(1.75rem, 5vw, 2.5rem);
-		font-weight: 800;
-		letter-spacing: -0.02em;
-		color: #2b2520;
-		margin: 0 0 0.75rem;
-	}
-
-	.hero-subtitle {
-		font-family: 'Noto Serif', serif;
-		font-size: clamp(0.9375rem, 2.5vw, 1.125rem);
-		line-height: 1.6;
-		color: #4a3f35;
-		margin: 0;
-	}
-
-	/* Main */
-	.main {
-		max-width: 900px;
-		margin: 0 auto;
-		padding: 2rem 1.5rem 3rem;
-	}
-
-	/* Alerts */
-	.alert {
-		padding: 0.75rem 1rem;
-		border-radius: 4px;
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.875rem;
-		margin-bottom: 1.5rem;
-	}
-
-	.alert-error {
-		background: rgba(220, 38, 38, 0.1);
-		border: 1px solid rgba(220, 38, 38, 0.3);
-		color: #dc2626;
-	}
-
-	.alert-success {
-		background: rgba(22, 163, 74, 0.1);
-		border: 1px solid rgba(22, 163, 74, 0.3);
-		color: #16a34a;
-	}
-
-	/* Admin section */
-	.admin-section {
-		margin-bottom: 2.5rem;
-		padding: 1.5rem;
-		background: rgba(255, 255, 255, 0.4);
-		border: 2px solid rgba(212, 175, 55, 0.4);
-		border-radius: 4px;
-	}
-
-	.section-header {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 1.25rem;
-	}
-
-	.section-title {
-		font-family: 'Spectral', serif;
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: #2b2520;
-		margin: 0;
-	}
-
-	.admin-badge {
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.625rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 0.2rem 0.5rem;
-		background: rgba(212, 175, 55, 0.25);
-		border: 1px solid rgba(212, 175, 55, 0.5);
-		border-radius: 2px;
-		color: #8b7355;
-	}
-
-	.add-form {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	.form-field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-	}
-
-	.form-field span {
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: #4a3f35;
-	}
-
-	.form-field input,
-	.form-field textarea {
-		padding: 0.625rem 0.75rem;
-		border: 1px solid rgba(212, 175, 55, 0.4);
-		border-radius: 4px;
-		background: rgba(255, 255, 255, 0.8);
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.9375rem;
-		color: #2b2520;
-		outline: none;
-		transition: border-color 0.2s;
-		resize: vertical;
-	}
-
-	.form-field input:focus,
-	.form-field textarea:focus {
-		border-color: #d4af37;
-	}
-
-	/* Buttons */
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.5rem 1rem;
-		border: none;
-		border-radius: 4px;
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.8125rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.2s;
-		text-decoration: none;
-		white-space: nowrap;
-	}
-
-	.btn:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-
-	.btn-primary {
-		background: #2b2520;
-		color: #f4e8d8;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #4a3f35;
-	}
-
-	.btn-secondary {
-		background: rgba(212, 175, 55, 0.2);
-		color: #4a3f35;
-		border: 1px solid rgba(212, 175, 55, 0.4);
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: rgba(212, 175, 55, 0.35);
-		border-color: #d4af37;
-	}
-
-	.btn-outline {
-		background: transparent;
-		color: #4a3f35;
-		border: 1px solid rgba(212, 175, 55, 0.4);
-	}
-
-	.btn-outline:hover {
-		border-color: #d4af37;
-		background: rgba(212, 175, 55, 0.1);
-	}
-
-	.btn-approve {
-		background: rgba(22, 163, 74, 0.15);
-		color: #16a34a;
-		border: 1px solid rgba(22, 163, 74, 0.3);
-	}
-
-	.btn-approve:hover {
-		background: rgba(22, 163, 74, 0.25);
-	}
-
-	.btn-reject {
-		background: rgba(220, 38, 38, 0.1);
-		color: #dc2626;
-		border: 1px solid rgba(220, 38, 38, 0.3);
-	}
-
-	.btn-reject:hover {
-		background: rgba(220, 38, 38, 0.2);
-	}
-
-	.btn-danger-text {
-		background: none;
-		color: #8b7355;
-		font-size: 0.75rem;
-		padding: 0.25rem 0.5rem;
-	}
-
-	.btn-danger-text:hover {
-		color: #dc2626;
-	}
-
-	/* Submissions */
-	.submissions-section {
-		margin-top: 1rem;
-	}
-
-	.loading {
-		text-align: center;
-		padding: 3rem;
-		font-family: 'Noto Serif', serif;
-		color: #6b5d52;
-	}
-
-	.empty {
-		text-align: center;
-		padding: 3rem 1rem;
-		font-family: 'Noto Serif', serif;
-		color: #6b5d52;
-	}
-
-	.empty p {
-		margin: 0.5rem 0;
-	}
-
-	.submissions-grid {
-		display: grid;
-		gap: 1.25rem;
-	}
-
-	.submission-card {
-		padding: 1.5rem;
-		background: rgba(255, 255, 255, 0.5);
-		border: 2px solid rgba(212, 175, 55, 0.3);
-		border-radius: 4px;
-		transition: border-color 0.2s;
-	}
-
-	.submission-card:hover {
-		border-color: rgba(212, 175, 55, 0.5);
-	}
-
-	.card-header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 0.5rem;
-	}
-
-	.card-title {
-		font-family: 'Spectral', serif;
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: #2b2520;
-		margin: 0;
-		line-height: 1.3;
-	}
-
-	.status-badge {
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 0.25rem 0.625rem;
-		border-radius: 2px;
-		white-space: nowrap;
-		flex-shrink: 0;
-	}
-
-	.status-open {
-		background: rgba(59, 130, 246, 0.15);
-		color: #3b82f6;
-		border: 1px solid rgba(59, 130, 246, 0.3);
-	}
-
-	.status-progress {
-		background: rgba(245, 158, 11, 0.15);
-		color: #d97706;
-		border: 1px solid rgba(245, 158, 11, 0.3);
-	}
-
-	.status-review {
-		background: rgba(139, 92, 246, 0.15);
-		color: #7c3aed;
-		border: 1px solid rgba(139, 92, 246, 0.3);
-	}
-
-	.status-approved {
-		background: rgba(22, 163, 74, 0.15);
-		color: #16a34a;
-		border: 1px solid rgba(22, 163, 74, 0.3);
-	}
-
-	.status-rejected {
-		background: rgba(220, 38, 38, 0.1);
-		color: #dc2626;
-		border: 1px solid rgba(220, 38, 38, 0.3);
-	}
-
-	.card-description {
-		font-family: 'Noto Serif', serif;
-		font-size: 0.9375rem;
-		line-height: 1.5;
-		color: #4a3f35;
-		margin: 0 0 0.75rem;
-	}
-
-	.admin-note {
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.8125rem;
-		padding: 0.625rem 0.75rem;
-		background: rgba(220, 38, 38, 0.06);
-		border: 1px solid rgba(220, 38, 38, 0.15);
-		border-radius: 4px;
-		color: #4a3f35;
-		margin-bottom: 0.75rem;
-	}
-
-	.card-actions {
-		display: flex;
-		align-items: center;
-		gap: 0.625rem;
-		flex-wrap: wrap;
-		margin-top: 0.75rem;
-	}
-
-	.muted-text {
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.8125rem;
-		color: #8b7355;
-		font-style: italic;
-	}
-
-	.btn-google {
-		background: rgba(255, 255, 255, 0.7);
-		color: #4a3f35;
-		border: 1px solid rgba(212, 175, 55, 0.4);
-	}
-
-	.btn-google:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.9);
-		border-color: #d4af37;
-	}
-
-	.google-icon {
-		flex-shrink: 0;
-	}
-
-	.card-contributor {
-		font-family: 'Be Vietnam Pro', sans-serif;
-		font-size: 0.75rem;
-		color: #8b7355;
-		margin-bottom: 0.25rem;
-	}
-
-	.contributor-dot {
-		margin: 0 0.25rem;
-		opacity: 0.5;
-	}
-
-	/* Modals */
-	.modal-overlay {
-		position: fixed;
-		inset: 0;
-		background: rgba(43, 37, 32, 0.6);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-		padding: 1rem;
-	}
-
-	.modal {
-		width: 100%;
-		max-width: 420px;
-		padding: 2rem;
-		background: #f4e8d8;
-		border: 2px solid rgba(212, 175, 55, 0.5);
-		border-radius: 4px;
-		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
-	}
-
-	.modal-title {
-		font-family: 'Spectral', serif;
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: #2b2520;
-		margin: 0 0 0.5rem;
-	}
-
-	.modal-text {
-		font-family: 'Noto Serif', serif;
-		font-size: 0.9375rem;
-		color: #4a3f35;
-		margin: 0 0 1.25rem;
-	}
-
-	.modal-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.75rem;
-		margin-top: 1.25rem;
-	}
-
-	/* Responsive */
-	@media (max-width: 640px) {
-		.hero {
-			padding: 2rem 1.5rem 1.5rem;
-		}
-
-		.main {
-			padding: 1.5rem 1rem 2rem;
-		}
-
-		.admin-section {
-			padding: 1.25rem;
-		}
-
-		.submission-card {
-			padding: 1.25rem;
-		}
-
-		.card-header {
-			flex-direction: column;
-			gap: 0.5rem;
-		}
-	}
+<style>:global(body) {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-family-base);
+}
+
+.page {
+    min-height: 100vh;
+    background-image: radial-gradient(var(--color-border) 1px,
+            transparent 1px);
+    background-size: 32px 32px;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.page.mounted {
+    opacity: 1;
+}
+
+/* Hero */
+.hero {
+    position: relative;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+    background: var(--color-white);
+    border-bottom: var(--border-thick);
+}
+
+.hero-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.back-link {
+    display: inline-block;
+    font-family: var(--font-family-base);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text);
+    text-decoration: none;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.back-link:hover {
+    opacity: 1;
+}
+
+.hero-title {
+    font-family: var(--font-family-display);
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--color-text);
+    margin: 0 0 1rem;
+    text-transform: uppercase;
+}
+
+.hero-subtitle {
+    font-family: var(--font-family-base);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--color-text);
+    opacity: 0.8;
+    margin: 0;
+}
+
+/* Main */
+.main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem;
+}
+
+/* Alerts */
+.alert {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    margin-bottom: 2rem;
+    border: var(--border-thick);
+    box-shadow: var(--shadow-solid-sm);
+}
+
+.alert-error {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.alert-success {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #166534;
+}
+
+/* Admin section */
+.admin-section {
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: var(--color-white);
+    border: var(--border-thick);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-solid);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-title {
+    font-family: var(--font-family-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.admin-badge {
+    font-family: var(--font-family-base);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.25rem 0.5rem;
+    background: var(--color-yellow);
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+}
+
+.add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-field span {
+    font-family: var(--font-family-base);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.form-field input,
+.form-field textarea {
+    padding: 0.75rem;
+    border: var(--border-thick);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    font-family: var(--font-family-base);
+    font-size: 1rem;
+    color: var(--color-text);
+    outline: none;
+    transition: all 0.1s;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+    background: var(--color-white);
+    box-shadow: 4px 4px 0px var(--color-border);
+    transform: translate(-2px, -2px);
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    border: var(--border-thick);
+    border-radius: var(--radius-pill);
+    font-family: var(--font-family-base);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.1s;
+    text-decoration: none;
+    white-space: nowrap;
+    box-shadow: 2px 2px 0px var(--color-border);
+}
+
+.btn:hover:not(:disabled) {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0px var(--color-border);
+}
+
+.btn:active:not(:disabled) {
+    transform: translate(0, 0);
+    box-shadow: 0 0 0 var(--color-border);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--color-gray-100);
+}
+
+.btn-primary {
+    background: var(--color-blue);
+    color: white;
+}
+
+.btn-secondary {
+    background: var(--color-white);
+    color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--color-yellow);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--color-text);
+}
+
+.btn-outline:hover {
+    background: var(--color-bg);
+}
+
+.btn-approve {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #166534;
+}
+
+.btn-reject {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.btn-danger-text {
+    background: none;
+    color: #b91c1c;
+    font-size: 0.8rem;
+    padding: 0.5rem;
+    border: none;
+    box-shadow: none;
+}
+
+.btn-danger-text:hover {
+    text-decoration: underline;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-google {
+    background: var(--color-white);
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Submissions */
+.submissions-section {
+    margin-top: 1rem;
+}
+
+.loading {
+    text-align: center;
+    padding: 4rem;
+    font-family: var(--font-family-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    border: 2px dashed var(--color-gray-300);
+    border-radius: var(--radius-lg);
+    color: var(--color-text);
+    opacity: 0.7;
+}
+
+.submissions-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.submission-card {
+    padding: 1.5rem;
+    background: var(--color-white);
+    border: var(--border-thick);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-solid);
+    transition: all 0.2s;
+}
+
+.submission-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-solid-hover);
+}
+
+.card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.card-title {
+    font-family: var(--font-family-display);
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--color-text);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.status-badge {
+    font-family: var(--font-family-base);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-sm);
+    border: var(--border-thin);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.status-open {
+    background: var(--color-blue);
+    color: white;
+    border-color: var(--color-blue);
+}
+
+.status-progress {
+    background: var(--color-yellow);
+    color: var(--color-text);
+}
+
+.status-review {
+    background: var(--color-orange);
+    color: white;
+}
+
+.status-approved {
+    background: var(--color-green);
+    color: white;
+}
+
+.status-rejected {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.card-description {
+    margin: 0 0 1rem;
+    color: var(--color-text);
+    opacity: 0.8;
+    line-height: 1.5;
+}
+
+.admin-note {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: #fee2e2;
+    border-radius: var(--radius-md);
+    border: 1px solid #b91c1c;
+    color: #b91c1c;
+    font-size: 0.9rem;
+}
+
+.card-contributor {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+    opacity: 0.6;
+    margin-bottom: 1rem;
+}
+
+.card-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    border-top: var(--border-thin);
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modal {
+    background: var(--color-white);
+    padding: 2rem;
+    border-radius: var(--radius-lg);
+    border: var(--border-thick);
+    box-shadow: var(--shadow-solid);
+    width: 100%;
+    max-width: 500px;
+}
+
+.modal-title {
+    font-family: var(--font-family-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem;
+}
+
+.modal-text {
+    margin-bottom: 1.5rem;
+    opacity: 0.8;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
 </style>
