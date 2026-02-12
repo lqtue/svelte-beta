@@ -8,6 +8,7 @@
 		addFavorite,
 		removeFavorite,
 	} from "$lib/supabase/favorites";
+	import ThemeToggle from "$lib/ui/ThemeToggle.svelte";
 
 	const { supabase, session } = getSupabaseContext();
 
@@ -196,6 +197,7 @@
 <div class="page" class:mounted>
 	<header class="hero">
 		<div class="auth-bar">
+			<ThemeToggle />
 			<button class="pill-btn lang-btn" on:click={toggleLanguage}>
 				{isVietnamese ? "🇬🇧 EN" : "🇻🇳 VN"}
 			</button>
@@ -533,41 +535,11 @@
 </div>
 
 <style>
-	/* ========================================
-      NEO-BRUTALIST / PLAYFUL DESIGN SYSTEM
-      ========================================
-    */
-	:root {
-		--color-bg: #faf6f0; /* Soft warm cream */
-		--color-text: #111111;
-		--color-border: #111111;
-		--color-white: #ffffff;
-
-		/* Playful Accents */
-		--color-primary: #ff4d4d; /* Punchy red/coral */
-		--color-blue: #4d94ff;
-		--color-yellow: #ffd23f;
-		--color-green: #00cc99;
-		--color-orange: #ff8c42;
-		--color-purple: #9d4edd;
-
-		--border-thick: 3px solid var(--color-border);
-		--border-thin: 2px solid var(--color-border);
-		--shadow-solid: 6px 6px 0px var(--color-border);
-		--shadow-solid-sm: 4px 4px 0px var(--color-border);
-		--shadow-solid-hover: 10px 10px 0px var(--color-border);
-
-		--radius-lg: 24px;
-		--radius-md: 16px;
-		--radius-sm: 8px;
-		--radius-pill: 999px;
-	}
-
 	:global(body) {
 		margin: 0;
 		background-color: var(--color-bg);
 		color: var(--color-text);
-		font-family: "Outfit", "Be Vietnam Pro", sans-serif;
+		font-family: var(--font-family-base);
 	}
 
 	.page {
@@ -1302,5 +1274,231 @@
 			grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 			gap: 1.5rem;
 		}
+	}
+
+	/* ========================================
+	   ARCHIVAL THEME OVERRIDES
+	   ======================================== */
+	:global([data-theme="archival"]) .page {
+		background-image: none;
+		background-color: var(--color-bg);
+	}
+
+	:global([data-theme="archival"]) .hero {
+		background: #d4c5a9;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	:global([data-theme="archival"]) .tagline-badge {
+		transform: none;
+		box-shadow: var(--shadow-solid-sm);
+		border: var(--border-thin);
+		font-weight: 600;
+	}
+
+	:global([data-theme="archival"]) .hero-title {
+		font-weight: 700;
+		letter-spacing: -0.02em;
+	}
+
+	:global([data-theme="archival"]) .text-highlight {
+		-webkit-text-stroke: none;
+		text-shadow: none;
+		color: var(--color-primary);
+	}
+
+	:global([data-theme="archival"]) .hero-subtitle {
+		transform: none;
+		border: var(--border-thin);
+		box-shadow: var(--shadow-solid-sm);
+		background: rgba(255, 255, 255, 0.85);
+		font-weight: 500;
+	}
+
+	:global([data-theme="archival"]) .pill-btn {
+		box-shadow: var(--shadow-solid-sm);
+		border: var(--border-thin);
+		font-weight: 600;
+	}
+
+	:global([data-theme="archival"]) .pill-btn:hover {
+		transform: none;
+		box-shadow: var(--shadow-solid);
+	}
+
+	:global([data-theme="archival"]) .pill-btn:active {
+		transform: none;
+		box-shadow: var(--shadow-solid-sm);
+	}
+
+	:global([data-theme="archival"]) .feature-card {
+		border: var(--border-thin);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-solid);
+	}
+
+	:global([data-theme="archival"]) .hover-lift:hover {
+		transform: none;
+		box-shadow: var(--shadow-solid-hover);
+	}
+
+	:global([data-theme="archival"]) .icon-blob {
+		border: var(--border-thin);
+		border-radius: 12px;
+		box-shadow: var(--shadow-solid-sm);
+	}
+
+	:global([data-theme="archival"]) .fun-badge {
+		transform: none;
+		box-shadow: none;
+		border: var(--border-thin);
+		background: var(--color-purple);
+	}
+
+	:global([data-theme="archival"]) .feature-title {
+		font-weight: 700;
+	}
+
+	:global([data-theme="archival"]) .action-btn {
+		border: var(--border-thin);
+		border-radius: var(--radius-pill);
+		box-shadow: var(--shadow-solid-sm);
+		font-weight: 700;
+	}
+
+	:global([data-theme="archival"]) .action-btn:hover {
+		transform: none;
+		box-shadow: var(--shadow-solid);
+	}
+
+	:global([data-theme="archival"]) .action-btn:active {
+		transform: none;
+		box-shadow: var(--shadow-solid-sm);
+	}
+
+	:global([data-theme="archival"]) .controls-row {
+		border: var(--border-thin);
+		border-radius: var(--radius-sm);
+		box-shadow: none;
+		background: var(--color-gray-100);
+	}
+
+	:global([data-theme="archival"]) .chunky-tab {
+		border: var(--border-thin);
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-solid-sm);
+		font-weight: 600;
+	}
+
+	:global([data-theme="archival"]) .chunky-tab:hover {
+		transform: none;
+		box-shadow: var(--shadow-solid);
+	}
+
+	:global([data-theme="archival"]) .chunky-tab.active {
+		background: var(--color-blue);
+		transform: none;
+		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+	}
+
+	:global([data-theme="archival"]) .city-filters {
+		border-top: var(--border-thin);
+	}
+
+	:global([data-theme="archival"]) .filter-pill {
+		border: var(--border-thin);
+		font-weight: 600;
+	}
+
+	:global([data-theme="archival"]) .filter-pill:hover {
+		background: var(--color-yellow);
+	}
+
+	:global([data-theme="archival"]) .map-card {
+		border: var(--border-thin);
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-solid-sm);
+	}
+
+	:global([data-theme="archival"]) .map-card:hover {
+		transform: translateY(-3px);
+		box-shadow: var(--shadow-solid-hover);
+	}
+
+	:global([data-theme="archival"]) .map-card-wrapper:nth-child(even) .map-card:hover {
+		transform: translateY(-3px);
+	}
+
+	:global([data-theme="archival"]) .map-thumbnail {
+		border-bottom: var(--border-thin);
+	}
+
+	:global([data-theme="archival"]) .placeholder-pattern {
+		background-image: repeating-linear-gradient(
+			45deg,
+			var(--color-gray-100) 0,
+			var(--color-gray-100) 10px,
+			var(--color-white) 10px,
+			var(--color-white) 20px
+		);
+	}
+
+	:global([data-theme="archival"]) .badge {
+		border: var(--border-thin);
+		box-shadow: var(--shadow-solid-sm);
+		font-weight: 700;
+	}
+
+	:global([data-theme="archival"]) .year-badge {
+		background: var(--color-green);
+		color: #fff;
+	}
+
+	:global([data-theme="archival"]) .fav-btn {
+		border: var(--border-thin);
+		box-shadow: var(--shadow-solid-sm);
+	}
+
+	:global([data-theme="archival"]) .fav-btn:hover {
+		transform: scale(1.05);
+	}
+
+	:global([data-theme="archival"]) .empty-state {
+		border: var(--border-thin);
+		border-style: dashed;
+		border-radius: var(--radius-sm);
+	}
+
+	:global([data-theme="archival"]) .action-footer {
+		border-top: var(--border-thin);
+	}
+
+	:global([data-theme="archival"]) .micro-link {
+		border: var(--border-thin);
+		border-radius: var(--radius-sm);
+	}
+
+	:global([data-theme="archival"]) .micro-link:hover {
+		transform: none;
+		background: var(--color-yellow);
+		box-shadow: var(--shadow-solid-sm);
+	}
+
+	:global([data-theme="archival"]) .about-card {
+		border: var(--border-thin);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-solid-sm);
+	}
+
+	:global([data-theme="archival"]) .about-card a {
+		text-decoration-thickness: 1.5px;
+	}
+
+	:global([data-theme="archival"]) .footer {
+		background: var(--color-text);
+	}
+
+	:global([data-theme="archival"]) .footer a {
+		color: var(--color-yellow);
 	}
 </style>

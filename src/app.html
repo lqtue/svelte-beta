@@ -36,6 +36,12 @@
 			}
 		</style>
 	</head>
+	<script>
+		(function() {
+			var t = localStorage.getItem('vma-theme');
+			if (t) document.documentElement.setAttribute('data-theme', t);
+		})();
+	</script>
 	<body data-sveltekit-preload-data="hover">
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>

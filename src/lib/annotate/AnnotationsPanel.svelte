@@ -12,7 +12,6 @@
   } from "$lib/viewer/types";
 
   const dispatch = createEventDispatcher<{
-    updateProject: { title?: string; description?: string };
     rename: { id: string; label: string };
     changeColor: { id: string; color: string };
     updateDetails: { id: string; details: string };
@@ -26,6 +25,8 @@
     clear: void;
     exportGeoJSON: void;
     importFile: { file: File };
+    save: void;
+    backToLibrary: void;
   }>();
 
   export let annotations: AnnotationSummary[] = [];
@@ -33,8 +34,8 @@
   export let selectedMap: MapListItem | null = null;
   export let drawingMode: DrawingMode | null = null;
   export let collapsed = false;
-  export let projectTitle = "";
-  export let projectDescription = "";
+  export let isSaving = false;
+  export let saveSuccess = false;
 
   let expandedAnnotationId: string | null = null;
   let lastSelectedId: string | null = null;
@@ -110,7 +111,11 @@
 {:else}
   <aside class="panel">
     <div class="panel-header">
-      <a href="/" class="home-link">
+      <button
+        type="button"
+        class="home-link"
+        on:click={() => dispatch("backToLibrary")}
+      >
         <svg
           width="16"
           height="16"
@@ -123,8 +128,8 @@
         >
           <path d="M12.5 15L7.5 10L12.5 5" />
         </svg>
-        Home
-      </a>
+        My Projects
+      </button>
       <button
         type="button"
         class="panel-close"
@@ -205,6 +210,15 @@
             <button
               type="button"
               class="chip ghost small"
+              class:success={saveSuccess}
+              on:click={() => dispatch("save")}
+              disabled={isSaving || saveSuccess}
+            >
+              {saveSuccess ? "Saved!" : isSaving ? "Saving..." : "Save"}
+            </button>
+            <button
+              type="button"
+              class="chip ghost small"
               on:click={() => dispatch("clear")}
               disabled={!annotations.length}
             >
@@ -239,27 +253,6 @@
             {notice}
           </p>
         {/if}
-
-        <div class="story-meta">
-          <input
-            type="text"
-            value={projectTitle}
-            placeholder="Project title"
-            on:input={(e) =>
-              dispatch("updateProject", {
-                title: (e.target as HTMLInputElement).value,
-              })}
-          />
-          <textarea
-            rows="2"
-            value={projectDescription}
-            placeholder="Project description"
-            on:input={(e) =>
-              dispatch("updateProject", {
-                description: (e.target as HTMLTextAreaElement).value,
-              })}
-          ></textarea>
-        </div>
 
         <div class="draw-controls">
           <button
@@ -663,40 +656,6 @@
     text-transform: uppercase;
   }
 
-  /* ---------- Story Meta ---------- */
-  .story-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
-    background: var(--color-bg);
-    border-bottom: var(--border-thin);
-  }
-
-  .story-meta input,
-  .story-meta textarea {
-    border-radius: var(--radius-md);
-    border: var(--border-thin);
-    background: var(--color-white);
-    color: var(--color-text);
-    padding: 0.5rem 0.75rem;
-    font-family: var(--font-family-base);
-    font-size: 0.9rem;
-    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.05);
-  }
-
-  .story-meta input:focus,
-  .story-meta textarea:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 2px 2px 0px var(--color-border);
-  }
-
-  .story-meta textarea {
-    resize: vertical;
-    min-height: 60px;
-  }
-
   .draw-controls {
     display: flex;
     gap: 0.5rem;
@@ -756,6 +715,19 @@
   .chip.ghost:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .chip.success {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #166534;
+  }
+
+  .chip.success:disabled {
+    opacity: 1;
+    cursor: default;
+    box-shadow: none;
+    transform: none;
   }
 
   .chip.danger {

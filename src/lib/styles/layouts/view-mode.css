@@ -3,6 +3,7 @@
 .view-mode {
     position: relative;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     background-color: var(--color-bg);
@@ -14,33 +15,6 @@
 .view-mode.mobile .workspace {
     padding: 0;
     gap: 0;
-}
-
-/* Map Toolbar */
-.map-toolbar {
-    position: absolute;
-    bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 40;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 1.5rem;
-    background: var(--color-white);
-    border: var(--border-thick);
-    border-radius: var(--radius-pill);
-    padding: 0.5rem 1rem;
-    box-shadow: var(--shadow-solid);
-    pointer-events: auto;
-    min-width: 320px;
-}
-
-.map-toolbar.mobile {
-    bottom: calc(env(safe-area-inset-bottom) + 5rem);
-    width: calc(100% - 2rem);
-    max-width: 400px;
 }
 
 /* GPS Error */

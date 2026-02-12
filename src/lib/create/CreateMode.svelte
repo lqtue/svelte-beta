@@ -28,10 +28,12 @@
   import MapSearchBar from "$lib/ui/MapSearchBar.svelte";
   import StoryMarkers from "$lib/view/StoryMarkers.svelte";
   import StoryPlayback from "$lib/view/StoryPlayback.svelte";
+  import NameDialog from "$lib/ui/NameDialog.svelte";
   import CatalogPage from "$lib/ui/catalog/CatalogPage.svelte";
   import CatalogHeader from "$lib/ui/catalog/CatalogHeader.svelte";
   import CatalogGrid from "$lib/ui/catalog/CatalogGrid.svelte";
   import CatalogCard from "$lib/ui/catalog/CatalogCard.svelte";
+  import MapToolbar from "$lib/ui/MapToolbar.svelte";
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id;
@@ -87,18 +89,17 @@
   let previewMode = false;
   let previewProgress: import("$lib/story/types").StoryProgress | null = null;
 
+  // Name dialog state
+  let nameDialogOpen = false;
+  let nameDialogValue = "";
+  let nameDialogDescriptionValue = "";
+  let nameDialogHeading = "New Story";
+  let nameDialogEditId: string | null = null;
+
   $: points = currentStory?.points ?? [];
 
   // Only show stories owned by the current user
   $: myStories = $storyLibrary.stories.filter((s) => s.authorId === userId);
-
-  // View mode definitions
-  const viewModes: { mode: ViewMode; label: string; title: string }[] = [
-    { mode: "overlay", label: "Overlay", title: "Full overlay" },
-    { mode: "side-x", label: "Side X", title: "Side by side (horizontal)" },
-    { mode: "side-y", label: "Side Y", title: "Side by side (vertical)" },
-    { mode: "spy", label: "Lens", title: "Spy glass" },
-  ];
 
   function toggleBasemap() {
     layerStore.setBasemap(
@@ -106,9 +107,12 @@
     );
   }
 
-  function handleOpacityInput(event: Event) {
-    const target = event.target as HTMLInputElement;
-    layerStore.setOverlayOpacity(parseFloat(target.value));
+  function handleChangeViewMode(event: CustomEvent<{ mode: ViewMode }>) {
+    layerStore.setViewMode(event.detail.mode);
+  }
+
+  function handleChangeOpacity(event: CustomEvent<{ value: number }>) {
+    layerStore.setOverlayOpacity(event.detail.value);
   }
 
   // ── Lens knob drag ──────────────────────────────────────────────
@@ -145,12 +149,12 @@
     window.addEventListener("touchend", handleUp);
   }
 
-  function createNewStory(): Story {
+  function createNewStory(title = "Untitled Story", description = ""): Story {
     const id = crypto.randomUUID();
     return {
       id,
-      title: "Untitled Story",
-      description: "",
+      title,
+      description,
       mode: "guided",
       points: [],
       stops: [],
@@ -489,8 +493,43 @@
   }
 
   function handleCreateNewStory() {
-    currentStory = createNewStory();
-    activeView = "editor";
+    nameDialogEditId = null;
+    nameDialogValue = "";
+    nameDialogDescriptionValue = "";
+    nameDialogHeading = "New Story";
+    nameDialogOpen = true;
+  }
+
+  function handleEditStoryName(story: Story) {
+    nameDialogEditId = story.id;
+    nameDialogValue = story.title;
+    nameDialogDescriptionValue = story.description || "";
+    nameDialogHeading = "Rename Story";
+    nameDialogOpen = true;
+  }
+
+  function handleNameDialogSubmit(
+    event: CustomEvent<{ title: string; description?: string }>,
+  ) {
+    const { title, description } = event.detail;
+    nameDialogOpen = false;
+
+    if (nameDialogEditId) {
+      // Edit existing story
+      storyLibrary.updateStory(nameDialogEditId, { title, description });
+    } else {
+      // Create new story
+      const id = storyLibrary.createStory(title, description || "");
+      // Enter editor
+      setTimeout(() => {
+        const stories = $storyLibrary.stories;
+        const newStory = stories.find((s) => s.id === id);
+        if (newStory) {
+          currentStory = newStory;
+          activeView = "editor";
+        }
+      }, 50);
+    }
   }
 
   function handleSearchNavigate(event: CustomEvent<{ result: SearchResult }>) {
@@ -792,6 +831,29 @@
             <div slot="actions">
               <button
                 type="button"
+                class="btn-icon-edit"
+                title="Rename story"
+                on:click|stopPropagation={() => handleEditStoryName(story)}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <path
+                    d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
+                  />
+                  <path
+                    d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
                 class="btn-icon-delete"
                 title="Delete story"
                 on:click|stopPropagation={() => {
@@ -820,6 +882,16 @@
       </CatalogGrid>
     {/if}
   </CatalogPage>
+
+  <NameDialog
+    open={nameDialogOpen}
+    bind:value={nameDialogValue}
+    showDescription={true}
+    bind:descriptionValue={nameDialogDescriptionValue}
+    heading={nameDialogHeading}
+    on:submit={handleNameDialogSubmit}
+    on:close={() => (nameDialogOpen = false)}
+  />
 
   <!-- Editor View -->
 {:else}
@@ -976,46 +1048,15 @@
           {/if}
         </div>
 
-        <!-- FAT Map Toolbar -->
-        <div class="map-toolbar" class:mobile={isMobile} bind:this={toolbarEl}>
-          <!-- Standard row: View / Opacity -->
-          <div class="toolbar-row">
-            <div class="toolbar-group">
-              <span class="toolbar-label">View</span>
-              <div class="toolbar-btns">
-                {#each viewModes as vm}
-                  <button
-                    type="button"
-                    class="tb"
-                    class:active={viewMode === vm.mode}
-                    on:click={() => layerStore.setViewMode(vm.mode)}
-                    title={vm.title}>{vm.label}</button
-                  >
-                {/each}
-              </div>
-            </div>
-
-            <div class="toolbar-sep"></div>
-
-            <div class="toolbar-group toolbar-opacity">
-              <span class="toolbar-label">Opacity</span>
-              <div class="toolbar-slider-row">
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={opacity}
-                  on:input={handleOpacityInput}
-                  class="toolbar-slider"
-                />
-                <span class="toolbar-slider-val"
-                  >{Math.round(opacity * 100)}%</span
-                >
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Map Controls Toolbar -->
+        <MapToolbar
+          {viewMode}
+          {opacity}
+          {isMobile}
+          bind:toolbarEl
+          on:changeViewMode={handleChangeViewMode}
+          on:changeOpacity={handleChangeOpacity}
+        />
 
         <!-- Lens resize knob (spy mode only) -->
         {#if viewMode === "spy"}

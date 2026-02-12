@@ -3,6 +3,7 @@
 .create-mode {
     position: relative;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     background-color: var(--color-bg);
@@ -179,6 +180,27 @@
     overflow: hidden;
 }
 
+.btn-icon-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: var(--border-thin);
+    background: var(--color-white);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 2px 2px 0px var(--color-border);
+}
+
+.btn-icon-edit:hover {
+    color: var(--color-blue);
+    background: #dbeafe;
+    transform: translate(-1px, -1px);
+}
+
 .btn-icon-delete {
     display: flex;
     align-items: center;
@@ -198,38 +220,6 @@
     color: #b91c1c;
     background: #fee2e2;
     transform: translate(-1px, -1px);
-}
-
-/* Map Toolbar (create uses column layout) */
-.map-toolbar {
-    position: absolute;
-    bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 40;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    background: var(--color-white);
-    border: var(--border-thick);
-    border-radius: var(--radius-pill);
-    padding: 0.5rem 1rem;
-    box-shadow: var(--shadow-solid);
-    pointer-events: auto;
-    min-width: 320px;
-}
-
-.map-toolbar.mobile {
-    bottom: calc(env(safe-area-inset-bottom) + 5rem);
-    width: calc(100% - 2rem);
-    max-width: 400px;
-}
-
-.toolbar-row {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    justify-content: center;
 }
 
 /* Dialogs */

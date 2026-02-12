@@ -46,6 +46,7 @@
   import StoryMarkers from "./StoryMarkers.svelte";
   import GpsTracker from "./GpsTracker.svelte";
   import MapSearchBar from "$lib/ui/MapSearchBar.svelte";
+  import MapToolbar from "$lib/ui/MapToolbar.svelte";
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id;
@@ -113,14 +114,6 @@
   $: paramMapId = $page.url.searchParams.get("map");
   $: paramStoryId = $page.url.searchParams.get("story");
 
-  // View mode definitions
-  const viewModes: { mode: ViewModeType; label: string; title: string }[] = [
-    { mode: "overlay", label: "Overlay", title: "Full overlay" },
-    { mode: "side-x", label: "Side X", title: "Side by side (horizontal)" },
-    { mode: "side-y", label: "Side Y", title: "Side by side (vertical)" },
-    { mode: "spy", label: "Lens", title: "Spy glass" },
-  ];
-
   async function loadData() {
     try {
       const [maps, publicStories] = await Promise.all([
@@ -157,9 +150,12 @@
     }
   }
 
-  function handleOpacityInput(event: Event) {
-    const target = event.target as HTMLInputElement;
-    layerStore.setOverlayOpacity(parseFloat(target.value));
+  function handleChangeViewMode(event: CustomEvent<{ mode: ViewModeType }>) {
+    layerStore.setViewMode(event.detail.mode);
+  }
+
+  function handleChangeOpacity(event: CustomEvent<{ value: number }>) {
+    layerStore.setOverlayOpacity(event.detail.value);
   }
 
   // ── Lens knob drag ──────────────────────────────────────────────
@@ -464,40 +460,14 @@
       </div>
 
       <!-- Map Controls Toolbar -->
-      <div class="map-toolbar" class:mobile={isMobile} bind:this={toolbarEl}>
-        <div class="toolbar-group">
-          <span class="toolbar-label">View</span>
-          <div class="toolbar-btns">
-            {#each viewModes as vm}
-              <button
-                type="button"
-                class="tb"
-                class:active={viewMode === vm.mode}
-                on:click={() => layerStore.setViewMode(vm.mode)}
-                title={vm.title}>{vm.label}</button
-              >
-            {/each}
-          </div>
-        </div>
-
-        <div class="toolbar-sep"></div>
-
-        <div class="toolbar-group toolbar-opacity">
-          <span class="toolbar-label">Opacity</span>
-          <div class="toolbar-slider-row">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={opacity}
-              on:input={handleOpacityInput}
-              class="toolbar-slider"
-            />
-            <span class="toolbar-slider-val">{Math.round(opacity * 100)}%</span>
-          </div>
-        </div>
-      </div>
+      <MapToolbar
+        {viewMode}
+        {opacity}
+        {isMobile}
+        bind:toolbarEl
+        on:changeViewMode={handleChangeViewMode}
+        on:changeOpacity={handleChangeOpacity}
+      />
 
       <!-- Lens resize knob (spy mode only) -->
       {#if viewMode === "spy"}

@@ -2,9 +2,12 @@
   AnnotateMode.svelte — /annotate mode orchestrator.
   Free-form annotation builder. Uses StudioMap for drawing on the map.
   Annotations are drawn on the map and managed in the AnnotationsPanel.
+  Auth gate → library → editor pattern (mirrors CreateMode).
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import "$lib/styles/layouts/mode-shared.css";
+  import "$lib/styles/layouts/create-mode.css";
   import { toLonLat } from "ol/proj";
 
   import type {
@@ -12,6 +15,7 @@
     MapListItem,
     SearchResult,
     AnnotationSummary,
+    AnnotationSet,
     DrawingMode,
   } from "$lib/viewer/types";
   import { createMapStore } from "$lib/stores/mapStore";
@@ -23,12 +27,20 @@
   import { fetchMaps } from "$lib/supabase/maps";
   import { fetchAnnotationBounds } from "$lib/geo/mapBounds";
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
+  import { createAnnotationProjectStore } from "./stores/annotationProjectStore";
 
   import StudioMap from "$lib/studio/StudioMap.svelte";
   import AnnotationsPanel from "./AnnotationsPanel.svelte";
   import MapSearchBar from "$lib/ui/MapSearchBar.svelte";
+  import MapToolbar from "$lib/ui/MapToolbar.svelte";
+  import NameDialog from "$lib/ui/NameDialog.svelte";
+  import CatalogPage from "$lib/ui/catalog/CatalogPage.svelte";
+  import CatalogHeader from "$lib/ui/catalog/CatalogHeader.svelte";
+  import CatalogGrid from "$lib/ui/catalog/CatalogGrid.svelte";
+  import CatalogCard from "$lib/ui/catalog/CatalogCard.svelte";
 
   const { supabase, session } = getSupabaseContext();
+  const userId = session?.user?.id;
 
   // Annotation context — shared with StudioMap via Svelte context
   const annotationHistory = createAnnotationHistoryStore(100);
@@ -37,6 +49,7 @@
 
   const mapStore = createMapStore();
   const layerStore = createLayerStore();
+  const projectStore = createAnnotationProjectStore(supabase, userId);
 
   // Reactive store reads
   $: selectedMapId = $mapStore.activeMapId ?? "";
@@ -55,11 +68,12 @@
     ? (mapList.find((m) => m.id === selectedMapId) ?? null)
     : null;
 
+  // Only show projects owned by the current user
+  $: myProjects = $projectStore.projects.filter((p) => p.authorId === userId);
+
   // State
   let mapList: MapListItem[] = [];
   let drawingMode: DrawingMode | null = null;
-  let projectTitle = "";
-  let projectDescription = "";
   let sidebarCollapsed = false;
   let isMobile = false;
   let isCompact = false;
@@ -76,13 +90,18 @@
   let showZoomPrompt = false;
   let loadingTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // View mode definitions
-  const viewModes: { mode: ViewMode; label: string; title: string }[] = [
-    { mode: "overlay", label: "Overlay", title: "Full overlay" },
-    { mode: "side-x", label: "Side X", title: "Side by side (horizontal)" },
-    { mode: "side-y", label: "Side Y", title: "Side by side (vertical)" },
-    { mode: "spy", label: "Lens", title: "Spy glass" },
-  ];
+  // Library/Editor view state
+  let activeView: "library" | "editor" = "library";
+  let projectsLoading = true;
+  let currentProject: AnnotationSet | null = null;
+  let isSaving = false;
+  let saveSuccess = false;
+
+  // Name dialog state
+  let nameDialogOpen = false;
+  let nameDialogValue = "";
+  let nameDialogHeading = "New Project";
+  let nameDialogEditId: string | null = null;
 
   function toggleBasemap() {
     const next = basemapSelection === "g-streets" ? "g-satellite" : "g-streets";
@@ -90,10 +109,13 @@
     studioMapRef?.applyBasemap(next);
   }
 
-  function handleOpacityInput(event: Event) {
-    const val = parseFloat((event.target as HTMLInputElement).value);
-    layerStore.setOverlayOpacity(val);
-    studioMapRef?.setMapOpacity(val);
+  function handleChangeViewMode(event: CustomEvent<{ mode: ViewMode }>) {
+    layerStore.setViewMode(event.detail.mode);
+  }
+
+  function handleChangeOpacity(event: CustomEvent<{ value: number }>) {
+    layerStore.setOverlayOpacity(event.detail.value);
+    studioMapRef?.setMapOpacity(event.detail.value);
   }
 
   // ── Lens knob drag ──────────────────────────────────────────────
@@ -238,14 +260,6 @@
     if (!drawingMode) studioMapRef?.deactivateDrawing();
   }
 
-  function handleUpdateProject(
-    event: CustomEvent<{ title?: string; description?: string }>,
-  ) {
-    if (event.detail.title !== undefined) projectTitle = event.detail.title;
-    if (event.detail.description !== undefined)
-      projectDescription = event.detail.description;
-  }
-
   function handleAnnotationRename(
     event: CustomEvent<{ id: string; label: string }>,
   ) {
@@ -309,6 +323,25 @@
     }
   }
 
+  async function handleSave() {
+    if (!currentProject) return;
+    isSaving = true;
+
+    // Collect features from StudioMap
+    const features = studioMapRef?.exportAnnotationsAsGeoJsonObject?.() ?? {
+      type: "FeatureCollection" as const,
+      features: [],
+    };
+
+    await projectStore.saveFeatures(currentProject.id, features);
+
+    isSaving = false;
+    saveSuccess = true;
+    setTimeout(() => {
+      saveSuccess = false;
+    }, 2000);
+  }
+
   function handleUndo() {
     studioMapRef?.undoLastAction();
   }
@@ -320,7 +353,85 @@
   $: canUndo = $annotationHistory.history.length > 0;
   $: canRedo = $annotationHistory.future.length > 0;
 
+  // ── Library handlers ──────────────────────────────────────────
+
+  function handleOpenNewProject() {
+    nameDialogEditId = null;
+    nameDialogValue = "";
+    nameDialogHeading = "New Project";
+    nameDialogOpen = true;
+  }
+
+  function handleSelectProject(project: AnnotationSet) {
+    currentProject = project;
+    // Load project features into StudioMap if features exist
+    if (
+      project.features &&
+      project.features.features &&
+      project.features.features.length > 0
+    ) {
+      // We'll load them after map is ready
+      setTimeout(() => {
+        const text = JSON.stringify(project.features);
+        studioMapRef?.importGeoJsonText(text);
+      }, 500);
+    }
+    // Set the map overlay if project has a mapId
+    if (project.mapId) {
+      mapStore.setActiveMap(project.mapId);
+    }
+    activeView = "editor";
+  }
+
+  function handleEditProjectName(project: AnnotationSet) {
+    nameDialogEditId = project.id;
+    nameDialogValue = project.title;
+    nameDialogHeading = "Rename Project";
+    nameDialogOpen = true;
+  }
+
+  function handleNameDialogSubmit(
+    event: CustomEvent<{ title: string; description?: string }>,
+  ) {
+    const { title } = event.detail;
+    nameDialogOpen = false;
+
+    if (nameDialogEditId) {
+      // Edit existing project name
+      projectStore.updateProject(nameDialogEditId, { title });
+    } else {
+      // Create new project
+      const mapId = selectedMapId || "";
+      const id = projectStore.createProject(title, mapId);
+      // Find the newly created project and enter editor
+      // Use a small delay to let store update propagate
+      setTimeout(() => {
+        const projects = $projectStore.projects;
+        const newProject = projects.find((p) => p.id === id);
+        if (newProject) {
+          currentProject = newProject;
+          activeView = "editor";
+        }
+      }, 50);
+    }
+  }
+
+  function handleBackToLibrary() {
+    currentProject = null;
+    drawingMode = null;
+    activeView = "library";
+  }
+
+  function featureCount(project: AnnotationSet): number {
+    return project.features?.features?.length ?? 0;
+  }
+
   onMount(() => {
+    // Load projects then stop loading indicator
+    projectStore.loadFromSupabase().finally(() => {
+      projectsLoading = false;
+    });
+
     const mobileQuery = window.matchMedia("(max-width: 900px)");
     const compactQuery = window.matchMedia("(max-width: 1400px)");
     const updateResponsive = () => {
@@ -369,87 +480,126 @@
   });
 </script>
 
-<div class="annotate-mode" class:mobile={isMobile}>
-  <div
-    class="workspace"
-    class:with-sidebar={!sidebarCollapsed && !isMobile}
-    class:compact={isCompact}
-  >
-    {#if !sidebarCollapsed && !isMobile}
-      <AnnotationsPanel
-        bind:this={annotationsPanelRef}
-        {annotations}
-        {selectedAnnotationId}
-        {selectedMap}
-        {drawingMode}
-        {projectTitle}
-        {projectDescription}
-        collapsed={false}
-        on:toggleCollapse={() => (sidebarCollapsed = true)}
-        on:updateProject={handleUpdateProject}
-        on:rename={handleAnnotationRename}
-        on:changeColor={handleAnnotationChangeColor}
-        on:updateDetails={handleAnnotationUpdateDetails}
-        on:toggleVisibility={handleAnnotationToggleVisibility}
-        on:select={handleAnnotationSelect}
-        on:delete={handleAnnotationDelete}
-        on:zoomTo={handleAnnotationZoomTo}
-        on:setDrawingMode={handleSetDrawingMode}
-        on:zoomToMap={handleZoomToMap}
-        on:clear={handleAnnotationClear}
-        on:exportGeoJSON={handleAnnotationExport}
-        on:importFile={handleAnnotationImport}
-      />
-    {/if}
+<!-- Auth Gate: require login -->
+{#if !session}
+  <div class="auth-gate">
+    <div class="auth-gate-card">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d4af37"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0110 0v4" />
+      </svg>
+      <h2 class="auth-gate-title">Sign in to Annotate</h2>
+      <p class="auth-gate-text">
+        Sign in with your Google account to create and manage annotation
+        projects.
+      </p>
+      <button
+        type="button"
+        class="auth-gate-btn google"
+        on:click={async () => {
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: { redirectTo: `${window.location.origin}/auth/callback` },
+          });
+          if (error) console.error("Google sign-in failed:", error.message);
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path
+            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+            fill="#4285F4"
+          />
+          <path
+            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            fill="#34A853"
+          />
+          <path
+            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+            fill="#FBBC05"
+          />
+          <path
+            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+            fill="#EA4335"
+          />
+        </svg>
+        Continue with Google
+      </button>
+    </div>
+  </div>
 
-    <div class="map-stage">
-      <StudioMap
-        bind:this={studioMapRef}
-        {basemapSelection}
-        {viewMode}
-        {sideRatio}
-        {lensRadius}
-        {opacity}
-        {drawingMode}
-        editingEnabled={true}
-        on:mapReady={handleMapReady}
-        on:statusChange={handleStatusChange}
-      />
-
-      <!-- Top-left: Show Panel (when collapsed) -->
-      {#if sidebarCollapsed && !isMobile}
-        <div class="top-controls">
+  <!-- Project Library View -->
+{:else if activeView === "library"}
+  <CatalogPage>
+    <div slot="header">
+      <CatalogHeader
+        title="My Projects"
+        subtitle="Create annotation projects on historical maps"
+        variant="hero"
+        backLink="/"
+        backLabel="Return to Home"
+      >
+        <div slot="actions">
           <button
             type="button"
-            class="ctrl-btn"
-            on:click={() => (sidebarCollapsed = false)}
-            title="Show panel"
+            class="library-create-btn"
+            on:click={handleOpenNewProject}
           >
             <svg
-              width="18"
-              height="18"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
             >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M9 3v18" />
+              <path d="M12 5v14M5 12h14" />
             </svg>
+            New Project
           </button>
         </div>
-      {/if}
+      </CatalogHeader>
+    </div>
 
-      <!-- Bottom-right: Basemap + Mobile menu -->
-      <div class="floating-controls">
+    {#if projectsLoading}
+      <div class="library-loading">
+        <div class="loading-spinner"></div>
+        <span>Loading projects...</span>
+      </div>
+    {:else if myProjects.length === 0}
+      <div class="library-empty">
+        <svg
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#d4af37"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <path d="M12 18v-6M9 15h6" />
+        </svg>
+        <h2 class="empty-title">Create your first project</h2>
+        <p class="empty-text">
+          Draw points, lines, and polygons on historical maps, then save and
+          share your annotations.
+        </p>
         <button
           type="button"
-          class="ctrl-btn"
-          on:click={toggleBasemap}
-          title={basemapSelection === "g-streets"
-            ? "Switch to Satellite"
-            : "Switch to Streets"}
+          class="library-create-btn large"
+          on:click={handleOpenNewProject}
         >
           <svg
             width="18"
@@ -459,25 +609,183 @@
             stroke="currentColor"
             stroke-width="2"
             stroke-linecap="round"
-            stroke-linejoin="round"
           >
-            {#if basemapSelection === "g-streets"}
-              <circle cx="12" cy="12" r="10" />
-              <path
-                d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"
-              />
-            {:else}
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-            {/if}
+            <path d="M12 5v14M5 12h14" />
           </svg>
+          Create Project
         </button>
-        {#if isMobile}
+      </div>
+    {:else}
+      <CatalogGrid>
+        {#each myProjects as project (project.id)}
+          <CatalogCard
+            title={project.title}
+            on:click={() => handleSelectProject(project)}
+          >
+            <div slot="thumb" class="story-thumb-placeholder">
+              <span class="story-icon">📝</span>
+            </div>
+
+            <div slot="meta" class="meta">
+              <span class="meta-tag">
+                {featureCount(project)} feature{featureCount(project) !== 1
+                  ? "s"
+                  : ""}
+              </span>
+              <span class="meta-tag date">
+                {new Date(project.updatedAt).toLocaleDateString("en-GB")}
+              </span>
+            </div>
+
+            <div slot="description" class="description">
+              {project.mapId ? `Map: ${project.mapId.slice(0, 8)}...` : "No map selected"}
+            </div>
+
+            <div slot="actions">
+              <button
+                type="button"
+                class="btn-icon-edit"
+                title="Rename project"
+                on:click|stopPropagation={() => handleEditProjectName(project)}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <path
+                    d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
+                  />
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="btn-icon-delete"
+                title="Delete project"
+                on:click|stopPropagation={() => {
+                  if (confirm(`Delete "${project.title}"?`)) {
+                    projectStore.deleteProject(project.id);
+                  }
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                  <path d="M10 11v6M14 11v6" />
+                </svg>
+              </button>
+            </div>
+          </CatalogCard>
+        {/each}
+      </CatalogGrid>
+    {/if}
+  </CatalogPage>
+
+  <NameDialog
+    open={nameDialogOpen}
+    bind:value={nameDialogValue}
+    heading={nameDialogHeading}
+    on:submit={handleNameDialogSubmit}
+    on:close={() => (nameDialogOpen = false)}
+  />
+
+  <!-- Editor View -->
+{:else}
+  <div class="annotate-mode" class:mobile={isMobile}>
+    <div
+      class="workspace"
+      class:with-sidebar={!sidebarCollapsed && !isMobile}
+      class:compact={isCompact}
+    >
+      {#if !sidebarCollapsed && !isMobile}
+        <AnnotationsPanel
+          bind:this={annotationsPanelRef}
+          {annotations}
+          {selectedAnnotationId}
+          {selectedMap}
+          {drawingMode}
+          {isSaving}
+          {saveSuccess}
+          collapsed={false}
+          on:toggleCollapse={() => (sidebarCollapsed = true)}
+          on:rename={handleAnnotationRename}
+          on:changeColor={handleAnnotationChangeColor}
+          on:updateDetails={handleAnnotationUpdateDetails}
+          on:toggleVisibility={handleAnnotationToggleVisibility}
+          on:select={handleAnnotationSelect}
+          on:delete={handleAnnotationDelete}
+          on:zoomTo={handleAnnotationZoomTo}
+          on:setDrawingMode={handleSetDrawingMode}
+          on:zoomToMap={handleZoomToMap}
+          on:clear={handleAnnotationClear}
+          on:exportGeoJSON={handleAnnotationExport}
+          on:importFile={handleAnnotationImport}
+          on:save={handleSave}
+          on:backToLibrary={handleBackToLibrary}
+        />
+      {/if}
+
+      <div class="map-stage">
+        <StudioMap
+          bind:this={studioMapRef}
+          {basemapSelection}
+          {viewMode}
+          {sideRatio}
+          {lensRadius}
+          {opacity}
+          {drawingMode}
+          editingEnabled={true}
+          on:mapReady={handleMapReady}
+          on:statusChange={handleStatusChange}
+        />
+
+        <!-- Top-left: Show Panel (when collapsed) -->
+        {#if sidebarCollapsed && !isMobile}
+          <div class="top-controls">
+            <button
+              type="button"
+              class="ctrl-btn"
+              on:click={() => (sidebarCollapsed = false)}
+              title="Show panel"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 3v18" />
+              </svg>
+            </button>
+          </div>
+        {/if}
+
+        <!-- Bottom-right: Basemap + Mobile menu -->
+        <div class="floating-controls">
           <button
             type="button"
             class="ctrl-btn"
-            on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
-            title="Toggle panel"
+            on:click={toggleBasemap}
+            title={basemapSelection === "g-streets"
+              ? "Switch to Satellite"
+              : "Switch to Streets"}
           >
             <svg
               width="18"
@@ -486,181 +794,174 @@
               fill="none"
               stroke="currentColor"
               stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <path d="M3 6h18M3 12h18M3 18h18" />
+              {#if basemapSelection === "g-streets"}
+                <circle cx="12" cy="12" r="10" />
+                <path
+                  d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"
+                />
+              {:else}
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+              {/if}
             </svg>
           </button>
-        {/if}
-      </div>
-
-      <!-- FAT Map Toolbar -->
-      <div class="map-toolbar" class:mobile={isMobile} bind:this={toolbarEl}>
-        <!-- Standard row: View / Opacity -->
-        <div class="toolbar-row">
-          <div class="toolbar-group">
-            <span class="toolbar-label">View</span>
-            <div class="toolbar-btns">
-              {#each viewModes as vm}
-                <button
-                  type="button"
-                  class="tb"
-                  class:active={viewMode === vm.mode}
-                  on:click={() => layerStore.setViewMode(vm.mode)}
-                  title={vm.title}>{vm.label}</button
-                >
-              {/each}
-            </div>
-          </div>
-
-          <div class="toolbar-sep"></div>
-
-          <div class="toolbar-group toolbar-opacity">
-            <span class="toolbar-label">Opacity</span>
-            <div class="toolbar-slider-row">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={opacity}
-                on:input={handleOpacityInput}
-                class="toolbar-slider"
-              />
-              <span class="toolbar-slider-val"
-                >{Math.round(opacity * 100)}%</span
+          {#if isMobile}
+            <button
+              type="button"
+              class="ctrl-btn"
+              on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
+              title="Toggle panel"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
               >
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Lens resize knob (spy mode only) -->
-      {#if viewMode === "spy"}
-        <div class="lens-overlay" bind:this={lensOverlayEl}>
-          <div
-            class="lens-ring"
-            style="width: {lensRadius * 2}px; height: {lensRadius * 2}px;"
-          ></div>
-          <div
-            class="lens-knob"
-            style="transform: translateX({lensRadius}px);"
-            on:mousedown={startLensDrag}
-            on:touchstart|preventDefault={startLensDrag}
-            role="slider"
-            aria-label="Lens size"
-            aria-valuemin={30}
-            aria-valuemax={500}
-            aria-valuenow={lensRadius}
-            tabindex="0"
-          ></div>
-        </div>
-      {/if}
-
-      {#if overlayLoading}
-        <div class="overlay-loading">
-          <div class="loading-spinner"></div>
-          <span>Loading map overlay...</span>
-          {#if showZoomPrompt}
-            <span>or try</span>
-            <button class="loading-zoom-btn" on:click={handleZoomToActiveMap}>
-              Zoom to Map
+                <path d="M3 6h18M3 12h18M3 18h18" />
+              </svg>
             </button>
           {/if}
         </div>
-      {/if}
 
-      {#if overlayError}
-        <div class="overlay-error">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v4M12 16h.01" />
-          </svg>
-          <span>{overlayError}</span>
-          <button
-            type="button"
-            class="overlay-error-close"
-            on:click={() => (overlayError = null)}
-            aria-label="Dismiss"
-          >
+        <!-- Map Controls Toolbar -->
+        <MapToolbar
+          {viewMode}
+          {opacity}
+          {isMobile}
+          bind:toolbarEl
+          on:changeViewMode={handleChangeViewMode}
+          on:changeOpacity={handleChangeOpacity}
+        />
+
+        <!-- Lens resize knob (spy mode only) -->
+        {#if viewMode === "spy"}
+          <div class="lens-overlay" bind:this={lensOverlayEl}>
+            <div
+              class="lens-ring"
+              style="width: {lensRadius * 2}px; height: {lensRadius * 2}px;"
+            ></div>
+            <div
+              class="lens-knob"
+              style="transform: translateX({lensRadius}px);"
+              on:mousedown={startLensDrag}
+              on:touchstart|preventDefault={startLensDrag}
+              role="slider"
+              aria-label="Lens size"
+              aria-valuemin={30}
+              aria-valuemax={500}
+              aria-valuenow={lensRadius}
+              tabindex="0"
+            ></div>
+          </div>
+        {/if}
+
+        {#if overlayLoading}
+          <div class="overlay-loading">
+            <div class="loading-spinner"></div>
+            <span>Loading map overlay...</span>
+            {#if showZoomPrompt}
+              <span>or try</span>
+              <button class="loading-zoom-btn" on:click={handleZoomToActiveMap}>
+                Zoom to Map
+              </button>
+            {/if}
+          </div>
+        {/if}
+
+        {#if overlayError}
+          <div class="overlay-error">
             <svg
-              width="14"
-              height="14"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg
+              stroke-width="2"
+              stroke-linecap="round"
             >
-          </button>
-        </div>
-      {/if}
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+            <span>{overlayError}</span>
+            <button
+              type="button"
+              class="overlay-error-close"
+              on:click={() => (overlayError = null)}
+              aria-label="Dismiss"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg
+              >
+            </button>
+          </div>
+        {/if}
 
-      <MapSearchBar
-        maps={mapList}
-        {selectedMapId}
-        {toolbarEl}
-        showAddAsPoint={false}
-        on:navigate={handleSearchNavigate}
-        on:selectMap={handleSelectMap}
-      />
+        <MapSearchBar
+          maps={mapList}
+          {selectedMapId}
+          {toolbarEl}
+          showAddAsPoint={false}
+          on:navigate={handleSearchNavigate}
+          on:selectMap={handleSelectMap}
+        />
+      </div>
     </div>
+
+    <!-- Mobile sidebar (sliding panel) -->
+    {#if isMobile && !sidebarCollapsed}
+      <div
+        class="mobile-overlay"
+        on:click={() => (sidebarCollapsed = true)}
+        role="presentation"
+      ></div>
+      <div class="mobile-sidebar">
+        <AnnotationsPanel
+          bind:this={annotationsPanelRef}
+          {annotations}
+          {selectedAnnotationId}
+          {selectedMap}
+          {drawingMode}
+          {isSaving}
+          {saveSuccess}
+          collapsed={false}
+          on:toggleCollapse={() => (sidebarCollapsed = true)}
+          on:rename={handleAnnotationRename}
+          on:changeColor={handleAnnotationChangeColor}
+          on:updateDetails={handleAnnotationUpdateDetails}
+          on:toggleVisibility={handleAnnotationToggleVisibility}
+          on:select={handleAnnotationSelect}
+          on:delete={handleAnnotationDelete}
+          on:zoomTo={handleAnnotationZoomTo}
+          on:setDrawingMode={handleSetDrawingMode}
+          on:zoomToMap={handleZoomToMap}
+          on:clear={handleAnnotationClear}
+          on:exportGeoJSON={handleAnnotationExport}
+          on:importFile={handleAnnotationImport}
+          on:save={handleSave}
+          on:backToLibrary={handleBackToLibrary}
+        />
+      </div>
+    {/if}
   </div>
-
-  <!-- Mobile sidebar (sliding panel) -->
-  {#if isMobile && !sidebarCollapsed}
-    <div
-      class="mobile-overlay"
-      on:click={() => (sidebarCollapsed = true)}
-      role="presentation"
-    ></div>
-    <div class="mobile-sidebar">
-      <AnnotationsPanel
-        bind:this={annotationsPanelRef}
-        {annotations}
-        {selectedAnnotationId}
-        {selectedMap}
-        {drawingMode}
-        {projectTitle}
-        {projectDescription}
-        collapsed={false}
-        on:toggleCollapse={() => (sidebarCollapsed = true)}
-        on:updateProject={handleUpdateProject}
-        on:rename={handleAnnotationRename}
-        on:changeColor={handleAnnotationChangeColor}
-        on:updateDetails={handleAnnotationUpdateDetails}
-        on:toggleVisibility={handleAnnotationToggleVisibility}
-        on:select={handleAnnotationSelect}
-        on:delete={handleAnnotationDelete}
-        on:zoomTo={handleAnnotationZoomTo}
-        on:setDrawingMode={handleSetDrawingMode}
-        on:zoomToMap={handleZoomToMap}
-        on:clear={handleAnnotationClear}
-        on:exportGeoJSON={handleAnnotationExport}
-        on:importFile={handleAnnotationImport}
-      />
-    </div>
-  {/if}
-</div>
+{/if}
 
 <style>
-  :global(body) {
-    margin: 0;
-    font-family: var(--font-family-base);
-    background: var(--color-bg);
-    color: var(--color-text);
-  }
-
   .annotate-mode {
     position: relative;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     background-color: var(--color-bg);
@@ -669,243 +970,12 @@
     overflow: hidden;
   }
 
-  /* Workspace */
-  .workspace {
-    flex: 1 1 0%;
-    min-height: 0;
-    position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    align-items: stretch;
-  }
-
-  .workspace.with-sidebar {
-    grid-template-columns: minmax(320px, 0.25fr) minmax(0, 1fr);
-    gap: 1rem;
-    padding: 1rem;
-  }
-
-  .workspace.with-sidebar.compact {
-    grid-template-columns: minmax(260px, 0.3fr) minmax(0, 1fr);
-  }
-
-  .map-stage {
-    position: relative;
-    min-height: 0;
-    height: 100%;
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    background: var(--color-gray-100);
-    border: var(--border-thick);
-    box-shadow: var(--shadow-solid);
-  }
-
-  /* Full-bleed map when no sidebar */
-  .workspace:not(.with-sidebar) .map-stage {
-    border-radius: 0;
-    border: none;
-    box-shadow: none;
-  }
-
   .annotate-mode.mobile .workspace {
     padding: 0;
     gap: 0;
   }
 
-  /* Control Buttons */
-  .ctrl-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: var(--border-thick);
-    background: var(--color-white);
-    color: var(--color-text);
-    cursor: pointer;
-    box-shadow: var(--shadow-solid-sm);
-    transition: all 0.1s;
-  }
-
-  .ctrl-btn:hover {
-    background: var(--color-yellow);
-    transform: translate(-2px, -2px);
-    box-shadow: var(--shadow-solid);
-  }
-
-  .ctrl-btn:active {
-    transform: translate(0, 0);
-    box-shadow: 0 0 0 var(--color-border);
-  }
-
-  /* Top Controls */
-  .top-controls {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    z-index: 50;
-  }
-
-  /* Floating Controls */
-  .floating-controls {
-    position: absolute;
-    bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
-    right: calc(env(safe-area-inset-right) + 1.5rem);
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    z-index: 50;
-  }
-
-  /* Map Toolbar */
-  .map-toolbar {
-    position: absolute;
-    bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 40;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    background: var(--color-white);
-    border: var(--border-thick);
-    border-radius: var(--radius-pill);
-    padding: 0.5rem 1rem;
-    box-shadow: var(--shadow-solid);
-    pointer-events: auto;
-    min-width: 320px;
-  }
-
-  .map-toolbar.mobile {
-    bottom: calc(env(safe-area-inset-bottom) + 5rem);
-    width: calc(100% - 2rem);
-    max-width: 400px;
-  }
-
-  .toolbar-row {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    justify-content: center;
-  }
-
-  .toolbar-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .toolbar-label {
-    font-family: var(--font-family-display);
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    color: var(--color-text);
-    opacity: 0.6;
-    letter-spacing: 0.05em;
-  }
-
-  .toolbar-btns {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .tb {
-    border: var(--border-thin);
-    background: var(--color-white);
-    padding: 0.35rem 0.75rem;
-    border-radius: var(--radius-pill);
-    font-family: var(--font-family-base);
-    font-weight: 700;
-    font-size: 0.85rem;
-    cursor: pointer;
-    box-shadow: 2px 2px 0px var(--color-border);
-    transition: transform 0.1s;
-  }
-
-  .tb:hover {
-    transform: translate(-1px, -1px);
-    background: var(--color-yellow);
-  }
-
-  .tb.active {
-    background: var(--color-blue);
-    color: white;
-    transform: translate(1px, 1px);
-    box-shadow: none;
-  }
-
-  .toolbar-sep {
-    width: 2px;
-    height: 32px;
-    background: var(--color-gray-300);
-  }
-
-  .toolbar-slider-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .toolbar-slider {
-    width: 100px;
-    accent-color: var(--color-blue);
-  }
-
-  .toolbar-slider-val {
-    font-family: var(--font-family-display);
-    font-weight: 700;
-    font-size: 0.85rem;
-    width: 3ch;
-  }
-
-  /* Overlay Loading */
-  .overlay-loading {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--color-white);
-    border: var(--border-thick);
-    border-radius: var(--radius-md);
-    padding: 1rem 1.5rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    box-shadow: var(--shadow-solid);
-    z-index: 60;
-  }
-
-  .loading-spinner {
-    width: 24px;
-    height: 24px;
-    border: 3px solid var(--color-gray-300);
-    border-top-color: var(--color-blue);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .loading-zoom-btn {
-    background: var(--color-blue);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-pill);
-    font-weight: 700;
-    cursor: pointer;
-  }
-
-  /* Overlay Error */
+  /* Overlay Error — annotate-specific positioning */
   .overlay-error {
     position: absolute;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
@@ -945,65 +1015,7 @@
     background: rgba(255, 255, 255, 0.3);
   }
 
-  /* ---------- Opacity in toolbar ---------- */
-  .toolbar-opacity {
-    min-width: 80px;
-  }
-
-  .toolbar-slider-row {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .toolbar-slider {
-    flex: 1 1 auto;
-    width: 60px;
-    height: 4px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: linear-gradient(
-      90deg,
-      rgba(212, 175, 55, 0.2) 0%,
-      rgba(212, 175, 55, 0.4) 100%
-    );
-    border-radius: 2px;
-    outline: none;
-    cursor: pointer;
-  }
-
-  .toolbar-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #d4af37 0%, #b8942f 100%);
-    border: 2px solid #f4e8d8;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-  }
-
-  .toolbar-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #d4af37 0%, #b8942f 100%);
-    border: 2px solid #f4e8d8;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-  }
-
-  .toolbar-slider-val {
-    font-family: "Be Vietnam Pro", sans-serif;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    color: #2b2520;
-    min-width: 1.75rem;
-    text-align: right;
-  }
-
-  /* ---------- Mobile Sidebar ---------- */
+  /* Mobile Sidebar — annotate uses fixed positioning */
   .mobile-overlay {
     position: fixed;
     inset: 0;
@@ -1021,19 +1033,25 @@
     overflow-y: auto;
   }
 
-  /* ---------- Responsive mobile toolbar ---------- */
-  @media (max-width: 900px) {
-    .toolbar-row {
-      flex-wrap: wrap;
-      gap: 0.35rem;
-    }
+  /* Edit icon button in library cards */
+  .btn-icon-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: var(--border-thin);
+    background: var(--color-white);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 2px 2px 0px var(--color-border);
+  }
 
-    .toolbar-group {
-      padding: 0;
-    }
-
-    .toolbar-sep {
-      display: none;
-    }
+  .btn-icon-edit:hover {
+    color: var(--color-blue);
+    background: #dbeafe;
+    transform: translate(-1px, -1px);
   }
 </style>

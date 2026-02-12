@@ -211,27 +211,6 @@
         </div>
 
         {#if story}
-          <div class="story-meta">
-            <input
-              type="text"
-              value={story.title}
-              placeholder="Story title"
-              on:input={(e) =>
-                dispatch("updateStory", {
-                  title: (e.target as HTMLInputElement).value,
-                })}
-            />
-            <textarea
-              rows="2"
-              value={story.description}
-              placeholder="Story description"
-              on:input={(e) =>
-                dispatch("updateStory", {
-                  description: (e.target as HTMLTextAreaElement).value,
-                })}
-            ></textarea>
-          </div>
-
           <div class="place-controls">
             <button
               type="button"

@@ -1,0 +1,308 @@
+
+> test@0.0.1 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /Users/airm1/Downloads/svelte-beta
+Getting Svelte diagnostics...
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:3587:3
+Warn: Unused CSS selector ".section-group"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+  .section-group {
+    display: flex;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:3593:3
+Warn: Unused CSS selector ".section-block"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+  .section-block {
+    background: var(--color-white);
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:3604:3
+Warn: Unused CSS selector ".section-block h3"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+  .section-block h3 {
+    margin: 0;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:3612:3
+Warn: Unused CSS selector ".section-header"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+  .section-header {
+    display: flex;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:3898:3
+Warn: Unused CSS selector ".list-card.hidden"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+  .list-card.hidden {
+    opacity: 0.6;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:4218:5
+Warn: Unused CSS selector ".section-block"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+    .section-block {
+      padding: 0.75rem 0.85rem;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:335:5
+Error: Type 'number' is not assignable to type 'Timeout'. (ts)
+    if (stateSaveTimer) window.clearTimeout(stateSaveTimer);
+    stateSaveTimer = window.setTimeout(saveAppState, 500);
+  }
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:1523:5
+Error: Type 'number' is not assignable to type 'Timeout'. (ts)
+    const delayMs = clampStoryDelay(scene?.delay ?? STORY_DEFAULT_DELAY) * 1000;
+    storyAutoplayTimer = window.setTimeout(() => {
+      goToStoryScene(nextIndex).catch((error) =>
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:1893:7
+Error: Type 'number' is not assignable to type 'Timeout'. (ts)
+      }
+      shareResetTimer = window.setTimeout(() => {
+        shareCopied = false;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/map/MapViewport.svelte:2141:5
+Error: Type 'number' is not assignable to type 'Timeout'. (ts)
+    const delay = 1000;
+    searchDebounce = window.setTimeout(() => {
+      runSearch(query);
+
+/Users/airm1/Downloads/svelte-beta/src/lib/annotate/AnnotationsPanel.svelte:333:19
+Warn: `<div>` with a click or keydown handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+                {#if expandedAnnotationId === annotation.id}
+                  <div
+                    class="point-details"
+                    on:click|stopPropagation
+                    on:keydown|stopPropagation
+                  >
+                    <textarea
+                      rows="2"
+                      value={annotation.details ?? ""}
+                      placeholder="Annotation details"
+                      on:input={(e) =>
+                        dispatch("updateDetails", {
+                          id: annotation.id,
+                          details: (e.target as HTMLTextAreaElement).value,
+                        })}
+                    ></textarea>
+
+                    <div class="color-row">
+                      <span class="field-label">Colour</span>
+                      <input
+                        type="color"
+                        value={annotation.color}
+                        on:input={(e) =>
+                          dispatch("changeColor", {
+                            id: annotation.id,
+                            color: (e.target as HTMLInputElement).value,
+                          })}
+                      />
+                      <button
+                        type="button"
+                        class="chip ghost small"
+                        on:click={() =>
+                          dispatch("toggleVisibility", {
+                            id: annotation.id,
+                          })}
+                      >
+                        {annotation.hidden ? "Show" : "Hide"}
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+
+/Users/airm1/Downloads/svelte-beta/src/lib/ui/SearchPanel.svelte:663:1
+Warn: Unused CSS selector ".result-item.active-map .result-type"
+https://svelte.dev/e/css_unused_selector (svelte)
+.result-item.active-map .result-title,
+.result-item.active-map .result-type {
+    color: white;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/create/StoryEditor.svelte:284:19
+Warn: `<div>` with a click or keydown handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+                {#if expandedPointId === point.id}
+                  <div
+                    class="point-details"
+                    on:click|stopPropagation
+                    on:keydown|stopPropagation
+                  >
+                    <textarea
+                      rows="2"
+                      value={point.description}
+                      placeholder="Description shown on arrival"
+                      on:input={(e) =>
+                        dispatch("updatePoint", {
+                          pointId: point.id,
+                          updates: {
+                            description: (e.target as HTMLTextAreaElement)
+                              .value,
+                          },
+                        })}
+                    ></textarea>
+
+                    <label>
+                      <span class="field-label"
+                        >Hint (shown before arrival)</span
+                      >
+                      <input
+                        type="text"
+                        value={point.hint ?? ""}
+                        placeholder="Optional hint"
+                        on:input={(e) =>
+                          dispatch("updatePoint", {
+                            pointId: point.id,
+                            updates: {
+                              hint:
+                                (e.target as HTMLInputElement).value ||
+                                undefined,
+                            },
+                          })}
+                      />
+                    </label>
+
+                    <ChallengeConfig
+                      challenge={point.challenge}
+                      on:change={(e) => handleChallengeChange(point.id, e)}
+                    />
+
+                    <div class="coords-display">
+                      {point.coordinates[1].toFixed(6)}, {point.coordinates[0].toFixed(
+                        6,
+                      )}
+                    </div>
+                  </div>
+                {/if}
+
+/Users/airm1/Downloads/svelte-beta/src/lib/create/StoryEditor.svelte:621:3
+Warn: Unused CSS selector ".story-meta"
+https://svelte.dev/e/css_unused_selector (svelte)
+  /* ---------- Story Meta ---------- */
+  .story-meta {
+    display: flex;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/create/StoryEditor.svelte:630:3
+Warn: Unused CSS selector ".story-meta input"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+  .story-meta input,
+  .story-meta textarea {
+
+/Users/airm1/Downloads/svelte-beta/src/lib/create/StoryEditor.svelte:631:3
+Warn: Unused CSS selector ".story-meta textarea"
+https://svelte.dev/e/css_unused_selector (svelte)
+  .story-meta input,
+  .story-meta textarea {
+    border-radius: var(--radius-md);
+
+/Users/airm1/Downloads/svelte-beta/src/lib/create/StoryEditor.svelte:642:3
+Warn: Unused CSS selector ".story-meta textarea"
+https://svelte.dev/e/css_unused_selector (svelte)
+
+  .story-meta textarea {
+    resize: vertical;
+
+/Users/airm1/Downloads/svelte-beta/src/lib/story/StoryCreator.svelte:136:13
+Warn: `<div>` with a click or keydown handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+          {#if expandedStopId === stop.id}
+            <div class="stop-details" on:click|stopPropagation on:keydown|stopPropagation>
+              <textarea
+                rows="2"
+                value={stop.description}
+                placeholder="Description shown on arrival"
+                on:input={(e) => dispatch('updateStop', { stopId: stop.id, updates: { description: (e.target as HTMLTextAreaElement).value } })}
+              ></textarea>
+
+              <div class="field-row">
+                <label>
+                  <span class="field-label">Radius (m)</span>
+                  <input
+                    type="number"
+                    value={stop.triggerRadius}
+                    min="5"
+                    max="200"
+                    on:input={(e) => dispatch('updateStop', { stopId: stop.id, updates: { triggerRadius: Number((e.target as HTMLInputElement).value) || 10 } })}
+                  />
+                </label>
+                <label>
+                  <span class="field-label">Trigger</span>
+                  <select
+                    value={stop.interaction}
+                    on:change={(e) => dispatch('updateStop', { stopId: stop.id, updates: { interaction: (e.target as HTMLSelectElement).value as StopInteraction } })}
+                  >
+                    <option value="proximity">Proximity</option>
+                    <option value="qr">QR Code</option>
+                    <option value="camera">Camera</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                <span class="field-label">Hint (shown before arrival)</span>
+                <input
+                  type="text"
+                  value={stop.hint ?? ''}
+                  placeholder="Optional hint"
+                  on:input={(e) => dispatch('updateStop', { stopId: stop.id, updates: { hint: (e.target as HTMLInputElement).value || undefined } })}
+                />
+              </label>
+
+              <label>
+                <span class="field-label">Quest (task on arrival)</span>
+                <input
+                  type="text"
+                  value={stop.quest ?? ''}
+                  placeholder="Optional quest"
+                  on:input={(e) => dispatch('updateStop', { stopId: stop.id, updates: { quest: (e.target as HTMLInputElement).value || undefined } })}
+                />
+              </label>
+
+              <label>
+                <span class="field-label">Overlay map ID (Allmaps)</span>
+                <input
+                  type="text"
+                  value={stop.overlayMapId ?? ''}
+                  placeholder="Paste Allmaps annotation ID"
+                  on:input={(e) => dispatch('updateStop', { stopId: stop.id, updates: { overlayMapId: (e.target as HTMLInputElement).value || undefined } })}
+                />
+              </label>
+
+              <div class="coords-display">
+                {stop.coordinates[1].toFixed(6)}, {stop.coordinates[0].toFixed(6)}
+              </div>
+            </div>
+          {/if}
+
+/Users/airm1/Downloads/svelte-beta/src/lib/ui/ThemeToggle.svelte:36:4
+Warn: Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated (svelte)
+			aria-checked={current === t.key}
+			on:click={() => setTheme(t.key)}
+		>
+
+/Users/airm1/Downloads/svelte-beta/src/lib/view/ViewSidebar.svelte:436:5
+Warn: Also define the standard property 'line-clamp' for compatibility (css)
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+
+/Users/airm1/Downloads/svelte-beta/src/routes/+page.svelte:1016:3
+Warn: Also define the standard property 'line-clamp' for compatibility (css)
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+
+/Users/airm1/Downloads/svelte-beta/src/routes/catalog/+page.svelte:983:3
+Warn: Also define the standard property 'line-clamp' for compatibility (css)
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+
+====================================
+svelte-check found 4 errors and 18 warnings in 9 files

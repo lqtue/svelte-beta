@@ -89,3 +89,48 @@
   --bp-tablet: 768px;
   --bp-desktop: 1024px;
 }
+
+/* ==========================================
+   ARCHIVAL THEME
+   Muted earth tones, soft shadows, refined feel
+   ========================================== */
+[data-theme="archival"] {
+  --color-bg: #f5f3ee;
+  --color-text: #2c2a26;
+  --color-border: #b8b0a4;
+  --color-white: #ffffff;
+
+  --color-primary: #b85c38;
+  --color-blue: #456990;
+  --color-yellow: #c9a84c;
+  --color-green: #5a8a6c;
+  --color-orange: #c47a3a;
+  --color-purple: #7b6d8d;
+
+  --color-primary-600: var(--color-blue);
+  --color-primary-700: #375574;
+  --color-gray-900: var(--color-text);
+  --color-gray-50: var(--color-bg);
+  --color-gray-100: #ece9e3;
+  --color-gray-300: #c8c2b8;
+  --color-gray-500: #8a8278;
+
+  --font-family-base: "Be Vietnam Pro", system-ui, sans-serif;
+  --font-family-display: "Space Grotesk", system-ui, sans-serif;
+
+  --border-thick: 1.5px solid var(--color-border);
+  --border-thin: 1px solid var(--color-border);
+
+  --shadow-solid: 0 2px 8px rgba(44, 42, 38, 0.1);
+  --shadow-solid-sm: 0 1px 4px rgba(44, 42, 38, 0.08);
+  --shadow-solid-hover: 0 4px 16px rgba(44, 42, 38, 0.14);
+
+  --shadow-sm: var(--shadow-solid-sm);
+  --shadow-md: var(--shadow-solid);
+  --shadow-lg: var(--shadow-solid-hover);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+}

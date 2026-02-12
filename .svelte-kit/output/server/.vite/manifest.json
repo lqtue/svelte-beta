@@ -9,28 +9,34 @@
       "_environment.js"
     ]
   },
-  "_MapSearchBar.CaB7_K8M.css": {
-    "file": "_app/immutable/assets/MapSearchBar.CaB7_K8M.css",
-    "src": "_MapSearchBar.CaB7_K8M.css"
+  "_CatalogHeader.Ds9nAN4j.css": {
+    "file": "_app/immutable/assets/CatalogHeader.Ds9nAN4j.css",
+    "src": "_CatalogHeader.Ds9nAN4j.css"
   },
-  "_MapSearchBar.js": {
-    "file": "chunks/MapSearchBar.js",
-    "name": "MapSearchBar",
+  "_CatalogHeader.js": {
+    "file": "chunks/CatalogHeader.js",
+    "name": "CatalogHeader",
     "imports": [
       "_index2.js",
-      "_MapSearchBar.svelte_svelte_type_style_lang.js",
       "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/CatalogHeader.Ds9nAN4j.css"
     ]
   },
-  "_MapSearchBar.svelte_svelte_type_style_lang.js": {
-    "file": "chunks/MapSearchBar.svelte_svelte_type_style_lang.js",
-    "name": "MapSearchBar.svelte_svelte_type_style_lang",
+  "_MapToolbar.D7bZ-oC5.css": {
+    "file": "_app/immutable/assets/MapToolbar.D7bZ-oC5.css",
+    "src": "_MapToolbar.D7bZ-oC5.css"
+  },
+  "_MapToolbar.svelte_svelte_type_style_lang.js": {
+    "file": "chunks/MapToolbar.svelte_svelte_type_style_lang.js",
+    "name": "MapToolbar.svelte_svelte_type_style_lang",
     "imports": [
       "_context.js",
       "_index.js"
     ],
     "css": [
-      "_app/immutable/assets/MapSearchBar.CaB7_K8M.css"
+      "_app/immutable/assets/MapToolbar.D7bZ-oC5.css"
     ]
   },
   "_StoryPlayback.qSdUb-2v.css": {
@@ -41,8 +47,7 @@
     "file": "chunks/StoryPlayback.svelte_svelte_type_style_lang.js",
     "name": "StoryPlayback.svelte_svelte_type_style_lang",
     "imports": [
-      "_index.js",
-      "_MapSearchBar.svelte_svelte_type_style_lang.js"
+      "_MapToolbar.svelte_svelte_type_style_lang.js"
     ],
     "css": [
       "_app/immutable/assets/StoryPlayback.qSdUb-2v.css"
@@ -196,7 +201,7 @@
       "_context2.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.BvEVajSC.css"
+      "_app/immutable/assets/_layout.QeV9ysCO.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -210,7 +215,7 @@
       "_context.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.DtX0AVXN.css"
+      "_app/immutable/assets/_page.C7siE-He.css"
     ]
   },
   "src/routes/+page.ts": {
@@ -245,14 +250,14 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_MapToolbar.svelte_svelte_type_style_lang.js",
+      "_CatalogHeader.js",
       "_index.js",
       "_context.js",
-      "_context2.js",
-      "_MapSearchBar.js"
+      "_context2.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.DnC1sFfi.css",
+      "_app/immutable/assets/_page.DCGa2-ap.css",
       "_app/immutable/assets/ol.BtPuoxOl.css"
     ]
   },
@@ -373,16 +378,15 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_MapToolbar.svelte_svelte_type_style_lang.js",
+      "_CatalogHeader.js",
       "_context2.js",
       "_StoryPlayback.svelte_svelte_type_style_lang.js",
       "_exports.js",
       "_utils.js",
-      "_state.svelte.js",
-      "_context.js"
+      "_state.svelte.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.DLR1kJwl.css",
       "_app/immutable/assets/ol.BtPuoxOl.css"
     ]
   },
@@ -433,18 +437,17 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_MapToolbar.svelte_svelte_type_style_lang.js",
       "_context.js",
       "_exports.js",
       "_utils.js",
       "_state.svelte.js",
       "_context2.js",
       "_StoryPlayback.svelte_svelte_type_style_lang.js",
-      "_index.js",
-      "_MapSearchBar.js"
+      "_index.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.DhV3kFFk.css",
+      "_app/immutable/assets/_page.B7evB025.css",
       "_app/immutable/assets/ol.BtPuoxOl.css"
     ]
   },
