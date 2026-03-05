@@ -43,15 +43,15 @@ export const BASEMAP_DEFS: BasemapDefinition[] = [
   },
   {
     key: 'g-satellite',
-    label: 'Google Satellite',
+    label: 'Google Hybrid',
     layer: () =>
       new TileLayer({
         source: new XYZ({
           urls: [
-            'https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+            'https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
           ],
           attributions: 'Tiles © Google',
           maxZoom: 22,

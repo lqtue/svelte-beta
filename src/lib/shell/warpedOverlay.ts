@@ -101,13 +101,14 @@ export function setOverlayOpacity(
 	map.render();
 }
 
-export function clearOverlay(layer: WarpedMapLayer): void {
+export function clearOverlay(layer: WarpedMapLayer, map?: Map): void {
 	layer.clear();
+	map?.render();
 }
 
 // ── View mode clip mask ──────────────────────────────────────────
 
-export type ViewModeClip = 'overlay' | 'side-x' | 'side-y' | 'spy';
+export type ViewModeClip = 'overlay' | 'spy' | 'dual';
 
 /**
  * Applies a CSS clip-path on the WarpedMapLayer canvas to implement
@@ -130,16 +131,6 @@ export function applyClipMask(
 	const [w, h] = size;
 
 	switch (mode) {
-		case 'side-x': {
-			const x = w * sideRatio;
-			canvas.style.clipPath = `polygon(${x}px 0, ${w}px 0, ${w}px ${h}px, ${x}px ${h}px)`;
-			break;
-		}
-		case 'side-y': {
-			const y = h * sideRatio;
-			canvas.style.clipPath = `polygon(0 ${y}px, ${w}px ${y}px, ${w}px ${h}px, 0 ${h}px)`;
-			break;
-		}
 		case 'spy': {
 			canvas.style.clipPath = `circle(${lensRadius}px at ${w / 2}px ${h / 2}px)`;
 			break;

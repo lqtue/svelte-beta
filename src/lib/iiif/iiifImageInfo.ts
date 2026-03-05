@@ -19,9 +19,11 @@ export interface IIIFImageInfo {
  * 2. Extract the IIIF image service URL
  * 3. Fetch info.json to get dimensions and tile info
  */
+import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
+
 export async function fetchIIIFImageInfo(allmapsId: string): Promise<IIIFImageInfo> {
 	// Step 1: Get the Allmaps annotation to find the IIIF image service URL
-	const annotationRes = await fetch(`https://annotations.allmaps.org/images/${allmapsId}`);
+	const annotationRes = await fetch(annotationUrlForSource(allmapsId));
 	if (!annotationRes.ok) {
 		throw new Error(`Failed to fetch Allmaps annotation for ${allmapsId}`);
 	}

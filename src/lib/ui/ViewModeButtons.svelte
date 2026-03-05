@@ -11,9 +11,8 @@
 
   const modes: { mode: ViewMode; label: string; title: string }[] = [
     { mode: 'overlay', label: 'Overlay', title: 'Overlay' },
-    { mode: 'side-x', label: 'Side-X', title: 'Side by side (horizontal)' },
-    { mode: 'side-y', label: 'Side-Y', title: 'Side by side (vertical)' },
-    { mode: 'spy', label: 'Glass', title: 'Spy glass' }
+    { mode: 'spy', label: 'Glass', title: 'Spy glass' },
+    { mode: 'dual', label: 'Dual', title: 'Dual map view' }
   ];
 </script>
 
@@ -28,12 +27,11 @@
       {#if compact}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="18" height="18" rx="2" />
-          {#if mode === 'side-x'}
-            <line x1="12" y1="3" x2="12" y2="21" />
-          {:else if mode === 'side-y'}
-            <line x1="3" y1="12" x2="21" y2="12" />
-          {:else if mode === 'spy'}
+          {#if mode === 'spy'}
             <circle cx="12" cy="12" r="5" />
+          {:else if mode === 'dual'}
+            <rect x="3" y="3" width="7" height="18" rx="1" />
+            <rect x="14" y="3" width="7" height="18" rx="1" />
           {/if}
         </svg>
       {:else}

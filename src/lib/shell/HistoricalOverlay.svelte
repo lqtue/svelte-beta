@@ -7,21 +7,21 @@
   Dispatches: loadstart, loadend, loaderror
 -->
 <script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-  import { get } from 'svelte/store';
-  import type { WarpedMapLayer } from '@allmaps/openlayers';
-  import type Map from 'ol/Map';
-  import type { Unsubscriber } from 'svelte/store';
+  import { onMount, onDestroy, createEventDispatcher } from "svelte";
+  import { get } from "svelte/store";
+  import type { WarpedMapLayer } from "@allmaps/openlayers";
+  import type Map from "ol/Map";
+  import type { Unsubscriber } from "svelte/store";
 
-  import { getShellContext } from './context';
+  import { getShellContext } from "./context";
   import {
     createWarpedLayer,
     destroyWarpedLayer,
     loadOverlayByUrl,
     setOverlayOpacity,
     clearOverlay as clearWarpedOverlay,
-    applyClipMask
-  } from './warpedOverlay';
+    applyClipMask,
+  } from "./warpedOverlay";
 
   const dispatch = createEventDispatcher<{
     loadstart: void;
@@ -47,9 +47,9 @@
 
     // Hide canvas immediately to prevent ghosting from the previous map
     const canvas = warpedLayer.getCanvas();
-    if (canvas) canvas.style.display = 'none';
+    if (canvas) canvas.style.display = "none";
 
-    dispatch('loadstart');
+    dispatch("loadstart");
 
     // Clear any previous timeout
     if (loadTimeout) clearTimeout(loadTimeout);
@@ -59,19 +59,24 @@
     let tileListenerCleanup: (() => void) | null = null;
 
     const onTilesLoaded = () => {
-      if (loadTimeout) { clearTimeout(loadTimeout); loadTimeout = null; }
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+        loadTimeout = null;
+      }
       // Show canvas now that tiles are ready
       const c = warpedLayer?.getCanvas();
-      if (c) c.style.display = '';
-      dispatch('loadend');
+      if (c) c.style.display = "";
+      dispatch("loadend");
       tileListenerCleanup?.();
     };
 
     // Listen for the first tile so we know the source is working,
     // then wait for all requested tiles to finish
-    layer.on('allrequestedtilesloaded', onTilesLoaded);
+    layer.on("allrequestedtilesloaded", onTilesLoaded);
     tileListenerCleanup = () => {
-      try { layer.un('allrequestedtilesloaded', onTilesLoaded); } catch {}
+      try {
+        layer.un("allrequestedtilesloaded", onTilesLoaded);
+      } catch {}
     };
 
     // Timeout: if tiles don't load within 20s, treat as error
@@ -79,8 +84,10 @@
       tileListenerCleanup?.();
       // Check if we actually got content — the canvas might still be hidden
       const c = warpedLayer?.getCanvas();
-      if (c && c.style.display === 'none') {
-        dispatch('loaderror', { message: 'Map tiles timed out. The image source may be unavailable.' });
+      if (c && c.style.display === "none") {
+        dispatch("loaderror", {
+          message: "Map tiles timed out. The image source may be unavailable.",
+        });
       }
     }, 20000);
 
@@ -88,18 +95,26 @@
       const ls = get(layerStore);
       await loadOverlayByUrl(warpedLayer, olMap, id, ls.overlayOpacity);
     } catch (err) {
-      if (loadTimeout) { clearTimeout(loadTimeout); loadTimeout = null; }
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+        loadTimeout = null;
+      }
       tileListenerCleanup?.();
-      console.warn('[HistoricalOverlay] Failed to load:', id, err);
-      dispatch('loaderror', { message: 'Failed to load map overlay. The annotation may be invalid.' });
+      console.warn("[HistoricalOverlay] Failed to load:", id, err);
+      dispatch("loaderror", {
+        message: "Failed to load map overlay. The annotation may be invalid.",
+      });
     }
   }
 
   function clear() {
-    if (loadTimeout) { clearTimeout(loadTimeout); loadTimeout = null; }
+    if (loadTimeout) {
+      clearTimeout(loadTimeout);
+      loadTimeout = null;
+    }
     if (warpedLayer) clearWarpedOverlay(warpedLayer);
     currentOverlayId = null;
-    dispatch('loadend');
+    dispatch("loadend");
   }
 
   // ── Refresh clip mask (delegates to shared utility) ──────────────
@@ -130,7 +145,7 @@
             } else {
               clear();
             }
-          })
+          }),
         );
 
         // React to layer settings (opacity, visibility, view mode)
@@ -141,21 +156,27 @@
             // Visibility toggle
             const canvas = warpedLayer.getCanvas();
             if (canvas) {
-              canvas.style.display = $ls.overlayVisible ? '' : 'none';
+              canvas.style.display = $ls.overlayVisible ? "" : "none";
             }
 
             // Opacity via layer.setOpacity + map.render
             setOverlayOpacity(warpedLayer, olMap, $ls.overlayOpacity);
 
             // View mode clip mask
-            applyClipMask(warpedLayer, olMap, $ls.viewMode, $ls.sideRatio, $ls.lensRadius);
-          })
+            applyClipMask(
+              warpedLayer,
+              olMap,
+              $ls.viewMode,
+              $ls.sideRatio,
+              $ls.lensRadius,
+            );
+          }),
         );
 
         // Refresh clip on map resize / pan
-        $map.on('moveend', refreshClip);
-        $map.on('change:size', refreshClip);
-      })
+        $map.on("moveend", refreshClip);
+        $map.on("change:size", refreshClip);
+      }),
     );
   });
 

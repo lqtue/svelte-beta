@@ -3,6 +3,7 @@
 	import type { MapListItem } from "$lib/viewer/types";
 	import { getSupabaseContext } from "$lib/supabase/context";
 	import { fetchMaps } from "$lib/supabase/maps";
+	import { annotationUrlForSource } from "$lib/shell/warpedOverlay";
 	import {
 		fetchFavorites,
 		addFavorite,
@@ -41,9 +42,7 @@
 
 	async function fetchThumbnailUrl(mapId: string): Promise<string | null> {
 		try {
-			const response = await fetch(
-				`https://annotations.allmaps.org/images/${mapId}`,
-			);
+			const response = await fetch(annotationUrlForSource(mapId));
 			if (!response.ok) return null;
 			const annotation = await response.json();
 			const items = annotation.items;

@@ -931,7 +931,7 @@
       {/if}
 
       <div class="map-stage">
-        <MapShell {mapStore} {layerStore}>
+        <MapShell {mapStore} {layerStore} bind:map={shellMap}>
           <HistoricalOverlay
             on:loadstart={() => {
               overlayLoading = true;
@@ -1053,6 +1053,7 @@
           {viewMode}
           {opacity}
           {isMobile}
+          showDual={false}
           bind:toolbarEl
           on:changeViewMode={handleChangeViewMode}
           on:changeOpacity={handleChangeOpacity}

@@ -9,6 +9,7 @@
   export let viewMode: ViewMode;
   export let opacity: number;
   export let isMobile = false;
+  export let showDual = true;
 
   /** Expose root element so parents can pass it to MapSearchBar */
   export let toolbarEl: HTMLDivElement | undefined = undefined;
@@ -18,13 +19,13 @@
     changeOpacity: { value: number };
   }>();
 
-  const viewModes: { mode: ViewMode; label: string }[] = [
+  const allModes: { mode: ViewMode; label: string }[] = [
     { mode: "overlay", label: "Overlay" },
-    { mode: "side-x", label: "Side X" },
-    { mode: "side-y", label: "Side Y" },
     { mode: "spy", label: "Lens" },
+    { mode: "dual", label: "Dual" },
   ];
 
+  $: viewModes = showDual ? allModes : allModes.filter((m) => m.mode !== "dual");
   $: currentIndex = viewModes.findIndex((v) => v.mode === viewMode);
   $: currentLabel = viewModes[currentIndex]?.label ?? "Overlay";
 
@@ -54,6 +55,7 @@
 
   <div class="opacity-group">
     <input
+      id="map-toolbar-opacity"
       type="range"
       min="0"
       max="1"

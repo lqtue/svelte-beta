@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { env } from '$env/dynamic/public';
   import maplibregl from 'maplibre-gl';
+  import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
   import type { Map, LngLatBoundsLike } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
   import { WarpedMapLayer } from '@allmaps/maplibre';
@@ -71,7 +72,7 @@
   }
 
   function toAllmapsAnnotationUrl(id: string) {
-    return `https://annotations.allmaps.org/images/${id}`;
+    return annotationUrlForSource(id);
   }
 
   function isAnnotationsHost(url: URL) {

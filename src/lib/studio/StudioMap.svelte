@@ -22,6 +22,7 @@
   import type { EventsKey } from 'ol/events';
   import { unByKey } from 'ol/Observable';
   import { WarpedMapLayer } from '@allmaps/openlayers';
+  import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
   import { IIIF } from '@allmaps/iiif-parser';
   import { fetchAnnotationsFromApi } from '@allmaps/stdlib';
   import 'ol/ol.css';
@@ -199,12 +200,6 @@
     const [w, h] = size;
     if (viewMode === 'overlay') {
       canvas.style.clipPath = '';
-    } else if (viewMode === 'side-x') {
-      const x = w * sideRatio;
-      canvas.style.clipPath = `polygon(${x}px 0, ${w}px 0, ${w}px ${h}px, ${x}px ${h}px)`;
-    } else if (viewMode === 'side-y') {
-      const y = h * sideRatio;
-      canvas.style.clipPath = `polygon(0 ${y}px, ${w}px ${y}px, ${w}px ${h}px, 0 ${h}px)`;
     } else if (viewMode === 'spy') {
       const r = lensRadius;
       canvas.style.clipPath = `circle(${r}px at ${w / 2}px ${h / 2}px)`;
@@ -216,8 +211,8 @@
     const size = map.getSize();
     if (!size) return;
     const [w, h] = size;
-    const showX = viewMode === 'side-x';
-    const showY = viewMode === 'side-y';
+    const showX = false;
+    const showY = false;
     if (dividerXEl) {
       dividerXEl.style.display = showX ? 'block' : 'none';
       if (showX) {
@@ -385,7 +380,7 @@
       }
       return { annotations, cacheKey: source };
     } else {
-      const annotationUrl = `https://annotations.allmaps.org/images/${source}`;
+      const annotationUrl = annotationUrlForSource(source);
       const response = await fetch(annotationUrl, { signal });
       if (!response.ok) throw new Error(`Annotation not found (HTTP ${response.status})`);
       const annotation = await response.json();
@@ -1104,7 +1099,7 @@
     aria-label="Drag vertical split"
     title="Drag vertical split"
     on:pointerdown={(event) => {
-      if (viewMode !== 'side-x') return;
+      return; // side-x removed
       dragging = { sideX: true, sideY: false, lensR: false };
       (event.currentTarget as HTMLElement)?.setPointerCapture(event.pointerId);
       event.preventDefault();
@@ -1117,7 +1112,7 @@
     aria-label="Drag horizontal split"
     title="Drag horizontal split"
     on:pointerdown={(event) => {
-      if (viewMode !== 'side-y') return;
+      return; // side-y removed
       dragging = { sideX: false, sideY: true, lensR: false };
       (event.currentTarget as HTMLElement)?.setPointerCapture(event.pointerId);
       event.preventDefault();

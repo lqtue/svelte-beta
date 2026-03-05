@@ -1,4 +1,5 @@
 // Utility for fetching and calculating geographic bounds from Allmaps annotations
+import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
 
 // In-memory cache to avoid repeated API calls
 const boundsCache: Map<string, [number, number, number, number] | null> = new Map();
@@ -22,7 +23,7 @@ export async function fetchAnnotationBounds(
 	}
 
 	try {
-		const response = await fetch(`https://annotations.allmaps.org/images/${mapId}`);
+		const response = await fetch(annotationUrlForSource(mapId));
 		if (!response.ok) {
 			console.warn(`Failed to fetch annotation for ${mapId}: ${response.status}`);
 			boundsCache.set(mapId, null);

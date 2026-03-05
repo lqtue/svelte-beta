@@ -1,6 +1,6 @@
 import type { FeatureCollection, GeoJsonObject } from 'geojson';
 
-export type ViewMode = 'overlay' | 'side-x' | 'side-y' | 'spy';
+export type ViewMode = 'overlay' | 'spy' | 'dual';
 export type DrawingMode = 'point' | 'line' | 'polygon';
 
 export interface MapListItem {

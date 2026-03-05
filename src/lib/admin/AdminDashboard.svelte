@@ -3,6 +3,7 @@
     import "$lib/styles/layouts/admin.css";
     import type { MapRow } from "./adminApi";
     import { fetchAdminMaps } from "./adminApi";
+    import { annotationUrlForSource } from "$lib/shell/warpedOverlay";
     import MapEditModal from "./MapEditModal.svelte";
     import MapUploadModal from "./MapUploadModal.svelte";
 
@@ -19,6 +20,7 @@
     // Modal state
     let editingMap: MapRow | null = null;
     let showUploadModal = false;
+    let queuedToast = "";
 
     // Label Tasks state
     interface LabelTaskRow {
@@ -63,9 +65,8 @@
         allmapsId: string,
     ): Promise<string | null> {
         try {
-            const response = await fetch(
-                `https://annotations.allmaps.org/images/${allmapsId}`,
-            );
+            const url = annotationUrlForSource(allmapsId);
+            const response = await fetch(url);
             if (!response.ok) return null;
             const annotation = await response.json();
             const items = annotation.items;
@@ -133,6 +134,12 @@
     function handleMapCreated(event: CustomEvent<MapRow>) {
         maps = [...maps, event.detail];
         showUploadModal = false;
+    }
+
+    function handleQueued(event: CustomEvent<{ submission: { id: string; name: string } }>) {
+        showUploadModal = false;
+        queuedToast = `"${event.detail.submission.name}" added to georef queue.`;
+        setTimeout(() => (queuedToast = ""), 4000);
     }
 
     // Label task functions
@@ -514,6 +521,11 @@
 {#if showUploadModal}
     <MapUploadModal
         on:created={handleMapCreated}
+        on:queued={handleQueued}
         on:close={() => (showUploadModal = false)}
     />
+{/if}
+
+{#if queuedToast}
+    <div class="toast toast-success">{queuedToast}</div>
 {/if}

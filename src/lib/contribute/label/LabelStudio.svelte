@@ -5,6 +5,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getSupabaseContext } from "$lib/supabase/context";
+  import { annotationUrlForSource } from "$lib/shell/warpedOverlay";
   import {
     fetchOpenTasks,
     fetchTaskPins,
@@ -99,7 +100,7 @@
     if (!currentTask?.allmapsId) return;
     try {
       const res = await fetch(
-        `https://annotations.allmaps.org/images/${currentTask.allmapsId}`,
+        annotationUrlForSource(currentTask.allmapsId),
       );
       if (!res.ok) throw new Error(`Allmaps fetch failed: ${res.status}`);
       const annotation = await res.json();

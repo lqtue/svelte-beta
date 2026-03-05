@@ -47,6 +47,7 @@
   import GpsTracker from "./GpsTracker.svelte";
   import MapSearchBar from "$lib/ui/MapSearchBar.svelte";
   import MapToolbar from "$lib/ui/MapToolbar.svelte";
+  import DualMapPane from "$lib/shell/DualMapPane.svelte";
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id;
@@ -82,6 +83,43 @@
   let overlayLoading = false;
   let overlayError: string | null = null;
   let shellMap: Map | null = null; // We need shellMap reference for zooming logic
+
+  // Dual-mode state
+  let secondaryBasemap = "g-streets";
+  let secondaryShowOverlay = true;
+  let primaryShowOverlay = false;
+
+  // Track previous mode to detect entering/leaving dual
+  let prevViewMode: ViewModeType | null = null;
+  $: {
+    if (viewMode === "dual" && prevViewMode !== "dual") {
+      // Entering dual: left = satellite, no overlay; right = streets + overlay
+      layerStore.setBasemap("g-satellite");
+      layerStore.setOverlayVisible(false);
+      primaryShowOverlay = false;
+      secondaryBasemap = "g-streets";
+      secondaryShowOverlay = true;
+    } else if (viewMode === "dual") {
+      layerStore.setOverlayVisible(primaryShowOverlay);
+    } else if (prevViewMode === "dual") {
+      // Leaving dual: restore overlay visibility
+      layerStore.setOverlayVisible(true);
+    }
+    prevViewMode = viewMode;
+  }
+
+  // Resize primary map after dual mode layout change
+  $: {
+    const _mode = viewMode;
+    if (shellMap) {
+      // Double-RAF to ensure layout has settled
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          shellMap?.updateSize();
+        });
+      });
+    }
+  }
 
   function toggleBasemap() {
     layerStore.setBasemap(
@@ -328,37 +366,55 @@
     {/if}
 
     <div class="map-stage">
-      <MapShell {mapStore} {layerStore} bind:map={shellMap}>
-        <HistoricalOverlay
-          on:loadstart={() => {
-            overlayLoading = true;
-            overlayError = null;
-          }}
-          on:loadend={() => {
-            overlayLoading = false;
-          }}
-          on:loaderror={(e) => {
-            overlayLoading = false;
-            overlayError = e.detail.message;
-          }}
-        />
-        <GpsTracker active={gpsActive} on:error={handleGpsError} />
+      <div class="dual-container" class:dual-active={viewMode === "dual"}>
+        <div class="dual-primary" class:dual-active={viewMode === "dual"}>
+          <MapShell {mapStore} {layerStore} bind:map={shellMap}>
+            <HistoricalOverlay
+              on:loadstart={() => {
+                overlayLoading = true;
+                overlayError = null;
+              }}
+              on:loadend={() => {
+                overlayLoading = false;
+              }}
+              on:loaderror={(e) => {
+                overlayLoading = false;
+                overlayError = e.detail.message;
+              }}
+            />
+            <GpsTracker active={gpsActive} on:error={handleGpsError} />
 
-        {#if activeStory}
-          <StoryMarkers
-            points={activeStory.points}
-            currentIndex={activeStoryProgress?.currentPointIndex ?? 0}
-          />
-          <StoryPlayback
-            story={activeStory}
-            progress={activeStoryProgress}
-            on:navigatePoint={handleNavigatePoint}
-            on:completePoint={handleCompletePoint}
-            on:close={handleCloseStory}
-            on:finish={handleFinishStory}
-          />
+            {#if activeStory}
+              <StoryMarkers
+                points={activeStory.points}
+                currentIndex={activeStoryProgress?.currentPointIndex ?? 0}
+              />
+              <StoryPlayback
+                story={activeStory}
+                progress={activeStoryProgress}
+                on:navigatePoint={handleNavigatePoint}
+                on:completePoint={handleCompletePoint}
+                on:close={handleCloseStory}
+                on:finish={handleFinishStory}
+              />
+            {/if}
+          </MapShell>
+        </div>
+        {#if viewMode === "dual"}
+          <div class="dual-divider"></div>
+          <div class="dual-secondary">
+            {#if shellMap}
+              <DualMapPane
+                primaryMap={shellMap}
+                basemap={secondaryBasemap}
+                showOverlay={secondaryShowOverlay}
+                overlayOpacity={opacity}
+                activeMapId={selectedMapId}
+              />
+            {/if}
+          </div>
         {/if}
-      </MapShell>
+      </div>
 
       <!-- Top-left: Show Panel (when collapsed) -->
       {#if sidebarCollapsed && !isMobile}

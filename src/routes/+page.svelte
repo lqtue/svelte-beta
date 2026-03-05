@@ -3,6 +3,7 @@
 	import type { MapListItem } from "$lib/viewer/types";
 	import { getSupabaseContext } from "$lib/supabase/context";
 	import { fetchMaps, fetchFeaturedMaps } from "$lib/supabase/maps";
+	import { annotationUrlForSource } from "$lib/shell/warpedOverlay";
 	import {
 		fetchFavorites,
 		addFavorite,
@@ -25,9 +26,7 @@
 	// Fetch IIIF thumbnail URL from Allmaps annotation
 	async function fetchThumbnailUrl(mapId: string): Promise<string | null> {
 		try {
-			const response = await fetch(
-				`https://annotations.allmaps.org/images/${mapId}`,
-			);
+			const response = await fetch(annotationUrlForSource(mapId));
 			if (!response.ok) return null;
 
 			const annotation = await response.json();
@@ -464,6 +463,9 @@
 							>
 							<a href="/contribute/label" class="micro-link"
 								>Label Studio →</a
+							>
+							<a href="/vwai" class="micro-link"
+								>VWAI / CDEC Dashboard →</a
 							>
 						</div>
 					</div>

@@ -1,26 +1,27 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
+	import { onMount } from "svelte";
+	import { browser } from "$app/environment";
 
-	let current = $state<string>('brutalist');
+	let current = $state<string>("brutalist");
 
 	const themes = [
-		{ key: 'brutalist', label: 'Bold' },
-		{ key: 'archival', label: 'Archival' }
+		{ key: "brutalist", label: "Bold" },
+		{ key: "archival", label: "Archival" },
 	];
 
 	onMount(() => {
-		current = document.documentElement.getAttribute('data-theme') || 'brutalist';
+		current =
+			document.documentElement.getAttribute("data-theme") || "brutalist";
 	});
 
 	function setTheme(key: string) {
 		current = key;
-		if (key === 'brutalist') {
-			document.documentElement.removeAttribute('data-theme');
-			localStorage.removeItem('vma-theme');
+		if (key === "brutalist") {
+			document.documentElement.removeAttribute("data-theme");
+			localStorage.removeItem("vma-theme");
 		} else {
-			document.documentElement.setAttribute('data-theme', key);
-			localStorage.setItem('vma-theme', key);
+			document.documentElement.setAttribute("data-theme", key);
+			localStorage.setItem("vma-theme", key);
 		}
 	}
 </script>

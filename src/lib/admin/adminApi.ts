@@ -80,3 +80,40 @@ export async function uploadMapImage(id: string, file: File): Promise<{
     }
     return res.json();
 }
+
+export async function uploadImageToIA(file: File, name: string): Promise<{
+    iiif_url: string;
+    ia_identifier: string;
+    ia_filename: string;
+}> {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('name', name);
+
+    const res = await fetch('/api/admin/upload-image', {
+        method: 'POST',
+        body: formData
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Failed to upload image' }));
+        throw new Error(err.message || 'Failed to upload image');
+    }
+    return res.json();
+}
+
+export async function adminCreateGeorefSubmission(data: {
+    iiif_url: string;
+    name: string;
+    description?: string;
+}): Promise<{ id: string; iiif_url: string; name: string; status: string }> {
+    const res = await fetch('/api/admin/georef', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Failed to create georef submission' }));
+        throw new Error(err.message || 'Failed to create georef submission');
+    }
+    return res.json();
+}

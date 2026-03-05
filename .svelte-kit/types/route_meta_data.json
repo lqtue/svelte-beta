@@ -12,6 +12,9 @@
 		"src/routes/annotate/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
+	"/api/admin/georef": [
+		"src/routes/api/admin/georef/+server.ts"
+	],
 	"/api/admin/labels": [
 		"src/routes/api/admin/labels/+server.ts"
 	],
@@ -26,6 +29,9 @@
 	],
 	"/api/admin/maps/[id]/image": [
 		"src/routes/api/admin/maps/[id]/image/+server.ts"
+	],
+	"/api/admin/upload-image": [
+		"src/routes/api/admin/upload-image/+server.ts"
 	],
 	"/auth/callback": [
 		"src/routes/auth/callback/+server.ts"
@@ -52,6 +58,9 @@
 	],
 	"/view": [
 		"src/routes/view/+page.ts",
+		"src/routes/+layout.server.ts"
+	],
+	"/vwai": [
 		"src/routes/+layout.server.ts"
 	]
 }

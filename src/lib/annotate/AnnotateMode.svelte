@@ -90,6 +90,7 @@
   let showZoomPrompt = false;
   let loadingTimer: ReturnType<typeof setTimeout> | null = null;
 
+
   // Library/Editor view state
   let activeView: "library" | "editor" = "library";
   let projectsLoading = true;
@@ -834,6 +835,7 @@
           {viewMode}
           {opacity}
           {isMobile}
+          showDual={false}
           bind:toolbarEl
           on:changeViewMode={handleChangeViewMode}
           on:changeOpacity={handleChangeOpacity}
