@@ -23,7 +23,7 @@ const COL_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // 24 letters (no I, O)
 // Zone mod 3 == 1 → set starting at A (index 0)
 // Zone mod 3 == 2 → set starting at J (index 8, since A=0..H=7, J=8)
 // Zone mod 3 == 0 → set starting at T (index 17)
-const COL_SET_STARTS = [0, 8, 17]; // zone mod 3 → start index in COL_LETTERS
+const COL_SET_STARTS = [0, 8, 16]; // zone mod 3 → start index in COL_LETTERS
 
 // Row letter sequence (A–H, J–N, P–V, repeat), 20 letters
 const ROW_LETTERS = 'ABCDEFGHJKLMNPQRSTUV';
@@ -110,8 +110,20 @@ export function mgrsToIndian1960LatLon(p: ParsedMGRS): [number, number] {
         : approxLat * 110_574 + 10_000_000; // southern hemisphere
 
     // Snap n100km_base to closest 2,000,000 m cycle
-    const cycles = Math.round((approxNorthing - n100km_base) / 2_000_000);
-    const utmN = n100km_base + cycles * 2_000_000 + p.northing;
+    let cycles = Math.round((approxNorthing - n100km_base) / 2_000_000);
+    let utmN = n100km_base + cycles * 2_000_000 + p.northing;
+
+    // CDEC records often use band 'P' (16-24°N) for locations in band 'N' (~8-16°N).
+    // This causes the cycle to round up by 1, adding 2,000,000 m. Clamp to Vietnam
+    // operational range (0-23°N ≈ UTM N 0-2,600,000 m).
+    if (utmN > 2_600_000 && cycles > 0) {
+        cycles -= 1;
+        utmN = n100km_base + cycles * 2_000_000 + p.northing;
+    }
+    if (utmN < 0 && cycles < 0) {
+        cycles += 1;
+        utmN = n100km_base + cycles * 2_000_000 + p.northing;
+    }
 
     // ── Step 4: TM inverse — UTM → lat/lon using Everest 1830 ellipsoid ───
     const a  = 6377276.345;
@@ -186,7 +198,7 @@ export function mgrsToWGS84(mgrs: string): [number, number] | null {
 export function isValidMGRS(mgrs: string): boolean {
     const parsed = parseMGRS(mgrs);
     if (!parsed) return false;
-    if (parsed.precision !== 5) return false; // must be 10 digits total
+    if (parsed.precision < 2 || parsed.precision > 5) return false; // 4–10 digits (10m–100km)
     if (parsed.zone < 47 || parsed.zone > 49) return false;
     if (!['N', 'P', 'Q'].includes(parsed.band)) return false;
     return true;

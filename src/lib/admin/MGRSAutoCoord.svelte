@@ -25,7 +25,7 @@
         } else if (!isValidMGRS(v)) {
             preview = null;
             isValid = false;
-            validationError = 'Invalid MGRS. Needs 10-digit Vietnam-region reference (zones 47–49, bands N/P/Q).';
+            validationError = 'Invalid MGRS. Expected Vietnam-region reference (zones 47–49, bands N/P/Q), e.g. 48PXU824132.';
         } else {
             const result = mgrsToWGS84(v);
             if (!result) {
@@ -66,7 +66,7 @@
             class:valid={isValid}
             class:invalid={!isValid && mgrs_validated.trim().length > 0}
             type="text"
-            placeholder="e.g. 48PXU7615234512"
+            placeholder="e.g. 48PXU824132"
             bind:value={mgrs_validated}
             {disabled}
         />
@@ -94,7 +94,7 @@
     {/if}
 
     <p class="mgrs-note">
-        MGRS uses Indian 1960 datum. Enter full 10-digit grid reference (e.g. 48PXU7615XX).
+        MGRS uses Indian 1960 datum. Enter 4–10 digit reference, e.g. 48PXU824132 (100m) or 48PXU8241132 (10m).
     </p>
 </div>
 
