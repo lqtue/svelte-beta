@@ -3,6 +3,7 @@
     import { updateMap, deleteMap, uploadMapImage } from "./adminApi";
     import { createEventDispatcher } from "svelte";
     import "$lib/styles/components/admin-modals.css";
+    import NeatlineEditor from "./NeatlineEditor.svelte";
 
     export let map: MapRow;
 
@@ -27,7 +28,9 @@
     let error = "";
     let successMsg = "";
     let uploadStatus = "";
-    let activeTab: "details" | "image" | "georef" = "details";
+    let activeTab: "details" | "image" | "georef" | "gcps" = "details";
+
+    $: isSelfHosted = allmaps_id?.startsWith("http");
 
     async function handleSave() {
         if (!name.trim() || !allmaps_id.trim()) {
@@ -125,6 +128,13 @@
                 class:active={activeTab === "georef"}
                 on:click={() => (activeTab = "georef")}>Georef</button
             >
+            {#if isSelfHosted}
+                <button
+                    class="tab"
+                    class:active={activeTab === "gcps"}
+                    on:click={() => (activeTab = "gcps")}>GCPs</button
+                >
+            {/if}
         </div>
 
         <div class="modal-body">
@@ -253,6 +263,18 @@
                         </a>
                     </div>
                 </div>
+            {:else if activeTab === "gcps"}
+                <NeatlineEditor
+                    mapId={map.id}
+                    annotationUrl={allmaps_id}
+                    on:saved={() => {
+                        successMsg = "GCPs saved!";
+                        setTimeout(() => (successMsg = ""), 3000);
+                    }}
+                    on:error={(e) => {
+                        error = e.detail;
+                    }}
+                />
             {/if}
         </div>
 

@@ -6,6 +6,7 @@
     import { annotationUrlForSource } from "$lib/shell/warpedOverlay";
     import MapEditModal from "./MapEditModal.svelte";
     import MapUploadModal from "./MapUploadModal.svelte";
+    import { DATUM_PRESETS } from "$lib/datumCorrection";
 
     let maps: MapRow[] = [];
     let loading = true;
@@ -214,6 +215,103 @@
         }
     }
 
+    // ── Georef Tools ──────────────────────────────────────────────────────────
+    let georefToolsOpen = false;
+    let georefTab: 'datum' | 'offset' | 'propagate' = 'datum';
+
+    // Bulk datum fix
+    let bulkDatumIdx = 0;
+    let bulkRunning = false;
+    let bulkResult: { processed: number; skipped: number; errors: { id: string; name: string; error: string }[]; total: number } | null = null;
+
+    async function runBulkDatumFix() {
+        const selfHostedCount = maps.filter(m => m.allmaps_id?.startsWith('http')).length;
+        if (!confirm(`Apply datum correction to ${selfHostedCount} self-hosted maps? This modifies all annotation JSON files and cannot be undone automatically.`)) return;
+        bulkRunning = true;
+        bulkResult = null;
+        try {
+            const res = await fetch('/api/admin/maps/bulk-datum-fix', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ datumIdx: bulkDatumIdx }),
+            });
+            bulkResult = await res.json();
+        } catch (e: any) {
+            bulkResult = { processed: 0, skipped: 0, errors: [{ id: '', name: '', error: e.message }], total: 0 };
+        } finally {
+            bulkRunning = false;
+        }
+    }
+
+    // Propagate from reference map
+    let propRefMapId = '';
+    let propTargetMapId = '';
+    let propDirection: 'N' | 'S' | 'E' | 'W' = 'E';
+    let propRefCorners: Record<string, [number, number]> | null = null;
+    let propPreviewLoading = false;
+    let propRunning = false;
+    let propResult: { targetCorners: Record<string, [number, number]> } | null = null;
+    let propError = '';
+
+    async function loadRefCorners() {
+        if (!propRefMapId) return;
+        propPreviewLoading = true;
+        propRefCorners = null;
+        propError = '';
+        try {
+            const res = await fetch(`/api/admin/maps/propagate-from-ref?refMapId=${propRefMapId}`);
+            if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message ?? res.statusText); }
+            const data = await res.json();
+            propRefCorners = data.corners;
+        } catch (e: any) { propError = e.message; }
+        propPreviewLoading = false;
+    }
+
+    async function runPropagate() {
+        if (!propRefMapId || !propTargetMapId) return;
+        propRunning = true;
+        propResult = null;
+        propError = '';
+        try {
+            const res = await fetch('/api/admin/maps/propagate-from-ref', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refMapId: propRefMapId, targetMapId: propTargetMapId, direction: propDirection }),
+            });
+            if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message ?? res.statusText); }
+            propResult = await res.json();
+        } catch (e: any) { propError = e.message; }
+        propRunning = false;
+    }
+
+    // Empirical offset (from reference map observation)
+    let offsetDLon = '';
+    let offsetDLat = '';
+    let offsetRunning = false;
+    let offsetResult: { processed: number; errors: { id: string; name: string; error: string }[]; total: number } | null = null;
+
+    async function runOffsetFix() {
+        const dLon = parseFloat(offsetDLon);
+        const dLat = parseFloat(offsetDLat);
+        if (isNaN(dLon) || isNaN(dLat)) { alert('Enter valid Δlongitude and Δlatitude values.'); return; }
+        const selfHostedCount = maps.filter(m => m.allmaps_id?.startsWith('http')).length;
+        if (!confirm(`Apply geographic offset (Δlon=${dLon}, Δlat=${dLat}) to ${selfHostedCount} self-hosted maps?`)) return;
+        offsetRunning = true;
+        offsetResult = null;
+        try {
+            const res = await fetch('/api/admin/maps/propagate-gcps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: 'offset', dLon, dLat }),
+            });
+            offsetResult = await res.json();
+        } catch (e: any) {
+            offsetResult = { processed: 0, errors: [{ id: '', name: '', error: (e as any).message }], total: 0 };
+        } finally {
+            offsetRunning = false;
+        }
+    }
+
     onMount(() => {
         loadMaps();
         loadLabelTasks();
@@ -372,6 +470,174 @@
                 {filteredMaps.length} map{filteredMaps.length === 1 ? "" : "s"}
             </p>
         {/if}
+
+        <!-- Georef Tools Section -->
+        <section class="label-section">
+            <button class="section-toggle" on:click={() => (georefToolsOpen = !georefToolsOpen)}>
+                <h2 class="section-heading">🌐 Georef Tools</h2>
+                <span class="section-badge">{maps.filter(m => m.allmaps_id?.startsWith('http')).length} self-hosted</span>
+                <span class="toggle-arrow" class:open={georefToolsOpen}>▼</span>
+            </button>
+
+            {#if georefToolsOpen}
+                <div class="label-section-body">
+                    <div class="georef-tabs">
+                        <button class="georef-tab" class:active={georefTab === 'datum'} on:click={() => (georefTab = 'datum')}>Bulk Datum Fix</button>
+                        <button class="georef-tab" class:active={georefTab === 'offset'} on:click={() => (georefTab = 'offset')}>Empirical Offset</button>
+                        <button class="georef-tab" class:active={georefTab === 'propagate'} on:click={() => (georefTab = 'propagate')}>Propagate from Ref</button>
+                    </div>
+
+                    {#if georefTab === 'datum'}
+                        <div class="georef-panel">
+                            <p class="georef-desc">
+                                Converts GCP geo-coordinates across <strong>all self-hosted maps</strong> from
+                                the selected historical datum to WGS84 using a Helmert 3-parameter transformation.
+                                Use this if GCPs were digitised from the map's printed Indian-datum grid.
+                            </p>
+                            <label class="create-label" style="flex:100%">
+                                <span>Source datum</span>
+                                <select class="create-select" bind:value={bulkDatumIdx}>
+                                    {#each DATUM_PRESETS as p, i}
+                                        <option value={i}>{p.label}</option>
+                                    {/each}
+                                </select>
+                            </label>
+                            <button class="btn btn-primary" on:click={runBulkDatumFix} disabled={bulkRunning}>
+                                {bulkRunning ? '⏳ Running…' : '🔄 Apply to all self-hosted maps'}
+                            </button>
+                            {#if bulkResult}
+                                <div class="georef-result" class:has-errors={bulkResult.errors.length > 0}>
+                                    ✓ {bulkResult.processed}/{bulkResult.total} processed · {bulkResult.skipped} skipped
+                                    {#if bulkResult.errors.length > 0}
+                                        <details>
+                                            <summary>{bulkResult.errors.length} error(s)</summary>
+                                            {#each bulkResult.errors as e}
+                                                <div class="georef-error-row">{e.name || e.id}: {e.error}</div>
+                                            {/each}
+                                        </details>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+
+                    {:else if georefTab === 'offset'}
+                        <div class="georef-panel">
+                            <p class="georef-desc">
+                                Apply a fixed geographic offset to all GCP coordinates. Use this after
+                                manually correcting <strong>one key map</strong> in the series — measure
+                                how much that map's overlay shifted (e.g. open DevTools on the viewer,
+                                or note the before/after lat/lon from the GCPs editor) and enter that
+                                Δ here to apply the same correction to the whole series.
+                            </p>
+                            <p class="georef-desc" style="font-style:italic">
+                                Tip: Indian 1960 → WGS84 in southern Vietnam is roughly Δlon ≈ +0.004°, Δlat ≈ +0.003°
+                                but varies by location — measure from your reference map for best accuracy.
+                            </p>
+                            <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+                                <label class="create-label">
+                                    <span>Δ Longitude (°)</span>
+                                    <input type="number" class="create-input" step="0.000001" placeholder="e.g. 0.004110" bind:value={offsetDLon} style="width:140px"/>
+                                </label>
+                                <label class="create-label">
+                                    <span>Δ Latitude (°)</span>
+                                    <input type="number" class="create-input" step="0.000001" placeholder="e.g. 0.002890" bind:value={offsetDLat} style="width:140px"/>
+                                </label>
+                            </div>
+                            <button class="btn btn-primary" on:click={runOffsetFix} disabled={offsetRunning || !offsetDLon || !offsetDLat}>
+                                {offsetRunning ? '⏳ Running…' : '🔄 Apply offset to all self-hosted maps'}
+                            </button>
+                            {#if offsetResult}
+                                <div class="georef-result" class:has-errors={offsetResult.errors.length > 0}>
+                                    ✓ {offsetResult.processed}/{offsetResult.total} processed
+                                    {#if offsetResult.errors.length > 0}
+                                        <details>
+                                            <summary>{offsetResult.errors.length} error(s)</summary>
+                                            {#each offsetResult.errors as e}
+                                                <div class="georef-error-row">{e.name || e.id}: {e.error}</div>
+                                            {/each}
+                                        </details>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    {:else if georefTab === 'propagate'}
+                        <!-- Propagate from reference map -->
+                        <div class="georef-panel">
+                            <p class="georef-desc">
+                                Georeference an adjacent map automatically from a correctly georeferenced
+                                <strong>reference map</strong>. The two maps share 2 corners based on the
+                                direction; the other 2 corners are extrapolated from the sheet dimensions.
+                                Works for any Allmaps annotation (public or self-hosted) as the source.
+                            </p>
+
+                            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end">
+                                <label class="create-label" style="flex:1;min-width:200px">
+                                    <span>Reference map (correctly georef'd)</span>
+                                    <select class="create-select" bind:value={propRefMapId} on:change={loadRefCorners}>
+                                        <option value="">Select…</option>
+                                        {#each maps as m (m.id)}
+                                            <option value={m.id}>{m.name}{m.year ? ` (${m.year})` : ''}</option>
+                                        {/each}
+                                    </select>
+                                </label>
+
+                                <label class="create-label" style="flex:1;min-width:200px">
+                                    <span>Target map (to auto-georeference)</span>
+                                    <select class="create-select" bind:value={propTargetMapId}>
+                                        <option value="">Select…</option>
+                                        {#each maps.filter(m => m.allmaps_id?.startsWith('http') && m.id !== propRefMapId) as m (m.id)}
+                                            <option value={m.id}>{m.name}{m.year ? ` (${m.year})` : ''}</option>
+                                        {/each}
+                                    </select>
+                                </label>
+
+                                <label class="create-label">
+                                    <span>Target is __ of reference</span>
+                                    <select class="create-select" bind:value={propDirection} style="width:100px">
+                                        <option value="E">East →</option>
+                                        <option value="W">← West</option>
+                                        <option value="N">↑ North</option>
+                                        <option value="S">↓ South</option>
+                                    </select>
+                                </label>
+                            </div>
+
+                            {#if propPreviewLoading}
+                                <p class="georef-desc">Computing reference corners…</p>
+                            {:else if propRefCorners}
+                                <div class="prop-corners-preview">
+                                    <span class="prop-corner-label">Reference corners (WGS84):</span>
+                                    {#each Object.entries(propRefCorners) as [c, [lon, lat]]}
+                                        <span class="prop-corner">{c} {lat.toFixed(5)}°N {lon.toFixed(5)}°E</span>
+                                    {/each}
+                                </div>
+                            {/if}
+
+                            {#if propError}
+                                <div class="georef-result has-errors">{propError}</div>
+                            {/if}
+
+                            <button
+                                class="btn btn-primary"
+                                on:click={runPropagate}
+                                disabled={propRunning || !propRefMapId || !propTargetMapId}
+                            >
+                                {propRunning ? '⏳ Propagating…' : '🗺️ Propagate GCPs to target'}
+                            </button>
+
+                            {#if propResult}
+                                <div class="georef-result">
+                                    ✓ Target georeferenced. New corners:
+                                    {#each Object.entries(propResult.targetCorners) as [c, [lon, lat]]}
+                                        <span class="prop-corner">{c} {lat.toFixed(5)}°N {lon.toFixed(5)}°E</span>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+        </section>
 
         <!-- Label Tasks Section -->
         <section class="label-section">

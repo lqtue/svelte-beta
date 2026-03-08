@@ -27,25 +27,61 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/admin" | "/annotate" | "/api" | "/api/admin" | "/api/admin/georef" | "/api/admin/labels" | "/api/admin/labels/[id]" | "/api/admin/maps" | "/api/admin/maps/[id]" | "/api/admin/maps/[id]/image" | "/api/admin/upload-image" | "/auth" | "/auth/callback" | "/catalog" | "/contribute" | "/contribute/georef" | "/contribute/label" | "/create" | "/login" | "/signup" | "/view" | "/vwai";
+		RouteId(): "/" | "/admin" | "/admin/pipeline" | "/annotate" | "/api" | "/api/admin" | "/api/admin/cdec" | "/api/admin/cdec/import" | "/api/admin/cdec/profiles" | "/api/admin/cdec/stats" | "/api/admin/cdec/sync-sheet" | "/api/admin/cdec/[id]" | "/api/admin/cdec/[id]/photo" | "/api/admin/cdec/[id]/validate" | "/api/admin/georef" | "/api/admin/labels" | "/api/admin/labels/[id]" | "/api/admin/maps" | "/api/admin/maps/annotation-id" | "/api/admin/maps/annotation-id/annotation" | "/api/admin/maps/bulk-datum-fix" | "/api/admin/maps/propagate-from-ref" | "/api/admin/maps/propagate-gcps" | "/api/admin/maps/[id]" | "/api/admin/maps/[id]/annotation" | "/api/admin/maps/[id]/image" | "/api/admin/pipeline" | "/api/admin/pipeline/annotate" | "/api/admin/pipeline/ia-upload" | "/api/admin/pipeline/index-sheets" | "/api/admin/pipeline/propagate-sheet" | "/api/admin/pipeline/seed-sheets" | "/api/admin/pipeline/select-seeds" | "/api/admin/pipeline/status" | "/api/admin/upload-image" | "/api/vwai" | "/api/vwai/cdec" | "/api/vwai/cdec/profiles" | "/api/vwai/cdec/[id]" | "/api/vwai/cdec/[id]/action" | "/api/vwai/cdec/[id]/claim" | "/auth" | "/auth/callback" | "/catalog" | "/contribute" | "/contribute/georef" | "/contribute/label" | "/create" | "/login" | "/signup" | "/view" | "/vwai";
 		RouteParams(): {
+			"/api/admin/cdec/[id]": { id: string };
+			"/api/admin/cdec/[id]/photo": { id: string };
+			"/api/admin/cdec/[id]/validate": { id: string };
 			"/api/admin/labels/[id]": { id: string };
 			"/api/admin/maps/[id]": { id: string };
-			"/api/admin/maps/[id]/image": { id: string }
+			"/api/admin/maps/[id]/annotation": { id: string };
+			"/api/admin/maps/[id]/image": { id: string };
+			"/api/vwai/cdec/[id]": { id: string };
+			"/api/vwai/cdec/[id]/action": { id: string };
+			"/api/vwai/cdec/[id]/claim": { id: string }
 		};
 		LayoutParams(): {
 			"/": { id?: string };
 			"/admin": Record<string, never>;
+			"/admin/pipeline": Record<string, never>;
 			"/annotate": Record<string, never>;
 			"/api": { id?: string };
 			"/api/admin": { id?: string };
+			"/api/admin/cdec": { id?: string };
+			"/api/admin/cdec/import": Record<string, never>;
+			"/api/admin/cdec/profiles": Record<string, never>;
+			"/api/admin/cdec/stats": Record<string, never>;
+			"/api/admin/cdec/sync-sheet": Record<string, never>;
+			"/api/admin/cdec/[id]": { id: string };
+			"/api/admin/cdec/[id]/photo": { id: string };
+			"/api/admin/cdec/[id]/validate": { id: string };
 			"/api/admin/georef": Record<string, never>;
 			"/api/admin/labels": { id?: string };
 			"/api/admin/labels/[id]": { id: string };
 			"/api/admin/maps": { id?: string };
+			"/api/admin/maps/annotation-id": Record<string, never>;
+			"/api/admin/maps/annotation-id/annotation": Record<string, never>;
+			"/api/admin/maps/bulk-datum-fix": Record<string, never>;
+			"/api/admin/maps/propagate-from-ref": Record<string, never>;
+			"/api/admin/maps/propagate-gcps": Record<string, never>;
 			"/api/admin/maps/[id]": { id: string };
+			"/api/admin/maps/[id]/annotation": { id: string };
 			"/api/admin/maps/[id]/image": { id: string };
+			"/api/admin/pipeline": Record<string, never>;
+			"/api/admin/pipeline/annotate": Record<string, never>;
+			"/api/admin/pipeline/ia-upload": Record<string, never>;
+			"/api/admin/pipeline/index-sheets": Record<string, never>;
+			"/api/admin/pipeline/propagate-sheet": Record<string, never>;
+			"/api/admin/pipeline/seed-sheets": Record<string, never>;
+			"/api/admin/pipeline/select-seeds": Record<string, never>;
+			"/api/admin/pipeline/status": Record<string, never>;
 			"/api/admin/upload-image": Record<string, never>;
+			"/api/vwai": { id?: string };
+			"/api/vwai/cdec": { id?: string };
+			"/api/vwai/cdec/profiles": Record<string, never>;
+			"/api/vwai/cdec/[id]": { id: string };
+			"/api/vwai/cdec/[id]/action": { id: string };
+			"/api/vwai/cdec/[id]/claim": { id: string };
 			"/auth": Record<string, never>;
 			"/auth/callback": Record<string, never>;
 			"/catalog": Record<string, never>;
@@ -58,7 +94,7 @@ declare module "$app/types" {
 			"/view": Record<string, never>;
 			"/vwai": Record<string, never>
 		};
-		Pathname(): "/" | "/admin" | "/admin/" | "/annotate" | "/annotate/" | "/api" | "/api/" | "/api/admin" | "/api/admin/" | "/api/admin/georef" | "/api/admin/georef/" | "/api/admin/labels" | "/api/admin/labels/" | `/api/admin/labels/${string}` & {} | `/api/admin/labels/${string}/` & {} | "/api/admin/maps" | "/api/admin/maps/" | `/api/admin/maps/${string}` & {} | `/api/admin/maps/${string}/` & {} | `/api/admin/maps/${string}/image` & {} | `/api/admin/maps/${string}/image/` & {} | "/api/admin/upload-image" | "/api/admin/upload-image/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/catalog" | "/catalog/" | "/contribute" | "/contribute/" | "/contribute/georef" | "/contribute/georef/" | "/contribute/label" | "/contribute/label/" | "/create" | "/create/" | "/login" | "/login/" | "/signup" | "/signup/" | "/view" | "/view/" | "/vwai" | "/vwai/";
+		Pathname(): "/" | "/admin" | "/admin/" | "/admin/pipeline" | "/admin/pipeline/" | "/annotate" | "/annotate/" | "/api" | "/api/" | "/api/admin" | "/api/admin/" | "/api/admin/cdec" | "/api/admin/cdec/" | "/api/admin/cdec/import" | "/api/admin/cdec/import/" | "/api/admin/cdec/profiles" | "/api/admin/cdec/profiles/" | "/api/admin/cdec/stats" | "/api/admin/cdec/stats/" | "/api/admin/cdec/sync-sheet" | "/api/admin/cdec/sync-sheet/" | `/api/admin/cdec/${string}` & {} | `/api/admin/cdec/${string}/` & {} | `/api/admin/cdec/${string}/photo` & {} | `/api/admin/cdec/${string}/photo/` & {} | `/api/admin/cdec/${string}/validate` & {} | `/api/admin/cdec/${string}/validate/` & {} | "/api/admin/georef" | "/api/admin/georef/" | "/api/admin/labels" | "/api/admin/labels/" | `/api/admin/labels/${string}` & {} | `/api/admin/labels/${string}/` & {} | "/api/admin/maps" | "/api/admin/maps/" | "/api/admin/maps/annotation-id" | "/api/admin/maps/annotation-id/" | "/api/admin/maps/annotation-id/annotation" | "/api/admin/maps/annotation-id/annotation/" | "/api/admin/maps/bulk-datum-fix" | "/api/admin/maps/bulk-datum-fix/" | "/api/admin/maps/propagate-from-ref" | "/api/admin/maps/propagate-from-ref/" | "/api/admin/maps/propagate-gcps" | "/api/admin/maps/propagate-gcps/" | `/api/admin/maps/${string}` & {} | `/api/admin/maps/${string}/` & {} | `/api/admin/maps/${string}/annotation` & {} | `/api/admin/maps/${string}/annotation/` & {} | `/api/admin/maps/${string}/image` & {} | `/api/admin/maps/${string}/image/` & {} | "/api/admin/pipeline" | "/api/admin/pipeline/" | "/api/admin/pipeline/annotate" | "/api/admin/pipeline/annotate/" | "/api/admin/pipeline/ia-upload" | "/api/admin/pipeline/ia-upload/" | "/api/admin/pipeline/index-sheets" | "/api/admin/pipeline/index-sheets/" | "/api/admin/pipeline/propagate-sheet" | "/api/admin/pipeline/propagate-sheet/" | "/api/admin/pipeline/seed-sheets" | "/api/admin/pipeline/seed-sheets/" | "/api/admin/pipeline/select-seeds" | "/api/admin/pipeline/select-seeds/" | "/api/admin/pipeline/status" | "/api/admin/pipeline/status/" | "/api/admin/upload-image" | "/api/admin/upload-image/" | "/api/vwai" | "/api/vwai/" | "/api/vwai/cdec" | "/api/vwai/cdec/" | "/api/vwai/cdec/profiles" | "/api/vwai/cdec/profiles/" | `/api/vwai/cdec/${string}` & {} | `/api/vwai/cdec/${string}/` & {} | `/api/vwai/cdec/${string}/action` & {} | `/api/vwai/cdec/${string}/action/` & {} | `/api/vwai/cdec/${string}/claim` & {} | `/api/vwai/cdec/${string}/claim/` & {} | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/catalog" | "/catalog/" | "/contribute" | "/contribute/" | "/contribute/georef" | "/contribute/georef/" | "/contribute/label" | "/contribute/label/" | "/create" | "/create/" | "/login" | "/login/" | "/signup" | "/signup/" | "/view" | "/view/" | "/vwai" | "/vwai/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/favicon.ico" | "/favicon.png" | "/icon-192.png" | "/icon-512.png" | "/manifest.json" | "/robots.txt" | "/sw.js" | string & {};
 	}

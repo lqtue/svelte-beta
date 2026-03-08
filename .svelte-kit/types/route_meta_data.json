@@ -8,9 +8,37 @@
 		"src/routes/admin/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
+	"/admin/pipeline": [
+		"src/routes/admin/pipeline/+page.ts",
+		"src/routes/+layout.server.ts"
+	],
 	"/annotate": [
 		"src/routes/annotate/+page.ts",
 		"src/routes/+layout.server.ts"
+	],
+	"/api/admin/cdec": [
+		"src/routes/api/admin/cdec/+server.ts"
+	],
+	"/api/admin/cdec/import": [
+		"src/routes/api/admin/cdec/import/+server.ts"
+	],
+	"/api/admin/cdec/profiles": [
+		"src/routes/api/admin/cdec/profiles/+server.ts"
+	],
+	"/api/admin/cdec/stats": [
+		"src/routes/api/admin/cdec/stats/+server.ts"
+	],
+	"/api/admin/cdec/sync-sheet": [
+		"src/routes/api/admin/cdec/sync-sheet/+server.ts"
+	],
+	"/api/admin/cdec/[id]": [
+		"src/routes/api/admin/cdec/[id]/+server.ts"
+	],
+	"/api/admin/cdec/[id]/photo": [
+		"src/routes/api/admin/cdec/[id]/photo/+server.ts"
+	],
+	"/api/admin/cdec/[id]/validate": [
+		"src/routes/api/admin/cdec/[id]/validate/+server.ts"
 	],
 	"/api/admin/georef": [
 		"src/routes/api/admin/georef/+server.ts"
@@ -24,14 +52,62 @@
 	"/api/admin/maps": [
 		"src/routes/api/admin/maps/+server.ts"
 	],
+	"/api/admin/maps/bulk-datum-fix": [
+		"src/routes/api/admin/maps/bulk-datum-fix/+server.ts"
+	],
+	"/api/admin/maps/propagate-from-ref": [
+		"src/routes/api/admin/maps/propagate-from-ref/+server.ts"
+	],
+	"/api/admin/maps/propagate-gcps": [
+		"src/routes/api/admin/maps/propagate-gcps/+server.ts"
+	],
 	"/api/admin/maps/[id]": [
 		"src/routes/api/admin/maps/[id]/+server.ts"
+	],
+	"/api/admin/maps/[id]/annotation": [
+		"src/routes/api/admin/maps/[id]/annotation/+server.ts"
 	],
 	"/api/admin/maps/[id]/image": [
 		"src/routes/api/admin/maps/[id]/image/+server.ts"
 	],
+	"/api/admin/pipeline/annotate": [
+		"src/routes/api/admin/pipeline/annotate/+server.ts"
+	],
+	"/api/admin/pipeline/ia-upload": [
+		"src/routes/api/admin/pipeline/ia-upload/+server.ts"
+	],
+	"/api/admin/pipeline/index-sheets": [
+		"src/routes/api/admin/pipeline/index-sheets/+server.ts"
+	],
+	"/api/admin/pipeline/propagate-sheet": [
+		"src/routes/api/admin/pipeline/propagate-sheet/+server.ts"
+	],
+	"/api/admin/pipeline/seed-sheets": [
+		"src/routes/api/admin/pipeline/seed-sheets/+server.ts"
+	],
+	"/api/admin/pipeline/select-seeds": [
+		"src/routes/api/admin/pipeline/select-seeds/+server.ts"
+	],
+	"/api/admin/pipeline/status": [
+		"src/routes/api/admin/pipeline/status/+server.ts"
+	],
 	"/api/admin/upload-image": [
 		"src/routes/api/admin/upload-image/+server.ts"
+	],
+	"/api/vwai/cdec": [
+		"src/routes/api/vwai/cdec/+server.ts"
+	],
+	"/api/vwai/cdec/profiles": [
+		"src/routes/api/vwai/cdec/profiles/+server.ts"
+	],
+	"/api/vwai/cdec/[id]": [
+		"src/routes/api/vwai/cdec/[id]/+server.ts"
+	],
+	"/api/vwai/cdec/[id]/action": [
+		"src/routes/api/vwai/cdec/[id]/action/+server.ts"
+	],
+	"/api/vwai/cdec/[id]/claim": [
+		"src/routes/api/vwai/cdec/[id]/claim/+server.ts"
 	],
 	"/auth/callback": [
 		"src/routes/auth/callback/+server.ts"
@@ -61,6 +137,7 @@
 		"src/routes/+layout.server.ts"
 	],
 	"/vwai": [
+		"src/routes/vwai/+page.ts",
 		"src/routes/+layout.server.ts"
 	]
 }
