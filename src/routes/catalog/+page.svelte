@@ -22,7 +22,7 @@
 	let filterCity: string = "all";
 	let filterCollection: "all" | "featured" | "favorites" = "all";
 	let searchQuery: string = "";
-	let sortBy: "name" | "year" | "newest" = "name";
+	let sortBy: "name" | "year" | "newest" = "year";
 	let favoriteIds: string[] = []; // Using array for reliable Svelte reactivity
 
 	// Restore view mode from localStorage

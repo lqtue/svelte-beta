@@ -4,6 +4,9 @@
 		"src/routes/+layout.server.ts",
 		"src/routes/+layout.server.ts"
 	],
+	"/about": [
+		"src/routes/+layout.server.ts"
+	],
 	"/admin": [
 		"src/routes/admin/+page.ts",
 		"src/routes/+layout.server.ts"
@@ -94,6 +97,9 @@
 	"/api/admin/upload-image": [
 		"src/routes/api/admin/upload-image/+server.ts"
 	],
+	"/api/export/footprints": [
+		"src/routes/api/export/footprints/+server.ts"
+	],
 	"/api/vwai/cdec": [
 		"src/routes/api/vwai/cdec/+server.ts"
 	],
@@ -111,6 +117,13 @@
 	],
 	"/auth/callback": [
 		"src/routes/auth/callback/+server.ts"
+	],
+	"/blog": [
+		"src/routes/+layout.server.ts"
+	],
+	"/blog/[slug]": [
+		"src/routes/blog/[slug]/+page.ts",
+		"src/routes/+layout.server.ts"
 	],
 	"/catalog": [
 		"src/routes/+layout.server.ts"

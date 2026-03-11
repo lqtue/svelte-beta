@@ -14,24 +14,30 @@ export const nodes = [
 	() => import('./nodes/10'),
 	() => import('./nodes/11'),
 	() => import('./nodes/12'),
-	() => import('./nodes/13')
+	() => import('./nodes/13'),
+	() => import('./nodes/14'),
+	() => import('./nodes/15'),
+	() => import('./nodes/16')
 ];
 
 export const server_loads = [0];
 
 export const dictionary = {
 		"/": [2],
-		"/admin": [3],
-		"/admin/pipeline": [4],
-		"/annotate": [5],
-		"/catalog": [6],
-		"/contribute/georef": [7],
-		"/contribute/label": [8],
-		"/create": [9],
-		"/login": [10],
-		"/signup": [11],
-		"/view": [12],
-		"/vwai": [13]
+		"/about": [3],
+		"/admin": [4],
+		"/admin/pipeline": [5],
+		"/annotate": [6],
+		"/blog": [7],
+		"/blog/[slug]": [8],
+		"/catalog": [9],
+		"/contribute/georef": [10],
+		"/contribute/label": [11],
+		"/create": [12],
+		"/login": [13],
+		"/signup": [14],
+		"/view": [15],
+		"/vwai": [16]
 	};
 
 export const hooks = {

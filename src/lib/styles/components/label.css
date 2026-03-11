@@ -275,6 +275,66 @@
     font-style: italic;
 }
 
+/* Feature type selector (trace mode) */
+.feature-type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.feature-type-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.6rem 0.4rem;
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    background: var(--color-white);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.1s;
+    box-shadow: 1px 1px 0px var(--color-border);
+}
+
+.feature-type-btn:hover {
+    background: var(--color-yellow);
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0px var(--color-border);
+}
+
+.feature-type-btn.active {
+    background: var(--color-blue);
+    color: white;
+    border-color: var(--color-border);
+    box-shadow: inset 2px 2px 0px rgba(0,0,0,0.15);
+}
+
+.ft-icon { font-size: 1.2rem; line-height: 1; }
+.ft-label { font-size: 0.75rem; font-weight: 700; }
+.ft-geom { font-size: 0.65rem; opacity: 0.6; font-family: monospace; }
+
+/* Inline label input for roads/waterways/other */
+.label-input {
+    display: block;
+    width: 100%;
+    margin-top: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    font-family: var(--font-family-base);
+    font-size: 0.8rem;
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    background: var(--color-white);
+    color: var(--color-text);
+    box-sizing: border-box;
+}
+
+.label-input:focus {
+    outline: none;
+    box-shadow: 2px 2px 0px var(--color-border);
+    transform: translate(-1px, -1px);
+}
+
 .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: var(--color-gray-300) transparent;

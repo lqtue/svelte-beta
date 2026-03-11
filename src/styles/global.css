@@ -1,6 +1,7 @@
 @import './tokens.css';
 @import './components/buttons.css';
 @import './components/nav-buttons.css';
+@import './components/editorial.css';
 
 *,
 *::before,

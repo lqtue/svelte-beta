@@ -36,7 +36,7 @@ export async function fetchFeaturedMaps(supabase: SupabaseClient<Database>): Pro
     .from('maps')
     .select('*')
     .eq('is_featured', true)
-    .order('name');
+    .order('year', { ascending: true, nullsFirst: false });
 
   if (error) {
     console.error('Failed to fetch featured maps:', error);

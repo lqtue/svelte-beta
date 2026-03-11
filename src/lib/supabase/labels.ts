@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LabelTask, LabelPin } from '$lib/contribute/label/types';
+import type { LabelTask, LabelPin, FootprintSubmission, PixelCoord, FeatureType } from '$lib/contribute/label/types';
 
 interface DbLabelTask {
 	id: string;
@@ -134,6 +134,92 @@ export async function updateTaskStatus(
 
 	if (error) {
 		console.error('Failed to update task status:', error);
+		return false;
+	}
+	return true;
+}
+
+// ── Footprint submissions ──────────────────────────────────────────────────
+
+interface DbFootprint {
+	id: string;
+	task_id: string;
+	pin_id: string | null;
+	user_id: string;
+	pixel_polygon: PixelCoord[];
+	label: string | null;
+	feature_type: string;
+	status: string;
+}
+
+function toFootprint(row: DbFootprint): FootprintSubmission {
+	return {
+		id: row.id,
+		taskId: row.task_id,
+		pinId: row.pin_id,
+		userId: row.user_id,
+		pixelPolygon: row.pixel_polygon,
+		label: row.label,
+		featureType: (row.feature_type ?? 'building') as FeatureType,
+		status: row.status as FootprintSubmission['status']
+	};
+}
+
+export async function fetchTaskFootprints(
+	supabase: SupabaseClient,
+	taskId: string
+): Promise<FootprintSubmission[]> {
+	const { data, error } = await supabase
+		.from('footprint_submissions')
+		.select('*')
+		.eq('task_id', taskId);
+
+	if (error) throw new Error(error.message);
+	return (data as unknown as DbFootprint[]).map(toFootprint);
+}
+
+export async function createFootprint(
+	supabase: SupabaseClient,
+	params: {
+		taskId: string;
+		userId: string;
+		pixelPolygon: PixelCoord[];
+		pinId?: string | null;
+		label?: string | null;
+		featureType?: FeatureType;
+	}
+): Promise<string | null> {
+	const { data, error } = await supabase
+		.from('footprint_submissions')
+		.insert({
+			task_id: params.taskId,
+			user_id: params.userId,
+			pixel_polygon: params.pixelPolygon,
+			pin_id: params.pinId ?? null,
+			label: params.label ?? null,
+			feature_type: params.featureType ?? 'building'
+		} as never)
+		.select('id')
+		.single();
+
+	if (error) {
+		console.error('Failed to create footprint:', error);
+		return null;
+	}
+	return (data as unknown as { id: string }).id;
+}
+
+export async function deleteFootprint(
+	supabase: SupabaseClient,
+	footprintId: string
+): Promise<boolean> {
+	const { error } = await supabase
+		.from('footprint_submissions')
+		.delete()
+		.eq('id', footprintId);
+
+	if (error) {
+		console.error('Failed to delete footprint:', error);
 		return false;
 	}
 	return true;

@@ -1,6 +1,8 @@
 <!--
-  LabelCanvas.svelte — IIIF image viewer with point placement for Label Studio.
+  LabelCanvas.svelte — IIIF image viewer with point placement and polygon tracing.
   Uses a separate OL instance with IIIF tile source (pixel coordinates, not geo).
+  Mode "pin": click to place named point.
+  Mode "trace": draw polygon footprint for the selected label.
 -->
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from "svelte";
@@ -10,9 +12,12 @@
   import IIIF from "ol/source/IIIF";
   import IIIFInfo from "ol/format/IIIFInfo";
   import VectorSource from "ol/source/Vector";
+  import VectorLayer from "ol/layer/Vector";
   import VectorImageLayer from "ol/layer/VectorImage";
   import Feature from "ol/Feature";
   import Point from "ol/geom/Point";
+  import Polygon from "ol/geom/Polygon";
+  import Draw from "ol/interaction/Draw";
   import Style from "ol/style/Style";
   import Fill from "ol/style/Fill";
   import Stroke from "ol/style/Stroke";
@@ -22,23 +27,32 @@
   import { defaults as defaultControls } from "ol/control/defaults";
   import "ol/ol.css";
 
-  import type { LabelPin } from "./types";
+  import type { LabelPin, FootprintSubmission, PixelCoord, FeatureType } from "./types";
+  import { geometryKind } from "./types";
 
   const dispatch = createEventDispatcher<{
     placePin: { pixelX: number; pixelY: number };
+    drawPolygon: { pixelPolygon: PixelCoord[] };
     ready: void;
     error: { message: string };
   }>();
 
   export let iiifInfoUrl: string | null = null;
   export let pins: LabelPin[] = [];
+  export let footprints: FootprintSubmission[] = [];
   export let placingEnabled = false;
   export let selectedLabel: string | null = null;
+  /** 'pin' = point placement (default), 'trace' = vector drawing */
+  export let drawMode: 'pin' | 'trace' = 'pin';
+  /** Which feature type is being traced — determines Polygon vs LineString */
+  export let featureType: FeatureType = 'building';
 
   let mapContainer: HTMLDivElement;
   let map: OlMap | null = null;
   let pinSource: VectorSource | null = null;
+  let footprintSource: VectorSource | null = null;
   let tileLayer: TileLayer | null = null;
+  let drawInteraction: Draw | null = null;
   let loadingImage = false;
   let loadError = "";
 
@@ -100,7 +114,77 @@
     }
   }
 
+  function syncFootprints() {
+    if (!footprintSource) return;
+    footprintSource.clear();
+    for (const fp of footprints) {
+      // Convert pixel coords back to OL convention (y negated)
+      const ring = fp.pixelPolygon.map(([x, y]) => [x, -y]);
+      const feature = new Feature({
+        geometry: new Polygon([ring]),
+        label: fp.label,
+        footprintId: fp.id,
+      });
+      feature.setId(fp.id);
+      footprintSource.addFeature(feature);
+    }
+  }
+
   $: if (pinSource) syncPins();
+  $: if (footprintSource) syncFootprints();
+
+  // Manage draw interaction when mode, featureType, or enabled state changes
+  $: if (map) updateDrawInteraction(drawMode, featureType, placingEnabled);
+
+  function updateDrawInteraction(mode: 'pin' | 'trace', ft: FeatureType, enabled: boolean) {
+    if (!map) return;
+
+    if (drawInteraction) {
+      map.removeInteraction(drawInteraction);
+      drawInteraction = null;
+    }
+
+    if (mode !== 'trace' || !enabled || !footprintSource) return;
+
+    const olGeomType = geometryKind(ft); // 'Polygon' | 'LineString'
+    const isLine = olGeomType === 'LineString';
+
+    drawInteraction = new Draw({
+      source: footprintSource,
+      type: olGeomType,
+      style: new Style({
+        stroke: new Stroke({
+          color: isLine ? '#3b82f6' : '#f59e0b',
+          width: isLine ? 3 : 2,
+          lineDash: [6, 4],
+        }),
+        fill: new Fill({ color: isLine ? 'transparent' : 'rgba(245, 158, 11, 0.15)' }),
+        image: new CircleStyle({
+          radius: 5,
+          fill: new Fill({ color: isLine ? '#3b82f6' : '#f59e0b' }),
+        }),
+      }),
+    });
+
+    drawInteraction.on('drawend', (event) => {
+      let pixelCoords: PixelCoord[];
+
+      if (isLine) {
+        const geom = event.feature.getGeometry() as import('ol/geom/LineString').default;
+        pixelCoords = geom.getCoordinates().map(([x, y]) => [x, -y] as PixelCoord);
+      } else {
+        const geom = event.feature.getGeometry() as Polygon;
+        const ring = geom.getCoordinates()[0];
+        pixelCoords = ring.map(([x, y]) => [x, -y] as PixelCoord);
+        pixelCoords.pop(); // remove repeated closing point
+      }
+
+      dispatch('drawPolygon', { pixelPolygon: pixelCoords });
+      footprintSource?.removeFeature(event.feature);
+    });
+
+    map.addInteraction(drawInteraction);
+  }
 
   // React to iiifInfoUrl changes
   $: if (iiifInfoUrl && map) {
@@ -152,6 +236,22 @@
     }
   }
 
+  function createFootprintStyle(feature: any): Style {
+    const label = feature.get('label') || '';
+    const color = getLabelColor(label);
+    return new Style({
+      stroke: new Stroke({ color, width: 2 }),
+      fill: new Fill({ color: color + '33' }), // 20% opacity
+      text: new Text({
+        text: label,
+        font: 'bold 10px "Be Vietnam Pro", sans-serif',
+        fill: new Fill({ color: '#2b2520' }),
+        stroke: new Stroke({ color: '#fff', width: 3 }),
+        overflow: true,
+      }),
+    });
+  }
+
   onMount(() => {
     // Create pin layer
     pinSource = new VectorSource();
@@ -161,9 +261,17 @@
       style: createPinStyle,
     });
 
+    // Create footprint layer (VectorLayer for Draw interaction compatibility)
+    footprintSource = new VectorSource();
+    const footprintLayer = new VectorLayer({
+      source: footprintSource,
+      zIndex: 5,
+      style: createFootprintStyle,
+    });
+
     map = new OlMap({
       target: mapContainer,
-      layers: [pinLayer],
+      layers: [footprintLayer, pinLayer],
       view: new View({
         center: [0, 0],
         zoom: 1,
@@ -176,8 +284,9 @@
       }).extend([new Zoom()]),
     });
 
-    // Handle clicks for pin placement
+    // Handle clicks for pin placement (only in 'pin' mode)
     map.on("click", (event) => {
+      if (drawMode !== 'pin') return;
       if (!placingEnabled || !selectedLabel) return;
       const [pixelX, rawY] = event.coordinate;
       dispatch("placePin", { pixelX, pixelY: -rawY });
@@ -185,6 +294,7 @@
 
     dispatch("ready");
     syncPins();
+    syncFootprints();
 
     // If iiifInfoUrl already set, load it
     if (iiifInfoUrl) {
@@ -224,7 +334,11 @@
 
   {#if placingEnabled && selectedLabel}
     <div class="placing-indicator">
-      Placing: <strong>{selectedLabel}</strong> — click on the image
+      {#if drawMode === 'trace'}
+        {featureType === 'road' || featureType === 'waterway' ? 'Drawing line' : 'Tracing polygon'}: <strong>{selectedLabel || featureType}</strong> — click to add points, double-click to finish
+      {:else}
+        Placing: <strong>{selectedLabel}</strong> — click on the image
+      {/if}
     </div>
   {:else if placingEnabled && !selectedLabel}
     <div class="placing-indicator warn">
@@ -235,9 +349,8 @@
 
 <style>
   .canvas-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    inset: 0;
     background: #1a1612;
   }
 

@@ -12,8 +12,11 @@
     createPin,
     deletePin,
     updateTaskStatus,
+    fetchTaskFootprints,
+    createFootprint,
+    deleteFootprint,
   } from "$lib/supabase/labels";
-  import type { LabelTask, LabelPin, LabelConsensus } from "./types";
+  import type { LabelTask, LabelPin, LabelConsensus, FootprintSubmission, PixelCoord, FeatureType } from "./types";
 
   import LabelCanvas from "./LabelCanvas.svelte";
   import LabelSidebar from "./LabelSidebar.svelte";
@@ -27,8 +30,12 @@
   let currentTask: LabelTask | null = null;
   let pins: LabelPin[] = [];
   let myPins: LabelPin[] = [];
+  let footprints: FootprintSubmission[] = [];
+  let myFootprints: FootprintSubmission[] = [];
   let consensusItems: LabelConsensus[] = [];
   let selectedLabel: string | null = null;
+  let drawMode: 'pin' | 'trace' = 'pin';
+  let featureType: FeatureType = 'building';
   let loading = true;
   let iiifInfoUrl: string | null = null;
   let submitting = false;
@@ -60,6 +67,7 @@
         ];
 
   $: myPins = userId ? pins.filter((p) => p.userId === userId) : [];
+  $: myFootprints = userId ? footprints.filter((f) => f.userId === userId) : [];
 
   async function loadTasks() {
     loading = true;
@@ -82,13 +90,22 @@
     currentTask = tasks[index];
     selectedLabel = null;
     iiifInfoUrl = null;
-    await loadTaskPins();
-    await resolveIiifUrl();
+    await Promise.all([loadTaskPins(), loadTaskFootprints(), resolveIiifUrl()]);
   }
 
   async function loadTaskPins() {
     if (!currentTask) return;
     pins = await fetchTaskPins(supabase, currentTask.id);
+  }
+
+  async function loadTaskFootprints() {
+    if (!currentTask) return;
+    try {
+      footprints = await fetchTaskFootprints(supabase, currentTask.id);
+    } catch (err) {
+      console.error('[LabelStudio] Failed to load footprints:', err);
+      footprints = [];
+    }
   }
 
   /**
@@ -197,6 +214,51 @@
     }
   }
 
+  function handleSelectFeatureType(event: CustomEvent<{ featureType: FeatureType }>) {
+    featureType = event.detail.featureType;
+    selectedLabel = null; // reset label when switching feature type
+  }
+
+  async function handleDrawPolygon(
+    event: CustomEvent<{ pixelPolygon: PixelCoord[] }>
+  ) {
+    if (!currentTask || !userId) return;
+    // For buildings, link to the matching named pin
+    const linkedPin = featureType === 'building'
+      ? pins.find((p) => p.label === selectedLabel && p.userId === userId)
+      : null;
+    const id = await createFootprint(supabase, {
+      taskId: currentTask.id,
+      userId,
+      pixelPolygon: event.detail.pixelPolygon,
+      pinId: linkedPin?.id ?? null,
+      label: selectedLabel,
+      featureType,
+    });
+    if (id) {
+      footprints = [
+        ...footprints,
+        {
+          id,
+          taskId: currentTask.id,
+          pinId: linkedPin?.id ?? null,
+          userId,
+          pixelPolygon: event.detail.pixelPolygon,
+          label: selectedLabel,
+          featureType,
+          status: 'submitted',
+        },
+      ];
+    }
+  }
+
+  async function handleRemoveFootprint(event: CustomEvent<{ footprintId: string }>) {
+    const success = await deleteFootprint(supabase, event.detail.footprintId);
+    if (success) {
+      footprints = footprints.filter((f) => f.id !== event.detail.footprintId);
+    }
+  }
+
   async function handleSubmit() {
     if (!currentTask || !userId) return;
     submitting = true;
@@ -249,13 +311,33 @@
           <p>There are no labeling tasks at this time. Check back later.</p>
         </div>
       {:else}
-        <LabelCanvas
-          {iiifInfoUrl}
-          {pins}
-          placingEnabled={!!selectedLabel}
-          {selectedLabel}
-          on:placePin={handlePlacePin}
-        />
+        <div class="mode-toggle">
+          <button
+            class="mode-btn"
+            class:active={drawMode === 'pin'}
+            on:click={() => (drawMode = 'pin')}
+            title="Place named pins on the map"
+          >📍 Pin Names</button>
+          <button
+            class="mode-btn"
+            class:active={drawMode === 'trace'}
+            on:click={() => (drawMode = 'trace')}
+            title="Trace building footprint polygons"
+          >⬡ Trace Footprint</button>
+        </div>
+        <div class="canvas-wrap">
+          <LabelCanvas
+            {iiifInfoUrl}
+            {pins}
+            {footprints}
+            placingEnabled={drawMode === 'pin' ? !!selectedLabel : true}
+            {selectedLabel}
+            {drawMode}
+            {featureType}
+            on:placePin={handlePlacePin}
+            on:drawPolygon={handleDrawPolygon}
+          />
+        </div>
       {/if}
     </div>
 
@@ -263,8 +345,11 @@
       <LabelSidebar
         {legendItems}
         {selectedLabel}
+        {drawMode}
+        {featureType}
         placedPins={myPins}
         on:selectLabel={handleSelectLabel}
+        on:selectFeatureType={handleSelectFeatureType}
         on:removePin={handleRemovePin}
         on:submit={handleSubmit}
       />
@@ -367,6 +452,53 @@
     overflow: hidden;
     background: var(--color-gray-100);
     border-right: var(--border-thick);
+    display: flex;
+    flex-direction: column;
+}
+
+.canvas-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 0;
+    z-index: 10;
+    background: var(--color-white);
+    border-bottom: var(--border-thin);
+    flex-shrink: 0;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    font-family: var(--font-family-base);
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: none;
+    background: var(--color-white);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background 0.1s;
+    border-right: var(--border-thin);
+    opacity: 0.6;
+}
+
+.mode-btn:last-child {
+    border-right: none;
+}
+
+.mode-btn:hover {
+    background: var(--color-gray-100);
+    opacity: 0.8;
+}
+
+.mode-btn.active {
+    background: var(--color-yellow);
+    opacity: 1;
 }
 
 .sidebar-area {
