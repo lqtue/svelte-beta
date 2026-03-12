@@ -23,7 +23,11 @@ These correspond to **L2 (volumetric 3D)** and **L3 (facade + road)** in the 6-l
 
 Code: `github.com/CamilleMorlighem/histo3d` (CC-BY licence)
 
-**Results (original paper):** >84% building plot detection rate; >99% valid CityJSON output. Tested on historical Belgian/Dutch city maps.
+**Results (original paper):** >84% building plot detection, >89% building plot classification, >99% valid CityJSON geometry. Tested on two cities: Delft (Dutch) and Brussels (Belgian).
+
+**Critical condition:** These results apply only to maps that are *"properly scanned, with sufficient spatial resolution and strict symbology rules."* Morlighem's abstract frames this as the primary determinant of pipeline quality. Inconsistent scanning, low resolution, or variable cartographic conventions degrade results significantly — this is VMA's main technical risk, not a minor calibration question.
+
+**Co-supervisors:** Hugo Ledoux and Anna Labetski (TU Delft 3D geoinformation group); co-reader Francesca Noardo.
 
 ### Why This Fits VMA
 
@@ -48,8 +52,13 @@ Stage 1: OBIA segmentation
             streets:   white/light grey
             water:     blue
             vegetation: green
-  Risk:   ONE bounded research question — does Belgian colour model transfer to
-          French Indochina symbology? Calibration study on 3 maps resolves this.
+  Risk:   CENTRAL RISK (not a minor question): Morlighem explicitly states the
+          84%/89% accuracy holds only under "strict symbology rules." French
+          colonial Indochina maps have varying publishers, ink degradation, and
+          mixed cartographic conventions. A calibration study on 5–10 maps is
+          needed before claiming transferability. This is the pipeline's primary
+          unknown — treat it as a prerequisite research question, not an
+          implementation detail.
 
 Stage 2: Text removal
   Tool:   Connected component analysis (Tesseract mask + morphological ops)
@@ -142,7 +151,7 @@ For ~30 landmark buildings (Notre Dame, City Hall, Opera House, Central Post Off
 
 **Workflow:** Architecture historians annotate buildings visible in panoramas → cross-reference with cadastral records → calibrate height estimates in probabilistic table → apply as priors in Morlighem height inference.
 
-**Key insight on postcards:** The Saigon postcard industry (1900–1930) produced tens of thousands of images of the city's major buildings from multiple angles. This is a remarkably rich SfM photo corpus that no other colonial city of this period has in comparable volume.
+**Key insight on postcards:** The Saigon postcard industry (1900–1930) produced a large volume of images of the city's major buildings. [NOTE: the claim that this exceeds other colonial cities in comparable volume needs a citation before it appears in a paper — it is currently unverified.]
 
 ### SfM Pipeline
 
@@ -184,7 +193,8 @@ Phase 4: Validation + publish
 - **No interior data:** Historical photos are almost entirely exterior. Interior reconstructions are not feasible.
 - **Photo dating uncertainty:** Many Manhhai/EFEO photos have approximate dates (1900–1910). SfM meshes inherit this uncertainty — buildings may show a composite of several decades.
 - **Scale ambiguity:** SfM produces relative scale. Absolute scale requires at least one known dimension (building width from cadastral record, or person of known height in photo). Architecture historians provide this from KG data.
-- **Older photos = lower quality:** Pre-1910 glass plate photographs are lower resolution. Some will not produce clean SfM meshes. Expectation: ~60% of landmark buildings produce usable meshes from available EFEO/Gallica material.
+- **Older photos = lower quality:** Pre-1910 glass plate photographs are lower resolution. Some will not produce clean SfM meshes. Expectation: ~60% of landmark buildings produce usable meshes from available EFEO/Gallica material. [NOTE: this figure is an estimate without citation — needs empirical support or should be reframed as a hypothesis.]
+- **Nostalgin (Kapoor et al. 2019) is NOT a SfM precedent.** That paper uses single-view neural reconstruction (MaskRCNN + inpainting) and explicitly assumes a Manhattan-world (orthogonal grid). Colonial Saigon's street network violates this assumption. Nostalgin is referenced in some VMA notes as a photogrammetry precedent — this is incorrect. VMA's COLMAP/Meshroom SfM approach has no direct published precedent for colonial Southeast Asian architecture and should be framed as original applied research.
 
 ---
 
@@ -225,6 +235,8 @@ Users can scrub between snapshots and watch buildings appear, change, or disappe
 - He supervised Morlighem's thesis — direct pipeline expertise
 - TU Delft has experience with historical city reconstruction across Dutch/Belgian cities
 - VMA brings the first Southeast Asian colonial city application of this methodology
+
+**Contact at TU Delft:** Hugo Ledoux + Anna Labetski (both supervised Morlighem). Francesca Noardo (co-reader) is also a relevant contact — she specialises in 3D standards and cultural heritage.
 
 **Proposed collaboration:**
 - Joint paper: *Automated 3D reconstruction of a French colonial city from historical map rasters — extending the Morlighem pipeline to French Indochina cartographic symbology*

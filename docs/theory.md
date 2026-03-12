@@ -32,15 +32,17 @@ L1 · Macro signal (map)     — georeferenced historical map rasters
 
 ## Lefebvre's Triad Mapped to the Stack
 
-Henri Lefebvre's three-part theory of space (*The Production of Space*, 1974) maps directly onto the top three layers:
+Henri Lefebvre's three-part theory of space (*The Production of Space*, 1974) maps across the full stack:
 
-| Lefebvre | VMA Layer | Content |
+| Lefebvre | Standard reading | VMA equivalent |
 |---|---|---|
-| Espace conçu (conceived) | L4 · Building fabric | The planned city — cadastral maps, admin boundaries, urban design |
-| Espace perçu (perceived) | L5 · Economic activity | The experienced city — commerce, movement, land use |
-| Espace vécu (lived) | L6 · Human interaction | The remembered city — stories, oral histories, community memory |
+| Espace conçu (conceived) | Abstract, planned space — representations produced by planners, experts, technocrats | L1 + L4: historical maps, cadastral plans, georef annotations, admin boundaries — the city as designed and measured |
+| Espace perçu (perceived) | Spatial practice — everyday, embodied use; habitual routes, lived movement | L3 + L5: road networks, commercial activity, land use patterns — the city as actually navigated and used |
+| Espace vécu (lived) | Representational space — symbolic, imaginary, emotional; art, ritual, community memory | L6: stories, oral histories, annotations, community memory — the city as remembered and felt |
 
-The L1–L3 layers (map → 3D) are pre-Lefebvre: pure geometry before human meaning is attached. VMA's work is to climb from L1 to L6 — from a scanned map to a lived memory.
+**Key clarification:** Lefebvre's espace conçu encompasses *both* L1 (the historical map as a cartographic representation of planned space) *and* L4 (the cadastral plan as administrative conception). The separation into geometry-first (L1–L4) vs meaning-later (L5–L6) is a VMA operational distinction, not a Lefebvre distinction — Lefebvre would say conception and lived experience co-produce space at every scale simultaneously.
+
+VMA's work is to climb the full stack — from a scanned map (espace conçu crystallized on paper) to a living community memory (espace vécu restored through crowdsourced annotation).
 
 ---
 

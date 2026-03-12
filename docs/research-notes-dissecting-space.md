@@ -49,13 +49,13 @@ _Framework for the VMA 4D Saigon Reconstruction_
 
 **Space as a data structure with hard + soft layers**
 
-Henri Lefebvre's triad maps onto the VMA data model:
+Henri Lefebvre's triad maps onto the VMA data model. Note: see `docs/theory.md` for the canonical mapping — the version below is an early draft that conflates perçu with raw data. Revised canonical reading:
 
-| Lefebvre Layer | VMA Equivalent |
-|----------------|----------------|
-| Perceived space (espace perçu) | Raw map scans, GPS signals, citizen observations |
-| Conceived space (espace conçu) | KG entities, georef annotations, admin boundaries |
-| Lived space (espace vécu) | Stories, annotations, citizen mapping, oral history |
+| Lefebvre Layer | Standard reading | VMA Equivalent |
+|----------------|-----------------|----------------|
+| Espace conçu (conceived) | Planned, abstract, expert | L1 maps + L4 cadastral: the city as designed, measured, administered |
+| Espace perçu (perceived) | Everyday embodied practice | L3 roads + L5 economic activity: the city as navigated and used |
+| Espace vécu (lived) | Symbolic, emotional, memory | L6: stories, oral history, annotations — the city as remembered |
 
 **The space-in-between** (the Lefebvre gap) = what VMA is trying to fill:
 signal → decode → citizen mapping → fabricated reconstruction
@@ -106,9 +106,31 @@ L1 · Macro signal (map)     ← georeferenced historical rasters
 
 ---
 
+## Key Sources Catalogue (UBC Reading List)
+_Full annotated list: `/Users/airm1/Downloads/UBC/READING-LIST.md`_
+
+### Tier 1 — Critical Technical Precedents
+
+| Source | Relevance |
+|--------|-----------|
+| **Morlighem 2021** (TU Delft) — `Camille_Morlighem_p5_thesis.pdf` | Phase 3 blueprint: OBIA→vectorization→LoD2 CityJSON from historical maps |
+| **Bauckhage 2025** (ETH Zürich) — `2025_bauckhage_report.pdf` | Static historical map → dynamic 3D VR landscape; extends Morlighem to 4D |
+| **Gao 2024** — `2025_gao_report.pdf` | Diffusion models for urban change detection from historical maps → L1 automation |
+| **Liu 2025** — `2025_liu_report.pdf` | Spatio-temporal KG + LLMs for geospatial Q&A on historical maps → L5 KG |
+| **Jiao 2024** — `thefullthesis_0524.pdf` | Deep learning road extraction from historical maps → L3 road network |
+| **Kapoor et al. 2019** (Google/KDD) — `Oral_Urbcomp_2019_paper_9_Oral.pdf` | "Nostalgin": 3D city from historical images → LoD3 photogrammetry |
+| **NYPL Building Inspector** — `openvisconf.pdf` | Gamified crowdsourced historical building cataloging → Cartographer tier UX |
+
+### Key Gap: OBIA Calibration
+No published work found on OBIA calibration for French colonial Indochina map symbology (contrast fills, hachure, street colour conventions). Morlighem calibrated for Dutch/Belgian maps. This is VMA's primary research contribution opportunity.
+
+---
+
 ## Open Questions
 
 1. How do you score spatial uncertainty in the KG (objective-based scores)?
 2. Can journal/record-based mapping be semi-automated (NLP extraction of place references)?
 3. What is the minimal "thin" data unit that enables reconstruction? (the "thin" note)
 4. Digital book (?) — is there a publication output format planned from this research?
+5. OBIA calibration: can Gao's diffusion approach substitute for manual OBIA tuning on Indochina map symbology?
+6. Can Liu's KG+LLM pipeline extract place entities from the BnF Gallica Annuaire directly?

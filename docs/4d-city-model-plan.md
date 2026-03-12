@@ -482,7 +482,16 @@ Full technical detail: `docs/pipeline-3d.md`
 | Architecture historians | KG + spreadsheet | Probabilistic roof type table + building typology classification |
 | CityJSON validators | cjio | Valid, clean 3D dataset |
 
-**Academic partnership:** TU Delft 3D Geoinformation Group (Hugo Ledoux — CityJSON creator, Morlighem's supervisor) is the natural collaborator. VMA brings colonial Vietnamese maps; TU Delft brings the pipeline expertise. This strengthens every grant application.
+**Academic partnerships:**
+
+**TU Delft 3D Geoinformation Group** (Hugo Ledoux + Anna Labetski — both supervised Morlighem; Francesca Noardo co-reader) is the natural collaborator for the 3D pipeline. VMA brings colonial Vietnamese maps; TU Delft brings the pipeline expertise.
+
+**ETH Zürich IKG (Institute of Cartography and Geoinformation)** — Prof. Dr. Lorenz Hurni's group (advisors: Dr. Sidi Wu, Dr. Yizi Chen) is a second key cluster. Three recent theses from this group are directly relevant:
+- Bauckhage 2025 ("EvolutionMap") — temporal 4D **visualization** of landscape from historical map stacks; relevant to VMA's `/timeline` scrubber and animated transitions (not building reconstruction)
+- Gao 2024 — diffusion model synthetic map generation for training change detection models; relevant to VMA's future ML training data pipeline on colonial map styles
+- Liu 2025 — KG + LLM geospatial Q&A using SPARQL; relevant if VMA adds a natural language query interface to the KG
+
+Note: Liu's approach requires a formal RDF/SPARQL ontology. VMA's current PostgreSQL/JSONB KG cannot support this without a separate RDF layer or SPARQL endpoint. The "CIDOC-CRM is too complex" design decision needs a stronger scholarly justification given this gap.
 
 ---
 
@@ -616,7 +625,7 @@ See `docs/gamification.md` for the full SQL schema of the gamification tables.
 | 3D format | GLB/GLTF | Browser-native via `<model-viewer>`, Three.js compatible |
 | Photogrammetry | COLMAP (external) or Metashape | Best open-source option; results uploaded manually first |
 | i18n | Simple JSON store | 3 languages (vi, fr, en); no heavy i18n framework needed at this stage |
-| KG ontology | Custom controlled vocabulary | CIDOC-CRM is too complex; Dublin Core too flat; custom predicates + Wikidata IDs for interop |
+| KG ontology | Custom controlled vocabulary | CIDOC-CRM is too complex for volunteer editors; Dublin Core too flat; custom predicates + Wikidata IDs for interop. Trade-off: this forfeits SPARQL/RDF compatibility (see Liu 2025 for what a SPARQL-based KG enables). Phase 6 adds JSON-LD export to partially bridge this. If LLM Q&A becomes a priority, a SPARQL wrapper or separate RDF layer would be needed. |
 | Footprint transform | Allmaps `pixelToGeo` | Already used in georef pipeline; gives accurate WGS84 from pixel coords |
 
 ---

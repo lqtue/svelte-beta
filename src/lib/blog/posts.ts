@@ -9,6 +9,54 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
 	{
+		slug: 'buildings-as-ground-control',
+		title: 'Buildings as Ground Control: A New Method for Vectorizing Colonial Maps',
+		date: '2026-03-12',
+		category: 'research',
+		excerpt:
+			'The 1882 and 1898 Saigon maps share hundreds of the same buildings. We use those stable structures as automatic ground control points — letting maps georeference each other, and producing a 1880–1900 building dataset as a byproduct.',
+		content: `
+<p>The two most important maps we have of colonial Saigon — an 1882 cadastral survey and its 1898 revision — have never been compared as spatial data. They've been studied individually, scanned, and put online. But no one has asked: which buildings appear in both? Which ones were built or demolished in those sixteen years? And can that shared knowledge help us georeference the maps themselves?</p>
+<p>The answer to the last question turns out to be yes — and it changes how we think about the whole problem of historical map vectorization.</p>
+
+<h2>The standard approach and its cost</h2>
+<p>Georeferencing a historical map means manually clicking corresponding points between the old map and a modern coordinate reference. You click a church corner on the 1882 map, click the same spot on a modern satellite image, repeat 15–20 times, and a polynomial transform snaps the old map into place. This works. It takes about an hour per map, requires you to find recognizable landmarks that still exist, and has to be done again from scratch for every new map even if it covers the same area.</p>
+<p>Vectorization — tracing the actual building outlines as digital polygons — is a separate problem that usually comes after georeferencing and is even more labour-intensive. For 500 buildings across two maps, manual tracing would take weeks.</p>
+
+<h2>What SAM changes</h2>
+<p>Meta's Segment Anything Model (SAM) is a vision foundation model that segments objects in images with no training data. Feed it a map tile and it finds every visually distinct region — building blocks, streets, courtyards, open land — as clean polygon masks. It works well on printed maps because the visual contrast is high and consistent: orange fills, grey hatching, cream open space, black outlines. The 1882 and 1898 Saigon maps happen to use exactly this kind of legible polychrome symbology, consistently applied across both surveys.</p>
+<p>The pipeline fetches tiles directly from the IIIF Image API — no full-image downloads, no TIFF conversion. A 12,000 × 9,000 pixel scan becomes roughly 540 overlapping 512×512 JPEG tile requests, each processed by SAM independently, with tile-local coordinates offset back to full-image pixel space. The result is several thousand pixel-space building polygons per map, stored in a database with no geographic coordinates attached yet.</p>
+
+<h2>The pixel-first architecture</h2>
+<p>That last point is deliberate. We store building outlines as pixel coordinates — x and y positions on the original scan — rather than longitude and latitude. Geographic coordinates are computed on demand by passing the pixel polygon through the Allmaps georeferencing annotation for that map. The annotation holds the ground control points; the transform is applied at read time.</p>
+<p>This means fixing or improving a georeferencing annotation automatically improves every building footprint derived from it. The spatial reference lives in the annotation, not in the building polygon. The two concerns — where the map sits on Earth, and what shapes are on it — are handled independently.</p>
+
+<h2>Buildings as their own ground control</h2>
+<p>Here is where things get interesting. Once you have pixel-space building polygons for both the 1882 and 1898 maps, you can ask: which buildings appear in both? A building that existed in 1882 and was still standing in 1898 will have nearly the same shape in both surveys — same proportions, same footprint, same relationship to the street. Mathematically, its polygon will have similar Hu moments (a rotation- and scale-invariant shape descriptor) in both maps.</p>
+<p>We match building shapes across the two pixel-space polygon sets, use RANSAC to reject mismatches, and end up with a set of stable buildings identified as corresponding pairs. Each pair gives us one ground control point: the pixel location in the 1882 map and the pixel location in the 1898 map are the same real-world building. If the 1882 map is already georeferenced, those pixel positions can be converted to longitude/latitude and used directly as GCPs for the 1898 map — <strong>automatically, with no manual clicking</strong>.</p>
+<p>The first map in the series still needs manual georeferencing. Every subsequent map can be handled by the buildings themselves.</p>
+
+<h2>The change dataset falls out for free</h2>
+<p>The matching step classifies every building polygon along the way:</p>
+<ul>
+<li><strong>Stable</strong> — matched in both maps, similar shape. Built before 1882, still standing in 1898.</li>
+<li><strong>New</strong> — present in 1898, absent in 1882. Constructed between the two surveys.</li>
+<li><strong>Demolished</strong> — present in 1882, absent in 1898. Removed in the same period.</li>
+<li><strong>Modified</strong> — partial overlap. Flagged for review.</li>
+</ul>
+<p>Each polygon gets a <code>valid_from</code> and <code>valid_to</code> date. This is the 1880–1900 Saigon building dataset — the first machine-readable spatial record of the colonial city — and it emerges directly from the georeferencing step, not as a separate effort.</p>
+
+<h2>What this means for maps that don't fit WGS84</h2>
+<p>There's a broader implication worth naming. The vector-to-vector method doesn't require either map to be georeferenced to WGS84. If your goal is to compare two maps of the same place — to find what they agree on and what each one shows that the other doesn't — the comparison can happen entirely in feature space. Geographic coordinates are optional.</p>
+<p>This matters for indigenous and pre-colonial maps, which often organise space by relational distance, travel time, or political logic rather than metric coordinates. Conventional georeferencing asks: how wrong is this map compared to WGS84? The implicit answer frames spatial difference as error. Vector-to-vector comparison asks instead: what do these two representations of the same territory share? The shared features define their own reference frame, internal to the maps, and WGS84 can be layered on later where it's useful — not required as a precondition for learning anything.</p>
+<p>For Vietnam specifically: a pre-colonial Vietnamese road map (<em>lộ đồ thư</em>) and a French colonial cadastral survey of the same territory could be compared by stable features — river confluences, coastal inlets, major settlements — without either being subordinated to the other's coordinate logic. The French map would serve as the georeferenced anchor not because it is more correct but because it is more densely pinned to WGS84. The Vietnamese map would retain its own spatial epistemology.</p>
+
+<h2>Where this stands</h2>
+<p>The pipeline is designed and the paper documenting it is in draft. Implementation begins with data preparation: correcting sheet disalignment in the 1898 Gallica scan (four physical panels with registration errors at the seams) and mirroring both maps to Internet Archive for stable IIIF access. SAM vectorization runs from there. The first 1882 building footprints should be visible on the map within a month.</p>
+<p>The full pipeline code will be published openly when it runs. If you're working on historical city reconstruction — Hanoi, Phnom Penh, Manila, any city with a colonial-era cadastral survey — this architecture is designed to be forked.</p>
+		`
+	},
+	{
 		slug: 'march-2026-update',
 		title: 'March 2026 Update: Maps, Methods, and What\'s Next',
 		date: '2026-03-10',
