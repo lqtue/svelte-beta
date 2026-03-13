@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { CATEGORY_LABELS, CATEGORY_COLORS, posts } from '$lib/blog/posts';
-	import ThemeToggle from '$lib/ui/ThemeToggle.svelte';
+	import NavBar from '$lib/ui/NavBar.svelte';
 	import { onMount } from 'svelte';
 
 	export let data: PageData;
@@ -35,16 +35,7 @@
 </svelte:head>
 
 <div class="page" class:mounted>
-	<!-- NAV -->
-	<nav class="top-nav">
-		<a href="/" class="nav-logo">VMA</a>
-		<div class="nav-links">
-			<a href="/" class="nav-link">Home</a>
-			<a href="/about" class="nav-link">About</a>
-			<a href="/blog" class="nav-link active">Blog</a>
-		</div>
-		<ThemeToggle />
-	</nav>
+	<NavBar />
 
 	<div class="layout">
 		<!-- ARTICLE -->
@@ -157,41 +148,6 @@
 		transition: opacity 0.4s ease;
 	}
 	.page.mounted { opacity: 1; }
-
-	/* NAV */
-	.top-nav {
-		display: flex;
-		align-items: center;
-		gap: 2rem;
-		padding: 1rem 2rem;
-		background: var(--color-white);
-		border-bottom: var(--border-thick);
-		position: sticky;
-		top: 0;
-		z-index: 100;
-	}
-	.nav-logo {
-		font-family: 'Space Grotesk', sans-serif;
-		font-weight: 800;
-		font-size: 1.25rem;
-		text-decoration: none;
-		color: var(--color-text);
-		margin-right: auto;
-	}
-	.nav-links { display: flex; gap: 0.25rem; }
-	.nav-link {
-		font-family: 'Space Grotesk', sans-serif;
-		font-weight: 700;
-		font-size: 0.9rem;
-		text-decoration: none;
-		color: var(--color-text);
-		padding: 0.5rem 1rem;
-		border-radius: var(--radius-pill);
-		border: 2px solid transparent;
-		transition: all 0.15s;
-	}
-	.nav-link:hover { background: var(--color-yellow); border-color: var(--color-border); }
-	.nav-link.active { background: var(--color-text); color: var(--color-white); }
 
 	/* LAYOUT */
 	.layout {
