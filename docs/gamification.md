@@ -3,6 +3,35 @@ _Community engagement through contribution mechanics_
 
 ---
 
+## The Model: OSM + Wikipedia for Historical Cities
+
+VMA's community model draws directly from two proven open-knowledge projects:
+
+**From OpenStreetMap:**
+- Anyone can contribute. No credential required.
+- Every edit is attributed and versioned.
+- Community validation (agree/flag/correct) replaces central authority.
+- The map improves because contributors benefit from its improvement — a self-reinforcing public commons.
+- Machine-assisted tools (RapiD, JOSM AI suggestions) let the community scale beyond what manual effort alone could achieve. VMA's AI building detector plays the same role.
+
+**From Wikipedia:**
+- Every subject (building, street, person) gets its own page.
+- Anyone can add a fact — with a citation.
+- Disputes are resolved by evidence, not by who has access.
+- A "talk page" alongside each article lets the community discuss and correct.
+- The result is an encyclopedia no single institution could have produced.
+
+**VMA's application:**
+- Every building gets a page: geometry, history, photos, citations, discussion.
+- Anyone can add to it. Citations resolve disputes. Trust is earned through edit history.
+- The dataset is a public commons — openly licensed (ODbL), forkable, self-hostable.
+- Any city with a map archive and a community can run the same pipeline.
+
+**Sequencing:**
+The Wikipedia model becomes available once the building dataset is published. Phase 1 creates the dataset (footprints, basic attributes). Phase 2 opens each building page for community contribution. Phase 3 adds 3D geometry to the same pages. The contribution model is persistent — it doesn't end when the archive is "complete" because an archive of living memory is never complete.
+
+---
+
 ## The Core Idea
 
 The city disappears into the past. You bring it back. One building at a time.
@@ -16,23 +45,27 @@ Your name is permanently attributed in the KG entity. In 50 years, people will k
 
 ## Contribution Tiers (Skill Ladder)
 
-Four tiers, each unlocking the next. Anyone can start at L1. Experts self-select upward.
+Four tiers, each unlocking the next. Anyone can start at L1 (once Photo Hunter is re-enabled). Experts self-select upward.
 
 ```
-L4 · HISTORIAN        KG entities, citations, relations
+L4 · HISTORIAN        KG entities, citations, relations, building discussion pages
 L3 · ARCHITECT        3D mesh processing, building adoption
 L2 · CARTOGRAPHER     Building footprint tracing, validation
-L1 · PHOTO HUNTER     Find & tag historical photos by location
+L1 · PHOTO HUNTER     Find & tag historical photos by location  [DEPRIORITIZED — see note]
 ```
 
-Each tier has its own leaderboard, badges, and visual presence in the city.
+> **Note on Photo Hunter (L1):** Photo Hunter requires photo upload infrastructure (storage, moderation, deduplication at scale) that is not the current focus. The photo contribution model will be revisited after the building dataset is published — at which point users can attach photos directly to building pages in the Wikipedia-style discussion layer. See §Wikipedia Discussion Layer below.
+
+Each active tier has its own leaderboard, badges, and visual presence in the city.
 
 ---
 
-## Tier 1 — Photo Hunter
+## Tier 1 — Photo Hunter _(DEPRIORITIZED)_
 _"Find the city before it vanishes"_
 
-**Task:** Browse EFEO, BnF Gallica, Manhhai collection, family archives. Tag each historical photo to a location on the map. Assess angle coverage.
+**Status:** Deprioritized until the building dataset is published and Wikipedia-style building pages are live. Photo contribution will be handled as part of the building-page discussion layer rather than as a separate tagging workflow. This avoids building photo upload infrastructure before there is a dataset for photos to be attached to.
+
+**Original task:** Browse EFEO, BnF Gallica, Manhhai collection, family archives. Tag each historical photo to a location on the map. Assess angle coverage.
 
 **Why this works for community:** Zero technical barrier. A Vietnamese diaspora member in California who recognizes their grandmother's street can contribute immediately. Mobile-friendly.
 
@@ -241,6 +274,94 @@ Families contributing a verified connection get:
 
 ---
 
+## Wikipedia Discussion Layer
+
+_Unlocks in Phase 2, after the building dataset is published_
+
+### Concept
+
+Every building in the archive gets a page — like a Wikipedia article for a single structure. The page contains:
+
+- **Geometry tab**: footprint on the historical map, link to source map
+- **History tab**: KG entities — who built it, who owned it, what happened there
+- **3D tab**: LoD2/LoD3 model when available
+- **Sources tab**: primary sources (maps, land records, EFEO photos) linked to this building
+- **Discussion tab**: community conversation — corrections, memories, disputed facts
+
+### Editing model
+
+Follows Wikipedia's established pattern:
+- Any logged-in user can add a fact with a citation
+- Any user can attach a photo (no dedicated upload flow — just an attachment on the building page)
+- Any user can open a discussion thread: "This date seems wrong — see [source]"
+- Edits are versioned; contributions are attributed permanently
+- Moderators (Historian tier) can mark entries as verified or disputed
+
+### What this replaces
+
+| Old model | New model |
+|---|---|
+| Photo Hunter: tag photos to map locations | Attach photos directly to building pages |
+| KG Historian: add via dedicated KG tool | Edit building page (same underlying data, simpler UX) |
+| Separate discussion channel (email/Slack) | Discussion tab on each building page |
+
+### DB additions needed
+
+```sql
+-- Building discussion threads
+CREATE TABLE building_discussions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id UUID REFERENCES kg_entities NOT NULL,
+  user_id UUID REFERENCES profiles NOT NULL,
+  thread_title TEXT,
+  body TEXT NOT NULL,
+  parent_id UUID REFERENCES building_discussions, -- for replies
+  status TEXT DEFAULT 'open', -- 'open' | 'resolved' | 'flagged'
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Building page edits (versioned)
+CREATE TABLE building_edits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id UUID REFERENCES kg_entities NOT NULL,
+  user_id UUID REFERENCES profiles NOT NULL,
+  field TEXT NOT NULL,       -- which field was edited
+  old_value JSONB,
+  new_value JSONB,
+  citation TEXT,             -- source for the edit
+  status TEXT DEFAULT 'pending', -- 'pending' | 'accepted' | 'reverted'
+  reviewed_by UUID REFERENCES profiles,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Photo attachments (building-page native, not a separate upload flow)
+CREATE TABLE building_photos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_id UUID REFERENCES kg_entities NOT NULL,
+  user_id UUID REFERENCES profiles NOT NULL,
+  storage_url TEXT NOT NULL,
+  caption TEXT,
+  approximate_date TEXT,     -- ISO 8601 partial ('1905', '1905-03')
+  source TEXT,               -- 'EFEO' | 'BnF' | 'Manhhai' | 'family' | 'other'
+  license TEXT,              -- 'CC-BY' | 'public domain' | 'all rights reserved'
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### Routes
+
+| Route | Purpose |
+|---|---|
+| `/kg/[id]` | Building page with all tabs |
+| `/kg/[id]/discuss` | Discussion tab, thread view |
+| `/kg/[id]/history` | Edit history, versioned |
+| `/api/kg/[id]/edit` | Submit an edit with citation |
+| `/api/kg/[id]/discuss` | Post/reply to discussion |
+| `/api/kg/[id]/photo` | Attach a photo |
+
+---
+
 ## Technical Requirements
 
 ### New DB tables
@@ -333,33 +454,47 @@ CREATE TABLE team_members (
 
 ## Launch Sequence
 
-**Phase 1 (with Phase 1 roadmap):** Photo Hunter + Cartographer tiers only
+**Phase 1 (Maps to Geometry):** Cartographer tier only
 - District completion map goes live with the first colonial map corpus
-- Leaderboard shows top photo taggers and map tracers
-- First missions: photo hunts for 5 landmark buildings
+- Leaderboard shows top building tracers
+- OSM community outreach: HOT (Humanitarian OpenStreetMap Team) + OSM Vietnam
+- Photo Hunter held until Phase 2 (needs dataset to attach photos to)
 
-**Phase 2 (with Phase 2 roadmap):** Historian tier
-- KG entity contributions open
+**Phase 2 (Geometry to Knowledge):** Wikipedia discussion layer + Historian tier
+- Building pages go live when the first open dataset is published
+- Each building page: geometry + history + discussion tab + photo attachments
+- Historian contributions open: add facts, cite sources, open discussion threads
 - Family connection system launches
 - Team district claims enabled
+- Photo attachment via building pages replaces dedicated Photo Hunter workflow
 
-**Phase 3 (with Phase 3 roadmap):** Architect tier
+**Phase 3 (Knowledge to Dimension):** Architect tier + 3D reveals
 - Building adoption opens when Morlighem pipeline is adapted
 - Photogrammetry missions go live
 - Ghost buildings appear in 3D viewer
-- Visual reveals begin
+- Visual reveals begin — contributors get shareable moment when building renders
 
 ---
 
 ## Why This Works
 
-The gamification is not cosmetic. Each tier directly feeds the data pipeline:
+The community model is not cosmetic. Each tier directly feeds the data pipeline, and the community and the AI improve each other:
 
-| Tier | Feeds |
-|---|---|
-| Photo Hunter | L3 photo corpus for SfM + photo texture projection |
-| Cartographer | L4 footprint dataset (Phase 1 output) |
-| Architect | L2–L3 3D models (Phase 3 output) |
-| Historian | L4–L5 KG (Phase 2 output) |
+| Tier | Feeds | Improves |
+|---|---|---|
+| Photo Hunter _(Phase 2+)_ | Photo corpus for SfM + building pages | SfM mesh quality |
+| Cartographer | Building footprint dataset (Phase 1) | AI building detector training data |
+| Architect | LoD2–LoD3 3D models (Phase 3) | Roof type classification |
+| Historian | KG entities, sources, discussion (Phase 2) | Citation quality, temporal accuracy |
 
-The leaderboard is also the HITL quality signal — contributors with high validation scores get weighted more heavily in the consensus algorithm. Trust is earned, not assumed.
+**Why the OSM model works here:**
+- Contributors trace buildings because they want the map to exist — not because they're paid.
+- Community validation (agree/flag/correct) scales quality without a central review team.
+- Open data license means researchers, journalists, and educators use and promote the result — which attracts more contributors.
+
+**Why the Wikipedia model works here:**
+- Each building page gives contributors a specific, bounded task: improve *this* entry.
+- Citations resolve disputes — no argument from authority, just evidence.
+- The edit history is a permanent record of who knew what and when — valuable data in itself.
+
+**Trust:** Contributors with high validation agreement scores get weighted more heavily in the consensus algorithm. Trust is earned through track record, not assumed.

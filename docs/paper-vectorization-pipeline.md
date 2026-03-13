@@ -58,6 +58,16 @@ Both maps share a characteristic visual language: building blocks are filled wit
 
 The consistency of this symbology across the sixteen-year interval is the enabling condition for the vector-to-vector georeferencing approach.
 
+### 3.2 Ancillary Visual Sources: Painting-Map Pairs
+
+Two contemporaneous oblique-view paintings exist that pair with the cadastral maps and serve as calibration sources for downstream 3D height inference (see `docs/pipeline-3d.md`):
+
+- **1881 engraving** — Monochrome bird's-eye view of Saigon, published in *Colonies Françaises — Cochinchine* (1881). Oblique south-to-north perspective. Directly contemporaneous with the 1882 cadastral survey. Shows building massing, approximate story heights, and roof shapes across the full city grid.
+
+- **1901 colored lithograph** — Full-color bird's-eye view with the city coat-of-arms. Pairs with the 1898 cadastral map. The color is the primary research value: near-uniform terracotta tiling across residential and commercial stock confirms that the NYPL five-class color palette used for segmentation (`particulier`, `communal`, `non_affect`, `militaire`, `local_svc`) maps reliably onto visually distinct physical building types. This is independent visual confirmation that the colour-based classification step of the pipeline has semantic validity beyond cartographic convention.
+
+These paintings are not used in the automated pipeline but serve as: (a) training-set visual ground truth for OBIA calibration; (b) height priors for the Morlighem LoD2 stage; and (c) visual validation of the temporal change classification (§4.5) — blocks classified as "stable" across 1882 and 1898 should appear consistently built-up in both paintings.
+
 ### 3.1 Data Preparation: Mirroring to Internet Archive
 
 Institutional IIIF servers (BnF Gallica, Wikimedia Commons) impose programmatic access restrictions — Gallica blocks direct `info.json` fetches; Wikimedia returns HTTP 403 on all API requests — while still serving individual tile URLs in browser contexts. To avoid these restrictions during automated pipeline runs, corrected source images are mirrored to Internet Archive using the `internetarchive` Python library. Internet Archive generates a full IIIF Image API 3 tiling pyramid from any uploaded JPEG automatically, with no TIFF conversion required. The resulting IA IIIF endpoints (`iiif.archive.org`) are publicly accessible without rate limits and serve 512 × 512 JPEG tiles at all scale factors.

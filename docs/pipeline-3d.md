@@ -82,14 +82,32 @@ Stage 5: Height inference (NO LiDAR needed)
             warehouses/commercial:          flat roof 90%
             religious:                      tower + pitched (custom)
   Sources (in priority order):
-    1. Panoramic paintings 1882 + 1898 — directly observable building heights
-       for all structures visible in the panorama; calibrates the entire table
+    1. Painting-map pairs (two contemporaneous pairs available):
+         a. 1881 B&W engraving (Colonies Françaises - Cochinchine, "Saigon") paired
+            with 1882 cadastral map — monochrome oblique view of the full city;
+            gives height classes and massing for the early colonial grid.
+            Height anchor: documented landmarks (cathedral, government buildings).
+         b. 1901 colored lithograph paired with 1898 cadastral map — full-color
+            oblique view showing the city at peak first-wave development.
+            ADDITIONAL VALUE over 1881 engraving:
+              - Color confirms roof material: near-uniform terracotta tile
+                across residential/commercial stock (validates NYPL classifier)
+              - Color distinguishes white/cream institutional buildings from
+                red-tile residential — directly maps to cadastral color classes
+              - More buildings visible (city more complete by 1901)
+              - Temporal pair (1882 vs 1898 maps + 1881 vs 1901 paintings)
+                provides visual ground-truth for stable/new/demolished classification
+            Caveat: oblique projection distorts absolute heights — use for height
+            CLASS assignment (1/2/3 stories) not metric values; calibrate with
+            known reference structures.
     2. EFEO/BnF/Manhhai photos — height ratios observable from street-level photos
     3. Cadastral records — floor counts for commercial buildings in land registers
     4. Building typology standards — French colonial construction norms for each type
   Output: Height estimate + uncertainty_m field in CityJSON
-  Note:   Panorama calibration reduces uncertainty from ±3m to ~±1.5m for
-          buildings visible in 1882/1898 panoramas
+  Note:   Painting calibration reduces uncertainty from ±3m to ~±1.5m for
+          buildings visible in 1881/1901 paintings; the two-period pair enables
+          cross-validation — a building present and unchanged in both paintings
+          gets higher height confidence than one visible in only one source.
 
 Stage 6: 3D procedural modelling
   Tool:   Blender (BCGA — Building CGA grammar)
@@ -140,16 +158,23 @@ For ~30 landmark buildings (Notre Dame, City Hall, Opera House, Central Post Off
 
 | Collection | Coverage | Notes |
 |---|---|---|
-| Panoramic paintings (1882, 1898) | Full city skyline — building heights directly observable | Rare; usable for height calibration of all visible buildings |
+| **1881 B&W engraving** (Colonies Françaises — Cochinchine, "Saigon") | Full city oblique view — height classes + massing for early colonial grid | Pairs with 1882 cadastral map; monochrome limits material info |
+| **1901 colored lithograph** (city coat-of-arms, full color) | Full city oblique view — color confirms terracotta roof tile at city scale; shows expanded 1898-era city | Pairs with 1898 cadastral map; richer than 1881 for LoD2 roof type + material |
 | EFEO (École française d'Extrême-Orient) | Best systematic collection — colonial buildings, street-level + elevated views | BnF Gallica (partially open) |
 | BnF Gallica postcards | 1900–1930 Saigon postcard boom — natural multi-angle facade coverage | Open IIIF |
 | Manhhai collection (Flickr) | Large private digitised collection, mixed dates | Open |
 | Family archives | Diaspora uploads via community contribution | Via `/contribute/photo` |
 | ANOM (Archives nationales d'outre-mer) | French colonial admin photos | On-site / digitisation project needed |
 
-**Key insight on panoramic paintings:** The 1882 and 1898 panoramic paintings of Saigon are an exceptional height reference source. Buildings visible in these panoramas have directly observable height ratios relative to each other and to known reference structures (cathedral towers, government buildings with documented dimensions). This allows calibration of the probabilistic height table with ground-truth visual evidence predating the photographic corpus, covering a period where photography is sparse.
+**Key insight on painting-map pairs:** VMA has two contemporaneous painting-map pairs — a rare combination that most historical reconstruction projects lack:
 
-**Workflow:** Architecture historians annotate buildings visible in panoramas → cross-reference with cadastral records → calibrate height estimates in probabilistic table → apply as priors in Morlighem height inference.
+- **Pair 1882:** The 1881 B&W engraving "Saigon" (Colonies Françaises — Cochinchine) pairs with the 1882 cadastral map. The engraving shows the full city from an elevated oblique south-to-north perspective. Massing, story heights, and roof shapes are directly readable for all blocks visible in the scene.
+
+- **Pair 1898:** The 1901 full-color lithograph pairs with the 1898 cadastral map. The painting shows the city at peak first-wave colonial development. The color is the critical additional value: near-uniform terracotta roof tiling across residential and commercial stock is visually confirmed at city scale — this directly calibrates the NYPL color classifier and the Morlighem probabilistic roof type table without requiring European priors. Institutional buildings (white/cream) and military/warehouse zones (grey/brown) are visually distinct and map precisely onto the cadastral color classes.
+
+**Temporal pair methodology:** The two paintings together enable a visual cross-validation of the automated temporal classification (stable / new / demolished) produced by the `match` command. A block that appears built-up in both the 1881 and 1901 paintings is a visual confirmation of "stable" status for that building cluster. A block sparse in 1881 but dense in 1901 visually confirms "new construction" between the two map dates.
+
+**Workflow:** Architecture historians annotate buildings visible in each painting → cross-reference with the paired cadastral polygon → assign height class (1/2/3 stories) + roof type → calibrate height estimates in probabilistic table → apply as priors in Morlighem height inference. Landmark height anchors: Notre-Dame Cathedral spires (57 m, documented), Hôtel de Ville facade (approx. 18 m), Marché Central roof ridge (approx. 12 m).
 
 **Key insight on postcards:** The Saigon postcard industry (1900–1930) produced a large volume of images of the city's major buildings. [NOTE: the claim that this exceeds other colonial cities in comparable volume needs a citation before it appears in a paper — it is currently unverified.]
 

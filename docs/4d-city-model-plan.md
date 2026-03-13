@@ -24,12 +24,43 @@ _Drafted: 2026-03-10_
 A web-native platform that reconstructs Saigon's urban fabric across time — **primary focus 1880–1930** (the French colonial transformation) — through:
 
 1. **Geotemporal Knowledge Graph (KG)** — the data spine: buildings, streets, people, events and their relationships, each stamped with temporal validity
-2. **Crowdsourced footprints** — community vectorization of building outlines from georeferenced historical maps (Photo Hunter + Cartographer tiers; OSM community as natural partner)
+2. **Crowdsourced footprints** — community vectorization of building outlines from georeferenced historical maps (Cartographer tier; OSM community as natural partner for tracing volunteers)
 3. **Automated 3D city model** — Morlighem pipeline (histo3d, CC-BY, TU Delft 2021) adapted to VMA's IIIF georef output → LoD2 CityJSON for all buildings. See `docs/pipeline-3d.md`.
 4. **Photo + photogrammetry pipeline** — archival EFEO/BnF/Manhhai photos → SfM meshes (COLMAP/Meshroom) → LoD3+ hero models for ~30 landmark buildings
 5. **Research library** — books, articles, archive documents cited against specific entities
 6. **4D viewer** — timeline scrubber through the city's spatial evolution, from 2D footprints to 3D reconstruction
-7. **Gamified community** — four contribution tiers (Photo Hunter → Cartographer → Architect → Historian), leaderboards, missions, and building adoption. See `docs/gamification.md`.
+7. **Community model (OSM + Wikipedia)** — OSM-style tracing (Cartographer), Wikipedia-style per-building discussion pages (Phase 2+), building adoption for 3D (Architect), citation-based knowledge editing (Historian). See `docs/gamification.md`. Photo Hunter (photo tagging workflow) is deprioritized until the building dataset is published — photos are contributed via building pages in Phase 2.
+
+---
+
+## Community Model
+
+VMA is built on the same principles as OpenStreetMap and Wikipedia — the two most successful community knowledge projects in the world. This is a deliberate architectural choice, not a metaphor.
+
+### From OpenStreetMap
+- **Anyone can trace.** No credential, no gatekeeping. The barrier is a browser.
+- **Every edit is attributed and versioned.** Nothing disappears; disputes are traceable.
+- **Community validation replaces central authority.** Agree / flag / correct. Trust accumulates through track record.
+- **Machine-assisted tools scale the community.** OSM's RapiD (AI-assisted road tracing) lets a small community cover enormous area. VMA's AI building detector plays the same role — it proposes, the community validates.
+- **Open license (ODbL) creates a self-reinforcing commons.** Researchers use the data → publish results → attract more contributors.
+
+### From Wikipedia
+- **Every subject gets a page.** Every building in the archive gets: geometry, history, sources, photos, discussion.
+- **Anyone can add a fact — with a citation.** Citations resolve disputes. No argument from authority.
+- **A talk/discussion page alongside every article.** The community debates, corrects, and cross-references. The discussion itself is a historical record.
+- **Edit history is the audit trail.** Who added what, when, with what source.
+
+### VMA's Application
+
+| Phase | Community model |
+|---|---|
+| Phase 1 (dataset) | OSM-style tracing: Cartographer tier traces building footprints; AI assists; community validates |
+| Phase 2 (knowledge) | Wikipedia-style building pages: each building has an editable page with history, photos, discussion |
+| Phase 3 (3D) | Building adoption: Architect tier produces 3D meshes; community validates; visual reveal |
+
+**Decentralized by design:** No single organisation controls what is true. Citations resolve disputes. The dataset is openly licensed (ODbL) and self-hostable. Any city with a map archive and a community can fork VMA and run the same pipeline without asking permission.
+
+**Photo contribution model:** Photos are not a separate upload workflow (which requires its own moderation and storage infrastructure). In Phase 2, photos are attached to building pages — the same model Wikipedia uses for images. This defers the storage/moderation problem until the dataset that gives photos context actually exists.
 
 ---
 
@@ -43,12 +74,17 @@ L1 — HISTORICAL MAP LAYER
         | georef pipeline (datum correction + GCP propagation)
         | + vectorization (roads, plots, building outlines)
         v
-COMMUNITY LAYER
-  Photo Hunter  -- tag EFEO/BnF/Manhhai photos to locations    [feeds L3-L4]
+COMMUNITY LAYER  [OSM model for geometry; Wikipedia model for knowledge]
   Cartographer  -- trace building footprints on georef maps    [feeds L1 vectorization]
-    (OSM community: natural partner for tracing volunteers)
+    (OSM community: natural partner — same skills, open data values)
   Architect     -- adopt a building, run SfM, submit 3D mesh   [feeds L4]
-  Historian     -- add KG entities, citations, oral histories  [feeds L5-L6]
+  Historian     -- add KG entities, citations, discussion      [feeds L5-L6]
+  Photo Hunter  -- DEPRIORITIZED; photos contributed via building pages in Phase 2
+
+  Phase 1: Cartographer tracing → open dataset published
+  Phase 2: Wikipedia discussion layer unlocks (per-building pages, editable,
+           photo attachments, discussion threads, versioned edits)
+  Phase 3: Architect tier opens with Morlighem pipeline + photogrammetry missions
 
   Leaderboards | District completion map | Photogrammetry missions
         |
@@ -64,7 +100,8 @@ OBIA segmentation     Relations            -> hero meshes
 Height from panoramas Temporal validity    -> textured GLB
 -> LoD1/LoD2 CityJSON Sources
   calibrated against  Links to L1 geometry
-  1882+1898 panoramas
+  1881 engraving (B&W) + 1882 map
+  1901 lithograph (color) + 1898 map
         |                  |                  |
         +------------------+------------------+
                     3D Mesh Archive (Supabase Storage / R2)
@@ -465,7 +502,11 @@ Full technical detail: `docs/pipeline-3d.md`
 | LoD2 (automated) | Morlighem pipeline: OBIA → vectorise → procedural model → height inference | CityJSON — all buildings | Full 1880–1930 city |
 | LoD3+ (hand-crafted) | Blender artists + architecture historians; SfM for facade texture | GLB/GLTF hero models | ~30 landmark buildings |
 
-**Height inference (no LiDAR):** Probabilistic roof type table (hipped / gabled / flat) × building typology × colonial construction standards → height estimate with uncertainty score. **Calibrated by panoramic paintings of Saigon (1882 and 1898)** which show directly observable building heights across the city skyline — a rare ground-truth source predating systematic photography. Results cited as approximate.
+**Height inference (no LiDAR):** Probabilistic roof type table (hipped / gabled / flat) × building typology × colonial construction standards → height estimate with uncertainty score. Calibrated by two contemporaneous painting-map pairs:
+- **1881 B&W engraving + 1882 cadastral map** — full oblique city view; height classes + roof massing
+- **1901 colored lithograph + 1898 cadastral map** — full-color oblique view; additionally confirms terracotta roof tile dominant across residential/commercial stock at city scale, providing independent validation of the NYPL color classifier's semantic accuracy
+
+The two paintings together also provide visual ground-truth for the temporal change classification: blocks that appear stable in both paintings cross-validate the automated "stable" label from the `match` command. Results cited as approximate; see `docs/pipeline-3d.md` §Stage 5 for full methodology.
 
 **Photogrammetry (L3 facade mesh):**
 - Source photos: EFEO (largest French Indochina collection), BnF Gallica postcards, Manhhai collection, family archives
