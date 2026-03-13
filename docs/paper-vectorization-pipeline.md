@@ -85,31 +85,70 @@ Three classes of physical artefact require correction before segmentation.
 
 **Fold artefacts.** Diagonal discolouration bands from paper folding are detected via Hough line transform and inpainted using LaMa (Suvorov et al., 2022), a deep learning inpainting model that handles wide discoloured bands robustly.
 
-**Text on building fills.** Labels printed directly on building blocks are detected using a pre-trained text detector (CRAFT or DB-Net), and the text regions are inpainted with a local median fill before SAM segmentation. These steps are applied per tile.
+**Text on building fills.** Labels printed directly on building blocks are a known source of over-segmentation (SAM may treat a label character as a boundary). In practice, SAM's stability-score filter (0.95) suppresses most character-induced masks; residual text artefacts are addressed in post-processing by flagging polygons with anomalously low convexity ratios for manual review rather than by per-tile inpainting.
 
-### 4.2 Stage 1: IIIF Tiled Fetch
+### 4.2 Stage 1: IIIF Tiled Fetch — Multi-Scale Pyramid
 
-The full scan is never held in memory as a single image. Tiles are fetched on demand from the IIIF Image API as JPEG using the region parameter:
+The full scan is never held in memory as a single image. Tiles are fetched on demand from the IIIF Image API as JPEG:
 
 ```
-{base}/{identifier}/{x},{y},{w},{h}/{w},{h}/0/default.jpg
+{base}/{identifier}/{x},{y},{region_w},{region_h}/512,512/0/default.jpg
 ```
 
-The requested size matches the region size exactly, ensuring a 1:1 pixel mapping with no resampling artefact. A stride of 448 pixels with a tile size of 512 pixels gives 64 pixels of overlap between adjacent tiles, ensuring that buildings near tile boundaries are captured completely in at least one tile. For the 1898 map at approximately 13,800 × 13,800 px, this yields approximately 900 tile requests; the 1882 map at 12,102 × 8,982 px yields approximately 540.
+The pipeline uses a three-pass pyramid over each map, separating plot-level and building-level detection into distinct phases:
 
-JPEG is used throughout: no TIFF conversion is performed at any stage. The spatial reference for the image is carried entirely by the Allmaps georeferencing annotation, not by the image file itself. This separation means that a corrected JPEG upload to Internet Archive automatically inherits all downstream pipeline steps — including any previously computed Allmaps annotations — without reprocessing.
+| Pass | Purpose | Region size | SAM input | Scale factor |
+|------|---------|-------------|-----------|--------------|
+| Plot | City blocks / large parcels | 4096 × 4096 px | 512 × 512 px | 8× |
+| Fine | Individual building footprints | 1024 × 1024 px | 512 × 512 px | 2× |
+| Native | Narrow shophouses / small structures | 512 × 512 px | 512 × 512 px | 1× |
 
-### 4.3 Stage 2: SAM Segmentation
+**Plot pass (8×).** At 8× downscale, building-level outlines (2–3 px wide) fall to 0.25–0.375 px — below SAM's rendering threshold and invisible. Only the thick outer block boundaries (~10–15 px) survive, causing whole city blocks and large cadastral parcels to appear as single solid polygons. The 4096 px region size captures large institutional grounds (military barracks, the citadel) that would be split across multiple tiles at smaller region sizes. Area bounds are raised accordingly: minimum ~48,000 px² in full-image coordinates (equivalent to a ~220 × 220 px block), maximum 3,000,000 px² for the largest institutional grounds. **Shape regularisation is disabled for the plot pass**: colonial Saigon blocks follow diagonal street grids and have trapezoid or L-shaped outlines; snapping them to minimum bounding rectangles would destroy this geometry.
 
-Each tile is passed to SAM's automatic mask generator. Masks are filtered by predicted IoU (threshold 0.88), stability score (0.95), and minimum area (300 px²). Contours are extracted from each mask's boolean array using OpenCV and converted to Shapely polygons.
+**Building passes (2× and 1×).** At 2× and 1× downscale, the thin black separating lines between adjacent buildings remain visible, so SAM correctly segments individual footprints. A 2048 × 2048 pass (scale = 4×) was evaluated and rejected: at 4× the separating lines blur to sub-pixel width, causing SAM to merge adjacent building plots into single masks. Shape regularisation (MBR snapping) is applied at these passes only, where individual building footprints are nearly always rectangular.
 
-Tile-local coordinates are offset to full-image coordinates by adding the tile origin `(x₀, y₀)`:
+Each pass uses a 50% stride (stride = region\_size / 2), so the next tile always starts at the midpoint of the previous one. This guarantees that every feature appears fully within at least one tile regardless of its position relative to the grid. Scale coordinates are mapped back to full-image pixel space by multiplying SAM mask contour points by the scale factor before adding the tile origin offset:
 
 ```python
-pts_global = pts_tile + np.array([col_x, row_y])
+pts_global = pts_sam * scale + np.array([tile_x, tile_y])
 ```
 
-Duplicate polygons arising from the overlap region are removed using a mutual-best-match IoU filter: if two polygons from different tiles share more than 50% of their union area, the lower-quality mask is discarded.
+**Blank margin detection.** Map scans include significant blank border area (paper margin, title cartouche zone) that contains no features. Processing these tiles wastes GPU time and introduces background polygons. Two filters are applied in sequence:
+
+1. *Bitonal pre-filter*: before fetching the full JPEG tile, a 128 × 128 bitonal PNG is requested via the IIIF `quality=bitonal` parameter. Bitonal PNGs are approximately 10× smaller than colour JPEGs; if the mean pixel value exceeds 248 (≥ 97% white), the tile is skipped immediately.
+2. *Variance fallback*: after the JPEG fetch, grayscale standard deviation below an empirical threshold (default 18) triggers a skip. This catches margin tiles when the IIIF server does not support the `bitonal` quality parameter and silently returns a colour response.
+
+Both filters must pass before a tile proceeds to segmentation.
+
+JPEG is used throughout: no TIFF conversion is performed at any stage. The spatial reference for the image is carried entirely by the Allmaps georeferencing annotation, not by the image file itself.
+
+### 4.3 Stage 2: SAM Segmentation and Deduplication
+
+Each tile is passed to SAM's automatic mask generator (`SamAutomaticMaskGenerator`) with predicted IoU threshold 0.88, stability score threshold 0.95, and `points_per_side=64` (doubled from the SAM default of 32) to ensure dense coverage of fine-grained building outlines and narrow shophouse lots.
+
+**Grayscale input.** Before passing a tile to SAM, the colour JPEG is converted to grayscale and broadcast back to three channels (`np.mean(axis=2, keepdims=True)`, repeated). This removes the chrominance variation introduced by paper ageing, ink oxidation, and scan calibration differences across the map sheet, so that SAM's boundary detector operates on luminance contrast alone — the signal carrying the actual parcel outlines — rather than on colour noise. The original colour tile is retained in memory for the subsequent colour classification step.
+
+**Edge rejection.** SAM masks whose bounding box touches an interior tile boundary (±2 px) are discarded. These correspond to features cut by the tile grid, which would produce partial polygons offset from their true extent. Sides that coincide with the true image boundary are exempt: a building at the physical edge of the map scan is not a grid artefact and should not be rejected. The pipeline determines exemption by comparing the tile's position and region size against the full image dimensions from `info.json`.
+
+**Colour classification (NYPL §3.6 method).** After contour extraction, each polygon is classified by the average RGB of the pixels it covers, sampled from the original colour tile. The average is compared by Euclidean distance to a calibrated palette derived from the map's legend. For the 1882/1898 Saigon cadastral series, five property classes are defined:
+
+| Class | Fill colour | Hatched | Note |
+|-------|-------------|---------|------|
+| `particulier` | salmon / pink | no | private property — primary target |
+| `communal` | light green | no | communal property |
+| `non_affect` | white / cream | no | unassigned domain property |
+| `militaire` | blue-grey | yes | military and naval domain |
+| `local_svc` | dark grey | yes | local service domain |
+
+Polygons whose average colour is closer to the paper background than to any property class are rejected as streets, courtyards, or text characters. An exception is made for the near-paper `non_affect` class: white parcels with a clear black-ink boundary (SAM stability score ≥ 0.97) are retained.
+
+Hatched parcels (`militaire`, `local_svc`) present a specific segmentation problem: the cross-hatch lines divide the parcel interior, causing SAM to produce many small fragment masks rather than a single block polygon. These polygons are classified correctly but flagged `status = "needs_review"` for volunteer correction rather than being treated as clean submissions. The property class is written to the `feature_type` field of `footprint_submissions` for all polygons, enabling class-specific queries and review workflows.
+
+**Shape regularisation (Morlighem method, building passes only).** For building-pass polygons, the ratio of polygon area to minimum bounding rectangle (MBR) area is computed. When this ratio exceeds 0.75 — the polygon is already close to rectangular — the polygon is replaced by its MBR. This enforces right-angle geometry on building footprints that SAM has traced with slightly curved or jagged outlines due to ink roughness, equivalent to the Commandeur (2007) buffered-line generalization used in the Morlighem pipeline. Concave, L-shaped, and irregular polygons (ratio < 0.75) are left unchanged. Regularisation is explicitly disabled for the plot pass: city block outlines follow the street grid, which in colonial Saigon is frequently non-orthogonal, and must be preserved as traced.
+
+**Minimum area filtering.** Area bounds are applied per pass in full-image coordinate space after scaling. Building passes: 600–35,000 px² (approximately 7 × 7 m minimum; 150 × 150 m maximum). Plot pass: ~48,000–3,000,000 px². The higher plot-pass minimum excludes residual building-scale noise that survives the 8× downscale.
+
+**Deduplication with hierarchy preservation.** Contours are extracted from each boolean mask with OpenCV, scaled by the pass scale factor, and offset to full-image coordinates. The all-pass polygon pool is then deduplicated by NMS ranked by `predicted_iou`: polygons are accepted in descending IoU order. A candidate is discarded as a duplicate when its intersection / min-area ratio exceeds 0.75 **and** the area ratio between the two polygons is less than 4×. When the area ratio is 4× or greater, the smaller polygon is a building footprint contained within a larger city block — a valid hierarchical pair, not a duplicate — and both are retained. This preserves the two-tier data model (plot outline + building footprints within it) without requiring a separate merge step.
 
 ### 4.4 Stage 3: Pixel Polygon Storage
 
@@ -237,7 +276,7 @@ A close reading of the Morlighem source code (`building_plots_extraction.py`) re
 
 **Shape descriptor sensitivity.** Hu moments are invariant to scale and rotation but not to topological changes (a building that has had a wing added will have a significantly different descriptor). The mutual-best-match filter mitigates false positives but cannot recover matches for substantially modified buildings, which will be classified as new/demolished pairs rather than modifications.
 
-**SAM on hatched fills.** Diagonal hatching (used in the Saigon maps for certain institutional buildings) produces high-frequency texture that can cause SAM to over-segment hatched regions into many small masks rather than one building-block polygon. A post-processing step that merges adjacent same-class segments by colour histogram similarity is needed for this subset.
+**SAM on hatched fills.** Diagonal hatching (used in the Saigon maps for military and local-service buildings) produces high-frequency texture that causes SAM to over-segment hatched regions into many small fragment masks. The colour classifier correctly identifies these as `militaire` or `local_svc` polygons but flags them `needs_review` rather than accepting them as clean geometry. A merge step that groups adjacent same-class fragments by colour histogram similarity would improve recall for these classes; this is left for a subsequent iteration.
 
 **First anchor map.** The vector-to-vector chain requires one manually georeferenced anchor. For the Saigon series, the 1882 map serves this role and requires approximately 15–20 manually placed GCPs in the Allmaps editor — approximately one hour of work. All subsequent maps in the series are georeferenced automatically.
 

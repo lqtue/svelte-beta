@@ -11,7 +11,7 @@ export const posts: BlogPost[] = [
 	{
 		slug: 'buildings-as-ground-control',
 		title: 'Buildings as Ground Control: A New Method for Vectorizing Colonial Maps',
-		date: '2026-03-12',
+		date: '2026-03-13',
 		category: 'research',
 		excerpt:
 			'The 1882 and 1898 Saigon maps share hundreds of the same buildings. We use those stable structures as automatic ground control points — letting maps georeference each other, and producing a 1880–1900 building dataset as a byproduct.',
@@ -51,9 +51,22 @@ export const posts: BlogPost[] = [
 <p>This matters for indigenous and pre-colonial maps, which often organise space by relational distance, travel time, or political logic rather than metric coordinates. Conventional georeferencing asks: how wrong is this map compared to WGS84? The implicit answer frames spatial difference as error. Vector-to-vector comparison asks instead: what do these two representations of the same territory share? The shared features define their own reference frame, internal to the maps, and WGS84 can be layered on later where it's useful — not required as a precondition for learning anything.</p>
 <p>For Vietnam specifically: a pre-colonial Vietnamese road map (<em>lộ đồ thư</em>) and a French colonial cadastral survey of the same territory could be compared by stable features — river confluences, coastal inlets, major settlements — without either being subordinated to the other's coordinate logic. The French map would serve as the georeferenced anchor not because it is more correct but because it is more densely pinned to WGS84. The Vietnamese map would retain its own spatial epistemology.</p>
 
+<h2>Pipeline advances since the first draft</h2>
+<p>Several refinements emerged from reading the NYPL Building Inspector paper (Arteaga 2013) and Morlighem's TU Delft thesis on automated 3D city model reconstruction from historical maps (2021).</p>
+<p><strong>Colour classification.</strong> Raw SAM output accepts everything — streets, courtyards, text characters — as candidate building polygons. The 1882/1898 Saigon maps use a consistent five-class polychrome legend: salmon for private property (<em>particulières</em>), green for communal holdings, cream for unassigned domain land, blue-grey hatching for military buildings, dark grey hatching for local-service buildings. We now classify each SAM polygon by the average RGB of its interior pixels against this calibrated palette, discarding anything closer to the paper background than to any property class. The property class is stored in the <code>feature_type</code> field, so the full cadastral typology survives into the database rather than everything being labelled "building".</p>
+<p><strong>Two-phase segmentation.</strong> A single pass at any one scale misses either large city blocks (too small a region) or individual buildings (too coarse a downscale). We now run a dedicated <em>plot pass</em> at 8× downscale (4096 px region → 512 px SAM input) and separate <em>building passes</em> at 2× and 1×. At 8× downscale, building-boundary ink lines (2–3 px wide) fall below the rendering threshold and disappear, causing whole city blocks to appear as single solid polygons. At 2× and 1×, those lines are preserved and SAM segments individual footprints. The deduplication step keeps both levels when a small building polygon is contained within a larger block polygon — a hierarchical pair, not a duplicate.</p>
+<p><strong>Shape regularisation (building passes only).</strong> Individual buildings are nearly always rectangular; SAM traces them with slightly jagged outlines following ink roughness. We snap near-rectangular polygons (area/MBR ratio ≥ 0.75) to their minimum bounding rectangle. City blocks are explicitly excluded from this step: colonial Saigon blocks follow diagonal street grids and have trapezoidal or L-shaped outlines that must be preserved as traced.</p>
+
+<h2>First test results</h2>
+<p>The plot pass ran successfully on a 1,200 × 1,200 px crop of the 1882 map interior. 91 city-block polygons were retained after deduplication, classified as: 46 <em>particulier</em> (private), 24 <em>non affectées</em> (unassigned domain), 14 <em>communal</em>, 7 <em>local service</em> (flagged for review — these are cross-hatched and SAM fragments them). The preview below shows the processed tiles with polygons colour-coded by class.</p>
+<figure>
+  <img src="/images/blog/vectorize-preview-plot.png" alt="SAM plot-pass output on 1882 Saigon cadastral map — city blocks colour-coded by property class" style="width:100%;border:1px solid #ccc;border-radius:4px;" />
+  <figcaption style="font-size:0.85em;color:#666;margin-top:0.5em;">Plot-pass output on a 1,200 × 1,200 px crop of the 1882 Saigon cadastral map. Salmon = <em>particulières</em> (private), green = communal, cream = unassigned domain. Each coloured shape is a single city block captured as one polygon at 8× downscale. The building-pass run (finer scale) will fill in individual footprints within each block.</figcaption>
+</figure>
+
 <h2>Where this stands</h2>
-<p>The pipeline is designed and the paper documenting it is in draft. Implementation begins with data preparation: correcting sheet disalignment in the 1898 Gallica scan (four physical panels with registration errors at the seams) and mirroring both maps to Internet Archive for stable IIIF access. SAM vectorization runs from there. The first 1882 building footprints should be visible on the map within a month.</p>
-<p>The full pipeline code will be published openly when it runs. If you're working on historical city reconstruction — Hanoi, Phnom Penh, Manila, any city with a colonial-era cadastral survey — this architecture is designed to be forked.</p>
+<p>The 1882 map is georeferenced and on Internet Archive. The plot pass is validated. The building pass is next, followed by the full-map run, then the 1898 preparation (Pixelmator seam correction on the BnF Gallica composite scan). Once both maps are vectorized, the vector-to-vector matching step — Hu moment descriptors, mutual-best-match, RANSAC — produces the change classification and auto-georefs the 1898 map simultaneously.</p>
+<p>The full pipeline code is in the VMA repository. If you're working on historical city reconstruction — Hanoi, Phnom Penh, Manila, any city with a colonial-era cadastral survey — this architecture is designed to be forked.</p>
 		`
 	},
 	{

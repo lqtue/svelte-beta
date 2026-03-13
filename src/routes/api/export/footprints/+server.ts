@@ -56,13 +56,16 @@ export const GET: RequestHandler = async ({ url }) => {
 
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
-  // Fetch footprints
+  const mapId = url.searchParams.get('map_id');
+
+  // Fetch footprints — join label_tasks for volunteer rows; SAM rows have map_id directly
   let fpQuery = supabase
     .from('footprint_submissions')
     .select('*, label_tasks(map_id, allmaps_id)')
     .eq('status', status);
 
   if (taskId) fpQuery = fpQuery.eq('task_id', taskId);
+  if (mapId)  fpQuery = fpQuery.eq('map_id', mapId);
 
   const { data: rows, error: dbError } = await fpQuery;
   if (dbError) throw error(500, dbError.message);
@@ -73,10 +76,12 @@ export const GET: RequestHandler = async ({ url }) => {
   let cocoAnnId = 1;
 
   for (const row of rows as any[]) {
+    // Resolve allmaps_id — SAM rows store it directly; volunteer rows via label_tasks join
     const task = row.label_tasks;
-    if (!task?.allmaps_id) continue;
+    const resolvedAllmapsId = row.allmaps_id ?? task?.allmaps_id;
+    if (!resolvedAllmapsId) continue;
 
-    const annotationUrl = `https://annotations.allmaps.org/maps/${task.allmaps_id}`;
+    const annotationUrl = `https://annotations.allmaps.org/maps/${resolvedAllmapsId}`;
     const transformer = await getTransformer(annotationUrl);
 
     const pixelRing: [number, number][] = row.pixel_polygon;
@@ -109,11 +114,16 @@ export const GET: RequestHandler = async ({ url }) => {
         properties: {
           id: row.id,
           task_id: row.task_id,
-          map_id: task.map_id,
-          allmaps_id: task.allmaps_id,
+          map_id: row.map_id ?? task?.map_id,
+          allmaps_id: resolvedAllmapsId,
           label: row.label,
+          feature_type: row.feature_type,
+          source: row.source,
+          valid_from: row.valid_from,
+          valid_to: row.valid_to,
+          confidence: row.confidence,
+          temporal_status: row.temporal_status,
           status: row.status,
-          // Preserve pixel coords for re-projection
           pixel_polygon: pixelRing,
           geo_converted: !!transformer,
           created_at: row.created_at
