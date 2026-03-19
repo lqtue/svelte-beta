@@ -99,21 +99,25 @@ See `docs/gamification.md` for the full system design.
 
 ---
 
-## The Public Policy Lens
+## The Urban Planning & Design Lens
 
-Tuệ's Fulbright MPP background is not background — it is methodology.
+Tuệ's intellectual home is **urban planning & design**. The technical work (GIS pipeline, historical maps, vectorization, KG) and the historical research are instruments for answering planning questions: how did this city become what it is, and what does that mean for what it should become?
 
-Public Policy asks: *Who benefits? Who decides? What were the constraints? What were the incentives?*
+This reframes VMA from a digital heritage project into **research infrastructure for urban planning scholarship** — specifically the spatial history of Saigon's transformation from French colonial city (1880–1930) through wartime urbanism to post-1975 reconstruction and Doi Moi.
 
-Applied to colonial Saigon:
-- Why did the French fill in the Nguyễn Huệ canal? (land speculation + tax revenue)
-- Why is Notre Dame Cathedral next to an opium refinery? (Chinese capital + French concession economics)
-- Why were Chinese merchants concentrated in Cholon? (colonial segregation policy)
-- Why were certain streets renamed three times? (each regime asserting legitimacy through toponymy)
+The driving questions are urban planning questions:
+- Why did the French fill in the Nguyễn Huệ canal? (land speculation + tax revenue — a planning decision with spatial consequences readable on maps)
+- Why were Chinese merchants concentrated in Cholon? (colonial segregation policy — a zoning decision encoded in cadastral records)
+- How did post-1975 socialist planning alter the colonial street grid? (a morphological question answerable by comparing georeferenced maps across time)
+- Why were certain streets renamed three times? (each regime asserting legitimacy through toponymy — readable in the KG's temporal layer)
 
-These questions cannot be answered by the geometry alone. They require structured context in the Knowledge Graph — political periods as first-class entities, land tenure regimes as queryable filters, economic networks as graph relations.
+**The MPP background is methodology, not background.** Public Policy asks: *Who benefits? Who decides? What were the constraints? What were the incentives?* Urban planning asks the same questions about space. The KG encodes the answers — political periods as first-class entities, land tenure regimes as queryable filters, colonial administrators as named actors linked to spatial decisions.
 
-**This is the differentiator.** A GIS lab can build L1–L4. Only a team with this combination of cartographic + historical + policy expertise can build L5–L6 with integrity.
+**The VnExpress series "50 năm quy hoạch TP.HCM"** (50 years of HCMC urban planning) is the public-facing expression of this lens — demonstrating that VMA's founder already understands and can communicate the city's planning history to a Vietnamese public audience.
+
+These questions cannot be answered by geometry alone. They require structured context in the Knowledge Graph — and the geographical text analysis method (geo-parsing colonial newspapers, trade directories, and administrative reports) is the pipeline that populates it at scale.
+
+**This is the differentiator.** A GIS lab can build L1–L4. A DH lab can build a KG. Only a team with urban planning training + cartographic expertise + policy background + community infrastructure can build L5–L6 with the interpretive integrity this material requires.
 
 ---
 
@@ -145,11 +149,17 @@ The moat is not the code or the data. It is the community that built it, the tru
 
 ## The Publication Strategy
 
-Methodology papers are core deliverables, not optional outputs:
+Two tracks running simultaneously — methods papers (technical credibility) and urban planning papers (intellectual contribution):
 
-1. **Automated georeferencing of historical military map series using GCP propagation** — the L7014 pipeline (target: ISPRS or CHR conference)
-2. **HITL vectorization of colonial urban morphology from historical map rasters** — Phase 1 method
-3. **A geotemporal knowledge graph for colonial Saigon, 1880–1930** — Phase 2 KG methodology
-4. **Dissecting Space: reconstructing the body and soul of a colonial city as a layered data stack** — the theoretical framework (target: urban studies or digital humanities journal)
+**Track 1: Methods papers (short-term, 1–2 years)**
+1. **Automated georeferencing of historical military map series using GCP propagation** — the L7014 pipeline (target: ISPRS Annals or CHR conference)
+2. **OBIA calibration for French colonial Indochina map symbology** — the gap no one has filled (target: *Imago Mundi* or *International Journal of Geographical Information Science*)
+3. **Geographical text analysis of colonial trade directories for geotemporal KG construction** — the Annuaire de l'Indochine pipeline (target: *Digital Scholarship in the Humanities* or Spatial Humanities Conference)
 
-Each paper is a grant application. Each citation opens a door at an archive or university.
+**Track 2: Urban planning papers (medium-term, 3–5 years)**
+4. **The spatial history of Saigon urban planning, 1880–1975** — what the maps and KG reveal about colonial planning inheritance and post-war reconstruction (target: *Planning Perspectives* or *Urban History*)
+5. **Dissecting Space: reconstructing the body and soul of a colonial city as a layered data stack** — the theoretical framework (target: *Journal of Urban History* or *Journal of Vietnamese Studies*)
+
+Each methods paper is a grant application. Each urban planning paper is evidence that the tools produce genuine historical knowledge — not just infrastructure.
+
+**The VnExpress series** ("50 năm quy hoạch TP.HCM") is the public engagement track running alongside both — demonstrating that this scholarship reaches Vietnamese audiences, not just international academics.

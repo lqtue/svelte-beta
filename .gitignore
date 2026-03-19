@@ -11,3 +11,6 @@ vite.config.ts.timestamp-*
 
 # SAM model checkpoints
 *.pth
+
+# Source map images (downloaded from external archives — not for repo)
+l7014_data/jpg/

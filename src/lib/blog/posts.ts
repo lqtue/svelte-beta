@@ -82,7 +82,6 @@ export const posts: BlogPost[] = [
 <h2>What shipped</h2>
 <p>The <strong>L7014 pipeline is mature</strong>. 500+ US Army maps of Vietnam are now georeferenced, datum-corrected (Indian 1960 → WGS84), and served over IIIF. The propagation algorithm — using seed maps to extrapolate corners across the regular grid — eliminated manual GCP placement for roughly 90% of the series. This is the core technical innovation and it's done.</p>
 <p>We were <strong>featured in Saigoneer</strong> (January 2026), Vietnam's leading English-language culture publication. The coverage framed the project clearly: we're not building a map app, we're building the spatial memory of a city most of the world has only seen in wartime. The response from the Vietnamese diaspora community was immediate and warm.</p>
-<p>The <strong>CDEC/VWAI workflow</strong> for Vietnam War-era records was built but has been deprioritized. Our focus has narrowed to <strong>1880–1930 French colonial Saigon</strong> — the best-documented, most transformative, and most underserved period in the archive.</p>
 
 <h2>What didn't ship</h2>
 <p>The knowledge graph is fully designed (schema, predicates, temporal encoding, source types) but not yet built. Community tracing UI exists as a label studio but lacks the gamification layer needed to attract contributors at scale. The 3D pipeline is planned in detail — we've adapted the Morlighem (TU Delft 2021) method to our IIIF output — but Phase 3 starts after Phase 1 footprints are in hand.</p>

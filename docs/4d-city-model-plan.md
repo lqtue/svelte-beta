@@ -463,14 +463,6 @@ After Stage 4 (annotate) + Stage 5 (propagate), auto-create KG entities:
 - Sheet bounds → polygon geometry
 - `valid_from` = map publication date
 
-### CDEC Records → KG nodes
-CDEC records already have: person names, locations, dates, unit affiliations.
-- Each `cdec_records` row → candidate `kg_entity` (type `person` or `event`)
-- MGRS coords → `geometry` Point
-- `captured_date` → `valid_from`
-- Linked via `kg_relations` with predicates like `residedAt`, `capturedAt`
-- Migration: write a one-off `scripts/cdec-to-kg.ts`
-
 ### Story System → KG narratives
 - `StoryPoint.overlayMapId` → link to `kg_entity` (map)
 - `StoryPoint.coordinates` → spatial anchor on KG entity
@@ -673,11 +665,10 @@ See `docs/gamification.md` for the full SQL schema of the gamification tables.
 
 ## What Doesn't Change
 
-The existing pipeline, CDEC system, story system, and map viewer continue working as-is.
+The existing pipeline, story system, and map viewer continue working as-is.
 This plan **extends** them — it doesn't replace them:
 
 - L7014 pipeline → feeds `maps` table → maps table feeds KG source linking
-- CDEC records → candidates for KG entity import (via `scripts/cdec-to-kg.ts`)
 - Stories → narrative layer on top of KG entities
 - LabelStudio → footprint mode is a new task type, existing point tasks still work
 - MapShell + HistoricalOverlay → gains a temporal filter from `layerStore.activePeriod`

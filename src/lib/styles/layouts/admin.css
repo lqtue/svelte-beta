@@ -699,24 +699,3 @@
     opacity: 0.85;
 }
 
-/* ── CDEC Dashboard ─────────────────────────────────────────────────── */
-.cdec-status-pill {
-    display: inline-block;
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 0.15rem 0.45rem;
-    border-radius: 999px;
-}
-
-.cdec-status-pill.pending   { background: #f1f5f9; color: #475569; }
-.cdec-status-pill.in_review { background: #dbeafe; color: #1d4ed8; }
-.cdec-status-pill.validated { background: #dcfce7; color: #15803d; }
-.cdec-status-pill.flagged   { background: #fee2e2; color: #b91c1c; }
-.cdec-status-pill.duplicate { background: #ffedd5; color: #c2410c; }
-
-.mgrs-tool {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-}

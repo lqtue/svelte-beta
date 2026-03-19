@@ -10,6 +10,8 @@ Not a SaaS startup. Not a nonprofit. Something closer to **Wikipedia meets Huggi
 
 The product is not the platform. The product is the **HITL (Human-in-the-Loop) pipeline** — a flywheel where community contributors train an AI that makes contribution easier, which attracts more contributors, which produces better AI. The output is open data and open models. The moat is the community and the accumulated know-how.
 
+**March 2026 clarification — dual role:** VMA functions simultaneously as (1) a public infrastructure project following the Wikipedia/OpenStreetMap model, and (2) the research infrastructure for a PhD in urban planning & design focused on the spatial history of Saigon's transformation. These are not in conflict — Peter Bol built CHGIS as both field infrastructure and his research tool simultaneously. VMA's founder's intellectual home is urban planning & design; the technical pipeline and community tools are what make that scholarship possible at spatial precision that has never existed before for this city.
+
 ---
 
 ## The Core Loop

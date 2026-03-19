@@ -126,11 +126,52 @@ No published work found on OBIA calibration for French colonial Indochina map sy
 
 ---
 
-## Open Questions
+## Geographical Text Analysis → KG Pipeline
+
+**Answer to Open Question #2:** Yes — semi-automated using Ian Gregory's geographical text analysis method (Lancaster University / Spatial Humanities). This is the pipeline:
+
+```
+Colonial text corpus (BnF/Gallica, EFEO — many already OCR'd by BnF)
+         ↓
+Geo-parsing — extract place references, disambiguate, assign coordinates
+         ↓
+Named Entity Recognition — persons, organizations, businesses, events
+         ↓
+Relation extraction — who owned what, where was what, when
+         ↓
+KG population → kg_entities, kg_relations, kg_relation_sources
+         ↓
+Spatial linking → connect to georeferenced map footprints (L1/L4)
+```
+
+**Primary source corpus for this pipeline:**
+
+| Source | Content | KG layer |
+|---|---|---|
+| *Annuaire de la Cochinchine / de l'Indochine* (annual almanacs) | Merchant names, addresses, business types, year | L5 POI — who was where, what year |
+| *L'Opinion*, *La Dépêche d'Indochine* (colonial newspapers) | Events, property transactions, street openings, urban projects | L6 events, L5 commercial activity |
+| Rapports annuels, budgets coloniaux (administrative reports) | Administrative boundaries, public works projects, population census | L1 admin boundaries, L4 land use |
+| EFEO field notes and published research | Named places, vernacular names, ethnic quarters, temple records | KG disambiguation layer |
+
+**Precedent:** SODUCO (ANR-funded, Paris 1789–1950) digitized 113 Parisian trade directories (1797–1914) and used them to populate their historical Paris KG. VMA's equivalent is the Annuaires de l'Indochine. BnF/Gallica has many of these already digitized and OCR'd.
+
+**The resulting KG population method is three-layered:**
+1. Automated (geo-parsing + NER → entity + relation extraction from texts)
+2. Community-validated (HITL — volunteers verify, correct, enrich extracted entities)
+3. Spatially linked (entities connected to georeferenced footprints from vectorization pipeline)
+
+This makes KG building scalable beyond manual crowdsourcing while keeping human interpretive judgment in the loop.
+
+**Connection to Ian Gregory:** His group at Lancaster (Spatial Humanities) has the geo-parsing tools and the colonial Mexico precedent (Digging into Early Colonial Mexico, ESRC-funded). VMA has the Southeast Asian colonial corpus he hasn't touched. Collaboration plausible.
+
+---
+
+## Open Questions (Updated)
 
 1. How do you score spatial uncertainty in the KG (objective-based scores)?
-2. Can journal/record-based mapping be semi-automated (NLP extraction of place references)?
-3. What is the minimal "thin" data unit that enables reconstruction? (the "thin" note)
-4. Digital book (?) — is there a publication output format planned from this research?
-5. OBIA calibration: can Gao's diffusion approach substitute for manual OBIA tuning on Indochina map symbology?
-6. Can Liu's KG+LLM pipeline extract place entities from the BnF Gallica Annuaire directly?
+2. ~~Can journal/record-based mapping be semi-automated?~~ **Answered: yes — geographical text analysis pipeline above.**
+3. What is the minimal "thin" data unit that enables reconstruction?
+4. OBIA calibration: can Gao's diffusion approach substitute for manual OBIA tuning on Indochina map symbology?
+5. Can Liu's KG+LLM pipeline extract place entities from the BnF Gallica Annuaire directly? (test against geo-parsing)
+6. How far back do the Annuaires de l'Indochine go? (earliest edition at BnF — need to verify)
+7. How does the geographical text analysis output align with the kg_entities schema? (needs a mapping spec)

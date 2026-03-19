@@ -28,7 +28,6 @@ _Last updated: 2026-03-10_
 | `/catalog` | `catalog/+page.svelte` | Browse map catalog |
 | `/contribute/georef` | `contribute/georef/+page.svelte` | Georeference submission |
 | `/contribute/label` | `contribute/label/+page.svelte` + `.ts` | Crowdsourced label studio |
-| `/vwai` | `vwai/+page.svelte` + `.ts` | VWAI member workflow (CDEC) |
 | `/login` | `login/+page.svelte` | Auth |
 | `/signup` | `signup/+page.svelte` | Auth |
 | `/auth/callback` | `auth/callback/+server.ts` | Supabase OAuth callback |
@@ -40,17 +39,7 @@ _Last updated: 2026-03-10_
 | `/admin` | Dashboard |
 | `/admin/pipeline` | L7014 pipeline control panel |
 
-### API routes (`src/routes/api/`) — 41 endpoints
-
-#### Admin: CDEC (`/api/admin/cdec/`)
-- `GET/POST /` — list / create records
-- `GET/PATCH/DELETE /[id]` — single record CRUD
-- `POST /[id]/photo` — attach photo
-- `POST /[id]/validate` — validation workflow
-- `POST /import` — bulk CSV import
-- `GET /profiles` — user profiles
-- `GET /stats` — dashboard stats
-- `POST /sync-sheet` — Google Sheets sync
+### API routes (`src/routes/api/`)
 
 #### Admin: Georef (`/api/admin/georef/`)
 - `POST /` — submit georef data
@@ -79,13 +68,6 @@ _Last updated: 2026-03-10_
 
 #### Admin: Upload
 - `POST /upload-image` — general image upload
-
-#### VWAI (`/api/vwai/cdec/`)
-- `GET/POST /` — CDEC records for VWAI members
-- `GET/PATCH /[id]` — single record
-- `POST /[id]/action` — workflow action
-- `POST /[id]/claim` — claim for review
-- `GET /profiles` — member profiles
 
 ---
 
@@ -131,9 +113,7 @@ URL hash format: `#@lat,lng,zoomz,rotationr&map=id&base=key`
 | Dir | Purpose |
 |-----|---------|
 | `story/` | Story types, stores, `StoryCreator`, `StoryPlayer`, `StoryList`, `PointCard`, `mocks/saigon-walk.ts` |
-| `vwai/` | VWAI member dashboard — `VwaiDashboard`, `VwaiWorkflowDashboard`, `CdecLayer`, `CdecPanel`, `VwaiRecordPanel` |
-| `admin/` | Admin components — `AdminDashboard`, `CDECDashboard`, `CDECMapView`, `MapEditModal`, `MapUploadModal`, `NeatlineEditor`, `ValidationWorkflow` |
-| `cdec/` | CDEC domain logic — `types.ts`, `mgrsUtils.ts`, `cdecApi.ts` |
+| `admin/` | Admin components — `AdminDashboard`, `MapEditModal`, `MapUploadModal`, `NeatlineEditor` |
 | `supabase/` | DB client + typed helpers — `client.ts`, `server.ts`, `maps.ts`, `stories.ts`, `annotations.ts`, `favorites.ts`, `labels.ts`, `georef.ts`, `types.ts` |
 | `geo/` | GPS + distance utils — `geolocation.ts`, `geo.ts`, `mapBounds.ts`, `types.ts` |
 | `iiif/` | IIIF image info fetcher — `iiifImageInfo.ts` |
@@ -168,8 +148,6 @@ URL hash format: `#@lat,lng,zoomz,rotationr&map=id&base=key`
 | 011 | IIIF metadata columns on `maps` |
 | 012 | `pipeline_sheets` — L7014 pipeline tracking (`ia_status`, `annotation_status`, `georef_status`, `is_seed`, `georef_source_id`, `map_id`) |
 | 013 | PDF extraction columns on pipeline |
-| 014 | `cdec_records` |
-| 015 | CDEC + VWAI workflow statuses |
 
 ---
 
@@ -179,8 +157,6 @@ URL hash format: `#@lat,lng,zoomz,rotationr&map=id&base=key`
 |------|---------|
 | `l7014_pipeline.py` | Python pipeline runner (UT Austin → IA → Supabase) |
 | `extract_pdf_corners.py` | Extract corner coords from GeoPDFs (EPSG:3148) |
-| `import_cdec_to_supabase.py` | Import `cdec_loc_ninh_F0346.csv` |
-| `scrape_cdec.py` | CDEC data scraper |
 | `seed-saigon-walk.ts` | Seed mock story data |
 | `migrate-maps.ts` | One-off data migration |
 | `L7014_PIPELINE.md` | Pipeline documentation |

@@ -54,7 +54,6 @@ _"The analog world before computation"_
 | Historic Vietnam | JPEG | ~10 maps | Private/institutional |
 | UT Austin L7014 | GeoPDF (Indian 1960 datum) | ~500 sheets | UT Austin Maps |
 | VVA Texas Tech | JPEG | ~500 sheets | Vietnam Veterans Archive |
-| CDEC records | CSV / paper scans | ~100s records | NARA, US libraries, VN archives |
 | Oral histories / diaries | Not yet ingested | — | Saigoneer article notes this as a goal |
 
 **Gaps:**
@@ -77,7 +76,7 @@ _"Getting the physical into the machine"_
 | IIIF info.json fetch | `fetchIiifInfo()` with retry (IA processes slowly) | `pipelineUtils.ts` |
 | IA S3 credentials | `IA_S3_ACCESS_KEY`, `IA_S3_SECRET_KEY` env vars | `.env` (server-side) |
 | 3-location redundancy | Internet Archive (3 nodes) | IIIF CDN |
-| Supabase Storage | Allmaps annotation JSON, CDEC photos | `annotations/`, `cdec-photos/` buckets |
+| Supabase Storage | Allmaps annotation JSON | `annotations/` bucket |
 | IIIF wrapper | `iiifImageInfo.ts` — fetches annotation → extracts IIIF service URL | `src/lib/iiif/` |
 | DB tracking | `pipeline_sheets.ia_status`, `ia_identifier`, `ia_iiif_base` | migration 012 |
 
@@ -103,7 +102,6 @@ _"Giving bits a place on Earth"_
 | GCP fitting | Affine (polynomial order 1) — `fitAffine()`, Cramer's rule 3×3 solver | `src/lib/georefUtils.ts` |
 | Corner propagation | `propagateCorners()` — Δlon/Δlat extrapolation from seed sheet | `georefUtils.ts` |
 | Allmaps annotation build | `buildAnnotation()`, `buildCornerAnnotation()` — W3C Web Annotation JSON | `pipelineUtils.ts`, `georefUtils.ts` |
-| MGRS validation + conversion | 4-10 digit MGRS parse, Indian 1960 → WGS84 | `src/lib/cdec/mgrsUtils.ts` |
 | Manual georef UI | Neatline editor + GCP placement | `src/lib/admin/NeatlineEditor.svelte` |
 | Community georef | `/contribute/georef` + `georef_submissions` table | migration 002 |
 | DB tracking | `pipeline_sheets.georef_status`, `is_seed`, `georef_source_id` | migration 012 |
@@ -130,7 +128,6 @@ _"Making connections between spatial facts"_
 | Component | Implementation | File(s) |
 |-----------|---------------|---------|
 | Maps registry | `maps` table — allmaps_id, year, name, description | migration 001 |
-| CDEC records | `cdec_records` table — military intelligence, MGRS, personnel, unit links | migration 014 |
 | Annotation sets | `annotation_sets` table — user-created GeoJSON FeatureCollections | migration 007 |
 | Label pins (feature extraction) | `label_tasks` + `label_pins` — structured map feature labeling | migration 008 |
 | Pipeline sheets | `pipeline_sheets` — full L7014 series tracking with status + bounds | migration 012 |
@@ -141,8 +138,7 @@ _"Making connections between spatial facts"_
 | Temporal encoding | **Planned**: ISO 8601 partial strings ('1905', '1905-03') for valid_from/valid_to | — |
 
 **Gaps:**
-- The KG (knowledge graph) is the single biggest missing piece. CDEC records are rich structured data but are not yet linked to `maps`, to each other, or to spatial entities.
-- No entity resolution layer — Wang Tei's mansion in CDEC records is not linked to an annotation on a map.
+- The KG (knowledge graph) is the single biggest missing piece. No entity resolution layer yet — named places are not linked to annotations on maps.
 - No citation / provenance system connecting records back to source documents.
 - `annotation_sets` are GeoJSON blobs — they have properties but no semantic graph structure.
 - Community tracing UI exists (label studio) but lacks the gamification layer needed for sustained engagement. Photo Hunter + Cartographer tier system is the fix. OSM community (HOT Vietnam, OSM mappers) is the natural Cartographer audience.
@@ -159,7 +155,6 @@ _"What the machine does with the knowledge"_
 | Component | Implementation | File(s) |
 |-----------|---------------|---------|
 | L7014 pipeline (5 stages) | Admin API: index → seeds → IA upload → annotate → propagate | `src/routes/api/admin/pipeline/` |
-| CDEC validation workflow | VWAI member dashboard, claim → review → validate | `src/lib/vwai/`, `src/routes/api/vwai/` |
 | Map viewer (OL) | WarpedMapLayer, overlay/spy/dual modes, neatline clipping | `src/lib/shell/`, `src/lib/studio/StudioMap.svelte` |
 | Map viewer (MapLibre) | Lightweight embed | `src/lib/Map.svelte` |
 | Annotation drawing | Point/line/polygon, undo/redo, style per feature | `src/lib/annotate/`, `src/lib/map/` |
@@ -174,7 +169,7 @@ _"What the machine does with the knowledge"_
 | State persistence | localStorage `vma-viewer-state-v1`, 500ms debounce | `src/lib/core/persistence/` |
 
 **Gaps:**
-- No spatial query API (e.g. "show all CDEC records within this map's neatline")
+- No spatial query API (e.g. "show all KG entities within this map's neatline")
 - No NLP pipeline for extracting place references from journal/record text
 - No consensus model for community georef submissions (only for label pins)
 - No mobile-native UX (noted as important for volunteer-driven model in Saigoneer article)
@@ -239,7 +234,7 @@ The Saigoneer article (Jan 2026) reveals goals that are not yet reflected in the
 | "Home for scattered memories" | Maps + stories only | No oral history / document ingestion pipeline |
 | "Sensory descriptions, personal histories" | Annotation text fields only | No structured narrative schema in KG |
 | "Primary + secondary sources cited" | No citation system | `kg_sources`, `kg_relation_sources` not built |
-| "Photographs and documents" | CDEC photos only | No general photo/document store |
+| "Photographs and documents" | None yet | No general photo/document store |
 | "3D immersive / VR train ride" | Flat 2D viewer | Pipeline designed: Morlighem LoD2 + SfM LoD3+; Architect tier for community 3D contribution |
 | "Community contributions" | Label + georef portals | No mobile UX, no easy contribution flow |
 | "Open as the Internet" | Public read via RLS | No open API / data download endpoint |
@@ -257,4 +252,3 @@ Based on the current stack state:
 4. **L5 via vectorization** — ML/crowdsourced tracing from colonial map rasters → footprints + land use dataset.
 5. **L6** — KG explorer + research library surfacing colonial-era political/social/economic context.
 
-> Note: VWAI / CDEC work (Vietnam War era, 1960s-70s) has been deprioritized.
