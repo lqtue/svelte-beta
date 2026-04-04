@@ -33,6 +33,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (body.status !== undefined) updateData.status = body.status;
     if (body.legend !== undefined) updateData.legend = body.legend;
     if (body.region !== undefined) updateData.region = body.region;
+    if (body.map_id !== undefined) updateData.map_id = body.map_id;
+    if (body.allmaps_id !== undefined) updateData.allmaps_id = body.allmaps_id;
+    if (body.categories !== undefined) updateData.categories = body.categories;
 
     const { data, error: dbError } = await adminSupabase
         .from('label_tasks')

@@ -1,19 +1,12 @@
 <!--
-  LabelProgress.svelte — Header bar showing consensus progress for current task.
+  LabelProgress.svelte — Header bar showing labeling progress for current task.
 -->
 <script lang="ts">
-  import type { LabelPin, LabelConsensus } from "./types";
   import "$lib/styles/components/label.css";
 
   export let totalPins = 0;
-  export let consensusItems: LabelConsensus[] = [];
+  export let totalFootprints = 0;
   export let taskStatus: string = "open";
-
-  $: agreedCount = consensusItems.filter((c) => c.status === "agreed").length;
-  $: disputedCount = consensusItems.filter(
-    (c) => c.status === "disputed",
-  ).length;
-  $: pendingCount = consensusItems.filter((c) => c.status === "pending").length;
 </script>
 
 <div class="progress-bar">
@@ -21,20 +14,9 @@
     <span class="stat">
       <strong>{totalPins}</strong> pin{totalPins !== 1 ? "s" : ""} placed
     </span>
-    {#if consensusItems.length > 0}
-      <span class="stat agreed">
-        <span class="dot agreed"></span>
-        {agreedCount} agreed
-      </span>
-      <span class="stat disputed">
-        <span class="dot disputed"></span>
-        {disputedCount} disputed
-      </span>
-      <span class="stat pending">
-        <span class="dot pending"></span>
-        {pendingCount} pending
-      </span>
-    {/if}
+    <span class="stat">
+      <strong>{totalFootprints}</strong> shape{totalFootprints !== 1 ? "s" : ""} traced
+    </span>
   </div>
   <span
     class="task-status"

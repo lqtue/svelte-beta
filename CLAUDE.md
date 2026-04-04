@@ -10,7 +10,7 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 application for exploring georeferen
 
 Feature-scoped context folders for in-progress development. Read these before working on a feature:
 
-- `work/vectorize/CONTEXT.md` — SAM2 vectorization pipeline + HITL review (current focus)
+- `work/vectorize/CONTEXT.md` — SAM2 vectorization pipeline + HITL review
 - `work/review/CONTEXT.md` — HITL review UI specifically
 
 `work/vectorize/outputs/` contains local dry-run artifacts (gitignored).
@@ -46,7 +46,7 @@ IA_S3_SECRET_KEY          # Internet Archive upload
 
 ### MapShell — Central Map Pattern
 
-`src/lib/shell/MapShell.svelte` owns the single OpenLayers Map instance and is the entry point for all map pages. It:
+`src/lib/shell/MapShell.svelte` owns the single OpenLayers Map instance and is the entry point for all geo-map pages. It:
 - Creates and manages the OL Map
 - Syncs the OL View bidirectionally with `mapStore`
 - Handles basemap switching (Google Streets/Satellite)
@@ -55,6 +55,8 @@ IA_S3_SECRET_KEY          # Internet Archive upload
 Child components access the map via `getShellContext()` — never create a second OL map.
 
 `HistoricalOverlay.svelte` is headless; it reacts to `mapStore.activeMapId` and `layerStore` to add/remove the warped historical map layer. `DualMapPane.svelte` handles side-by-side view mode.
+
+**Exception:** Label Studio (`/contribute/label`) creates its own separate OL instance for IIIF pixel-coordinate canvas — it does NOT use MapShell.
 
 ### Global Stores (`src/lib/stores/`)
 
@@ -71,29 +73,51 @@ Three stores form the application state backbone:
 | `/create` | Create stories/adventures | `src/lib/create/` |
 | `/annotate` | Free-form annotation drawing | `src/lib/annotate/` |
 | `/contribute/georef` | Georeference maps | `src/routes/contribute/georef/` |
-| `/contribute/label` | Label Studio | `src/lib/contribute/label/` |
+| `/contribute/label` | Label Studio (pin + trace) | `src/lib/contribute/label/` |
 | `/contribute/review` | HITL review of SAM2 footprints | `src/lib/contribute/review/` |
 
-All modes share the same MapShell and global stores.
+All modes except Label Studio share the same MapShell and global stores.
+
+### Label Studio (`/contribute/label`)
+
+Separate IIIF-based labeling tool with its own OL instance (pixel coordinates, not geographic). Architecture:
+
+- **LabelStudio.svelte** — orchestrator: task management, mode state, Supabase CRUD
+- **LabelCanvas.svelte** — OL map with IIIF tile source; handles draw interactions for pins/polygons/lines
+- **LabelSidebar.svelte** — legend selection, pin list, shapes table with sort/filter/category dropdowns
+- **LabelProgress.svelte** — pin/footprint count display
+
+**Mode system:** Two-level toolbar — `topMode` (pin/trace) → sub-tools:
+- Pin: place | edit (pin-edit = select & drag pins)
+- Trace: polygon | line | edit (select = modify footprint vertices)
+
+`drawMode` values: `'pin'`, `'trace'`, `'select'`, `'pin-edit'` — drives which OL interactions are active.
+
+**Data model:**
+- `label_tasks` — per-map tasks with `legend` (pin labels) and `categories` (trace classification options, separate field)
+- `label_pins` — point annotations with label + pixel coordinates
+- `footprint_submissions` — polygon/line traces with name, category, featureType
+- Legend items can be strings (`"Building"`) or objects (`{ val: "1", label: "Abattoir Municipal" }`)
+- Task status: `open | in_progress | consensus | verified | hidden`
 
 ### Footprint Review Mode (`/contribute/review`)
 
-HITL review interface for SAM2-generated `needs_review` polygons (hatched parcels: `militaire`, `local_svc`). Components: `ReviewMode.svelte` (orchestrator), `ReviewCanvas.svelte` (polygon inspection on the map), `ReviewSidebar.svelte` (approve/reject actions). API: `GET /api/admin/footprints` fetches pending footprints; `PATCH` updates status (`submitted` or `rejected`). Only allows transitions from `needs_review` status. Migration `019_needs_review_status.sql` adds the status value and index.
+HITL review interface for SAM2-generated `needs_review` polygons. Components: `ReviewMode.svelte` (orchestrator), `ReviewCanvas.svelte` (polygon inspection), `ReviewSidebar.svelte` (approve/reject). API: `GET/PATCH /api/admin/footprints`. Only allows transitions from `needs_review` status.
 
 ### Annotation System (`src/lib/map/`)
 
 - **annotationState.ts** — list and selection: `{ list: AnnotationSummary[], selectedId: string | null }`
-- **annotationHistory.ts** — undo/redo with GeoJSON snapshots; 100-entry limit; entry types: add/delete/update/geometry/clear/bulk-add
-- **annotationContext.ts** — Svelte context wrapping both stores to avoid prop drilling
+- **annotationHistory.ts** — undo/redo with GeoJSON snapshots; 100-entry limit
+- **annotationContext.ts** — Svelte context wrapping both stores
 
-All features require properties: `id`, `label`, `color`, `hidden`. Use `ensureAnnotationDefaults(feature)` when creating features. Default color: `#2563eb`. Hidden features return `undefined` from the style function.
+All features require properties: `id`, `label`, `color`, `hidden`. Use `ensureAnnotationDefaults(feature)`. Default color: `#2563eb`.
 
 State persisted to localStorage under key `vma-viewer-state-v1` (debounced 500ms).
 
 ### Map Libraries
 
-- **OpenLayers** — primary map engine, used by MapShell. `@allmaps/openlayers` warps historical map tiles onto the OL canvas.
-- **MapLibre GL** (`src/lib/Map.svelte`) — lightweight embed-only component using `@allmaps/maplibre`. Requires `PUBLIC_MAPTILER_KEY` env var (falls back to demo tiles).
+- **OpenLayers** — primary map engine, used by MapShell + LabelCanvas. `@allmaps/openlayers` warps historical map tiles.
+- **MapLibre GL** (`src/lib/Map.svelte`) — lightweight embed-only component using `@allmaps/maplibre`.
 
 ### Geodetic Utilities
 
@@ -109,17 +133,11 @@ State persisted to localStorage under key `vma-viewer-state-v1` (debounced 500ms
 
 When writing Supabase insert/update types, use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`). For `.select().single()` narrowing bugs, cast: `(data as any)?.field as Type`.
 
-### Core Utilities (`src/lib/core/`)
-
-- `stores/createStore.ts` — store factory
-- `persistence/createPersistedStore.ts` — localStorage-backed stores
-- `utils/id.ts` — `randomId()` via `crypto.randomUUID()`
-- `utils/debounce.ts`
-
 ### Styling
 
 - `src/styles/global.css` — imports all shared CSS including `src/styles/components/editorial.css`
 - `src/styles/tokens.css` — CSS custom properties (design tokens)
+- `src/lib/styles/layouts/` — mode-specific layout CSS: `mode-shared.css` (workspace/panel/map-stage), `admin.css`
 - Two themes: default (neo-brutalist: black borders, offset shadows) / archival (earth tones). Token-based — no per-component overrides needed.
 - Shared classes available globally: `.top-nav`, `.nav-logo`, `.nav-links`, `.editorial-hero`, `.label-chip`, `.badge-chip`, `.section-card`, `.icon-blob`, `.action-btn`, `.pill-btn`, `.editorial-main`, `.editorial-footer`, `.text-highlight`
 
@@ -128,16 +146,36 @@ When adding a new page, use the page template in `docs/design-system.md` and add
 ### API Routes (`src/routes/api/`)
 
 - `/api/admin/maps/[id]/` — map CRUD, image, and annotation operations
-- `/api/admin/labels/`, `/api/admin/georef/` — label and georef management
+- `/api/admin/labels/` — label task CRUD (GET list, POST create, PATCH update, DELETE)
+- `/api/admin/labels/[id]/` — individual task updates (status, legend, categories, map_id)
+- `/api/admin/georef/` — georef management
 - `/api/admin/footprints/` — GET/PATCH for SAM2 footprint review (admin service key required)
-- `/api/admin/pipeline/*` — L7014 topo map batch processing pipeline (index, seed, IA upload, annotate, propagate)
-- `/api/admin/upload-image/` — image upload
+- `/api/admin/pipeline/*` — L7014 topo map batch processing pipeline
 - `/api/export/footprints/` — data export
 - `/auth/callback/` — OAuth callback
+
+### Admin Dashboard (`/admin`)
+
+`src/lib/admin/AdminDashboard.svelte` — map management + label task administration. Label task features:
+- Create tasks with map selection, legend (pin labels), and categories (trace classification)
+- Inline editing of existing tasks
+- Hide/unhide tasks (hidden tasks don't appear in volunteer Label Studio)
+- Delete tasks (cascades to pins)
 
 ### Redirects
 
 `/studio` → `/annotate`, `/trip` → `/view`, `/hunt` → `/view`, `/georef` → `/contribute/georef` (all 301, query params preserved).
+
+## Supabase Migrations
+
+Located in `supabase/migrations/`. Key tables:
+- `maps` — map metadata + IIIF info
+- `label_tasks` — labeling tasks per map (legend, categories, status including `hidden`)
+- `label_pins` — point annotations on label tasks
+- `footprint_submissions` — polygon/line traces (volunteer + SAM2 pipeline output)
+- `pipeline_sheets` — L7014 batch processing tracking
+
+Run migrations via Supabase CLI (`npx supabase db push`) or manually in Supabase Dashboard SQL Editor.
 
 ## Python Vectorization Pipeline
 
@@ -176,22 +214,21 @@ When adding a new page, use the page template in `docs/design-system.md` and add
 
 ### Key vectorize.py concepts
 
-- **Auto-pass sizing**: `auto_passes(width, height)` derives region sizes and area thresholds from image dimensions. For 12102×8982: plot=4096, fine=1024, native=512.
-- **Color profiles**: 5-class RGB palette from 1882/1898 legend (`particulier`/`communal`/`militaire`/`local_svc`/`non_affect`). `class_margin` prevents faded salmon from being rejected as paper. `min_hatched_area` gates out street text labels from being mis-tagged as `local_svc`.
-- **Dynamic EMA adaptation** (MapSAM2-inspired): after each high-stability polygon, nudge the class RGB centre toward observed color. Handles scan-wide color drift without re-calibration.
-- **Spiral tile order**: BFS from image centre. Ensures EMA calibrates on dense urban core before processing edge/margin tiles.
-- **Seeds (human priors)**: `--seeds path.json` loads bounding boxes or polygons. Tiles with matching seeds use `SAM2ImagePredictor` (guided box prompts) instead of the automatic grid scan.
-- **Interactive mode**: `--interactive` pauses after each pass for review.
+- **Auto-pass sizing**: `auto_passes(width, height)` derives region sizes and area thresholds from image dimensions.
+- **Color profiles**: 5-class RGB palette from 1882/1898 legend (`particulier`/`communal`/`militaire`/`local_svc`/`non_affect`).
+- **Dynamic EMA adaptation** (MapSAM2-inspired): after each high-stability polygon, nudge the class RGB centre toward observed color.
+- **Spiral tile order**: BFS from image centre. Ensures EMA calibrates on dense urban core first.
+- **Seeds (human priors)**: `--seeds path.json` loads bounding boxes or polygons for guided SAM2ImagePredictor.
 
-Key flags: `--region N` (ad-hoc tile size), `--limit N` (cap tiles), `--crop x,y,w,h` (focus area), `--pass-mode plot|building|all`, `--exclude-rects '[{"x":..,"y":..,"w":..,"h":..}]'` (skip legend boxes), `--tile-order row|spiral`.
+Key flags: `--region N`, `--limit N`, `--crop x,y,w,h`, `--pass-mode plot|building|all`, `--exclude-rects`, `--tile-order row|spiral`, `--interactive`.
 
-Checkpoints (gitignored `*.pt`): `sam2.1_hiera_small.pt` (local/MPS) or `sam2.1_hiera_large.pt` (EC2/T4). Tile cache at `.tile_cache/` (also gitignored). SAM2 config must use the short hydra path (e.g. `configs/sam2.1/sam2.1_hiera_s.yaml`), NOT the absolute filesystem path.
+Checkpoints (gitignored `*.pt`): `sam2.1_hiera_small.pt` (local/MPS) or `sam2.1_hiera_large.pt` (EC2/T4). SAM2 config must use the short hydra path (e.g. `configs/sam2.1/sam2.1_hiera_s.yaml`), NOT the absolute filesystem path.
 
 ### Other Scripts
 
-- `scripts/l7014_pipeline.py` — L7014 1:50,000 topo map bulk import (5 phases: scrape → download → IA upload → auto-georef → export SQL). Docs in `scripts/L7014_PIPELINE.md`.
+- `scripts/l7014_pipeline.py` — L7014 1:50,000 topo map bulk import. Docs in `scripts/L7014_PIPELINE.md`.
 - `scripts/extract_pdf_corners.py` — Extract WGS84 corners from L7014 GeoPDF via GDAL.
-- `scripts/aws/ec2-setup.sh` — Bootstrap g4dn.xlarge GPU instance for SAM2 (PyTorch + SAM2 + deps).
+- `scripts/aws/ec2-setup.sh` — Bootstrap g4dn.xlarge GPU instance for SAM2.
 
 ## Large File Warning
 

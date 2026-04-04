@@ -12,22 +12,32 @@ export const nodes = [
 	() => import('./nodes/8'),
 	() => import('./nodes/9'),
 	() => import('./nodes/10'),
-	() => import('./nodes/11')
+	() => import('./nodes/11'),
+	() => import('./nodes/12'),
+	() => import('./nodes/13'),
+	() => import('./nodes/14'),
+	() => import('./nodes/15'),
+	() => import('./nodes/16')
 ];
 
 export const server_loads = [0];
 
 export const dictionary = {
 		"/": [2],
-		"/admin": [3],
-		"/annotate": [4],
-		"/catalog": [5],
-		"/contribute/georef": [6],
-		"/contribute/label": [7],
-		"/create": [8],
-		"/login": [9],
-		"/signup": [10],
-		"/view": [11]
+		"/about": [3],
+		"/admin": [4],
+		"/admin/pipeline": [5],
+		"/annotate": [6],
+		"/blog": [7],
+		"/blog/[slug]": [8],
+		"/catalog": [9],
+		"/contribute/georef": [10],
+		"/contribute/label": [11],
+		"/contribute/review": [12],
+		"/create": [13],
+		"/login": [14],
+		"/signup": [15],
+		"/view": [16]
 	};
 
 export const hooks = {

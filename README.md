@@ -1,128 +1,78 @@
 # Vietnam Map Archive
 
-A SvelteKit 5 application for exploring georeferenced historical maps of Vietnam. Built with Allmaps, OpenLayers, and MapLibre for interactive visualization of heritage cartography overlaid on modern basemaps.
+A SvelteKit 5 application for exploring and recovering georeferenced historical maps of Saigon/Ho Chi Minh City. Built with Allmaps, OpenLayers, and Supabase — combining map visualization, crowdsourced labeling, and an AI-assisted vectorization pipeline.
 
 ## Features
 
-- **Historical Map Viewer** — Explore georeferenced vintage maps with annotation tools (points, lines, polygons)
-- **Trip Tracker** — Real-time GPS tracking on historical maps with breadcrumb trails and compass heading
-- **Multiple View Modes** — Overlay, side-by-side, and spy glass comparisons
-- **Annotation System** — Draw and label features with undo/redo history
-- **Offline Support** — Service worker caching for field use
-- **Bilingual** — English and Vietnamese with typography optimization
+- **Historical Map Viewer** — Overlay georeferenced vintage maps on modern basemaps with opacity, side-by-side, and spyglass modes
+- **GPS Stories** — Location-aware guided tours through historical maps
+- **Annotation System** — Draw and label features with full undo/redo history
+- **Label Studio** — Crowdsourced pin placement and polygon/line tracing on IIIF map scans
+- **SAM2 Vectorization** — AI-assisted segmentation of cadastral parcels from historical scans, with human-in-the-loop review
+- **L7014 Pipeline** — Bulk import and auto-georeferencing of the US Army 1:50,000 Vietnam topo series
 
 ## Quick Start
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
 ```
 
 ## Tech Stack
 
 | Category | Technology |
 |----------|------------|
-| Framework | SvelteKit 5 (Svelte runes) |
-| Language | TypeScript (strict) |
+| Framework | SvelteKit 5 (legacy Svelte syntax — `$:`, `export let`, not runes) |
+| Language | TypeScript |
 | Maps | OpenLayers 10, MapLibre GL 5 |
-| Georeferencing | Allmaps (@allmaps/openlayers, @allmaps/maplibre) |
+| Georeferencing | Allmaps (`@allmaps/openlayers`, `@allmaps/maplibre`) |
+| Backend | Supabase (Postgres + Auth + Storage) |
 | Deployment | Cloudflare Pages |
-| Build | Vite 7 |
+| AI Pipeline | Python + SAM2 (`scripts/vectorize.py`) |
 
-## Project Structure
+## Routes
 
-```
-src/
-├── routes/
-│   ├── +page.svelte          # Map viewer
-│   └── trip/+page.svelte     # Trip tracker
-├── lib/
-│   ├── viewer/               # Annotation viewer components
-│   ├── trip/                 # GPS tracking & offline features
-│   ├── map/                  # Core map & annotation stores
-│   └── layout/               # Layout primitives
-└── styles/                   # Global CSS & design tokens
-```
+| Route | Description |
+|-------|-------------|
+| `/view` | Browse maps, play GPS stories |
+| `/annotate` | Free-form annotation drawing |
+| `/create` | Build guided stories |
+| `/contribute/label` | Label Studio — pin + polygon tracing |
+| `/contribute/georef` | Submit georeferencing via Allmaps Editor |
+| `/contribute/review` | Admin HITL review of SAM2 footprints |
+| `/admin` | Map management and label task administration |
+| `/admin/pipeline` | L7014 bulk processing pipeline |
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PUBLIC_MAPTILER_KEY` | No | MapTiler API key for MapLibre basemap (falls back to demo tiles) |
+```
+PUBLIC_SUPABASE_URL        # Supabase project URL
+PUBLIC_SUPABASE_ANON_KEY   # Supabase anon key
+SUPABASE_SERVICE_KEY       # Service role key (admin API routes only)
+PUBLIC_MAPTILER_KEY        # MapLibre basemap (optional, falls back to demo tiles)
+IA_S3_ACCESS_KEY           # Internet Archive upload
+IA_S3_SECRET_KEY           # Internet Archive upload
+```
 
 ## Deployment
 
-Configured for Cloudflare Pages:
-
 ```bash
-# Build
 npm run build
-
-# Local preview with Wrangler
-npx wrangler pages dev .svelte-kit/cloudflare
+npm run deploy                                    # Cloudflare Pages via wrangler
+npx wrangler pages dev .svelte-kit/cloudflare     # Local Cloudflare preview
 ```
 
----
+## Python Pipeline (SAM2 Vectorization)
 
-## Roadmap
+Requires Python 3.14 + SAM2 in `.venv/`:
 
-### Phase 1: Homepage & Domain Setup
+```bash
+.venv/bin/python scripts/vectorize.py vectorize --ia-url "..." --dry-run --preview
+.venv/bin/python scripts/vectorize.py sample --iiif <base-url> --k 7
+.venv/bin/python scripts/vectorize.py status --map-id <uuid>
+```
 
-- [ ] **Design and build a landing page** at `/`
-  - Hero section introducing the project with a featured historical map
-  - Overview of map collections by city/region
-  - Quick links to viewer (`/viewer`) and trip tracker (`/trip`)
-  - About section with project mission and credits
-- [ ] **Configure custom domain**
-  - Add custom domain in Cloudflare Pages dashboard
-  - Set up DNS records (CNAME or A record pointing to Cloudflare)
-  - Verify SSL/TLS is active
-- [ ] **SEO & social sharing**
-  - Add meta tags (title, description, keywords)
-  - Open Graph tags for social previews
-  - Favicon and app icons
-
-### Phase 2: Content & Discovery
-
-- [ ] Map collection browser with search and filters
-- [ ] City/region navigation (Saigon, Hanoi, Hue, Da Nang, etc.)
-- [ ] Individual map detail pages with historical context
-- [ ] Curated story tours through map collections
-- [ ] Timeline view showing maps by date
-
-### Phase 3: User Features
-
-- [ ] User accounts for saved annotations
-- [ ] Shareable annotation URLs
-- [ ] Collaborative editing sessions
-- [ ] Export annotations as GeoJSON/KML
-- [ ] Compare two maps side-by-side
-
-### Phase 4: Performance & Polish
-
-- [ ] Image optimization and lazy loading
-- [ ] Enhanced offline/PWA capabilities
-- [ ] Accessibility audit (WCAG 2.1 AA)
-- [ ] Analytics integration
-- [ ] Performance monitoring
-
----
-
-## Development Notes
-
-- Run `npm run check` before committing to verify TypeScript types
-- Follow Svelte 5 runes patterns (`$state`, `$derived`, `$effect`)
-- The main `MapViewport.svelte` file is large (~45k tokens) — use targeted edits
-- Annotations require properties: `id`, `label`, `color`, `hidden`
+See `CLAUDE.md` for full pipeline documentation.
 
 ## License
 

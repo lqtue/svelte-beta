@@ -33,11 +33,13 @@
   import { click as clickCondition } from "ol/events/condition";
   import "ol/ol.css";
 
-  import type { LabelPin, FootprintSubmission, PixelCoord, FeatureType } from "./types";
+  import type { LabelPin, FootprintSubmission, PixelCoord } from "./types";
   import { geometryKind } from "./types";
 
   const dispatch = createEventDispatcher<{
     placePin: { pixelX: number; pixelY: number };
+    movePin: { pinId: string; pixelX: number; pixelY: number };
+    removePin: { pinId: string };
     drawPolygon: { pixelPolygon: PixelCoord[] };
     removeFootprint: { footprintId: string };
     modifyFootprint: { footprintId: string; pixelPolygon: PixelCoord[] };
@@ -46,13 +48,15 @@
   }>();
 
   export let iiifInfoUrl: string | null = null;
+  export let legendItems: any[] = [];
   export let pins: LabelPin[] = [];
   export let footprints: FootprintSubmission[] = [];
   export let placingEnabled = false;
   export let selectedLabel: string | null = null;
-  /** 'pin' = point placement, 'trace' = draw polygon/line, 'select' = edit/delete */
-  export let drawMode: 'pin' | 'trace' | 'select' = 'pin';
-  export let featureType: FeatureType = 'building';
+  /** 'pin' = point placement, 'trace' = draw polygon/line, 'select' = edit shapes, 'pin-edit' = move/delete pins */
+  export let drawMode: 'pin' | 'trace' | 'select' | 'pin-edit' = 'pin';
+  /** Geometry to draw — user picks Polygon or LineString directly */
+  export let geometryMode: 'Polygon' | 'LineString' = 'Polygon';
   export let taskId: string | null = null;
   export let myUserId: string | null = null;
 
@@ -64,6 +68,7 @@
   let drawSource: VectorSource | null = null;
   // Keep a reference so Select interaction can filter to this layer
   let fpLayer: VectorLayer | null = null;
+  let pinLayer: VectorImageLayer | null = null;
   let tileLayer: TileLayer | null = null;
   let drawInteraction: Draw | null = null;
   let snapInteraction: Snap | null = null;
@@ -150,13 +155,20 @@
     });
   }
 
+  function pinDisplayName(pin: LabelPin): string {
+    if (pin.data?.originalName) return pin.data.originalName;
+    const item = legendItems.find((i: any) => (typeof i === 'string' ? i : i.val) === pin.label);
+    if (item && typeof item !== 'string') return item.label;
+    return pin.label;
+  }
+
   function syncPins() {
     if (!pinSource) return;
     pinSource.clear();
     for (const pin of pins) {
       const feature = new Feature({
         geometry: new Point([pin.pixelX, -pin.pixelY]),
-        label: pin.label,
+        label: pinDisplayName(pin),
         pinId: pin.id,
       });
       feature.setId(pin.id);
@@ -174,7 +186,7 @@
       if (geomKind === 'LineString') {
         feature = new Feature({
           geometry: new LineString(coords),
-          label: fp.label,
+          label: fp.name,
           footprintId: fp.id,
           userId: fp.userId,
         });
@@ -186,7 +198,7 @@
           : coords;
         feature = new Feature({
           geometry: new Polygon([ring]),
-          label: fp.label,
+          label: fp.name,
           footprintId: fp.id,
           userId: fp.userId,
         });
@@ -211,8 +223,8 @@
     drawingPointCount = 0;
   }
 
-  // Rebuild interactions whenever mode or enabled changes (featureType no longer drives geometry)
-  $: if (map) updateInteractions(drawMode, placingEnabled);
+  // Rebuild interactions whenever mode, enabled, or geometryMode changes
+  $: if (map) updateInteractions(drawMode, placingEnabled, geometryMode);
 
   // Zoom the map view to a specific footprint by ID (callable via bind:this on parent)
   export function zoomToFootprint(footprintId: string) {
@@ -231,15 +243,15 @@
     drawingPointCount = 0;
   }
 
-  function updateInteractions(mode: 'pin' | 'trace' | 'select', enabled: boolean) {
+  function updateInteractions(mode: 'pin' | 'trace' | 'select' | 'pin-edit', enabled: boolean, _gm?: string) {
     if (!map) return;
     clearInteractions();
 
     if (mode === 'trace' && enabled && drawSource) {
-      // Always Polygon — type is set as metadata in the sidebar after drawing
+      const drawType = geometryMode;
       drawInteraction = new Draw({
         source: drawSource,
-        type: 'Polygon',
+        type: drawType,
         style: new Style({
           stroke: new Stroke({ color: '#f59e0b', width: 2, lineDash: [6, 4] }),
           fill: new Fill({ color: 'rgba(245, 158, 11, 0.15)' }),
@@ -270,10 +282,16 @@
         // OL adds the feature to drawSource *after* drawend fires, so clear async
         const src = drawSource;
         setTimeout(() => src?.clear(), 0);
-        const geom = evt.feature.getGeometry() as Polygon;
-        const ring = geom.getCoordinates()[0];
-        const pixelCoords: PixelCoord[] = ring.map(([x, y]) => [x, -y] as PixelCoord);
-        pixelCoords.pop(); // remove repeated closing point
+        const geom = evt.feature.getGeometry();
+        let pixelCoords: PixelCoord[];
+        if (geom instanceof Polygon) {
+          const ring = geom.getCoordinates()[0];
+          pixelCoords = ring.map(([x, y]: number[]) => [x, -y] as PixelCoord);
+          pixelCoords.pop(); // remove repeated closing point
+        } else {
+          // LineString (road, waterway)
+          pixelCoords = (geom as LineString).getCoordinates().map(([x, y]: number[]) => [x, -y] as PixelCoord);
+        }
         dispatch('drawPolygon', { pixelPolygon: pixelCoords });
       });
 
@@ -328,6 +346,59 @@
       map.addInteraction(selectInteraction);
       map.addInteraction(modifyInteraction);
     }
+
+    // Pin-edit mode: select and drag pins on pinLayer
+    if (mode === 'pin-edit' && pinSource && pinLayer) {
+      const targetPinLayer = pinLayer;
+
+      selectInteraction = new Select({
+        condition: clickCondition,
+        layers: (layer) => layer === targetPinLayer,
+        style: (feature: any) => {
+          const label = feature.get("label") || "";
+          return new Style({
+            image: new CircleStyle({
+              radius: 12,
+              fill: new Fill({ color: '#ff6b35' }),
+              stroke: new Stroke({ color: '#fff', width: 3 }),
+            }),
+            text: new Text({
+              text: label,
+              offsetY: -22,
+              font: 'bold 11px "Be Vietnam Pro", sans-serif',
+              fill: new Fill({ color: '#ff6b35' }),
+              stroke: new Stroke({ color: '#fff', width: 3.5 }),
+              textAlign: "center",
+            }),
+          });
+        },
+      });
+
+      modifyInteraction = new Modify({
+        features: selectInteraction.getFeatures(),
+        style: new Style({
+          image: new CircleStyle({
+            radius: 8,
+            fill: new Fill({ color: '#ff6b35' }),
+            stroke: new Stroke({ color: '#fff', width: 2 }),
+          }),
+        }),
+      });
+
+      modifyInteraction.on('modifyend', (evt: any) => {
+        evt.features.forEach((feature: any) => {
+          const pinId = feature.get('pinId');
+          if (!pinId) return;
+          const geom = feature.getGeometry();
+          if (!(geom instanceof Point)) return;
+          const [x, rawY] = geom.getCoordinates();
+          dispatch('movePin', { pinId, pixelX: x, pixelY: -rawY });
+        });
+      });
+
+      map.addInteraction(selectInteraction);
+      map.addInteraction(modifyInteraction);
+    }
   }
 
   function handleKeydown(evt: KeyboardEvent) {
@@ -366,7 +437,7 @@
       return;
     }
 
-    // Delete/Backspace: remove selected footprint (use getArray() — OL Collection forEach is unreliable)
+    // Delete/Backspace: remove selected footprint or pin
     if (evt.key === 'Delete' || evt.key === 'Backspace') {
       if (selectInteraction && drawMode === 'select') {
         const features = selectInteraction.getFeatures().getArray().slice();
@@ -376,6 +447,15 @@
           if (!footprintId) continue;
           if (myUserId && userId !== myUserId) continue;
           dispatch('removeFootprint', { footprintId });
+        }
+        selectInteraction.getFeatures().clear();
+      }
+      if (selectInteraction && drawMode === 'pin-edit') {
+        const features = selectInteraction.getFeatures().getArray().slice();
+        for (const feature of features) {
+          const pinId = feature.get('pinId');
+          if (!pinId) continue;
+          dispatch('removePin', { pinId });
         }
         selectInteraction.getFeatures().clear();
       }
@@ -414,7 +494,7 @@
 
   onMount(() => {
     pinSource = new VectorSource();
-    const pinLayer = new VectorImageLayer({
+    pinLayer = new VectorImageLayer({
       source: pinSource,
       zIndex: 10,
       style: createPinStyle,
@@ -498,11 +578,15 @@
       </div>
     {:else if placingEnabled && selectedLabel}
       <div class="placing-indicator">
-        Tracing <strong>{selectedLabel || featureType}</strong> — click to start drawing
+        Drawing <strong>{geometryMode === 'LineString' ? 'line' : 'polygon'}</strong> — click to start
       </div>
     {:else if placingEnabled && !selectedLabel}
       <div class="placing-indicator warn">Select a label from the sidebar first</div>
     {/if}
+  {:else if drawMode === 'pin-edit'}
+    <div class="placing-indicator select">
+      Click a pin to select &nbsp;·&nbsp; drag to move &nbsp;·&nbsp; <kbd>Delete</kbd> to remove
+    </div>
   {:else if drawMode === 'select'}
     <div class="placing-indicator select">
       Click a shape to select &nbsp;·&nbsp; drag vertices to edit &nbsp;·&nbsp; <kbd>Delete</kbd> to remove &nbsp;·&nbsp; or use sidebar

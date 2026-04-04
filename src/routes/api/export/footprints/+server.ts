@@ -64,11 +64,13 @@ async function getAnnotationData(allmapsId: string): Promise<AnnotationData | nu
 }
 
 const CATEGORY_IDS: Record<string, number> = {
-  building: 1,
-  land_plot: 2,
-  road: 3,
-  waterway: 4,
-  other: 5,
+  building:    1,
+  land_plot:   2,
+  road:        3,
+  waterway:    4,
+  green_space: 5,
+  water_body:  6,
+  other:       7,
 };
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -128,7 +130,8 @@ export const GET: RequestHandler = async ({ url }) => {
           task_id: row.task_id,
           map_id: row.map_id ?? task?.map_id,
           allmaps_id: resolvedAllmapsId,
-          label: row.label,
+          name: row.name,
+          category: row.category,
           feature_type: row.feature_type,
           source: row.source,
           valid_from: row.valid_from,
@@ -200,7 +203,8 @@ export const GET: RequestHandler = async ({ url }) => {
       crop_w: cropW,
       crop_h: cropH,
       feature_type: row.feature_type,
-      label: row.label,
+      name: row.name,
+      category: row.category,
       source: row.source,
       confidence: row.confidence,
       valid_from: row.valid_from,
@@ -250,11 +254,13 @@ export const GET: RequestHandler = async ({ url }) => {
       export_params: { status, pad, crop_size: cropSize },
     },
     categories: [
-      { id: 1, name: 'building',   supercategory: 'structure' },
-      { id: 2, name: 'land_plot',  supercategory: 'structure' },
-      { id: 3, name: 'road',       supercategory: 'infrastructure' },
-      { id: 4, name: 'waterway',   supercategory: 'infrastructure' },
-      { id: 5, name: 'other',      supercategory: 'other' },
+      { id: 1, name: 'building',    supercategory: 'structure' },
+      { id: 2, name: 'land_plot',   supercategory: 'structure' },
+      { id: 3, name: 'road',        supercategory: 'infrastructure' },
+      { id: 4, name: 'waterway',    supercategory: 'infrastructure' },
+      { id: 5, name: 'green_space', supercategory: 'open_land' },
+      { id: 6, name: 'water_body',  supercategory: 'open_land' },
+      { id: 7, name: 'other',       supercategory: 'other' },
     ],
     images: cocoImages,
     annotations: cocoAnnotations,

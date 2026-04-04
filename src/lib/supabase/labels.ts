@@ -1,13 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LabelTask, LabelPin, FootprintSubmission, PixelCoord, FeatureType } from '$lib/contribute/label/types';
+import type { LabelTask, LabelPin, FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/contribute/label/types';
 
 interface DbLabelTask {
 	id: string;
 	map_id: string;
 	allmaps_id: string;
-	region: object;
 	status: string;
-	legend: string[] | null;
+	legend: LegendItem[] | null;
+	categories: string[] | null;
+	maps?: { name: string } | null;
 }
 
 interface DbLabelPin {
@@ -26,9 +27,10 @@ function toLabelTask(row: DbLabelTask): LabelTask {
 		id: row.id,
 		mapId: row.map_id,
 		allmapsId: row.allmaps_id,
-		region: row.region as LabelTask['region'],
 		status: row.status as LabelTask['status'],
-		legend: Array.isArray(row.legend) ? row.legend : []
+		legend: Array.isArray(row.legend) ? row.legend : [],
+		categories: Array.isArray(row.categories) ? row.categories : [],
+		mapName: (row.maps as any)?.name ?? null,
 	};
 }
 
@@ -47,7 +49,7 @@ function toLabelPin(row: DbLabelPin): LabelPin {
 export async function fetchOpenTasks(supabase: SupabaseClient): Promise<LabelTask[]> {
 	const { data, error } = await supabase
 		.from('label_tasks')
-		.select('*')
+		.select('*, maps(name)')
 		.in('status', ['open', 'in_progress'])
 		.order('created_at', { ascending: true });
 
@@ -106,6 +108,24 @@ export async function createPin(
 	return (data as unknown as { id: string }).id;
 }
 
+export async function updatePinPosition(
+	supabase: SupabaseClient,
+	pinId: string,
+	pixelX: number,
+	pixelY: number
+): Promise<boolean> {
+	const { error } = await supabase
+		.from('label_pins')
+		.update({ pixel_x: pixelX, pixel_y: pixelY } as never)
+		.eq('id', pinId);
+
+	if (error) {
+		console.error('Failed to update pin position:', error);
+		return false;
+	}
+	return true;
+}
+
 export async function deletePin(
 	supabase: SupabaseClient,
 	pinId: string
@@ -147,7 +167,8 @@ interface DbFootprint {
 	pin_id: string | null;
 	user_id: string;
 	pixel_polygon: PixelCoord[];
-	label: string | null;
+	name: string | null;
+	category: string | null;
 	feature_type: string;
 	status: string;
 }
@@ -159,7 +180,8 @@ function toFootprint(row: DbFootprint): FootprintSubmission {
 		pinId: row.pin_id,
 		userId: row.user_id,
 		pixelPolygon: row.pixel_polygon,
-		label: row.label,
+		name: row.name,
+		category: row.category,
 		featureType: (row.feature_type ?? 'building') as FeatureType,
 		status: row.status as FootprintSubmission['status']
 	};
@@ -185,7 +207,8 @@ export async function createFootprint(
 		userId: string;
 		pixelPolygon: PixelCoord[];
 		pinId?: string | null;
-		label?: string | null;
+		name?: string | null;
+		category?: string | null;
 		featureType?: FeatureType;
 	}
 ): Promise<string | null> {
@@ -196,7 +219,8 @@ export async function createFootprint(
 			user_id: params.userId,
 			pixel_polygon: params.pixelPolygon,
 			pin_id: params.pinId ?? null,
-			label: params.label ?? null,
+			name: params.name ?? null,
+			category: params.category ?? null,
 			feature_type: params.featureType ?? 'building'
 		} as never)
 		.select('id')
@@ -282,11 +306,12 @@ export async function updateFootprint(
 export async function updateFootprintMeta(
 	supabase: SupabaseClient,
 	footprintId: string,
-	meta: { label?: string | null; featureType?: FeatureType }
+	meta: { name?: string | null; featureType?: FeatureType; category?: string | null }
 ): Promise<boolean> {
 	const update: Record<string, any> = {};
-	if (meta.label !== undefined) update.label = meta.label;
+	if (meta.name !== undefined) update.name = meta.name;
 	if (meta.featureType !== undefined) update.feature_type = meta.featureType;
+	if (meta.category !== undefined) update.category = meta.category;
 	const { error } = await supabase
 		.from('footprint_submissions')
 		.update(update as never)

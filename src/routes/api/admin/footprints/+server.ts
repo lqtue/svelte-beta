@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const { data, error: dbError } = await adminSupabase
 		.from('footprint_submissions')
-		.select('id, map_id, iiif_canvas, pixel_polygon, feature_type, confidence, status, created_at')
+		.select('id, map_id, iiif_canvas, pixel_polygon, feature_type, name, category, confidence, status, created_at')
 		.eq('map_id', mapId)
 		.eq('status', status)
 		.order('confidence', { ascending: false });
@@ -46,11 +46,13 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 	const adminSupabase = await getAdminClient(locals);
 
 	const body = await request.json();
-	const { id, status, pixel_polygon, feature_type } = body as {
+	const { id, status, pixel_polygon, feature_type, name, category } = body as {
 		id: string;
 		status: string;
 		pixel_polygon?: [number, number][];
 		feature_type?: string;
+		name?: string;
+		category?: string;
 	};
 
 	if (!id || !status) throw error(400, 'id and status are required');
@@ -67,6 +69,8 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		update.feature_type = feature_type;
 		update.source = 'sam-corrected';
 	}
+	if (name !== undefined) update.name = name;
+	if (category !== undefined) update.category = category;
 
 	const { error: dbError } = await adminSupabase
 		.from('footprint_submissions')

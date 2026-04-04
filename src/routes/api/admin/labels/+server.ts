@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     const adminSupabase = await getAdminClient(locals);
 
     const body = await request.json();
-    const { map_id, allmaps_id, region, legend } = body;
+    const { map_id, allmaps_id, region, legend, categories } = body;
 
     if (!map_id || !allmaps_id) {
         throw error(400, 'map_id and allmaps_id are required');
@@ -53,6 +53,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
             allmaps_id,
             region: region || {},
             legend: legend || [],
+            categories: categories || [],
             status: 'open'
         } as never)
         .select()
