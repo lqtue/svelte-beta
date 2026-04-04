@@ -14,9 +14,12 @@
     updateTaskStatus,
     fetchTaskFootprints,
     createFootprint,
+    updateFootprint,
+    updateFootprintMeta,
     deleteFootprint,
   } from "$lib/supabase/labels";
   import type { LabelTask, LabelPin, LabelConsensus, FootprintSubmission, PixelCoord, FeatureType } from "./types";
+  import { FEATURE_TYPE_LABELS } from "./types";
 
   import LabelCanvas from "./LabelCanvas.svelte";
   import LabelSidebar from "./LabelSidebar.svelte";
@@ -34,18 +37,24 @@
   let myFootprints: FootprintSubmission[] = [];
   let consensusItems: LabelConsensus[] = [];
   let selectedLabel: string | null = null;
-  let drawMode: 'pin' | 'trace' = 'pin';
-  let featureType: FeatureType = 'building';
+  let drawMode: 'pin' | 'trace' | 'select' = 'pin';
   let loading = true;
   let iiifInfoUrl: string | null = null;
   let submitting = false;
   let submitMsg = "";
+  let canvasRef: LabelCanvas;
+  let newFootprintId: string | null = null;
 
-  // Transcription state
+  // Transcription state (pin naming)
   let showTranscriptionModal = false;
   let pendingPinData: { pixelX: number; pixelY: number } | null = null;
   let transcriptionValue = "";
-  let transcriptionLabel = ""; // The original name from the list
+  let transcriptionLabel = "";
+
+  function getNextName(ft: FeatureType): string {
+    const count = myFootprints.filter(f => f.featureType === ft).length + 1;
+    return `${FEATURE_TYPE_LABELS[ft]} ${count}`;
+  }
 
   // Derive legend from current task's DB field, fall back to defaults
   $: legendItems =
@@ -90,6 +99,9 @@
     currentTask = tasks[index];
     selectedLabel = null;
     iiifInfoUrl = null;
+    // Clear immediately so old task's annotations don't flash on the new task
+    pins = [];
+    footprints = [];
     await Promise.all([loadTaskPins(), loadTaskFootprints(), resolveIiifUrl()]);
   }
 
@@ -214,41 +226,22 @@
     }
   }
 
-  function handleSelectFeatureType(event: CustomEvent<{ featureType: FeatureType }>) {
-    featureType = event.detail.featureType;
-    selectedLabel = null; // reset label when switching feature type
-  }
-
-  async function handleDrawPolygon(
-    event: CustomEvent<{ pixelPolygon: PixelCoord[] }>
-  ) {
+  async function handleDrawPolygon(event: CustomEvent<{ pixelPolygon: PixelCoord[] }>) {
     if (!currentTask || !userId) return;
-    // For buildings, link to the matching named pin
-    const linkedPin = featureType === 'building'
-      ? pins.find((p) => p.label === selectedLabel && p.userId === userId)
-      : null;
+    const ft: FeatureType = 'building';
+    const label = getNextName(ft);
     const id = await createFootprint(supabase, {
-      taskId: currentTask.id,
-      userId,
+      taskId: currentTask.id, userId,
       pixelPolygon: event.detail.pixelPolygon,
-      pinId: linkedPin?.id ?? null,
-      label: selectedLabel,
-      featureType,
+      pinId: null, label, featureType: ft,
     });
     if (id) {
-      footprints = [
-        ...footprints,
-        {
-          id,
-          taskId: currentTask.id,
-          pinId: linkedPin?.id ?? null,
-          userId,
-          pixelPolygon: event.detail.pixelPolygon,
-          label: selectedLabel,
-          featureType,
-          status: 'submitted',
-        },
-      ];
+      footprints = [...footprints, {
+        id, taskId: currentTask.id, pinId: null, userId,
+        pixelPolygon: event.detail.pixelPolygon, label, featureType: ft, status: 'submitted',
+      }];
+      newFootprintId = id;
+      setTimeout(() => { newFootprintId = null; }, 150);
     }
   }
 
@@ -259,13 +252,49 @@
     }
   }
 
+  async function handleModifyFootprint(
+    event: CustomEvent<{ footprintId: string; pixelPolygon: PixelCoord[] }>
+  ) {
+    const { footprintId, pixelPolygon } = event.detail;
+    const ok = await updateFootprint(supabase, footprintId, pixelPolygon);
+    if (ok) {
+      footprints = footprints.map((f) =>
+        f.id === footprintId ? { ...f, pixelPolygon } : f
+      );
+    }
+  }
+
+  async function handleUpdateFootprintMeta(
+    event: CustomEvent<{ footprintId: string; label?: string; featureType?: FeatureType }>
+  ) {
+    const { footprintId, label, featureType: ft } = event.detail;
+    const ok = await updateFootprintMeta(supabase, footprintId, {
+      label: label ?? undefined,
+      featureType: ft ?? undefined,
+    });
+    if (ok) {
+      footprints = footprints.map((f) =>
+        f.id === footprintId
+          ? { ...f, ...(label !== undefined ? { label } : {}), ...(ft ? { featureType: ft } : {}) }
+          : f
+      );
+    }
+  }
+
+  function handleZoomToFootprint(event: CustomEvent<{ footprintId: string }>) {
+    canvasRef?.zoomToFootprint(event.detail.footprintId);
+  }
+
   async function handleSubmit() {
     if (!currentTask || !userId) return;
     submitting = true;
     submitMsg = "";
     try {
       await updateTaskStatus(supabase, currentTask.id, "in_progress");
-      submitMsg = `Submitted ${myPins.length} pin${myPins.length !== 1 ? "s" : ""}!`;
+      const parts = [];
+      if (myFootprints.length) parts.push(`${myFootprints.length} shape${myFootprints.length !== 1 ? 's' : ''}`);
+      if (myPins.length) parts.push(`${myPins.length} pin${myPins.length !== 1 ? 's' : ''}`);
+      submitMsg = parts.length ? `Saved ${parts.join(' + ')}!` : 'Task marked in progress.';
       // Auto-advance after a short delay
       setTimeout(() => {
         submitMsg = "";
@@ -323,19 +352,29 @@
             class:active={drawMode === 'trace'}
             on:click={() => (drawMode = 'trace')}
             title="Trace building footprint polygons"
-          >⬡ Trace Footprint</button>
+          >⬡ Trace</button>
+          <button
+            class="mode-btn"
+            class:active={drawMode === 'select'}
+            on:click={() => (drawMode = 'select')}
+            title="Select and edit drawn shapes"
+          >✎ Edit</button>
         </div>
         <div class="canvas-wrap">
           <LabelCanvas
+            bind:this={canvasRef}
             {iiifInfoUrl}
             {pins}
             {footprints}
-            placingEnabled={drawMode === 'pin' ? !!selectedLabel : true}
+            taskId={currentTask?.id ?? null}
+            myUserId={userId ?? null}
+            placingEnabled={drawMode === 'pin' ? !!selectedLabel : drawMode === 'trace'}
             {selectedLabel}
             {drawMode}
-            {featureType}
             on:placePin={handlePlacePin}
             on:drawPolygon={handleDrawPolygon}
+            on:removeFootprint={handleRemoveFootprint}
+            on:modifyFootprint={handleModifyFootprint}
           />
         </div>
       {/if}
@@ -346,11 +385,14 @@
         {legendItems}
         {selectedLabel}
         {drawMode}
-        {featureType}
         placedPins={myPins}
+        placedFootprints={myFootprints}
+        {newFootprintId}
         on:selectLabel={handleSelectLabel}
-        on:selectFeatureType={handleSelectFeatureType}
         on:removePin={handleRemovePin}
+        on:removeFootprint={handleRemoveFootprint}
+        on:updateFootprintMeta={handleUpdateFootprintMeta}
+        on:zoomToFootprint={handleZoomToFootprint}
         on:submit={handleSubmit}
       />
 
@@ -500,6 +542,7 @@
     background: var(--color-yellow);
     opacity: 1;
 }
+
 
 .sidebar-area {
     min-height: 0;

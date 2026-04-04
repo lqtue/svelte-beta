@@ -33,11 +33,11 @@ export const dictionary = {
 		"/catalog": [9],
 		"/contribute/georef": [10],
 		"/contribute/label": [11],
-		"/create": [12],
-		"/login": [13],
-		"/signup": [14],
-		"/view": [15],
-		"/vwai": [16]
+		"/contribute/review": [12],
+		"/create": [13],
+		"/login": [14],
+		"/signup": [15],
+		"/view": [16]
 	};
 
 export const hooks = {

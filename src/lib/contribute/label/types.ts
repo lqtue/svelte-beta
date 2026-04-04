@@ -56,5 +56,5 @@ export interface FootprintSubmission {
 	pixelPolygon: PixelCoord[]; // closed ring for Polygon, open sequence for LineString
 	label: string | null;
 	featureType: FeatureType;
-	status: 'submitted' | 'consensus' | 'verified' | 'rejected';
+	status: 'submitted' | 'needs_review' | 'consensus' | 'verified' | 'rejected';
 }

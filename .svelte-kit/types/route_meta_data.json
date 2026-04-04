@@ -19,29 +19,8 @@
 		"src/routes/annotate/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/api/admin/cdec": [
-		"src/routes/api/admin/cdec/+server.ts"
-	],
-	"/api/admin/cdec/import": [
-		"src/routes/api/admin/cdec/import/+server.ts"
-	],
-	"/api/admin/cdec/profiles": [
-		"src/routes/api/admin/cdec/profiles/+server.ts"
-	],
-	"/api/admin/cdec/stats": [
-		"src/routes/api/admin/cdec/stats/+server.ts"
-	],
-	"/api/admin/cdec/sync-sheet": [
-		"src/routes/api/admin/cdec/sync-sheet/+server.ts"
-	],
-	"/api/admin/cdec/[id]": [
-		"src/routes/api/admin/cdec/[id]/+server.ts"
-	],
-	"/api/admin/cdec/[id]/photo": [
-		"src/routes/api/admin/cdec/[id]/photo/+server.ts"
-	],
-	"/api/admin/cdec/[id]/validate": [
-		"src/routes/api/admin/cdec/[id]/validate/+server.ts"
+	"/api/admin/footprints": [
+		"src/routes/api/admin/footprints/+server.ts"
 	],
 	"/api/admin/georef": [
 		"src/routes/api/admin/georef/+server.ts"
@@ -100,21 +79,6 @@
 	"/api/export/footprints": [
 		"src/routes/api/export/footprints/+server.ts"
 	],
-	"/api/vwai/cdec": [
-		"src/routes/api/vwai/cdec/+server.ts"
-	],
-	"/api/vwai/cdec/profiles": [
-		"src/routes/api/vwai/cdec/profiles/+server.ts"
-	],
-	"/api/vwai/cdec/[id]": [
-		"src/routes/api/vwai/cdec/[id]/+server.ts"
-	],
-	"/api/vwai/cdec/[id]/action": [
-		"src/routes/api/vwai/cdec/[id]/action/+server.ts"
-	],
-	"/api/vwai/cdec/[id]/claim": [
-		"src/routes/api/vwai/cdec/[id]/claim/+server.ts"
-	],
 	"/auth/callback": [
 		"src/routes/auth/callback/+server.ts"
 	],
@@ -135,6 +99,10 @@
 		"src/routes/contribute/label/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
+	"/contribute/review": [
+		"src/routes/contribute/review/+page.ts",
+		"src/routes/+layout.server.ts"
+	],
 	"/create": [
 		"src/routes/create/+page.ts",
 		"src/routes/+layout.server.ts"
@@ -147,10 +115,6 @@
 	],
 	"/view": [
 		"src/routes/view/+page.ts",
-		"src/routes/+layout.server.ts"
-	],
-	"/vwai": [
-		"src/routes/vwai/+page.ts",
 		"src/routes/+layout.server.ts"
 	]
 }

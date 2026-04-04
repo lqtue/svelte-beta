@@ -9,8 +9,13 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# SAM model checkpoints
+# SAM2 model checkpoints
+*.pt
 *.pth
 
 # Source map images (downloaded from external archives — not for repo)
 l7014_data/jpg/
+.tile_cache/
+
+# Vectorization dry-run outputs (local artifacts)
+work/vectorize/outputs/

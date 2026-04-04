@@ -209,6 +209,92 @@ export async function createFootprint(
 	return (data as unknown as { id: string }).id;
 }
 
+export interface SamFootprint {
+	id: string;
+	mapId: string;
+	iiifCanvas: string;
+	pixelPolygon: PixelCoord[];
+	featureType: string;
+	confidence: number | null;
+	status: 'needs_review' | 'submitted' | 'rejected';
+}
+
+export async function fetchNeedsReviewFootprints(
+	supabase: SupabaseClient,
+	mapId: string
+): Promise<SamFootprint[]> {
+	const { data, error } = await supabase
+		.from('footprint_submissions')
+		.select('id, map_id, iiif_canvas, pixel_polygon, feature_type, confidence, status')
+		.eq('map_id', mapId)
+		.eq('status', 'needs_review')
+		.order('confidence', { ascending: false });
+
+	if (error) throw new Error(error.message);
+	return ((data ?? []) as any[]).map((row) => ({
+		id: row.id,
+		mapId: row.map_id,
+		iiifCanvas: row.iiif_canvas,
+		pixelPolygon: row.pixel_polygon as PixelCoord[],
+		featureType: row.feature_type ?? 'building',
+		confidence: row.confidence,
+		status: row.status
+	}));
+}
+
+export async function fetchMapsWithPendingReview(
+	supabase: SupabaseClient
+): Promise<{ id: string; name: string; pendingCount: number }[]> {
+	const { data, error } = await supabase
+		.from('footprint_submissions')
+		.select('map_id, maps(name)')
+		.eq('status', 'needs_review');
+
+	if (error) throw new Error(error.message);
+
+	const counts = new Map<string, { name: string; count: number }>();
+	for (const row of (data ?? []) as any[]) {
+		const mid = row.map_id as string;
+		const name = (row.maps as any)?.name ?? mid;
+		const entry = counts.get(mid) ?? { name, count: 0 };
+		entry.count++;
+		counts.set(mid, entry);
+	}
+
+	return Array.from(counts.entries())
+		.map(([id, { name, count }]) => ({ id, name, pendingCount: count }))
+		.sort((a, b) => b.pendingCount - a.pendingCount);
+}
+
+export async function updateFootprint(
+	supabase: SupabaseClient,
+	footprintId: string,
+	pixelPolygon: PixelCoord[]
+): Promise<boolean> {
+	const { error } = await supabase
+		.from('footprint_submissions')
+		.update({ pixel_polygon: pixelPolygon } as never)
+		.eq('id', footprintId);
+	if (error) { console.error('Failed to update footprint:', error); return false; }
+	return true;
+}
+
+export async function updateFootprintMeta(
+	supabase: SupabaseClient,
+	footprintId: string,
+	meta: { label?: string | null; featureType?: FeatureType }
+): Promise<boolean> {
+	const update: Record<string, any> = {};
+	if (meta.label !== undefined) update.label = meta.label;
+	if (meta.featureType !== undefined) update.feature_type = meta.featureType;
+	const { error } = await supabase
+		.from('footprint_submissions')
+		.update(update as never)
+		.eq('id', footprintId);
+	if (error) { console.error('Failed to update footprint meta:', error); return false; }
+	return true;
+}
+
 export async function deleteFootprint(
 	supabase: SupabaseClient,
 	footprintId: string
