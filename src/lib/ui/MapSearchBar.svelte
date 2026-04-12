@@ -6,12 +6,12 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from "svelte";
     import SearchPanel from "$lib/ui/SearchPanel.svelte";
-    import type { MapListItem } from "$lib/viewer/types";
+    import type { MapListItem } from "$lib/map/types";
 
     const dispatch = createEventDispatcher<{
-        navigate: { result: import("$lib/viewer/types").SearchResult };
+        navigate: { result: import("$lib/map/types").SearchResult };
         selectMap: { map: MapListItem };
-        addAsPoint: { result: import("$lib/viewer/types").SearchResult };
+        addAsPoint: { result: import("$lib/map/types").SearchResult };
     }>();
 
     export let maps: MapListItem[] = [];

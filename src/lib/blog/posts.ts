@@ -9,6 +9,50 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
 	{
+		slug: 'platform-notes-april-2026',
+		title: 'Platform Notes: Retiring a Pipeline and Rebuilding the Data Foundation',
+		date: '2026-04-10',
+		category: 'update',
+		excerpt:
+			'The L7014 pipeline is done and its code is gone. In its place: a modular maps data layer with proper source provenance, multi-IIIF support, and metadata backfilled for all 37 maps in the collection. What we built, why we built it that way, and what it reveals about running a research archive as software.',
+		content: `
+<p>Most software projects accumulate features. Research archives accumulate debt. The distinction matters: features add capability; debt is the difference between what the code says and what the project actually needs. This month we settled a significant account.</p>
+
+<h2>Retiring the L7014 pipeline</h2>
+<p>The US Army L7014 georeferencing pipeline — five API routes, two utility modules, a datum correction library, a propagation algorithm — has been removed from the codebase. Not archived, not commented out. Deleted.</p>
+<p>This is the right outcome. The pipeline completed its mission: 500+ sheets georeferenced, datum-corrected from Indian 1960 to WGS84, uploaded to Internet Archive, served over IIIF. The work is done and permanent. The code that produced it does not need to persist in a codebase built around different problems. Keeping it would have meant maintaining it, explaining it to contributors, and treating a completed batch job as if it were ongoing infrastructure. It wasn't. It was a one-time construction project and the building is standing.</p>
+<p>The two functions that were genuinely generic — building a W3C Georeference Annotation from IIIF source and GCP corners, and fetching IIIF info.json with retry logic — have been moved to <code>src/lib/iiif/iiifImageInfo.ts</code>, where they belong. Everything else is gone. The codebase is materially smaller and the remaining code is materially clearer about what the project does.</p>
+
+<h2>What the cleanup revealed</h2>
+<p>Removing the pipeline exposed a design assumption that had been quietly propagating errors. The <code>allmaps_id</code> column — the Allmaps annotation identifier that links a map image to its georeferencing — had been copied onto two other tables, <code>label_tasks</code> and <code>footprint_submissions</code>, as a convenience. The idea was that queries involving footprints wouldn't need a join to the maps table to find the annotation URL.</p>
+<p>In practice, the copies drifted. When an annotation was updated, the copy wasn't. We found a footprint submission where the <code>map_id</code> foreign key pointed to "Saigon &amp; Surroundings (1882)" but the denormalized <code>allmaps_id</code> pointed to the "Plan Cadastral (1882)" — a different map entirely. The join was cheap. The denormalization was expensive and wrong.</p>
+<p>Both copies have been removed. The join is now required. The principle is the same one that governs how we store building footprints: a fact belongs in one place, and dependent data is computed on demand. Pixel coordinates + georeferencing annotation = geographic coordinates. Map UUID + maps table = annotation URL. Neither result needs to be stored separately.</p>
+
+<h2>The maps data layer</h2>
+<p>The more substantial work was rebuilding how maps are described and sourced. The original <code>maps</code> table had nine columns: an ID, name, type, summary, description, thumbnail, featured flag, year, and the Allmaps annotation identifier. This was enough to display a catalog and load an overlay. It was not enough to treat a map as an archival object with provenance.</p>
+<p>Fourteen columns have been added, grouped into three concerns.</p>
+<p><strong>Source provenance.</strong> <code>source_type</code> (the originating institution: BnF, EFEO, Internet Archive, etc.), <code>collection</code> (the human-readable collection name), <code>source_url</code> (the canonical page at the institution — a citable URL, not an API endpoint), and <code>ia_identifier</code> for Internet Archive items specifically. A BnF Gallica map now carries a link to its Gallica record. A researcher citing a building footprint derived from that map can trace the provenance chain: footprint → annotation → map → Gallica record. That chain didn't exist before.</p>
+<p><strong>IIIF metadata.</strong> <code>iiif_manifest</code> and <code>iiif_image</code> store the manifest and image service URLs. These were previously implicit — reconstructed from the Allmaps annotation on every request. They're now first-class fields, with a corresponding <code>map_iiif_sources</code> table that lets a map have multiple IIIF image sources: the original BnF scan, a re-uploaded copy on Internet Archive for better tile performance, a self-hosted version for maps with restrictive access terms. One is designated primary; the others are ordered fallbacks. The primary source's URLs are kept in sync on the parent row via a database trigger.</p>
+<p><strong>Classification and coverage.</strong> <code>map_type</code> separates what the map is (cadastral, topographic, city plan, panorama) from the city it depicts. <code>bbox</code> stores the geographic bounding box for spatial queries. <code>status</code> tracks the lifecycle: pending georeferencing → georeferenced → processing → published. The old <code>type</code> column, which contained city names like "Saigon-HCMC", remains for backward compatibility while we migrate.</p>
+
+<h2>Multiple IIIF sources per map</h2>
+<p>The multi-source design deserves a note. This is not about redundancy for its own sake. It's about the gap between where a map lives archivally and where it should be served from operationally.</p>
+<p>BnF Gallica serves excellent scans, but the IIIF Image API response times from Paris are slow for tile-by-tile loading from Southeast Asia. For most of our maps, the scan lives on BnF; a IIIF-compatible copy lives on Internet Archive, which has edge caching. The system records both sources, marks one primary, and can switch without losing the provenance link to the original institution.</p>
+<p>The same pattern applies to maps with complicated access terms. EFEO maps, for instance, may be freely downloadable but not freely redistributable. Keeping the BnF or EFEO source as the canonical record, with a self-hosted copy for serving, lets the display layer do the right thing without the data layer pretending the institutional relationship doesn't exist.</p>
+
+<h2>Metadata backfill: 37 maps, 20 minutes</h2>
+<p>The new fields are only useful if they're populated. For all 37 maps in the current collection, we ran an automated backfill: fetch the Allmaps annotation, extract the IIIF image service URL, detect the source institution from URL patterns, fetch the IIIF manifest, parse title/creator/date/rights, compute a thumbnail URL, and write everything back. For the 20 BnF Gallica maps, the canonical Gallica page URL is derivable from the manifest URL arithmetically — the ark identifier is the same, the path prefix is different. All 20 were filled in without manual lookup.</p>
+<p>The 17 Internet Archive maps require manual source attribution. These were often scanned from physical copies at various institutions and uploaded without structured provenance metadata — the IA manifest might say "1882" as a title. We're going through these individually to establish where the original scan came from. That's the remaining gap.</p>
+
+<h2>What changed in the codebase structure</h2>
+<p>Beyond the maps domain, the reorganization consolidated several modules that had accumulated around the pipeline and early prototyping: a <code>pipeline/</code> module became two functions in <code>iiif/</code>; a <code>studio/</code> module became one file in <code>annotate/</code>; a <code>viewer/</code> module merged into <code>map/</code>; a <code>core/</code> module merged into <code>utils/</code>. Styles moved from a <code>lib/styles/</code> directory that required relative imports to <code>src/styles/</code> with a <code>$styles</code> alias. Seven orphaned components were deleted. The type checker now reports zero errors on the full build.</p>
+<p>None of these changes are visible to users. They're the kind of changes that make the next visible change easier to ship.</p>
+
+<h2>What's next</h2>
+<p>The maps data layer is the foundation for the catalog redesign — filter by city, by type, by collection, by coverage area. That's the next front-end milestone. In parallel: the <code>supabase/types.ts</code> generated types need regenerating to reflect the new schema, and the admin map-editing UI needs updating to surface the new fields. We're also mid-way through attributing the 17 IA maps to their original institutions — if you know where the 1863 "Plan du port de Saigon" or the 1882 "Saigon &amp; Surroundings" were first scanned, tell us.</p>
+		`
+	},
+	{
 		slug: 'buildings-as-ground-control',
 		title: 'Buildings as Ground Control: A New Method for Vectorizing Colonial Maps',
 		date: '2026-03-13',
@@ -80,7 +124,7 @@ export const posts: BlogPost[] = [
 <p>This is the first monthly digest. The rule: two paragraphs, no slide decks, no meetings requested. What shipped, what didn't, what's next.</p>
 
 <h2>What shipped</h2>
-<p>The <strong>L7014 pipeline is mature</strong>. 500+ US Army maps of Vietnam are now georeferenced, datum-corrected (Indian 1960 → WGS84), and served over IIIF. The propagation algorithm — using seed maps to extrapolate corners across the regular grid — eliminated manual GCP placement for roughly 90% of the series. This is the core technical innovation and it's done.</p>
+<p>The <strong>L7014 pipeline is complete and archived</strong>. 500+ US Army maps of Vietnam are georeferenced, datum-corrected (Indian 1960 → WGS84), and served over IIIF. The propagation algorithm — using seed maps to extrapolate corners across the regular grid — eliminated manual GCP placement for roughly 90% of the series. This work is done; the pipeline code has been retired now that the series is fully processed.</p>
 <p>We were <strong>featured in Saigoneer</strong> (January 2026), Vietnam's leading English-language culture publication. The coverage framed the project clearly: we're not building a map app, we're building the spatial memory of a city most of the world has only seen in wartime. The response from the Vietnamese diaspora community was immediate and warm.</p>
 
 <h2>What didn't ship</h2>
@@ -151,7 +195,7 @@ export const posts: BlogPost[] = [
 <p>One practical note: PROJ and QGIS don't always apply this shift automatically when reading EPSG:3148. We have to pass the explicit proj4 string with the towgs84 parameters. Skipping this produces maps that are systematically off by roughly 170 meters — which looks fine until you overlay it on satellite imagery and notice the roads don't match.</p>
 
 <h2>The output</h2>
-<p>Every georeferenced sheet is stored as a W3C Web Annotation (Georeference Annotation) JSON file in Supabase Storage, compatible with the Allmaps viewer. The pipeline tracks status (indexed → seeds selected → uploaded to Internet Archive → annotated → propagated) in a <code>pipeline_sheets</code> table. 500+ sheets processed. Error rate under 1% on propagated annotations validated against manually-georeferenced seeds.</p>
+<p>Every georeferenced sheet is stored as a W3C Web Annotation (Georeference Annotation) JSON file in Supabase Storage, compatible with the Allmaps viewer. 500+ sheets processed. Error rate under 1% on propagated annotations validated against manually-georeferenced seeds. The series is complete.</p>
 <p>The method generalizes: any uniform map series with known sheet dimensions can be processed the same way. Hanoi. Phnom Penh. Manila. Whoever runs this first for their city's archive owns the result permanently.</p>
 		`
 	},

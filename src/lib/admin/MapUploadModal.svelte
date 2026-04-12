@@ -1,12 +1,11 @@
 <script lang="ts">
-    import { uploadImageToIA, adminCreateGeorefSubmission } from "./adminApi";
+    import { uploadImageToIA } from "./adminApi";
     import type { MapRow } from "./adminApi";
     import { createEventDispatcher } from "svelte";
-    import "$lib/styles/components/admin-modals.css";
+    import "$styles/components/admin-modals.css";
 
     const dispatch = createEventDispatcher<{
         created: MapRow;
-        queued: { submission: { id: string; iiif_url: string; name: string; status: string } };
         close: void;
     }>();
 
@@ -58,12 +57,24 @@
         queuing = true;
         step2Error = "";
         try {
-            const submission = await adminCreateGeorefSubmission({
-                iiif_url: iiifUrl,
-                name: name.trim(),
-                description: description.trim() || undefined
+            const res = await fetch('/api/admin/maps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name.trim(),
+                    iiif_image: iiifUrl,
+                    year: year ? parseInt(year) : null,
+                    description: description.trim() || null,
+                    source_type: 'internet_archive',
+                    status: 'draft',
+                })
             });
-            dispatch("queued", { submission });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ message: res.statusText }));
+                throw new Error(err.message || 'Failed to create map');
+            }
+            const map = await res.json();
+            dispatch("created", map);
         } catch (e: any) {
             step2Error = e.message;
         } finally {
@@ -88,7 +99,7 @@
     <div class="modal">
         <div class="modal-header">
             <h2 class="modal-title">
-                {#if step === 1}Upload New Map{:else}Add to Georef Queue{/if}
+                {#if step === 1}Upload New Map{:else}Add to Catalog{/if}
             </h2>
             <button class="close-btn" on:click={() => dispatch("close")} aria-label="Close">✕</button>
         </div>
@@ -218,7 +229,7 @@
                     on:click={handleQueue}
                     disabled={queuing}
                 >
-                    {queuing ? "Adding..." : "➕ Add to Georef Queue"}
+                    {queuing ? "Creating..." : "➕ Add to Catalog"}
                 </button>
             {/if}
         </div>

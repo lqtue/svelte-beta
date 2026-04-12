@@ -1,19 +1,20 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchMapsWithPendingReview } from '$lib/supabase/labels';
+  import { fetchMapsWithSubmittedFootprints } from '$lib/supabase/labels';
   import ReviewMode from '$lib/contribute/review/ReviewMode.svelte';
 
   const { supabase } = getSupabaseContext();
 
-  let maps: { id: string; name: string; pendingCount: number }[] = [];
+  let maps: { id: string; name: string; allmapsId: string; pendingCount: number }[] = [];
   let loading = true;
   let loadError = '';
   let selectedMapId: string | null = null;
+  let selectedAllmapsId: string = '';
 
   onMount(async () => {
     try {
-      maps = await fetchMapsWithPendingReview(supabase);
+      maps = await fetchMapsWithSubmittedFootprints(supabase);
     } catch (e: any) {
       loadError = e.message;
     } finally {
@@ -23,7 +24,8 @@
 
   function handleDone() {
     selectedMapId = null;
-    fetchMapsWithPendingReview(supabase).then(m => { maps = m; });
+    selectedAllmapsId = '';
+    fetchMapsWithSubmittedFootprints(supabase).then(m => { maps = m; });
   }
 </script>
 
@@ -35,6 +37,7 @@
 {#if selectedMapId}
   <ReviewMode
     mapId={selectedMapId}
+    allmapsId={selectedAllmapsId}
     on:done={handleDone}
   />
 {:else}
@@ -57,7 +60,7 @@
           <li>
             <button
               class="map-card"
-              on:click={() => { selectedMapId = map.id; }}
+              on:click={() => { selectedMapId = map.id; selectedAllmapsId = map.allmapsId; }}
             >
               <span class="map-name">{map.name || map.id}</span>
               <span class="map-badge">{map.pendingCount} pending</span>

@@ -137,12 +137,13 @@
         // Create the layer once the map is ready
         warpedLayer = createWarpedLayer($map);
 
-        // React to activeMapId changes
+        // React to activeAllmapsId changes (the Allmaps service credential).
+        // activeMapId is the UUID (canonical); activeAllmapsId is what the Allmaps API needs.
         unsubs.push(
           mapStore.subscribe(($ms) => {
-            if ($ms.activeMapId) {
-              load($ms.activeMapId);
-            } else {
+            if ($ms.activeAllmapsId) {
+              load($ms.activeAllmapsId);
+            } else if (!$ms.activeMapId) {
               clear();
             }
           }),

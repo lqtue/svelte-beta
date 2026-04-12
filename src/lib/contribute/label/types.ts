@@ -1,25 +1,14 @@
 // Legend items: simple string ("Building") or transcription object ({val: "1", label: "Abattoir Municipal"})
 export type LegendItem = string | { val: string; label: string };
 
-export interface LabelTask {
-	id: string;
-	mapId: string;
-	allmapsId: string;
-	status: 'open' | 'in_progress' | 'consensus' | 'verified' | 'hidden';
-	legend: LegendItem[];
-	categories: string[];   // trace/footprint classification options (separate from pin legend)
-	mapName: string | null;
-}
-
 export interface LabelPin {
 	id: string;
-	taskId: string;
+	mapId: string;
 	userId: string;
 	label: string;
 	pixelX: number;
 	pixelY: number;
-	confidence: number;
-	data?: { vietnameseName?: string; notes?: string;[key: string]: any };
+	data?: { vietnameseName?: string; notes?: string; [key: string]: any };
 }
 
 // [x, y] pairs in IIIF pixel space (y+ = down, matching IIIF convention)
@@ -71,12 +60,11 @@ export function isSamCategory(s: string): s is SamCategory {
 
 export interface FootprintSubmission {
 	id: string;
-	taskId: string;
-	pinId: string | null;
+	mapId: string;
 	userId: string;
 	pixelPolygon: PixelCoord[]; // closed ring for Polygon, open sequence for LineString
-	name: string | null;        // human-readable identifier (e.g. "Marché Central")
-	category: string | null;    // legend classification — SamCategory for SAM rows, any string for volunteer tasks
+	name: string | null;
+	category: string | null;
 	featureType: FeatureType;
-	status: 'submitted' | 'needs_review' | 'consensus' | 'verified' | 'rejected';
+	status: 'draft' | 'submitted' | 'approved' | 'rejected';
 }

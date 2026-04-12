@@ -15,8 +15,8 @@ import type { Writable } from 'svelte/store';
 import type Map from 'ol/Map';
 import type { MapStore } from '$lib/stores/mapStore';
 import type { LayerStore } from '$lib/stores/layerStore';
-import type { AnnotationHistoryStore } from '$lib/map/stores/annotationHistory';
-import type { AnnotationStateStore } from '$lib/map/stores/annotationState';
+import type { AnnotationHistoryStore } from '$lib/map/annotationHistory';
+import type { AnnotationStateStore } from '$lib/map/annotationState';
 
 const SHELL_CTX = Symbol('shell-context');
 

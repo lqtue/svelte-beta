@@ -5,11 +5,11 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import "$lib/styles/layouts/create-mode.css";
+  import "$styles/layouts/create-mode.css";
   import { fromLonLat, transformExtent } from "ol/proj";
   import type Map from "ol/Map";
 
-  import type { ViewMode, MapListItem, SearchResult } from "$lib/viewer/types";
+  import type { ViewMode, MapListItem, SearchResult } from "$lib/map/types";
   import type { Story, StoryPoint } from "$lib/story/types";
   import { createMapStore } from "$lib/stores/mapStore";
   import { createLayerStore } from "$lib/stores/layerStore";
@@ -21,6 +21,7 @@
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
   import { fetchMapBounds } from "$lib/shell/warpedOverlay"; // New import
 
+  import GeoMapShell from "$lib/shell/GeoMapShell.svelte";
   import MapShell from "$lib/shell/MapShell.svelte";
   import HistoricalOverlay from "$lib/shell/HistoricalOverlay.svelte";
   import MapClickCapture from "./MapClickCapture.svelte";
@@ -71,7 +72,6 @@
   let isMobile = false;
   let isCompact = false;
 
-  let responsiveCleanup: (() => void) | null = null;
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
   let shellMap: Map | null = null;
   let toolbarEl: HTMLDivElement;
@@ -382,7 +382,8 @@
       });
     }
     if (firstPoint.overlayMapId) {
-      mapStore.setActiveMap(firstPoint.overlayMapId);
+      const found = mapList.find((m) => m.id === firstPoint.overlayMapId || m.allmaps_id === firstPoint.overlayMapId);
+      mapStore.setActiveMap(found?.id ?? firstPoint.overlayMapId, found?.allmaps_id);
     }
 
     console.log("[CreateMode] Preview started");
@@ -412,7 +413,8 @@
       });
     }
     if (point.overlayMapId) {
-      mapStore.setActiveMap(point.overlayMapId);
+      const found = mapList.find((m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId);
+      mapStore.setActiveMap(found?.id ?? point.overlayMapId, found?.allmaps_id);
     }
   }
 
@@ -567,7 +569,7 @@
     const { map } = event.detail;
     let bounds = map.bounds ?? null;
     if (!bounds) {
-      bounds = await fetchAnnotationBounds(map.id);
+      bounds = await fetchAnnotationBounds(map.allmaps_id ?? '');
     }
     if (bounds) {
       const center = boundsCenter(bounds);
@@ -619,20 +621,6 @@
       storiesLoading = false;
     });
 
-    const mobileQuery = window.matchMedia("(max-width: 900px)");
-    const compactQuery = window.matchMedia("(max-width: 1400px)");
-    const updateResponsive = () => {
-      isMobile = mobileQuery.matches;
-      isCompact = compactQuery.matches;
-    };
-    updateResponsive();
-    mobileQuery.addEventListener("change", updateResponsive);
-    compactQuery.addEventListener("change", updateResponsive);
-    responsiveCleanup = () => {
-      mobileQuery.removeEventListener("change", updateResponsive);
-      compactQuery.removeEventListener("change", updateResponsive);
-    };
-
     keydownHandler = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
@@ -654,7 +642,6 @@
   });
 
   onDestroy(() => {
-    responsiveCleanup?.();
     if (keydownHandler) {
       window.removeEventListener("keydown", keydownHandler);
       keydownHandler = null;
@@ -896,12 +883,9 @@
   <!-- Editor View -->
 {:else}
   <div class="create-mode" class:mobile={isMobile}>
-    <div
-      class="workspace"
-      class:with-sidebar={!sidebarCollapsed && !isMobile}
-      class:compact={isCompact}
-    >
-      {#if !sidebarCollapsed && !isMobile}
+    <GeoMapShell bind:sidebarCollapsed bind:isMobile bind:isCompact>
+
+      <svelte:fragment slot="sidebar">
         <StoryEditor
           story={currentStory}
           {selectedMap}
@@ -928,228 +912,131 @@
           on:toggleCollapse={() => (sidebarCollapsed = true)}
           on:backToLibrary={handleBackToLibrary}
         />
+      </svelte:fragment>
+
+      <!-- Map content (inside map-stage) -->
+      <MapShell {mapStore} {layerStore} bind:map={shellMap}>
+        <HistoricalOverlay
+          on:loadstart={() => { overlayLoading = true; overlayError = null; }}
+          on:loadend={() => { overlayLoading = false; }}
+          on:loaderror={(e) => { overlayLoading = false; overlayError = e.detail.message; }}
+        />
+        <MapClickCapture
+          enabled={placingPoint || movingPoint}
+          on:mapClick={handleMapClick}
+          on:mapReady={handleMapReady}
+        />
+        {#if currentStory}
+          <StoryMarkers
+            points={currentStory.points}
+            currentIndex={previewMode
+              ? (previewProgress?.currentPointIndex ?? 0)
+              : currentPointIndex}
+          />
+        {/if}
+        {#if previewMode && currentStory}
+          <StoryPlayback
+            story={currentStory}
+            progress={previewProgress}
+            on:navigatePoint={handlePreviewNavigate}
+            on:completePoint={handlePreviewComplete}
+            on:close={handlePreviewClose}
+            on:finish={handlePreviewFinish}
+          />
+        {/if}
+      </MapShell>
+
+      <MapToolbar
+        {viewMode}
+        {opacity}
+        {isMobile}
+        showDual={false}
+        bind:toolbarEl
+        on:changeViewMode={handleChangeViewMode}
+        on:changeOpacity={handleChangeOpacity}
+      />
+
+      {#if viewMode === "spy"}
+        <div class="lens-overlay" bind:this={lensOverlayEl}>
+          <div class="lens-ring" style="width: {lensRadius * 2}px; height: {lensRadius * 2}px;"></div>
+          <div
+            class="lens-knob"
+            style="transform: translateX({lensRadius}px);"
+            on:mousedown={startLensDrag}
+            on:touchstart|preventDefault={startLensDrag}
+            role="slider"
+            aria-label="Lens size"
+            aria-valuemin={30}
+            aria-valuemax={500}
+            aria-valuenow={lensRadius}
+            tabindex="0"
+          ></div>
+        </div>
       {/if}
 
-      <div class="map-stage">
-        <MapShell {mapStore} {layerStore} bind:map={shellMap}>
-          <HistoricalOverlay
-            on:loadstart={() => {
-              overlayLoading = true;
-              overlayError = null;
-            }}
-            on:loadend={() => {
-              overlayLoading = false;
-            }}
-            on:loaderror={(e) => {
-              overlayLoading = false;
-              overlayError = e.detail.message;
-            }}
-          />
-          <MapClickCapture
-            enabled={placingPoint || movingPoint}
-            on:mapClick={handleMapClick}
-            on:mapReady={handleMapReady}
-          />
-          {#if currentStory}
-            <StoryMarkers
-              points={currentStory.points}
-              currentIndex={previewMode
-                ? (previewProgress?.currentPointIndex ?? 0)
-                : currentPointIndex}
-            />
-          {/if}
-
-          {#if previewMode && currentStory}
-            <StoryPlayback
-              story={currentStory}
-              progress={previewProgress}
-              on:navigatePoint={handlePreviewNavigate}
-              on:completePoint={handlePreviewComplete}
-              on:close={handlePreviewClose}
-              on:finish={handlePreviewFinish}
-            />
-          {/if}
-        </MapShell>
-
-        <!-- Top-left: Show Panel (when collapsed) -->
-        {#if sidebarCollapsed && !isMobile}
-          <div class="top-controls">
-            <button
-              type="button"
-              class="ctrl-btn"
-              on:click={() => (sidebarCollapsed = false)}
-              title="Show panel"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M9 3v18" />
-              </svg>
-            </button>
-          </div>
-        {/if}
-
-        <!-- Bottom-right: Basemap + Mobile menu -->
-        <div class="floating-controls">
-          <button
-            type="button"
-            class="ctrl-btn"
-            on:click={toggleBasemap}
-            title={basemapSelection === "g-streets"
-              ? "Switch to Satellite"
-              : "Switch to Streets"}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              {#if basemapSelection === "g-streets"}
-                <circle cx="12" cy="12" r="10" />
-                <path
-                  d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"
-                />
-              {:else}
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-              {/if}
-            </svg>
-          </button>
-          {#if isMobile}
-            <button
-              type="button"
-              class="ctrl-btn"
-              on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
-              title="Toggle panel"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M3 6h18M3 12h18M3 18h18" />
-              </svg>
-            </button>
+      {#if overlayLoading}
+        <div class="overlay-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading map overlay...</span>
+          {#if showZoomPrompt}
+            <span>or try</span>
+            <button class="loading-zoom-btn" on:click={handleZoomToActiveMap}>Zoom to Map</button>
           {/if}
         </div>
+      {/if}
 
-        <!-- Map Controls Toolbar -->
-        <MapToolbar
-          {viewMode}
-          {opacity}
-          {isMobile}
-          showDual={false}
-          bind:toolbarEl
-          on:changeViewMode={handleChangeViewMode}
-          on:changeOpacity={handleChangeOpacity}
-        />
-
-        <!-- Lens resize knob (spy mode only) -->
-        {#if viewMode === "spy"}
-          <div class="lens-overlay" bind:this={lensOverlayEl}>
-            <div
-              class="lens-ring"
-              style="width: {lensRadius * 2}px; height: {lensRadius * 2}px;"
-            ></div>
-            <div
-              class="lens-knob"
-              style="transform: translateX({lensRadius}px);"
-              on:mousedown={startLensDrag}
-              on:touchstart|preventDefault={startLensDrag}
-              role="slider"
-              aria-label="Lens size"
-              aria-valuemin={30}
-              aria-valuemax={500}
-              aria-valuenow={lensRadius}
-              tabindex="0"
-            ></div>
-          </div>
-        {/if}
-
-        {#if overlayLoading}
-          <div class="overlay-loading">
-            <div class="loading-spinner"></div>
-            <span>Loading map overlay...</span>
-            {#if showZoomPrompt}
-              <span>or try</span>
-              <button class="loading-zoom-btn" on:click={handleZoomToActiveMap}>
-                Zoom to Map
-              </button>
-            {/if}
-          </div>
-        {/if}
-
-        {#if overlayError}
-          <div class="overlay-error">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v4M12 16h.01" />
+      {#if overlayError}
+        <div class="overlay-error">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          <span>{overlayError}</span>
+          <button type="button" class="overlay-error-close" on:click={() => (overlayError = null)} aria-label="Dismiss">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
             </svg>
-            <span>{overlayError}</span>
-            <button
-              type="button"
-              class="overlay-error-close"
-              on:click={() => (overlayError = null)}
-              aria-label="Dismiss"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg
-              >
-            </button>
-          </div>
+          </button>
+        </div>
+      {/if}
+
+      <MapSearchBar
+        maps={mapList}
+        {selectedMapId}
+        {toolbarEl}
+        showAddAsPoint={true}
+        on:navigate={handleSearchNavigate}
+        on:addAsPoint={handleSearchAddPoint}
+        on:selectMap={(e) => { mapStore.setActiveMap(e.detail.map.id, e.detail.map.allmaps_id); }}
+      />
+
+      <svelte:fragment slot="floating">
+        <button
+          type="button"
+          class="ctrl-btn"
+          on:click={toggleBasemap}
+          title={basemapSelection === "g-streets" ? "Switch to Satellite" : "Switch to Streets"}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            {#if basemapSelection === "g-streets"}
+              <circle cx="12" cy="12" r="10" />
+              <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+            {:else}
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+            {/if}
+          </svg>
+        </button>
+        {#if isMobile}
+          <button type="button" class="ctrl-btn" on:click={() => (sidebarCollapsed = !sidebarCollapsed)} title="Toggle panel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
         {/if}
+      </svelte:fragment>
 
-        <MapSearchBar
-          maps={mapList}
-          {selectedMapId}
-          {toolbarEl}
-          showAddAsPoint={true}
-          on:navigate={handleSearchNavigate}
-          on:addAsPoint={handleSearchAddPoint}
-          on:selectMap={(e) => {
-            mapStore.setActiveMap(e.detail.map.id);
-          }}
-        />
-      </div>
-    </div>
-
-    <!-- Mobile sidebar (sliding panel) -->
-    {#if isMobile && !sidebarCollapsed}
-      <div
-        class="mobile-overlay"
-        on:click={() => (sidebarCollapsed = true)}
-        role="presentation"
-      ></div>
-      <div class="mobile-sidebar">
+      <svelte:fragment slot="mobile-sidebar">
         <StoryEditor
           story={currentStory}
           {selectedMap}
@@ -1168,7 +1055,8 @@
           on:toggleCollapse={() => (sidebarCollapsed = true)}
           on:backToLibrary={handleBackToLibrary}
         />
-      </div>
-    {/if}
+      </svelte:fragment>
+
+    </GeoMapShell>
   </div>
 {/if}

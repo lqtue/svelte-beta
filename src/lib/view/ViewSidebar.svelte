@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { MapListItem } from '$lib/viewer/types';
+  import type { MapListItem } from '$lib/map/types';
   import type { Story } from '$lib/story/types';
   import { shareContent, getMapShareData, getStoryShareData } from '$lib/utils/share';
 
@@ -73,15 +73,12 @@
           {#if selectedMap.year}
             <span class="meta-badge meta-year">{selectedMap.year}</span>
           {/if}
-          {#if selectedMap.type}
-            <span class="meta-badge meta-city">{selectedMap.type}</span>
+          {#if selectedMap.location}
+            <span class="meta-badge meta-city">{selectedMap.location}</span>
           {/if}
         </div>
-        {#if selectedMap.summary}
-          <p class="map-summary">{selectedMap.summary}</p>
-        {/if}
-        {#if selectedMap.description}
-          <p class="map-description">{selectedMap.description}</p>
+        {#if selectedMap.dc_description}
+          <p class="map-summary">{selectedMap.dc_description}</p>
         {/if}
 
         <div class="map-actions">

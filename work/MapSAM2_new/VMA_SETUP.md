@@ -16,14 +16,18 @@
 
 ## Notebook Configuration
 
-### Cell 4 — Update these values:
+The notebook now fetches data **directly from Supabase** — no local server or ngrok needed.
+
+### Cell 1 — Pre-filled values (no changes needed):
 
 ```python
-# ── VMA API ──────────────────────────────────────────────────────────────────
-VMA_BASE   = 'http://localhost:5173'  # Local dev
-# VMA_BASE = 'https://vietnammaparchive.org'  # Or your production URL
-MAP_ID     = '3d065384-bb09-4b8c-b46b-bf006d0c3ba3'
-STATUS     = 'submitted'    # Use the 46 available footprints
+# ── Supabase (public read-only) ───────────────────────────────────────────────
+SUPABASE_URL      = 'https://trioykjhhwrruwjsklfo.supabase.co'
+SUPABASE_ANON_KEY = '...'  # already set in notebook
+
+# ── Training data ─────────────────────────────────────────────────────────────
+MAP_ID = '0e02b9d9-9d40-4cca-8e41-8c8373d54d3b'
+STATUS = 'submitted'    # Use the 46 available footprints
 
 # ── Training ─────────────────────────────────────────────────────────────────
 TRAIN_SPLIT  = 0.8
@@ -49,40 +53,24 @@ USE_DRIVE   = False  # Set to True to cache across Colab sessions
 
 ## How to Run
 
-### 1. Start VMA Locally
-
-```bash
-cd /Users/airm1/Downloads/svelte-beta
-npm run dev
-```
-
-Server will be at `http://localhost:5173`
-
-### 2. Upload Notebook to Google Colab
+### 1. Upload Notebook to Google Colab
 
 1. Go to [https://colab.research.google.com](https://colab.research.google.com)
 2. Upload `work/MapSAM2_new/vma_mapsam2_training.ipynb`
 3. Change runtime to **GPU** (Runtime → Change runtime type → GPU → T4)
 
-### 3. Configure & Run
+> **No local server needed.** The notebook queries Supabase directly using
+> the public anon key, then fetches IIIF crop URLs via Allmaps — all from
+> within Colab.
 
-In **Cell 4**, update `VMA_BASE`:
-
-```python
-VMA_BASE = 'http://localhost:5173'
-```
-
-If your Colab instance is remote from your local machine:
-- Use **ngrok** to tunnel: `ngrok http 5173`
-- Then set: `VMA_BASE = 'https://your-ngrok-url.ngrok.io'`
-
-### 4. Run All Cells
+### 2. Run All Cells
 
 The notebook will:
-- Cell 5: Fetch 46 footprints via `/api/export/footprints?format=coco`
-- Cell 6: Download IIIF crops and render binary masks
-- Cell 8: Fine-tune SAM2 with LoRA (20 epochs)
-- Cell 9–10: Evaluate and visualize results
+- Cell 4: Fetch 46 footprints directly from Supabase + build COCO dataset
+- Cell 5: Download IIIF crops and render binary masks
+- Cell 6: Fine-tune SAM2 with LoRA (20 epochs)
+- Cell 7–8: Evaluate and visualize results
+- Cell 9: Optionally save model to Google Drive
 
 ---
 
@@ -100,8 +88,9 @@ Metrics to watch:
 ## Troubleshooting
 
 ### `No footprints returned` error
-- Check `VMA_BASE` is accessible from Colab (use ngrok if remote)
-- Verify `MAP_ID` matches a map with footprints (see table above)
+- Check `MAP_ID` matches the table above (it is pre-filled correctly)
+- Verify `STATUS` — try `'submitted'` if using another value
+- Check Supabase is reachable: `requests.get(SUPABASE_URL).status_code` should be 200
 
 ### Network timeout downloading IIIF crops
 - Increase timeout in Cell 5: `timeout=60` → `timeout=120`

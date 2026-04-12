@@ -11,10 +11,6 @@
 		"src/routes/admin/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/admin/pipeline": [
-		"src/routes/admin/pipeline/+page.ts",
-		"src/routes/+layout.server.ts"
-	],
 	"/annotate": [
 		"src/routes/annotate/+page.ts",
 		"src/routes/+layout.server.ts"
@@ -22,26 +18,11 @@
 	"/api/admin/footprints": [
 		"src/routes/api/admin/footprints/+server.ts"
 	],
-	"/api/admin/georef": [
-		"src/routes/api/admin/georef/+server.ts"
-	],
-	"/api/admin/labels": [
-		"src/routes/api/admin/labels/+server.ts"
-	],
-	"/api/admin/labels/[id]": [
-		"src/routes/api/admin/labels/[id]/+server.ts"
-	],
 	"/api/admin/maps": [
 		"src/routes/api/admin/maps/+server.ts"
 	],
-	"/api/admin/maps/bulk-datum-fix": [
-		"src/routes/api/admin/maps/bulk-datum-fix/+server.ts"
-	],
-	"/api/admin/maps/propagate-from-ref": [
-		"src/routes/api/admin/maps/propagate-from-ref/+server.ts"
-	],
-	"/api/admin/maps/propagate-gcps": [
-		"src/routes/api/admin/maps/propagate-gcps/+server.ts"
+	"/api/admin/maps/fetch-iiif-metadata": [
+		"src/routes/api/admin/maps/fetch-iiif-metadata/+server.ts"
 	],
 	"/api/admin/maps/[id]": [
 		"src/routes/api/admin/maps/[id]/+server.ts"
@@ -49,32 +30,20 @@
 	"/api/admin/maps/[id]/annotation": [
 		"src/routes/api/admin/maps/[id]/annotation/+server.ts"
 	],
+	"/api/admin/maps/[id]/iiif-sources": [
+		"src/routes/api/admin/maps/[id]/iiif-sources/+server.ts"
+	],
+	"/api/admin/maps/[id]/iiif-sources/[sourceId]": [
+		"src/routes/api/admin/maps/[id]/iiif-sources/[sourceId]/+server.ts"
+	],
 	"/api/admin/maps/[id]/image": [
 		"src/routes/api/admin/maps/[id]/image/+server.ts"
 	],
-	"/api/admin/pipeline/annotate": [
-		"src/routes/api/admin/pipeline/annotate/+server.ts"
-	],
-	"/api/admin/pipeline/ia-upload": [
-		"src/routes/api/admin/pipeline/ia-upload/+server.ts"
-	],
-	"/api/admin/pipeline/index-sheets": [
-		"src/routes/api/admin/pipeline/index-sheets/+server.ts"
-	],
-	"/api/admin/pipeline/propagate-sheet": [
-		"src/routes/api/admin/pipeline/propagate-sheet/+server.ts"
-	],
-	"/api/admin/pipeline/seed-sheets": [
-		"src/routes/api/admin/pipeline/seed-sheets/+server.ts"
-	],
-	"/api/admin/pipeline/select-seeds": [
-		"src/routes/api/admin/pipeline/select-seeds/+server.ts"
-	],
-	"/api/admin/pipeline/status": [
-		"src/routes/api/admin/pipeline/status/+server.ts"
-	],
 	"/api/admin/upload-image": [
 		"src/routes/api/admin/upload-image/+server.ts"
+	],
+	"/api/contribute/catalog/[mapId]": [
+		"src/routes/api/contribute/catalog/[mapId]/+server.ts"
 	],
 	"/api/export/footprints": [
 		"src/routes/api/export/footprints/+server.ts"
@@ -90,6 +59,13 @@
 		"src/routes/+layout.server.ts"
 	],
 	"/catalog": [
+		"src/routes/+layout.server.ts"
+	],
+	"/contribute": [
+		"src/routes/+layout.server.ts"
+	],
+	"/contribute/catalog": [
+		"src/routes/contribute/catalog/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
 	"/contribute/georef": [

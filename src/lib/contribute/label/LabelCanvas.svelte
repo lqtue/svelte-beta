@@ -57,7 +57,7 @@
   export let drawMode: 'pin' | 'trace' | 'select' | 'pin-edit' = 'pin';
   /** Geometry to draw — user picks Polygon or LineString directly */
   export let geometryMode: 'Polygon' | 'LineString' = 'Polygon';
-  export let taskId: string | null = null;
+  export let mapId: string | null = null;
   export let myUserId: string | null = null;
 
   let mapContainer: HTMLDivElement;
@@ -213,10 +213,10 @@
   $: pins, pinSource && syncPins();
   $: footprints, footprintSource && syncFootprints();
 
-  // Task isolation: abort any in-progress draw when task changes
-  let _prevTaskId = taskId;
-  $: if (taskId !== _prevTaskId) {
-    _prevTaskId = taskId;
+  // Map isolation: abort any in-progress draw when map changes
+  let _prevMapId = mapId;
+  $: if (mapId !== _prevMapId) {
+    _prevMapId = mapId;
     if (drawInteraction) drawInteraction.abortDrawing();
     if (drawSource) drawSource.clear();
     isDrawing = false;

@@ -1,6 +1,6 @@
 // Shared search utilities: coordinate parsing, covering map detection, bounds helpers
 
-import type { MapListItem } from '$lib/viewer/types';
+import type { MapListItem } from '$lib/map/types';
 
 /**
  * Parse a coordinate string into lat/lng.

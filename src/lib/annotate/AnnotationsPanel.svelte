@@ -9,7 +9,7 @@
     MapListItem,
     AnnotationSummary,
     DrawingMode,
-  } from "$lib/viewer/types";
+  } from "$lib/map/types";
 
   const dispatch = createEventDispatcher<{
     rename: { id: string; label: string };
@@ -159,12 +159,12 @@
             {#if selectedMap.year}
               <span class="meta-badge meta-year">{selectedMap.year}</span>
             {/if}
-            {#if selectedMap.type}
-              <span class="meta-badge meta-city">{selectedMap.type}</span>
+            {#if selectedMap.location}
+              <span class="meta-badge meta-city">{selectedMap.location}</span>
             {/if}
           </div>
-          {#if selectedMap.summary}
-            <p class="map-summary">{selectedMap.summary}</p>
+          {#if selectedMap.dc_description}
+            <p class="map-summary">{selectedMap.dc_description}</p>
           {/if}
           <div class="map-actions">
             <button

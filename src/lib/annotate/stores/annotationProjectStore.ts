@@ -1,6 +1,6 @@
-import { createPersistedStore } from '$lib/core/persistence/createPersistedStore';
-import { randomId } from '$lib/core/utils/id';
-import type { AnnotationSet } from '$lib/viewer/types';
+import { createPersistedStore } from '$lib/utils/persistence/createPersistedStore';
+import { randomId } from '$lib/utils/id';
+import type { AnnotationSet } from '$lib/map/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as annotationsApi from '$lib/supabase/annotations';
 import type { FeatureCollection } from 'geojson';

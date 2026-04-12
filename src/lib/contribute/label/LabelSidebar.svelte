@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, tick } from "svelte";
-  import "$lib/styles/components/label.css";
+  import "$styles/components/label.css";
   import type { LabelPin, FootprintSubmission, FeatureType } from "./types";
   import { FEATURE_TYPE_LABELS } from "./types";
 

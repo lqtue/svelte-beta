@@ -1,19 +1,24 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './types';
-import type { MapListItem } from '$lib/viewer/types';
+import type { MapListItem } from '$lib/map/types';
 
 type SupabaseMap = Database['public']['Tables']['maps']['Row'];
 
 function toMapListItem(row: SupabaseMap): MapListItem {
   return {
-    id: row.allmaps_id,
+    id: row.id,
+    allmaps_id: row.allmaps_id || undefined,
     name: row.name,
-    type: row.type || '',
-    summary: row.summary || undefined,
-    description: row.description || undefined,
+    location: row.location || undefined,
+    map_type: row.map_type || undefined,
+    dc_description: row.dc_description || undefined,
     thumbnail: row.thumbnail || undefined,
-    isFeatured: row.is_featured,
-    year: row.year || undefined
+    isFeatured: row.is_featured ?? undefined,
+    year: row.year || undefined,
+    year_label: row.year_label || undefined,
+    collection: row.collection || undefined,
+    source_type: row.source_type || undefined,
+    extra_metadata: (row.extra_metadata as Record<string, string>) || undefined,
   };
 }
 
@@ -46,11 +51,11 @@ export async function fetchFeaturedMaps(supabase: SupabaseClient<Database>): Pro
   return (data as unknown as SupabaseMap[]).map(toMapListItem);
 }
 
-export async function fetchMapsByType(supabase: SupabaseClient<Database>, type: string): Promise<MapListItem[]> {
+export async function fetchMapsByLocation(supabase: SupabaseClient<Database>, location: string): Promise<MapListItem[]> {
   const { data, error } = await supabase
     .from('maps')
     .select('*')
-    .eq('type', type)
+    .eq('location', location)
     .order('name');
 
   if (error) {

@@ -28,7 +28,7 @@
   import { fromLonLat, toLonLat } from "ol/proj";
   import "ol/ol.css";
 
-  import { BASEMAP_DEFS } from "$lib/viewer/constants";
+  import { BASEMAP_DEFS } from "$lib/map/constants";
   import type { MapStore } from "$lib/stores/mapStore";
   import { getOlCenter, fromOlCoordinate } from "$lib/stores/mapStore";
   import type { LayerStore } from "$lib/stores/layerStore";

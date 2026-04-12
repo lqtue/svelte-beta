@@ -2,7 +2,7 @@
   LabelProgress.svelte — Header bar showing labeling progress for current task.
 -->
 <script lang="ts">
-  import "$lib/styles/components/label.css";
+  import "$styles/components/label.css";
 
   export let totalPins = 0;
   export let totalFootprints = 0;

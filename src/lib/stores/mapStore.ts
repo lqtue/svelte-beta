@@ -21,13 +21,17 @@ export interface MapViewState {
 }
 
 export interface MapStoreValue extends MapViewState {
-	/** Currently loaded historical map overlay id (null = none) */
+	/** Currently loaded historical map — maps.id UUID (canonical key) */
 	activeMapId: string | null;
+	/** maps.allmaps_id — Allmaps service credential for tile loading.
+	 *  Set alongside activeMapId. Null when restoring from URL until map list resolves it. */
+	activeAllmapsId: string | null;
 }
 
 export interface MapStore extends Readable<MapStoreValue> {
 	setView(view: Partial<MapViewState>): void;
-	setActiveMap(id: string | null): void;
+	/** Set the active map. Pass allmapsId when available so HistoricalOverlay can load tiles. */
+	setActiveMap(id: string | null, allmapsId?: string | null): void;
 	setAll(value: Partial<MapStoreValue>): void;
 	reset(): void;
 }
@@ -39,7 +43,8 @@ const DEFAULTS: MapStoreValue = {
 	lat: 10.77653,
 	zoom: 14,
 	rotation: 0,
-	activeMapId: null
+	activeMapId: null,
+	activeAllmapsId: null
 };
 
 // ── Factory ──────────────────────────────────────────────────────────
@@ -57,8 +62,8 @@ export function createMapStore(initial?: Partial<MapStoreValue>): MapStore {
 			update((s) => ({ ...s, ...view }));
 		},
 
-		setActiveMap(id: string | null) {
-			update((s) => ({ ...s, activeMapId: id }));
+		setActiveMap(id: string | null, allmapsId?: string | null) {
+			update((s) => ({ ...s, activeMapId: id, activeAllmapsId: allmapsId ?? null }));
 		},
 
 		setAll(value: Partial<MapStoreValue>) {

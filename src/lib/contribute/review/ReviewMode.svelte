@@ -5,12 +5,15 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchNeedsReviewFootprints } from '$lib/supabase/labels';
+  import { fetchSubmittedFootprints } from '$lib/supabase/labels';
   import type { SamFootprint } from '$lib/supabase/labels';
+  import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
+  import type { FeatureType } from '$lib/contribute/label/types';
   import ReviewCanvas from './ReviewCanvas.svelte';
   import ReviewSidebar from './ReviewSidebar.svelte';
 
   export let mapId: string;
+  export let allmapsId: string = '';
 
   const dispatch = createEventDispatcher<{ done: void }>();
   const { supabase } = getSupabaseContext();
@@ -33,12 +36,21 @@
 
   onMount(async () => {
     try {
-      footprints = await fetchNeedsReviewFootprints(supabase, mapId);
+      footprints = await fetchSubmittedFootprints(supabase, mapId);
       initialTotal = footprints.length;
-      if (footprints.length > 0) {
-        const canvas = footprints[0].iiifCanvas;
-        iiifInfoUrl = canvas ? canvas + '/info.json' : null;
-        selectedId = footprints[0].id;
+      selectedId = footprints[0]?.id ?? null;
+      // Resolve IIIF url from allmapsId annotation
+      if (allmapsId) {
+        try {
+          const res = await fetch(annotationUrlForSource(allmapsId));
+          if (res.ok) {
+            const annotation = await res.json();
+            const sourceId = annotation.items?.[0]?.target?.source?.id;
+            if (sourceId) iiifInfoUrl = `${sourceId}/info.json`;
+          }
+        } catch (e) {
+          console.warn('[ReviewMode] Could not resolve IIIF url:', e);
+        }
       }
     } catch (e: any) {
       loadError = e.message;
@@ -54,7 +66,7 @@
   function handleRetype(id: string, featureType: string) {
     pendingEdits[id] = { ...pendingEdits[id], featureType };
     // Update local array so sidebar swatch reflects the change
-    footprints = footprints.map(f => f.id === id ? { ...f, featureType } : f);
+    footprints = footprints.map(f => f.id === id ? { ...f, featureType: featureType as FeatureType } : f);
   }
 
   async function handleApprove(id: string) {

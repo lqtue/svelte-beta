@@ -4,23 +4,23 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import "$lib/styles/layouts/mode-shared.css";
+  import "$styles/layouts/mode-shared.css";
   import { getSupabaseContext } from "$lib/supabase/context";
   import { annotationUrlForSource } from "$lib/shell/warpedOverlay";
   import {
-    fetchOpenTasks,
-    fetchTaskPins,
+    fetchLabelMaps,
+    fetchMapPins,
     createPin,
     deletePin,
     updatePinPosition,
-    updateTaskStatus,
-    fetchTaskFootprints,
+    fetchMapFootprints,
     createFootprint,
     updateFootprint,
     updateFootprintMeta,
     deleteFootprint,
   } from "$lib/supabase/labels";
-  import type { LabelTask, LabelPin, FootprintSubmission, PixelCoord, FeatureType } from "./types";
+  import type { LabelMapInfo } from "$lib/supabase/labels";
+  import type { LabelPin, FootprintSubmission, PixelCoord, FeatureType } from "./types";
 
   import LabelCanvas from "./LabelCanvas.svelte";
   import LabelSidebar from "./LabelSidebar.svelte";
@@ -29,9 +29,9 @@
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id;
 
-  let tasks: LabelTask[] = [];
-  let currentTaskIndex = 0;
-  let currentTask: LabelTask | null = null;
+  let maps: LabelMapInfo[] = [];
+  let currentMapIndex = 0;
+  let currentMap: LabelMapInfo | null = null;
   let pins: LabelPin[] = [];
   let myPins: LabelPin[] = [];
   let footprints: FootprintSubmission[] = [];
@@ -82,7 +82,7 @@
   let sidebarWidth = 340;
   let isResizing = false;
 
-  $: mapDisplayName = currentTask?.mapName ?? `Task ${currentTaskIndex + 1}`;
+  $: mapDisplayName = currentMap?.name ?? `Map ${currentMapIndex + 1}`;
 
   function startResize(e: MouseEvent) {
     e.preventDefault();
@@ -111,92 +111,69 @@
     return `Shape ${myFootprints.length + 1}`;
   }
 
-  // Derive legend from current task's DB field, fall back to defaults
-  $: legendItems =
-    currentTask?.legend &&
-    Array.isArray(currentTask.legend) &&
-    currentTask.legend.length > 0
-      ? (currentTask.legend as any[]) // Changed to any[] to support objects
-      : [
-          "Building",
-          "Temple",
-          "Market",
-          "School",
-          "Hospital",
-          "Government",
-          "Residence",
-          "Bridge",
-          "Park",
-          "Unknown",
-        ];
+  // Legend from map's label_config, with defaults
+  $: legendItems = currentMap?.legend?.length
+    ? (currentMap.legend as any[])
+    : ['Building', 'Temple', 'Market', 'School', 'Hospital',
+       'Government', 'Residence', 'Bridge', 'Park', 'Unknown'];
 
-  // Trace categories: from task.categories, fall back to legend items
-  $: traceCategories =
-    currentTask?.categories && currentTask.categories.length > 0
-      ? currentTask.categories
-      : legendItems.map(item => typeof item === 'string' ? item : (item as any).label ?? (item as any).val);
+  // Trace categories: from map's label_config, fall back to legend labels
+  $: traceCategories = currentMap?.categories?.length
+    ? currentMap.categories
+    : legendItems.map((item: any) => typeof item === 'string' ? item : (item.label ?? item.val));
 
   $: myPins = userId ? pins.filter((p) => p.userId === userId) : [];
   $: myFootprints = userId ? footprints.filter((f) => f.userId === userId) : [];
 
-  async function loadTasks() {
+  async function loadMaps() {
     loading = true;
     try {
-      tasks = await fetchOpenTasks(supabase);
-      if (tasks.length > 0) {
-        currentTaskIndex = 0;
-        await selectTask(0);
+      maps = await fetchLabelMaps(supabase);
+      if (maps.length > 0) {
+        currentMapIndex = 0;
+        await selectMap(0);
       }
     } catch (err) {
-      console.error("[LabelStudio] Failed to load tasks:", err);
+      console.error("[LabelStudio] Failed to load maps:", err);
     } finally {
       loading = false;
     }
   }
 
-  async function selectTask(index: number) {
-    if (index < 0 || index >= tasks.length) return;
-    currentTaskIndex = index;
-    currentTask = tasks[index];
+  async function selectMap(index: number) {
+    if (index < 0 || index >= maps.length) return;
+    currentMapIndex = index;
+    currentMap = maps[index];
     selectedLabel = null;
     iiifInfoUrl = null;
-    // Clear immediately so old task's annotations don't flash on the new task
     pins = [];
     footprints = [];
-    await Promise.all([loadTaskPins(), loadTaskFootprints(), resolveIiifUrl()]);
+    await Promise.all([loadMapPins(), loadMapFootprints(), resolveIiifUrl()]);
   }
 
-  async function loadTaskPins() {
-    if (!currentTask) return;
-    pins = await fetchTaskPins(supabase, currentTask.id);
+  async function loadMapPins() {
+    if (!currentMap) return;
+    pins = await fetchMapPins(supabase, currentMap.id);
   }
 
-  async function loadTaskFootprints() {
-    if (!currentTask) return;
+  async function loadMapFootprints() {
+    if (!currentMap) return;
     try {
-      footprints = await fetchTaskFootprints(supabase, currentTask.id);
+      footprints = await fetchMapFootprints(supabase, currentMap.id);
     } catch (err) {
       console.error('[LabelStudio] Failed to load footprints:', err);
       footprints = [];
     }
   }
 
-  /**
-   * Derive IIIF info URL from task's allmaps_id:
-   * 1. Fetch Allmaps annotation → extract source.id (the IIIF image base URL)
-   * 2. Append /info.json
-   */
   async function resolveIiifUrl() {
-    if (!currentTask?.allmapsId) return;
+    if (!currentMap?.allmapsId) return;
     try {
-      const res = await fetch(
-        annotationUrlForSource(currentTask.allmapsId),
-      );
+      const res = await fetch(annotationUrlForSource(currentMap.allmapsId));
       if (!res.ok) throw new Error(`Allmaps fetch failed: ${res.status}`);
       const annotation = await res.json();
       const items = annotation.items;
-      if (!items || items.length === 0)
-        throw new Error("No items in annotation");
+      if (!items?.length) throw new Error("No items in annotation");
       const sourceId = items[0]?.target?.source?.id;
       if (!sourceId) throw new Error("No source ID in annotation");
       iiifInfoUrl = `${sourceId}/info.json`;
@@ -213,7 +190,7 @@
   async function handlePlacePin(
     event: CustomEvent<{ pixelX: number; pixelY: number }>,
   ) {
-    if (!currentTask || !userId || !selectedLabel) return;
+    if (!currentMap || !userId || !selectedLabel) return;
 
     // Check if this is a list item (object legend)
     const legendItem = legendItems.find(
@@ -253,30 +230,17 @@
   }
 
   async function createAndAddPin(pixelX: number, pixelY: number, data?: any) {
-    if (!currentTask || !userId || !selectedLabel) return;
+    if (!currentMap || !userId || !selectedLabel) return;
     const id = await createPin(supabase, {
-      taskId: currentTask.id,
+      mapId: currentMap.id,
       userId,
       label: selectedLabel,
       pixelX,
       pixelY,
-      confidence: 0.8,
       data,
     });
     if (id) {
-      pins = [
-        ...pins,
-        {
-          id,
-          taskId: currentTask.id,
-          userId,
-          label: selectedLabel,
-          pixelX,
-          pixelY,
-          confidence: 0.8,
-          data,
-        },
-      ];
+      pins = [...pins, { id, mapId: currentMap.id, userId, label: selectedLabel, pixelX, pixelY, data }];
     }
   }
 
@@ -296,17 +260,17 @@
   }
 
   async function handleDrawPolygon(event: CustomEvent<{ pixelPolygon: PixelCoord[] }>) {
-    if (!currentTask || !userId) return;
+    if (!currentMap || !userId) return;
     const name = getNextName();
     const cat = selectedLabel ?? null;
     const id = await createFootprint(supabase, {
-      taskId: currentTask.id, userId,
+      mapId: currentMap.id, userId,
       pixelPolygon: event.detail.pixelPolygon,
-      pinId: null, name, category: cat, featureType: 'other',
+      name, category: cat, featureType: 'other',
     });
     if (id) {
       footprints = [...footprints, {
-        id, taskId: currentTask.id, pinId: null, userId,
+        id, mapId: currentMap.id, userId,
         pixelPolygon: event.detail.pixelPolygon, name, category: cat, featureType: 'other', status: 'submitted',
       }];
       newFootprintId = id;
@@ -361,20 +325,19 @@
   }
 
   async function handleSubmit() {
-    if (!currentTask || !userId) return;
+    if (!currentMap || !userId) return;
     submitting = true;
     submitMsg = "";
     try {
-      await updateTaskStatus(supabase, currentTask.id, "in_progress");
       const parts = [];
       if (myFootprints.length) parts.push(`${myFootprints.length} shape${myFootprints.length !== 1 ? 's' : ''}`);
       if (myPins.length) parts.push(`${myPins.length} pin${myPins.length !== 1 ? 's' : ''}`);
-      submitMsg = parts.length ? `Saved ${parts.join(' + ')}!` : 'Task marked in progress.';
+      submitMsg = parts.length ? `Saved ${parts.join(' + ')}!` : 'Nothing to submit yet.';
       // Auto-advance after a short delay
       setTimeout(() => {
         submitMsg = "";
-        if (currentTaskIndex < tasks.length - 1) {
-          selectTask(currentTaskIndex + 1);
+        if (currentMapIndex < maps.length - 1) {
+          selectMap(currentMapIndex + 1);
         }
       }, 1500);
     } catch (err) {
@@ -386,13 +349,13 @@
   }
 
   function handleSkip() {
-    if (currentTaskIndex < tasks.length - 1) {
-      selectTask(currentTaskIndex + 1);
+    if (currentMapIndex < maps.length - 1) {
+      selectMap(currentMapIndex + 1);
     }
   }
 
   onMount(() => {
-    loadTasks();
+    loadMaps();
     const mql = window.matchMedia("(max-width: 900px)");
     isMobile = mql.matches;
     const handler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
@@ -403,11 +366,11 @@
 
 <div class="label-studio" class:mobile={isMobile}>
   {#if loading}
-    <div class="loading">Loading tasks...</div>
-  {:else if !currentTask}
+    <div class="loading">Loading maps...</div>
+  {:else if !currentMap}
     <div class="empty">
-      <h2>No Tasks Available</h2>
-      <p>There are no labeling tasks at this time. Check back later.</p>
+      <h2>No Maps Available</h2>
+      <p>There are no maps ready for labeling at this time. Check back later.</p>
     </div>
   {:else}
     <!-- ── Top bar: map selector ── -->
@@ -419,11 +382,11 @@
         </svg>
       </a>
 
-      {#if tasks.length > 1}
+      {#if maps.length > 1}
         <div class="map-tabs">
-          {#each tasks as task, i (task.id)}
-            <button type="button" class="map-tab" class:active={i === currentTaskIndex} on:click={() => selectTask(i)} title={task.mapName ?? `Task ${i + 1}`}>
-              {task.mapName ?? `Task ${i + 1}`}
+          {#each maps as map, i (map.id)}
+            <button type="button" class="map-tab" class:active={i === currentMapIndex} on:click={() => selectMap(i)} title={map.name ?? `Map ${i + 1}`}>
+              {map.name ?? `Map ${i + 1}`}
             </button>
           {/each}
         </div>
@@ -432,9 +395,6 @@
       {/if}
 
       <div class="top-bar-stats">
-        <span class="meta-badge meta-status" class:open={currentTask.status === 'open'} class:in-progress={currentTask.status === 'in_progress'}>
-          {currentTask.status.replace('_', ' ')}
-        </span>
         <span class="stat-count">{myPins.length + myFootprints.length}</span>
       </div>
     </header>
@@ -492,7 +452,7 @@
           {legendItems}
           {pins}
           {footprints}
-          taskId={currentTask?.id ?? null}
+          mapId={currentMap?.id ?? null}
           myUserId={userId ?? null}
           placingEnabled={drawMode === 'pin' ? !!selectedLabel : drawMode === 'trace'}
           {selectedLabel}
@@ -568,8 +528,8 @@
         <span>Done</span>
       </button>
 
-      {#if tasks.length > 1}
-        <button class="tool-btn skip-tool" on:click={handleSkip} disabled={currentTaskIndex >= tasks.length - 1} title="Skip to next task">
+      {#if maps.length > 1}
+        <button class="tool-btn skip-tool" on:click={handleSkip} disabled={currentMapIndex >= maps.length - 1} title="Skip to next map">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
           <span>Skip</span>
         </button>
@@ -776,26 +736,6 @@
     font-weight: 800;
     color: var(--color-text);
     opacity: 0.6;
-}
-
-.meta-badge {
-    font-family: var(--font-family-base);
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 0.15rem 0.45rem;
-    border-radius: var(--radius-sm);
-    border: var(--border-thin);
-    color: var(--color-text);
-    background: var(--color-bg);
-    text-transform: capitalize;
-}
-
-.meta-status.open {
-    background: var(--color-yellow);
-}
-
-.meta-status.in-progress {
-    background: #dbeafe;
 }
 
 /* ── Panel (sidebar) ── */

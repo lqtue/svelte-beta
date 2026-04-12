@@ -9,7 +9,7 @@
  */
 
 import { writable, type Readable } from 'svelte/store';
-import type { ViewMode } from '$lib/viewer/types';
+import type { ViewMode } from '$lib/map/types';
 
 // ── Types ────────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { SearchResult, MapListItem } from "$lib/viewer/types";
+  import type { SearchResult, MapListItem } from "$lib/map/types";
   import { parseCoordinates, findNearbyMaps } from "./searchUtils";
 
   const dispatch = createEventDispatcher<{
@@ -68,8 +68,8 @@
     return maps.filter((m) => {
       const haystack = [
         m.name,
-        m.type,
-        m.summary ?? "",
+        m.location ?? "",
+        m.dc_description ?? "",
         m.year != null ? String(m.year) : "",
       ]
         .join(" ")
@@ -342,7 +342,7 @@
               <div class="result-meta">
                 {#if map.year}<span class="badge year-badge">{map.year}</span
                   >{/if}
-                {#if map.type}<span class="badge type-badge">{map.type}</span
+                {#if map.location}<span class="badge type-badge">{map.location}</span
                   >{/if}
               </div>
             </button>
@@ -472,7 +472,7 @@
                 <div class="result-meta">
                   {#if map.year}<span class="badge year-badge">{map.year}</span
                     >{/if}
-                  {#if map.type}<span class="badge type-badge">{map.type}</span
+                  {#if map.location}<span class="badge type-badge">{map.location}</span
                     >{/if}
                 </div>
               </button>

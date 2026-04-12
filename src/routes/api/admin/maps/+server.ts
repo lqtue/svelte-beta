@@ -40,23 +40,44 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     const adminSupabase = await getAdminClient(locals);
 
     const body = await request.json();
-    const { name, allmaps_id, type, year, summary, description, is_featured } = body;
+    const {
+        name, allmaps_id, location, year, dc_description, is_featured,
+        // source / IIIF
+        source_type, iiif_manifest, iiif_image, ia_identifier,
+        original_title, creator, year_label, language, rights, source_url,
+        collection, map_type, bbox, status, extra_metadata,
+    } = body;
 
-    if (!name || !allmaps_id) {
-        throw error(400, 'name and allmaps_id are required');
-    }
+    if (!name) throw error(400, 'name is required');
 
-    const { data, error: dbError } = await adminSupabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const insertData: Record<string, any> = {
+        name,
+        allmaps_id: allmaps_id || null,
+        location: location || null,
+        year: year ? Number(year) : null,
+        dc_description: dc_description || null,
+        is_featured: is_featured || false,
+    };
+    if (source_type    !== undefined) insertData.source_type    = source_type;
+    if (iiif_manifest  !== undefined) insertData.iiif_manifest  = iiif_manifest;
+    if (iiif_image     !== undefined) insertData.iiif_image     = iiif_image;
+    if (ia_identifier  !== undefined) insertData.ia_identifier  = ia_identifier;
+    if (original_title !== undefined) insertData.original_title = original_title;
+    if (creator        !== undefined) insertData.creator        = creator;
+    if (year_label     !== undefined) insertData.year_label     = year_label;
+    if (language       !== undefined) insertData.language       = language;
+    if (rights         !== undefined) insertData.rights         = rights;
+    if (source_url     !== undefined) insertData.source_url     = source_url;
+    if (collection     !== undefined) insertData.collection     = collection;
+    if (map_type        !== undefined) insertData.map_type        = map_type;
+    if (bbox            !== undefined) insertData.bbox            = bbox;
+    if (status          !== undefined) insertData.status          = status;
+    if (extra_metadata  !== undefined) insertData.extra_metadata  = extra_metadata;
+
+    const { data, error: dbError } = await (adminSupabase as any)
         .from('maps')
-        .insert({
-            name,
-            allmaps_id,
-            type: type || null,
-            year: year ? Number(year) : null,
-            summary: summary || null,
-            description: description || null,
-            is_featured: is_featured || false
-        })
+        .insert(insertData)
         .select()
         .single();
 

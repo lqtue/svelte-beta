@@ -6,8 +6,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import "$lib/styles/layouts/mode-shared.css";
-  import "$lib/styles/layouts/create-mode.css";
+  import "$styles/layouts/create-mode.css";
   import { toLonLat } from "ol/proj";
 
   import type {
@@ -17,19 +16,20 @@
     AnnotationSummary,
     AnnotationSet,
     DrawingMode,
-  } from "$lib/viewer/types";
+  } from "$lib/map/types";
   import { createMapStore } from "$lib/stores/mapStore";
   import { createLayerStore } from "$lib/stores/layerStore";
-  import { createAnnotationHistoryStore } from "$lib/map/stores/annotationHistory";
-  import { createAnnotationStateStore } from "$lib/map/stores/annotationState";
-  import { setAnnotationContext } from "$lib/map/context/annotationContext";
+  import { createAnnotationHistoryStore } from "$lib/map/annotationHistory";
+  import { createAnnotationStateStore } from "$lib/map/annotationState";
+  import { setAnnotationContext } from "$lib/map/annotationContext";
   import { getSupabaseContext } from "$lib/supabase/context";
   import { fetchMaps } from "$lib/supabase/maps";
   import { fetchAnnotationBounds } from "$lib/geo/mapBounds";
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
   import { createAnnotationProjectStore } from "./stores/annotationProjectStore";
 
-  import StudioMap from "$lib/studio/StudioMap.svelte";
+  import GeoMapShell from "$lib/shell/GeoMapShell.svelte";
+  import StudioMap from "$lib/annotate/StudioMap.svelte";
   import AnnotationsPanel from "./AnnotationsPanel.svelte";
   import MapSearchBar from "$lib/ui/MapSearchBar.svelte";
   import MapToolbar from "$lib/ui/MapToolbar.svelte";
@@ -78,7 +78,6 @@
   let isMobile = false;
   let isCompact = false;
 
-  let responsiveCleanup: (() => void) | null = null;
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
   let studioMapRef: StudioMap;
   let overlayLoading = false;
@@ -191,13 +190,13 @@
   }
 
   async function handleSelectMap(event: CustomEvent<{ map: MapListItem }>) {
-    const id = event.detail.map.id;
-    mapStore.setActiveMap(id);
-    if (id) {
+    const { map } = event.detail;
+    mapStore.setActiveMap(map.id, map.allmaps_id);
+    if (map.allmaps_id) {
       overlayLoading = true;
       overlayError = null;
       try {
-        await studioMapRef?.loadOverlaySource(id);
+        await studioMapRef?.loadOverlaySource(map.allmaps_id);
       } catch (err) {
         overlayError = "Failed to load map overlay.";
         console.error("[AnnotateMode] overlay load error:", err);
@@ -213,7 +212,7 @@
     const { map } = event.detail;
     let bounds = map.bounds ?? null;
     if (!bounds) {
-      bounds = await fetchAnnotationBounds(map.id);
+      bounds = await fetchAnnotationBounds(map.allmaps_id ?? '');
     }
     if (bounds) {
       const center = boundsCenter(bounds);
@@ -379,7 +378,9 @@
     }
     // Set the map overlay if project has a mapId
     if (project.mapId) {
-      mapStore.setActiveMap(project.mapId);
+      const m = mapList.find((x) => x.id === project.mapId);
+      mapStore.setActiveMap(project.mapId, m?.allmaps_id);
+      if (m?.allmaps_id) studioMapRef?.loadOverlaySource(m.allmaps_id);
     }
     activeView = "editor";
   }
@@ -433,20 +434,6 @@
       projectsLoading = false;
     });
 
-    const mobileQuery = window.matchMedia("(max-width: 900px)");
-    const compactQuery = window.matchMedia("(max-width: 1400px)");
-    const updateResponsive = () => {
-      isMobile = mobileQuery.matches;
-      isCompact = compactQuery.matches;
-    };
-    updateResponsive();
-    mobileQuery.addEventListener("change", updateResponsive);
-    compactQuery.addEventListener("change", updateResponsive);
-    responsiveCleanup = () => {
-      mobileQuery.removeEventListener("change", updateResponsive);
-      compactQuery.removeEventListener("change", updateResponsive);
-    };
-
     keydownHandler = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
@@ -473,7 +460,6 @@
   });
 
   onDestroy(() => {
-    responsiveCleanup?.();
     if (keydownHandler) {
       window.removeEventListener("keydown", keydownHandler);
       keydownHandler = null;
@@ -706,12 +692,9 @@
   <!-- Editor View -->
 {:else}
   <div class="annotate-mode" class:mobile={isMobile}>
-    <div
-      class="workspace"
-      class:with-sidebar={!sidebarCollapsed && !isMobile}
-      class:compact={isCompact}
-    >
-      {#if !sidebarCollapsed && !isMobile}
+    <GeoMapShell bind:sidebarCollapsed bind:isMobile bind:isCompact>
+
+      <svelte:fragment slot="sidebar">
         <AnnotationsPanel
           bind:this={annotationsPanelRef}
           {annotations}
@@ -737,198 +720,112 @@
           on:save={handleSave}
           on:backToLibrary={handleBackToLibrary}
         />
+      </svelte:fragment>
+
+      <!-- Map content (inside map-stage) -->
+      <StudioMap
+        bind:this={studioMapRef}
+        {basemapSelection}
+        {viewMode}
+        {sideRatio}
+        {lensRadius}
+        {opacity}
+        {drawingMode}
+        editingEnabled={true}
+        on:mapReady={handleMapReady}
+        on:statusChange={handleStatusChange}
+      />
+
+      <MapToolbar
+        {viewMode}
+        {opacity}
+        {isMobile}
+        showDual={false}
+        bind:toolbarEl
+        on:changeViewMode={handleChangeViewMode}
+        on:changeOpacity={handleChangeOpacity}
+      />
+
+      {#if viewMode === "spy"}
+        <div class="lens-overlay" bind:this={lensOverlayEl}>
+          <div class="lens-ring" style="width: {lensRadius * 2}px; height: {lensRadius * 2}px;"></div>
+          <div
+            class="lens-knob"
+            style="transform: translateX({lensRadius}px);"
+            on:mousedown={startLensDrag}
+            on:touchstart|preventDefault={startLensDrag}
+            role="slider"
+            aria-label="Lens size"
+            aria-valuemin={30}
+            aria-valuemax={500}
+            aria-valuenow={lensRadius}
+            tabindex="0"
+          ></div>
+        </div>
       {/if}
 
-      <div class="map-stage">
-        <StudioMap
-          bind:this={studioMapRef}
-          {basemapSelection}
-          {viewMode}
-          {sideRatio}
-          {lensRadius}
-          {opacity}
-          {drawingMode}
-          editingEnabled={true}
-          on:mapReady={handleMapReady}
-          on:statusChange={handleStatusChange}
-        />
-
-        <!-- Top-left: Show Panel (when collapsed) -->
-        {#if sidebarCollapsed && !isMobile}
-          <div class="top-controls">
-            <button
-              type="button"
-              class="ctrl-btn"
-              on:click={() => (sidebarCollapsed = false)}
-              title="Show panel"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M9 3v18" />
-              </svg>
-            </button>
-          </div>
-        {/if}
-
-        <!-- Bottom-right: Basemap + Mobile menu -->
-        <div class="floating-controls">
-          <button
-            type="button"
-            class="ctrl-btn"
-            on:click={toggleBasemap}
-            title={basemapSelection === "g-streets"
-              ? "Switch to Satellite"
-              : "Switch to Streets"}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              {#if basemapSelection === "g-streets"}
-                <circle cx="12" cy="12" r="10" />
-                <path
-                  d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"
-                />
-              {:else}
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-              {/if}
-            </svg>
-          </button>
-          {#if isMobile}
-            <button
-              type="button"
-              class="ctrl-btn"
-              on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
-              title="Toggle panel"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M3 6h18M3 12h18M3 18h18" />
-              </svg>
-            </button>
+      {#if overlayLoading}
+        <div class="overlay-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading map overlay...</span>
+          {#if showZoomPrompt}
+            <span>or try</span>
+            <button class="loading-zoom-btn" on:click={handleZoomToActiveMap}>Zoom to Map</button>
           {/if}
         </div>
+      {/if}
 
-        <!-- Map Controls Toolbar -->
-        <MapToolbar
-          {viewMode}
-          {opacity}
-          {isMobile}
-          showDual={false}
-          bind:toolbarEl
-          on:changeViewMode={handleChangeViewMode}
-          on:changeOpacity={handleChangeOpacity}
-        />
-
-        <!-- Lens resize knob (spy mode only) -->
-        {#if viewMode === "spy"}
-          <div class="lens-overlay" bind:this={lensOverlayEl}>
-            <div
-              class="lens-ring"
-              style="width: {lensRadius * 2}px; height: {lensRadius * 2}px;"
-            ></div>
-            <div
-              class="lens-knob"
-              style="transform: translateX({lensRadius}px);"
-              on:mousedown={startLensDrag}
-              on:touchstart|preventDefault={startLensDrag}
-              role="slider"
-              aria-label="Lens size"
-              aria-valuemin={30}
-              aria-valuemax={500}
-              aria-valuenow={lensRadius}
-              tabindex="0"
-            ></div>
-          </div>
-        {/if}
-
-        {#if overlayLoading}
-          <div class="overlay-loading">
-            <div class="loading-spinner"></div>
-            <span>Loading map overlay...</span>
-            {#if showZoomPrompt}
-              <span>or try</span>
-              <button class="loading-zoom-btn" on:click={handleZoomToActiveMap}>
-                Zoom to Map
-              </button>
-            {/if}
-          </div>
-        {/if}
-
-        {#if overlayError}
-          <div class="overlay-error">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v4M12 16h.01" />
+      {#if overlayError}
+        <div class="overlay-error">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          <span>{overlayError}</span>
+          <button type="button" class="overlay-error-close" on:click={() => (overlayError = null)} aria-label="Dismiss">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
             </svg>
-            <span>{overlayError}</span>
-            <button
-              type="button"
-              class="overlay-error-close"
-              on:click={() => (overlayError = null)}
-              aria-label="Dismiss"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg
-              >
-            </button>
-          </div>
+          </button>
+        </div>
+      {/if}
+
+      <MapSearchBar
+        maps={mapList}
+        {selectedMapId}
+        {toolbarEl}
+        showAddAsPoint={false}
+        on:navigate={handleSearchNavigate}
+        on:selectMap={handleSelectMap}
+      />
+
+      <svelte:fragment slot="floating">
+        <button
+          type="button"
+          class="ctrl-btn"
+          on:click={toggleBasemap}
+          title={basemapSelection === "g-streets" ? "Switch to Satellite" : "Switch to Streets"}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            {#if basemapSelection === "g-streets"}
+              <circle cx="12" cy="12" r="10" />
+              <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+            {:else}
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+            {/if}
+          </svg>
+        </button>
+        {#if isMobile}
+          <button type="button" class="ctrl-btn" on:click={() => (sidebarCollapsed = !sidebarCollapsed)} title="Toggle panel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
         {/if}
+      </svelte:fragment>
 
-        <MapSearchBar
-          maps={mapList}
-          {selectedMapId}
-          {toolbarEl}
-          showAddAsPoint={false}
-          on:navigate={handleSearchNavigate}
-          on:selectMap={handleSelectMap}
-        />
-      </div>
-    </div>
-
-    <!-- Mobile sidebar (sliding panel) -->
-    {#if isMobile && !sidebarCollapsed}
-      <div
-        class="mobile-overlay"
-        on:click={() => (sidebarCollapsed = true)}
-        role="presentation"
-      ></div>
-      <div class="mobile-sidebar">
+      <svelte:fragment slot="mobile-sidebar">
         <AnnotationsPanel
           bind:this={annotationsPanelRef}
           {annotations}
@@ -954,8 +851,9 @@
           on:save={handleSave}
           on:backToLibrary={handleBackToLibrary}
         />
-      </div>
-    {/if}
+      </svelte:fragment>
+
+    </GeoMapShell>
   </div>
 {/if}
 

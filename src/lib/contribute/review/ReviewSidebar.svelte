@@ -76,7 +76,6 @@
           <span class="swatch" style="background:{classColor(fp.featureType)}"></span>
           <span class="fp-meta">
             <span class="fp-class">{fp.featureType}</span>
-            <span class="fp-iou">IoU {fmtIou(fp.confidence)}</span>
           </span>
           {#if fp.id === selectedId}
             <select

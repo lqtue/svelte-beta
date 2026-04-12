@@ -1,5 +1,5 @@
 <script lang="ts">
-    import "$lib/styles/components/catalog.css";
+    import "$styles/components/catalog.css";
     export let title: string;
     export let subtitle: string = "";
     export let backLink: string = "/";

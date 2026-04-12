@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { BASEMAP_DEFS, type BasemapDefinition } from '$lib/viewer/constants';
+  import { BASEMAP_DEFS, type BasemapDefinition } from '$lib/map/constants';
 
   const dispatch = createEventDispatcher<{
     change: { key: string };

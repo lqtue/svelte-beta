@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { ViewMode } from "$lib/viewer/types";
+  import type { ViewMode } from "$lib/map/types";
 
   export let viewMode: ViewMode;
   export let opacity: number;

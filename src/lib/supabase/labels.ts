@@ -1,74 +1,73 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LabelTask, LabelPin, FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/contribute/label/types';
+import type { LabelPin, FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/contribute/label/types';
 
-interface DbLabelTask {
+// ── Label Maps ────────────────────────────────────────────────────────────────
+
+export interface LabelMapInfo {
 	id: string;
-	map_id: string;
-	allmaps_id: string;
-	status: string;
-	legend: LegendItem[] | null;
-	categories: string[] | null;
-	maps?: { name: string } | null;
+	name: string;
+	allmapsId: string;
+	legend: LegendItem[];
+	categories: string[];
 }
+
+export async function fetchLabelMaps(supabase: SupabaseClient): Promise<LabelMapInfo[]> {
+	const { data, error } = await supabase
+		.from('maps')
+		.select('id, name, allmaps_id, label_config')
+		.eq('georef_done', true)
+		.order('priority', { ascending: false })
+		.order('name');
+
+	if (error) { console.error('Failed to fetch label maps:', error); return []; }
+
+	return ((data ?? []) as any[])
+		.filter((r: any) => r.allmaps_id)
+		.map((r: any) => {
+			const cfg = r.label_config ?? {};
+			return {
+				id:         r.id,
+				name:       r.name,
+				allmapsId:  r.allmaps_id,
+				legend:     Array.isArray(cfg.legend)     ? cfg.legend     : [],
+				categories: Array.isArray(cfg.categories) ? cfg.categories : [],
+			};
+		});
+}
+
+// ── Label Pins ────────────────────────────────────────────────────────────────
 
 interface DbLabelPin {
 	id: string;
-	task_id: string;
+	map_id: string;
 	user_id: string;
 	label: string;
 	pixel_x: number;
 	pixel_y: number;
-	confidence: number;
 	data: Record<string, any> | null;
-}
-
-function toLabelTask(row: DbLabelTask): LabelTask {
-	return {
-		id: row.id,
-		mapId: row.map_id,
-		allmapsId: row.allmaps_id,
-		status: row.status as LabelTask['status'],
-		legend: Array.isArray(row.legend) ? row.legend : [],
-		categories: Array.isArray(row.categories) ? row.categories : [],
-		mapName: (row.maps as any)?.name ?? null,
-	};
 }
 
 function toLabelPin(row: DbLabelPin): LabelPin {
 	return {
 		id: row.id,
-		taskId: row.task_id,
+		mapId: row.map_id,
 		userId: row.user_id,
 		label: row.label,
 		pixelX: row.pixel_x,
 		pixelY: row.pixel_y,
-		confidence: row.confidence
+		data: row.data ?? undefined
 	};
 }
 
-export async function fetchOpenTasks(supabase: SupabaseClient): Promise<LabelTask[]> {
-	const { data, error } = await supabase
-		.from('label_tasks')
-		.select('*, maps(name)')
-		.in('status', ['open', 'in_progress'])
-		.order('created_at', { ascending: true });
-
-	if (error || !data) {
-		console.error('Failed to fetch label tasks:', error);
-		return [];
-	}
-
-	return (data as unknown as DbLabelTask[]).map(toLabelTask);
-}
-
-export async function fetchTaskPins(
+export async function fetchMapPins(
 	supabase: SupabaseClient,
-	taskId: string
+	mapId: string
 ): Promise<LabelPin[]> {
 	const { data, error } = await supabase
 		.from('label_pins')
 		.select('*')
-		.eq('task_id', taskId);
+		.eq('map_id', mapId)
+		.order('created_at', { ascending: true });
 
 	if (error) throw new Error(error.message);
 	return (data as unknown as DbLabelPin[]).map(toLabelPin);
@@ -77,34 +76,31 @@ export async function fetchTaskPins(
 export async function createPin(
 	supabase: SupabaseClient,
 	params: {
-		taskId: string;
+		mapId: string;
 		userId: string;
 		label: string;
 		pixelX: number;
 		pixelY: number;
-		confidence: number;
 		data?: Record<string, any>;
 	}
 ): Promise<string | null> {
 	const { data, error } = await supabase
 		.from('label_pins')
 		.insert({
-			task_id: params.taskId,
+			map_id:  params.mapId,
 			user_id: params.userId,
-			label: params.label,
+			label:   params.label,
 			pixel_x: params.pixelX,
 			pixel_y: params.pixelY,
-			confidence: params.confidence,
-			data: params.data || {}
+			data:    params.data || {}
 		} as never)
 		.select('id')
 		.single();
 
 	if (error) {
-		console.error('Failed to create label pin:', error);
+		console.error('Failed to create pin:', error);
 		return null;
 	}
-
 	return (data as unknown as { id: string }).id;
 }
 
@@ -119,10 +115,7 @@ export async function updatePinPosition(
 		.update({ pixel_x: pixelX, pixel_y: pixelY } as never)
 		.eq('id', pinId);
 
-	if (error) {
-		console.error('Failed to update pin position:', error);
-		return false;
-	}
+	if (error) { console.error('Failed to update pin:', error); return false; }
 	return true;
 }
 
@@ -135,36 +128,15 @@ export async function deletePin(
 		.delete()
 		.eq('id', pinId);
 
-	if (error) {
-		console.error('Failed to delete label pin:', error);
-		return false;
-	}
+	if (error) { console.error('Failed to delete pin:', error); return false; }
 	return true;
 }
 
-export async function updateTaskStatus(
-	supabase: SupabaseClient,
-	taskId: string,
-	status: LabelTask['status']
-): Promise<boolean> {
-	const { error } = await supabase
-		.from('label_tasks')
-		.update({ status } as never)
-		.eq('id', taskId);
-
-	if (error) {
-		console.error('Failed to update task status:', error);
-		return false;
-	}
-	return true;
-}
-
-// ── Footprint submissions ──────────────────────────────────────────────────
+// ── Footprint Submissions ─────────────────────────────────────────────────────
 
 interface DbFootprint {
 	id: string;
-	task_id: string;
-	pin_id: string | null;
+	map_id: string;
 	user_id: string;
 	pixel_polygon: PixelCoord[];
 	name: string | null;
@@ -175,26 +147,26 @@ interface DbFootprint {
 
 function toFootprint(row: DbFootprint): FootprintSubmission {
 	return {
-		id: row.id,
-		taskId: row.task_id,
-		pinId: row.pin_id,
-		userId: row.user_id,
+		id:           row.id,
+		mapId:        row.map_id,
+		userId:       row.user_id,
 		pixelPolygon: row.pixel_polygon,
-		name: row.name,
-		category: row.category,
-		featureType: (row.feature_type ?? 'building') as FeatureType,
-		status: row.status as FootprintSubmission['status']
+		name:         row.name,
+		category:     row.category,
+		featureType:  (row.feature_type ?? 'building') as FeatureType,
+		status:       row.status as FootprintSubmission['status']
 	};
 }
 
-export async function fetchTaskFootprints(
+export async function fetchMapFootprints(
 	supabase: SupabaseClient,
-	taskId: string
+	mapId: string
 ): Promise<FootprintSubmission[]> {
 	const { data, error } = await supabase
 		.from('footprint_submissions')
-		.select('*')
-		.eq('task_id', taskId);
+		.select('id, map_id, user_id, pixel_polygon, name, category, feature_type, status')
+		.eq('map_id', mapId)
+		.order('created_at', { ascending: true });
 
 	if (error) throw new Error(error.message);
 	return (data as unknown as DbFootprint[]).map(toFootprint);
@@ -203,10 +175,9 @@ export async function fetchTaskFootprints(
 export async function createFootprint(
 	supabase: SupabaseClient,
 	params: {
-		taskId: string;
+		mapId: string;
 		userId: string;
 		pixelPolygon: PixelCoord[];
-		pinId?: string | null;
 		name?: string | null;
 		category?: string | null;
 		featureType?: FeatureType;
@@ -215,79 +186,20 @@ export async function createFootprint(
 	const { data, error } = await supabase
 		.from('footprint_submissions')
 		.insert({
-			task_id: params.taskId,
-			user_id: params.userId,
+			map_id:        params.mapId,
+			user_id:       params.userId,
 			pixel_polygon: params.pixelPolygon,
-			pin_id: params.pinId ?? null,
-			name: params.name ?? null,
-			category: params.category ?? null,
-			feature_type: params.featureType ?? 'building'
+			name:          params.name    ?? null,
+			category:      params.category ?? null,
+			feature_type:  params.featureType ?? 'building',
+			status:        'submitted',
+			source:        'manual'
 		} as never)
 		.select('id')
 		.single();
 
-	if (error) {
-		console.error('Failed to create footprint:', error);
-		return null;
-	}
+	if (error) { console.error('Failed to create footprint:', error); return null; }
 	return (data as unknown as { id: string }).id;
-}
-
-export interface SamFootprint {
-	id: string;
-	mapId: string;
-	iiifCanvas: string;
-	pixelPolygon: PixelCoord[];
-	featureType: string;
-	confidence: number | null;
-	status: 'needs_review' | 'submitted' | 'rejected';
-}
-
-export async function fetchNeedsReviewFootprints(
-	supabase: SupabaseClient,
-	mapId: string
-): Promise<SamFootprint[]> {
-	const { data, error } = await supabase
-		.from('footprint_submissions')
-		.select('id, map_id, iiif_canvas, pixel_polygon, feature_type, confidence, status')
-		.eq('map_id', mapId)
-		.eq('status', 'needs_review')
-		.order('confidence', { ascending: false });
-
-	if (error) throw new Error(error.message);
-	return ((data ?? []) as any[]).map((row) => ({
-		id: row.id,
-		mapId: row.map_id,
-		iiifCanvas: row.iiif_canvas,
-		pixelPolygon: row.pixel_polygon as PixelCoord[],
-		featureType: row.feature_type ?? 'building',
-		confidence: row.confidence,
-		status: row.status
-	}));
-}
-
-export async function fetchMapsWithPendingReview(
-	supabase: SupabaseClient
-): Promise<{ id: string; name: string; pendingCount: number }[]> {
-	const { data, error } = await supabase
-		.from('footprint_submissions')
-		.select('map_id, maps(name)')
-		.eq('status', 'needs_review');
-
-	if (error) throw new Error(error.message);
-
-	const counts = new Map<string, { name: string; count: number }>();
-	for (const row of (data ?? []) as any[]) {
-		const mid = row.map_id as string;
-		const name = (row.maps as any)?.name ?? mid;
-		const entry = counts.get(mid) ?? { name, count: 0 };
-		entry.count++;
-		counts.set(mid, entry);
-	}
-
-	return Array.from(counts.entries())
-		.map(([id, { name, count }]) => ({ id, name, pendingCount: count }))
-		.sort((a, b) => b.pendingCount - a.pendingCount);
 }
 
 export async function updateFootprint(
@@ -308,10 +220,11 @@ export async function updateFootprintMeta(
 	footprintId: string,
 	meta: { name?: string | null; featureType?: FeatureType; category?: string | null }
 ): Promise<boolean> {
-	const update: Record<string, any> = {};
-	if (meta.name !== undefined) update.name = meta.name;
+	const update: Record<string, unknown> = {};
+	if (meta.name !== undefined)        update.name         = meta.name;
 	if (meta.featureType !== undefined) update.feature_type = meta.featureType;
-	if (meta.category !== undefined) update.category = meta.category;
+	if (meta.category !== undefined)    update.category     = meta.category;
+
 	const { error } = await supabase
 		.from('footprint_submissions')
 		.update(update as never)
@@ -328,10 +241,47 @@ export async function deleteFootprint(
 		.from('footprint_submissions')
 		.delete()
 		.eq('id', footprintId);
-
-	if (error) {
-		console.error('Failed to delete footprint:', error);
-		return false;
-	}
+	if (error) { console.error('Failed to delete footprint:', error); return false; }
 	return true;
+}
+
+// ── Review helpers ────────────────────────────────────────────────────────────
+
+// SamFootprint = FootprintSubmission; kept for backward compat with ReviewMode/ReviewCanvas/ReviewSidebar
+export type SamFootprint = FootprintSubmission;
+
+export async function fetchSubmittedFootprints(
+	supabase: SupabaseClient,
+	mapId: string
+): Promise<SamFootprint[]> {
+	const { data, error } = await supabase
+		.from('footprint_submissions')
+		.select('id, map_id, user_id, pixel_polygon, name, category, feature_type, status')
+		.eq('map_id', mapId)
+		.eq('status', 'submitted')
+		.order('created_at', { ascending: true });
+
+	if (error) throw new Error(error.message);
+	return (data as unknown as DbFootprint[]).map(toFootprint);
+}
+
+export async function fetchMapsWithSubmittedFootprints(
+	supabase: SupabaseClient
+): Promise<{ id: string; name: string; allmapsId: string; pendingCount: number }[]> {
+	const { data, error } = await supabase
+		.from('footprint_submissions')
+		.select('map_id, maps!inner(id, name, allmaps_id)')
+		.eq('status', 'submitted');
+
+	if (error) throw new Error(error.message);
+
+	const counts: Record<string, { id: string; name: string; allmapsId: string; count: number }> = {};
+	for (const row of (data ?? []) as any[]) {
+		const mapRow = row.maps;
+		if (!mapRow) continue;
+		const mid = mapRow.id as string;
+		if (!counts[mid]) counts[mid] = { id: mid, name: mapRow.name ?? mid, allmapsId: mapRow.allmaps_id ?? '', count: 0 };
+		counts[mid].count++;
+	}
+	return Object.values(counts).map(c => ({ id: c.id, name: c.name, allmapsId: c.allmapsId, pendingCount: c.count }));
 }

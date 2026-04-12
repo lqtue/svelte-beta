@@ -9,7 +9,7 @@
   import OlMap from "ol/Map";
   import BaseLayer from "ol/layer/Base";
   import { defaults as defaultControls } from "ol/control/defaults";
-  import { BASEMAP_DEFS } from "$lib/viewer/constants";
+  import { BASEMAP_DEFS } from "$lib/map/constants";
   import {
     createWarpedLayer,
     destroyWarpedLayer,
@@ -23,7 +23,8 @@
   export let basemap: string = "g-streets";
   export let showOverlay: boolean = true;
   export let overlayOpacity: number = 0.8;
-  export let activeMapId: string = "";
+  /** maps.allmaps_id — the Allmaps service credential needed for tile loading. */
+  export let activeAllmapsId: string = "";
   /** Bindable — exposes the created OL Map to the parent */
   export let map: OlMap | null = null;
 
@@ -60,11 +61,11 @@
     setOverlayOpacity(warpedLayer, secondaryMap, overlayOpacity);
   }
 
-  // React to activeMapId changes
+  // React to activeAllmapsId changes (must be Allmaps hex ID, not UUID)
   $: if (secondaryMap && warpedLayer) {
-    if (activeMapId && activeMapId !== currentOverlayId) {
-      loadOverlay(activeMapId);
-    } else if (!activeMapId && currentOverlayId) {
+    if (activeAllmapsId && activeAllmapsId !== currentOverlayId) {
+      loadOverlay(activeAllmapsId);
+    } else if (!activeAllmapsId && currentOverlayId) {
       clearOverlay(warpedLayer, secondaryMap ?? undefined);
       currentOverlayId = null;
     }
@@ -117,8 +118,8 @@
     warpedLayer = createWarpedLayer(secondaryMap);
 
     // Load initial overlay if present
-    if (activeMapId) {
-      loadOverlay(activeMapId);
+    if (activeAllmapsId) {
+      loadOverlay(activeAllmapsId);
     }
   });
 

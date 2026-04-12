@@ -1,6 +1,12 @@
 {
 	"compilerOptions": {
 		"paths": {
+			"$styles": [
+				"../src/styles"
+			],
+			"$styles/*": [
+				"../src/styles/*"
+			],
 			"$lib": [
 				"../src/lib"
 			],

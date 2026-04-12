@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AnnotationSet } from '$lib/viewer/types';
+import type { AnnotationSet } from '$lib/map/types';
 
 interface DbAnnotationSet {
 	id: string;

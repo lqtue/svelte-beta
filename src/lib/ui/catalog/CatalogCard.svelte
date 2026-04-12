@@ -1,5 +1,5 @@
 <script lang="ts">
-    import "$lib/styles/components/catalog.css";
+    import "$styles/components/catalog.css";
     export let href: string | null = null;
     export let title: string;
 </script>
