@@ -20,7 +20,7 @@ export interface StoryPoint {
 	interaction: StopInteraction;
 	challenge: PointChallenge;
 	qrPayload?: string;
-	overlayMapId?: string; // Allmaps ID — historical map revealed at this point
+	overlayMapId?: string; // maps.id UUID (new) or maps.allmaps_id (legacy) — callers resolve via mapList lookup
 	camera?: { center: [number, number]; zoom: number; rotation?: number };
 }
 
