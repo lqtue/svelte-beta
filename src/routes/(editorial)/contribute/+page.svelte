@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import NavBar from '$lib/ui/NavBar.svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
+  import PageHero from '$lib/ui/PageHero.svelte';
 
   const { session } = getSupabaseContext();
 
@@ -28,21 +28,15 @@
 </svelte:head>
 
 <div class="page" class:mounted>
-  <NavBar />
-
-  <header class="editorial-hero">
-    <div class="hero-inner">
-      <div class="label-chip">Open contribution</div>
-      <h1 class="hero-title">
-        Build the archive<br />
-        <span class="text-highlight">together.</span>
-      </h1>
-      <p class="hero-sub">
-        Label building outlines, georeference maps, and help verify AI output.
-        Anyone with an account can contribute — an admin reviews and publishes the best work.
-      </p>
-    </div>
-  </header>
+  <PageHero
+    eyebrow="Open contribution"
+    sub="Label building outlines, georeference maps, and help verify AI output. Anyone with an account can contribute — an admin reviews and publishes the best work."
+  >
+    <svelte:fragment slot="title">
+      Build the archive<br />
+      <span class="text-highlight">together.</span>
+    </svelte:fragment>
+  </PageHero>
 
   <main class="editorial-main">
     <section class="contribute-grid">
@@ -81,7 +75,7 @@
           <span class="card-cta">Open review queue →</span>
         </a>
 
-        <a href="/contribute/catalog" class="section-card card-link catalog-card">
+        <a href="/catalog" class="section-card card-link catalog-card">
           <div class="section-card-header">
             <div class="icon-blob color-purple">📚</div>
             <div>
@@ -96,21 +90,6 @@
     </section>
   </main>
 
-  <footer class="editorial-footer">
-    <div class="footer-inner">
-      <div class="footer-links">
-        <a href="/">Home</a>
-        <a href="/about">About</a>
-        <a href="/blog">Blog</a>
-        <a href="/contribute">Contribute</a>
-        <a href="/catalog">Catalog</a>
-      </div>
-      <p>Built openly with <a href="https://allmaps.org" target="_blank" rel="noopener">Allmaps</a>,
-         <a href="https://openlayers.org" target="_blank" rel="noopener">OpenLayers</a>, &amp;
-         <a href="https://svelte.dev" target="_blank" rel="noopener">SvelteKit</a>.</p>
-      <p><a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a></p>
-    </div>
-  </footer>
 </div>
 
 <style>
