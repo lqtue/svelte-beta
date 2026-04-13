@@ -163,7 +163,7 @@
 
   onMount(() => {
     loadData();
-    // Load projects then stop loading indicator
+  });
 
   function handleSearchNavigate(event: CustomEvent<{ result: SearchResult }>) {
     drawToolRef?.zoomToSearchResult(event.detail.result);
