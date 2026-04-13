@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { CATEGORY_LABELS, CATEGORY_COLORS, posts } from '$lib/blog/posts';
-	import NavBar from '$lib/ui/NavBar.svelte';
 	import { onMount } from 'svelte';
 
 	export let data: PageData;
@@ -35,8 +34,6 @@
 </svelte:head>
 
 <div class="page" class:mounted>
-	<NavBar />
-
 	<div class="layout">
 		<!-- ARTICLE -->
 		<article class="article">
@@ -122,17 +119,6 @@
 		</aside>
 	</div>
 
-	<footer class="footer">
-		<div class="footer-inner">
-			<div class="footer-links">
-				<a href="/">Home</a>
-				<a href="/about">About</a>
-				<a href="/blog">Blog</a>
-				<a href="/contribute">Contribute</a>
-			</div>
-			<p><a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a></p>
-		</div>
-	</footer>
 </div>
 
 <style>

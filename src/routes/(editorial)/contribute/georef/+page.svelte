@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import NavBar from '$lib/ui/NavBar.svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
+  import PageHero from '$lib/ui/PageHero.svelte';
 
   const { supabase } = getSupabaseContext();
 
@@ -58,21 +58,15 @@
 </svelte:head>
 
 <div class="page" class:mounted>
-  <NavBar />
-
-  <header class="editorial-hero">
-    <div class="hero-inner">
-      <div class="label-chip"><a href="/contribute" class="chip-back">← Contribute</a></div>
-      <h1 class="hero-title">
-        Georeference<br />
-        <span class="text-highlight">historical maps.</span>
-      </h1>
-      <p class="hero-sub">
-        Place control points in the Allmaps Editor to anchor each map to real-world coordinates.
-        No specialist software needed — just a browser.
-      </p>
-    </div>
-  </header>
+  <PageHero
+    sub="Place control points in the Allmaps Editor to anchor each map to real-world coordinates. No specialist software needed — just a browser."
+  >
+    <svelte:fragment slot="eyebrow"><a href="/contribute" class="chip-back">← Contribute</a></svelte:fragment>
+    <svelte:fragment slot="title">
+      Georeference<br />
+      <span class="text-highlight">historical maps.</span>
+    </svelte:fragment>
+  </PageHero>
 
   <main class="editorial-main">
 
@@ -141,21 +135,6 @@
 
   </main>
 
-  <footer class="editorial-footer">
-    <div class="footer-inner">
-      <div class="footer-links">
-        <a href="/">Home</a>
-        <a href="/about">About</a>
-        <a href="/blog">Blog</a>
-        <a href="/contribute">Contribute</a>
-        <a href="/catalog">Catalog</a>
-      </div>
-      <p>Built openly with <a href="https://allmaps.org" target="_blank" rel="noopener">Allmaps</a>,
-         <a href="https://openlayers.org" target="_blank" rel="noopener">OpenLayers</a>, &amp;
-         <a href="https://svelte.dev" target="_blank" rel="noopener">SvelteKit</a>.</p>
-      <p><a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a></p>
-    </div>
-  </footer>
 </div>
 
 <style>

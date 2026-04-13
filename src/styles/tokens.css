@@ -21,6 +21,7 @@
   --color-gray-50: var(--color-bg);
   --color-gray-100: #f3f4f6;
   --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
   --color-gray-500: #6b7280;
   --color-success-600: var(--color-green);
   --color-warning-600: var(--color-orange);
@@ -83,6 +84,11 @@
   --space-16: 4rem;
 
   /* ========================================
+     LAYOUT
+     ======================================== */
+  --nav-height: 56px;
+
+  /* ========================================
      BREAKPOINTS
      ======================================== */
   --bp-mobile: 0px;
@@ -113,6 +119,7 @@
   --color-gray-50: var(--color-bg);
   --color-gray-100: #ece9e3;
   --color-gray-300: #c8c2b8;
+  --color-gray-400: #b0a99f;
   --color-gray-500: #8a8278;
 
   --font-family-base: "Be Vietnam Pro", system-ui, sans-serif;

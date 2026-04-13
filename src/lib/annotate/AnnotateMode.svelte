@@ -28,8 +28,10 @@
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
   import { createAnnotationProjectStore } from "./stores/annotationProjectStore";
 
-  import GeoMapShell from "$lib/shell/GeoMapShell.svelte";
-  import StudioMap from "$lib/annotate/StudioMap.svelte";
+  import ToolLayout from "$lib/shell/ToolLayout.svelte";
+  import MapShell from "$lib/shell/MapShell.svelte";
+  import HistoricalOverlay from "$lib/shell/HistoricalOverlay.svelte";
+  import DrawTool from "$lib/shell/DrawTool.svelte";
   import AnnotationsPanel from "./AnnotationsPanel.svelte";
   import MapSearchBar from "$lib/ui/MapSearchBar.svelte";
   import MapToolbar from "$lib/ui/MapToolbar.svelte";
@@ -79,7 +81,8 @@
   let isCompact = false;
 
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
-  let studioMapRef: StudioMap;
+  let drawToolRef: DrawTool;
+  let activeMap: import('ol/Map').default | null = null;
   let overlayLoading = false;
   let overlayError: string | null = null;
   let lensOverlayEl: HTMLDivElement;
@@ -106,7 +109,6 @@
   function toggleBasemap() {
     const next = basemapSelection === "g-streets" ? "g-satellite" : "g-streets";
     layerStore.setBasemap(next);
-    studioMapRef?.applyBasemap(next);
   }
 
   function handleChangeViewMode(event: CustomEvent<{ mode: ViewMode }>) {
@@ -115,7 +117,6 @@
 
   function handleChangeOpacity(event: CustomEvent<{ value: number }>) {
     layerStore.setOverlayOpacity(event.detail.value);
-    studioMapRef?.setMapOpacity(event.detail.value);
   }
 
   // ── Lens knob drag ──────────────────────────────────────────────
@@ -160,52 +161,17 @@
     }
   }
 
-  function handleMapReady() {
+  onMount(() => {
     loadData();
-
-    // Sync OL View → mapStore on pan/zoom/rotate
-    const olMap = studioMapRef?.getMapInstance();
-    if (!olMap) return;
-    olMap.on("moveend", () => {
-      const view = olMap.getView();
-      const center = view.getCenter();
-      if (!center) return;
-      const [lng, lat] = toLonLat(center);
-      const zoom = view.getZoom() ?? 14;
-      const rotation = view.getRotation();
-      mapStore.setView({ lng, lat, zoom, rotation });
-    });
-  }
-
-  function handleStatusChange(
-    event: CustomEvent<{ message: string; error: boolean }>,
-  ) {
-    if (event.detail.error) {
-      overlayError = event.detail.message;
-    }
-  }
+    // Load projects then stop loading indicator
 
   function handleSearchNavigate(event: CustomEvent<{ result: SearchResult }>) {
-    studioMapRef?.zoomToSearchResult(event.detail.result);
+    drawToolRef?.zoomToSearchResult(event.detail.result);
   }
 
   async function handleSelectMap(event: CustomEvent<{ map: MapListItem }>) {
     const { map } = event.detail;
-    mapStore.setActiveMap(map.id, map.allmaps_id);
-    if (map.allmaps_id) {
-      overlayLoading = true;
-      overlayError = null;
-      try {
-        await studioMapRef?.loadOverlaySource(map.allmaps_id);
-      } catch (err) {
-        overlayError = "Failed to load map overlay.";
-        console.error("[AnnotateMode] overlay load error:", err);
-      } finally {
-        overlayLoading = false;
-      }
-    } else {
-      studioMapRef?.clearOverlay();
-    }
+    if (mapStore) mapStore.setActiveMap(map.id, map.allmaps_id);
   }
 
   async function handleZoomToMap(event: CustomEvent<{ map: MapListItem }>) {
@@ -218,10 +184,9 @@
       const center = boundsCenter(bounds);
       const zoom = boundsZoom(bounds);
       mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
-      const olMap = studioMapRef?.getMapInstance();
-      if (olMap) {
+      if (activeMap) {
         const { fromLonLat: proj } = await import("ol/proj");
-        olMap.getView().animate({
+        activeMap.getView().animate({
           center: proj([center.lng, center.lat]),
           zoom,
           duration: 400,
@@ -257,19 +222,19 @@
     event: CustomEvent<{ mode: DrawingMode | null }>,
   ) {
     drawingMode = event.detail.mode;
-    if (!drawingMode) studioMapRef?.deactivateDrawing();
+    if (!drawingMode) drawToolRef?.deactivateDrawing();
   }
 
   function handleAnnotationRename(
     event: CustomEvent<{ id: string; label: string }>,
   ) {
-    studioMapRef?.updateAnnotationLabel(event.detail.id, event.detail.label);
+    drawToolRef?.updateAnnotationLabel(event.detail.id, event.detail.label);
   }
 
   function handleAnnotationUpdateDetails(
     event: CustomEvent<{ id: string; details: string }>,
   ) {
-    studioMapRef?.updateAnnotationDetails(
+    drawToolRef?.updateAnnotationDetails(
       event.detail.id,
       event.detail.details,
     );
@@ -278,13 +243,13 @@
   function handleAnnotationChangeColor(
     event: CustomEvent<{ id: string; color: string }>,
   ) {
-    studioMapRef?.updateAnnotationColor(event.detail.id, event.detail.color);
+    drawToolRef?.updateAnnotationColor(event.detail.id, event.detail.color);
   }
 
   function handleAnnotationToggleVisibility(
     event: CustomEvent<{ id: string }>,
   ) {
-    studioMapRef?.toggleAnnotationVisibility(event.detail.id);
+    drawToolRef?.toggleAnnotationVisibility(event.detail.id);
   }
 
   function handleAnnotationSelect(event: CustomEvent<{ id: string | null }>) {
@@ -292,27 +257,27 @@
   }
 
   function handleAnnotationDelete(event: CustomEvent<{ id: string }>) {
-    studioMapRef?.deleteAnnotation(event.detail.id);
+    drawToolRef?.deleteAnnotation(event.detail.id);
   }
 
   function handleAnnotationZoomTo(event: CustomEvent<{ id: string }>) {
-    studioMapRef?.zoomToAnnotation(event.detail.id);
+    drawToolRef?.zoomToAnnotation(event.detail.id);
   }
 
   function handleAnnotationClear() {
-    studioMapRef?.clearAnnotations();
+    drawToolRef?.clearAnnotations();
     annotationsPanelRef?.setNotice("All annotations cleared.", "info");
   }
 
   function handleAnnotationExport() {
-    studioMapRef?.exportAnnotationsAsGeoJSON();
+    drawToolRef?.exportAnnotationsAsGeoJSON();
     annotationsPanelRef?.setNotice("GeoJSON downloaded.", "success");
   }
 
   async function handleAnnotationImport(event: CustomEvent<{ file: File }>) {
     try {
       const text = await event.detail.file.text();
-      const count = await studioMapRef?.importGeoJsonText(text);
+      const count = await drawToolRef?.importGeoJsonText(text);
       annotationsPanelRef?.setNotice(
         `Imported ${count ?? 0} feature${(count ?? 0) !== 1 ? "s" : ""}.`,
         "success",
@@ -327,8 +292,8 @@
     if (!currentProject) return;
     isSaving = true;
 
-    // Collect features from StudioMap
-    const features = studioMapRef?.exportAnnotationsAsGeoJsonObject?.() ?? {
+    // Collect features from Tool
+    const features = drawToolRef?.exportAnnotationsAsGeoJsonObject?.() ?? {
       type: "FeatureCollection" as const,
       features: [],
     };
@@ -343,11 +308,11 @@
   }
 
   function handleUndo() {
-    studioMapRef?.undoLastAction();
+    drawToolRef?.undoLastAction();
   }
 
   function handleRedo() {
-    studioMapRef?.redoLastAction();
+    drawToolRef?.redoLastAction();
   }
 
   $: canUndo = $annotationHistory.history.length > 0;
@@ -373,14 +338,16 @@
       // We'll load them after map is ready
       setTimeout(() => {
         const text = JSON.stringify(project.features);
-        studioMapRef?.importGeoJsonText(text);
+        drawToolRef?.importGeoJsonText(text);
       }, 500);
     }
     // Set the map overlay if project has a mapId
     if (project.mapId) {
       const m = mapList.find((x) => x.id === project.mapId);
       mapStore.setActiveMap(project.mapId, m?.allmaps_id);
-      if (m?.allmaps_id) studioMapRef?.loadOverlaySource(m.allmaps_id);
+      if (m?.allmaps_id) {
+        overlayLoading = true;
+      }
     }
     activeView = "editor";
   }
@@ -692,7 +659,7 @@
   <!-- Editor View -->
 {:else}
   <div class="annotate-mode" class:mobile={isMobile}>
-    <GeoMapShell bind:sidebarCollapsed bind:isMobile bind:isCompact>
+    <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
 
       <svelte:fragment slot="sidebar">
         <AnnotationsPanel
@@ -723,18 +690,18 @@
       </svelte:fragment>
 
       <!-- Map content (inside map-stage) -->
-      <StudioMap
-        bind:this={studioMapRef}
-        {basemapSelection}
-        {viewMode}
-        {sideRatio}
-        {lensRadius}
-        {opacity}
-        {drawingMode}
-        editingEnabled={true}
-        on:mapReady={handleMapReady}
-        on:statusChange={handleStatusChange}
-      />
+      <MapShell {mapStore} {layerStore} bind:map={activeMap}>
+        <HistoricalOverlay
+          on:loadstart={() => { overlayLoading = true; overlayError = null; }}
+          on:loadend={() => overlayLoading = false}
+          on:loaderror={(e) => { overlayLoading = false; overlayError = e.detail.message; }}
+        />
+        <DrawTool
+          bind:this={drawToolRef}
+          {drawingMode}
+          editingEnabled={true}
+        />
+      </MapShell>
 
       <MapToolbar
         {viewMode}
@@ -853,7 +820,7 @@
         />
       </svelte:fragment>
 
-    </GeoMapShell>
+    </ToolLayout>
   </div>
 {/if}
 

@@ -3,7 +3,7 @@
 
   Replaces TripTracker (map viewing + GPS) and Hunt playback.
   Uses MapShell + HistoricalOverlay instead of manual OL setup.
-  Layout handled by GeoMapShell.
+  Layout handled by ToolLayout.
 
   URL params:
     ?map=<id>    — load a specific historical map overlay (UUID or allmaps_id)
@@ -39,7 +39,7 @@
     boundsZoom,
   } from "$lib/ui/searchUtils";
 
-  import GeoMapShell from "$lib/shell/GeoMapShell.svelte";
+  import ToolLayout from "$lib/shell/ToolLayout.svelte";
   import MapShell from "$lib/shell/MapShell.svelte";
   import HistoricalOverlay from "$lib/shell/HistoricalOverlay.svelte";
   import ViewSidebar from "./ViewSidebar.svelte";
@@ -334,7 +334,7 @@
 </script>
 
 <div class="view-mode" class:mobile={isMobile}>
-  <GeoMapShell bind:sidebarCollapsed bind:isMobile bind:isCompact>
+  <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
 
     <!-- Desktop sidebar -->
     <svelte:fragment slot="sidebar">
@@ -526,5 +526,5 @@
       />
     </svelte:fragment>
 
-  </GeoMapShell>
+  </ToolLayout>
 </div>

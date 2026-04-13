@@ -86,6 +86,7 @@ export interface MapListItem {
   status?: MapStatus;
   bbox?: [number, number, number, number];
   extra_metadata?: Record<string, string>;
+  iiif_image?: string;           // IIIF image service base URL (present once ingested)
 }
 
 /** Metadata extracted from a IIIF manifest. */

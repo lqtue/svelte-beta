@@ -37,8 +37,8 @@
     border-bottom: var(--border-thick);
     flex-wrap: wrap;
     position: sticky;
-    top: 0;
-    z-index: 100;
+    top: var(--nav-height);
+    z-index: 90;
 }
 
 .catalog-page .top-bar-left {

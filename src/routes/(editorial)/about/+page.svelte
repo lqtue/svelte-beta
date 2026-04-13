@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import NavBar from '$lib/ui/NavBar.svelte';
-
+	import PageHero from '$lib/ui/PageHero.svelte';
 	let mounted = false;
 
 	onMount(() => { mounted = true; });
@@ -201,31 +200,20 @@
 </svelte:head>
 
 <div class="page" class:mounted>
-	<NavBar />
-
-	<!-- HERO -->
-	<header class="hero">
-		<div class="hero-inner">
-			<div class="label-chip">About the Project</div>
-			<h1 class="hero-title">
-				The city disappears<br />into the past.<br />
-				<span class="highlight">We bring it back.</span>
-			</h1>
-			<p class="hero-sub">
-				We started in Saigon — the city we know, live in, and have the
-				best archives for. The 1880–1930 French colonial period is our
-				testbed: the most documented, most transformative, most
-				underserved window in the city's history. Once the method is
-				proven here, it replicates. Vietnam next. Then any city in the
-				world with a map archive and a community that cares.
-			</p>
-			<div class="hero-badges">
-				<span class="badge-chip chip-green">Featured in Saigoneer Jan 2026</span>
-				<span class="badge-chip chip-blue">Open Source · CC-BY · ODbL</span>
-				<span class="badge-chip chip-yellow">Forkable · Community-driven</span>
-			</div>
+	<PageHero
+		eyebrow="About the Project"
+		sub="We started in Saigon — the city we know, live in, and have the best archives for. The 1880–1930 French colonial period is our testbed: the most documented, most transformative, most underserved window in the city's history. Once the method is proven here, it replicates. Vietnam next. Then any city in the world with a map archive and a community that cares."
+	>
+		<svelte:fragment slot="title">
+			The city disappears<br />into the past.<br />
+			<span class="text-highlight">We bring it back.</span>
+		</svelte:fragment>
+		<div class="hero-badges">
+			<span class="badge-chip chip-green">Featured in Saigoneer Jan 2026</span>
+			<span class="badge-chip chip-blue">Open Source · CC-BY · ODbL</span>
+			<span class="badge-chip chip-yellow">Forkable · Community-driven</span>
 		</div>
-	</header>
+	</PageHero>
 
 	<main class="main">
 		<!-- WHO IS THIS FOR -->
@@ -467,25 +455,6 @@
 		</section>
 	</main>
 
-	<footer class="footer">
-		<div class="footer-inner">
-			<div class="footer-links">
-				<a href="/">Home</a>
-				<a href="/about">About</a>
-				<a href="/blog">Blog</a>
-				<a href="/contribute/label">Trace buildings</a>
-				<a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
-			</div>
-			<p>
-				Built openly with <a href="https://allmaps.org" target="_blank">Allmaps</a>,
-				<a href="https://openlayers.org" target="_blank">OpenLayers</a>, &
-				<a href="https://svelte.dev" target="_blank">SvelteKit</a>.
-			</p>
-			<p>
-				<a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a>
-			</p>
-		</div>
-	</footer>
 </div>
 
 <style>

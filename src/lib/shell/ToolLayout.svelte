@@ -1,5 +1,5 @@
 <!--
-  GeoMapShell.svelte — Shared layout wrapper for geo-map modes (/view, /create, /annotate).
+  ToolLayout.svelte — Shared responsive layout for all tool pages (/view, /create, /annotate, /image, /contribute/label, /contribute/trace).
 
   Provides:
   - workspace + map-stage grid (with-sidebar / compact breakpoints)

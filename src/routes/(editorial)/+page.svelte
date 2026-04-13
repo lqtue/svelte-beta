@@ -9,7 +9,6 @@
 		addFavorite,
 		removeFavorite,
 	} from "$lib/supabase/favorites";
-	import NavBar from "$lib/ui/NavBar.svelte";
 	import MapCard from "$lib/ui/MapCard.svelte";
 	import ChunkyTabs from "$lib/ui/ChunkyTabs.svelte";
 	import "$styles/layouts/home.css";
@@ -153,8 +152,6 @@
 </svelte:head>
 
 <div class="page home-page" class:mounted>
-	<NavBar />
-
 	<header class="hero">
 		<div id="google_translate_element" style="display:none"></div>
 		<div class="hero-content">
@@ -354,24 +351,5 @@
 		</div>
 	</main>
 
-	<footer class="footer">
-		<div class="footer-inner">
-			<div class="footer-links">
-				<a href="/">Home</a>
-				<a href="/about">About</a>
-				<a href="/blog">Blog</a>
-				<a href="/contribute">Contribute</a>
-				<a href="/catalog">All Maps</a>
-			</div>
-			<p>
-				Built openly with <a href="https://allmaps.org" target="_blank">Allmaps</a>,
-				<a href="https://openlayers.org" target="_blank">OpenLayers</a>, &amp;
-				<a href="https://svelte.dev" target="_blank">SvelteKit</a>.
-			</p>
-			<p>
-				<a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a>
-			</p>
-		</div>
-	</footer>
 </div>
 

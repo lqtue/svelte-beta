@@ -21,7 +21,7 @@
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
   import { fetchMapBounds } from "$lib/shell/warpedOverlay"; // New import
 
-  import GeoMapShell from "$lib/shell/GeoMapShell.svelte";
+  import ToolLayout from "$lib/shell/ToolLayout.svelte";
   import MapShell from "$lib/shell/MapShell.svelte";
   import HistoricalOverlay from "$lib/shell/HistoricalOverlay.svelte";
   import MapClickCapture from "./MapClickCapture.svelte";
@@ -883,7 +883,7 @@
   <!-- Editor View -->
 {:else}
   <div class="create-mode" class:mobile={isMobile}>
-    <GeoMapShell bind:sidebarCollapsed bind:isMobile bind:isCompact>
+    <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
 
       <svelte:fragment slot="sidebar">
         <StoryEditor
@@ -1057,6 +1057,6 @@
         />
       </svelte:fragment>
 
-    </GeoMapShell>
+    </ToolLayout>
   </div>
 {/if}

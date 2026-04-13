@@ -18,6 +18,7 @@ export interface MapListItem {
   collection?: string;
   source_type?: string;
   extra_metadata?: Record<string, string>;
+  iiif_image?: string;
 }
 
 export interface AnnotationSummary {

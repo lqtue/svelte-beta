@@ -19,6 +19,7 @@ function toMapListItem(row: SupabaseMap): MapListItem {
     collection: row.collection || undefined,
     source_type: row.source_type || undefined,
     extra_metadata: (row.extra_metadata as Record<string, string>) || undefined,
+    iiif_image: (row as any).iiif_image || undefined,
   };
 }
 

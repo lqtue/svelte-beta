@@ -24,6 +24,7 @@ function toMapListItem(row: DbRow): MapListItem {
     source_type: (row as unknown as MapRecord).source_type ?? undefined,
     status: ((row as unknown as MapRecord).status ?? 'published') as MapStatus,
     bbox: (row as unknown as MapRecord).bbox as [number, number, number, number] | undefined,
+    iiif_image: (row as unknown as MapRecord).iiif_image ?? undefined,
   };
 }
 

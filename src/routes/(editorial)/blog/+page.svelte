@@ -1,6 +1,6 @@
 <script lang="ts">
-	import NavBar from '$lib/ui/NavBar.svelte';
 	import { posts, CATEGORY_LABELS, CATEGORY_COLORS } from '$lib/blog/posts';
+	import PageHero from '$lib/ui/PageHero.svelte';
 	import { onMount } from 'svelte';
 
 	let mounted = false;
@@ -35,19 +35,11 @@
 </svelte:head>
 
 <div class="page" class:mounted>
-	<NavBar />
-
-	<!-- HERO -->
-	<header class="hero">
-		<div class="hero-inner">
-			<div class="label-chip">Field Notes</div>
-			<h1 class="hero-title">Updates from the Archive</h1>
-			<p class="hero-sub">
-				Monthly digests, research notes, and community announcements. No
-				newsletter. Everything lives here.
-			</p>
-		</div>
-	</header>
+	<PageHero
+		eyebrow="Field Notes"
+		title="Updates from the Archive"
+		sub="Monthly digests, research notes, and community announcements. No newsletter. Everything lives here."
+	/>
 
 	<main class="main">
 		<!-- FEATURED / LATEST POST -->
@@ -110,19 +102,6 @@
 		</div>
 	</main>
 
-	<footer class="footer">
-		<div class="footer-inner">
-			<div class="footer-links">
-				<a href="/">Home</a>
-				<a href="/about">About</a>
-				<a href="/blog">Blog</a>
-				<a href="/contribute">Contribute</a>
-			</div>
-			<p>
-				<a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a>
-			</p>
-		</div>
-	</footer>
 </div>
 
 <style>
