@@ -1,18 +1,20 @@
 {
-	"/": [
-		"src/routes/+page.ts",
+	"/(editorial)": [
+		"src/routes/(editorial)/+page.ts",
 		"src/routes/+layout.server.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/about": [
+	"/(app)": [
 		"src/routes/+layout.server.ts"
 	],
-	"/admin": [
-		"src/routes/admin/+page.ts",
+	"/": [
 		"src/routes/+layout.server.ts"
 	],
-	"/annotate": [
-		"src/routes/annotate/+page.ts",
+	"/(editorial)/about": [
+		"src/routes/+layout.server.ts"
+	],
+	"/(app)/annotate": [
+		"src/routes/(app)/annotate/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
 	"/api/admin/footprints": [
@@ -42,55 +44,60 @@
 	"/api/admin/upload-image": [
 		"src/routes/api/admin/upload-image/+server.ts"
 	],
-	"/api/contribute/catalog/[mapId]": [
-		"src/routes/api/contribute/catalog/[mapId]/+server.ts"
-	],
 	"/api/export/footprints": [
 		"src/routes/api/export/footprints/+server.ts"
 	],
 	"/auth/callback": [
 		"src/routes/auth/callback/+server.ts"
 	],
-	"/blog": [
+	"/(editorial)/blog": [
 		"src/routes/+layout.server.ts"
 	],
-	"/blog/[slug]": [
-		"src/routes/blog/[slug]/+page.ts",
+	"/(editorial)/blog/[slug]": [
+		"src/routes/(editorial)/blog/[slug]/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/catalog": [
+	"/(editorial)/catalog": [
 		"src/routes/+layout.server.ts"
 	],
-	"/contribute": [
+	"/(editorial)/contribute": [
 		"src/routes/+layout.server.ts"
 	],
-	"/contribute/catalog": [
-		"src/routes/contribute/catalog/+page.ts",
+	"/(editorial)/contribute/georef": [
 		"src/routes/+layout.server.ts"
 	],
-	"/contribute/georef": [
-		"src/routes/+layout.server.ts"
-	],
-	"/contribute/label": [
-		"src/routes/contribute/label/+page.ts",
+	"/(app)/contribute/label": [
+		"src/routes/(app)/contribute/label/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
 	"/contribute/review": [
 		"src/routes/contribute/review/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/create": [
-		"src/routes/create/+page.ts",
+	"/(app)/contribute/trace": [
+		"src/routes/(app)/contribute/trace/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/login": [
+	"/(app)/create": [
+		"src/routes/(app)/create/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/signup": [
+	"/(app)/image": [
+		"src/routes/(app)/image/+page.ts",
 		"src/routes/+layout.server.ts"
 	],
-	"/view": [
-		"src/routes/view/+page.ts",
+	"/(editorial)/login": [
+		"src/routes/+layout.server.ts"
+	],
+	"/(editorial)/profile": [
+		"src/routes/(editorial)/profile/+page.server.ts",
+		"src/routes/+layout.server.ts"
+	],
+	"/(editorial)/signup": [
+		"src/routes/+layout.server.ts"
+	],
+	"/(app)/view": [
+		"src/routes/(app)/view/+page.ts",
 		"src/routes/+layout.server.ts"
 	]
 }

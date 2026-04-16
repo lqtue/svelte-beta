@@ -176,19 +176,19 @@
 	<main class="main">
 		<!-- 
       ============================================
-      SECTION 1: VIEW & EXPLORE
+      SECTION 1: CATALOG
       ============================================
     -->
 		<section class="mode-section" id="view-mode">
 			<div class="feature-card mega-card">
 				<div class="feature-header-split">
-					<div class="icon-blob color-blue">📍</div>
+					<div class="icon-blob color-blue">📚</div>
 					<div class="feature-content-full">
-						<h2 class="feature-title">Explore & View</h2>
+						<h2 class="feature-title">Explore the Catalog</h2>
 						<p class="feature-description">
-							Compare the past and present. Track your GPS on
-							vintage maps and browse our colorful archive of
-							history.
+							Discover historical layers of Vietnam. Browse our curated catalog,
+							overlay vintage cartography on modern maps, or inspect high-resolution
+							IIIF images in detail.
 						</p>
 					</div>
 				</div>
@@ -242,9 +242,12 @@
 					{/if}
 
 					<div class="action-footer">
-						<a href="/catalog" class="text-link">See all maps →</a>
+						<div class="footer-links-group">
+							<a href="/catalog" class="text-link">Browse Catalog →</a>
+							<a href="/image" class="text-link">Inspect Images →</a>
+						</div>
 						<a href="/view" class="action-btn primary-btn">
-							Enter Viewer 🚀
+							Enter Map Viewer 🚀
 						</a>
 					</div>
 				</div>
@@ -254,25 +257,25 @@
 		<div class="split-sections">
 			<!--
         ============================================
-        SECTION 2: TOOLS & STORIES
+        SECTION 2: CREATIVE TOOLS
         ============================================
       -->
 			<section class="mode-section" id="create-mode">
 				<div class="feature-card hover-lift">
-					<div class="icon-blob color-green">✨</div>
+					<div class="icon-blob color-green">🛠️</div>
 					<h2 class="feature-title">
-						Tools & Stories <span class="fun-badge">Beta</span>
+						Creative Tools <span class="fun-badge">Beta</span>
 					</h2>
 					<p class="feature-description">
-						Author your own explorations. Annotate maps with
-						points, lines, and shapes. Build scrollytelling
-						stories layered over historical maps.
+						Author your own explorations. Build scrollytelling
+						stories or annotate maps with custom data points, 
+						lines, and shapes.
 					</p>
 					<div class="micro-links">
 						<a href="/create" class="micro-link-card">
 							<span class="mlc-icon">🎨</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Design a Story</span>
+								<span class="mlc-title">Story Builder</span>
 								<span class="mlc-desc">Build scrollytelling narratives layered over historical maps</span>
 							</span>
 							<span class="mlc-arrow">→</span>
@@ -280,7 +283,7 @@
 						<a href="/annotate" class="micro-link-card">
 							<span class="mlc-icon">✏️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Annotator</span>
+								<span class="mlc-title">Annotate</span>
 								<span class="mlc-desc">Draw points, lines, and shapes on maps to create searchable records</span>
 							</span>
 							<span class="mlc-arrow">→</span>
@@ -291,12 +294,12 @@
 
 			<!--
         ============================================
-        SECTION 3: COMMUNITY CROWDSOURCE
+        SECTION 3: COMMUNITY CONTRIBUTION
         ============================================
       -->
 			<section class="mode-section" id="contribute-mode">
 				<div class="feature-card hover-lift">
-					<div class="icon-blob color-orange">🌍</div>
+					<div class="icon-blob color-orange">🤝</div>
 					<h2 class="feature-title">Contribute</h2>
 					<p class="feature-description">
 						Help recover the archive. Every label placed, outline
@@ -304,19 +307,27 @@
 						for everyone.
 					</p>
 					<div class="micro-links">
-						<a href="/contribute/georef" class="micro-link-card">
-							<span class="mlc-icon">🗺️</span>
-							<span class="mlc-body">
-								<span class="mlc-title">Georeference Maps</span>
-								<span class="mlc-desc">Pin old maps to modern geography using control points</span>
-							</span>
-							<span class="mlc-arrow">→</span>
-						</a>
 						<a href="/contribute/label" class="micro-link-card">
 							<span class="mlc-icon">🏷️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Label & Trace</span>
-								<span class="mlc-desc">Decode map legends, then trace building footprints, roads, and land plots</span>
+								<span class="mlc-title">Label Maps</span>
+								<span class="mlc-desc">Identify and label landmarks, streets, and districts on original sheets</span>
+							</span>
+							<span class="mlc-arrow">→</span>
+						</a>
+						<a href="/contribute/trace" class="micro-link-card">
+							<span class="mlc-icon">🖋️</span>
+							<span class="mlc-body">
+								<span class="mlc-title">Trace Footprints</span>
+								<span class="mlc-desc">Digitize building outlines to help train our vectorization models</span>
+							</span>
+							<span class="mlc-arrow">→</span>
+						</a>
+						<a href="/contribute/georef" class="micro-link-card">
+							<span class="mlc-icon">📍</span>
+							<span class="mlc-body">
+								<span class="mlc-title">Georeference</span>
+								<span class="mlc-desc">Pin old maps to modern geography using precise control points</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>

@@ -55,20 +55,4 @@
     box-shadow: 0 0 0 var(--color-border);
   }
 
-  /* Archival theme */
-  :global([data-theme="archival"]) .chunky-tab {
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-solid-sm);
-    font-weight: 600;
-  }
-  :global([data-theme="archival"]) .chunky-tab:hover {
-    transform: none;
-    box-shadow: var(--shadow-solid);
-  }
-  :global([data-theme="archival"]) .chunky-tab.active {
-    background: var(--tab-active-bg, var(--color-blue));
-    transform: none;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
-  }
 </style>

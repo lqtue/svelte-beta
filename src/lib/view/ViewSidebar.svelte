@@ -47,96 +47,73 @@
 
 <aside class="panel">
   <div class="panel-header">
-    <a href="/" class="home-link">
+    <a href="/catalog" class="home-link" aria-label="Back to Catalog">
       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12.5 15L7.5 10L12.5 5" />
       </svg>
-      Home
     </a>
+    <span class="panel-mode-label">View Mode</span>
     <button
       type="button"
-      class="panel-close"
+      class="collapse-btn"
       on:click={() => dispatch('toggleCollapse')}
-      aria-label="Close panel"
+      aria-label="Collapse panel"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M18 6L6 18M6 6l12 12" />
+        <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10"/><path d="M19 8l-4 4 4 4"/>
       </svg>
     </button>
   </div>
 
-  <div class="panel-scroll custom-scrollbar">
+  <div class="panel-scroll">
     {#if selectedMap}
-      <section class="panel-card map-info-card">
-        <h2 class="map-title">{selectedMap.name}</h2>
-        <div class="map-meta">
-          {#if selectedMap.year}
-            <span class="meta-badge meta-year">{selectedMap.year}</span>
-          {/if}
-          {#if selectedMap.location}
-            <span class="meta-badge meta-city">{selectedMap.location}</span>
-          {/if}
-        </div>
-        {#if selectedMap.dc_description}
-          <p class="map-summary">{selectedMap.dc_description}</p>
+      <div class="map-meta">
+        <h3 class="meta-name">{selectedMap.name}</h3>
+
+        {#if selectedMap.year || selectedMap.location}
+          <div class="meta-tags">
+            {#if selectedMap.year}
+              <span class="meta-tag tag-year">{selectedMap.year}</span>
+            {/if}
+            {#if selectedMap.location}
+              <span class="meta-tag tag-city">{selectedMap.location}</span>
+            {/if}
+          </div>
         {/if}
 
-        <div class="map-actions">
-          <button type="button" class="action-btn" on:click={() => dispatch('zoomToMap', { map: selectedMap })}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.35-4.35" />
-              <path d="M11 8v6M8 11h6" />
-            </svg>
+        {#if selectedMap.dc_description}
+          <p class="meta-desc">{selectedMap.dc_description}</p>
+        {/if}
+
+        <div class="meta-actions">
+          <button type="button" class="meta-action-btn primary" on:click={() => dispatch('zoomToMap', { map: selectedMap })}>
             Zoom to map
           </button>
           <button
             type="button"
-            class="action-btn"
+            class="meta-action-btn secondary"
             class:success={shareStatus === 'success'}
             on:click={handleShareMap}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              {#if shareStatus === 'success'}
-                <path d="M20 6L9 17l-5-5" />
-              {:else}
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" />
-              {/if}
-            </svg>
             {shareStatus === 'success' ? 'Link copied!' : 'Share map'}
           </button>
-          <a href="/annotate?map={selectedMap.id}" class="action-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M9 3v18M3 9h18" />
-            </svg>
-            Annotate this map
-          </a>
-          <a href="/create?map={selectedMap.id}" class="action-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-            Create story
-          </a>
+          <a href="/image?map={selectedMap.id}" class="meta-action-btn secondary">View image</a>
+          <a href="/annotate?map={selectedMap.id}" class="meta-action-btn secondary">Annotate</a>
+          <a href="/create?map={selectedMap.id}" class="meta-action-btn secondary">Create story</a>
         </div>
-      </section>
+      </div>
     {:else}
-      <section class="panel-card no-map-card">
-        <div class="no-map-icon">🗺️</div>
-        <p class="no-map-text">
-          Select a historical map using the search toolbar.
-        </p>
-      </section>
+      <div class="panel-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
+          <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+        </svg>
+        <p>Select a map from the search bar.</p>
+      </div>
     {/if}
 
     {#if stories.length}
-      <section class="panel-card">
-        <header class="panel-card-header">
-          <h2>Stories</h2>
-        </header>
+      <div class="stories-section">
+        <div class="section-label">Stories</div>
         <div class="story-list">
           {#each stories as story (story.id)}
             <button
@@ -145,332 +122,83 @@
               class:active={story.id === activeStoryId}
               on:click={() => dispatch('selectStory', { story })}
             >
-              <h3 class="story-title">{story.title}</h3>
+              <span class="story-title">{story.title}</span>
               {#if story.description}
-                <p class="story-description">{story.description}</p>
+                <span class="story-description">{story.description}</span>
               {/if}
-              <div class="story-footer">
-                <span class="story-author" title="Creator">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  {story.authorName || 'Unknown'}
-                </span>
-              </div>
             </button>
           {/each}
         </div>
-      </section>
+      </div>
     {/if}
   </div>
 </aside>
 
-<style>.panel {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    background: var(--color-bg);
-    border-right: var(--border-thick);
-    height: 100%;
-    max-height: none;
-    overflow: hidden;
-    min-width: 0;
-    color: var(--color-text);
-    box-shadow: var(--shadow-solid);
-}
+<style>
+  @import '$styles/layouts/tool-page.css';
 
-.panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    border-bottom: var(--border-thick);
-    background: var(--color-white);
-}
-
-.home-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font-family-display);
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--color-text);
-    text-decoration: none;
-    text-transform: uppercase;
-    transition: color 0.1s;
-}
-
-.home-link:hover {
-    color: var(--color-primary);
-}
-
-.panel-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border: var(--border-thin);
-    border-radius: 50%;
-    background: var(--color-white);
-    color: var(--color-text);
-    cursor: pointer;
-    box-shadow: 2px 2px 0px var(--color-border);
-    transition: all 0.1s;
-}
-
-.panel-close:hover {
-    background: var(--color-yellow);
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0px var(--color-border);
-}
-
-.panel-scroll {
+  /* ── Scroll area (view-sidebar-specific) ─────────────────────────────── */
+  .panel-scroll {
     flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
     overflow-y: auto;
-    padding: 1.5rem;
-}
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gray-300) transparent;
+  }
+  .panel-scroll::-webkit-scrollbar { width: 4px; }
+  .panel-scroll::-webkit-scrollbar-thumb { background: var(--color-gray-300); border-radius: 999px; }
 
-.panel-card {
-    background: var(--color-white);
-    border-radius: var(--radius-lg);
-    border: var(--border-thick);
-    padding: 1.5rem;
+  /* ── Stories ─────────────────────────────────────────────────────────── */
+  .stories-section {
+    border-top: var(--border-thick);
+    padding: 0.75rem;
+  }
+
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    opacity: 0.45;
+    margin-bottom: 0.5rem;
+  }
+
+  .story-list {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    box-shadow: var(--shadow-solid-sm);
-}
+    gap: 0.35rem;
+  }
 
-.panel-card-header h2 {
-    margin: 0;
-    font-family: var(--font-family-display);
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--color-text);
-    text-transform: uppercase;
-}
-
-/* Map Info */
-.map-title {
-    margin: 0;
-    font-family: var(--font-family-display);
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--color-text);
-    line-height: 1.1;
-}
-
-.map-meta {
+  .story-card {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.meta-badge {
-    font-family: var(--font-family-base);
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 0.25rem 0.6rem;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.5rem 0.65rem;
+    background: var(--color-white);
     border: var(--border-thin);
     border-radius: var(--radius-sm);
-    color: var(--color-text);
-    background: var(--color-white);
-}
-
-.meta-year {
-    background: var(--color-yellow);
-}
-
-.meta-city {
-    background: var(--color-bg);
-}
-
-.map-summary {
-    margin: 0;
-    font-family: var(--font-family-base);
-    font-size: 0.9rem;
-    line-height: 1.5;
-    color: var(--color-text);
-    opacity: 0.9;
-}
-
-.map-description {
-    margin: 0;
-    font-family: var(--font-family-base);
-    font-size: 0.85rem;
-    line-height: 1.5;
-    color: var(--color-text);
-    opacity: 0.7;
-}
-
-.map-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-}
-
-.action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background: var(--color-white);
-    border: var(--border-thick);
-    border-radius: var(--radius-pill);
-    text-decoration: none;
-    color: var(--color-text);
-    font-family: var(--font-family-base);
-    font-size: 0.9rem;
-    font-weight: 700;
-    transition: all 0.1s;
-    box-shadow: 2px 2px 0px var(--color-border);
-    cursor: pointer;
-}
-
-.action-btn:hover {
-    background: var(--color-yellow);
-    transform: translate(-2px, -2px);
-    box-shadow: 4px 4px 0px var(--color-border);
-}
-
-.action-btn.success {
-    background: #dcfce7;
-    color: #166534;
-    border-color: #166534;
-}
-
-/* No map state */
-.no-map-card {
-    align-items: center;
-    text-align: center;
-    padding: 3rem 1.5rem;
-    border-style: dashed;
-    background: transparent;
-    box-shadow: none;
-}
-
-.no-map-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.no-map-text {
-    margin: 0;
-    font-family: var(--font-family-base);
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-text);
-    opacity: 0.6;
-}
-
-/* Stories */
-.story-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.story-card {
-    border-radius: var(--radius-md);
-    border: var(--border-thick);
-    background: var(--color-white);
-    padding: 1rem;
     text-align: left;
     color: var(--color-text);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
     cursor: pointer;
-    transition: all 0.1s;
-    box-shadow: 2px 2px 0px var(--color-border);
-}
+    transition: background 0.08s;
+  }
+  .story-card:hover { background: var(--color-yellow); }
+  .story-card.active { background: var(--color-blue); color: #fff; border-color: var(--color-blue); }
 
-.story-card:hover,
-.story-card:focus-visible {
-    background: var(--color-yellow);
-    transform: translate(-2px, -2px);
-    box-shadow: 4px 4px 0px var(--color-border);
-    outline: none;
-}
-
-.story-card.active {
-    background: var(--color-blue);
-    color: white;
-    box-shadow: none;
-    transform: translate(1px, 1px);
-}
-
-.story-card.active .story-title,
-.story-card.active .story-description,
-.story-card.active .story-footer,
-.story-card.active .story-author {
-    color: white;
-}
-
-.story-title {
-    margin: 0;
-    font-family: var(--font-family-display);
-    font-size: 1.1rem;
+  .story-title {
+    font-size: 0.82rem;
     font-weight: 700;
-    line-height: 1.2;
-}
+    line-height: 1.3;
+  }
+  .story-card.active .story-title { color: #fff; }
 
-.story-description {
-    margin: 0;
-    font-family: var(--font-family-base);
-    font-size: 0.85rem;
+  .story-description {
+    font-size: 0.75rem;
     line-height: 1.4;
-    opacity: 0.8;
+    opacity: 0.7;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-}
-
-.story-footer {
-    display: flex;
-    align-items: center;
-    font-size: 0.75rem;
-    font-weight: 600;
-    opacity: 0.6;
-    margin-top: 0.25rem;
-}
-
-.story-author {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-}
-
-.story-author svg {
-    flex-shrink: 0;
-}
-
-.custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-gray-300) transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--color-gray-300);
-    border-radius: 999px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--color-gray-400);
-}
-
+  }
+  .story-card.active .story-description { opacity: 0.85; }
 </style>

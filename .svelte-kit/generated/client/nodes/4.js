@@ -1,3 +1,3 @@
-import * as universal from "../../../../src/routes/admin/+page.ts";
+import * as universal from "../../../../src/routes/(app)/annotate/+page.ts";
 export { universal };
-export { default as component } from "../../../../src/routes/admin/+page.svelte";
+export { default as component } from "../../../../src/routes/(app)/annotate/+page.svelte";

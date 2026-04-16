@@ -24,6 +24,8 @@
   export let selectedMapId: string | null = null;
   /** When true, show 'Add as point' on location results */
   export let showAddAsPoint = false;
+  /** When true, hide the Location tab and only show map list */
+  export let mapsOnly = false;
 
   let activeTab: "maps" | "location" = "maps";
 
@@ -281,41 +283,63 @@
     bind:this={panelEl}
     on:keydown={handleKeydown}
   >
-    <!-- Tab bar -->
-    <div class="tab-bar">
-      <button
-        type="button"
-        class="tb"
-        class:active={activeTab === "maps"}
-        on:click={() => switchTab("maps")}>Maps</button
-      >
-      <button
-        type="button"
-        class="tb"
-        class:active={activeTab === "location"}
-        on:click={() => switchTab("location")}>Location</button
-      >
-      <div class="tab-spacer"></div>
-      <button
-        type="button"
-        class="close-btn"
-        on:click={() => dispatch("close")}
-        aria-label="Close search"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg
+    <!-- Tab bar (hidden when mapsOnly) -->
+    {#if !mapsOnly}
+      <div class="tab-bar">
+        <button
+          type="button"
+          class="tb"
+          class:active={activeTab === "maps"}
+          on:click={() => switchTab("maps")}>Maps</button
         >
-      </button>
-    </div>
+        <button
+          type="button"
+          class="tb"
+          class:active={activeTab === "location"}
+          on:click={() => switchTab("location")}>Location</button
+        >
+        <div class="tab-spacer"></div>
+        <button
+          type="button"
+          class="close-btn"
+          on:click={() => dispatch("close")}
+          aria-label="Close search"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg
+          >
+        </button>
+      </div>
+    {:else}
+      <div class="tab-bar maps-only-header">
+        <div class="tab-spacer"></div>
+        <button
+          type="button"
+          class="close-btn"
+          on:click={() => dispatch("close")}
+          aria-label="Close search"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg
+          >
+        </button>
+      </div>
+    {/if}
 
     <!-- Maps tab -->
-    {#if activeTab === "maps"}
+    {#if mapsOnly || activeTab === "maps"}
       <div class="search-form">
         <input
           type="text"
@@ -355,7 +379,7 @@
       </div>
 
       <!-- Location tab -->
-    {:else}
+    {:else if activeTab === "location"}
       <div class="search-form">
         <input
           type="text"
@@ -517,6 +541,11 @@
     border-bottom: var(--border-thick);
     padding-bottom: 0.75rem;
     background: var(--color-bg);
+}
+.maps-only-header {
+    padding: 0.5rem 0.5rem;
+    min-height: 0;
+    border-bottom: var(--border-thin);
 }
 
 .tab-spacer {

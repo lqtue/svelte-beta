@@ -21,6 +21,7 @@
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
   import { fetchMapBounds } from "$lib/shell/warpedOverlay"; // New import
 
+  import NavBar from "$lib/ui/NavBar.svelte";
   import ToolLayout from "$lib/shell/ToolLayout.svelte";
   import MapShell from "$lib/shell/MapShell.svelte";
   import HistoricalOverlay from "$lib/shell/HistoricalOverlay.svelte";
@@ -30,8 +31,7 @@
   import StoryMarkers from "$lib/view/StoryMarkers.svelte";
   import StoryPlayback from "$lib/view/StoryPlayback.svelte";
   import NameDialog from "$lib/ui/NameDialog.svelte";
-  import CatalogPage from "$lib/ui/catalog/CatalogPage.svelte";
-  import CatalogHeader from "$lib/ui/catalog/CatalogHeader.svelte";
+  import PageHero from "$lib/ui/PageHero.svelte";
   import CatalogGrid from "$lib/ui/catalog/CatalogGrid.svelte";
   import CatalogCard from "$lib/ui/catalog/CatalogCard.svelte";
   import MapToolbar from "$lib/ui/MapToolbar.svelte";
@@ -706,24 +706,52 @@
 
   <!-- Story Library View -->
 {:else if activeView === "library"}
-  <CatalogPage>
-    <div slot="header">
-      <CatalogHeader
-        title="My Stories"
-        subtitle="Create guided stories and adventures on historical maps"
-        variant="hero"
-        backLink="/"
-        backLabel="Return to Home"
-      >
-        <div slot="actions">
+  <div class="page">
+    <NavBar />
+    <PageHero eyebrow="Tools" sub="Create guided stories and adventures on historical maps">
+      <svelte:fragment slot="title">My <span class="text-highlight">Stories.</span></svelte:fragment>
+      <div slot="actions">
+        <button type="button" class="action-btn primary-btn" on:click={handleCreateNewStory}>
+          + New Story
+        </button>
+      </div>
+    </PageHero>
+
+    <main class="editorial-main">
+      {#if storiesLoading}
+        <div class="library-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading stories...</span>
+        </div>
+      {:else if myStories.length === 0}
+        <div class="library-empty">
+          <svg
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#d4af37"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <path d="M12 18v-6M9 15h6" />
+          </svg>
+          <h2 class="empty-title">Create your first story</h2>
+          <p class="empty-text">
+            Place points on historical maps, add descriptions and challenges, and
+            share your creation.
+          </p>
           <button
             type="button"
-            class="library-create-btn"
+            class="library-create-btn large"
             on:click={handleCreateNewStory}
           >
             <svg
-              width="16"
-              height="16"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -732,143 +760,96 @@
             >
               <path d="M12 5v14M5 12h14" />
             </svg>
-            New Story
+            Create Story
           </button>
         </div>
-      </CatalogHeader>
-    </div>
+      {:else}
+        <CatalogGrid>
+          {#each myStories as story (story.id)}
+            <CatalogCard
+              title={story.title}
+              on:click={() => handleSelectStory(story)}
+            >
+              <div slot="thumb" class="story-thumb-placeholder">
+                <span class="story-icon">📖</span>
+              </div>
 
-    {#if storiesLoading}
-      <div class="library-loading">
-        <div class="loading-spinner"></div>
-        <span>Loading stories...</span>
-      </div>
-    {:else if myStories.length === 0}
-      <div class="library-empty">
-        <svg
-          width="64"
-          height="64"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#d4af37"
-          stroke-width="1.2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <path d="M12 18v-6M9 15h6" />
-        </svg>
-        <h2 class="empty-title">Create your first story</h2>
-        <p class="empty-text">
-          Place points on historical maps, add descriptions and challenges, and
-          share your creation.
-        </p>
-        <button
-          type="button"
-          class="library-create-btn large"
-          on:click={handleCreateNewStory}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Create Story
-        </button>
-      </div>
-    {:else}
-      <CatalogGrid>
-        {#each myStories as story (story.id)}
-          <CatalogCard
-            title={story.title}
-            on:click={() => handleSelectStory(story)}
-          >
-            <div slot="thumb" class="story-thumb-placeholder">
-              <span class="story-icon">📖</span>
-            </div>
-
-            <div slot="meta" class="meta">
-              <span class="meta-tag">
-                {story.points.length} point{story.points.length !== 1
-                  ? "s"
-                  : ""}
-              </span>
-              <span class="meta-tag date">
-                {new Date(story.updatedAt).toLocaleDateString("en-GB")}
-              </span>
-              <span
-                class="meta-tag publish-status"
-                class:published={story.isPublic}
-              >
-                {story.isPublic ? "🌍 Public" : "🔒 Private"}
-              </span>
-            </div>
-
-            <div slot="description" class="description">
-              {story.description || "No description"}
-            </div>
-
-            <div slot="actions">
-              <button
-                type="button"
-                class="btn-icon-edit"
-                title="Rename story"
-                on:click|stopPropagation={() => handleEditStoryName(story)}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
+              <div slot="meta" class="meta">
+                <span class="meta-tag">
+                  {story.points.length} point{story.points.length !== 1
+                    ? "s"
+                    : ""}
+                </span>
+                <span class="meta-tag date">
+                  {new Date(story.updatedAt).toLocaleDateString("en-GB")}
+                </span>
+                <span
+                  class="meta-tag publish-status"
+                  class:published={story.isPublic}
                 >
-                  <path
-                    d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
-                  />
-                  <path
-                    d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                class="btn-icon-delete"
-                title="Delete story"
-                on:click|stopPropagation={() => {
-                  if (confirm(`Delete "${story.title}"?`)) {
-                    storyLibrary.deleteStory(story.id);
-                  }
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
+                  {story.isPublic ? "🌍 Public" : "🔒 Private"}
+                </span>
+              </div>
+
+              <div slot="description" class="description">
+                {story.description || "No description"}
+              </div>
+
+              <div slot="actions">
+                <button
+                  type="button"
+                  class="btn-icon-edit"
+                  title="Rename story"
+                  on:click|stopPropagation={() => handleEditStoryName(story)}
                 >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                  <path d="M10 11v6M14 11v6" />
-                </svg>
-              </button>
-            </div>
-          </CatalogCard>
-        {/each}
-      </CatalogGrid>
-    {/if}
-  </CatalogPage>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <path
+                      d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
+                    />
+                    <path
+                      d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="btn-icon-delete"
+                  title="Delete story"
+                  on:click|stopPropagation={() => {
+                    if (confirm(`Delete "${story.title}"?`)) {
+                      storyLibrary.deleteStory(story.id);
+                    }
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                  </svg>
+                </button>
+              </div>
+            </CatalogCard>
+          {/each}
+        </CatalogGrid>
+      {/if}
+    </main>
+  </div>
 
   <NameDialog
     open={nameDialogOpen}
@@ -883,6 +864,7 @@
   <!-- Editor View -->
 {:else}
   <div class="create-mode" class:mobile={isMobile}>
+    <NavBar />
     <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
 
       <svelte:fragment slot="sidebar">

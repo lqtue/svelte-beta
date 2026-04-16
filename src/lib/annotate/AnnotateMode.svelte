@@ -28,6 +28,7 @@
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
   import { createAnnotationProjectStore } from "./stores/annotationProjectStore";
 
+  import NavBar from "$lib/ui/NavBar.svelte";
   import ToolLayout from "$lib/shell/ToolLayout.svelte";
   import MapShell from "$lib/shell/MapShell.svelte";
   import HistoricalOverlay from "$lib/shell/HistoricalOverlay.svelte";
@@ -36,8 +37,7 @@
   import MapSearchBar from "$lib/ui/MapSearchBar.svelte";
   import MapToolbar from "$lib/ui/MapToolbar.svelte";
   import NameDialog from "$lib/ui/NameDialog.svelte";
-  import CatalogPage from "$lib/ui/catalog/CatalogPage.svelte";
-  import CatalogHeader from "$lib/ui/catalog/CatalogHeader.svelte";
+  import PageHero from "$lib/ui/PageHero.svelte";
   import CatalogGrid from "$lib/ui/catalog/CatalogGrid.svelte";
   import CatalogCard from "$lib/ui/catalog/CatalogCard.svelte";
 
@@ -492,24 +492,52 @@
 
   <!-- Project Library View -->
 {:else if activeView === "library"}
-  <CatalogPage>
-    <div slot="header">
-      <CatalogHeader
-        title="My Projects"
-        subtitle="Create annotation projects on historical maps"
-        variant="hero"
-        backLink="/"
-        backLabel="Return to Home"
-      >
-        <div slot="actions">
+  <div class="page">
+    <NavBar />
+    <PageHero eyebrow="Tools" sub="Create annotation projects on historical maps">
+      <svelte:fragment slot="title">My <span class="text-highlight">Projects.</span></svelte:fragment>
+      <div slot="actions">
+        <button type="button" class="action-btn primary-btn" on:click={handleOpenNewProject}>
+          + New Project
+        </button>
+      </div>
+    </PageHero>
+
+    <main class="editorial-main">
+      {#if projectsLoading}
+        <div class="library-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading projects...</span>
+        </div>
+      {:else if myProjects.length === 0}
+        <div class="library-empty">
+          <svg
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#d4af37"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <path d="M12 18v-6M9 15h6" />
+          </svg>
+          <h2 class="empty-title">Create your first project</h2>
+          <p class="empty-text">
+            Draw points, lines, and polygons on historical maps, then save and
+            share your annotations.
+          </p>
           <button
             type="button"
-            class="library-create-btn"
+            class="library-create-btn large"
             on:click={handleOpenNewProject}
           >
             <svg
-              width="16"
-              height="16"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -518,135 +546,88 @@
             >
               <path d="M12 5v14M5 12h14" />
             </svg>
-            New Project
+            Create Project
           </button>
         </div>
-      </CatalogHeader>
-    </div>
+      {:else}
+        <CatalogGrid>
+          {#each myProjects as project (project.id)}
+            <CatalogCard
+              title={project.title}
+              on:click={() => handleSelectProject(project)}
+            >
+              <div slot="thumb" class="story-thumb-placeholder">
+                <span class="story-icon">📝</span>
+              </div>
 
-    {#if projectsLoading}
-      <div class="library-loading">
-        <div class="loading-spinner"></div>
-        <span>Loading projects...</span>
-      </div>
-    {:else if myProjects.length === 0}
-      <div class="library-empty">
-        <svg
-          width="64"
-          height="64"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#d4af37"
-          stroke-width="1.2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <path d="M12 18v-6M9 15h6" />
-        </svg>
-        <h2 class="empty-title">Create your first project</h2>
-        <p class="empty-text">
-          Draw points, lines, and polygons on historical maps, then save and
-          share your annotations.
-        </p>
-        <button
-          type="button"
-          class="library-create-btn large"
-          on:click={handleOpenNewProject}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Create Project
-        </button>
-      </div>
-    {:else}
-      <CatalogGrid>
-        {#each myProjects as project (project.id)}
-          <CatalogCard
-            title={project.title}
-            on:click={() => handleSelectProject(project)}
-          >
-            <div slot="thumb" class="story-thumb-placeholder">
-              <span class="story-icon">📝</span>
-            </div>
+              <div slot="meta" class="meta">
+                <span class="meta-tag">
+                  {featureCount(project)} feature{featureCount(project) !== 1
+                    ? "s"
+                    : ""}
+                </span>
+                <span class="meta-tag date">
+                  {new Date(project.updatedAt).toLocaleDateString("en-GB")}
+                </span>
+              </div>
 
-            <div slot="meta" class="meta">
-              <span class="meta-tag">
-                {featureCount(project)} feature{featureCount(project) !== 1
-                  ? "s"
-                  : ""}
-              </span>
-              <span class="meta-tag date">
-                {new Date(project.updatedAt).toLocaleDateString("en-GB")}
-              </span>
-            </div>
+              <div slot="description" class="description">
+                {project.mapId ? `Map: ${project.mapId.slice(0, 8)}...` : "No map selected"}
+              </div>
 
-            <div slot="description" class="description">
-              {project.mapId ? `Map: ${project.mapId.slice(0, 8)}...` : "No map selected"}
-            </div>
-
-            <div slot="actions">
-              <button
-                type="button"
-                class="btn-icon-edit"
-                title="Rename project"
-                on:click|stopPropagation={() => handleEditProjectName(project)}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
+              <div slot="actions">
+                <button
+                  type="button"
+                  class="btn-icon-edit"
+                  title="Rename project"
+                  on:click|stopPropagation={() => handleEditProjectName(project)}
                 >
-                  <path
-                    d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
-                  />
-                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                class="btn-icon-delete"
-                title="Delete project"
-                on:click|stopPropagation={() => {
-                  if (confirm(`Delete "${project.title}"?`)) {
-                    projectStore.deleteProject(project.id);
-                  }
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <path
+                      d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
+                    />
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="btn-icon-delete"
+                  title="Delete project"
+                  on:click|stopPropagation={() => {
+                    if (confirm(`Delete "${project.title}"?`)) {
+                      projectStore.deleteProject(project.id);
+                    }
+                  }}
                 >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                  <path d="M10 11v6M14 11v6" />
-                </svg>
-              </button>
-            </div>
-          </CatalogCard>
-        {/each}
-      </CatalogGrid>
-    {/if}
-  </CatalogPage>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                  </svg>
+                </button>
+              </div>
+            </CatalogCard>
+          {/each}
+        </CatalogGrid>
+      {/if}
+    </main>
+  </div>
 
   <NameDialog
     open={nameDialogOpen}
@@ -659,6 +640,7 @@
   <!-- Editor View -->
 {:else}
   <div class="annotate-mode" class:mobile={isMobile}>
+    <NavBar />
     <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
 
       <svelte:fragment slot="sidebar">

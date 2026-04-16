@@ -1,8 +1,9 @@
 <!--
   NavBar.svelte — Shared top navigation for editorial pages.
 
-  Desktop: VMA | Maps ▾  Contribute ▾  About  Blog | [avatar/signin] [VN] [theme]
-  Maps ▾:       Browse Catalog /catalog | View on Map /view | View Image /image
+  Desktop: VMA | Catalog ▾  Tools ▾  Contribute ▾  About  Blog | [avatar/signin] [theme]
+  Catalog ▾:    Browse Catalog /catalog | View on Map /view | View Image /image
+  Tools ▾:      Story /create | Annotate /annotate
   Contribute ▾: Label Maps /contribute/label | Trace Maps /contribute/trace | Georeference /contribute/georef
 
   Mobile (<=640px): hamburger → bottom-anchored drawer with flat link list.
@@ -12,7 +13,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import ThemeToggle from './ThemeToggle.svelte';
+
   import NavDropdown from './NavDropdown.svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
   import { page } from '$app/stores';
@@ -22,16 +23,7 @@
   let isVietnamese = false;
   let drawerOpen = false;
 
-  function toggleLanguage() {
-    if (isVietnamese) {
-      document.cookie = 'googtrans=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-      document.cookie = 'googtrans=; Path=/; Domain=' + window.location.hostname + '; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    } else {
-      document.cookie = 'googtrans=/en/vi; path=/';
-      document.cookie = 'googtrans=/en/vi; path=/; domain=' + window.location.hostname;
-    }
-    window.location.reload();
-  }
+
 
   function closeDrawer() { drawerOpen = false; }
 
@@ -48,7 +40,8 @@
   });
 
   $: path = $page.url.pathname;
-  $: activeMaps       = path.startsWith('/catalog') || path.startsWith('/view') || path.startsWith('/image');
+  $: activeCatalog    = path.startsWith('/catalog') || path.startsWith('/view') || path.startsWith('/image');
+  $: activeTools      = path.startsWith('/create') || path.startsWith('/annotate');
   $: activeContribute = path.startsWith('/contribute');
   $: activeAbout      = path.startsWith('/about');
   $: activeBlog       = path.startsWith('/blog');
@@ -66,10 +59,15 @@
 
   <!-- Desktop links -->
   <div class="nav-links">
-    <NavDropdown label="Maps" active={activeMaps}>
+    <NavDropdown label="Catalog" active={activeCatalog}>
       <a href="/catalog"  class="dropdown-item" on:click={closeDrawer}>Browse Catalog</a>
       <a href="/view"     class="dropdown-item" on:click={closeDrawer}>View on Map</a>
       <a href="/image"    class="dropdown-item" on:click={closeDrawer}>View Image</a>
+    </NavDropdown>
+
+    <NavDropdown label="Tools" active={activeTools}>
+      <a href="/create"   class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
+      <a href="/annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
     </NavDropdown>
 
     <NavDropdown label="Contribute" active={activeContribute}>
@@ -84,10 +82,6 @@
 
   <!-- Auth + utils -->
   <div class="nav-auth">
-    <ThemeToggle />
-    <button class="pill-btn lang-btn" on:click={toggleLanguage}>
-      {isVietnamese ? '🇬🇧 EN' : '🇻🇳 VN'}
-    </button>
     {#if session}
       <a href="/profile" class="avatar-pill" title="Your profile">
         {#if avatarUrl}
@@ -131,10 +125,14 @@
     </div>
 
     <nav class="drawer-nav">
-      <p class="drawer-section-label">Maps</p>
+      <p class="drawer-section-label">Catalog</p>
       <a href="/catalog"  class="drawer-link" on:click={closeDrawer}>Browse Catalog</a>
       <a href="/view"     class="drawer-link" on:click={closeDrawer}>View on Map</a>
       <a href="/image"    class="drawer-link" on:click={closeDrawer}>View Image</a>
+
+      <p class="drawer-section-label">Tools</p>
+      <a href="/create"   class="drawer-link" on:click={closeDrawer}>Story Builder</a>
+      <a href="/annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
 
       <p class="drawer-section-label">Contribute</p>
       <a href="/contribute/label"  class="drawer-link" on:click={closeDrawer}>Label Maps</a>

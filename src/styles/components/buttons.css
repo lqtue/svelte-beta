@@ -29,6 +29,7 @@
   transform: translate(-2px, -2px);
   box-shadow: var(--shadow-solid);
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
 }
 
 .chip:active:not(:disabled) {
@@ -109,27 +110,3 @@
   gap: var(--space-3);
 }
 
-/* Archival theme: softer interactions */
-[data-theme="archival"] .chip {
-  font-weight: var(--font-semibold);
-  transition: box-shadow 0.15s, background-color 0.15s;
-}
-
-[data-theme="archival"] .chip:hover:not(:disabled) {
-  transform: none;
-  background: var(--color-yellow);
-  box-shadow: var(--shadow-solid-hover);
-}
-
-[data-theme="archival"] .chip:active:not(:disabled) {
-  transform: none;
-  box-shadow: var(--shadow-solid-sm);
-}
-
-[data-theme="archival"] .chip:focus-visible {
-  box-shadow: 0 0 0 2px var(--color-blue);
-}
-
-[data-theme="archival"] .chip.primary:hover:not(:disabled) {
-  background: var(--color-primary-700);
-}

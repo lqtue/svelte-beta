@@ -15,6 +15,7 @@ body {
   min-height: 100dvh; /* Dynamic viewport height for mobile */
   overscroll-behavior: none; /* Prevent pull-to-refresh/bounce */
   -webkit-tap-highlight-color: transparent; /* Remove gray tap highlight */
+  scrollbar-gutter: stable;
 }
 
 body {

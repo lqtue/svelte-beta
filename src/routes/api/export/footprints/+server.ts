@@ -5,7 +5,6 @@
  *
  * Query params:
  *   map_id   — required for coco format, optional for geojson
- *   task_id  — optional, filter to one task
  *   status   — default 'submitted'
  *   format   — 'geojson' (default) | 'coco'
  *   pad      — COCO only: pixel padding around each crop bbox (default 128)
@@ -74,7 +73,6 @@ const CATEGORY_IDS: Record<string, number> = {
 };
 
 export const GET: RequestHandler = async ({ url }) => {
-  const taskId = url.searchParams.get('task_id');
   const mapId = url.searchParams.get('map_id');
   const status = url.searchParams.get('status') || 'submitted';
   const format = url.searchParams.get('format') || 'geojson';
@@ -89,10 +87,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
   let fpQuery = supabase
     .from('footprint_submissions')
-    .select('*, label_tasks(map_id, allmaps_id)')
+    .select('*, maps(allmaps_id)')
     .eq('status', status);
 
-  if (taskId) fpQuery = fpQuery.eq('task_id', taskId);
   if (mapId) fpQuery = fpQuery.eq('map_id', mapId);
 
   const { data: rows, error: dbError } = await fpQuery;
@@ -104,8 +101,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const features: GeoJSON.Feature[] = [];
 
     for (const row of rows as any[]) {
-      const task = row.label_tasks;
-      const resolvedAllmapsId = row.allmaps_id ?? task?.allmaps_id;
+      const resolvedAllmapsId = (row.maps as any)?.allmaps_id ?? null;
       if (!resolvedAllmapsId) continue;
 
       const annData = await getAnnotationData(resolvedAllmapsId);
@@ -127,8 +123,7 @@ export const GET: RequestHandler = async ({ url }) => {
         geometry: { type: 'Polygon', coordinates: [coordinates] },
         properties: {
           id: row.id,
-          task_id: row.task_id,
-          map_id: row.map_id ?? task?.map_id,
+          map_id: row.map_id,
           allmaps_id: resolvedAllmapsId,
           name: row.name,
           category: row.category,
@@ -160,8 +155,7 @@ export const GET: RequestHandler = async ({ url }) => {
   let annId = 1;
 
   for (const row of rows as any[]) {
-    const task = row.label_tasks;
-    const resolvedAllmapsId = row.allmaps_id ?? task?.allmaps_id;
+    const resolvedAllmapsId = (row.maps as any)?.allmaps_id ?? null;
     if (!resolvedAllmapsId) continue;
 
     const annData = await getAnnotationData(resolvedAllmapsId);
@@ -190,7 +184,7 @@ export const GET: RequestHandler = async ({ url }) => {
     cocoImages.push({
       id: imageId,
       footprint_id: row.id,
-      map_id: row.map_id ?? task?.map_id,
+      map_id: row.map_id,
       allmaps_id: resolvedAllmapsId,
       iiif_url: iiifUrl,
       iiif_base: annData.iiifBaseUrl,

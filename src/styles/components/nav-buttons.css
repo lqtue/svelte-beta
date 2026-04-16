@@ -15,13 +15,9 @@
 
 .back-link:hover {
     background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
     transform: translate(-1px, -1px);
     box-shadow: 2px 2px 0px var(--color-border);
-}
-
-[data-theme="archival"] .back-link:hover {
-    transform: none;
-    box-shadow: var(--shadow-solid);
 }
 
 .back-link.small {

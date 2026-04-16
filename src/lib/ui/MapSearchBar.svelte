@@ -20,6 +20,8 @@
     export let toolbarEl: HTMLElement | null = null;
     /** When true, show 'Add as point' on location results */
     export let showAddAsPoint = false;
+    /** When true, hide the Location tab — maps only */
+    export let mapsOnly = false;
 
     let searchOpen = false;
     let toolbarWidth = 0;
@@ -67,7 +69,7 @@
             <path d="M21 21l-4.35-4.35" />
         </svg>
         <span class="search-trigger-text"
-            >Search maps, places, coordinates...</span
+            >{mapsOnly ? 'Search maps…' : 'Search maps, places, coordinates...'}</span
         >
     </button>
 </div>
@@ -82,6 +84,7 @@
         {maps}
         {selectedMapId}
         {showAddAsPoint}
+        {mapsOnly}
         on:close={() => (searchOpen = false)}
         on:navigate={(e) => {
             dispatch("navigate", e.detail);

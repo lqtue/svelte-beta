@@ -6,12 +6,13 @@
   <div class="footer-inner">
     <div class="footer-links">
       <a href="/">Home</a>
-      <a href="/catalog">Maps</a>
+      <a href="/catalog">Catalog</a>
+      <a href="/view">View on Map</a>
+      <a href="/create">Story Builder</a>
+      <a href="/annotate">Annotate</a>
+      <a href="/contribute">Contribute</a>
       <a href="/about">About</a>
       <a href="/blog">Blog</a>
-      <a href="/contribute">Contribute</a>
-      <a href="/contribute/label">Label maps</a>
-      <a href="/contribute/georef">Georeference</a>
       <a href="https://github.com/lqtue/svelte-beta" target="_blank" rel="noopener">GitHub</a>
     </div>
     <p>

@@ -2,21 +2,21 @@
 	import { onMount } from "svelte";
 	import { browser } from "$app/environment";
 
-	let current = $state<string>("brutalist");
+	let current = $state<string>("light");
 
 	const themes = [
-		{ key: "brutalist", label: "Bold" },
-		{ key: "archival", label: "Archival" },
+		{ key: "light", label: "Light" },
+		{ key: "dark", label: "Dark" },
 	];
 
 	onMount(() => {
 		current =
-			document.documentElement.getAttribute("data-theme") || "brutalist";
+			document.documentElement.getAttribute("data-theme") || "light";
 	});
 
 	function setTheme(key: string) {
 		current = key;
-		if (key === "brutalist") {
+		if (key === "light") {
 			document.documentElement.removeAttribute("data-theme");
 			localStorage.removeItem("vma-theme");
 		} else {

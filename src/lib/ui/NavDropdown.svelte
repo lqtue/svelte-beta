@@ -80,9 +80,11 @@
     gap: 0.3rem;
   }
 
-  .nav-dropdown-trigger.open {
+  .nav-dropdown-trigger.open,
+  .nav-dropdown-trigger.active {
     background: var(--color-yellow);
     border-color: var(--color-border);
+    color: var(--color-text);
   }
 
   .chevron {

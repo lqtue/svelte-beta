@@ -40,6 +40,7 @@
   } from "$lib/ui/searchUtils";
 
   import ToolLayout from "$lib/shell/ToolLayout.svelte";
+  import NavBar from "$lib/ui/NavBar.svelte";
   import MapShell from "$lib/shell/MapShell.svelte";
   import HistoricalOverlay from "$lib/shell/HistoricalOverlay.svelte";
   import ViewSidebar from "./ViewSidebar.svelte";
@@ -334,6 +335,7 @@
 </script>
 
 <div class="view-mode" class:mobile={isMobile}>
+  <NavBar />
   <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
 
     <!-- Desktop sidebar -->

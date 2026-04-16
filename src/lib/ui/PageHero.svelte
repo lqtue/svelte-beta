@@ -69,12 +69,14 @@
 <style>
   .hero-badges {
     display: flex;
+    justify-content: center;
     gap: 0.5rem;
     flex-wrap: wrap;
     margin-bottom: 1.5rem;
   }
   .hero-actions {
     display: flex;
+    justify-content: center;
     gap: 1rem;
     flex-wrap: wrap;
   }

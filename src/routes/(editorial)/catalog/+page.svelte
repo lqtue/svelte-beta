@@ -4,6 +4,7 @@
   import { fetchFavorites, addFavorite, removeFavorite } from "$lib/supabase/favorites";
   import MapCard from "$lib/ui/MapCard.svelte";
   import ChunkyTabs from "$lib/ui/ChunkyTabs.svelte";
+  import PageHero from "$lib/ui/PageHero.svelte";
   import MapEditModal from "$lib/admin/MapEditModal.svelte";
   import MapUploadModal from "$lib/admin/MapUploadModal.svelte";
   import "$styles/layouts/catalog.css";
@@ -57,6 +58,12 @@
   let searchQuery: string = "";
   let sortBy: "name" | "year" | "newest" = "year";
   let favoriteIds: string[] = [];
+
+  // Extended Filtering
+  let filterMapType: string = "all";
+  let filterGeoreferenced: "all" | "georef" | "unreferenced" = "all";
+  let filterYearMin: number | null = null;
+  let filterYearMax: number | null = null;
 
   // Mod edit state
   let filterMissing = false;
@@ -232,6 +239,7 @@
   // ── Derived State ──────────────────────────────────────────────────
   $: cities = Array.from(new Set(maps.map((m) => m.location).filter(Boolean) as string[])).sort();
   $: sources = Array.from(new Set(maps.map((m) => m.collection).filter(Boolean))).sort() as string[];
+  $: mapTypes = Array.from(new Set(maps.map((m) => m.map_type).filter(Boolean) as string[])).sort();
 
   $: filteredMaps = (() => {
     let result = maps;
@@ -240,6 +248,13 @@
 
     if (filterCity !== "all") result = result.filter((m) => m.location === filterCity);
     if (filterSource !== "all") result = result.filter((m) => m.collection === filterSource);
+    if (filterMapType !== "all") result = result.filter((m) => m.map_type === filterMapType);
+
+    if (filterGeoreferenced === "georef") result = result.filter((m) => !!m.allmaps_id);
+    else if (filterGeoreferenced === "unreferenced") result = result.filter((m) => !m.allmaps_id);
+
+    if (filterYearMin !== null) result = result.filter((m) => (m.year || 0) >= filterYearMin!);
+    if (filterYearMax !== null) result = result.filter((m) => (m.year || 9999) <= filterYearMax!);
 
     if (filterCollection === "featured") result = result.filter((m) => m.is_featured);
     else if (filterCollection === "favorites") result = result.filter((m) => favoriteIds.includes(m.id));
@@ -291,84 +306,122 @@
 </svelte:head>
 
 <div class="page catalog-page" class:mounted>
-  <!-- Top Bar -->
-  <header class="top-bar">
-    <div class="top-bar-left">
-      <a href="/" class="icon-btn back-btn" aria-label="Back to home">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-      </a>
-      <h1 class="page-title">The Archive <span class="sparkle">✨</span></h1>
-    </div>
-    <div class="top-bar-right">
-      <div class="search-box">
-        <span class="search-emoji">🔍</span>
-        <input type="text" placeholder="Search maps..." bind:value={searchQuery} class="chunky-input" />
-      </div>
-
+  <PageHero eyebrow="Collection" sub="Browse the full archive of georeferenced historical maps.">
+    <svelte:fragment slot="title">The <span class="text-highlight">Archive.</span></svelte:fragment>
+    <div slot="actions">
       {#if role === "admin"}
-        <button class="adv-btn" on:click={() => showUploadModal = true}>➕ New</button>
+        <button class="action-btn primary-btn" on:click={() => showUploadModal = true}>+ New Map</button>
       {/if}
-
       {#if role === "admin" || role === "mod"}
-        <button
-          class="adv-btn edit-toggle {editMode ? 'active' : ''}"
-          on:click={() => { editMode = !editMode; }}
-        >
+        <button class="pill-btn" on:click={() => { editMode = !editMode; }}>
           {editMode ? 'Done Editing' : 'Edit Meta'}
         </button>
       {/if}
-
-      {#if !editMode}
-        <div class="controls-group">
-          <div class="view-toggle">
-            <button class="toggle-btn" class:active={viewMode === "grid"} on:click={() => setViewMode("grid")} aria-label="Grid view">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
-            </button>
-            <button class="toggle-btn" class:active={viewMode === "list"} on:click={() => setViewMode("list")} aria-label="List view">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" /></svg>
-            </button>
-          </div>
-          <select class="chunky-select" bind:value={sortBy}>
-            <option value="name">Name A–Z</option>
-            <option value="year">Oldest First</option>
-            <option value="newest">Newest First</option>
-          </select>
-        </div>
-      {/if}
     </div>
-  </header>
+  </PageHero>
 
   <!-- Content Area -->
   <main class="content" class:edit-layout={editMode}>
     <div class="controls-card">
-      <ChunkyTabs
-        tabs={[
-          { value: 'all', label: '📚 All Maps' },
-          { value: 'featured', label: '🌟 Featured' },
-          { value: 'favorites', label: '❤️ Favorites' },
-        ]}
-        active={filterCollection}
-        activeColor="var(--color-purple)"
-        on:change={(e) => filterCollection = e.detail as "all" | "featured" | "favorites"}
-      />
-
-      {#if sources.length > 1}
-        <div class="city-filters">
-          <button class="filter-pill" class:active={filterSource === "all"} on:click={() => (filterSource = "all")}>All Sources</button>
-          {#each sources as src}
-            <button class="filter-pill" class:active={filterSource === src} on:click={() => (filterSource = src)}>{shortCollection(src)}</button>
-          {/each}
+      <div class="controls-top-row">
+        <div class="search-box">
+          <span class="search-emoji">🔍</span>
+          <input type="text" placeholder="Search by name, creator, or description..." bind:value={searchQuery} class="chunky-input" />
         </div>
-      {/if}
+        {#if !editMode}
+          <div class="controls-group">
+            <div class="view-toggle">
+              <button class="toggle-btn" class:active={viewMode === "grid"} on:click={() => setViewMode("grid")} aria-label="Grid view">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+              </button>
+              <button class="toggle-btn" class:active={viewMode === "list"} on:click={() => setViewMode("list")} aria-label="List view">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" /></svg>
+              </button>
+            </div>
+            <select class="chunky-select" bind:value={sortBy}>
+              <option value="year">📅 Year (Asc)</option>
+              <option value="newest">📅 Year (Desc)</option>
+              <option value="name">🔤 Alphabetic A-Z</option>
+            </select>
+          </div>
+        {/if}
+      </div>
 
-      {#if cities.length > 1}
-        <div class="city-filters">
-          <button class="filter-pill" class:active={filterCity === "all"} on:click={() => (filterCity = "all")}>All Cities</button>
-          {#each cities as city}
-            <button class="filter-pill" class:active={filterCity === city} on:click={() => (filterCity = city)}>{city}</button>
-          {/each}
+      <div class="filter-main-tabs">
+        <ChunkyTabs
+          tabs={[
+            { value: 'all', label: '📚 All Maps' },
+            { value: 'featured', label: '🌟 Featured' },
+            { value: 'favorites', label: '❤️ Favorites' },
+          ]}
+          active={filterCollection}
+          activeColor="var(--color-purple)"
+          on:change={(e) => filterCollection = e.detail as "all" | "featured" | "favorites"}
+        />
+      </div>
+
+      <div class="filter-grid">
+        <!-- Geographic / Source Filters -->
+        <div class="filter-column">
+          <span class="filter-label">City / Region</span>
+          <select class="chunky-select full-width" bind:value={filterCity}>
+            <option value="all">All Locations</option>
+            {#each cities as city}
+              <option value={city}>{city}</option>
+            {/each}
+          </select>
         </div>
-      {/if}
+
+        <div class="filter-column">
+          <span class="filter-label">Source Collection</span>
+          <select class="chunky-select full-width" bind:value={filterSource}>
+            <option value="all">All Sources</option>
+            {#each sources as src}
+              <option value={src}>{shortCollection(src)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="filter-column">
+          <span class="filter-label">Map Type</span>
+          <select class="chunky-select full-width" bind:value={filterMapType}>
+            <option value="all">All Types</option>
+            {#each mapTypes as type}
+              <option value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="filter-column">
+          <span class="filter-label">Availability</span>
+          <div class="status-pills">
+            <button 
+              class="status-pill" 
+              class:active={filterGeoreferenced === 'all'} 
+              on:click={() => filterGeoreferenced = 'all'}
+            >All</button>
+            <button 
+              class="status-pill" 
+              class:active={filterGeoreferenced === 'georef'} 
+              on:click={() => filterGeoreferenced = 'georef'}
+            >🌍 On Map</button>
+            <button 
+              class="status-pill" 
+              class:active={filterGeoreferenced === 'unreferenced'} 
+              on:click={() => filterGeoreferenced = 'unreferenced'}
+            >🖼️ Static</button>
+          </div>
+        </div>
+
+        <div class="filter-column">
+          <span class="filter-label">Year Range</span>
+          <div class="year-range-inputs">
+            <input type="number" class="chunky-input-sm" placeholder="From" bind:value={filterYearMin} />
+            <span class="range-sep">—</span>
+            <input type="number" class="chunky-input-sm" placeholder="To" bind:value={filterYearMax} />
+          </div>
+        </div>
+      </div>
 
       {#if editMode}
         <div class="edit-toolbar">

@@ -196,38 +196,4 @@
   .fav-btn:hover  { transform: scale(1.1) rotate(10deg); }
   .fav-btn:active { transform: scale(0.95); }
 
-  /* Archival theme */
-  :global([data-theme="archival"]) .map-card {
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-solid-sm);
-  }
-  :global([data-theme="archival"]) .map-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-solid-hover);
-  }
-  :global([data-theme="archival"]) .map-card-wrapper:nth-child(even) .map-card:hover {
-    transform: translateY(-3px);
-  }
-  :global([data-theme="archival"]) .map-thumbnail {
-    border-bottom: var(--border-thin);
-  }
-  :global([data-theme="archival"]) .placeholder-pattern {
-    background-image: repeating-linear-gradient(
-      45deg,
-      var(--color-gray-100) 0, var(--color-gray-100) 10px,
-      var(--color-white) 10px, var(--color-white) 20px
-    );
-  }
-  :global([data-theme="archival"]) .badge {
-    border: var(--border-thin);
-    box-shadow: var(--shadow-solid-sm);
-    font-weight: 700;
-  }
-  :global([data-theme="archival"]) .year-badge { background: var(--color-green); color: #fff; }
-  :global([data-theme="archival"]) .fav-btn {
-    border: var(--border-thin);
-    box-shadow: var(--shadow-solid-sm);
-  }
-  :global([data-theme="archival"]) .fav-btn:hover { transform: scale(1.05); }
 </style>

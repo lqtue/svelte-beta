@@ -18,8 +18,21 @@
   let role = 'user';
   let stats = { pins: 0, traces: 0, reviews: 0 };
   let loading = true;
+  let isVietnamese = false;
+
+  function toggleLanguage() {
+    if (isVietnamese) {
+      document.cookie = 'googtrans=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'googtrans=; Path=/; Domain=' + window.location.hostname + '; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    } else {
+      document.cookie = 'googtrans=/en/vi; path=/';
+      document.cookie = 'googtrans=/en/vi; path=/; domain=' + window.location.hostname;
+    }
+    window.location.reload();
+  }
 
   onMount(async () => {
+    isVietnamese = document.cookie.includes('googtrans=/en/vi');
     try {
       // 1. Get role
       const { data: profile } = await supabase
@@ -100,6 +113,22 @@
             </div>
           </div>
         {/if}
+      </div>
+
+      <div class="settings-section">
+        <h3 class="section-title">Preferences</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-name">Language</span>
+              <span class="setting-desc">Switch between English and Tiếng Việt (Beta)</span>
+            </div>
+            <button class="pill-btn lang-btn" on:click={toggleLanguage}>
+              {isVietnamese ? '🇬🇧 Switch to English' : '🇻🇳 Tiếng Việt'}
+            </button>
+          </div>
+          
+        </div>
       </div>
     </div>
   </main>
@@ -256,5 +285,48 @@
     font-weight: var(--font-bold);
     color: var(--color-gray-500);
     margin-top: 0.25rem;
+  }
+
+  .settings-section {
+    padding: 2rem;
+    border-top: var(--border-thin);
+  }
+
+  .settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: var(--color-bg);
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+  }
+
+  .setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .setting-name {
+    font-weight: var(--font-bold);
+    color: var(--color-text);
+  }
+
+  .setting-desc {
+    font-size: 0.85rem;
+    color: var(--color-gray-500);
+  }
+
+  .lang-btn {
+    background: var(--color-blue);
+    color: white;
+    border: none;
   }
 </style>

@@ -25,7 +25,6 @@
   font-size: 1.25rem;
   text-decoration: none;
   color: var(--color-text);
-  margin-right: auto;
 }
 .nav-links {
   display: flex;
@@ -45,17 +44,19 @@
 .nav-link:hover {
   background: var(--color-yellow);
   border-color: var(--color-border);
+  color: var(--color-text-on-yellow);
   text-decoration: none;
 }
 .nav-link.active {
   background: var(--color-yellow);
   border-color: var(--color-border);
-  color: var(--color-text);
+  color: var(--color-text-on-yellow);
 }
 .nav-auth {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-left: auto;
 }
 @media (max-width: 600px) {
   .nav-links { display: none; }
@@ -68,9 +69,15 @@
   background: var(--color-yellow);
   border-bottom: var(--border-thick);
   padding: 5rem 2rem;
+  color: var(--color-text-on-yellow);
+  text-align: center;
 }
 .editorial-hero .hero-inner {
   max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .editorial-hero .hero-title {
   font-family: var(--font-family-display);
@@ -86,12 +93,13 @@
   font-weight: var(--font-medium);
   line-height: 1.6;
   max-width: 600px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--color-white);
   padding: 1rem 1.25rem;
   border: var(--border-thin);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-solid-sm);
   margin: 0 0 2rem 0;
+  text-align: left; /* Keep the paragraph text left-aligned for readability while the container is centered */
 }
 /* White text with bold stroke — used for hero title highlights */
 .text-highlight {
