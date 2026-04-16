@@ -22,16 +22,15 @@
   import { ensureAnnotationDefaults, toAnnotationSummary, createAnnotationStyle, searchResultStyle } from '$lib/map/olAnnotations';
   import { captureFeatureSnapshot as snapshotFeature, restoreFeatureFromSnapshot as restoreSnapshot, type FeatureSnapshot, type HistoryEntry, type AnnotationField } from '$lib/map/annotationHistory';
   import { getShellContext } from './context';
+  import { getAnnotationContext } from '$lib/map/annotationContext';
 
   export let drawingMode: DrawingMode | null = null;
   export let editingEnabled = true;
 
   const geoJsonFormat = new GeoJSON();
   const dispatch = createEventDispatcher();
-  const { map: mapWritable, annotations } = getShellContext();
-  
-  if (!annotations) throw new Error("DrawTool requires annotations context");
-  const { history: annotationHistory, state: annotationState } = annotations;
+  const { map: mapWritable } = getShellContext();
+  const { history: annotationHistory, state: annotationState } = getAnnotationContext();
 
   let map: import('ol/Map').default | null = null;
   let unsubs: (() => void)[] = [];
