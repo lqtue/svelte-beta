@@ -304,16 +304,16 @@
 						<a href="/contribute/label" class="micro-link-card">
 							<span class="mlc-icon">🏷️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Label & Trace</span>
-								<span class="mlc-desc">Identify landmarks and trace building outlines directly on original map sheets</span>
+								<span class="mlc-title">Label Maps</span>
+								<span class="mlc-desc">Identify and pin landmarks, streets, and districts on original map sheets</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
-						<a href="/contribute/review" class="micro-link-card">
-							<span class="mlc-icon">🤖</span>
+						<a href="/contribute/label" class="micro-link-card">
+							<span class="mlc-icon">🖋️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Review AI Footprints</span>
-								<span class="mlc-desc">Approve or reject building polygons extracted automatically by the SAM2 pipeline</span>
+								<span class="mlc-title">Trace Footprints</span>
+								<span class="mlc-desc">Digitize building outlines to help build the open dataset</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
