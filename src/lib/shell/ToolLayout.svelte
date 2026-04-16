@@ -25,6 +25,31 @@
   export let isCompact = false;
 
   let responsiveCleanup: (() => void) | null = null;
+  let sidebarWidth = 320;
+  let isResizing = false;
+
+  function startResizing() {
+    isResizing = true;
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', stopResizing);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    if (!isResizing) return;
+    // sidebar typically starts after a 1rem (16px) padding
+    const newWidth = Math.max(260, Math.min(600, e.clientX - 16));
+    sidebarWidth = newWidth;
+  }
+
+  function stopResizing() {
+    isResizing = false;
+    window.removeEventListener('mousemove', handleMouseMove);
+    window.removeEventListener('mouseup', stopResizing);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
 
   onMount(() => {
     const mobileQuery = window.matchMedia('(max-width: 900px)');
@@ -42,16 +67,25 @@
     };
   });
 
-  onDestroy(() => responsiveCleanup?.());
+  onDestroy(() => {
+    responsiveCleanup?.();
+    stopResizing();
+  });
 </script>
 
 <div
   class="workspace"
   class:with-sidebar={!sidebarCollapsed && !isMobile}
   class:compact={isCompact}
+  style="--sidebar-width: {sidebarWidth}px"
 >
   {#if !sidebarCollapsed && !isMobile}
     <slot name="sidebar" />
+    <div 
+      class="resize-handle" 
+      on:mousedown={startResizing}
+      role="presentation"
+    ></div>
   {/if}
 
   <div class="map-stage">
@@ -93,3 +127,37 @@
     <slot name="mobile-sidebar" />
   </div>
 {/if}
+
+<style>
+  .resize-handle {
+    position: absolute;
+    top: 1rem;
+    bottom: 1rem;
+    left: calc(var(--sidebar-width) + 1rem); /* Start of the gap */
+    width: 1rem; /* Full gap width */
+    cursor: col-resize;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .resize-handle::after {
+    content: '';
+    width: 2px;
+    height: 48px;
+    background: var(--color-gray-300);
+    border-radius: 1px;
+    transition: all 0.2s;
+  }
+
+  .resize-handle:hover::after {
+    background: var(--color-blue);
+    height: 64px;
+    width: 4px;
+  }
+
+  .workspace:not(.with-sidebar) .resize-handle {
+    display: none;
+  }
+</style>

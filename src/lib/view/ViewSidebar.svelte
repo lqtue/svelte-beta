@@ -51,8 +51,9 @@
       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12.5 15L7.5 10L12.5 5" />
       </svg>
+      Catalog
     </a>
-    <span class="panel-mode-label">View Mode</span>
+    <span class="panel-mode-label">Map Viewer</span>
     <button
       type="button"
       class="collapse-btn"

@@ -219,6 +219,7 @@
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12.5 15L7.5 10L12.5 5"/>
             </svg>
+            Contribute
           </a>
           <div class="panel-mode-label">Trace Mode</div>
           <button
@@ -301,6 +302,7 @@
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12.5 15L7.5 10L12.5 5"/>
             </svg>
+            Contribute
           </a>
           <div class="panel-mode-label">{currentMap?.name ?? 'Trace'}</div>
           <button type="button" class="collapse-btn" on:click={() => (sidebarCollapsed = true)} aria-label="Close">

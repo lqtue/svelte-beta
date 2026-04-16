@@ -160,9 +160,11 @@
 				Vietnam<br /><span class="text-highlight">Map Archive</span>
 			</h1>
 			<p class="hero-subtitle">
-				We take old maps of Saigon and put them back on the modern city
-				— so you can see what stood on any street, in any year. Then we
-				turn every map into open data: every building, free for anyone.
+				Bringing Vietnam’s cartographic heritage back to life on today’s
+				map. From the citadels of Hue to the streets of Saigon, we
+				bridge history and geography to create a living archive. Every
+				discovery is turned into open data—preserved, vectorized, and
+				free for all.
 			</p>
 		</div>
 	</header>

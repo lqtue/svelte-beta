@@ -19,13 +19,13 @@
 }
 
 .workspace.with-sidebar {
-    grid-template-columns: minmax(320px, 0.25fr) minmax(0, 1fr);
+    grid-template-columns: var(--sidebar-width, 320px) minmax(0, 1fr);
     gap: 1rem;
     padding: 1rem;
 }
 
 .workspace.with-sidebar.compact {
-    grid-template-columns: minmax(260px, 0.3fr) minmax(0, 1fr);
+    grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr);
 }
 
 .map-stage {
