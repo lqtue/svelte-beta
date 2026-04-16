@@ -16,6 +16,8 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 application for exploring georeferen
 
 Feature-scoped context folders for in-progress development. Read these before working on a feature:
 
+- `work/MapSAM2/CLAUDE.md` — fine-tuned SAM2 fork (LoRA, M1 patches, dataset pipeline, training commands). Has its own venv: `.venv-m1/`.
+- `work/MapSAM2_new/` — experimental successor to MapSAM2 (check for a CLAUDE.md or README before diving in)
 - `work/vectorize/CONTEXT.md` — SAM2 vectorization pipeline + HITL review
 - `work/review/CONTEXT.md` — HITL review UI specifically
 
@@ -83,6 +85,13 @@ Three stores form the application state backbone:
 - **layerStore** — `{ basemap, overlayOpacity, overlayVisible, viewMode, sideRatio, lensRadius }`. View modes: `'overlay' | 'side' | 'spyglass'`.
 - **urlStore** — bidirectional URL hash ↔ stores sync. Hash format: `#@lat,lng,zoomz,rotationr&map=id&base=key`
 
+### Route Groups
+
+Routes split into two layout groups:
+
+- **`(editorial)`** — public-facing pages with nav/footer: `/` (home), `/catalog`, `/about`, `/blog`, `/profile`, `/login`, `/signup`
+- **`(app)`** — full-screen map tools with their own layout: `/view`, `/create`, `/annotate`, `/image`, `/contribute/*`
+
 ### Mode Architecture
 
 | Route | Mode | Directory |
@@ -90,11 +99,12 @@ Three stores form the application state backbone:
 | `/view` | Browse maps, play stories | `src/lib/view/` |
 | `/create` | Create stories/adventures | `src/lib/create/` |
 | `/annotate` | Free-form annotation drawing | `src/lib/annotate/` |
+| `/image` | IIIF image inspector | `src/routes/(app)/image/` |
 | `/contribute/georef` | Georeference maps | `src/routes/contribute/georef/` |
 | `/contribute/label` | Label Studio (pin + trace) | `src/lib/contribute/label/` |
 | `/contribute/review` | HITL review of SAM2 footprints | `src/lib/contribute/review/` |
 
-All modes except Label Studio share the same MapShell and global stores.
+All app modes except Label Studio share the same MapShell and global stores.
 
 ### Label Studio (`/contribute/label`)
 
@@ -165,7 +175,7 @@ Domain module for the map catalogue. Use this for new code; `src/lib/supabase/ma
 **Type quirks:**
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`)
 - `.select().single()` narrowing: cast `(data as any)?.field as Type`
-- `supabase/types.ts` is partially stale — new columns added in migrations 026–027 are not reflected. Cast via `(supabase as any).from(...)` when accessing new columns until types are regenerated.
+- `supabase/types.ts` is partially stale — lags behind the current migration head (039). Cast via `(supabase as any).from(...)` when accessing columns not yet reflected in the generated types.
 
 ### Styling
 

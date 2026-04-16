@@ -140,10 +140,10 @@
 </script>
 
 <svelte:head>
-	<title>Vietnam Map Archive — Make Old Maps Fun Again</title>
+	<title>Vietnam Map Archive — Colonial Saigon, Mapped and Open</title>
 	<meta
 		name="description"
-		content="Explore georeferenced historical maps of Vietnam. Overlay vintage cartography on modern basemaps, track your location through history."
+		content="Extracting building footprints from colonial Saigon's historical maps using SAM2 — georeferenced, vectorized, and published as open data under CC-BY."
 	/>
 	<link
 		href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&family=Be+Vietnam+Pro:wght@400;600;800&display=swap"
@@ -160,16 +160,10 @@
 				Vietnam<br /><span class="text-highlight">Map Archive</span>
 			</h1>
 			<p class="hero-subtitle">
-				We started in Saigon — the city we know best, the city with the
-				richest archives. The goal: a proven, open-source system for
-				recovering a city's past from historical maps. Then Vietnam.
-				Then anywhere.
+				We take old maps of Saigon and put them back on the modern city
+				— so you can see what stood on any street, in any year. Then we
+				turn every map into open data: every building, free for anyone.
 			</p>
-			<div class="hero-badges">
-				<span class="badge-chip chip-green">Featured in Saigoneer Jan 2026</span>
-				<span class="badge-chip chip-blue">500+ Maps Archived</span>
-				<span class="badge-chip chip-yellow">Open · CC-BY · Forkable</span>
-			</div>
 		</div>
 	</header>
 
@@ -310,16 +304,16 @@
 						<a href="/contribute/label" class="micro-link-card">
 							<span class="mlc-icon">🏷️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Label Maps</span>
-								<span class="mlc-desc">Identify and label landmarks, streets, and districts on original sheets</span>
+								<span class="mlc-title">Label & Trace</span>
+								<span class="mlc-desc">Identify landmarks and trace building outlines directly on original map sheets</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
-						<a href="/contribute/trace" class="micro-link-card">
-							<span class="mlc-icon">🖋️</span>
+						<a href="/contribute/review" class="micro-link-card">
+							<span class="mlc-icon">🤖</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Trace Footprints</span>
-								<span class="mlc-desc">Digitize building outlines to help train our vectorization models</span>
+								<span class="mlc-title">Review AI Footprints</span>
+								<span class="mlc-desc">Approve or reject building polygons extracted automatically by the SAM2 pipeline</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
@@ -341,10 +335,9 @@
 				<div class="info-icon color-yellow">✦</div>
 				<h2 class="info-title">About the Project</h2>
 				<p class="info-desc">
-					Vietnam Map Archive is reconstructing Saigon's urban history as
-					a navigable, time-layered digital city — starting with the
-					1880–1930 French colonial period. Built openly, data published
-					under CC-BY / ODbL.
+					VMA is extracting every building footprint from colonial Saigon's
+					historical maps — automatically, openly, with community review.
+					The 1882 and 1898 surveys are the starting point. CC-BY / ODbL.
 				</p>
 				<a href="/about" class="info-link">Project overview →</a>
 			</section>
@@ -352,10 +345,11 @@
 			<section class="info-card">
 				<div class="info-icon color-blue">📝</div>
 				<h2 class="info-title">Latest Update</h2>
-				<p class="info-title-sm">March 2026: Maps, Methods, and What's Next</p>
+				<p class="info-title-sm">April 2026: SAM2 Pipeline Running on 1882 Map</p>
 				<p class="info-desc">
-					Featured in Saigoneer. 500+ L7014 sheets automated. Planning
-					the knowledge graph, 3D pipeline, and community tier system.
+					Zero-shot SAM2 segmentation active on the 1882 Saigon cadastral
+					survey — city blocks extracted, building footprints in progress.
+					Human-in-the-loop review live for validating AI polygons.
 				</p>
 				<a href="/blog" class="info-link">All updates →</a>
 			</section>
