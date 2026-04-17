@@ -264,6 +264,9 @@
                                 {#if (map as any).location}
                                     <span class="meta-city">{(map as any).location}</span>
                                 {/if}
+                                {#if map.iiif_image?.includes('maparchive.vn')}
+                                    <span class="badge-chip chip-green" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">R2</span>
+                                {/if}
                             </div>
                             <code class="card-id">{map.allmaps_id}</code>
                         </div>

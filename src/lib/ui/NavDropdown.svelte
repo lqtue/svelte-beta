@@ -7,7 +7,7 @@
     active  — whether any child link matches the current route
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
 
   export let label: string;
   export let active: boolean = false;
@@ -35,10 +35,10 @@
   onMount(() => {
     document.addEventListener('keydown', handleKeydown);
     document.addEventListener('click', handleOutsideClick);
-  });
-  onDestroy(() => {
-    document.removeEventListener('keydown', handleKeydown);
-    document.removeEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('keydown', handleKeydown);
+      document.removeEventListener('click', handleOutsideClick);
+    };
   });
 </script>
 

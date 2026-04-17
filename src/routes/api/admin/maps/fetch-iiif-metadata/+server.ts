@@ -20,7 +20,39 @@ async function assertAdmin(locals: App.Locals) {
     if (profile?.role !== 'admin') throw error(403, 'Forbidden');
 }
 
-/** POST — fetch and parse a IIIF manifest, return normalised metadata */
+/**
+ * Query the Allmaps Annotation Server to see if this manifest has already
+ * been georeferenced. Returns the Allmaps image ID (used as allmaps_id) or null.
+ *
+ * Allmaps lookup endpoint: https://annotations.allmaps.org/?url={manifestUrl}
+ * Returns a W3C annotation collection; items[0].id is the annotation URL whose
+ * last path segment is the image ID stored in maps.allmaps_id.
+ */
+async function lookupAllmapsId(manifestUrl: string): Promise<string | null> {
+    try {
+        const lookupUrl = `https://annotations.allmaps.org/?url=${encodeURIComponent(manifestUrl)}`;
+        const res = await fetch(lookupUrl, {
+            headers: { Accept: 'application/json, application/ld+json' },
+            signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        // Response is a W3C AnnotationCollection or a single annotation.
+        // Extract the image ID from the first item's id URL.
+        const items: unknown[] = data?.items ?? (data?.id ? [data] : []);
+        if (!items.length) return null;
+        const firstItem = items[0] as Record<string, unknown>;
+        // annotation id looks like https://annotations.allmaps.org/images/{id}
+        const annotationId = firstItem?.id as string | undefined;
+        if (!annotationId) return null;
+        const match = annotationId.match(/\/images\/([^/]+)$/);
+        return match ? match[1] : null;
+    } catch {
+        return null;
+    }
+}
+
+/** POST — fetch and parse a IIIF manifest, return normalised metadata + Allmaps check */
 export const POST: RequestHandler = async ({ locals, request }) => {
     await assertAdmin(locals);
 
@@ -29,8 +61,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
     if (!manifestUrl) throw error(400, 'manifestUrl is required');
 
-    const meta = await fetchIIIFManifest(manifestUrl);
-    if (!meta) throw error(502, 'Failed to fetch or parse IIIF manifest');
+    const [meta, allmapsId] = await Promise.all([
+        fetchIIIFManifest(manifestUrl),
+        lookupAllmapsId(manifestUrl),
+    ]);
 
-    return json(meta);
+    // Return whatever we got — partial results are fine, the form is always editable.
+    // A null meta means the manifest was unreachable; return empty object so the
+    // client knows the fetch ran but got nothing (vs. not calling at all).
+    return json({ ...(meta ?? {}), allmapsId, fetchFailed: meta === null });
 };

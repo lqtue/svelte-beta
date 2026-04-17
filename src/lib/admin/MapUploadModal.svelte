@@ -1,7 +1,6 @@
 <script lang="ts">
-    import { uploadImageToIA } from "./adminApi";
-    import type { MapRow } from "./adminApi";
     import { createEventDispatcher } from "svelte";
+    import type { MapRow } from "./adminApi";
     import "$styles/components/admin-modals.css";
 
     const dispatch = createEventDispatcher<{
@@ -9,76 +8,117 @@
         close: void;
     }>();
 
-    // Step 1 state
-    let file: File | null = null;
-    let step1Name = "";
-    let uploading = false;
-    let step1Error = "";
+    // --- state ---
+    let manifestUrl = "";
+    let fetching = false;
+    let fetchError = "";
 
-    // Step 2 state
-    let step = 1;
-    let iiifUrl = "";
+    // form fields (pre-filled from manifest, editable)
     let name = "";
+    let originalTitle = "";
+    let creator = "";
     let year = "";
-    let type = "";
+    let yearLabel = "";
+    let collection = "";
+    let sourceType = "other";
+    let sourceUrl = "";
+    let iiifImage = "";
+    let rights = "";
     let description = "";
-    let queuing = false;
-    let step2Error = "";
+    let allmapsId = "";
+    let metaFetched = false;
 
-    function handleFileChange(e: Event) {
-        const input = e.target as HTMLInputElement;
-        file = input.files?.[0] ?? null;
+    let saving = false;
+    let saveError = "";
+
+    // infer source_type from manifest URL
+    function inferSourceType(url: string): string {
+        if (url.includes("gallica.bnf.fr") || url.includes("bnf.fr")) return "bnf";
+        if (url.includes("archive.org"))   return "ia";
+        if (url.includes("davidrumsey"))   return "rumsey";
+        if (url.includes("efeo"))          return "efeo";
+        return "other";
     }
 
-    function handleDrop(e: DragEvent) {
-        e.preventDefault();
-        file = e.dataTransfer?.files?.[0] ?? null;
+    // parse a year out of a freeform date string
+    function parseYear(date: string | undefined): string {
+        if (!date) return "";
+        const m = date.match(/\d{4}/);
+        return m ? m[0] : "";
     }
 
-    async function handleUpload() {
-        if (!file) { step1Error = "Please select an image file."; return; }
-        if (!step1Name.trim()) { step1Error = "Map name is required."; return; }
-        uploading = true;
-        step1Error = "";
+    async function handleFetch() {
+        if (!manifestUrl.trim()) { fetchError = "Paste a IIIF manifest URL first."; return; }
+        fetching = true;
+        fetchError = "";
         try {
-            const result = await uploadImageToIA(file, step1Name.trim());
-            iiifUrl = result.iiif_url;
-            name = step1Name.trim();
-            step = 2;
-        } catch (e: any) {
-            step1Error = e.message;
-        } finally {
-            uploading = false;
-        }
-    }
-
-    async function handleQueue() {
-        if (!name.trim()) { step2Error = "Name is required."; return; }
-        queuing = true;
-        step2Error = "";
-        try {
-            const res = await fetch('/api/admin/maps', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: name.trim(),
-                    iiif_image: iiifUrl,
-                    year: year ? parseInt(year) : null,
-                    description: description.trim() || null,
-                    source_type: 'internet_archive',
-                    status: 'draft',
-                })
+            const res = await fetch("/api/admin/maps/fetch-iiif-metadata", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ manifestUrl: manifestUrl.trim() }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ message: res.statusText }));
-                throw new Error(err.message || 'Failed to create map');
+                throw new Error(err.message || "Failed to reach metadata API");
+            }
+            const meta = await res.json();
+            if (meta.fetchFailed) {
+                fetchError = "Could not reach the IIIF server — fill in the fields manually.";
+            }
+            // Always apply whatever fields came back (may be partial or empty)
+            if (meta.title)            { name = meta.title; originalTitle = meta.title; }
+            if (meta.creator)          creator   = meta.creator;
+            if (meta.date)             { year = parseYear(meta.date); yearLabel = meta.date; }
+            if (meta.imageServiceUrl)  iiifImage = meta.imageServiceUrl;
+            if (meta.sourceUrl)        sourceUrl = meta.sourceUrl;
+            if (meta.rights)           rights    = meta.rights;
+            if (meta.attribution)      collection = meta.attribution;
+            if (meta.allmapsId)        allmapsId  = meta.allmapsId;
+            sourceType  = inferSourceType(manifestUrl);
+            metaFetched = true;
+        } catch (e: any) {
+            fetchError = e.message;
+        } finally {
+            fetching = false;
+        }
+    }
+
+    async function handleCreate() {
+        if (!name.trim()) { saveError = "Name is required."; return; }
+        saving = true;
+        saveError = "";
+        try {
+            const res = await fetch("/api/admin/maps", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name:           name.trim(),
+                    original_title: originalTitle.trim() || null,
+                    creator:        creator.trim()  || null,
+                    year:           year ? parseInt(year) : null,
+                    year_label:     yearLabel.trim() || null,
+                    collection:     collection.trim() || null,
+                    source_type:    sourceType || null,
+                    source_url:     sourceUrl.trim() || null,
+                    iiif_manifest:  manifestUrl.trim() || null,
+                    iiif_image:     iiifImage.trim()   || null,
+                    rights:         rights.trim()      || null,
+                    dc_description: description.trim() || null,
+                    allmaps_id:     allmapsId.trim()   || null,
+                    georef_done:    !!allmapsId.trim(),
+                    status:         "draft",
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ message: res.statusText }));
+                throw new Error(err.message || "Failed to create map");
             }
             const map = await res.json();
             dispatch("created", map);
         } catch (e: any) {
-            step2Error = e.message;
+            saveError = e.message;
         } finally {
-            queuing = false;
+            saving = false;
         }
     }
 
@@ -87,10 +127,6 @@
             dispatch("close");
         }
     }
-
-    function copyIiifUrl() {
-        navigator.clipboard.writeText(iiifUrl);
-    }
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -98,170 +134,175 @@
 <div class="modal-backdrop" on:click={handleBackdropClick}>
     <div class="modal">
         <div class="modal-header">
-            <h2 class="modal-title">
-                {#if step === 1}Upload New Map{:else}Add to Catalog{/if}
-            </h2>
+            <h2 class="modal-title">Add Map from IIIF</h2>
             <button class="close-btn" on:click={() => dispatch("close")} aria-label="Close">✕</button>
         </div>
 
         <div class="modal-body">
-            {#if step === 1}
-                <!-- Step 1: Upload Image -->
-                {#if step1Error}
-                    <div class="alert alert-error">{step1Error}</div>
-                {/if}
+            <!-- Manifest URL row -->
+            <div class="manifest-row">
+                <label class="form-label" style="flex:1;margin:0">
+                    <span>IIIF Manifest URL</span>
+                    <input
+                        type="url"
+                        bind:value={manifestUrl}
+                        class="form-input mono"
+                        placeholder="https://gallica.bnf.fr/…/manifest.json"
+                        on:keydown={(e) => e.key === "Enter" && handleFetch()}
+                    />
+                </label>
+                <button
+                    class="btn btn-outline fetch-btn"
+                    on:click={handleFetch}
+                    disabled={fetching}
+                >
+                    {fetching ? "Fetching…" : "Fetch"}
+                </button>
+            </div>
 
-                <div class="form-grid">
-                    <label class="form-label full-width">
-                        <span>Map Name <span class="required">*</span></span>
-                        <input
-                            type="text"
-                            bind:value={step1Name}
-                            class="form-input"
-                            placeholder="e.g. Saigon 1902"
-                        />
-                    </label>
+            {#if fetchError}
+                <div class="alert alert-error">{fetchError}</div>
+            {/if}
 
-                    <!-- svelte-ignore a11y-no-static-element-interactions -->
-                    <div
-                        class="image-upload-area full-width"
-                        on:drop={handleDrop}
-                        on:dragover|preventDefault
-                    >
-                        {#if file}
-                            <p class="upload-filename">📎 {file.name}</p>
-                            <button class="btn-link" on:click={() => (file = null)}>Remove</button>
-                        {:else}
-                            <p>Drag & drop an image here, or</p>
-                            <label class="btn btn-outline">
-                                Browse
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    on:change={handleFileChange}
-                                    style="display:none"
-                                />
-                            </label>
-                        {/if}
-                    </div>
-                </div>
-
-            {:else}
-                <!-- Step 2: Configure & Queue -->
-                {#if step2Error}
-                    <div class="alert alert-error">{step2Error}</div>
-                {/if}
-
-                <div class="alert alert-success" style="margin-bottom: 1rem;">
-                    ✓ Image uploaded successfully
-                </div>
-
-                <div class="form-grid">
-                    <label class="form-label full-width">
-                        <span>IIIF URL</span>
-                        <div style="display:flex;gap:0.5rem;align-items:center">
-                            <input
-                                type="text"
-                                value={iiifUrl}
-                                class="form-input mono"
-                                readonly
-                            />
-                            <button class="btn btn-outline" on:click={copyIiifUrl} title="Copy">⎘</button>
-                        </div>
-                    </label>
-
-                    <label class="form-label full-width">
-                        <span>Name <span class="required">*</span></span>
-                        <input
-                            type="text"
-                            bind:value={name}
-                            class="form-input"
-                            placeholder="Map name"
-                        />
-                    </label>
-
-                    <label class="form-label">
-                        <span>City / Type</span>
-                        <input
-                            type="text"
-                            bind:value={type}
-                            class="form-input"
-                            placeholder="e.g. Saigon"
-                        />
-                    </label>
-
-                    <label class="form-label">
-                        <span>Year</span>
-                        <input
-                            type="number"
-                            bind:value={year}
-                            class="form-input"
-                            placeholder="e.g. 1890"
-                        />
-                    </label>
-
-                    <label class="form-label full-width">
-                        <span>Description</span>
-                        <textarea
-                            bind:value={description}
-                            class="form-textarea"
-                            rows="3"
-                            placeholder="Optional description..."
-                        ></textarea>
-                    </label>
+            {#if metaFetched}
+                <div class="alert alert-success" style="margin-bottom:1rem">
+                    ✓ Metadata fetched — review and edit below
                 </div>
             {/if}
+
+            {#if saveError}
+                <div class="alert alert-error">{saveError}</div>
+            {/if}
+
+            <!-- Metadata form — always editable; fetch auto-fills when available -->
+            <fieldset class="form-grid meta-fieldset">
+                <label class="form-label full-width">
+                    <span>Display Name <span class="required">*</span></span>
+                    <input type="text" bind:value={name} class="form-input" placeholder="e.g. Saigon 1898" />
+                </label>
+
+                <label class="form-label full-width">
+                    <span>Original Title</span>
+                    <input type="text" bind:value={originalTitle} class="form-input" placeholder="Title as on the map" />
+                </label>
+
+                <label class="form-label">
+                    <span>Creator</span>
+                    <input type="text" bind:value={creator} class="form-input" placeholder="Cartographer / author" />
+                </label>
+
+                <label class="form-label">
+                    <span>Year</span>
+                    <input type="number" bind:value={year} class="form-input" placeholder="e.g. 1898" />
+                </label>
+
+                <label class="form-label">
+                    <span>Year Label</span>
+                    <input type="text" bind:value={yearLabel} class="form-input" placeholder="e.g. c. 1898" />
+                </label>
+
+                <label class="form-label">
+                    <span>Source Type</span>
+                    <select bind:value={sourceType} class="form-input">
+                        <option value="bnf">BnF / Gallica</option>
+                        <option value="gallica">Gallica</option>
+                        <option value="efeo">EFEO</option>
+                        <option value="rumsey">David Rumsey</option>
+                        <option value="ia">Internet Archive</option>
+                        <option value="self">Self-hosted</option>
+                        <option value="other">Other</option>
+                    </select>
+                </label>
+
+                <label class="form-label full-width">
+                    <span>Collection / Institution</span>
+                    <input type="text" bind:value={collection} class="form-input" placeholder="e.g. BnF Gallica" />
+                </label>
+
+                <label class="form-label full-width">
+                    <span>Source URL</span>
+                    <input type="url" bind:value={sourceUrl} class="form-input mono" placeholder="Canonical page at holding institution" />
+                </label>
+
+                <label class="form-label full-width">
+                    <span>IIIF Image Service URL</span>
+                    <input type="url" bind:value={iiifImage} class="form-input mono" placeholder="Auto-filled from manifest" />
+                </label>
+
+                <label class="form-label full-width">
+                    <span>Allmaps ID</span>
+                    <div class="allmaps-row">
+                        <input type="text" bind:value={allmapsId} class="form-input mono" placeholder="Auto-detected if already georeferenced" />
+                        {#if allmapsId}
+                            <span class="georef-badge">✓ georeferenced</span>
+                        {/if}
+                    </div>
+                </label>
+
+                <label class="form-label full-width">
+                    <span>Rights / License</span>
+                    <input type="text" bind:value={rights} class="form-input" placeholder="e.g. Public Domain" />
+                </label>
+
+                <label class="form-label full-width">
+                    <span>Description</span>
+                    <textarea bind:value={description} class="form-textarea" rows="2" placeholder="Optional notes…"></textarea>
+                </label>
+            </fieldset>
         </div>
 
         <div class="modal-footer">
             <button class="btn btn-outline" on:click={() => dispatch("close")}>Cancel</button>
-            {#if step === 1}
-                <button
-                    class="btn btn-primary"
-                    on:click={handleUpload}
-                    disabled={uploading}
-                >
-                    {uploading ? "Uploading..." : "⬆ Upload to Archive"}
-                </button>
-            {:else}
-                <button
-                    class="btn btn-primary"
-                    on:click={handleQueue}
-                    disabled={queuing}
-                >
-                    {queuing ? "Creating..." : "➕ Add to Catalog"}
-                </button>
-            {/if}
+            <button
+                class="btn btn-primary"
+                on:click={handleCreate}
+                disabled={saving || !name.trim()}
+            >
+                {saving ? "Creating…" : "➕ Add to Catalog"}
+            </button>
         </div>
     </div>
 </div>
 
 <style>
-    .image-upload-area {
-        border: 2px dashed var(--color-border, #d1d5db);
-        border-radius: 0.5rem;
-        padding: 2rem;
-        text-align: center;
-        color: var(--color-text-muted, #6b7280);
+    .manifest-row {
         display: flex;
-        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-end;
+        margin-bottom: 1rem;
+    }
+
+    .fetch-btn {
+        white-space: nowrap;
+        height: 2.5rem;
+        align-self: flex-end;
+    }
+
+    .allmaps-row {
+        display: flex;
         align-items: center;
         gap: 0.75rem;
     }
 
-    .upload-filename {
-        font-size: 0.9rem;
-        color: var(--color-text, inherit);
-        word-break: break-all;
+    .allmaps-row .form-input {
+        flex: 1;
     }
 
-    .btn-link {
-        background: none;
-        border: none;
-        color: var(--color-primary, #2563eb);
-        cursor: pointer;
-        font-size: 0.875rem;
-        padding: 0;
-        text-decoration: underline;
+    .georef-badge {
+        white-space: nowrap;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #15803d;
+        background: #dcfce7;
+        border: 2px solid #22c55e;
+        border-radius: 999px;
+        padding: 0.2rem 0.6rem;
     }
+
+    .meta-fieldset {
+        border: none;
+        padding: 0;
+        margin: 0;
+    }
+
 </style>

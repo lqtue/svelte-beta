@@ -12,7 +12,7 @@
   Dropdown + drawer styles live here (scoped).
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
 
   import NavDropdown from './NavDropdown.svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
@@ -34,9 +34,9 @@
   onMount(() => {
     isVietnamese = document.cookie.includes('googtrans=/en/vi');
     document.addEventListener('keydown', handleDrawerKey);
-  });
-  onDestroy(() => {
-    document.removeEventListener('keydown', handleDrawerKey);
+    return () => {
+      document.removeEventListener('keydown', handleDrawerKey);
+    };
   });
 
   $: path = $page.url.pathname;

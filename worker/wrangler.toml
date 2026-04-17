@@ -1,0 +1,16 @@
+name = "vma-iiif-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[r2_buckets]]
+binding = "TILES"
+bucket_name = "vma-tiles"
+
+[env.production]
+routes = [
+  { pattern = "iiif.maparchive.vn/iiif/*", zone_name = "maparchive.vn" }
+]
+
+[[env.production.r2_buckets]]
+binding = "TILES"
+bucket_name = "vma-tiles"

@@ -5,41 +5,32 @@
 	const { supabase, session } = getSupabaseContext();
 
 	let email = $state("");
-	let password = $state("");
 	let error = $state("");
 	let loading = $state(false);
+	let sent = $state(false);
 
-	// Redirect if already logged in
 	$effect(() => {
 		if (session) goto("/");
 	});
 
-	async function handleEmailLogin(e: SubmitEvent) {
+	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		error = "";
 		loading = true;
 
-		const { error: authError } = await supabase.auth.signInWithPassword({
+		const { error: authError } = await supabase.auth.signInWithOtp({
 			email,
-			password,
+			options: {
+				emailRedirectTo: `${window.location.origin}/auth/callback`,
+			},
 		});
 
 		if (authError) {
 			error = authError.message;
 			loading = false;
 		} else {
-			goto("/");
-		}
-	}
-
-	async function handleGoogleLogin() {
-		error = "";
-		const { error: authError } = await supabase.auth.signInWithOAuth({
-			provider: "google",
-			options: { redirectTo: `${window.location.origin}/auth/callback` },
-		});
-		if (authError) {
-			error = authError.message;
+			sent = true;
+			loading = false;
 		}
 	}
 </script>
@@ -52,43 +43,38 @@
 	<div class="auth-card">
 		<h1 class="auth-title">Login</h1>
 
-		{#if error}
-			<div class="auth-error">{error}</div>
+		{#if sent}
+			<div class="auth-success">
+				Check your email — we sent a sign-in link to <strong>{email}</strong>.
+			</div>
+			<p class="auth-link">
+				Wrong address? <button class="btn-reset" onclick={() => { sent = false; email = ""; }}>Try again</button>
+			</p>
+		{:else}
+			{#if error}
+				<div class="auth-error">{error}</div>
+			{/if}
+
+			<form onsubmit={handleSubmit} class="auth-form">
+				<label class="auth-field">
+					<span>Email</span>
+					<input
+						type="email"
+						bind:value={email}
+						required
+						autocomplete="email"
+						placeholder="you@example.com"
+					/>
+				</label>
+				<button type="submit" class="auth-btn primary" disabled={loading}>
+					{loading ? "Sending…" : "Send sign-in link"}
+				</button>
+			</form>
+
+			<p class="auth-link">
+				New here? <a href="/signup">Create an account</a>
+			</p>
 		{/if}
-
-		<form onsubmit={handleEmailLogin} class="auth-form">
-			<label class="auth-field">
-				<span>Email</span>
-				<input
-					type="email"
-					bind:value={email}
-					required
-					autocomplete="email"
-				/>
-			</label>
-			<label class="auth-field">
-				<span>Password</span>
-				<input
-					type="password"
-					bind:value={password}
-					required
-					autocomplete="current-password"
-				/>
-			</label>
-			<button type="submit" class="auth-btn primary" disabled={loading}>
-				{loading ? "Logging in..." : "Login"}
-			</button>
-		</form>
-
-		<div class="auth-divider"><span>or</span></div>
-
-		<button class="auth-btn google" onclick={handleGoogleLogin}>
-			Continue with Google
-		</button>
-
-		<p class="auth-link">
-			Don't have an account? <a href="/signup">Sign up</a>
-		</p>
 	</div>
 </div>
 
@@ -137,6 +123,19 @@
 		font-weight: 600;
 		margin-bottom: 1rem;
 		box-shadow: 4px 4px 0px #ef4444;
+	}
+
+	.auth-success {
+		padding: 0.75rem 1rem;
+		background: #dcfce7;
+		border: 2px solid #22c55e;
+		border-radius: var(--radius-md);
+		color: #15803d;
+		font-size: 0.875rem;
+		font-weight: 600;
+		margin-bottom: 1rem;
+		text-align: center;
+		box-shadow: 4px 4px 0px #22c55e;
 	}
 
 	.auth-form {
@@ -217,35 +216,6 @@
 		background: var(--color-gray-300);
 	}
 
-	.auth-btn.google {
-		width: 100%;
-		background: var(--color-white);
-		color: var(--color-text);
-	}
-
-	.auth-btn.google:hover {
-		background: var(--color-yellow);
-	}
-
-	.auth-divider {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		margin: 1.5rem 0;
-		color: var(--color-text);
-		font-size: 0.875rem;
-		font-weight: 700;
-		text-transform: uppercase;
-	}
-
-	.auth-divider::before,
-	.auth-divider::after {
-		content: "";
-		flex: 1;
-		height: 3px;
-		background: var(--color-border);
-	}
-
 	.auth-link {
 		text-align: center;
 		margin: 1.5rem 0 0;
@@ -264,5 +234,16 @@
 	.auth-link a:hover {
 		text-decoration: underline;
 		color: var(--color-primary);
+	}
+
+	.btn-reset {
+		background: none;
+		border: none;
+		color: var(--color-blue);
+		font-weight: 800;
+		font-size: 0.875rem;
+		cursor: pointer;
+		padding: 0;
+		text-decoration: underline;
 	}
 </style>

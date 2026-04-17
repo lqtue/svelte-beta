@@ -3,8 +3,8 @@
     import {
         updateMap, deleteMap, uploadMapImage,
         fetchIIIFSources, addIIIFSource, setPrimaryIIIFSource, deleteIIIFSource,
-        fetchIIIFMetadata,
-        type IIIFSourceRow,
+        fetchIIIFMetadata, mirrorToR2,
+        type IIIFSourceRow, type MirrorR2Result,
     } from "./adminApi";
     import { onMount } from "svelte";
     import { createEventDispatcher } from "svelte";
@@ -80,7 +80,91 @@
     let error = "";
     let successMsg = "";
     let uploadStatus = "";
-    let activeTab: "details" | "source" | "iiif" | "image" | "georef" | "gcps" | "label" = "details";
+    let activeTab: "details" | "source" | "iiif" | "image" | "georef" | "gcps" | "label" | "ocr" = "details";
+
+    // Mirror-to-R2 state
+    let mirrorLoading = false;
+    let mirrorResult: MirrorR2Result | null = null;
+    let mirrorError = "";
+    $: isMirrored = (allmaps_id?.startsWith('https://') && map.iiif_image?.includes('maparchive.vn'));
+
+    async function handleMirrorToR2() {
+        mirrorLoading = true;
+        mirrorError = "";
+        mirrorResult = null;
+        try {
+            mirrorResult = await mirrorToR2(map.id);
+            allmaps_id = mirrorResult.annotation_url;
+            // Update map object locally so UI (like Georef tab) updates immediately
+            map.allmaps_id = mirrorResult.annotation_url;
+            map.iiif_image = mirrorResult.iiif_image;
+            map.thumbnail = (mirrorResult as any).thumbnail || `${mirrorResult.iiif_image}/full/256,/0/default.jpg`;
+            
+            await loadSources();
+            dispatch("saved", map); // Notify parent to refresh list
+        } catch (e: any) {
+            mirrorError = e.message;
+        } finally {
+            mirrorLoading = false;
+        }
+    }
+
+    // OCR state
+    let ocrRunning = false;
+    let ocrApplying = false;
+    let ocrRunId = "";
+    let ocrStatus: { total: number; runs: Record<string, { n: number; categories: Record<string, number> }> } | null = null;
+    let ocrMsg = "";
+    let ocrError = "";
+    let ocrMinConfidence = 0.7;
+
+    async function loadOcrStatus() {
+        ocrError = "";
+        try {
+            const res = await fetch(`/api/admin/maps/${map.id}/ocr`);
+            if (!res.ok) { ocrError = await res.text(); return; }
+            ocrStatus = await res.json();
+        } catch (e: any) { ocrError = e.message; }
+    }
+
+    async function handleRunOcr() {
+        if (!map.iiif_image) { ocrError = "Map has no IIIF image URL. Set it in the IIIF tab first."; return; }
+        ocrRunning = true;
+        ocrError = "";
+        ocrMsg = "";
+        try {
+            const res = await fetch(`/api/admin/maps/${map.id}/ocr`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ min_confidence: ocrMinConfidence }),
+            });
+            const data = await res.json();
+            if (!res.ok) { ocrError = data.message ?? res.statusText; return; }
+            ocrRunId = data.run_id;
+            ocrMsg = `OCR batch started (run ${ocrRunId}). Check terminal for progress — this runs in the background.`;
+        } catch (e: any) { ocrError = e.message; }
+        finally { ocrRunning = false; }
+    }
+
+    async function handleApplyOcr() {
+        ocrApplying = true;
+        ocrError = "";
+        ocrMsg = "";
+        try {
+            const body: any = { min_confidence: ocrMinConfidence };
+            if (ocrRunId) body.run_id = ocrRunId;
+            const res = await fetch(`/api/admin/maps/${map.id}/ocr/apply`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            const data = await res.json();
+            if (!res.ok) { ocrError = data.message ?? res.statusText; return; }
+            ocrMsg = `Applied: ${data.inserted} pins inserted, ${data.skipped} skipped (already done or below threshold).`;
+            await loadOcrStatus();
+        } catch (e: any) { ocrError = e.message; }
+        finally { ocrApplying = false; }
+    }
 
     async function loadSources() {
         loadingSources = true;
@@ -298,6 +382,13 @@
                 class:active={activeTab === "label"}
                 on:click={() => (activeTab = "label")}>Label</button
             >
+            {#if map.iiif_image}
+                <button
+                    class="tab"
+                    class:active={activeTab === "ocr"}
+                    on:click={() => { activeTab = "ocr"; loadOcrStatus(); }}>OCR</button
+                >
+            {/if}
             {#if isSelfHosted}
                 <button
                     class="tab"
@@ -571,6 +662,46 @@
                             Open in Allmaps Editor ↗
                         </a>
                     </div>
+
+                    <div class="mirror-r2-section">
+                        <div class="mirror-r2-header">
+                            <span class="form-section-heading">Mirror to R2</span>
+                            {#if isMirrored}
+                                <span class="badge-chip chip-green">Mirrored</span>
+                            {:else}
+                                <span class="badge-chip chip-gray">Not mirrored</span>
+                            {/if}
+                        </div>
+                        <p class="section-desc">
+                            Clones the Allmaps annotation to Supabase Storage and prepares the
+                            map to serve tiles from <code>iiif.maparchive.vn</code>.
+                            After clicking, run the printed CLI command to upload tiles.
+                        </p>
+
+                        {#if mirrorError}
+                            <div class="alert alert-error">{mirrorError}</div>
+                        {/if}
+
+                        {#if mirrorResult}
+                            <div class="alert alert-success">
+                                Annotation saved. Run this to upload tiles:
+                            </div>
+                            <pre class="mirror-cmd">{mirrorResult.tile_command}</pre>
+                            {#if mirrorResult.download_url}
+                                <p class="section-desc">
+                                    Source image: <a href={mirrorResult.download_url} target="_blank" class="mono-link">{mirrorResult.download_url}</a>
+                                </p>
+                            {/if}
+                        {/if}
+
+                        <button
+                            class="action-btn"
+                            on:click={handleMirrorToR2}
+                            disabled={mirrorLoading || !allmaps_id}
+                        >
+                            {mirrorLoading ? "Mirroring…" : isMirrored ? "Re-mirror to R2" : "Mirror to R2"}
+                        </button>
+                    </div>
                 </div>
             {:else if activeTab === "gcps"}
                 <NeatlineEditor
@@ -632,6 +763,69 @@
                         <input type="text" bind:value={labelCategories} class="form-input" placeholder="Particulier, Communal, Militaire..." />
                         <span class="form-hint">Used to classify traced footprints in Label Studio</span>
                     </label>
+                </div>
+            {:else if activeTab === "ocr"}
+                <div class="ocr-section">
+                    {#if ocrError}
+                        <div class="alert alert-error">{ocrError}</div>
+                    {/if}
+                    {#if ocrMsg}
+                        <div class="alert alert-success">{ocrMsg}</div>
+                    {/if}
+
+                    <div class="ocr-status-box">
+                        {#if ocrStatus === null}
+                            <p class="section-desc">Loading extraction counts…</p>
+                        {:else if ocrStatus.total === 0}
+                            <p class="section-desc">No extractions stored yet for this map.</p>
+                        {:else}
+                            <p class="section-desc">
+                                <strong>{ocrStatus.total}</strong> stored extraction{ocrStatus.total === 1 ? "" : "s"} across
+                                {Object.keys(ocrStatus.runs).length} run{Object.keys(ocrStatus.runs).length === 1 ? "" : "s"}.
+                            </p>
+                            {#each Object.entries(ocrStatus.runs) as [rid, info]}
+                                <div class="ocr-run-row">
+                                    <code class="ocr-run-id">{rid}</code>
+                                    <span class="ocr-run-n">{info.n} items</span>
+                                    <div class="ocr-cats">
+                                        {#each Object.entries(info.categories) as [cat, n]}
+                                            <span class="ocr-cat-chip">{cat}: {n}</span>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/each}
+                        {/if}
+                    </div>
+
+                    <div class="ocr-controls">
+                        <label class="form-label" style="max-width: 200px;">
+                            <span>Min confidence</span>
+                            <input type="number" bind:value={ocrMinConfidence} class="form-input"
+                                min="0" max="1" step="0.05" />
+                            <span class="form-hint">0–1; apply threshold for pin insertion</span>
+                        </label>
+
+                        <label class="form-label" style="max-width: 280px;">
+                            <span>Run ID (optional, filters apply)</span>
+                            <input type="text" bind:value={ocrRunId} class="form-input mono"
+                                placeholder="e.g. 20260417T120000" />
+                        </label>
+                    </div>
+
+                    <div class="ocr-actions">
+                        <button class="btn btn-outline" on:click={handleRunOcr} disabled={ocrRunning}>
+                            {ocrRunning ? "Starting…" : "Run OCR Batch"}
+                        </button>
+                        <button class="btn btn-primary" on:click={handleApplyOcr} disabled={ocrApplying || (ocrStatus?.total === 0 && !ocrRunId)}>
+                            {ocrApplying ? "Applying…" : "Apply to Label Pins"}
+                        </button>
+                        <button class="btn btn-ghost" on:click={loadOcrStatus}>Refresh status</button>
+                    </div>
+
+                    <p class="section-desc" style="margin-top: 1rem; font-size: 0.78rem; color: #888;">
+                        "Run OCR Batch" spawns the Python pipeline in the background (local dev only).
+                        "Apply to Label Pins" converts stored extractions above the confidence threshold into label_pins for Label Studio.
+                    </p>
                 </div>
             {/if}
         </div>
@@ -720,4 +914,16 @@
 
     .input-row { display: flex; gap: 0.5rem; align-items: stretch; }
     .input-row .form-input { flex: 1; }
+
+    .ocr-section { display: flex; flex-direction: column; gap: 1.25rem; }
+    .ocr-status-box { padding: 0.75rem 1rem; background: var(--color-surface, #f8fafc); border: 1px solid var(--color-border, #e2e8f0); border-radius: 0.375rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .ocr-run-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-size: 0.82rem; }
+    .ocr-run-id { font-family: monospace; font-size: 0.78rem; color: #64748b; }
+    .ocr-run-n { font-weight: 600; }
+    .ocr-cats { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .ocr-cat-chip { padding: 0.1rem 0.45rem; border-radius: 9999px; background: #e0e7ff; color: #3730a3; font-size: 0.72rem; font-weight: 600; }
+    .ocr-controls { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .ocr-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    .btn-ghost { background: transparent; border: none; color: #64748b; cursor: pointer; font-size: 0.85rem; padding: 0.4rem 0.6rem; }
+    .btn-ghost:hover { color: #1e293b; text-decoration: underline; }
 </style>

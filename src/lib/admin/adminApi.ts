@@ -174,6 +174,24 @@ export async function deleteIIIFSource(mapId: string, sourceId: string): Promise
     }
 }
 
+export interface MirrorR2Result {
+    iiif_image: string;
+    annotation_url: string;
+    thumbnail: string;
+    old_source_url: string | null;
+    download_url: string | null;
+    tile_command: string;
+}
+
+export async function mirrorToR2(mapId: string): Promise<MirrorR2Result> {
+    const res = await fetch(`/api/admin/maps/${mapId}/mirror-r2`, { method: 'POST' });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Failed to mirror to R2' }));
+        throw new Error(err.message || 'Failed to mirror to R2');
+    }
+    return res.json();
+}
+
 export async function fetchIIIFMetadata(manifestUrl: string): Promise<{
     title?: string;
     creator?: string;

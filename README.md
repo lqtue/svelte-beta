@@ -43,6 +43,19 @@ npm run dev
 | `/admin` | Map management and label task administration |
 | `/admin/pipeline` | L7014 bulk processing pipeline |
 
+## Authentication
+
+Email magic link only — no passwords, no OAuth. Users enter their email and receive a sign-in link. New accounts are created automatically on first sign-in.
+
+## Adding Maps (Admin)
+
+Maps are added via IIIF manifest URL from the admin dashboard. Paste a manifest URL (BnF Gallica, Internet Archive, David Rumsey, EFEO, etc.) and click **Fetch** to auto-populate metadata. The server simultaneously:
+
+1. Parses the IIIF manifest for title, creator, date, image service URL, rights
+2. Queries the Allmaps Annotation Server to detect if the map is already georeferenced
+
+If a georeference exists, `allmaps_id` is auto-filled and the map is created with status `georeferenced`. Otherwise it starts at `pending_georef`. All fields are editable before saving, and the manifest fetch is optional — maps can be created manually.
+
 ## Environment Variables
 
 ```

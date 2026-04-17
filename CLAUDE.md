@@ -20,8 +20,45 @@ Feature-scoped context folders for in-progress development. Read these before wo
 - `work/MapSAM2_new/` — experimental successor to MapSAM2 (check for a CLAUDE.md or README before diving in)
 - `work/vectorize/CONTEXT.md` — SAM2 vectorization pipeline + HITL review
 - `work/review/CONTEXT.md` — HITL review UI specifically
+- `work/ocr/` — Gemini vision OCR pipeline for extracting text labels from historical map tiles
 
-`work/vectorize/outputs/` contains local dry-run artifacts (gitignored).
+`work/vectorize/outputs/` and `work/ocr/outputs/` contain local run artifacts (gitignored).
+
+## OCR Pipeline (`work/ocr/`)
+
+Gemini Flash vision pipeline that extracts toponyms, street names, and institutional labels from IIIF map tiles. Uses `google-genai` with structured JSON output. Runs in the repo-root `.venv/`.
+
+```bash
+source .venv/bin/activate
+
+# Single tile — extract labels and save preview PNG
+python work/ocr/scripts/ocr.py run \
+  --map-id <uuid> --iiif-base <url> \
+  --crop x,y,w,h --render-size 2048 --prompt v4 \
+  --run-id <name> --preview
+
+# Multi-tile stitch — composite preview with all bboxes
+python work/ocr/scripts/ocr.py stitch \
+  --map-id <uuid> --iiif-base <url> \
+  --crops "x,y,w,h;x,y,w,h;..." \
+  --render-size 2048 --prompt v4 --run-id <name>
+
+# List available Gemini models
+python work/ocr/scripts/ocr.py list-models
+```
+
+**Key design decisions:**
+- Gemini returns bboxes in **0–1000 normalized space** (not pixel coords) — all rendering scales by `img_dim / 1000`
+- Model: `gemini-3-flash-preview` (Paid tier 1, 10K RPD). Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation)
+- Outputs are versioned: `work/ocr/outputs/<map_id>/runs/<run_id>/` — each run saves `run_config.json` for paper reproducibility
+- Tile images cached at `work/ocr/outputs/<map_id>/` (shared across runs); per-run JSONs + previews in `runs/<run_id>/`
+- Prompts are versioned (`v1`–`v4`) in `work/ocr/scripts/prompt.py`. Default is `v4`
+
+**Scripts:**
+- `ocr.py` — CLI entry: `run`, `stitch`, `preview`, `list-models` subcommands
+- `gemini_client.py` — Gemini wrapper: key rotation, 429/503 retry, single-image and multi-image sequence calls
+- `iiif_tiles.py` — IIIF crop fetch with IA fallback (full-image download + local crop), tile grid generator, density estimation
+- `prompt.py` — versioned prompts + JSON extraction schema
 
 ## Development Commands
 

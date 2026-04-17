@@ -19,3 +19,6 @@ l7014_data/jpg/
 
 # Vectorization dry-run outputs (local artifacts)
 work/vectorize/outputs/
+
+# OCR pipeline outputs (local artifacts)
+work/ocr/outputs/

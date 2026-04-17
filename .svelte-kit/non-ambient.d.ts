@@ -27,13 +27,16 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/(editorial)" | "/(app)" | "/" | "/(editorial)/about" | "/(app)/annotate" | "/api" | "/api/admin" | "/api/admin/footprints" | "/api/admin/maps" | "/api/admin/maps/fetch-iiif-metadata" | "/api/admin/maps/[id]" | "/api/admin/maps/[id]/annotation" | "/api/admin/maps/[id]/iiif-sources" | "/api/admin/maps/[id]/iiif-sources/[sourceId]" | "/api/admin/maps/[id]/image" | "/api/admin/upload-image" | "/api/export" | "/api/export/footprints" | "/auth" | "/auth/callback" | "/(editorial)/blog" | "/(editorial)/blog/[slug]" | "/(editorial)/catalog" | "/contribute" | "/(editorial)/contribute" | "/(app)/contribute" | "/contribute/georef" | "/(editorial)/contribute/georef" | "/contribute/label" | "/(app)/contribute/label" | "/contribute/review" | "/(app)/contribute/trace" | "/(app)/create" | "/(app)/image" | "/(editorial)/login" | "/(editorial)/profile" | "/(editorial)/signup" | "/(app)/view";
+		RouteId(): "/(editorial)" | "/(app)" | "/" | "/(editorial)/about" | "/(app)/annotate" | "/api" | "/api/admin" | "/api/admin/footprints" | "/api/admin/maps" | "/api/admin/maps/fetch-iiif-metadata" | "/api/admin/maps/[id]" | "/api/admin/maps/[id]/annotation" | "/api/admin/maps/[id]/iiif-sources" | "/api/admin/maps/[id]/iiif-sources/[sourceId]" | "/api/admin/maps/[id]/image" | "/api/admin/maps/[id]/mirror-r2" | "/api/admin/maps/[id]/ocr" | "/api/admin/maps/[id]/ocr/apply" | "/api/admin/upload-image" | "/api/export" | "/api/export/footprints" | "/auth" | "/auth/callback" | "/(editorial)/blog" | "/(editorial)/blog/[slug]" | "/(editorial)/catalog" | "/contribute" | "/(editorial)/contribute" | "/(app)/contribute" | "/contribute/georef" | "/(editorial)/contribute/georef" | "/contribute/label" | "/(app)/contribute/label" | "/contribute/review" | "/(app)/contribute/trace" | "/(app)/create" | "/(app)/image" | "/(editorial)/login" | "/(editorial)/profile" | "/(editorial)/signup" | "/(app)/view";
 		RouteParams(): {
 			"/api/admin/maps/[id]": { id: string };
 			"/api/admin/maps/[id]/annotation": { id: string };
 			"/api/admin/maps/[id]/iiif-sources": { id: string };
 			"/api/admin/maps/[id]/iiif-sources/[sourceId]": { id: string; sourceId: string };
 			"/api/admin/maps/[id]/image": { id: string };
+			"/api/admin/maps/[id]/mirror-r2": { id: string };
+			"/api/admin/maps/[id]/ocr": { id: string };
+			"/api/admin/maps/[id]/ocr/apply": { id: string };
 			"/(editorial)/blog/[slug]": { slug: string }
 		};
 		LayoutParams(): {
@@ -52,6 +55,9 @@ declare module "$app/types" {
 			"/api/admin/maps/[id]/iiif-sources": { id: string; sourceId?: string };
 			"/api/admin/maps/[id]/iiif-sources/[sourceId]": { id: string; sourceId: string };
 			"/api/admin/maps/[id]/image": { id: string };
+			"/api/admin/maps/[id]/mirror-r2": { id: string };
+			"/api/admin/maps/[id]/ocr": { id: string };
+			"/api/admin/maps/[id]/ocr/apply": { id: string };
 			"/api/admin/upload-image": Record<string, never>;
 			"/api/export": Record<string, never>;
 			"/api/export/footprints": Record<string, never>;
@@ -76,7 +82,7 @@ declare module "$app/types" {
 			"/(editorial)/signup": Record<string, never>;
 			"/(app)/view": Record<string, never>
 		};
-		Pathname(): "/" | "/about" | "/about/" | "/annotate" | "/annotate/" | "/api" | "/api/" | "/api/admin" | "/api/admin/" | "/api/admin/footprints" | "/api/admin/footprints/" | "/api/admin/maps" | "/api/admin/maps/" | "/api/admin/maps/fetch-iiif-metadata" | "/api/admin/maps/fetch-iiif-metadata/" | `/api/admin/maps/${string}` & {} | `/api/admin/maps/${string}/` & {} | `/api/admin/maps/${string}/annotation` & {} | `/api/admin/maps/${string}/annotation/` & {} | `/api/admin/maps/${string}/iiif-sources` & {} | `/api/admin/maps/${string}/iiif-sources/` & {} | `/api/admin/maps/${string}/iiif-sources/${string}` & {} | `/api/admin/maps/${string}/iiif-sources/${string}/` & {} | `/api/admin/maps/${string}/image` & {} | `/api/admin/maps/${string}/image/` & {} | "/api/admin/upload-image" | "/api/admin/upload-image/" | "/api/export" | "/api/export/" | "/api/export/footprints" | "/api/export/footprints/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/blog" | "/blog/" | `/blog/${string}` & {} | `/blog/${string}/` & {} | "/catalog" | "/catalog/" | "/contribute" | "/contribute/" | "/contribute/georef" | "/contribute/georef/" | "/contribute/label" | "/contribute/label/" | "/contribute/review" | "/contribute/review/" | "/contribute/trace" | "/contribute/trace/" | "/create" | "/create/" | "/image" | "/image/" | "/login" | "/login/" | "/profile" | "/profile/" | "/signup" | "/signup/" | "/view" | "/view/";
+		Pathname(): "/" | "/about" | "/about/" | "/annotate" | "/annotate/" | "/api" | "/api/" | "/api/admin" | "/api/admin/" | "/api/admin/footprints" | "/api/admin/footprints/" | "/api/admin/maps" | "/api/admin/maps/" | "/api/admin/maps/fetch-iiif-metadata" | "/api/admin/maps/fetch-iiif-metadata/" | `/api/admin/maps/${string}` & {} | `/api/admin/maps/${string}/` & {} | `/api/admin/maps/${string}/annotation` & {} | `/api/admin/maps/${string}/annotation/` & {} | `/api/admin/maps/${string}/iiif-sources` & {} | `/api/admin/maps/${string}/iiif-sources/` & {} | `/api/admin/maps/${string}/iiif-sources/${string}` & {} | `/api/admin/maps/${string}/iiif-sources/${string}/` & {} | `/api/admin/maps/${string}/image` & {} | `/api/admin/maps/${string}/image/` & {} | `/api/admin/maps/${string}/mirror-r2` & {} | `/api/admin/maps/${string}/mirror-r2/` & {} | `/api/admin/maps/${string}/ocr` & {} | `/api/admin/maps/${string}/ocr/` & {} | `/api/admin/maps/${string}/ocr/apply` & {} | `/api/admin/maps/${string}/ocr/apply/` & {} | "/api/admin/upload-image" | "/api/admin/upload-image/" | "/api/export" | "/api/export/" | "/api/export/footprints" | "/api/export/footprints/" | "/auth" | "/auth/" | "/auth/callback" | "/auth/callback/" | "/blog" | "/blog/" | `/blog/${string}` & {} | `/blog/${string}/` & {} | "/catalog" | "/catalog/" | "/contribute" | "/contribute/" | "/contribute/georef" | "/contribute/georef/" | "/contribute/label" | "/contribute/label/" | "/contribute/review" | "/contribute/review/" | "/contribute/trace" | "/contribute/trace/" | "/create" | "/create/" | "/image" | "/image/" | "/login" | "/login/" | "/profile" | "/profile/" | "/signup" | "/signup/" | "/view" | "/view/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/favicon.ico" | "/favicon.png" | "/icon-192.png" | "/icon-512.png" | "/images/blog/vectorize-preview-plot.png" | "/manifest.json" | "/robots.txt" | "/sw.js" | string & {};
 	}

@@ -29,6 +29,19 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (body.is_primary   !== undefined) updateData.is_primary   = body.is_primary;
     if (body.sort_order   !== undefined) updateData.sort_order   = body.sort_order;
 
+    // Setting a new primary: clear the existing one first to avoid the partial
+    // unique index violation on (map_id) WHERE is_primary = true.
+    // The trigger would do this too, but it runs AFTER the constraint check.
+    if (updateData.is_primary === true) {
+        const { error: clearErr } = await (supabase as any)
+            .from('map_iiif_sources')
+            .update({ is_primary: false })
+            .eq('map_id', params.id)
+            .eq('is_primary', true)
+            .neq('id', params.sourceId);
+        if (clearErr) throw error(500, clearErr.message);
+    }
+
     const { data, error: dbError } = await (supabase as any)
         .from('map_iiif_sources')
         .update(updateData)

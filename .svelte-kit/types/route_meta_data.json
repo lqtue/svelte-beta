@@ -41,6 +41,15 @@
 	"/api/admin/maps/[id]/image": [
 		"src/routes/api/admin/maps/[id]/image/+server.ts"
 	],
+	"/api/admin/maps/[id]/mirror-r2": [
+		"src/routes/api/admin/maps/[id]/mirror-r2/+server.ts"
+	],
+	"/api/admin/maps/[id]/ocr": [
+		"src/routes/api/admin/maps/[id]/ocr/+server.ts"
+	],
+	"/api/admin/maps/[id]/ocr/apply": [
+		"src/routes/api/admin/maps/[id]/ocr/apply/+server.ts"
+	],
 	"/api/admin/upload-image": [
 		"src/routes/api/admin/upload-image/+server.ts"
 	],

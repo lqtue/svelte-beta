@@ -24,7 +24,7 @@ export interface MapIIIFSourcePayload {
   is_primary?: boolean;
   sort_order?: number;
 }
-export type MapStatus = 'pending_georef' | 'georeferenced' | 'processing' | 'published';
+export type MapStatus = 'draft' | 'public' | 'featured';
 export type MapType = 'cadastral' | 'topographic' | 'city_plan' | 'panorama' | 'other';
 
 /** Full map record as stored in the database. */
