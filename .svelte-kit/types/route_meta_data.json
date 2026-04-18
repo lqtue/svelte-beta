@@ -44,6 +44,12 @@
 	"/api/admin/maps/[id]/mirror-r2": [
 		"src/routes/api/admin/maps/[id]/mirror-r2/+server.ts"
 	],
+	"/api/admin/maps/[id]/ocr-review": [
+		"src/routes/api/admin/maps/[id]/ocr-review/+server.ts"
+	],
+	"/api/admin/maps/[id]/ocr-review/revert-recent": [
+		"src/routes/api/admin/maps/[id]/ocr-review/revert-recent/+server.ts"
+	],
 	"/api/admin/maps/[id]/ocr": [
 		"src/routes/api/admin/maps/[id]/ocr/+server.ts"
 	],
@@ -100,9 +106,6 @@
 	],
 	"/(editorial)/profile": [
 		"src/routes/(editorial)/profile/+page.server.ts",
-		"src/routes/+layout.server.ts"
-	],
-	"/(editorial)/signup": [
 		"src/routes/+layout.server.ts"
 	],
 	"/(app)/view": [

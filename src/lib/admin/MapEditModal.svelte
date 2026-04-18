@@ -80,7 +80,15 @@
     let error = "";
     let successMsg = "";
     let uploadStatus = "";
-    let activeTab: "details" | "source" | "iiif" | "image" | "georef" | "gcps" | "label" | "ocr" = "details";
+    let activeTab: "details" | "provenance" | "hosting" | "contribute" | "gcps" = "details";
+    let showAddSource = false;
+
+    // True when maps.iiif_image points to R2 but no map_iiif_sources row exists for it
+    $: orphanR2 = !!(
+        map.iiif_image?.includes('maparchive.vn') &&
+        iiifSources.length > 0 &&
+        !iiifSources.some(s => s.iiif_image?.includes('maparchive.vn'))
+    );
 
     // Mirror-to-R2 state
     let mirrorLoading = false;
@@ -116,6 +124,97 @@
     let ocrStatus: { total: number; runs: Record<string, { n: number; categories: Record<string, number> }> } | null = null;
     let ocrMsg = "";
     let ocrError = "";
+
+    // OCR Review state
+    type OcrExtraction = {
+        id: string; run_id: string; tile_x: number; tile_y: number;
+        global_x: number; global_y: number; global_w: number; global_h: number;
+        category: string; text: string; text_validated: string | null;
+        category_validated: string | null; confidence: number;
+        rotation_deg: number | null; notes: string | null;
+        status: 'pending' | 'validated' | 'rejected'; validated_at: string | null;
+        model: string | null; prompt: string | null;
+        _editText?: string; _editCategory?: string; _saving?: boolean;
+    };
+    let reviewOpen = false;
+    let reviewLoading = false;
+    let reviewError = "";
+    let reviewExtractions: OcrExtraction[] = [];
+    let reviewStatusFilter: '' | 'pending' | 'validated' | 'rejected' = 'pending';
+    let reviewRunFilter = "";
+    let reviewStatusCounts: Record<string, number> = {};
+    let batchValidating = false;
+
+    const OCR_CATEGORIES = ['street','hydrology','place','building','institution','legend','title','other'];
+
+    async function loadReview() {
+        reviewLoading = true;
+        reviewError = "";
+        try {
+            const params = new URLSearchParams({ limit: '200' });
+            if (reviewRunFilter) params.set('run_id', reviewRunFilter);
+            if (reviewStatusFilter) params.set('status', reviewStatusFilter);
+            const res = await fetch(`/api/admin/maps/${map.id}/ocr-review?${params}`);
+            if (!res.ok) { reviewError = await res.text(); return; }
+            const data = await res.json();
+            reviewExtractions = data.extractions.map((e: OcrExtraction) => ({
+                ...e,
+                _editText: e.text_validated ?? e.text,
+                _editCategory: e.category_validated ?? e.category,
+                _saving: false,
+            }));
+            reviewStatusCounts = data.statusCounts ?? {};
+        } catch (e: any) { reviewError = e.message; }
+        finally { reviewLoading = false; }
+    }
+
+    async function saveReview(ext: OcrExtraction, status: 'validated' | 'rejected' | 'pending') {
+        ext._saving = true;
+        reviewExtractions = reviewExtractions; // trigger reactivity
+        try {
+            const res = await fetch(`/api/admin/maps/${map.id}/ocr-review`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: ext.id,
+                    text: ext._editText,
+                    category: ext._editCategory,
+                    status,
+                }),
+            });
+            if (!res.ok) { reviewError = await res.text(); return; }
+            ext.status = status;
+            ext.validated_at = status === 'validated' ? new Date().toISOString() : null;
+            reviewStatusCounts[status] = (reviewStatusCounts[status] ?? 0) + 1;
+            if (status !== 'pending') reviewStatusCounts['pending'] = Math.max(0, (reviewStatusCounts['pending'] ?? 0) - 1);
+            // Remove from list if filtered
+            if (reviewStatusFilter && reviewStatusFilter !== status) {
+                reviewExtractions = reviewExtractions.filter(e => e.id !== ext.id);
+            } else {
+                reviewExtractions = reviewExtractions;
+            }
+        } catch (e: any) { reviewError = e.message; }
+        finally { ext._saving = false; reviewExtractions = reviewExtractions; }
+    }
+
+    async function batchValidateAll() {
+        batchValidating = true;
+        reviewError = "";
+        try {
+            const ids = reviewExtractions.filter(e => e.status === 'pending' && (e.confidence ?? 0) >= 0.7).map(e => e.id);
+            if (!ids.length) { reviewError = "No pending confirmed-tier items to validate."; return; }
+            const res = await fetch(`/api/admin/maps/${map.id}/ocr-review`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids, status: 'validated' }),
+            });
+            if (!res.ok) { reviewError = await res.text(); return; }
+            const d = await res.json();
+            await loadReview();
+            ocrMsg = `Batch validated ${d.count ?? ids.length} extractions.`;
+        } catch (e: any) { reviewError = e.message; }
+        finally { batchValidating = false; }
+    }
     let ocrMinConfidence = 0.7;
 
     async function loadOcrStatus() {
@@ -238,6 +337,18 @@
     onMount(() => { loadSources(); });
 
     $: isSelfHosted = allmaps_id?.startsWith("http");
+    // When allmaps_id is a full URL (self-hosted), it IS the annotation URL.
+    // When it's a bare hex ID, resolve via annotations.allmaps.org.
+    $: annotationUrl = allmaps_id?.startsWith('http')
+        ? allmaps_id
+        : allmaps_id
+            ? `https://annotations.allmaps.org/images/${allmaps_id}`
+            : '';
+    // Allmaps Editor needs a IIIF manifest or image-service URL — not a self-hosted annotation URL.
+    // Prefer: iiif_manifest → non-R2 source iiif_image → bare-hex annotation URL (only if not self-hosted).
+    $: editorIiifUrl = (map as any).iiif_manifest
+        || iiifSources.find(s => s.source_type !== 'r2' && s.iiif_image)?.iiif_image
+        || (!allmaps_id?.startsWith('http') ? annotationUrl : '');
 
     async function handleSave() {
         if (!name.trim()) {
@@ -359,36 +470,19 @@
             >
             <button
                 class="tab"
-                class:active={activeTab === "source"}
-                on:click={() => (activeTab = "source")}>Source</button
+                class:active={activeTab === "provenance"}
+                on:click={() => (activeTab = "provenance")}>Provenance</button
             >
             <button
                 class="tab"
-                class:active={activeTab === "iiif"}
-                on:click={() => (activeTab = "iiif")}>IIIF</button
+                class:active={activeTab === "hosting"}
+                on:click={() => (activeTab = "hosting")}>Hosting</button
             >
             <button
                 class="tab"
-                class:active={activeTab === "image"}
-                on:click={() => (activeTab = "image")}>Image</button
+                class:active={activeTab === "contribute"}
+                on:click={() => { activeTab = "contribute"; if (map.iiif_image) loadOcrStatus(); }}>Contribute</button
             >
-            <button
-                class="tab"
-                class:active={activeTab === "georef"}
-                on:click={() => (activeTab = "georef")}>Georef</button
-            >
-            <button
-                class="tab"
-                class:active={activeTab === "label"}
-                on:click={() => (activeTab = "label")}>Label</button
-            >
-            {#if map.iiif_image}
-                <button
-                    class="tab"
-                    class:active={activeTab === "ocr"}
-                    on:click={() => { activeTab = "ocr"; loadOcrStatus(); }}>OCR</button
-                >
-            {/if}
             {#if isSelfHosted}
                 <button
                     class="tab"
@@ -475,7 +569,7 @@
                         <button type="button" class="btn-add-pair" on:click={() => extraPairs = [...extraPairs, { key: '', value: '' }]}>+ Add field</button>
                     </div>
                 </div>
-            {:else if activeTab === "source"}
+            {:else if activeTab === "provenance"}
                 <div class="form-grid">
                     <label class="form-label">
                         <span>Source Type</span>
@@ -525,147 +619,109 @@
                         <input type="text" bind:value={rights} class="form-input" placeholder="e.g. https://gallica.bnf.fr/html/und/conditions..." />
                     </label>
                 </div>
-            {:else if activeTab === "iiif"}
-                <div class="iiif-section">
-                    {#if sourcesError}
-                        <div class="alert alert-error">{sourcesError}</div>
-                    {/if}
-                    {#if loadingSources}
-                        <p class="section-desc">Loading sources…</p>
-                    {:else}
-                        <div class="sources-list">
-                            {#each iiifSources as src (src.id)}
-                                <div class="source-row">
-                                    <div class="source-info">
-                                        <span class="source-label">{src.label || src.source_type || 'source'}</span>
-                                        {#if src.is_primary}
-                                            <span class="primary-chip">primary</span>
-                                        {/if}
-                                        <span class="source-url mono">{src.iiif_image.slice(0, 60)}…</span>
-                                    </div>
-                                    <div class="source-actions">
-                                        {#if !src.is_primary}
-                                            <button class="btn btn-outline btn-sm" on:click={() => handleSetPrimary(src.id)}>
-                                                Set primary
-                                            </button>
-                                        {/if}
-                                        <button class="btn btn-danger btn-sm" on:click={() => handleDeleteSource(src.id)}>
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            {:else}
-                                <p class="section-desc">No IIIF sources yet.</p>
-                            {/each}
-                        </div>
 
-                        <div class="add-source-form">
-                            <h4 class="add-source-title">Add IIIF Source</h4>
-                            {#if fetchMetaError}
-                                <div class="alert alert-error">{fetchMetaError}</div>
-                            {/if}
-                            <div class="form-grid">
-                                <label class="form-label full-width">
-                                    <span>Manifest URL</span>
-                                    <div class="input-row">
-                                        <input type="url" bind:value={newManifestUrl} class="form-input mono" placeholder="https://…/manifest.json" />
-                                        <button class="btn btn-outline" on:click={handleFetchMeta} disabled={fetchingMeta}>
-                                            {fetchingMeta ? "…" : "Fetch"}
-                                        </button>
-                                    </div>
-                                </label>
-                                <label class="form-label full-width">
-                                    <span>IIIF Image Service URL <span class="required">*</span></span>
-                                    <input type="url" bind:value={newIiifImage} class="form-input mono" placeholder="https://…/iiif/ark:…/f1" />
-                                </label>
-                                <label class="form-label">
-                                    <span>Label</span>
-                                    <input type="text" bind:value={newLabel} class="form-input" placeholder="e.g. BnF Gallica" />
-                                </label>
-                                <label class="form-label">
-                                    <span>Source Type</span>
-                                    <select bind:value={newSourceType} class="form-input">
-                                        <option value="">—</option>
-                                        <option value="bnf">bnf</option>
-                                        <option value="ia">ia</option>
-                                        <option value="efeo">efeo</option>
-                                        <option value="rumsey">rumsey</option>
-                                        <option value="other">other</option>
-                                    </select>
-                                </label>
+            {:else if activeTab === "hosting"}
+                <div class="hosting-section">
+
+                    <!-- ── Image Sources ─────────────────────────────────────── -->
+                    <div class="hosting-subsection">
+                        <div class="subsection-heading">Image Sources</div>
+
+                        {#if sourcesError}
+                            <div class="alert alert-error">{sourcesError}</div>
+                        {/if}
+                        {#if orphanR2}
+                            <div class="orphan-warning">
+                                ⚠ maps.iiif_image points to R2 but no R2 source row exists — click "Mirror to R2" below to re-sync.
                             </div>
-                            <button class="btn btn-primary" on:click={handleAddSource} disabled={addingSource || !newIiifImage}>
-                                {addingSource ? "Adding…" : "Add Source"}
+                        {/if}
+
+                        {#if loadingSources}
+                            <p class="section-desc">Loading sources…</p>
+                        {:else}
+                            <div class="sources-list">
+                                {#each iiifSources as src (src.id)}
+                                    <div class="source-row" class:source-row--primary={src.is_primary}>
+                                        <div class="source-info">
+                                            <div class="source-label-row">
+                                                <span class="source-label">{src.label || src.source_type || 'source'}</span>
+                                                {#if src.source_type}
+                                                    <span class="source-type-chip">{src.source_type}</span>
+                                                {/if}
+                                                {#if src.is_primary}
+                                                    <span class="primary-badge">★ PRIMARY</span>
+                                                {/if}
+                                            </div>
+                                            <span class="source-url mono">{src.iiif_image.slice(0, 72)}{src.iiif_image.length > 72 ? '…' : ''}</span>
+                                        </div>
+                                        <div class="source-actions">
+                                            {#if !src.is_primary}
+                                                <button class="btn btn-outline btn-sm" on:click={() => handleSetPrimary(src.id)}>
+                                                    Set primary
+                                                </button>
+                                            {/if}
+                                            <button class="btn btn-danger btn-sm" on:click={() => handleDeleteSource(src.id)}>
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                {:else}
+                                    <p class="section-desc">No IIIF sources yet.</p>
+                                {/each}
+                            </div>
+
+                            <button class="btn btn-outline btn-sm add-source-toggle" on:click={() => showAddSource = !showAddSource}>
+                                {showAddSource ? '− Hide form' : '+ Add source'}
                             </button>
-                        </div>
-                    {/if}
-                </div>
-            {:else if activeTab === "image"}
-                <div class="image-section">
-                    <p class="section-desc">
-                        Upload a replacement image for this map. This is used to
-                        replace broken BnF/Gallica sources by hosting on
-                        Internet Archive.
-                    </p>
-                    <label class="upload-btn" class:disabled={uploading}>
-                        {uploading ? "Uploading..." : "📤 Upload Image"}
-                        <input
-                            type="file"
-                            accept="image/*"
-                            on:change={handleImageUpload}
-                            disabled={uploading}
-                            hidden
-                        />
-                    </label>
-                    {#if uploadStatus}
-                        <div class="upload-status">{uploadStatus}</div>
-                    {/if}
-                    <div class="detail-row">
-                        <span class="detail-label">Current Allmaps ID:</span>
-                        <code class="detail-value">{map.allmaps_id}</code>
-                    </div>
-                    {#if map.thumbnail}
-                        <div class="detail-row">
-                            <span class="detail-label">Thumbnail:</span>
-                            <span class="detail-value">{map.thumbnail}</span>
-                        </div>
-                    {/if}
-                </div>
-            {:else if activeTab === "georef"}
-                <div class="georef-section">
-                    <p class="section-desc">
-                        Edit the Allmaps ID used for georeference. Changing this
-                        will affect which georeferenced annotation is loaded for
-                        the map overlay.
-                    </p>
-                    <label class="form-label full-width">
-                        <span>Allmaps ID <span class="required">*</span></span>
-                        <input
-                            type="text"
-                            bind:value={allmaps_id}
-                            class="form-input mono"
-                        />
-                    </label>
-                    <div class="georef-links">
-                        <a
-                            href="https://annotations.allmaps.org/images/{allmaps_id}"
-                            target="_blank"
-                            class="link-btn"
-                        >
-                            View Annotation ↗
-                        </a>
-                        <a
-                            href="https://editor.allmaps.org/#/collection?url=https://annotations.allmaps.org/images/{allmaps_id}"
-                            target="_blank"
-                            class="link-btn"
-                        >
-                            Open in Allmaps Editor ↗
-                        </a>
+
+                            {#if showAddSource}
+                                <div class="add-source-form">
+                                    {#if fetchMetaError}
+                                        <div class="alert alert-error">{fetchMetaError}</div>
+                                    {/if}
+                                    <div class="form-grid">
+                                        <label class="form-label full-width">
+                                            <span>Manifest URL</span>
+                                            <div class="input-row">
+                                                <input type="url" bind:value={newManifestUrl} class="form-input mono" placeholder="https://…/manifest.json" />
+                                                <button class="btn btn-outline" on:click={handleFetchMeta} disabled={fetchingMeta}>
+                                                    {fetchingMeta ? "…" : "Fetch"}
+                                                </button>
+                                            </div>
+                                        </label>
+                                        <label class="form-label full-width">
+                                            <span>IIIF Image Service URL <span class="required">*</span></span>
+                                            <input type="url" bind:value={newIiifImage} class="form-input mono" placeholder="https://…/iiif/ark:…/f1" />
+                                        </label>
+                                        <label class="form-label">
+                                            <span>Label</span>
+                                            <input type="text" bind:value={newLabel} class="form-input" placeholder="e.g. BnF Gallica" />
+                                        </label>
+                                        <label class="form-label">
+                                            <span>Source Type</span>
+                                            <select bind:value={newSourceType} class="form-input">
+                                                <option value="">—</option>
+                                                <option value="bnf">bnf</option>
+                                                <option value="ia">ia</option>
+                                                <option value="efeo">efeo</option>
+                                                <option value="rumsey">rumsey</option>
+                                                <option value="r2">r2</option>
+                                                <option value="other">other</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <button class="btn btn-primary" on:click={handleAddSource} disabled={addingSource || !newIiifImage}>
+                                        {addingSource ? "Adding…" : "Add Source"}
+                                    </button>
+                                </div>
+                            {/if}
+                        {/if}
                     </div>
 
-                    <div class="mirror-r2-section">
-                        <div class="mirror-r2-header">
-                            <span class="form-section-heading">Mirror to R2</span>
+                    <!-- ── R2 / Tiling ────────────────────────────────────────── -->
+                    <div class="hosting-subsection">
+                        <div class="subsection-heading">
+                            R2 / Tiling
                             {#if isMirrored}
                                 <span class="badge-chip chip-green">Mirrored</span>
                             {:else}
@@ -673,36 +729,61 @@
                             {/if}
                         </div>
                         <p class="section-desc">
-                            Clones the Allmaps annotation to Supabase Storage and prepares the
-                            map to serve tiles from <code>iiif.maparchive.vn</code>.
+                            Clones the Allmaps annotation to Supabase Storage and sets <code>iiif.maparchive.vn</code> as the primary tile source.
                             After clicking, run the printed CLI command to upload tiles.
                         </p>
-
                         {#if mirrorError}
                             <div class="alert alert-error">{mirrorError}</div>
                         {/if}
-
                         {#if mirrorResult}
-                            <div class="alert alert-success">
-                                Annotation saved. Run this to upload tiles:
-                            </div>
+                            <div class="alert alert-success">Annotation saved. Run this to upload tiles:</div>
                             <pre class="mirror-cmd">{mirrorResult.tile_command}</pre>
                             {#if mirrorResult.download_url}
-                                <p class="section-desc">
-                                    Source image: <a href={mirrorResult.download_url} target="_blank" class="mono-link">{mirrorResult.download_url}</a>
-                                </p>
+                                <p class="section-desc">Source: <a href={mirrorResult.download_url} target="_blank" class="mono-link">{mirrorResult.download_url}</a></p>
                             {/if}
                         {/if}
-
-                        <button
-                            class="action-btn"
-                            on:click={handleMirrorToR2}
-                            disabled={mirrorLoading || !allmaps_id}
-                        >
+                        <button class="action-btn" on:click={handleMirrorToR2} disabled={mirrorLoading || !allmaps_id}>
                             {mirrorLoading ? "Mirroring…" : isMirrored ? "Re-mirror to R2" : "Mirror to R2"}
                         </button>
                     </div>
+
+                    <!-- ── Georeference ───────────────────────────────────────── -->
+                    <div class="hosting-subsection">
+                        <div class="subsection-heading">Georeference</div>
+                        <label class="form-label full-width">
+                            <span>Allmaps ID <span class="required">*</span></span>
+                            <input type="text" bind:value={allmaps_id} class="form-input mono" />
+                        </label>
+                        <div class="georef-links">
+                            <a href={annotationUrl} target="_blank" class="link-btn">
+                                View Annotation ↗
+                            </a>
+                            <a href={editorIiifUrl ? `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(editorIiifUrl)}` : undefined}
+                               target="_blank" class="link-btn" class:disabled={!editorIiifUrl}>
+                                Open in Allmaps Editor ↗
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- ── Image Upload ───────────────────────────────────────── -->
+                    <div class="hosting-subsection">
+                        <div class="subsection-heading">Image Upload (Internet Archive)</div>
+                        <label class="upload-btn" class:disabled={uploading}>
+                            {uploading ? "Uploading..." : "Upload Image to IA"}
+                            <input type="file" accept="image/*" on:change={handleImageUpload} disabled={uploading} hidden />
+                        </label>
+                        {#if uploadStatus}
+                            <div class="upload-status">{uploadStatus}</div>
+                        {/if}
+                        {#if map.thumbnail}
+                            <div class="detail-row">
+                                <span class="detail-label">Thumbnail:</span>
+                                <span class="detail-value mono" style="font-size:0.75rem">{map.thumbnail}</span>
+                            </div>
+                        {/if}
+                    </div>
                 </div>
+
             {:else if activeTab === "gcps"}
                 <NeatlineEditor
                     mapId={map.id}
@@ -715,117 +796,175 @@
                         error = e.detail;
                     }}
                 />
-            {:else if activeTab === "label"}
-                <div class="form-grid">
-                    <div class="form-label full-width">
-                        <span class="form-section-heading">Visibility &amp; Priority</span>
-                    </div>
 
-                    <label class="form-label">
-                        <span>Priority</span>
-                        <input type="number" bind:value={priority} class="form-input" placeholder="0" min="0" step="1" />
-                        <span class="form-hint">Higher = shown first in Label Studio</span>
-                    </label>
+            {:else if activeTab === "contribute"}
+                <div class="hosting-section">
 
-                    <label class="form-label checkbox-label">
-                        <input type="checkbox" bind:checked={is_public} />
-                        <span>Published (public on site)</span>
-                    </label>
-
-                    <label class="form-label checkbox-label">
-                        <input type="checkbox" bind:checked={georef_done} />
-                        <span>Georef done (available in Label Studio)</span>
-                    </label>
-
-                    <div class="form-label full-width">
-                        <span class="form-section-heading">Label Studio Config</span>
-                    </div>
-
-                    <label class="form-label full-width">
-                        <span>Pin Legend Mode</span>
-                        <div class="mode-toggles">
-                            <label><input type="radio" bind:group={labelLegendMode} value="simple" /> Simple (comma-separated)</label>
-                            <label><input type="radio" bind:group={labelLegendMode} value="list" /> Transcription list (Number | Name)</label>
+                    <!-- ── Visibility & Priority ──────────────────────────────── -->
+                    <div class="hosting-subsection">
+                        <div class="subsection-heading">Visibility &amp; Priority</div>
+                        <div class="form-grid">
+                            <label class="form-label">
+                                <span>Priority</span>
+                                <input type="number" bind:value={priority} class="form-input" placeholder="0" min="0" step="1" />
+                                <span class="form-hint">Higher = shown first in Label Studio</span>
+                            </label>
+                            <div></div>
+                            <label class="form-label checkbox-label">
+                                <input type="checkbox" bind:checked={is_public} />
+                                <span>Published (public on site)</span>
+                            </label>
+                            <label class="form-label checkbox-label">
+                                <input type="checkbox" bind:checked={georef_done} />
+                                <span>Georef done (available in Label Studio)</span>
+                            </label>
                         </div>
-                    </label>
+                    </div>
 
-                    <label class="form-label full-width">
-                        <span>{labelLegendMode === 'simple' ? 'Pin Legend (comma-separated, blank = defaults)' : 'Pin Legend (one per line: "1 | Name")'}</span>
-                        {#if labelLegendMode === 'simple'}
-                            <input type="text" bind:value={labelLegendText} class="form-input" placeholder="Building, Temple, Market..." />
-                        {:else}
-                            <textarea bind:value={labelLegendText} class="form-textarea" rows="6" placeholder="1 | Abattoir Municipal&#10;2 | Treasury&#10;3 | Post Office"></textarea>
-                        {/if}
-                    </label>
-
-                    <label class="form-label full-width">
-                        <span>Trace Categories (comma-separated)</span>
-                        <input type="text" bind:value={labelCategories} class="form-input" placeholder="Particulier, Communal, Militaire..." />
-                        <span class="form-hint">Used to classify traced footprints in Label Studio</span>
-                    </label>
-                </div>
-            {:else if activeTab === "ocr"}
-                <div class="ocr-section">
-                    {#if ocrError}
-                        <div class="alert alert-error">{ocrError}</div>
-                    {/if}
-                    {#if ocrMsg}
-                        <div class="alert alert-success">{ocrMsg}</div>
-                    {/if}
-
-                    <div class="ocr-status-box">
-                        {#if ocrStatus === null}
-                            <p class="section-desc">Loading extraction counts…</p>
-                        {:else if ocrStatus.total === 0}
-                            <p class="section-desc">No extractions stored yet for this map.</p>
-                        {:else}
-                            <p class="section-desc">
-                                <strong>{ocrStatus.total}</strong> stored extraction{ocrStatus.total === 1 ? "" : "s"} across
-                                {Object.keys(ocrStatus.runs).length} run{Object.keys(ocrStatus.runs).length === 1 ? "" : "s"}.
-                            </p>
-                            {#each Object.entries(ocrStatus.runs) as [rid, info]}
-                                <div class="ocr-run-row">
-                                    <code class="ocr-run-id">{rid}</code>
-                                    <span class="ocr-run-n">{info.n} items</span>
-                                    <div class="ocr-cats">
-                                        {#each Object.entries(info.categories) as [cat, n]}
-                                            <span class="ocr-cat-chip">{cat}: {n}</span>
-                                        {/each}
-                                    </div>
+                    <!-- ── Label Studio Config ────────────────────────────────── -->
+                    <div class="hosting-subsection">
+                        <div class="subsection-heading">Label Studio Config</div>
+                        <div class="form-grid">
+                            <label class="form-label full-width">
+                                <span>Pin Legend Mode</span>
+                                <div class="mode-toggles">
+                                    <label><input type="radio" bind:group={labelLegendMode} value="simple" /> Simple (comma-separated)</label>
+                                    <label><input type="radio" bind:group={labelLegendMode} value="list" /> Transcription list (Number | Name)</label>
                                 </div>
-                            {/each}
-                        {/if}
+                            </label>
+                            <label class="form-label full-width">
+                                <span>{labelLegendMode === 'simple' ? 'Pin Legend (comma-separated, blank = defaults)' : 'Pin Legend (one per line: "1 | Name")'}</span>
+                                {#if labelLegendMode === 'simple'}
+                                    <input type="text" bind:value={labelLegendText} class="form-input" placeholder="Building, Temple, Market..." />
+                                {:else}
+                                    <textarea bind:value={labelLegendText} class="form-textarea" rows="6" placeholder="1 | Abattoir Municipal&#10;2 | Treasury&#10;3 | Post Office"></textarea>
+                                {/if}
+                            </label>
+                            <label class="form-label full-width">
+                                <span>Trace Categories (comma-separated)</span>
+                                <input type="text" bind:value={labelCategories} class="form-input" placeholder="Particulier, Communal, Militaire..." />
+                                <span class="form-hint">Used to classify traced footprints in Label Studio</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="ocr-controls">
-                        <label class="form-label" style="max-width: 200px;">
-                            <span>Min confidence</span>
-                            <input type="number" bind:value={ocrMinConfidence} class="form-input"
-                                min="0" max="1" step="0.05" />
-                            <span class="form-hint">0–1; apply threshold for pin insertion</span>
-                        </label>
+                    <!-- ── OCR ────────────────────────────────────────────────── -->
+                    {#if map.iiif_image}
+                        <div class="hosting-subsection">
+                            <div class="subsection-heading">OCR Pipeline</div>
+                            {#if ocrError}
+                                <div class="alert alert-error">{ocrError}</div>
+                            {/if}
+                            {#if ocrMsg}
+                                <div class="alert alert-success">{ocrMsg}</div>
+                            {/if}
+                            <div class="ocr-status-box">
+                                {#if ocrStatus === null}
+                                    <p class="section-desc">Loading extraction counts…</p>
+                                {:else if ocrStatus.total === 0}
+                                    <p class="section-desc">No extractions stored yet for this map.</p>
+                                {:else}
+                                    <p class="section-desc">
+                                        <strong>{ocrStatus.total}</strong> extraction{ocrStatus.total === 1 ? "" : "s"} across
+                                        {Object.keys(ocrStatus.runs).length} run{Object.keys(ocrStatus.runs).length === 1 ? "" : "s"}.
+                                    </p>
+                                    {#each Object.entries(ocrStatus.runs) as [rid, info]}
+                                        <div class="ocr-run-row">
+                                            <code class="ocr-run-id">{rid}</code>
+                                            <span class="ocr-run-n">{info.n} items</span>
+                                            <div class="ocr-cats">
+                                                {#each Object.entries(info.categories) as [cat, n]}
+                                                    <span class="ocr-cat-chip">{cat}: {n}</span>
+                                                {/each}
+                                            </div>
+                                        </div>
+                                    {/each}
+                                {/if}
+                            </div>
+                            <div class="ocr-controls">
+                                <label class="form-label" style="max-width: 200px;">
+                                    <span>Min confidence</span>
+                                    <input type="number" bind:value={ocrMinConfidence} class="form-input" min="0" max="1" step="0.05" />
+                                    <span class="form-hint">0–1; threshold for pin insertion</span>
+                                </label>
+                                <label class="form-label" style="max-width: 280px;">
+                                    <span>Run ID (optional)</span>
+                                    <input type="text" bind:value={ocrRunId} class="form-input mono" placeholder="e.g. 20260417T120000" />
+                                </label>
+                            </div>
+                            <div class="ocr-actions">
+                                <button class="btn btn-outline" on:click={handleRunOcr} disabled={ocrRunning}>
+                                    {ocrRunning ? "Starting…" : "Run OCR Batch"}
+                                </button>
+                                <button class="btn btn-primary" on:click={handleApplyOcr} disabled={ocrApplying || (ocrStatus?.total === 0 && !ocrRunId)}>
+                                    {ocrApplying ? "Applying…" : "Apply to Label Pins"}
+                                </button>
+                                <button class="btn btn-ghost" on:click={loadOcrStatus}>Refresh</button>
+                                <button class="btn btn-ghost" on:click={() => { reviewOpen = !reviewOpen; if (reviewOpen) loadReview(); }}>
+                                    {reviewOpen ? "Hide Review" : "Review & Validate"}
+                                </button>
+                            </div>
 
-                        <label class="form-label" style="max-width: 280px;">
-                            <span>Run ID (optional, filters apply)</span>
-                            <input type="text" bind:value={ocrRunId} class="form-input mono"
-                                placeholder="e.g. 20260417T120000" />
-                        </label>
-                    </div>
+                            {#if reviewOpen}
+                                <div class="ocr-review-panel">
+                                    <div class="ocr-review-toolbar">
+                                        <div class="ocr-review-filters">
+                                            <select bind:value={reviewStatusFilter} on:change={loadReview} class="form-input form-input-sm">
+                                                <option value="">All statuses</option>
+                                                <option value="pending">Pending ({reviewStatusCounts['pending'] ?? 0})</option>
+                                                <option value="validated">Validated ({reviewStatusCounts['validated'] ?? 0})</option>
+                                                <option value="rejected">Rejected ({reviewStatusCounts['rejected'] ?? 0})</option>
+                                            </select>
+                                            <input class="form-input form-input-sm mono" bind:value={reviewRunFilter}
+                                                placeholder="Filter by run_id…" on:change={loadReview} />
+                                        </div>
+                                        <div class="ocr-review-actions">
+                                            <button class="btn btn-sm btn-outline" on:click={loadReview} disabled={reviewLoading}>Reload</button>
+                                            <button class="btn btn-sm btn-primary" on:click={batchValidateAll} disabled={batchValidating}
+                                                title="Validate all pending items with confidence ≥ 0.7">
+                                                {batchValidating ? "Validating…" : "Validate conf ≥ 0.7"}
+                                            </button>
+                                        </div>
+                                    </div>
 
-                    <div class="ocr-actions">
-                        <button class="btn btn-outline" on:click={handleRunOcr} disabled={ocrRunning}>
-                            {ocrRunning ? "Starting…" : "Run OCR Batch"}
-                        </button>
-                        <button class="btn btn-primary" on:click={handleApplyOcr} disabled={ocrApplying || (ocrStatus?.total === 0 && !ocrRunId)}>
-                            {ocrApplying ? "Applying…" : "Apply to Label Pins"}
-                        </button>
-                        <button class="btn btn-ghost" on:click={loadOcrStatus}>Refresh status</button>
-                    </div>
+                                    {#if reviewError}
+                                        <div class="alert alert-error" style="margin-bottom: 0.5rem">{reviewError}</div>
+                                    {/if}
 
-                    <p class="section-desc" style="margin-top: 1rem; font-size: 0.78rem; color: #888;">
-                        "Run OCR Batch" spawns the Python pipeline in the background (local dev only).
-                        "Apply to Label Pins" converts stored extractions above the confidence threshold into label_pins for Label Studio.
-                    </p>
+                                    {#if reviewLoading}
+                                        <p class="section-desc">Loading…</p>
+                                    {:else if reviewExtractions.length === 0}
+                                        <p class="section-desc">No extractions match the current filter. Push a run to DB first using <code>ocr.py batch --db</code>.</p>
+                                    {:else}
+                                        <div class="ocr-review-list">
+                                            {#each reviewExtractions as ext (ext.id)}
+                                                <div class="ocr-review-row" class:validated={ext.status === 'validated'} class:rejected={ext.status === 'rejected'}>
+                                                    <span class="ocr-review-status ocr-status-{ext.status}">{ext.status[0].toUpperCase()}</span>
+                                                    <span class="ocr-review-conf" title="confidence">{(ext.confidence * 100).toFixed(0)}%</span>
+                                                    <select bind:value={ext._editCategory} class="form-input form-input-sm ocr-review-cat">
+                                                        {#each OCR_CATEGORIES as cat}
+                                                            <option value={cat}>{cat}</option>
+                                                        {/each}
+                                                    </select>
+                                                    <input class="form-input form-input-sm ocr-review-text" bind:value={ext._editText} />
+                                                    <span class="ocr-review-run mono">{ext.run_id}</span>
+                                                    <div class="ocr-review-btns">
+                                                        <button class="btn btn-xs btn-success" on:click={() => saveReview(ext, 'validated')}
+                                                            disabled={ext._saving} title="Mark as validated ground truth">✓</button>
+                                                        <button class="btn btn-xs btn-danger" on:click={() => saveReview(ext, 'rejected')}
+                                                            disabled={ext._saving} title="Reject (false positive)">✗</button>
+                                                    </div>
+                                                </div>
+                                            {/each}
+                                        </div>
+                                        <p class="section-desc" style="margin-top:0.5rem">
+                                            {reviewExtractions.length} shown. Edit text/category inline, then click ✓ to validate or ✗ to reject.
+                                        </p>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
                 </div>
             {/if}
         </div>
@@ -885,35 +1024,63 @@
 
     .source-info { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
 
+    .source-label-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
     .source-label { font-weight: 600; font-size: 0.875rem; }
 
-    .primary-chip {
-        display: inline-block;
-        font-size: 0.7rem;
-        font-weight: 700;
-        padding: 0.1rem 0.4rem;
-        border-radius: 9999px;
-        background: #2563eb;
-        color: #fff;
-        width: fit-content;
+    .source-type-chip {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        padding: 0.1rem 0.35rem; border-radius: 3px;
+        background: #e2e8f0; color: #475569; letter-spacing: 0.04em;
     }
 
-    .source-url { font-size: 0.75rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .primary-badge {
+        display: inline-flex; align-items: center; gap: 0.2rem;
+        font-size: 0.75rem; font-weight: 800; color: #166534;
+        letter-spacing: 0.02em;
+    }
+
+    .source-row--primary {
+        border-color: #166534 !important;
+        background: #f0fdf4 !important;
+        border-left: 3px solid #166534;
+    }
+
+    .source-url { font-size: 0.75rem; color: #64748b; word-break: break-all; }
 
     .source-actions { display: flex; gap: 0.5rem; flex-shrink: 0; align-items: center; }
 
     .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+    .btn-ghost { background: transparent; border-color: transparent; color: var(--color-text); opacity: 0.7; }
+    .btn-ghost:hover:not(:disabled) { opacity: 1; background: var(--color-bg); }
+
+    .add-source-toggle { align-self: flex-start; margin-top: 0.25rem; }
 
     .add-source-form {
         padding: 1rem;
         border: 1px dashed var(--color-border, #cbd5e1);
         border-radius: 0.5rem;
+        margin-top: 0.5rem;
     }
-
-    .add-source-title { margin: 0 0 1rem; font-size: 0.9rem; font-weight: 600; }
 
     .input-row { display: flex; gap: 0.5rem; align-items: stretch; }
     .input-row .form-input { flex: 1; }
+
+    .hosting-section { display: flex; flex-direction: column; gap: 2rem; }
+    .hosting-subsection { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .subsection-heading {
+        display: flex; align-items: center; gap: 0.5rem;
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.08em; color: #9ca3af;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-border, #e2e8f0);
+    }
+
+    .orphan-warning {
+        padding: 0.75rem 1rem; background: #fefce8; border: 1px solid #ca8a04;
+        border-radius: var(--radius-md); font-size: 0.85rem; color: #92400e;
+        font-weight: 600;
+    }
 
     .ocr-section { display: flex; flex-direction: column; gap: 1.25rem; }
     .ocr-status-box { padding: 0.75rem 1rem; background: var(--color-surface, #f8fafc); border: 1px solid var(--color-border, #e2e8f0); border-radius: 0.375rem; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -924,6 +1091,34 @@
     .ocr-cat-chip { padding: 0.1rem 0.45rem; border-radius: 9999px; background: #e0e7ff; color: #3730a3; font-size: 0.72rem; font-weight: 600; }
     .ocr-controls { display: flex; gap: 1rem; flex-wrap: wrap; }
     .ocr-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+
+    /* OCR Review panel */
+    .ocr-review-panel { border: 1px solid var(--color-border, #e2e8f0); border-radius: 0.375rem; overflow: hidden; margin-top: 0.25rem; }
+    .ocr-review-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.75rem; background: #f1f5f9; border-bottom: 1px solid var(--color-border, #e2e8f0); flex-wrap: wrap; }
+    .ocr-review-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .ocr-review-actions { display: flex; gap: 0.5rem; }
+    .form-input-sm { padding: 0.25rem 0.5rem !important; font-size: 0.8rem !important; height: auto !important; }
+    .ocr-review-list { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; }
+    .ocr-review-row { display: grid; grid-template-columns: 1.4rem 2.8rem 7rem 1fr 6rem 4.5rem; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem; border-bottom: 1px solid #f1f5f9; font-size: 0.8rem; }
+    .ocr-review-row:hover { background: #f8fafc; }
+    .ocr-review-row.validated { background: #f0fdf4; }
+    .ocr-review-row.rejected { background: #fef2f2; opacity: 0.7; }
+    .ocr-review-status { font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.3rem; border-radius: 3px; text-align: center; }
+    .ocr-status-pending { background: #fef9c3; color: #854d0e; }
+    .ocr-status-validated { background: #dcfce7; color: #166534; }
+    .ocr-status-rejected { background: #fee2e2; color: #991b1b; }
+    .ocr-review-conf { font-size: 0.72rem; color: #64748b; text-align: right; }
+    .ocr-review-cat { min-width: 0; }
+    .ocr-review-text { min-width: 0; font-family: inherit; }
+    .ocr-review-run { font-size: 0.68rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ocr-review-btns { display: flex; gap: 0.25rem; }
+    .btn-xs { padding: 0.15rem 0.4rem !important; font-size: 0.72rem !important; line-height: 1.2 !important; }
+    .btn-success { background: #22c55e; color: white; border: none; }
+    .btn-success:hover:not(:disabled) { background: #16a34a; }
+    .btn-danger { background: #ef4444; color: white; border: none; }
+    .btn-danger:hover:not(:disabled) { background: #dc2626; }
+    .btn-sm { padding: 0.25rem 0.6rem !important; font-size: 0.8rem !important; }
+    .mono { font-family: monospace; }
     .btn-ghost { background: transparent; border: none; color: #64748b; cursor: pointer; font-size: 0.85rem; padding: 0.4rem 0.6rem; }
     .btn-ghost:hover { color: #1e293b; text-decoration: underline; }
 </style>

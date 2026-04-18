@@ -102,7 +102,7 @@ export default {
 						info['protocol'] = 'http://iiif.io/api/image';
 						info['profile'] = 'level2';
 						// Add some common service features to help OL
-						info['extraFeatures'] = ['canonicalLinkHeader', 'profileLinkHeader', 'mirroring'];
+						info['extraFeatures'] = ['mirroring'];
 					} else {
 						// Proxied from Gallica (v2)
 						info['@id'] = serviceUrl;

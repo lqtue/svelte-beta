@@ -1,80 +1,76 @@
 <!--
-  /contribute/label — Pin labeling tool.
+  /contribute/label — OCR bbox review tool.
 
-  Uses:
-    ToolLayout (responsive sidebar + map stage)
-    ImageShell  (IIIF OL viewer in pixel coords)
-    PinTool     (OL click-to-place + Select+Modify interactions)
-    PinSidebar  (legend selection + placed-pin list)
+  Shows IIIF map canvas (ImageShell) with OCR extraction bounding boxes
+  rendered as colored rectangles (OcrBboxTool). Sidebar (OcrSidebar) lists
+  extractions with inline text/category editing and validate/reject actions.
 
-  Map selection: inline dropdown picker in the top bar, filtered from
-  fetchLabelMaps() — same georef-done maps as before.
-
-  Legend items from map.legend (label_config.legend). For object-type
-  legend items (val + label) a transcription modal requests a Vietnamese name.
+  Flow:
+    • Click bbox → selects it, highlights sidebar row, focuses text input
+    • Drag bbox → repositions it, PATCHes new global_x/y to DB
+    • Edit text in sidebar → validate/reject
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
+  import OlMap from 'ol/Map';
   import NavBar from '$lib/ui/NavBar.svelte';
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import ImageShell from '$lib/shell/ImageShell.svelte';
   import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
-  import PinTool from '$lib/contribute/pin/PinTool.svelte';
-  import PinSidebar from '$lib/contribute/pin/PinSidebar.svelte';
+  import OcrSidebar from '$lib/contribute/ocr/OcrSidebar.svelte';
+  import OcrBboxTool from '$lib/contribute/ocr/OcrBboxTool.svelte';
+  import type { OcrExtraction } from '$lib/contribute/ocr/types';
   import { getSupabaseContext } from '$lib/supabase/context';
   import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
-  import {
-    fetchLabelMaps,
-    fetchMapPins,
-    createPin,
-    deletePin,
-    updatePinPosition,
-  } from '$lib/supabase/labels';
+  import { fetchLabelMaps } from '$lib/supabase/labels';
   import type { LabelMapInfo } from '$lib/supabase/labels';
-  import type { LabelPin } from '$lib/contribute/label/types';
 
-  const { supabase, session } = getSupabaseContext();
-  const userId = session?.user?.id ?? null;
+  const { supabase } = getSupabaseContext();
 
   // ── Map selection ──────────────────────────────────────────────────────────
   let maps: LabelMapInfo[] = [];
   let currentMap: LabelMapInfo | null = null;
   let iiifInfoUrl: string | null = null;
 
-  // ── Pin data ───────────────────────────────────────────────────────────────
-  let pins: LabelPin[] = [];
-  let myPins: LabelPin[] = [];
-
-  // ── Tool mode ──────────────────────────────────────────────────────────────
-  let pinTool: 'place' | 'edit' = 'place';
-  $: drawMode = (pinTool === 'place' ? 'pin' : 'pin-edit') as 'pin' | 'pin-edit';
+  // ── OCR state ──────────────────────────────────────────────────────────────
+  let ocrSidebar: OcrSidebar;
+  let ocrExtractions: OcrExtraction[] = [];
+  let visibleExtractionIds = new Set<string>();
+  let selectedExtractionId: string | null = null;
+  let isolationMode = false;
+  let map: OlMap | null = null;
 
   // ── Layout ─────────────────────────────────────────────────────────────────
   let sidebarCollapsed = false;
   let isMobile = false;
   let isCompact = false;
 
-  // ── Transcription modal ────────────────────────────────────────────────────
-  let showTranscriptionModal = false;
-  let pendingPinCoord: { pixelX: number; pixelY: number } | null = null;
-  let transcriptionLabel = '';
-  let transcriptionValue = '';
+  // ── Scaling logic ─────────────────────────────────────────────────────────
+  let imgWidth = 0;
+  let imgHeight = 0;
+  let nativeW = 0;
+  let nativeH = 0;
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-  $: myPins = userId ? pins.filter((p) => p.userId === userId) : [];
-  $: legendItems = currentMap?.legend?.length
-    ? (currentMap.legend as any[])
-    : ['Building', 'Temple', 'Market', 'School', 'Hospital',
-       'Government', 'Residence', 'Bridge', 'Park', 'Unknown'];
+  $: displayExtractions = (() => {
+    // Determine native bounds from the full ocrExtractions list
+    const ocrW = ocrExtractions.length ? Math.max(...ocrExtractions.map(e => (e.tile_x ?? 0) + (e.tile_w ?? 0))) : 0;
+    const ocrH = ocrExtractions.length ? Math.max(...ocrExtractions.map(e => (e.tile_y ?? 0) + (e.tile_h ?? 0))) : 0;
 
-  let selectedLabel: string | null = null;
-  $: placingEnabled = drawMode === 'pin' && !!selectedLabel;
+    if (!imgWidth || !imgHeight || !ocrW || !ocrH) return ocrExtractions;
+    
+    const scaleX = imgWidth / ocrW;
+    const scaleY = imgHeight / ocrH;
 
-  function handleSelectLabel(e: CustomEvent<{ label: string }>) {
-    selectedLabel = e.detail.label;
-  }
+    return ocrExtractions.map(ext => ({
+      ...ext,
+      global_x: ext.global_x * scaleX,
+      global_y: ext.global_y * scaleY,
+      global_w: ext.global_w * scaleX,
+      global_h: ext.global_h * scaleY
+    }));
+  })();
 
-  // ── Map loading ───────────────────────────────────────────────────────────
+  // ── Map loading ────────────────────────────────────────────────────────────
   async function loadMaps() {
     try { maps = await fetchLabelMaps(supabase); }
     catch (err) { console.error('[LabelPage] Failed to load maps:', err); }
@@ -84,9 +80,11 @@
     if (currentMap?.id === map.id) return;
     currentMap = map;
     iiifInfoUrl = null;
-    pins = [];
-    selectedLabel = null;
-    await Promise.all([resolveIiifUrl(), loadPins()]);
+    ocrExtractions = [];
+    selectedExtractionId = null;
+    nativeW = 0;
+    nativeH = 0;
+    await resolveIiifUrl();
   }
 
   async function resolveIiifUrl() {
@@ -95,9 +93,7 @@
       const res = await fetch(annotationUrlForSource(currentMap.allmapsId));
       if (!res.ok) throw new Error(`Allmaps fetch failed: ${res.status}`);
       const annotation = await res.json();
-      const items = annotation.items;
-      if (!items?.length) throw new Error('No items in annotation');
-      const sourceId = items[0]?.target?.source?.id;
+      const sourceId = annotation.items?.[0]?.target?.source?.id;
       if (!sourceId) throw new Error('No source ID in annotation');
       iiifInfoUrl = `${sourceId}/info.json`;
     } catch (err) {
@@ -106,78 +102,84 @@
     }
   }
 
-  async function loadPins() {
-    if (!currentMap) return;
-    try { pins = await fetchMapPins(supabase, currentMap.id); }
-    catch (err) { console.error('[LabelPage] Failed to load pins:', err); pins = []; }
+  // ── OCR handlers ──────────────────────────────────────────────────────────
+  function handleLoaded(e: CustomEvent<{ extractions: OcrExtraction[] }>) {
+    ocrExtractions = e.detail.extractions;
+    selectedExtractionId = null;
   }
 
-  // ── Pin handlers ──────────────────────────────────────────────────────────
-  async function handlePlacePin(e: CustomEvent<{ pixelX: number; pixelY: number }>) {
-    if (!currentMap || !userId || !selectedLabel) return;
+  function handleSelect(e: CustomEvent<{ id: string }>) {
+    selectedExtractionId = e.detail.id;
+    ocrSidebar?.focusRow(e.detail.id);
+  }
 
-    // Object legend item → open transcription modal
-    const item = legendItems.find(
-      (i: any) => (typeof i === 'string' ? i : i.val) === selectedLabel,
+  function handleFilter(e: CustomEvent<{ extractions: OcrExtraction[] }>) {
+    visibleExtractionIds = new Set(e.detail.extractions.map(ex => ex.id));
+  }
+
+  function handleZoomToExtraction(e: CustomEvent<{ globalX: number; globalY: number; globalW: number; globalH: number }>) {
+    if (!map || !imgWidth || !imgHeight) return;
+
+    // OCR source dimensions
+    const ocrW = Math.max(...ocrExtractions.map(ex => (ex.tile_x ?? 0) + (ex.tile_w ?? 0)));
+    const ocrH = Math.max(...ocrExtractions.map(ex => (ex.tile_y ?? 0) + (ex.tile_h ?? 0)));
+    if (ocrW <= 0 || ocrH <= 0) return;
+
+    const scaleX = imgWidth / ocrW;
+    const scaleY = imgHeight / ocrH;
+
+    const { globalX, globalY, globalW, globalH } = e.detail;
+    const dx = globalX * scaleX;
+    const dy = globalY * scaleY;
+    const dw = globalW * scaleX;
+    const dh = globalH * scaleY;
+
+    // OL extent: [minX, minY, maxX, maxY] where minY is the bottom of the image in y-flipped space
+    // image_y maps to -display_y
+    // bottom edge is -(dy + dh), top edge is -dy
+    map.getView().fit([dx, -(dy + dh), dx + dw, -dy], {
+      padding: [100, 100, 100, 100],
+      duration: 400
+    });
+  }
+
+  async function handleMove(e: CustomEvent<{ id: string; global_x: number; global_y: number; global_w: number; global_h: number }>) {
+    const ocrW = ocrExtractions.length ? Math.max(...ocrExtractions.map(e => (e.tile_x ?? 0) + (e.tile_w ?? 0))) : 0;
+    const ocrH = ocrExtractions.length ? Math.max(...ocrExtractions.map(e => (e.tile_y ?? 0) + (e.tile_h ?? 0))) : 0;
+
+    if (!currentMap || !imgWidth || !imgHeight || !ocrW || !ocrH) return;
+    const { id, global_x: dx, global_y: dy, global_w: dw, global_h: dh } = e.detail;
+
+    const scaleX = imgWidth / ocrW;
+    const scaleY = imgHeight / ocrH;
+
+    const native = {
+      global_x: dx / scaleX,
+      global_y: dy / scaleY,
+      global_w: dw / scaleX,
+      global_h: dh / scaleY
+    };
+
+    // Optimistic update in local array so OcrBboxTool re-draws at new position
+    ocrExtractions = ocrExtractions.map(ext =>
+      ext.id === id ? { ...ext, ...native } : ext
     );
-    if (item && typeof item !== 'string') {
-      pendingPinCoord = e.detail;
-      transcriptionLabel = item.label;
-      transcriptionValue = '';
-      showTranscriptionModal = true;
-      setTimeout(() => document.getElementById('label-transcription-input')?.focus(), 80);
-      return;
-    }
-    await createAndAddPin(e.detail.pixelX, e.detail.pixelY);
-  }
-
-  async function confirmTranscription() {
-    if (!pendingPinCoord) return;
-    await createAndAddPin(pendingPinCoord.pixelX, pendingPinCoord.pixelY, {
-      vietnameseName: transcriptionValue,
-      originalName: transcriptionLabel,
+    await fetch(`/api/admin/maps/${currentMap.id}/ocr-review`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...native }),
     });
-    closeTranscriptionModal();
-  }
-
-  function closeTranscriptionModal() {
-    showTranscriptionModal = false;
-    pendingPinCoord = null;
-    transcriptionValue = '';
-  }
-
-  async function createAndAddPin(pixelX: number, pixelY: number, data?: any) {
-    if (!currentMap || !userId || !selectedLabel) return;
-    const id = await createPin(supabase, {
-      mapId: currentMap.id, userId,
-      label: selectedLabel, pixelX, pixelY, data,
-    });
-    if (id) {
-      pins = [...pins, { id, mapId: currentMap.id, userId, label: selectedLabel, pixelX, pixelY, data }];
-    }
-  }
-
-  async function handleRemovePin(e: CustomEvent<{ pinId: string }>) {
-    const ok = await deletePin(supabase, e.detail.pinId);
-    if (ok) pins = pins.filter((p) => p.id !== e.detail.pinId);
-  }
-
-  async function handleMovePin(e: CustomEvent<{ pinId: string; pixelX: number; pixelY: number }>) {
-    const { pinId, pixelX, pixelY } = e.detail;
-    const ok = await updatePinPosition(supabase, pinId, pixelX, pixelY);
-    if (ok) pins = pins.map((p) => p.id === pinId ? { ...p, pixelX, pixelY } : p);
   }
 
   onMount(loadMaps);
 </script>
 
 <svelte:head>
-  <title>{currentMap ? `${currentMap.name} — Label` : 'Label Maps'} — Vietnam Map Archive</title>
-  <meta name="description" content="Help identify buildings and landmarks on historical maps. Place labels and contribute to the archive." />
+  <title>{currentMap ? `${currentMap.name} — OCR Review` : 'OCR Review'} — Vietnam Map Archive</title>
+  <meta name="description" content="Review and validate OCR extractions from historical maps." />
   <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
-<!-- ── Page shell ─────────────────────────────────────────────────────────────── -->
 <div class="tool-page">
   <NavBar />
   <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
@@ -192,7 +194,7 @@
             </svg>
             Contribute
           </a>
-          <div class="panel-mode-label">Label Mode</div>
+          <div class="panel-mode-label">OCR Review</div>
           <button
             type="button"
             class="collapse-btn"
@@ -207,23 +209,24 @@
         {#if !currentMap}
           <div class="panel-empty">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/>
+              <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h5M7 13h8M7 17h4"/>
             </svg>
-            <p>Select a map to start labeling.</p>
+            <p>Select a map to review OCR extractions.</p>
           </div>
         {:else}
-          <PinSidebar
-            {legendItems}
-            {selectedLabel}
-            placedPins={myPins}
-            on:selectLabel={handleSelectLabel}
-            on:removePin={handleRemovePin}
+          <OcrSidebar
+            bind:this={ocrSidebar}
+            mapId={currentMap.id}
+            selectedId={selectedExtractionId}
+            on:loaded={handleLoaded}
+            on:filter={handleFilter}
+            on:zoomToExtraction={handleZoomToExtraction}
           />
         {/if}
       </aside>
     </svelte:fragment>
 
-    <!-- Floating map search (canvas, top-center) — maps only, no location tab -->
+    <!-- Floating map search -->
     <MapSearchBar
       maps={maps as any}
       selectedMapId={currentMap?.id ?? null}
@@ -233,22 +236,22 @@
 
     <!-- Image stage -->
     {#if currentMap && iiifInfoUrl}
-      <ImageShell {iiifInfoUrl} {pins} myUserId={userId}>
-        <PinTool
-          {drawMode}
-          {selectedLabel}
-          {placingEnabled}
-          on:placePin={handlePlacePin}
-          on:movePin={handleMovePin}
-          on:removePin={handleRemovePin}
+      <ImageShell {iiifInfoUrl} bind:imgWidth bind:imgHeight bind:map>
+        <OcrBboxTool
+          extractions={displayExtractions}
+          selectedId={selectedExtractionId}
+          filteredIds={visibleExtractionIds}
+          {isolationMode}
+          on:select={handleSelect}
+          on:move={handleMove}
         />
       </ImageShell>
     {:else if !currentMap}
       <div class="empty-stage">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.25">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h5M7 13h8M7 17h4"/>
         </svg>
-        <p>Select a map to begin labeling.</p>
+        <p>Select a map to begin OCR review.</p>
         <a href="/catalog" class="catalog-link">Browse catalog →</a>
       </div>
     {:else}
@@ -268,18 +271,16 @@
             </svg>
             Contribute
           </a>
-          <div class="panel-mode-label">{currentMap?.name ?? 'Label'}</div>
+          <div class="panel-mode-label">{currentMap?.name ?? 'OCR Review'}</div>
           <button type="button" class="collapse-btn" on:click={() => (sidebarCollapsed = true)} aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
         {#if currentMap}
-          <PinSidebar
-            {legendItems}
-            {selectedLabel}
-            placedPins={myPins}
-            on:selectLabel={handleSelectLabel}
-            on:removePin={handleRemovePin}
+          <OcrSidebar
+            mapId={currentMap.id}
+            selectedId={selectedExtractionId}
+            on:loaded={handleLoaded}
           />
         {:else}
           <div class="panel-empty">Select a map first.</div>
@@ -288,132 +289,63 @@
     </svelte:fragment>
   </ToolLayout>
 
-  <!-- ── Tool mode bottom bar ───────────────────────────────────────────────── -->
+  <!-- Bottom bar: sidebar toggle and isolation mode -->
   {#if currentMap}
     <footer class="bottom-bar">
-      <button
-        type="button"
-        class="tool-btn"
-        class:active={pinTool === 'place'}
-        on:click={() => { pinTool = 'place'; }}
-        title="Place pins"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-        <span>Place</span>
-      </button>
+      <div class="bar-hint">Click bbox to edit · drag to reposition</div>
+      <div class="bar-divider"></div>
 
       <button
         type="button"
         class="tool-btn"
-        class:active={pinTool === 'edit'}
-        on:click={() => { pinTool = 'edit'; }}
-        title="Move and delete pins"
+        class:active={isolationMode}
+        on:click={() => (isolationMode = !isolationMode)}
+        title={isolationMode ? 'Turn off focus mode' : 'Turn on focus mode (hide others)'}
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3"/><path d="M3 12c0 1 2 5 9 5s9-4 9-5-2-5-9-5-9 4-9 5z"/>
         </svg>
-        <span>Edit</span>
+        <span>{isolationMode ? 'Focus On' : 'Focus'}</span>
       </button>
 
       <div class="bar-divider"></div>
-
       {#if !isMobile}
         <button
           type="button"
           class="tool-btn"
           on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
-          title={sidebarCollapsed ? 'Show legend panel' : 'Hide legend panel'}
+          title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>
           </svg>
-          <span>{sidebarCollapsed ? 'Legend' : 'Hide'}</span>
+          <span>{sidebarCollapsed ? 'Panel' : 'Hide'}</span>
         </button>
       {:else}
         <button
           type="button"
           class="tool-btn"
           on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
-          title="Toggle legend"
+          title="Toggle panel"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <path d="M3 12h18M3 6h18M3 18h18"/>
           </svg>
-          <span>Legend</span>
+          <span>Panel</span>
         </button>
       {/if}
     </footer>
   {/if}
 </div>
 
-<!-- ── Transcription modal ─────────────────────────────────────────────────── -->
-{#if showTranscriptionModal}
-  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-  <div class="modal-backdrop" on:click={closeTranscriptionModal}>
-    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-    <div class="modal" on:click|stopPropagation>
-      <h3 class="modal-title">Transcription</h3>
-      <div class="modal-body">
-        <p class="modal-label">Original: <strong>{transcriptionLabel}</strong></p>
-        <label>
-          Vietnamese Name / Details
-          <input
-            id="label-transcription-input"
-            type="text"
-            bind:value={transcriptionValue}
-            class="modal-input"
-            placeholder="e.g. Lò mổ thành phố"
-            on:keydown={(e) => e.key === 'Enter' && confirmTranscription()}
-          />
-        </label>
-      </div>
-      <div class="modal-actions">
-        <button class="btn-cancel" on:click={closeTranscriptionModal}>Cancel</button>
-        <button class="btn-confirm" on:click={confirmTranscription}>Confirm</button>
-      </div>
-    </div>
-  </div>
-{/if}
-
 <style>
   @import '$styles/layouts/tool-page.css';
 
-  /* ── Transcription modal (label-only) ────────────────────────────────────── */
-  .modal-backdrop {
-    position: fixed; inset: 0; z-index: 200;
-    background: rgba(43,37,32,0.55);
-    display: flex; align-items: center; justify-content: center;
+  .bar-hint {
+    font-size: 0.72rem;
+    color: var(--color-text);
+    opacity: 0.45;
+    padding: 0 0.5rem;
+    white-space: nowrap;
   }
-  .modal {
-    background: var(--color-white, #fff);
-    border: var(--border-thick, 2px solid #2b2520);
-    border-radius: var(--radius-sm, 4px);
-    box-shadow: 6px 6px 0 #2b2520;
-    padding: 1.5rem; width: min(420px, 90vw);
-    font-family: var(--font-family-base, 'Be Vietnam Pro', sans-serif);
-  }
-  .modal-title { margin: 0 0 1rem; font-size: 1rem; font-weight: 800; }
-  .modal-body { display: flex; flex-direction: column; gap: 0.75rem; }
-  .modal-label { margin: 0; font-size: 0.85rem; }
-  .modal-body label { font-size: 0.82rem; font-weight: 600; display: flex; flex-direction: column; gap: 0.35rem; }
-  .modal-input {
-    padding: 0.5rem 0.65rem;
-    border: var(--border-thin, 1px solid #2b2520);
-    border-radius: var(--radius-sm, 4px);
-    font-size: 0.875rem; background: var(--color-bg, #f5f0ea); width: 100%;
-  }
-  .modal-input:focus { outline: 2px solid var(--color-blue, #2563eb); outline-offset: -1px; }
-  .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }
-  .btn-cancel, .btn-confirm {
-    padding: 0.45rem 1rem;
-    border: var(--border-thin, 1px solid #2b2520);
-    border-radius: var(--radius-sm, 4px);
-    font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.1s;
-  }
-  .btn-cancel { background: var(--color-bg, #f5f0ea); }
-  .btn-cancel:hover { background: var(--color-gray-100, #f1ece6); }
-  .btn-confirm { background: var(--color-blue, #2563eb); color: #fff; border-color: var(--color-blue, #2563eb); }
-  .btn-confirm:hover { opacity: 0.9; }
 </style>

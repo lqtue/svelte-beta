@@ -55,8 +55,14 @@ def fetch_crop(
     *,
     retries: int = 3,
     local_image: str | None = None,
+    quality: str = "default",
+    fit: bool = False,
 ) -> Image.Image:
     """Fetch a IIIF image crop, caching to disk.
+
+    quality: IIIF quality token — "default" for v3/most v2, "native" for Gallica v2.
+    fit: if True, use !{size},{size} (fit-within-box) instead of {size}, (width-only).
+         Use for full-image fetches where you want max(w,h) <= size.
 
     If local_image is set, skips all network calls and crops from that file.
     Otherwise tries the IIIF region URL first; if the server returns 4xx/5xx
@@ -75,7 +81,14 @@ def fetch_crop(
         region = region.resize((size, max(1, int(size * h / w))), Image.LANCZOS)
         return region
 
-    region_url = f"{iiif_base}/{x},{y},{w},{h}/{size},/0/default.jpg"
+    # For full-image fetches at a known level, use exact {w},{h} — server serves from cache.
+    # For crops or unknown sizes, use width-only {size}, or fit !{size},{size}.
+    is_full = (x == 0 and y == 0 and w > 0 and h > 0)
+    if fit:
+        size_param = f"!{size},{size}"
+    else:
+        size_param = f"{size},"
+    region_url = f"{iiif_base}/{x},{y},{w},{h}/{size_param}/0/{quality}.jpg"
     cache_key = hashlib.md5(region_url.encode()).hexdigest()
     cache_path = CACHE_DIR / f"{cache_key}.jpg"
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -124,15 +137,21 @@ def tile_grid(
     height: int,
     tile: int = 2048,
     overlap: int = 256,
+    region: tuple[int, int, int, int] | None = None,
 ) -> Generator[tuple[int, int, int, int], None, None]:
-    """Yield (x, y, w, h) tuples covering the full image with overlap."""
+    """Yield (x, y, w, h) tuples covering the full image or a sub-region with overlap."""
+    if region:
+        rx, ry, rw, rh = region
+    else:
+        rx, ry, rw, rh = 0, 0, width, height
+
     step = tile - overlap
-    y = 0
-    while y < height:
-        x = 0
-        h = min(tile, height - y)
-        while x < width:
-            w = min(tile, width - x)
+    y = ry
+    while y < ry + rh:
+        x = rx
+        h = min(tile, (ry + rh) - y)
+        while x < rx + rw:
+            w = min(tile, (rx + rw) - x)
             yield x, y, w, h
             x += step
         y += step
@@ -209,17 +228,116 @@ def adaptive_render_size(image: Image.Image, low: int = 1024, high: int = 2048, 
 
 
 def get_image_info(iiif_base: str, retries: int = 3) -> dict:
-    """Fetch IIIF info.json to get full image width/height."""
-    import time
+    """Fetch IIIF info.json.
+
+    Returns:
+        width, height       — full-resolution dimensions
+        version             — 2 or 3
+        quality             — "default" or "native" (Gallica BnF v2)
+        sizes               — list of {"width": int, "height": int} pre-rendered levels,
+                              sorted ascending by width. Empty list if server omits it.
+        scale_factors       — list of ints from tiles[0].scaleFactors (e.g. [1,2,4,8,16]).
+                              Empty list if server omits tiles.
+
+    sizes are the levels the server has already rendered — requesting these exact
+    dimensions avoids server-side scaling and is cheaper/faster.
+    scale_factors describe the tile pyramid: factor N means full_w // N pixels wide.
+    """
     url = f"{iiif_base}/info.json"
     for attempt in range(retries):
         try:
             resp = requests.get(url, timeout=45)
             resp.raise_for_status()
             data = resp.json()
-            return {"width": data.get("width", 0), "height": data.get("height", 0)}
+
+            context = data.get("@context", "")
+            if isinstance(context, list):
+                context = " ".join(str(c) for c in context)
+            version = 3 if ("image/3" in context or data.get("type") == "ImageService3") else 2
+
+            quality = "default"
+            if version == 2:
+                profile = data.get("profile", [])
+                if isinstance(profile, list) and len(profile) > 1 and isinstance(profile[1], dict):
+                    qualities = profile[1].get("qualities", [])
+                    if "native" in qualities and "default" not in qualities:
+                        quality = "native"
+
+            # Pre-rendered size levels — sorted ascending by width
+            raw_sizes = data.get("sizes", [])
+            sizes = sorted(
+                [{"width": int(s["width"]), "height": int(s["height"])} for s in raw_sizes
+                 if "width" in s and "height" in s],
+                key=lambda s: s["width"],
+            )
+
+            # Tile pyramid scale factors (tiles[0].scaleFactors)
+            tiles_arr = data.get("tiles", [])
+            scale_factors: list[int] = []
+            if tiles_arr and isinstance(tiles_arr[0], dict):
+                scale_factors = [int(f) for f in tiles_arr[0].get("scaleFactors", [])]
+
+            return {
+                "width": int(data.get("width", 0)),
+                "height": int(data.get("height", 0)),
+                "version": version,
+                "quality": quality,
+                "sizes": sizes,
+                "scale_factors": scale_factors,
+            }
         except Exception as e:
             if attempt < retries - 1:
                 time.sleep(5 * (attempt + 1))
             else:
                 raise
+
+
+def choose_scale_levels(
+    info: dict,
+    targets: tuple[int, ...] = (1024, 2048, 4096),
+) -> list[dict]:
+    """Pick the best pre-rendered IIIF size levels for a multi-scale sequence.
+
+    Strategy:
+      1. If info["sizes"] is non-empty, select the level closest to each target
+         width — these are already rendered by the server, cheapest to fetch.
+      2. If sizes is empty but scale_factors is available, derive levels from
+         full_w // factor for each factor, then pick closest to targets.
+      3. Fallback: use target widths directly (server scales on the fly).
+
+    Returns list of {"width": int, "height": int} dicts, ascending by width,
+    deduplicated and capped at full_w.
+    """
+    full_w = info["width"]
+    full_h = info["height"]
+    aspect = full_h / full_w if full_w else 1.0
+
+    candidates: list[dict] = info.get("sizes", [])
+
+    if not candidates:
+        # Derive from scale_factors
+        for f in info.get("scale_factors", []):
+            if f > 0:
+                w = full_w // f
+                h = int(w * aspect)
+                if w > 0:
+                    candidates.append({"width": w, "height": h})
+
+    if not candidates:
+        # Pure fallback: use targets directly
+        return [
+            {"width": t, "height": int(t * aspect)}
+            for t in targets if t <= full_w
+        ]
+
+    chosen: list[dict] = []
+    seen_widths: set[int] = set()
+    for target in targets:
+        if target > full_w:
+            continue
+        best = min(candidates, key=lambda s: abs(s["width"] - target))
+        if best["width"] not in seen_widths:
+            chosen.append(best)
+            seen_widths.add(best["width"])
+
+    return sorted(chosen, key=lambda s: s["width"])

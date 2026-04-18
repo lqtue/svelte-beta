@@ -34,14 +34,27 @@ source .venv/bin/activate
 # Single tile — extract labels and save preview PNG
 python work/ocr/scripts/ocr.py run \
   --map-id <uuid> --iiif-base <url> \
-  --crop x,y,w,h --render-size 2048 --prompt v4 \
+  --crop x,y,w,h --render-size 2048 --prompt v5 \
   --run-id <name> --preview
+
+# Full-map macro scan (scout pass — low-res overview, no crop needed)
+python work/ocr/scripts/ocr.py scout \
+  --map-id <uuid> --iiif-base <url> \
+  --render-size 2048 --prompt v5 --run-id <name> --preview
 
 # Multi-tile stitch — composite preview with all bboxes
 python work/ocr/scripts/ocr.py stitch \
   --map-id <uuid> --iiif-base <url> \
   --crops "x,y,w,h;x,y,w,h;..." \
-  --render-size 2048 --prompt v4 --run-id <name>
+  --render-size 2048 --prompt v5 --run-id <name>
+
+# Batch run across all tiles; --scout adds a scout pass first
+python work/ocr/scripts/ocr.py batch \
+  --map-id <uuid> --iiif-base <url> --scout --run-id <name>
+
+# Deduplicate results across runs; --apply writes surviving pins to label_pins
+python work/ocr/scripts/ocr.py dedup \
+  --map-id <uuid> --run-id <name> [--apply]
 
 # List available Gemini models
 python work/ocr/scripts/ocr.py list-models
@@ -52,12 +65,13 @@ python work/ocr/scripts/ocr.py list-models
 - Model: `gemini-3-flash-preview` (Paid tier 1, 10K RPD). Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation)
 - Outputs are versioned: `work/ocr/outputs/<map_id>/runs/<run_id>/` — each run saves `run_config.json` for paper reproducibility
 - Tile images cached at `work/ocr/outputs/<map_id>/` (shared across runs); per-run JSONs + previews in `runs/<run_id>/`
-- Prompts are versioned (`v1`–`v4`) in `work/ocr/scripts/prompt.py`. Default is `v4`
+- Prompts are versioned (`v1`–`v5`) in `work/ocr/scripts/prompt.py`. Default is `v5` (adds hydrology category, noise filtering)
+- `iiif_tiles.py` auto-detects IIIF version (v2/v3) and quality (`default` vs `native`); `fetch_crop()` accepts `quality` and `fit` params
 
 **Scripts:**
-- `ocr.py` — CLI entry: `run`, `stitch`, `preview`, `list-models` subcommands
+- `ocr.py` — CLI entry: `run`, `scout`, `stitch`, `batch`, `dedup`, `preview`, `list-models` subcommands
 - `gemini_client.py` — Gemini wrapper: key rotation, 429/503 retry, single-image and multi-image sequence calls
-- `iiif_tiles.py` — IIIF crop fetch with IA fallback (full-image download + local crop), tile grid generator, density estimation
+- `iiif_tiles.py` — IIIF crop fetch with IA fallback (full-image download + local crop), tile grid generator, density estimation; `get_image_info()` returns `version` + `quality`
 - `prompt.py` — versioned prompts + JSON extraction schema
 
 ## Development Commands
@@ -212,7 +226,7 @@ Domain module for the map catalogue. Use this for new code; `src/lib/supabase/ma
 **Type quirks:**
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`)
 - `.select().single()` narrowing: cast `(data as any)?.field as Type`
-- `supabase/types.ts` is partially stale — lags behind the current migration head (039). Cast via `(supabase as any).from(...)` when accessing columns not yet reflected in the generated types.
+- `supabase/types.ts` is partially stale — lags behind the current migration head (041). Cast via `(supabase as any).from(...)` when accessing columns not yet reflected in the generated types.
 
 ### Styling
 
@@ -245,9 +259,18 @@ When adding a new page, use the page template in `docs/design-system.md` and add
 - `/api/admin/labels/` — label task CRUD
 - `/api/admin/labels/[id]/` — individual task updates
 - `/api/admin/georef/` — georef management
+- `/api/admin/maps/[id]/mirror-r2/` — POST: fetch Allmaps annotation → rewrite source URL to R2 → store in Supabase Storage → upsert `map_iiif_sources` R2 row as primary → returns `tile_command` for tiling script
 - `/api/admin/footprints/` — GET/PATCH SAM2 footprint review (service key required)
 - `/api/export/footprints/` — data export
 - `/auth/callback/` — OAuth callback
+
+### R2 / IIIF Worker
+
+Self-hosted IIIF tile serving via Cloudflare R2 + Worker at `https://iiif.maparchive.vn/iiif`.
+
+- `worker/` — Cloudflare Worker source + `wrangler.toml`; proxies IIIF tile requests to R2 bucket
+- `scripts/tile_map.sh <map-uuid> <source-image-url> [original-iiif-base]` — downloads source image, tiles it with `vips`, and uploads to R2 at `sources/<map-uuid>/`. The mirror-r2 API returns the exact command to run.
+- After mirroring: `maps.iiif_image` and the primary `map_iiif_sources` row point to `https://iiif.maparchive.vn/iiif/<map-uuid>`; `maps.allmaps_id` becomes the Supabase Storage public URL of the updated annotation JSON.
 
 ### Admin Dashboard (`/admin`)
 
@@ -256,6 +279,21 @@ When adding a new page, use the page template in `docs/design-system.md` and add
 - Inline editing of existing tasks
 - Hide/unhide tasks (hidden tasks don't appear in volunteer Label Studio)
 - Delete tasks (cascades to pins)
+
+**`MapEditModal.svelte`** — 4-tab structure (+ GCPs conditional):
+
+| Tab | Content |
+|-----|---------|
+| **Details** | Name, description, dates, dimensions, map type, status |
+| **Provenance** | Source type, collection, IA URL, manifest URL, notes |
+| **Hosting** | Image Sources list (primary indicator), Mirror to R2, Georeference (Allmaps ID + editor links), Image Upload |
+| **Contribute** | Visibility/priority toggles, Label Studio config (pin legend modes, categories), OCR pipeline controls |
+| **GCPs** | Ground control points editor (shown only for self-hosted maps) |
+
+- `source_type` values on both `maps` and `map_iiif_sources`: `ia | bnf | efeo | gallica | rumsey | self | r2 | other`
+- Primary source indicator: green left-border + "★ PRIMARY" badge (`.source-row--primary`)
+- Orphan R2 detection: yellow warning when `maps.iiif_image` contains `maparchive.vn` but no `map_iiif_sources` row matches
+- Editor link uses `editorIiifUrl` (priority: `iiif_manifest` → non-R2 source → fallback). After mirror-r2, `allmaps_id` is a self-hosted Supabase URL — do NOT use it as the Allmaps Editor `?url=` param; Allmaps Editor requires a IIIF manifest/image service URL.
 
 ### Redirects
 
@@ -268,7 +306,7 @@ Key tables in `supabase/migrations/`:
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
 | `maps` | Map catalogue | `id` (uuid), `allmaps_id`, `iiif_image`, `iiif_manifest`, `source_type`, `collection`, `map_type`, `bbox`, `status`, `thumbnail` |
-| `map_iiif_sources` | Multiple IIIF sources per map | `map_id → maps.id`, `iiif_image`, `is_primary`, `sort_order`. Partial unique index enforces one primary per map. Trigger syncs primary to `maps.iiif_image`. |
+| `map_iiif_sources` | Multiple IIIF sources per map | `map_id → maps.id`, `iiif_image`, `source_type` (`ia/bnf/efeo/gallica/rumsey/self/r2/other`), `is_primary`, `sort_order`. Partial unique index enforces one primary per map. Trigger syncs primary to `maps.iiif_image`. |
 | `label_tasks` | Labeling tasks | `map_id → maps.id`. No `allmaps_id` — join through maps. |
 | `label_pins` | Point annotations | `task_id → label_tasks.id`, pixel coords |
 | `footprint_submissions` | Polygon traces | `map_id → maps.id`. No `allmaps_id`. Status: `needs_review → submitted/rejected`. |

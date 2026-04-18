@@ -89,6 +89,56 @@ def _parse_response_text(text: str) -> dict:
     return json.loads(text)
 
 
+def _log_malformed(log_path: Path | None, raw_text: str, model: str, context: str = "") -> None:
+    """Append a malformed-JSON incident to malformed.jsonl beside calls.jsonl."""
+    if not log_path:
+        return
+    malformed_path = log_path.parent / "malformed.jsonl"
+    entry = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "model": model,
+        "context": context,
+        "raw_text_snippet": raw_text[:500],
+    }
+    with _log_lock:
+        with open(malformed_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+
+
+def _parse_result(response_text: str, schema: dict, model: str, user_prompt: str,
+                  config_kwargs: dict, client: Any, log_path: Path | None,
+                  context: str = "") -> dict:
+    """Parse JSON from response text; retry once with schema hint on failure."""
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        pass
+    try:
+        return _parse_response_text(response_text)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Both parse attempts failed — log and retry once with an explicit schema reminder
+    _log_malformed(log_path, response_text, model, context)
+    print(f"\n  Malformed JSON ({context}) — retrying with schema hint ...", flush=True)
+    schema_hint = (
+        "\n\nIMPORTANT: Your previous response was not valid JSON. "
+        "Return ONLY a valid JSON object with this exact structure:\n"
+        '{"extractions": [{"text": "...", "category": "...", "language": "...", '
+        '"bbox_px": [x, y, w, h], "rotation_deg": 0, "confidence": 0.9}]}'
+    )
+    retry_prompt = user_prompt + schema_hint if isinstance(user_prompt, str) else schema_hint
+    retry_response = client.models.generate_content(
+        model=model,
+        contents=[retry_prompt],
+        config=genai_types.GenerateContentConfig(**config_kwargs),
+    )
+    try:
+        return json.loads(retry_response.text)
+    except json.JSONDecodeError:
+        return _parse_response_text(retry_response.text)
+
+
 def extract_labels(
     image: Image.Image,
     system_prompt: str,
@@ -97,23 +147,32 @@ def extract_labels(
     model: str = DEFAULT_MODEL,
     thinking: bool = True,
     log_path: Path | None = None,
+    cache_dir: Path | None = None,
 ) -> dict:
     """Call Gemini to extract text labels from a map tile image.
 
     Returns the parsed JSON response dict.
     Logs token usage + latency to log_path (JSONL) if provided.
+    Caches result by content hash in cache_dir (skips API call on hit).
 
     Rate-limit handling:
     - 200ms stagger before every call (smooths burst spikes at concurrency > 1)
     - Exponential backoff on 429 rate-limit: 2s → 4s → 8s … up to 120s
     - True quota exhaustion (credits depleted / daily RPD) → key rotation
     - 503/500 transient → fixed 30s wait
+    - Malformed JSON → one retry with schema hint; logs to malformed.jsonl
     """
     import io, re as _re
+    from cache import get as cache_get, put as cache_put
 
     buf = io.BytesIO()
     image.save(buf, format="JPEG", quality=90)
     image_bytes = buf.getvalue()
+
+    # Cache hit — free result, no API call
+    cached = cache_get(image_bytes, user_prompt, model, cache_dir=cache_dir)
+    if cached is not None:
+        return cached
 
     config_kwargs: dict[str, Any] = {
         "system_instruction": system_prompt,
@@ -141,14 +200,15 @@ def extract_labels(
                 config=genai_types.GenerateContentConfig(**config_kwargs),
             )
             elapsed = time.monotonic() - t_start
-            try:
-                result = json.loads(response.text)
-            except json.JSONDecodeError:
-                result = _parse_response_text(response.text)
+            result = _parse_result(
+                response.text, schema, model, user_prompt, config_kwargs, client,
+                log_path, context="extract_labels"
+            )
             if log_path:
                 _log_call(log_path=log_path, model=model, elapsed=elapsed,
                           usage=response.usage_metadata,
                           n_extractions=len(result.get("extractions", [])))
+            cache_put(image_bytes, user_prompt, model, result, cache_dir=cache_dir)
             return result
 
         except Exception as e:
@@ -216,6 +276,7 @@ def extract_labels_sequence(
     schema: dict,
     model: str = DEFAULT_MODEL,
     log_path: Path | None = None,
+    cache_dir: Path | None = None,
 ) -> dict:
     """Send a sequence of overlapping tile images in ONE call (MapSAM2-style).
 
@@ -226,12 +287,17 @@ def extract_labels_sequence(
     bbox coordinates belong to (0-indexed).
     """
     import io, re as _re
+    from cache import get as cache_get, put as cache_put
+
     parts = []
+    all_image_bytes: list[bytes] = []
     for i, image in enumerate(images):
         buf = io.BytesIO()
         image.save(buf, format="JPEG", quality=90)
+        img_bytes = buf.getvalue()
+        all_image_bytes.append(img_bytes)
         parts.append(
-            genai_types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg")
+            genai_types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
         )
         parts.append(f"[Frame {i}]")
 
@@ -247,11 +313,18 @@ def extract_labels_sequence(
         f"'spans frames 0-1'.\n"
         f"- Assemble the COMPLETE label text from all frames (e.g. 'Rue' in frame 0 + "
         f"'de Genouilly' in frame 1 = one extraction: 'Rue de Genouilly').\n\n"
-        f"Apply all grouping rules: same road axis = one extraction, no bare parcel numbers, "
-        f"confidence ≥ 0.5 only.\n\n"
+        f"Apply all grouping rules: same road axis = one extraction, no bare parcel numbers. "
+        f"The pipeline applies per-category confidence filters downstream — return everything "
+        f"you can read at confidence ≥ 0.4.\n\n"
         f"Add a top-level 'frame_idx' field (integer) to each extraction indicating the "
         f"primary frame."
     )
+
+    # Cache key covers all image bytes + the sequence prompt + model
+    cache_key_bytes = b"".join(all_image_bytes)
+    cached = cache_get(cache_key_bytes, sequence_prompt, model, cache_dir=cache_dir)
+    if cached is not None:
+        return cached
 
     # Extend schema to include frame_idx
     seq_schema = {
@@ -278,6 +351,7 @@ def extract_labels_sequence(
     }
 
     t_start = time.monotonic()
+    backoff = 2.0
 
     while True:
         client, _ = _load_client()
@@ -288,14 +362,15 @@ def extract_labels_sequence(
                 config=genai_types.GenerateContentConfig(**config_kwargs),
             )
             elapsed = time.monotonic() - t_start
-            try:
-                result = json.loads(response.text)
-            except json.JSONDecodeError:
-                result = _parse_response_text(response.text)
+            result = _parse_result(
+                response.text, seq_schema, model, sequence_prompt, config_kwargs, client,
+                log_path, context="extract_labels_sequence"
+            )
             if log_path:
                 _log_call(log_path=log_path, model=model, elapsed=elapsed,
                           usage=response.usage_metadata,
                           n_extractions=len(result.get("extractions", [])))
+            cache_put(cache_key_bytes, sequence_prompt, model, result, cache_dir=cache_dir)
             return result
         except Exception as e:
             err_str = str(e)
@@ -305,10 +380,12 @@ def extract_labels_sequence(
             if is_quota:
                 if not _rotate_key():
                     raise RuntimeError("All API keys exhausted for today") from e
+                backoff = 2.0
                 continue
             if is_rate:
                 m = _re.search(r"retry in ([\d.]+)s", err_str, _re.IGNORECASE)
-                wait = float(m.group(1)) + 2 if m else 15
+                wait = float(m.group(1)) + 2 if m else backoff
+                backoff = min(backoff * 2, 120.0)
                 print(f"\n  Rate limited — waiting {wait:.0f}s ...", flush=True)
                 time.sleep(wait)
                 continue

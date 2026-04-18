@@ -119,3 +119,41 @@ def fetch_ocr_extractions(map_id: str, run_id: str | None = None) -> list[dict[s
         row["global_bbox"] = (row["global_x"], row["global_y"], row["global_w"], row["global_h"])
     
     return data
+
+
+def upsert_label_pins(map_id: str, rows: list[dict[str, Any]]) -> int:
+    """Insert label_pins in Supabase.
+    Each row: map_id, user_id, label, pixel_x, pixel_y, data.
+    """
+    if not rows:
+        return 0
+
+    try:
+        from .supabase_client import _load_config, _headers, _CHUNK_SIZE
+    except (ImportError, ValueError):
+        # Handle relative import failure if run as a script
+        from supabase_client import _load_config, _headers, _CHUNK_SIZE
+
+    url, key = _load_config()
+    endpoint = f"{url}/rest/v1/label_pins"
+
+    total = 0
+    import requests
+    import json
+    for i in range(0, len(rows), _CHUNK_SIZE):
+        chunk = rows[i : i + _CHUNK_SIZE]
+        resp = requests.post(
+            endpoint,
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            data=json.dumps(chunk),
+            timeout=30,
+        )
+        if not resp.ok:
+            raise requests.HTTPError(f"{resp.status_code} pins failed: {resp.text}", response=resp)
+        total += len(chunk)
+
+    return total

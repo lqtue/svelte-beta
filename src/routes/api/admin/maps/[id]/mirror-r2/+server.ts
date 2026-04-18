@@ -148,16 +148,24 @@ export const POST: RequestHandler = async ({ locals, params }) => {
         s.iiif_image?.includes('maparchive.vn')
     );
 
+    // Demote any existing primary before setting R2 as primary (partial unique index enforces one primary per map).
+    await (adminSupabase as any)
+        .from('map_iiif_sources')
+        .update({ is_primary: false })
+        .eq('map_id', mapId)
+        .eq('is_primary', true);
+
     if (r2Source) {
-        await (adminSupabase as any)
+        const { error: upErr } = await (adminSupabase as any)
             .from('map_iiif_sources')
             .update({ iiif_image: newIiifBase, is_primary: true })
             .eq('id', r2Source.id);
+        if (upErr) throw error(500, `IIIF source update failed: ${upErr.message}`);
     } else {
         const maxOrder = (existingSources ?? []).reduce(
             (max: number, s: any) => Math.max(max, (s as any).sort_order ?? 0), 0
         );
-        await (adminSupabase as any)
+        const { error: insErr } = await (adminSupabase as any)
             .from('map_iiif_sources')
             .insert({
                 map_id: mapId,
@@ -167,6 +175,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
                 is_primary: true,
                 sort_order: maxOrder + 1,
             });
+        if (insErr) throw error(500, `IIIF source insert failed: ${insErr.message}`);
     }
 
     // Use the non-R2 source as the proxy source to avoid loops.

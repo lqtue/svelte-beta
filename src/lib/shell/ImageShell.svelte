@@ -38,6 +38,7 @@
   import Text from 'ol/style/Text';
   import { Zoom } from 'ol/control';
   import { defaults as defaultControls } from 'ol/control/defaults';
+  import { defaults as defaultInteractions } from 'ol/interaction/defaults';
   import 'ol/ol.css';
 
   import type { LabelPin, FootprintSubmission } from '$lib/contribute/label/types';
@@ -51,9 +52,11 @@
   export let pins: LabelPin[] = [];
   export let footprints: FootprintSubmission[] = [];
   export let myUserId: string | null = null;
+  export let imgWidth = 0;
+  export let imgHeight = 0;
 
   let mapContainer: HTMLDivElement;
-  let map: OlMap | null = null;
+  export let map: OlMap | null = null;
   let pinSource: VectorSource | null = null;
   let footprintSource: VectorSource | null = null;
   let drawSource: VectorSource | null = null;
@@ -177,6 +180,8 @@
       const response = await fetch(infoUrl);
       if (!response.ok) throw new Error(`Failed to fetch IIIF info: ${response.status}`);
       const info = await response.json();
+      imgWidth = info.width ?? 0;
+      imgHeight = info.height ?? 0;
       const iiifParser = new IIIFInfo(info);
       const options = iiifParser.getTileSourceOptions();
       if (!options) throw new Error('Could not parse IIIF tile source options');
@@ -223,6 +228,7 @@
       target: mapContainer,
       layers: [drawLayer, fpLayer, pinLayer],
       view: new View({ center: [0, 0], zoom: 1, showFullExtent: true }),
+      interactions: defaultInteractions({ doubleClickZoom: false }),
       controls: defaultControls({ attribution: false, rotate: false, zoom: false }).extend([new Zoom()]),
     });
 

@@ -19,6 +19,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Python 3.11+ restricts int-string conversion length as a security measure.
+# Gemini occasionally returns malformed bbox values with absurdly large integers;
+# we disable the limit here and sanitize values downstream in _sanitize_extractions().
+if hasattr(sys, "set_int_max_str_digits"):
+    sys.set_int_max_str_digits(0)
+
 # Resolve repo root for relative imports
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -26,6 +32,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 from iiif_tiles import (
     adaptive_render_size,
+    choose_scale_levels,
     estimate_density,
     fetch_crop,
     get_image_info,
@@ -35,6 +42,8 @@ from iiif_tiles import (
 )
 from gemini_client import DEFAULT_MODEL, extract_labels, extract_labels_sequence, list_models
 from prompt import DEFAULT_PROMPT, EXTRACTION_SCHEMA, PROMPTS, SYSTEM_PROMPT
+
+OUTPUTS_CACHE_DIR = Path(__file__).resolve().parents[1] / "outputs" / ".cache"
 
 OUTPUTS_DIR = Path(__file__).resolve().parents[1] / "outputs"
 
@@ -79,6 +88,7 @@ def render_preview(
 
     COLORS = {
         "street": (255, 50, 50, 180),
+        "hydrology": (50, 100, 255, 180),
         "place": (50, 150, 255, 180),
         "building": (50, 220, 50, 180),
         "institution": (220, 150, 50, 180),
@@ -138,12 +148,15 @@ def cmd_run(args: argparse.Namespace) -> None:
     prompt_text = PROMPTS.get(args.prompt, PROMPTS[DEFAULT_PROMPT])
     model = args.model
 
+    # Always fetch image info for quality detection
+    print(f"Fetching image info from {iiif_base}/info.json ...")
+    info = get_image_info(iiif_base)
+    iiif_quality = info.get("quality", "default")
+
     # Determine tiles to process
     if args.crop:
         tiles = [parse_crop(args.crop)]
     else:
-        print(f"Fetching image info from {iiif_base}/info.json ...")
-        info = get_image_info(iiif_base)
         tiles = list(tile_grid(info["width"], info["height"], tile=args.tile_size, overlap=args.overlap))
         print(f"  Full grid: {len(tiles)} tiles")
 
@@ -165,24 +178,25 @@ def cmd_run(args: argparse.Namespace) -> None:
         # Fetch tile — adaptive render size based on density if requested
         if getattr(args, "adaptive", False):
             # Fetch a cheap 512px preview to measure density first
-            preview = fetch_crop(iiif_base, x, y, w, h, size=512)
+            preview = fetch_crop(iiif_base, x, y, w, h, size=512, quality=iiif_quality)
             render_size = adaptive_render_size(preview, low=1024, high=2048)
         else:
             render_size = args.render_size
 
-        image = fetch_crop(iiif_base, x, y, w, h, size=render_size)
+        image = fetch_crop(iiif_base, x, y, w, h, size=render_size, quality=iiif_quality)
         density = estimate_density(image)
         print(f"fetched ({image.size[0]}×{image.size[1]}, density={density:.2f})", end=" ", flush=True)
 
         # Extract labels
-        result = extract_labels(
+        result = _sanitize_extractions(extract_labels(
             image=image,
             system_prompt=SYSTEM_PROMPT,
             user_prompt=prompt_text,
             schema=EXTRACTION_SCHEMA,
             model=model,
             log_path=log_path,
-        )
+            cache_dir=OUTPUTS_CACHE_DIR,
+        ), log_path=log_path)
 
         n = len(result.get("extractions", []))
         print(f"→ {n} extractions")
@@ -254,6 +268,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
         print(f"Fetching image info from {iiif_base}/info.json ...")
         info = get_image_info(iiif_base)
         img_w, img_h = info["width"], info["height"]
+        iiif_quality = info.get("quality", "default")
 
     map_label = args.map_id or "unknown"
     out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
@@ -264,7 +279,15 @@ def cmd_batch(args: argparse.Namespace) -> None:
     prompt_text = PROMPTS.get(args.prompt, PROMPTS[DEFAULT_PROMPT])
     model = args.model
 
-    tiles = list(tile_grid(img_w, img_h, tile=args.tile_size, overlap=args.overlap))
+    grid_region = None
+    if getattr(args, "scout", False):
+        print("\n--- SCOUT PASS INITIALIZED ---")
+        scout_args = argparse.Namespace(**{**vars(args), 'prompt': 'scout', 'render_size': 4096, 'preview': True})
+        grid_region = cmd_scout(scout_args)
+        if grid_region:
+            print(f"  Adaptive Tiling: Constraining grid to map bound {grid_region}")
+
+    tiles = list(tile_grid(img_w, img_h, tile=args.tile_size, overlap=args.overlap, region=grid_region))
 
     if args.limit:
         tiles = tiles[: args.limit]
@@ -282,53 +305,188 @@ def cmd_batch(args: argparse.Namespace) -> None:
     if not todo:
         print("All tiles already processed — running dedup only.")
 
-    progress_lock = threading.Lock()
-    done_count = [len(already_done)]
-    total = len(tiles)
     errors: list[tuple[str, str]] = []
+    total = len(tiles)
 
-    def process_tile(tile: tuple[int, int, int, int]) -> None:
-        x, y, w, h = tile
-        tile_key = f"{x}_{y}_{w}_{h}"
-        json_path = out_dir / f"{tile_key}.json"
+    use_row_sequence = getattr(args, "row_sequence", False)
 
-        try:
-            tile_img_path = tile_cache_dir / f"{tile_key}_tile.png"
-            if tile_img_path.exists():
-                image = PILImage.open(tile_img_path).convert("RGB")
+    if use_row_sequence and todo:
+        # ── Row-sequence mode: send each row as one multi-image sequence call ──
+        # Groups tiles by y-band so the model sees the full horizontal strip at once.
+        # This eliminates edge duplicates and allows cross-tile label assembly.
+        max_frames = getattr(args, "max_row_frames", 4)
+        raw_rows = group_tiles_by_row(tiles, args.tile_size, args.overlap)
+        # Split any row wider than max_frames into overlapping groups of max_frames
+        rows = []
+        for raw_row in raw_rows:
+            if len(raw_row) <= max_frames:
+                rows.append(raw_row)
             else:
-                image = fetch_crop(iiif_base, x, y, w, h, size=args.render_size,
-                                   local_image=local_image)
-                image.save(tile_img_path)
+                step = max(1, max_frames - 1)  # 1-tile overlap between groups
+                for i in range(0, len(raw_row), step):
+                    group = raw_row[i:i + max_frames]
+                    if group:
+                        rows.append(group)
 
-            result = extract_labels(
-                image=image,
-                system_prompt=SYSTEM_PROMPT,
-                user_prompt=prompt_text,
-                schema=EXTRACTION_SCHEMA,
-                model=model,
-                log_path=log_path,
-            )
-            result["_meta"] = {
-                "tile_x": x, "tile_y": y, "tile_w": w, "tile_h": h,
-                "render_w": 1000, "render_h": 1000,
-                "prompt": args.prompt, "model": args.model,
-            }
-            json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2))
-            n = len(result.get("extractions", []))
+        todo_set = set(todo)
+        row_total = len(rows)
+        done_rows = [0]
+        print(f"  Row-sequence mode: {len(tiles)} tiles → {row_total} calls (max {max_frames} frames/call)")
 
-            with progress_lock:
-                done_count[0] += 1
-                print(f"[{done_count[0]}/{total}] {tile_key}: {n} extractions", flush=True)
+        for row_idx, row_tiles in enumerate(rows):
+            # Skip rows where all tiles are already done
+            row_todo = [t for t in row_tiles if t in todo_set]
+            if not row_todo:
+                done_rows[0] += 1
+                continue
 
-        except Exception as e:
-            with progress_lock:
-                done_count[0] += 1
-                print(f"[{done_count[0]}/{total}] {tile_key}: ERROR {e}", flush=True)
-                errors.append((tile_key, str(e)))
+            # Load images for every tile in the row (cache → fetch)
+            row_images = []
+            row_order = []  # tiles in the order images were collected
+            use_adaptive = getattr(args, "adaptive", False) and not local_image
+            for tile in row_tiles:
+                x, y, w, h = tile
+                tile_key = f"{x}_{y}_{w}_{h}"
+                tile_img_path = tile_cache_dir / f"{tile_key}_tile.png"
+                try:
+                    if tile_img_path.exists():
+                        img = PILImage.open(tile_img_path).convert("RGB")
+                    else:
+                        if use_adaptive:
+                            preview = fetch_crop(iiif_base, x, y, w, h, size=512,
+                                                 quality=iiif_quality)
+                            rs = adaptive_render_size(preview, low=1024, high=2048)
+                        else:
+                            rs = args.render_size
+                        img = fetch_crop(iiif_base, x, y, w, h, size=rs,
+                                         local_image=local_image, quality=iiif_quality)
+                        img.save(tile_img_path)
+                    row_images.append(img)
+                    row_order.append(tile)
+                except Exception as e:
+                    print(f"  Row {row_idx+1}: could not fetch tile {tile_key}: {e}")
+                    errors.append((tile_key, str(e)))
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as executor:
-        concurrent.futures.wait([executor.submit(process_tile, t) for t in todo])
+            if not row_images:
+                continue
+
+            coords_str = " + ".join(f"{x},{y}" for x, y, w, h in row_order)
+            print(f"  Row [{row_idx+1}/{row_total}] ({coords_str}) [{len(row_images)} frames] ...",
+                  end=" ", flush=True)
+
+            # Single sequence call for all tiles in the row
+            if len(row_images) == 1:
+                x, y, w, h = row_order[0]
+                try:
+                    result = _sanitize_extractions(extract_labels(
+                        image=row_images[0],
+                        system_prompt=SYSTEM_PROMPT,
+                        user_prompt=prompt_text,
+                        schema=EXTRACTION_SCHEMA,
+                        model=model,
+                        log_path=log_path,
+                        cache_dir=OUTPUTS_CACHE_DIR,
+                    ), log_path=log_path)
+                    n = len(result.get("extractions", []))
+                    print(f"{n} extractions")
+                    result["_meta"] = {
+                        "tile_x": x, "tile_y": y, "tile_w": w, "tile_h": h,
+                        "render_w": 1000, "render_h": 1000,
+                        "prompt": args.prompt, "model": args.model,
+                    }
+                    tile_key = f"{x}_{y}_{w}_{h}"
+                    (out_dir / f"{tile_key}.json").write_text(
+                        json.dumps(result, ensure_ascii=False, indent=2))
+                except Exception as e:
+                    print(f"ERROR {e}")
+                    errors.append((f"{x}_{y}_{w}_{h}", str(e)))
+            else:
+                try:
+                    seq_result = _sanitize_extractions(extract_labels_sequence(
+                        images=row_images,
+                        system_prompt=SYSTEM_PROMPT,
+                        schema=EXTRACTION_SCHEMA,
+                        model=model,
+                        log_path=log_path,
+                        cache_dir=OUTPUTS_CACHE_DIR,
+                    ), log_path=log_path)
+                    n = len(seq_result.get("extractions", []))
+                    print(f"{n} extractions")
+
+                    # Distribute extractions back to per-tile JSONs using frame_idx
+                    per_tile: dict[int, list] = {i: [] for i in range(len(row_order))}
+                    for ext in seq_result.get("extractions", []):
+                        fi = min(int(ext.get("frame_idx", 0)), len(row_order) - 1)
+                        per_tile[fi].append(ext)
+
+                    for fi, (x, y, w, h) in enumerate(row_order):
+                        tile_key = f"{x}_{y}_{w}_{h}"
+                        tile_result = {
+                            "extractions": per_tile[fi],
+                            "_meta": {
+                                "tile_x": x, "tile_y": y, "tile_w": w, "tile_h": h,
+                                "render_w": 1000, "render_h": 1000,
+                                "prompt": args.prompt, "model": args.model,
+                                "row_sequence": True,
+                            },
+                        }
+                        (out_dir / f"{tile_key}.json").write_text(
+                            json.dumps(tile_result, ensure_ascii=False, indent=2))
+                except Exception as e:
+                    print(f"ERROR {e}")
+                    for x, y, w, h in row_order:
+                        errors.append((f"{x}_{y}_{w}_{h}", str(e)))
+
+            done_rows[0] += 1
+
+    else:
+        # ── Per-tile mode (original, kept for --no-row-sequence) ──────────────
+        progress_lock = threading.Lock()
+        done_count = [len(already_done)]
+
+        def process_tile(tile: tuple[int, int, int, int]) -> None:
+            x, y, w, h = tile
+            tile_key = f"{x}_{y}_{w}_{h}"
+            json_path = out_dir / f"{tile_key}.json"
+
+            try:
+                tile_img_path = tile_cache_dir / f"{tile_key}_tile.png"
+                if tile_img_path.exists():
+                    image = PILImage.open(tile_img_path).convert("RGB")
+                else:
+                    image = fetch_crop(iiif_base, x, y, w, h, size=args.render_size,
+                                       local_image=local_image, quality=iiif_quality)
+                    image.save(tile_img_path)
+
+                result = _sanitize_extractions(extract_labels(
+                    image=image,
+                    system_prompt=SYSTEM_PROMPT,
+                    user_prompt=prompt_text,
+                    schema=EXTRACTION_SCHEMA,
+                    model=model,
+                    log_path=log_path,
+                    cache_dir=OUTPUTS_CACHE_DIR,
+                ), log_path=log_path)
+                result["_meta"] = {
+                    "tile_x": x, "tile_y": y, "tile_w": w, "tile_h": h,
+                    "render_w": 1000, "render_h": 1000,
+                    "prompt": args.prompt, "model": args.model,
+                }
+                json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2))
+                n = len(result.get("extractions", []))
+
+                with progress_lock:
+                    done_count[0] += 1
+                    print(f"[{done_count[0]}/{total}] {tile_key}: {n} extractions", flush=True)
+
+            except Exception as e:
+                with progress_lock:
+                    done_count[0] += 1
+                    print(f"[{done_count[0]}/{total}] {tile_key}: ERROR {e}", flush=True)
+                    errors.append((tile_key, str(e)))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as executor:
+            concurrent.futures.wait([executor.submit(process_tile, t) for t in todo])
 
     if errors:
         print(f"\n{len(errors)} tile(s) failed:")
@@ -350,12 +508,29 @@ def cmd_batch(args: argparse.Namespace) -> None:
         })
 
     min_conf = args.min_confidence
+    # Include scout results in master dedup if they exist
+    scout_path = out_dir / "scout.json"
+    if scout_path.exists():
+        scout_data = json.loads(scout_path.read_text())
+        exts = scout_data.get("extractions", [])
+        if exts:
+            print(f"  Including {len(exts)} macro features from scout pass ...")
+            # Wrap as a pseudo-tile result for dedup_extractions
+            tile_results.append({
+                "tile_x": 0, "tile_y": 0, "tile_w": img_w, "tile_h": img_h,
+                "render_w": 1000, "render_h": 1000,
+                "extractions": exts,
+            })
+
+    # Apply per-category confidence floors before dedup
     for tr in tile_results:
-        tr["extractions"] = [e for e in tr["extractions"] if e.get("confidence", 1.0) >= min_conf]
+        tr["extractions"] = _apply_conf_floors(tr["extractions"], global_min=min_conf)
 
     deduped = dedup_extractions(tile_results, iou_threshold=0.15)
     raw_n = sum(len(tr["extractions"]) for tr in tile_results)
-    print(f"Dedup: {raw_n} raw → {len(deduped)} unique extractions (conf ≥ {min_conf})")
+    confirmed_n = sum(1 for e in deduped if e.get("tier") == "confirmed")
+    uncertain_n = sum(1 for e in deduped if e.get("tier") == "uncertain")
+    print(f"Dedup: {raw_n} raw → {len(deduped)} unique extractions (confirmed={confirmed_n}, uncertain={uncertain_n}, conf ≥ {min_conf})")
 
     master_path = out_dir / "all_extractions.json"
     master_path.write_text(json.dumps({
@@ -407,6 +582,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
         "tile_size": args.tile_size,
         "overlap": args.overlap,
         "concurrency": args.concurrency,
+        "row_sequence": use_row_sequence,
         "min_confidence": min_conf,
         "n_tiles": total,
         "n_errors": len(errors),
@@ -433,13 +609,83 @@ def cmd_preview(args: argparse.Namespace) -> None:
             raise SystemExit(
                 "Provide --iiif-base to re-fetch the tile for preview rendering"
             )
-        from iiif_tiles import fetch_crop
-        image = fetch_crop(iiif_base, x, y, w, h)
+        from iiif_tiles import fetch_crop, get_image_info
+        _quality = get_image_info(iiif_base).get("quality", "default")
+        image = fetch_crop(iiif_base, x, y, w, h, quality=_quality)
     else:
         raise SystemExit("Cannot parse tile coordinates from filename. Provide --iiif-base.")
 
     preview_path = json_path.with_suffix("_preview.png")
     render_preview(image, extractions, preview_path)
+
+
+# Per-category minimum confidence floors (applied before dedup).
+# Streets and hydrology use a lower floor since spatial anchoring matters even
+# for uncertain fragments. Legend/other noise warrants a higher bar.
+CATEGORY_MIN_CONF: dict[str, float] = {
+    "street":      0.40,
+    "hydrology":   0.40,
+    "place":       0.50,
+    "building":    0.55,
+    "institution": 0.55,
+    "title":       0.50,
+    "legend":      0.65,
+    "other":       0.65,
+}
+
+
+def _apply_conf_floors(extractions: list[dict], global_min: float = 0.4) -> list[dict]:
+    """Filter extractions by per-category confidence floor (or global_min, whichever is higher)."""
+    out = []
+    for e in extractions:
+        cat = e.get("category", "other")
+        floor = max(CATEGORY_MIN_CONF.get(cat, global_min), global_min)
+        if e.get("confidence", 0) >= floor:
+            out.append(e)
+    return out
+
+
+def _sanitize_extractions(result: dict, log_path: Path | None = None) -> dict:
+    """Drop or clamp extractions with malformed bbox values from Gemini.
+
+    Gemini occasionally returns bbox coordinates outside the 0-1000 normalized
+    range (e.g. 55358-digit integers). These are model hallucinations — discard
+    the extraction rather than propagating garbage coordinates downstream.
+    Also clamps confidence to [0, 1]. Logs violation counts to sanitize.jsonl.
+    """
+    import json as _json
+    from datetime import datetime, timezone
+
+    clean = []
+    n_dropped = 0
+    for ext in result.get("extractions", []):
+        bbox = ext.get("bbox_px")
+        if not bbox or len(bbox) < 4:
+            n_dropped += 1
+            continue
+        try:
+            coords = [float(v) for v in bbox[:4]]
+        except (TypeError, ValueError, OverflowError):
+            n_dropped += 1
+            continue
+        if any(v < 0 or v > 10_000 for v in coords):
+            n_dropped += 1
+            continue
+        ext["bbox_px"] = [min(max(v, 0), 1000) for v in coords]
+        ext["confidence"] = min(max(float(ext.get("confidence", 0)), 0.0), 1.0)
+        clean.append(ext)
+    if n_dropped > 0 and log_path:
+        sanitize_path = log_path.parent / "sanitize.jsonl"
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "n_dropped": n_dropped,
+            "n_total": len(result.get("extractions", [])),
+        }
+        sanitize_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(sanitize_path, "a") as f:
+            f.write(_json.dumps(entry) + "\n")
+    result["extractions"] = clean
+    return result
 
 
 def _to_global(bbox_px, tile_x, tile_y, tile_w, tile_h, render_w=1000, render_h=1000):
@@ -491,13 +737,56 @@ def _centroid_distance(a, b):
     return math.sqrt((acx - bcx)**2 + (acy - bcy)**2)
 
 
+def _colinear(a_bbox, b_bbox, angle_deg, tolerance_px=200) -> bool:
+    """True if two bbox centroids are roughly aligned along the given angle."""
+    ax, ay, aw, ah = a_bbox
+    bx, by, bw, bh = b_bbox
+    acx, acy = ax + aw / 2, ay + ah / 2
+    bcx, bcy = bx + bw / 2, by + bh / 2
+    angle_rad = math.radians(angle_deg)
+    # Project displacement onto perpendicular axis; if small → colinear
+    dx, dy = bcx - acx, bcy - acy
+    perp = abs(dx * math.sin(angle_rad) - dy * math.cos(angle_rad))
+    return perp < tolerance_px
+
+
+def _union_bbox(a, b):
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    x0 = min(ax, bx)
+    y0 = min(ay, by)
+    x1 = max(ax + aw, bx + bw)
+    y1 = max(ay + ah, by + bh)
+    return (x0, y0, x1 - x0, y1 - y0)
+
+
 def dedup_items(items, iou_threshold=0.25):
     """Core deduplication logic for a flat list of items with 'global_bbox'."""
     if not items:
         return []
 
-    # Dedup: suppress lower-confidence item when IoU/Proximity + text similarity match
+    # ── Fast pass: exact text + centroid within 150px → keep higher-confidence ──
     keep = [True] * len(items)
+    seen_text: dict[str, int] = {}
+    for i, item in enumerate(items):
+        t = item.get("text", "").strip().lower()
+        if not t:
+            continue
+        if t in seen_text:
+            j = seen_text[t]
+            if not keep[j]:
+                seen_text[t] = i
+                continue
+            if _centroid_distance(items[i]["global_bbox"], items[j]["global_bbox"]) < 150:
+                if item.get("confidence", 0) > items[j].get("confidence", 0):
+                    keep[j] = False
+                    seen_text[t] = i
+                else:
+                    keep[i] = False
+        else:
+            seen_text[t] = i
+
+    # Dedup: suppress lower-confidence item when IoU/Proximity + text similarity match
     for i in range(len(items)):
         if not keep[i]:
             continue
@@ -509,7 +798,9 @@ def dedup_items(items, iou_threshold=0.25):
             bbox_j = items[j]["global_bbox"]
 
             # Text similarity check first
-            if not _text_similar(items[i].get("text", ""), items[j].get("text", "")):
+            text_i = items[i].get("text", "")
+            text_j = items[j].get("text", "")
+            if not _text_similar(text_i, text_j):
                 continue
 
             # Spatial check: overlap (IoU) OR center-point proximity (relative to size)
@@ -517,27 +808,130 @@ def dedup_items(items, iou_threshold=0.25):
             dist = _centroid_distance(bbox_i, bbox_j)
             # Threshold is 1.2x the largest dimension of the two boxes
             max_dim = max(bbox_i[2], bbox_i[3], bbox_j[2], bbox_j[3])
-            is_close = dist < (max_dim * 1.2)
+            is_close = dist < (max_dim * 1.5) # Increased threshold slightly for better catch
 
             if iou >= iou_threshold or is_close:
-                # Merge: prioritize higher confidence; then longer text
-                ci = items[i].get("confidence", 0)
-                cj = items[j].get("confidence", 0)
+                # 0. Calculate textual substring overlap for prioritizing fragments
+                is_sub = (text_i.lower() in text_j.lower() or text_j.lower() in text_i.lower())
 
-                if ci > cj:
-                    keep[j] = False
-                elif cj > ci:
-                    keep[i] = False
-                    break
-                else:
-                    # Confidence tie: keep the one with longer text
-                    if len(items[i].get("text", "")) >= len(items[j].get("text", "")):
+                # 1. Prioritize 'scout' source for macro categories (street, hydrology, title)
+                # If one is from scout and the other isn't, prefer scout for these cats.
+                source_i = items[i].get("source", "tile")
+                source_j = items[j].get("source", "tile")
+                cat_i = items[i].get("category", "other")
+                macro_cats = {"street", "hydrology", "title"}
+                
+                if cat_i in macro_cats and source_i != source_j:
+                    if source_i == "scout":
                         keep[j] = False
                     else:
                         keep[i] = False
                         break
+                elif is_sub and len(text_i) != len(text_j):
+                    # 2. If one is a substring of the other, prefer the longer one 
+                    #    unless its confidence is significantly lower (> 0.2 difference).
+                    ci = items[i].get("confidence", 0)
+                    cj = items[j].get("confidence", 0)
+                    
+                    i_is_longer = len(text_i) > len(text_j)
+                    if i_is_longer:
+                        # Keep i (longer) if it's reasonably confident compared to j
+                        if ci >= (cj - 0.2):
+                            keep[j] = False
+                        else:
+                            keep[i] = False
+                            break
+                    else:
+                        # Keep j (longer) if it's reasonably confident compared to i
+                        if cj >= (ci - 0.2):
+                            keep[i] = False
+                            break
+                        else:
+                            keep[j] = False
+                else:
+                    # 3. Standard confidence-based priority
+                    ci = items[i].get("confidence", 0)
+                    cj = items[j].get("confidence", 0)
+                    if ci > cj:
+                        keep[j] = False
+                    elif cj > ci:
+                        keep[i] = False
+                        break
+                    else:
+                        # Tie: keep longer string
+                        if len(text_i) >= len(text_j):
+                            keep[j] = False
+                        else:
+                            keep[i] = False
+                            break
 
-    return [items[k] for k in range(len(items)) if keep[k]]
+    survivors = [items[k] for k in range(len(items)) if keep[k]]
+
+    # ── Fragment assembly pass ────────────────────────────────────────────────
+    # Merge pairs where v6 transcription-only mode returns fragments ("continues...",
+    # "fragment") that belong to the same label on adjacent tiles.
+    frag_keep = [True] * len(survivors)
+    for i in range(len(survivors)):
+        if not frag_keep[i]:
+            continue
+        notes_i = (survivors[i].get("notes") or "").lower()
+        is_frag_i = "fragment" in notes_i or "continues" in notes_i
+        if not is_frag_i:
+            continue
+        text_i = survivors[i].get("text", "").strip()
+        angle_i = survivors[i].get("rotation_deg", 0)
+        for j in range(i + 1, len(survivors)):
+            if not frag_keep[j]:
+                continue
+            notes_j = (survivors[j].get("notes") or "").lower()
+            is_frag_j = "fragment" in notes_j or "continues" in notes_j
+            if not is_frag_j:
+                continue
+            text_j = survivors[j].get("text", "").strip()
+            # Text must be compatible: one contains the other, or they share a word
+            t_i, t_j = text_i.lower(), text_j.lower()
+            words_i, words_j = set(t_i.split()), set(t_j.split())
+            text_compat = (t_i in t_j or t_j in t_i or bool(words_i & words_j))
+            if not text_compat:
+                continue
+            # Must be spatially colinear along their shared angle
+            avg_angle = (angle_i + survivors[j].get("rotation_deg", 0)) / 2
+            if not _colinear(survivors[i]["global_bbox"], survivors[j]["global_bbox"],
+                             avg_angle, tolerance_px=200):
+                continue
+            # Merge: keep longer text, union bbox, max confidence
+            longer = text_i if len(text_i) >= len(text_j) else text_j
+            merged_bbox = _union_bbox(survivors[i]["global_bbox"], survivors[j]["global_bbox"])
+            merged_conf = max(survivors[i].get("confidence", 0), survivors[j].get("confidence", 0))
+            survivors[i] = {
+                **survivors[i],
+                "text": longer,
+                "global_bbox": merged_bbox,
+                "confidence": merged_conf,
+                "notes": "assembled from fragments",
+            }
+            frag_keep[j] = False
+
+    result = [survivors[k] for k in range(len(survivors)) if frag_keep[k]]
+
+    # ── Confidence tier tagging ───────────────────────────────────────────────
+    # confirmed ≥ 0.7 | uncertain 0.4–0.7 | (below 0.4 already filtered out above)
+    for item in result:
+        conf = item.get("confidence", 0)
+        item["tier"] = "confirmed" if conf >= 0.7 else "uncertain"
+
+    return result
+
+
+def group_tiles_by_row(tiles, tile_size, overlap):
+    """Group tiles by y-band (same grid row). Returns list of rows, each a list of tiles sorted left→right."""
+    step = tile_size - overlap
+    rows: dict[int, list] = {}
+    for tile in tiles:
+        x, y, w, h = tile
+        row_idx = round(y / step) if step > 0 else 0
+        rows.setdefault(row_idx, []).append(tile)
+    return [sorted(row, key=lambda t: t[0]) for row in sorted(rows.values(), key=lambda r: r[0][1])]
 
 
 def dedup_extractions(tile_results, iou_threshold=0.25):
@@ -577,6 +971,13 @@ def cmd_stitch(args: argparse.Namespace) -> None:
     if not iiif_base and args.map_id:
         iiif_base = get_iiif_base_from_supabase(args.map_id)
 
+    iiif_quality = "default"
+    if iiif_base:
+        try:
+            iiif_quality = get_image_info(iiif_base).get("quality", "default")
+        except Exception:
+            pass
+
     map_label = args.map_id or "unknown"
     out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
     tile_cache_dir = OUTPUTS_DIR / map_label
@@ -587,6 +988,7 @@ def cmd_stitch(args: argparse.Namespace) -> None:
 
     COLORS = {
         "street": (220, 50, 50),
+        "hydrology": (50, 80, 220),
         "place": (50, 130, 220),
         "building": (50, 200, 50),
         "institution": (210, 140, 30),
@@ -637,12 +1039,12 @@ def cmd_stitch(args: argparse.Namespace) -> None:
             print(f"  Fetching tile {tx},{ty},{tw},{th} ...")
             adaptive = getattr(args, "adaptive", False)
             if adaptive:
-                preview = fetch_crop(iiif_base, tx, ty, tw, th, size=512)
+                preview = fetch_crop(iiif_base, tx, ty, tw, th, size=512, quality=iiif_quality)
                 rs = adaptive_render_size(preview)
                 print(f"    density={estimate_density(preview):.2f} → {rs}px", end=" ")
             else:
                 rs = render_size
-            img = fetch_crop(iiif_base, tx, ty, tw, th, size=rs)
+            img = fetch_crop(iiif_base, tx, ty, tw, th, size=rs, quality=iiif_quality)
             img.save(tile_cache_dir / f"{tile_key}_tile.png")
             tile_images[tile_key] = img
         else:
@@ -765,7 +1167,7 @@ def cmd_stitch(args: argparse.Namespace) -> None:
 
     # Dedup and draw all bboxes in global canvas coordinates
     # Filter low-confidence extractions before dedup
-    min_conf = getattr(args, "min_confidence", 0.5)
+    min_conf = getattr(args, "min_confidence", 0.4)
     for tr in tile_results:
         tr["extractions"] = [
             e for e in tr["extractions"] if e.get("confidence", 1.0) >= min_conf
@@ -859,25 +1261,39 @@ def cmd_dedup(args: argparse.Namespace) -> None:
         return
 
     raw_n = len(items)
-    # Filter by confidence
-    items = [i for i in items if i.get("confidence", 1.0) >= args.min_confidence]
+    # Filter by confidence and valid spatial data
+    items = [
+        i for i in items 
+        if i.get("confidence", 1.0) >= args.min_confidence 
+        and i.get("global_bbox") 
+        and all(c is not None for c in i["global_bbox"])
+    ]
     filtered_n = len(items)
 
     print(f"  Processing {filtered_n} labels (min_conf={args.min_confidence}, raw={raw_n})")
     
     deduped = dedup_items(items, iou_threshold=args.iou)
     
+    confirmed = [e for e in deduped if e.get("tier") == "confirmed"]
+    uncertain = [e for e in deduped if e.get("tier") == "uncertain"]
+
     print(f"\nDeduplication Result:")
     print(f"  Raw count (filtered): {filtered_n}")
-    print(f"  Unique count:         {len(deduped)}")
+    print(f"  Unique count:         {len(deduped)}  (confirmed={len(confirmed)}, uncertain={len(uncertain)})")
     print(f"  Reduction:            {filtered_n - len(deduped)} labels merged ({(1 - len(deduped)/filtered_n)*100:.1f}%)")
 
     if deduped:
-        print("\nSample unique labels:")
-        for e in deduped[:10]:
-            print(f"  - {e.get('text', '')[:30]} [{e.get('category', 'other')}] (conf={e.get('confidence', 0):.2f})")
-        if len(deduped) > 10:
-            print(f"  ... and {len(deduped) - 10} more")
+        print("\nConfirmed labels (conf ≥ 0.7):")
+        for e in confirmed[:10]:
+            print(f"  - {e.get('text', '')[:40]} [{e.get('category', 'other')}] (conf={e.get('confidence', 0):.2f})")
+        if len(confirmed) > 10:
+            print(f"  ... and {len(confirmed) - 10} more")
+        if uncertain:
+            print(f"\nUncertain labels (0.4–0.7):")
+            for e in uncertain[:5]:
+                print(f"  ? {e.get('text', '')[:40]} [{e.get('category', 'other')}] (conf={e.get('confidence', 0):.2f}) — {(e.get('notes') or '')[:50]}")
+            if len(uncertain) > 5:
+                print(f"  ... and {len(uncertain) - 5} more")
 
     # Save a preview JSON
     out_name = f"dedup_preview_{datetime.now().strftime('%Y%H%M%S')}.json"
@@ -894,10 +1310,206 @@ def cmd_dedup(args: argparse.Namespace) -> None:
     }, indent=2, ensure_ascii=False))
     print(f"\nResult saved to: {out_path}")
 
+    if args.apply:
+        if not args.map_id:
+            raise SystemExit("Provide --map-id for --apply")
+        
+        # Use provided user_id or fall back to the discovered admin ID be1961db-ba19-47ad-9530-5ecf4a055f8b
+        user_id = args.user_id or "be1961db-ba19-47ad-9530-5ecf4a055f8b"
+        
+        print(f"\nApplying {len(deduped)} labels as Map Pins for user {user_id} ...")
+        from supabase_client import upsert_label_pins
+        
+        pins = []
+        for e in deduped:
+            bbox = e.get("global_bbox")
+            if not bbox: continue
+            gx, gy, gw, gh = bbox
+            pins.append({
+                "map_id": args.map_id,
+                "user_id": user_id,
+                "label": e.get("text", ""),
+                "pixel_x": int(gx + gw/2),
+                "pixel_y": int(gy + gh/2),
+                "data": {
+                    "source": "ocr_cli_dedup",
+                    "ocr_extraction_id": e.get("id"),
+                    "confidence": e.get("confidence"),
+                    "category": e.get("category"),
+                    "run_id": args.run_id or e.get("run_id"),
+                }
+            })
+            
+        n = upsert_label_pins(args.map_id, pins)
+        print(f"Applied {n} labels to supabase.label_pins table.")
+
 
 def cmd_compare(args: argparse.Namespace) -> None:
     print("compare subcommand — stub for future A/B of models/prompts")
     print("Not implemented in POC phase.")
+
+
+def cmd_scout(args: argparse.Namespace) -> None:
+    """Run a macro-pass on the full map at low resolution."""
+    iiif_base = args.iiif_base
+    if not iiif_base and args.map_id:
+        iiif_base = get_iiif_base_from_supabase(args.map_id)
+    if not iiif_base:
+        raise SystemExit("Provide --map-id or --iiif-base")
+
+    print(f"Scouting map {args.map_id or 'unknown'} ...")
+    info = get_image_info(iiif_base)
+    full_w, full_h = info["width"], info["height"]
+    iiif_quality = info.get("quality", "default")
+    print(f"  Full resolution: {full_w}×{full_h} (IIIF v{info['version']}, quality={iiif_quality})")
+
+    if info.get("sizes"):
+        sizes_str = ", ".join(f"{s['width']}×{s['height']}" for s in info["sizes"])
+        print(f"  Pre-rendered levels: {sizes_str}")
+    if info.get("scale_factors"):
+        print(f"  Scale factors: {info['scale_factors']}")
+
+    # Choose scale levels from info.json — prefers server pre-rendered sizes
+    render_size = args.render_size
+    levels = choose_scale_levels(info, targets=(1024, 2048, render_size))
+    print(f"  Using {len(levels)} scale level(s): "
+          + ", ".join(f"{l['width']}×{l['height']}" for l in levels))
+
+    # Fetch one image per level (full map, fit within the level's width)
+    images = []
+    for level in levels:
+        lw = level["width"]
+        print(f"  Fetching full map at {lw}px ...", end=" ", flush=True)
+        img = fetch_crop(iiif_base, 0, 0, full_w, full_h, size=lw, quality=iiif_quality, fit=True)
+        print(f"{img.size[0]}×{img.size[1]}")
+        images.append(img)
+
+    # Use the highest-res single image for single-image mode (backward compat)
+    image = images[-1]
+    
+    from prompt import PROMPTS, SYSTEM_PROMPT, EXTRACTION_SCHEMA, SCOUT_SCHEMA
+    prompt_key = args.prompt or "scout"
+    schema = SCOUT_SCHEMA if prompt_key == "scout" else EXTRACTION_SCHEMA
+    prompt_text = PROMPTS[prompt_key]
+
+    if len(images) > 1:
+        # Multi-scale sequence: one call, model sees all levels
+        # Prepend level context to the prompt so the model knows what each frame is
+        level_desc = "\n".join(
+            f"Frame {i}: full map at {levels[i]['width']}×{levels[i]['height']}px"
+            for i in range(len(images))
+        )
+        multi_prompt = (
+            f"You are receiving {len(images)} frames of the SAME map at increasing resolutions.\n"
+            f"{level_desc}\n"
+            "Use all frames together: Frame 0 for overall structure and cartouche location, "
+            "higher frames for reading fine text. Return results for the highest-resolution "
+            "frame you can confidently read each label from.\n\n"
+            + prompt_text
+        )
+        print(f"  Extracting via multi-scale sequence ({len(images)} frames, {args.model}) ...")
+        res = extract_labels_sequence(
+            images=images,
+            system_prompt=SYSTEM_PROMPT,
+            schema=schema,
+            model=args.model,
+        )
+        # Discard frame_idx — scout results are always global (full-map coords)
+        for ext in res.get("extractions", []):
+            ext.pop("frame_idx", None)
+    else:
+        print(f"  Extracting via single image ({args.model}, prompt={prompt_key}) ...")
+        res = extract_labels(
+            image,
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=prompt_text,
+            schema=schema,
+            model=args.model,
+        )
+    extractions = res.get("extractions", [])
+
+    # ── Map content bound ─────────────────────────────────────────────────────
+    content_bound = res.get("map_content_bbox")
+    global_bound = None
+    if content_bound and len(content_bound) == 4:
+        bx = (content_bound[0] * full_w) / 1000
+        by = (content_bound[1] * full_h) / 1000
+        bw = (content_bound[2] * full_w) / 1000
+        bh = (content_bound[3] * full_h) / 1000
+        global_bound = (bx, by, bw, bh)
+        print(f"  Map content bound: {tuple(int(v) for v in global_bound)}")
+
+    # ── Cartouche bound ───────────────────────────────────────────────────────
+    cartouche_norm = res.get("cartouche_bbox")
+    global_cartouche = None
+    if cartouche_norm and len(cartouche_norm) == 4:
+        cx = (cartouche_norm[0] * full_w) / 1000
+        cy = (cartouche_norm[1] * full_h) / 1000
+        cw = (cartouche_norm[2] * full_w) / 1000
+        ch = (cartouche_norm[3] * full_h) / 1000
+        global_cartouche = (cx, cy, cw, ch)
+        print(f"  Cartouche bound:  {tuple(int(v) for v in global_cartouche)}")
+
+    # ── Metadata ──────────────────────────────────────────────────────────────
+    metadata = res.get("metadata") or {}
+    if metadata:
+        print("  Metadata:")
+        for k, v in metadata.items():
+            if v:
+                print(f"    {k:12s}: {v}")
+
+    # ── Scale feature bboxes to global pixel coords ───────────────────────────
+    items = []
+    for ext in extractions:
+        bbox = ext.get("bbox_px")
+        if not bbox or len(bbox) < 4:
+            continue
+        gx = (bbox[0] * full_w) / 1000
+        gy = (bbox[1] * full_h) / 1000
+        gw = (bbox[2] * full_w) / 1000
+        gh = (bbox[3] * full_h) / 1000
+        items.append({**ext, "global_bbox": (gx, gy, gw, gh), "source": "scout"})
+
+    print(f"  Found {len(items)} macro features.")
+
+    # Save results
+    map_label = args.map_id or "unknown"
+    run_dir = make_run_dir(map_label, args.run_id)
+    out_path = run_dir / "scout.json"
+    out_path.write_text(json.dumps({
+        "map_id": args.map_id,
+        "run_id": args.run_id or run_dir.name,
+        "render_size": render_size,
+        "n_features": len(items),
+        "map_content_bbox": list(global_bound) if global_bound else None,
+        "cartouche_bbox": list(global_cartouche) if global_cartouche else None,
+        "metadata": metadata,
+        "extractions": [{**e, "global_bbox": list(e["global_bbox"])} for e in items],
+    }, indent=2, ensure_ascii=False))
+
+    print(f"  Scout results saved to {out_path}")
+
+    if args.preview:
+        prev_path = out_path.with_suffix(".png")
+        preview_extractions = list(extractions)
+        if content_bound:
+            preview_extractions.append({
+                "text": "MAP CONTENT BOUND",
+                "category": "other",
+                "bbox_px": content_bound,
+                "confidence": 1.0,
+            })
+        if cartouche_norm:
+            preview_extractions.append({
+                "text": "CARTOUCHE",
+                "category": "title",
+                "bbox_px": cartouche_norm,
+                "confidence": 1.0,
+            })
+        render_preview(image, preview_extractions, prev_path)
+        print(f"  Preview saved to {prev_path}")
+
+    return global_bound
 
 
 def cmd_list_models(args: argparse.Namespace) -> None:
@@ -944,17 +1556,28 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--iiif-base", help="IIIF image service base URL")
     p_batch.add_argument("--local-image", help="Local image file path (skips IIIF/IA entirely)")
     p_batch.add_argument("--tile-size", type=int, default=2400, help="Tile size in source pixels (default 2400)")
-    p_batch.add_argument("--overlap", type=int, default=600, help="Tile overlap in source pixels (default 600)")
+    p_batch.add_argument("--overlap", type=int, default=300, help="Tile overlap in source pixels (default 300)")
     p_batch.add_argument("--render-size", type=int, default=1024, help="Rendered pixel width per tile (default 1024)")
     p_batch.add_argument("--concurrency", type=int, default=3, help="Max concurrent Gemini calls (default 3)")
     p_batch.add_argument("--limit", type=int, help="Max tiles to process (for testing)")
     p_batch.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
     p_batch.add_argument("--prompt", default=DEFAULT_PROMPT, help="Prompt version key")
     p_batch.add_argument("--run-id", help="Run identifier (default: timestamp)")
-    p_batch.add_argument("--min-confidence", type=float, default=0.5,
-                         help="Min confidence for deduped master output (default 0.5)")
+    p_batch.add_argument("--min-confidence", type=float, default=0.4,
+                         help="Min confidence for deduped master output (default 0.4)")
     p_batch.add_argument("--db", action="store_true",
                          help="Upsert deduped extractions to Supabase ocr_extractions table")
+    p_batch.add_argument("--scout", action="store_true", help="Run a macro-level Scout Pass first")
+    p_batch.add_argument("--row-sequence", action="store_true", default=True,
+                         help="Process tiles as row-strips (one sequence call per row, default on)")
+    p_batch.add_argument("--no-row-sequence", dest="row_sequence", action="store_false",
+                         help="Disable row-sequence mode; process each tile independently")
+    p_batch.add_argument("--max-row-frames", type=int, default=4,
+                         help="Max tiles per sequence call in row-sequence mode (default 4)")
+    p_batch.add_argument("--adaptive", action="store_true",
+                         help="Auto-scale render size by tile density (dense=2048, sparse=1024). "
+                              "Only fetches a 512px preview for uncached tiles; already-cached "
+                              "tiles use their stored resolution.")
     p_batch.set_defaults(func=cmd_batch)
 
     # dedup
@@ -963,9 +1586,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_dedup.add_argument("--run-id", help="Filter by specific run_id")
     p_dedup.add_argument("--local", help="Path to a run directory containing per-tile .json files")
     p_dedup.add_argument("--db", action="store_true", help="Fetch labels from Supabase ocr_extractions table")
-    p_dedup.add_argument("--min-confidence", type=float, default=0.5, help="Min confidence to include (default 0.5)")
+    p_dedup.add_argument("--apply", action="store_true", help="Apply deduped labels as Map Pins in Supabase")
+    p_dedup.add_argument("--user-id", help="User ID for Map Pins attribution (default: system admin)")
+    p_dedup.add_argument("--min-confidence", type=float, default=0.4, help="Min confidence to include (default 0.4; uncertain tier = 0.4–0.7, confirmed = ≥0.7)")
     p_dedup.add_argument("--iou", type=float, default=0.15, help="IoU threshold for dedup (default 0.15)")
     p_dedup.set_defaults(func=cmd_dedup)
+
+    # scout
+    p_scout = sub.add_parser("scout", help="Run a macro-pass on the full map at low resolution")
+    p_scout.add_argument("--map-id", help="Supabase maps.id UUID")
+    p_scout.add_argument("--iiif-base", help="IIIF image service base URL")
+    p_scout.add_argument("--render-size", type=int, default=4096, help="Target max dimension (default 4096)")
+    p_scout.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
+    p_scout.add_argument("--prompt", default="scout", help="Prompt version key (default 'scout')")
+    p_scout.add_argument("--run-id", help="Run identifier")
+    p_scout.add_argument("--preview", action="store_true", help="Save PNG preview with bbox overlay")
+    p_scout.set_defaults(func=cmd_scout)
 
     # preview
     p_prev = sub.add_parser("preview", help="Render bbox overlay from a saved JSON")

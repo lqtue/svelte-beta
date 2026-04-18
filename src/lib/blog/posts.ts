@@ -9,6 +9,33 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
 	{
+		slug: 'mid-april-2026-platform-notes',
+		title: 'Platform Notes: Universal IIIF, Gemini OCR, and the MapShell Refactor',
+		date: '2026-04-18',
+		category: 'update',
+		excerpt:
+			"Self-hosted tiles on R2 for better performance, a Gemini-powered OCR pipeline for toponym discovery, and a core architecture refactor around MapShell. April's updates focus on scaling our data foundation and unifying the user experience.",
+		content: `
+<p>Stability in a research archive comes from two places: the reliability of the data sources and the clarity of the interface. This week's updates address both, moving us away from reliance on institutional IIIF servers and toward a unified architecture that can support our next phase of growth.</p>
+
+<h2>Universal IIIF: Solving the "Paris Latency" Problem</h2>
+<p>For months, our performance has been throttled by the physical distance between our users and the primary scans hosted at the BnF in Paris. While Gallica is an invaluable partner, their IIIF Image API wasn't designed for high-concurrency tile requests from Southeast Asia. Furthermore, the mismatch between IIIF v2 (Gallica) and IIIF v3 (modern standards) required increasingly complex workarounds in our client code.</p>
+<p>We've solved this by deploying a custom <strong>Cloudflare Worker and R2 backend</strong>. When a map is mirrored to our internal <code>iiif.maparchive.vn</code> service, we fetch the source image, tile it ourselves, and host it on the edge. The worker acts as a universal IIIF translator, serving perfect v3-compliant <code>info.json</code> manifests regardless of the original source. The result is a nearly 10x improvement in tile load times and a much simpler display layer.</p>
+
+<h2>Project Scout: Gemini OCR for Map Discovery</h2>
+<p>Georeferencing a map is only the first step. To make these maps searchable, we need to extract the text—street names, administrative boundaries, and landmark labels. Doing this manually for the 500+ sheets in our collection is impossible.</p>
+<p>We've introduced <strong>Project Scout</strong>, an OCR pipeline powered by Gemini 3 Flash. Unlike standard OCR, Scout is tuned for the specific typography and layout of historical maps. It runs in two passes: a low-resolution "Scout Pass" to identify major features and a high-resolution "Detail Pass" for precise bounding boxes. We're already seeing high-accuracy extractions from the 1882 cadastral survey, which are being used to seed our search index and knowledge graph.</p>
+
+<h2>MapShell: A Unified Architecture</h2>
+<p>As we added more tools—Trace, Label, Review, Georef—our frontend code began to fragment. Each tool was managing its own OpenLayers instance, leading to inconsistent behavior and state drift.</p>
+<p>The new <strong>MapShell</strong> architecture modularizes the map engine. By using Svelte context to share a single, robust map instance across components, we've unified the user experience. Whether you're in the Catalog, the Annotation tool, or the Story viewer, the map behaves the same way, respects the same global state, and shares the same high-performance overlay logic. This refactor reduced the codebase size while making it significantly easier to build new collaborative features.</p>
+
+<h2>Route Groups and Editorial Polish</h2>
+<p>Finally, we've reorganized the application's URL structure using SvelteKit route groups. This separates our <code>(editorial)</code> pages (like this blog, the about page, and the catalog) from the full-screen <code>(app)</code> tools. This separation allows us to apply distinct layout strategies—like the clean, typography-focused look of the editorial site vs. the dense, data-rich interface of the contribution tools—without cluttering the code with conditional logic.</p>
+<p>The roadmap for the rest of April is clear: batch processing the remaining colonial maps through the R2 mirror and scaling up the OCR extraction to build our first comprehensive street-name index.</p>
+`
+	},
+	{
 		slug: 'platform-notes-april-2026',
 		title: 'Platform Notes: Retiring a Pipeline and Rebuilding the Data Foundation',
 		date: '2026-04-10',

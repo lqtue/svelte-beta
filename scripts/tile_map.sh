@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+MAP_ID="${1:?Usage: tile_map.sh <map-uuid> <source-image-url-or-path> [original-iiif-base]}"
+
 # ── Fetch from Supabase if missing ──────────────────────────────────────────
 if [[ -z "${2:-}" ]]; then
   echo "→ No source provided. Fetching from Supabase..."
