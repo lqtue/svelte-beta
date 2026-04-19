@@ -4,6 +4,8 @@
 Subcommands:
   run          Fetch tile(s) and extract labels via Gemini
   batch        Run OCR on all tiles of a map (resumable, concurrent)
+  clean        Fuzzy dedup + spatial fragment join for V1-style raw results
+  dedup        Deduplicate existing labels from DB or local files
   preview      Render bbox overlay on a saved output JSON
   stitch       Composite multiple tiles into one preview image
   compare      Stub for future A/B of models / prompt versions
@@ -15,8 +17,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 
 # Python 3.11+ restricts int-string conversion length as a security measure.
@@ -32,7 +36,10 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 from iiif_tiles import (
     adaptive_render_size,
+    auto_tile_params,
     choose_scale_levels,
+    compute_tile_densities,
+    detect_neatline,
     estimate_density,
     fetch_crop,
     get_image_info,
@@ -279,26 +286,115 @@ def cmd_batch(args: argparse.Namespace) -> None:
     prompt_text = PROMPTS.get(args.prompt, PROMPTS[DEFAULT_PROMPT])
     model = args.model
 
+    # ── Smart tiling pipeline ────────────────────────────────────────────────
     grid_region = None
-    if getattr(args, "scout", False):
+    tile_size = args.tile_size
+    overlap = args.overlap
+    render_size = args.render_size
+
+    # 0. Manual crop — human-specified neatline takes priority over all auto-detection
+    if getattr(args, "crop", None):
+        parts = [int(v) for v in args.crop.split(",")]
+        grid_region = tuple(parts)  # (x, y, w, h)
+        print(f"  Manual crop: {grid_region}")
+
+    # 1. Scout pass (optional) — detect neatline via LLM
+    if not grid_region and getattr(args, "scout", False):
         print("\n--- SCOUT PASS INITIALIZED ---")
         scout_args = argparse.Namespace(**{**vars(args), 'prompt': 'scout', 'render_size': 4096, 'preview': True})
         grid_region = cmd_scout(scout_args)
         if grid_region:
             print(f"  Adaptive Tiling: Constraining grid to map bound {grid_region}")
 
-    tiles = list(tile_grid(img_w, img_h, tile=args.tile_size, overlap=args.overlap, region=grid_region))
+    # 2. Auto-scale tile size to hit target call count
+    target_calls = getattr(args, "target_calls", None)
+    if target_calls and not local_image:
+        region_w = grid_region[2] if grid_region else img_w
+        region_h = grid_region[3] if grid_region else img_h
+        tile_size, overlap, render_size = auto_tile_params(
+            region_w, region_h, target_calls=target_calls,
+            base_render=args.render_size, base_tile=args.tile_size,
+        )
+        print(f"  Auto-tile: tile={tile_size} overlap={overlap} render={render_size} "
+              f"(targeting ~{target_calls} calls)")
+
+    # 3. Local neatline detection as fallback (no API call, pure image processing)
+    if not grid_region and not local_image and getattr(args, "smart_grid", False):
+        print("  Detecting neatline from overview image ...")
+        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024,
+                              quality=iiif_quality)
+        neatline = detect_neatline(overview)
+        if neatline:
+            ox, oy, ow, oh = neatline
+            sx, sy = img_w / overview.size[0], img_h / overview.size[1]
+            grid_region = (int(ox * sx), int(oy * sy), int(ow * sx), int(oh * sy))
+            print(f"  Neatline detected: {grid_region} "
+                  f"({grid_region[2]*grid_region[3]*100//(img_w*img_h)}% of image)")
+        else:
+            print("  No margins detected — using full image")
+
+    tiles = list(tile_grid(img_w, img_h, tile=tile_size, overlap=overlap,
+                           region=grid_region))
+    total_before_filter = len(tiles)
+
+    # 4. Density-based skip (text-specific local variance)
+    if not local_image and getattr(args, "skip_sparse", False):
+        min_text_frac = getattr(args, "min_text_frac", 0.01)
+        print(f"  Computing text density (threshold={min_text_frac}) ...")
+        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024,
+                              quality=iiif_quality)
+        densities = compute_tile_densities(overview, tiles, img_w, img_h)
+        tiles = [t for t in tiles if densities.get(t, 1.0) >= min_text_frac]
+        skipped = total_before_filter - len(tiles)
+        if skipped:
+            print(f"  Density filter: skipped {skipped} sparse tiles")
+
+    # 5. Prior-run skip — reuse empty-tile info from a previous run
+    prior_run = getattr(args, "prior_run", None)
+    if prior_run:
+        prior_dir = Path(prior_run)
+        if prior_dir.is_dir():
+            empty_tiles = set()
+            for f in prior_dir.glob("*.json"):
+                if f.stem[0].isdigit() and "_" in f.stem:
+                    data = json.loads(f.read_text())
+                    if not data.get("extractions"):
+                        parts = f.stem.split("_")
+                        if len(parts) == 4:
+                            empty_tiles.add(tuple(int(p) for p in parts))
+            before = len(tiles)
+            tiles = [t for t in tiles if t not in empty_tiles]
+            if before > len(tiles):
+                print(f"  Prior-run skip: dropped {before - len(tiles)} empty tiles "
+                      f"(from {prior_dir.name})")
+
+    # 6. Per-tile priority overrides — skip marked tiles, use lower render for low_res
+    tile_overrides: dict[str, str] = {}
+    if getattr(args, "tile_overrides", None):
+        try:
+            tile_overrides = json.loads(args.tile_overrides)
+        except json.JSONDecodeError as e:
+            print(f"  Warning: could not parse --tile-overrides JSON: {e}")
+    low_res_render = getattr(args, "low_res_render", 512)
+
+    skip_keys = {k for k, v in tile_overrides.items() if v == "skip"}
+    if skip_keys:
+        before = len(tiles)
+        tiles = [t for t in tiles if f"{t[0]}_{t[1]}_{t[2]}_{t[3]}" not in skip_keys]
+        print(f"  Tile overrides: skipped {before - len(tiles)} skip tiles, "
+              f"{sum(1 for v in tile_overrides.values() if v == 'low_res')} low-res tiles")
 
     if args.limit:
         tiles = tiles[: args.limit]
 
+    total = len(tiles)
     already_done = [(x, y, w, h) for x, y, w, h in tiles
                     if (out_dir / f"{x}_{y}_{w}_{h}.json").exists()]
     todo = [(x, y, w, h) for x, y, w, h in tiles
             if not (out_dir / f"{x}_{y}_{w}_{h}.json").exists()]
 
     print(f"  Image: {img_w}×{img_h} px → {len(tiles)} tiles "
-          f"({args.tile_size}px, {args.overlap}px overlap)")
+          f"({tile_size}px, {overlap}px overlap, render={render_size}px)")
     print(f"  {len(already_done)} already done, {len(todo)} to process "
           f"(concurrency={args.concurrency})")
 
@@ -352,12 +448,15 @@ def cmd_batch(args: argparse.Namespace) -> None:
                     if tile_img_path.exists():
                         img = PILImage.open(tile_img_path).convert("RGB")
                     else:
-                        if use_adaptive:
+                        tile_priority = tile_overrides.get(tile_key)
+                        if tile_priority == "low_res":
+                            rs = low_res_render
+                        elif use_adaptive:
                             preview = fetch_crop(iiif_base, x, y, w, h, size=512,
                                                  quality=iiif_quality)
                             rs = adaptive_render_size(preview, low=1024, high=2048)
                         else:
-                            rs = args.render_size
+                            rs = render_size
                         img = fetch_crop(iiif_base, x, y, w, h, size=rs,
                                          local_image=local_image, quality=iiif_quality)
                         img.save(tile_img_path)
@@ -454,7 +553,8 @@ def cmd_batch(args: argparse.Namespace) -> None:
                 if tile_img_path.exists():
                     image = PILImage.open(tile_img_path).convert("RGB")
                 else:
-                    image = fetch_crop(iiif_base, x, y, w, h, size=args.render_size,
+                    tile_rs = low_res_render if tile_overrides.get(tile_key) == "low_res" else render_size
+                    image = fetch_crop(iiif_base, x, y, w, h, size=tile_rs,
                                        local_image=local_image, quality=iiif_quality)
                     image.save(tile_img_path)
 
@@ -578,12 +678,18 @@ def cmd_batch(args: argparse.Namespace) -> None:
         "map_id": map_label,
         "model": model,
         "prompt": args.prompt,
-        "render_size": args.render_size,
-        "tile_size": args.tile_size,
-        "overlap": args.overlap,
+        "render_size": render_size,
+        "tile_size": tile_size,
+        "overlap": overlap,
         "concurrency": args.concurrency,
         "row_sequence": use_row_sequence,
         "min_confidence": min_conf,
+        "crop": getattr(args, "crop", None),
+        "tile_overrides": tile_overrides or None,
+        "low_res_render": low_res_render if tile_overrides else None,
+        "target_calls": getattr(args, "target_calls", None),
+        "smart_grid": getattr(args, "smart_grid", False),
+        "prior_run": getattr(args, "prior_run", None),
         "n_tiles": total,
         "n_errors": len(errors),
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -713,19 +819,22 @@ def _iou(a, b):
     return inter / union if union > 0 else 0.0
 
 
-def _text_similar(a: str, b: str) -> bool:
-    """True if one text is contained in the other, or they share most words."""
+def _lev_ratio(a: str, b: str) -> float:
+    """Normalized similarity via SequenceMatcher: 0.0 (different) → 1.0 (identical)."""
+    return SequenceMatcher(None, a, b).ratio()
+
+
+def _text_similar(a: str, b: str, fuzzy_threshold: float = 0.75) -> bool:
+    """True if texts are duplicates: exact, substring, word-overlap, or fuzzy Levenshtein."""
     a, b = a.lower().strip(), b.lower().strip()
-    if a == b:
-        return True
-    if a in b or b in a:
-        return True
-    wa = set(a.split())
-    wb = set(b.split())
-    if not wa or not wb:
+    if not a or not b:
         return False
-    overlap = len(wa & wb) / max(len(wa), len(wb))
-    return overlap >= 0.5
+    if a == b or a in b or b in a:
+        return True
+    wa, wb = set(a.split()), set(b.split())
+    if wa and wb and len(wa & wb) / max(len(wa), len(wb)) >= 0.5:
+        return True
+    return _lev_ratio(a, b) >= fuzzy_threshold
 
 
 def _centroid_distance(a, b):
@@ -758,6 +867,184 @@ def _union_bbox(a, b):
     x1 = max(ax + aw, bx + bw)
     y1 = max(ay + ah, by + bh)
     return (x0, y0, x1 - x0, y1 - y0)
+
+
+_FRENCH_CONNECTORS = frozenset(
+    "de du des d la le les l au aux en sur sous vers par "
+    "et ou ni car or donc or nr n°".split()
+)
+_STREET_PREFIXES = frozenset(
+    "rue ruelle impasse passage allée allée avenue boulevard quai chemin "
+    "place cour hameau route voie pont sentier".split()
+)
+
+
+def _is_fragment_candidate(text: str) -> bool:
+    """
+    True only for tokens that are likely incomplete on their own:
+      - single connector word (de, du, des, la, …)
+      - bare street prefix alone, without a following name (e.g. "Rue" but not "Rue Catinat")
+      - single word of 1–4 characters (abbreviations, initials)
+
+    Explicitly NOT fragments: "Rue Catinat", "Boulevard Charner", any multi-word text
+    with a full prefix+name pattern — those are complete labels.
+    """
+    t = text.lower().strip()
+    if not t:
+        return False
+    words = t.split()
+    if len(words) == 1:
+        w = words[0]
+        if w in _FRENCH_CONNECTORS:
+            return True
+        if w in _STREET_PREFIXES:
+            return True
+        if len(w) <= 4:
+            return True
+    return False
+
+
+def _spatial_join_fragments(items: list[dict], proximity_px: float = 700, angle_tol: float = 20) -> list[dict]:
+    """
+    Join word-fragments on the same axis into complete labels.
+
+    Works on V1-style data where items have no edge-continuation notes.
+    Groups items by rotation angle and spatial collinearity; sorts by position;
+    concatenates texts in reading order.
+
+    Only joins items where at least one is a fragment candidate (short or connector-word).
+    """
+    n = len(items)
+    if n < 2:
+        return items
+
+    # Union-Find
+    parent = list(range(n))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(x: int, y: int) -> None:
+        px, py = find(x), find(y)
+        if px != py:
+            parent[px] = py
+
+    for i in range(n):
+        ti = items[i].get("text", "").strip()
+        ang_i = float(items[i].get("rotation_deg") or 0)
+        bbox_i = items[i]["global_bbox"]
+
+        for j in range(i + 1, n):
+            tj = items[j].get("text", "").strip()
+
+            # Skip if texts are similar (dedup handles those)
+            if _text_similar(ti, tj):
+                continue
+
+            # At least one must be a fragment candidate
+            if not _is_fragment_candidate(ti) and not _is_fragment_candidate(tj):
+                continue
+
+            ang_j = float(items[j].get("rotation_deg") or 0)
+            # Angles must be compatible (same orientation modulo 180°)
+            diff = abs(ang_i - ang_j) % 180
+            if diff > angle_tol and diff < (180 - angle_tol):
+                continue
+
+            bbox_j = items[j]["global_bbox"]
+            dist = _centroid_distance(bbox_i, bbox_j)
+            if dist > proximity_px:
+                continue
+
+            avg_angle = (ang_i + ang_j) / 2
+            max_dim = max(bbox_i[2], bbox_i[3], bbox_j[2], bbox_j[3])
+            tol = max(150, max_dim * 0.8)
+            if not _colinear(bbox_i, bbox_j, avg_angle, tolerance_px=tol):
+                continue
+
+            union(i, j)
+
+    # Group by root
+    clusters: dict[int, list[int]] = {}
+    for i in range(n):
+        root = find(i)
+        clusters.setdefault(root, []).append(i)
+
+    result: list[dict] = []
+    for root, members in clusters.items():
+        if len(members) == 1:
+            result.append(items[members[0]])
+            continue
+
+        # Sort members spatially (left→right or top→bottom by angle)
+        avg_angle = sum(float(items[m].get("rotation_deg") or 0) for m in members) / len(members)
+        is_horiz = abs(avg_angle % 180) < 45 or abs(avg_angle % 180) > 135
+
+        def sort_key(m: int):
+            bx, by, bw, bh = items[m]["global_bbox"]
+            return bx + bw / 2 if is_horiz else by + bh / 2
+
+        members_sorted = sorted(members, key=sort_key)
+
+        merged_text = " ".join(items[m].get("text", "").strip() for m in members_sorted)
+        merged_bbox = items[members_sorted[0]]["global_bbox"]
+        for m in members_sorted[1:]:
+            merged_bbox = _union_bbox(merged_bbox, items[m]["global_bbox"])
+        merged_conf = max(items[m].get("confidence", 0) for m in members_sorted)
+        merged_item = {
+            **items[members_sorted[0]],
+            "text": merged_text,
+            "global_bbox": merged_bbox,
+            "confidence": merged_conf,
+            "notes": f"joined {len(members)} fragments (spatial)",
+        }
+        result.append(merged_item)
+
+    return result
+
+
+_EDGE_RE = re.compile(r"(left|right|top|bottom)")
+
+
+def _parse_exit_edges(notes: str) -> set[str]:
+    """Extract tile edges a fragment continues toward from its notes field."""
+    n = notes.lower()
+    if "continues" not in n and "outside" not in n and "cut" not in n:
+        return set()
+    return set(_EDGE_RE.findall(n))
+
+
+_COMPLEMENTARY_EDGES = {
+    ("right", "left"), ("left", "right"),
+    ("top", "bottom"), ("bottom", "top"),
+}
+
+
+def _edges_compatible(edges_a: set[str], edges_b: set[str]) -> bool:
+    """True if fragment A exits toward fragment B (complementary edges)."""
+    for ea in edges_a:
+        for eb in edges_b:
+            if (ea, eb) in _COMPLEMENTARY_EDGES:
+                return True
+    return False
+
+
+def _spatial_concat(item_a: dict, item_b: dict, edges_a: set[str], edges_b: set[str]) -> str:
+    """Concatenate fragment texts in spatial order along label axis."""
+    text_a = item_a.get("text", "").strip()
+    text_b = item_b.get("text", "").strip()
+    bbox_a, bbox_b = item_a["global_bbox"], item_b["global_bbox"]
+    cx_a, cy_a = bbox_a[0] + bbox_a[2] / 2, bbox_a[1] + bbox_a[3] / 2
+    cx_b, cy_b = bbox_b[0] + bbox_b[2] / 2, bbox_b[1] + bbox_b[3] / 2
+    horizontal = bool(edges_a & {"left", "right"}) or bool(edges_b & {"left", "right"})
+    if horizontal:
+        first, second = (text_a, text_b) if cx_a <= cx_b else (text_b, text_a)
+    else:
+        first, second = (text_a, text_b) if cy_a <= cy_b else (text_b, text_a)
+    return f"{first} {second}"
 
 
 def dedup_items(items, iou_threshold=0.25):
@@ -814,19 +1101,17 @@ def dedup_items(items, iou_threshold=0.25):
                 # 0. Calculate textual substring overlap for prioritizing fragments
                 is_sub = (text_i.lower() in text_j.lower() or text_j.lower() in text_i.lower())
 
-                # 1. Prioritize 'scout' source for macro categories (street, hydrology, title)
-                # If one is from scout and the other isn't, prefer scout for these cats.
+                # 1. When scout and tile overlap, prefer tile (tighter bbox).
+                # Scout bboxes cover 30-70% of the map and are spatially useless.
                 source_i = items[i].get("source", "tile")
                 source_j = items[j].get("source", "tile")
-                cat_i = items[i].get("category", "other")
-                macro_cats = {"street", "hydrology", "title"}
-                
-                if cat_i in macro_cats and source_i != source_j:
+
+                if source_i != source_j:
                     if source_i == "scout":
-                        keep[j] = False
-                    else:
                         keep[i] = False
                         break
+                    else:
+                        keep[j] = False
                 elif is_sub and len(text_i) != len(text_j):
                     # 2. If one is a substring of the other, prefer the longer one 
                     #    unless its confidence is significantly lower (> 0.2 difference).
@@ -888,27 +1173,52 @@ def dedup_items(items, iou_threshold=0.25):
             if not is_frag_j:
                 continue
             text_j = survivors[j].get("text", "").strip()
+            angle_j = survivors[j].get("rotation_deg", 0)
+            avg_angle = (angle_i + angle_j) / 2
+
             # Text must be compatible: one contains the other, or they share a word
             t_i, t_j = text_i.lower(), text_j.lower()
             words_i, words_j = set(t_i.split()), set(t_j.split())
             text_compat = (t_i in t_j or t_j in t_i or bool(words_i & words_j))
+
+            spatial_only = False
             if not text_compat:
-                continue
-            # Must be spatially colinear along their shared angle
-            avg_angle = (angle_i + survivors[j].get("rotation_deg", 0)) / 2
+                # Spatial-only merge: both have edge-continuation notes pointing
+                # at complementary edges and come from different tiles
+                edges_i = _parse_exit_edges(notes_i)
+                edges_j = _parse_exit_edges(notes_j)
+                origin_i = survivors[i].get("_tile_origin")
+                origin_j = survivors[j].get("_tile_origin")
+                if (edges_i and edges_j
+                        and _edges_compatible(edges_i, edges_j)
+                        and origin_i is not None and origin_i != origin_j
+                        and _centroid_distance(survivors[i]["global_bbox"],
+                                               survivors[j]["global_bbox"]) < 3000):
+                    spatial_only = True
+                else:
+                    continue
+
             if not _colinear(survivors[i]["global_bbox"], survivors[j]["global_bbox"],
                              avg_angle, tolerance_px=200):
                 continue
-            # Merge: keep longer text, union bbox, max confidence
-            longer = text_i if len(text_i) >= len(text_j) else text_j
+
+            if spatial_only:
+                edges_i = _parse_exit_edges(notes_i)
+                edges_j = _parse_exit_edges(notes_j)
+                merged_text = _spatial_concat(survivors[i], survivors[j], edges_i, edges_j)
+                merge_note = "assembled from edge fragments (spatial)"
+            else:
+                merged_text = text_i if len(text_i) >= len(text_j) else text_j
+                merge_note = "assembled from fragments"
+
             merged_bbox = _union_bbox(survivors[i]["global_bbox"], survivors[j]["global_bbox"])
             merged_conf = max(survivors[i].get("confidence", 0), survivors[j].get("confidence", 0))
             survivors[i] = {
                 **survivors[i],
-                "text": longer,
+                "text": merged_text,
                 "global_bbox": merged_bbox,
                 "confidence": merged_conf,
-                "notes": "assembled from fragments",
+                "notes": merge_note,
             }
             frag_keep[j] = False
 
@@ -919,6 +1229,8 @@ def dedup_items(items, iou_threshold=0.25):
     for item in result:
         conf = item.get("confidence", 0)
         item["tier"] = "confirmed" if conf >= 0.7 else "uncertain"
+        notes = (item.get("notes") or "").lower()
+        item["requires_review"] = conf < 0.7 or "uncertain:" in notes
 
     return result
 
@@ -957,6 +1269,7 @@ def dedup_extractions(tile_results, iou_threshold=0.25):
             items.append({
                 **ext,
                 "global_bbox": (gx, gy, gw, gh),
+                "_tile_origin": (tr["tile_x"], tr["tile_y"]),
             })
 
     return dedup_items(items, iou_threshold)
@@ -1245,7 +1558,7 @@ def cmd_dedup(args: argparse.Namespace) -> None:
                 bbox = ext.get("bbox_px")
                 if not bbox: continue
                 gx, gy, gw, gh = _to_global(bbox, tr["tile_x"], tr["tile_y"], tr["tile_w"], tr["tile_h"], rw, rh)
-                items.append({**ext, "global_bbox": (gx, gy, gw, gh)})
+                items.append({**ext, "global_bbox": (gx, gy, gw, gh), "_tile_origin": (tr["tile_x"], tr["tile_y"])})
 
     elif args.db:
         if not args.map_id:
@@ -1253,6 +1566,8 @@ def cmd_dedup(args: argparse.Namespace) -> None:
         from supabase_client import fetch_ocr_extractions
         print(f"Fetching labels for map {args.map_id} from Supabase ...")
         items = fetch_ocr_extractions(args.map_id, args.run_id)
+        for item in items:
+            item.setdefault("_tile_origin", (item.get("tile_x"), item.get("tile_y")))
     else:
         raise SystemExit("Provide --local <dir> or --db")
 
@@ -1328,7 +1643,7 @@ def cmd_dedup(args: argparse.Namespace) -> None:
             pins.append({
                 "map_id": args.map_id,
                 "user_id": user_id,
-                "label": e.get("text", ""),
+                "label": e.get("text", "").replace("\x00", ""),
                 "pixel_x": int(gx + gw/2),
                 "pixel_y": int(gy + gh/2),
                 "data": {
@@ -1342,6 +1657,133 @@ def cmd_dedup(args: argparse.Namespace) -> None:
             
         n = upsert_label_pins(args.map_id, pins)
         print(f"Applied {n} labels to supabase.label_pins table.")
+
+
+def cmd_clean(args: argparse.Namespace) -> None:
+    """Fuzzy dedup + spatial fragment join for V1-style raw OCR results."""
+    # ── Load items ──────────────────────────────────────────────────────────────
+    items: list[dict] = []
+
+    if args.local:
+        local_dir = Path(args.local)
+        if not local_dir.is_dir():
+            raise SystemExit(f"Local directory not found: {local_dir}")
+        print(f"Reading .json files from {local_dir} ...")
+        json_files = [f for f in local_dir.glob("*.json") if "_" in f.stem and f.stem[0].isdigit()]
+        for f in json_files:
+            try:
+                data = json.loads(f.read_text())
+                parts = f.stem.split("_")
+                tx, ty, tw, th = int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3])
+                for ext in data.get("extractions", []):
+                    bbox = ext.get("bbox_px")
+                    if not bbox:
+                        continue
+                    gx, gy, gw, gh = _to_global(bbox, tx, ty, tw, th)
+                    items.append({**ext, "global_bbox": (gx, gy, gw, gh), "_tile_origin": (tx, ty)})
+            except Exception as e:
+                print(f"  Error reading {f.name}: {e}")
+    elif args.db:
+        if not args.map_id:
+            raise SystemExit("Provide --map-id for DB fetch")
+        from supabase_client import fetch_ocr_extractions
+        print(f"Fetching items for map {args.map_id} (run={args.run_id or 'all'}) ...")
+        items = fetch_ocr_extractions(args.map_id, args.run_id)
+        for item in items:
+            item.setdefault("_tile_origin", (item.get("tile_x"), item.get("tile_y")))
+    else:
+        raise SystemExit("Provide --local <dir> or --db")
+
+    if not items:
+        print("No items found.")
+        return
+
+    raw_n = len(items)
+
+    # ── Filter by confidence ────────────────────────────────────────────────────
+    items = [
+        i for i in items
+        if i.get("confidence", 1.0) >= args.min_confidence
+        and i.get("global_bbox")
+        and all(c is not None for c in i["global_bbox"])
+    ]
+    print(f"Loaded {len(items)} items (min_conf={args.min_confidence}, raw={raw_n})")
+
+    # ── Pass 1: fuzzy dedup ─────────────────────────────────────────────────────
+    deduped = dedup_items(items, iou_threshold=args.iou)
+    print(f"After dedup:  {len(deduped)}  (removed {len(items) - len(deduped)})")
+
+    # ── Pass 2: spatial fragment join ───────────────────────────────────────────
+    joined = _spatial_join_fragments(deduped, proximity_px=args.proximity, angle_tol=args.angle_tol)
+    n_joined = len(deduped) - len(joined)
+    print(f"After join:   {len(joined)}  (merged {n_joined} fragment groups)")
+
+    # ── Summary ─────────────────────────────────────────────────────────────────
+    confirmed = [e for e in joined if e.get("confidence", 0) >= 0.7]
+    uncertain = [e for e in joined if e.get("confidence", 0) < 0.7]
+    print(f"\nResult: {len(joined)} labels  (confirmed={len(confirmed)}, uncertain={len(uncertain)})")
+    print("\nSample confirmed:")
+    for e in confirmed[:15]:
+        print(f"  {e.get('text','')[:50]:50s}  [{e.get('category','other')}]  conf={e.get('confidence',0):.2f}")
+    if len(confirmed) > 15:
+        print(f"  … and {len(confirmed)-15} more")
+    if uncertain:
+        print(f"\nSample uncertain:")
+        for e in uncertain[:5]:
+            notes = (e.get("notes") or "")[:40]
+            print(f"  ? {e.get('text','')[:50]:50s}  conf={e.get('confidence',0):.2f}  {notes}")
+        if len(uncertain) > 5:
+            print(f"  … and {len(uncertain)-5} more")
+
+    # ── Save preview JSON ───────────────────────────────────────────────────────
+    ts = datetime.now().strftime("%Y%m%dT%H%M%S")
+    out_name = f"clean_{ts}.json"
+    out_path = Path(args.local) / out_name if args.local else Path(out_name)
+    out_path.write_text(json.dumps({
+        "map_id": args.map_id or "unknown",
+        "run_id": args.run_id,
+        "n_raw": raw_n,
+        "n_after_dedup": len(deduped),
+        "n_after_join": len(joined),
+        "extractions": [{**e, "global_bbox": list(e["global_bbox"])} for e in joined],
+    }, indent=2, ensure_ascii=False))
+    print(f"\nSaved → {out_path}")
+
+    # ── Apply → ocr_extractions ─────────────────────────────────────────────────
+    if args.apply:
+        if not args.map_id:
+            raise SystemExit("Provide --map-id for --apply")
+        if not args.run_id:
+            raise SystemExit("Provide --run-id for --apply (e.g. --run-id v1b)")
+        from supabase_client import upsert_ocr_extractions
+        rows = []
+        for e in joined:
+            bbox = e.get("global_bbox")
+            if not bbox:
+                continue
+            gx, gy, gw, gh = bbox
+            tile_origin = e.get("_tile_origin") or (0, 0)
+            rows.append({
+                "tile_x": int(tile_origin[0]),
+                "tile_y": int(tile_origin[1]),
+                "tile_w": int(e.get("tile_w") or 0),
+                "tile_h": int(e.get("tile_h") or 0),
+                "global_x": float(gx),
+                "global_y": float(gy),
+                "global_w": float(gw),
+                "global_h": float(gh),
+                "text": e.get("text", "").replace("\x00", ""),
+                "category": e.get("category", "other"),
+                "confidence": float(e.get("confidence", 0)),
+                "rotation_deg": float(e.get("rotation_deg") or 0),
+                "notes": (e.get("notes") or "").replace("\x00", ""),
+                "model": e.get("model", ""),
+                "prompt": e.get("prompt", ""),
+                "status": "pending",
+            })
+        print(f"\nUpserting {len(rows)} rows to ocr_extractions (run_id={args.run_id}) ...")
+        n = upsert_ocr_extractions(args.map_id, args.run_id, rows)
+        print(f"Done — {n} rows in ocr_extractions.")
 
 
 def cmd_compare(args: argparse.Namespace) -> None:
@@ -1578,9 +2020,41 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Auto-scale render size by tile density (dense=2048, sparse=1024). "
                               "Only fetches a 512px preview for uncached tiles; already-cached "
                               "tiles use their stored resolution.")
+    p_batch.add_argument("--target-calls", type=int,
+                         help="Auto-scale tile size to hit this many API calls "
+                              "(e.g. --target-calls 12). Adjusts render size proportionally.")
+    p_batch.add_argument("--smart-grid", action="store_true",
+                         help="Detect neatline from overview image and crop grid to content area")
+    p_batch.add_argument("--skip-sparse", action="store_true",
+                         help="Pre-screen tiles via local variance and skip text-sparse regions")
+    p_batch.add_argument("--min-text-frac", type=float, default=0.01,
+                         help="Min text-like pixel fraction for --skip-sparse (default 0.01)")
+    p_batch.add_argument("--prior-run",
+                         help="Path to a previous run dir; skip tiles that had 0 extractions")
+    p_batch.add_argument("--crop",
+                         help="Manual neatline crop: x,y,w,h in source image pixels. "
+                              "Overrides --scout and --smart-grid.")
+    p_batch.add_argument("--tile-overrides",
+                         help='JSON object mapping tile keys (x_y_w_h) to "low_res" or "skip". '
+                              'Example: \'{"390_295_2000_2000":"skip","2390_0_2000_2000":"low_res"}\'')
+    p_batch.add_argument("--low-res-render", type=int, default=512,
+                         help="Render size (px) for low_res tiles (default 512)")
     p_batch.set_defaults(func=cmd_batch)
 
     # dedup
+    p_clean = sub.add_parser("clean", help="Fuzzy dedup + spatial fragment join for V1-style raw results")
+    p_clean.add_argument("--map-id", help="Supabase maps.id UUID")
+    p_clean.add_argument("--run-id", help="Filter by specific run_id")
+    p_clean.add_argument("--local", help="Path to a run directory containing per-tile .json files")
+    p_clean.add_argument("--db", action="store_true", help="Fetch from Supabase ocr_extractions table")
+    p_clean.add_argument("--apply", action="store_true", help="Apply results as Map Pins in Supabase")
+    p_clean.add_argument("--user-id", help="User ID for pin attribution (default: system admin)")
+    p_clean.add_argument("--min-confidence", type=float, default=0.1, help="Min confidence to include (default 0.1 — V1 recall mode)")
+    p_clean.add_argument("--iou", type=float, default=0.15, help="IoU threshold for dedup (default 0.15)")
+    p_clean.add_argument("--proximity", type=float, default=700, help="Max px between fragment centroids for axis join (default 700)")
+    p_clean.add_argument("--angle-tol", type=float, default=20, help="Max degree difference for same-axis fragments (default 20)")
+    p_clean.set_defaults(func=cmd_clean)
+
     p_dedup = sub.add_parser("dedup", help="Check and deduplicate existing labels from DB or local files")
     p_dedup.add_argument("--map-id", help="Supabase maps.id UUID")
     p_dedup.add_argument("--run-id", help="Filter by specific run_id")

@@ -198,6 +198,37 @@
     finally { ext._saving = false; extractions = extractions; }
   }
 
+  $: dirtyCount = extractions.filter(e =>
+    e._editText !== (e.text_validated ?? e.text) ||
+    e._editCategory !== (e.category_validated ?? e.category)
+  ).length;
+
+  async function saveAllEdits() {
+    const dirty = extractions.filter(e =>
+      e._editText !== (e.text_validated ?? e.text) ||
+      e._editCategory !== (e.category_validated ?? e.category)
+    );
+    for (const ext of dirty) await commitText(ext);
+  }
+
+  async function commitText(ext: Extraction) {
+    const textChanged = ext._editText !== (ext.text_validated ?? ext.text);
+    const catChanged  = ext._editCategory !== (ext.category_validated ?? ext.category);
+    if (!textChanged && !catChanged) return;
+    ext._saving = true; extractions = extractions;
+    try {
+      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ext.id, text: ext._editText, category: ext._editCategory, status: ext.status }),
+      });
+      if (!res.ok) { error = await res.text(); return; }
+      ext.text_validated     = ext._editText;
+      ext.category_validated = ext._editCategory;
+    } catch (e: any) { error = e.message; }
+    finally { ext._saving = false; extractions = extractions; }
+  }
+
   async function undoBatch() {
     if (!lastBatchIds.length) return;
     loading = true; showUndo = false;
@@ -234,6 +265,10 @@
   let inputEls: Record<string, HTMLInputElement> = {};
   let rowEls: Record<string, HTMLTableRowElement> = {};
 
+  export function getRunId(): string {
+    return filterRunId || availableRuns[availableRuns.length - 1] || 'manual';
+  }
+
   export function focusRow(id: string) {
     // Ensure "All" filter so the row is visible
     if (filterStatus && extractions.find(e => e.id === id)?.status !== filterStatus) {
@@ -246,10 +281,6 @@
     });
   }
 
-  function commitText(ext: Extraction) {
-    // Optimistic — actual save happens on validate/reject click
-    extractions = extractions;
-  }
 </script>
 
 <div class="sidebar-content">
@@ -315,6 +346,9 @@
         Undo ({lastBatchIds.length})
       </button>
     {/if}
+    <button class="save-btn" on:click={saveAllEdits} disabled={loading || dirtyCount === 0} title="Save all pending text/category edits">
+      Save{dirtyCount > 0 ? ` (${dirtyCount})` : ''}
+    </button>
     <div style="flex: 1"></div>
     <button class="icon-btn text-danger" on:click={emergencyRevert} title="Accidental batch? Revert everything from last 15 mins">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -356,7 +390,16 @@
               on:dblclick={() => dispatch('zoomToExtraction', { globalX: ext.global_x, globalY: ext.global_y, globalW: ext.global_w, globalH: ext.global_h })}
               title="Double-click to zoom">
               <td class="col-dot">
-                <span class="dot" style="background:{STATUS_COLORS[ext.status]}" title={ext.status}></span>
+                {#if ext._saving}
+                  <span class="dot dot--saving" title="saving…"></span>
+                {:else}
+                  <span
+                    class="dot"
+                    class:dot--dirty={ext._editText !== (ext.text_validated ?? ext.text) || ext._editCategory !== (ext.category_validated ?? ext.category)}
+                    style="background:{STATUS_COLORS[ext.status]}"
+                    title={ext.status}
+                  ></span>
+                {/if}
               </td>
               <td class="col-text">
                 <input class="cell-input" type="text"
@@ -370,7 +413,7 @@
               </td>
               <td class="col-cat">
                 <div class="dropdown-wrap">
-                  <select class="cell-select" bind:value={ext._editCategory} aria-label="Category">
+                  <select class="cell-select" bind:value={ext._editCategory} on:change={() => commitText(ext)} aria-label="Category">
                     {#each OCR_CATEGORIES as cat}
                       <option value={cat}>{cat}</option>
                     {/each}
@@ -417,7 +460,7 @@
   </div>
 
   <div class="hint-bar">
-    Double-click row to zoom · Edit text inline · <kbd>✓</kbd> validate · <kbd>✗</kbd> reject
+    Double-click row to zoom · Edit text → auto-saves on blur · <kbd>✓</kbd> validate · <kbd>✗</kbd> reject
   </div>
 </div>
 
@@ -454,13 +497,20 @@
   .run-select-wrap { flex: 1; min-width: 0; }
   .run-select { width: 100%; font-family: monospace; font-size: 0.68rem; }
   .run-placeholder { font-size: 0.7rem; opacity: 0.4; flex: 1; }
-  .batch-btn {
-    font-family: var(--font-family-base); font-size: 0.68rem; font-weight: 700;
-    padding: 0.25rem 0.5rem; border: var(--border-thin); border-radius: var(--radius-sm);
-    background: #dcfce7; color: #166534; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  .save-btn {
+    font-family: var(--font-family-base);
+    font-size: 0.7rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 0.28rem 0.55rem;
+    border: var(--border-thin, 2px solid #111); border-radius: 4px;
+    background: var(--color-yellow, #ffd23f); color: var(--color-text, #111);
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    box-shadow: 2px 2px 0 var(--color-border, #111); transition: all 0.1s;
   }
-  .batch-btn:hover:not(:disabled) { background: #bbf7d0; }
-  .batch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .save-btn:hover:not(:disabled) { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--color-border,#111); }
+  .save-btn:active:not(:disabled) { transform: none; box-shadow: none; }
+  .save-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); box-shadow: none; }
+
   .icon-btn {
     display: inline-flex; align-items: center; justify-content: center;
     width: 26px; height: 26px; border: var(--border-thin); border-radius: var(--radius-sm);
@@ -488,6 +538,9 @@
   .shape-tr.row-selected td { outline: 2px solid #3b82f6; outline-offset: -1px; background: #eff6ff !important; }
   .col-dot { width: 20px; text-align: center; padding-left: 0.5rem; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.15); }
+  .dot--dirty { background: #f59e0b !important; border-style: dashed; border-color: #92400e; }
+  .dot--saving { background: transparent !important; border: 1.5px dashed #9ca3af; animation: pulse 0.8s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
   .col-text { min-width: 80px; }
   .col-cat { min-width: 70px; }
   .col-conf { width: 38px; text-align: right; }

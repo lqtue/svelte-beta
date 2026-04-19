@@ -17,27 +17,33 @@ export const nodes = [
 	() => import('./nodes/13'),
 	() => import('./nodes/14'),
 	() => import('./nodes/15'),
-	() => import('./nodes/16')
+	() => import('./nodes/16'),
+	() => import('./nodes/17'),
+	() => import('./nodes/18'),
+	() => import('./nodes/19'),
+	() => import('./nodes/20')
 ];
 
 export const server_loads = [0];
 
 export const dictionary = {
-		"/": [2],
-		"/about": [3],
-		"/admin": [4],
-		"/admin/pipeline": [5],
-		"/annotate": [6],
-		"/blog": [7],
-		"/blog/[slug]": [8],
-		"/catalog": [9],
-		"/contribute/georef": [10],
-		"/contribute/label": [11],
-		"/contribute/review": [12],
-		"/create": [13],
-		"/login": [14],
-		"/signup": [15],
-		"/view": [16]
+		"/(editorial)": [11,[3]],
+		"/(editorial)/about": [12,[3]],
+		"/(app)/annotate": [4,[2]],
+		"/(editorial)/blog": [13,[3]],
+		"/(editorial)/blog/[slug]": [14,[3]],
+		"/(editorial)/catalog": [15,[3]],
+		"/(editorial)/contribute": [16,[3]],
+		"/(app)/contribute/digitalize": [5,[2]],
+		"/(editorial)/contribute/georef": [17,[3]],
+		"/(app)/contribute/label": [6,[2]],
+		"/contribute/review": [20],
+		"/(app)/contribute/trace": [7,[2]],
+		"/(app)/create": [8,[2]],
+		"/(app)/image": [9,[2]],
+		"/(editorial)/login": [18,[3]],
+		"/(editorial)/profile": [~19,[3]],
+		"/(app)/view": [10,[2]]
 	};
 
 export const hooks = {

@@ -9,39 +9,65 @@
       "_environment.js"
     ]
   },
-  "_CatalogHeader.Co2FE2m5.css": {
-    "file": "_app/immutable/assets/CatalogHeader.Co2FE2m5.css",
-    "src": "_CatalogHeader.Co2FE2m5.css"
+  "_ChunkyTabs.VrKy4kTT.css": {
+    "file": "_app/immutable/assets/ChunkyTabs.VrKy4kTT.css",
+    "src": "_ChunkyTabs.VrKy4kTT.css"
   },
-  "_CatalogHeader.js": {
-    "file": "chunks/CatalogHeader.js",
-    "name": "CatalogHeader",
+  "_ChunkyTabs.js": {
+    "file": "chunks/ChunkyTabs.js",
+    "name": "ChunkyTabs",
     "imports": [
       "_index2.js",
       "_context.js"
     ],
     "css": [
-      "_app/immutable/assets/CatalogHeader.Co2FE2m5.css"
+      "_app/immutable/assets/ChunkyTabs.VrKy4kTT.css"
     ]
   },
-  "_MapToolbar.D7bZ-oC5.css": {
-    "file": "_app/immutable/assets/MapToolbar.D7bZ-oC5.css",
-    "src": "_MapToolbar.D7bZ-oC5.css"
+  "_ImageShell.svelte_svelte_type_style_lang.js": {
+    "file": "chunks/ImageShell.svelte_svelte_type_style_lang.js",
+    "name": "ImageShell.svelte_svelte_type_style_lang"
+  },
+  "_MapSearchBar.js": {
+    "file": "chunks/MapSearchBar.js",
+    "name": "MapSearchBar",
+    "imports": [
+      "_index2.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_context.js"
+    ]
+  },
+  "_MapSearchBar.svelte_svelte_type_style_lang.js": {
+    "file": "chunks/MapSearchBar.svelte_svelte_type_style_lang.js",
+    "name": "MapSearchBar.svelte_svelte_type_style_lang",
+    "imports": [
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/MapSearchBar.z_iSlsm1.css"
+    ]
+  },
+  "_MapSearchBar.z_iSlsm1.css": {
+    "file": "_app/immutable/assets/MapSearchBar.z_iSlsm1.css",
+    "src": "_MapSearchBar.z_iSlsm1.css"
+  },
+  "_MapToolbar.DEg8Q6mq.css": {
+    "file": "_app/immutable/assets/MapToolbar.DEg8Q6mq.css",
+    "src": "_MapToolbar.DEg8Q6mq.css"
   },
   "_MapToolbar.svelte_svelte_type_style_lang.js": {
     "file": "chunks/MapToolbar.svelte_svelte_type_style_lang.js",
     "name": "MapToolbar.svelte_svelte_type_style_lang",
     "imports": [
-      "_context.js",
       "_index.js"
     ],
     "css": [
-      "_app/immutable/assets/MapToolbar.D7bZ-oC5.css"
+      "_app/immutable/assets/MapToolbar.DEg8Q6mq.css"
     ]
   },
-  "_NavBar.CgQBvE4b.css": {
-    "file": "_app/immutable/assets/NavBar.CgQBvE4b.css",
-    "src": "_NavBar.CgQBvE4b.css"
+  "_NavBar.8pRbI6DO.css": {
+    "file": "_app/immutable/assets/NavBar.8pRbI6DO.css",
+    "src": "_NavBar.8pRbI6DO.css"
   },
   "_NavBar.js": {
     "file": "chunks/NavBar.js",
@@ -50,24 +76,53 @@
       "_index2.js",
       "_context.js",
       "_context2.js",
-      "_stores.js"
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js"
     ],
     "css": [
-      "_app/immutable/assets/NavBar.CgQBvE4b.css"
+      "_app/immutable/assets/NavBar.8pRbI6DO.css"
     ]
   },
-  "_StoryPlayback.qSdUb-2v.css": {
-    "file": "_app/immutable/assets/StoryPlayback.qSdUb-2v.css",
-    "src": "_StoryPlayback.qSdUb-2v.css"
+  "_OcrSidebar.svelte_svelte_type_style_lang.js": {
+    "file": "chunks/OcrSidebar.svelte_svelte_type_style_lang.js",
+    "name": "OcrSidebar.svelte_svelte_type_style_lang"
+  },
+  "_PageHero.DPlmt8b0.css": {
+    "file": "_app/immutable/assets/PageHero.DPlmt8b0.css",
+    "src": "_PageHero.DPlmt8b0.css"
+  },
+  "_PageHero.js": {
+    "file": "chunks/PageHero.js",
+    "name": "PageHero",
+    "imports": [
+      "_index2.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/PageHero.DPlmt8b0.css"
+    ]
   },
   "_StoryPlayback.svelte_svelte_type_style_lang.js": {
     "file": "chunks/StoryPlayback.svelte_svelte_type_style_lang.js",
     "name": "StoryPlayback.svelte_svelte_type_style_lang",
     "imports": [
       "_MapToolbar.svelte_svelte_type_style_lang.js"
+    ]
+  },
+  "_catalog.CDPZ-yaV.css": {
+    "file": "_app/immutable/assets/catalog.CDPZ-yaV.css",
+    "src": "_catalog.CDPZ-yaV.css"
+  },
+  "_catalog.js": {
+    "file": "chunks/catalog.js",
+    "name": "catalog",
+    "imports": [
+      "_index2.js",
+      "_context.js"
     ],
     "css": [
-      "_app/immutable/assets/StoryPlayback.qSdUb-2v.css"
+      "_app/immutable/assets/catalog.CDPZ-yaV.css"
     ]
   },
   "_context.js": {
@@ -81,10 +136,6 @@
       "_context.js"
     ]
   },
-  "_datumCorrection.js": {
-    "file": "chunks/datumCorrection.js",
-    "name": "datumCorrection"
-  },
   "_environment.js": {
     "file": "chunks/environment.js",
     "name": "environment"
@@ -96,10 +147,6 @@
   "_false.js": {
     "file": "chunks/false.js",
     "name": "false"
-  },
-  "_georefUtils.js": {
-    "file": "chunks/georefUtils.js",
-    "name": "georefUtils"
   },
   "_index.js": {
     "file": "chunks/index.js",
@@ -128,20 +175,13 @@
       "src/hooks.server.ts"
     ]
   },
-  "_mode-shared.0bMNOpi5.css": {
-    "file": "_app/immutable/assets/mode-shared.0bMNOpi5.css",
-    "src": "_mode-shared.0bMNOpi5.css"
+  "_label.Fbe-YrH9.css": {
+    "file": "_app/immutable/assets/label.Fbe-YrH9.css",
+    "src": "_label.Fbe-YrH9.css"
   },
   "_ol.BtPuoxOl.css": {
     "file": "_app/immutable/assets/ol.BtPuoxOl.css",
     "src": "_ol.BtPuoxOl.css"
-  },
-  "_pipelineUtils.js": {
-    "file": "chunks/pipelineUtils.js",
-    "name": "pipelineUtils",
-    "imports": [
-      "_datumCorrection.js"
-    ]
   },
   "_posts.js": {
     "file": "chunks/posts.js",
@@ -167,16 +207,6 @@
     "name": "state.svelte",
     "imports": [
       "_context.js"
-    ]
-  },
-  "_stores.js": {
-    "file": "chunks/stores.js",
-    "name": "stores",
-    "imports": [
-      "_context.js",
-      "_exports.js",
-      "_utils.js",
-      "_state.svelte.js"
     ]
   },
   "_utils.js": {
@@ -231,6 +261,370 @@
       "_public.js"
     ]
   },
+  "src/routes/(app)/+layout.svelte": {
+    "file": "entries/pages/(app)/_layout.svelte.js",
+    "name": "entries/pages/(app)/_layout.svelte",
+    "src": "src/routes/(app)/+layout.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js"
+    ]
+  },
+  "src/routes/(app)/annotate/+page.svelte": {
+    "file": "entries/pages/(app)/annotate/_page.svelte.js",
+    "name": "entries/pages/(app)/annotate/_page.svelte",
+    "src": "src/routes/(app)/annotate/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_catalog.js",
+      "_MapToolbar.svelte_svelte_type_style_lang.js",
+      "_index.js",
+      "_context.js",
+      "_context2.js",
+      "_NavBar.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_PageHero.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CtTjWRK-.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css"
+    ]
+  },
+  "src/routes/(app)/annotate/+page.ts": {
+    "file": "entries/pages/(app)/annotate/_page.ts.js",
+    "name": "entries/pages/(app)/annotate/_page.ts",
+    "src": "src/routes/(app)/annotate/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/(app)/contribute/digitalize/+page.svelte": {
+    "file": "entries/pages/(app)/contribute/digitalize/_page.svelte.js",
+    "name": "entries/pages/(app)/contribute/digitalize/_page.svelte",
+    "src": "src/routes/(app)/contribute/digitalize/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_NavBar.js",
+      "_MapSearchBar.js",
+      "_context.js",
+      "_ImageShell.svelte_svelte_type_style_lang.js",
+      "_OcrSidebar.svelte_svelte_type_style_lang.js",
+      "_context2.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.DReY2jCQ.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css",
+      "_app/immutable/assets/label.Fbe-YrH9.css"
+    ]
+  },
+  "src/routes/(app)/contribute/digitalize/+page.ts": {
+    "file": "entries/pages/(app)/contribute/digitalize/_page.ts.js",
+    "name": "entries/pages/(app)/contribute/digitalize/_page.ts",
+    "src": "src/routes/(app)/contribute/digitalize/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/(app)/contribute/label/+page.svelte": {
+    "file": "entries/pages/(app)/contribute/label/_page.svelte.js",
+    "name": "entries/pages/(app)/contribute/label/_page.svelte",
+    "src": "src/routes/(app)/contribute/label/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_NavBar.js",
+      "_MapSearchBar.js",
+      "_context.js",
+      "_ImageShell.svelte_svelte_type_style_lang.js",
+      "_OcrSidebar.svelte_svelte_type_style_lang.js",
+      "_context2.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.Ct9yVtG1.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css",
+      "_app/immutable/assets/label.Fbe-YrH9.css"
+    ]
+  },
+  "src/routes/(app)/contribute/label/+page.ts": {
+    "file": "entries/pages/(app)/contribute/label/_page.ts.js",
+    "name": "entries/pages/(app)/contribute/label/_page.ts",
+    "src": "src/routes/(app)/contribute/label/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/(app)/contribute/trace/+page.svelte": {
+    "file": "entries/pages/(app)/contribute/trace/_page.svelte.js",
+    "name": "entries/pages/(app)/contribute/trace/_page.svelte",
+    "src": "src/routes/(app)/contribute/trace/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_NavBar.js",
+      "_MapSearchBar.js",
+      "_context.js",
+      "_ImageShell.svelte_svelte_type_style_lang.js",
+      "_context2.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.C24k3fju.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css",
+      "_app/immutable/assets/label.Fbe-YrH9.css"
+    ]
+  },
+  "src/routes/(app)/contribute/trace/+page.ts": {
+    "file": "entries/pages/(app)/contribute/trace/_page.ts.js",
+    "name": "entries/pages/(app)/contribute/trace/_page.ts",
+    "src": "src/routes/(app)/contribute/trace/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/(app)/create/+page.svelte": {
+    "file": "entries/pages/(app)/create/_page.svelte.js",
+    "name": "entries/pages/(app)/create/_page.svelte",
+    "src": "src/routes/(app)/create/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_catalog.js",
+      "_MapToolbar.svelte_svelte_type_style_lang.js",
+      "_context2.js",
+      "_StoryPlayback.svelte_svelte_type_style_lang.js",
+      "_NavBar.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_PageHero.js"
+    ],
+    "css": [
+      "_app/immutable/assets/ol.BtPuoxOl.css"
+    ]
+  },
+  "src/routes/(app)/create/+page.ts": {
+    "file": "entries/pages/(app)/create/_page.ts.js",
+    "name": "entries/pages/(app)/create/_page.ts",
+    "src": "src/routes/(app)/create/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/(app)/image/+page.svelte": {
+    "file": "entries/pages/(app)/image/_page.svelte.js",
+    "name": "entries/pages/(app)/image/_page.svelte",
+    "src": "src/routes/(app)/image/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_exports.js",
+      "_utils.js",
+      "_context.js",
+      "_state.svelte.js",
+      "_NavBar.js",
+      "_MapSearchBar.js",
+      "_ImageShell.svelte_svelte_type_style_lang.js",
+      "_context2.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.D7OHTWAn.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css"
+    ]
+  },
+  "src/routes/(app)/image/+page.ts": {
+    "file": "entries/pages/(app)/image/_page.ts.js",
+    "name": "entries/pages/(app)/image/_page.ts",
+    "src": "src/routes/(app)/image/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/(app)/view/+page.svelte": {
+    "file": "entries/pages/(app)/view/_page.svelte.js",
+    "name": "entries/pages/(app)/view/_page.svelte",
+    "src": "src/routes/(app)/view/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_NavBar.js",
+      "_MapToolbar.svelte_svelte_type_style_lang.js",
+      "_context2.js",
+      "_StoryPlayback.svelte_svelte_type_style_lang.js",
+      "_MapSearchBar.js",
+      "_MapSearchBar.svelte_svelte_type_style_lang.js",
+      "_index.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.ChfqYqCt.css",
+      "_app/immutable/assets/ol.BtPuoxOl.css"
+    ]
+  },
+  "src/routes/(app)/view/+page.ts": {
+    "file": "entries/pages/(app)/view/_page.ts.js",
+    "name": "entries/pages/(app)/view/_page.ts",
+    "src": "src/routes/(app)/view/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/(editorial)/+layout.svelte": {
+    "file": "entries/pages/(editorial)/_layout.svelte.js",
+    "name": "entries/pages/(editorial)/_layout.svelte",
+    "src": "src/routes/(editorial)/+layout.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_NavBar.js"
+    ]
+  },
+  "src/routes/(editorial)/+page.svelte": {
+    "file": "entries/pages/(editorial)/_page.svelte.js",
+    "name": "entries/pages/(editorial)/_page.svelte",
+    "src": "src/routes/(editorial)/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_ChunkyTabs.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.BKgaEGW2.css"
+    ]
+  },
+  "src/routes/(editorial)/+page.ts": {
+    "file": "entries/pages/(editorial)/_page.ts.js",
+    "name": "entries/pages/(editorial)/_page.ts",
+    "src": "src/routes/(editorial)/+page.ts",
+    "isEntry": true
+  },
+  "src/routes/(editorial)/about/+page.svelte": {
+    "file": "entries/pages/(editorial)/about/_page.svelte.js",
+    "name": "entries/pages/(editorial)/about/_page.svelte",
+    "src": "src/routes/(editorial)/about/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_PageHero.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.C8S867Vt.css"
+    ]
+  },
+  "src/routes/(editorial)/blog/+page.svelte": {
+    "file": "entries/pages/(editorial)/blog/_page.svelte.js",
+    "name": "entries/pages/(editorial)/blog/_page.svelte",
+    "src": "src/routes/(editorial)/blog/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_posts.js",
+      "_PageHero.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.BMKMTwxu.css"
+    ]
+  },
+  "src/routes/(editorial)/blog/[slug]/+page.svelte": {
+    "file": "entries/pages/(editorial)/blog/_slug_/_page.svelte.js",
+    "name": "entries/pages/(editorial)/blog/_slug_/_page.svelte",
+    "src": "src/routes/(editorial)/blog/[slug]/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_posts.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.Cwlhni-p.css"
+    ]
+  },
+  "src/routes/(editorial)/blog/[slug]/+page.ts": {
+    "file": "entries/pages/(editorial)/blog/_slug_/_page.ts.js",
+    "name": "entries/pages/(editorial)/blog/_slug_/_page.ts",
+    "src": "src/routes/(editorial)/blog/[slug]/+page.ts",
+    "isEntry": true,
+    "imports": [
+      "_posts.js"
+    ]
+  },
+  "src/routes/(editorial)/catalog/+page.svelte": {
+    "file": "entries/pages/(editorial)/catalog/_page.svelte.js",
+    "name": "entries/pages/(editorial)/catalog/_page.svelte",
+    "src": "src/routes/(editorial)/catalog/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_ChunkyTabs.js",
+      "_PageHero.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.xgJnXLB4.css"
+    ]
+  },
+  "src/routes/(editorial)/contribute/+page.svelte": {
+    "file": "entries/pages/(editorial)/contribute/_page.svelte.js",
+    "name": "entries/pages/(editorial)/contribute/_page.svelte",
+    "src": "src/routes/(editorial)/contribute/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_PageHero.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.DJikYcqk.css"
+    ]
+  },
+  "src/routes/(editorial)/contribute/georef/+page.svelte": {
+    "file": "entries/pages/(editorial)/contribute/georef/_page.svelte.js",
+    "name": "entries/pages/(editorial)/contribute/georef/_page.svelte",
+    "src": "src/routes/(editorial)/contribute/georef/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_PageHero.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CWJyyMV4.css"
+    ]
+  },
+  "src/routes/(editorial)/login/+page.svelte": {
+    "file": "entries/pages/(editorial)/login/_page.svelte.js",
+    "name": "entries/pages/(editorial)/login/_page.svelte",
+    "src": "src/routes/(editorial)/login/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.D-X7_c4f.css"
+    ]
+  },
+  "src/routes/(editorial)/profile/+page.server.ts": {
+    "file": "entries/pages/(editorial)/profile/_page.server.ts.js",
+    "name": "entries/pages/(editorial)/profile/_page.server.ts",
+    "src": "src/routes/(editorial)/profile/+page.server.ts",
+    "isEntry": true
+  },
+  "src/routes/(editorial)/profile/+page.svelte": {
+    "file": "entries/pages/(editorial)/profile/_page.svelte.js",
+    "name": "entries/pages/(editorial)/profile/_page.svelte",
+    "src": "src/routes/(editorial)/profile/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_context2.js",
+      "_PageHero.js",
+      "_context.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.CsyOElGl.css"
+    ]
+  },
   "src/routes/+layout.server.ts": {
     "file": "entries/pages/_layout.server.ts.js",
     "name": "entries/pages/_layout.server.ts",
@@ -251,140 +645,13 @@
       "_context2.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.CBtGQiVC.css"
+      "_app/immutable/assets/_layout.iORhRnLT.css"
     ]
-  },
-  "src/routes/+page.svelte": {
-    "file": "entries/pages/_page.svelte.js",
-    "name": "entries/pages/_page.svelte",
-    "src": "src/routes/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_context2.js",
-      "_NavBar.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.BR1zfGJ0.css"
-    ]
-  },
-  "src/routes/+page.ts": {
-    "file": "entries/pages/_page.ts.js",
-    "name": "entries/pages/_page.ts",
-    "src": "src/routes/+page.ts",
-    "isEntry": true
-  },
-  "src/routes/about/+page.svelte": {
-    "file": "entries/pages/about/_page.svelte.js",
-    "name": "entries/pages/about/_page.svelte",
-    "src": "src/routes/about/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_NavBar.js",
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.B7MM0UCn.css"
-    ]
-  },
-  "src/routes/admin/+page.svelte": {
-    "file": "entries/pages/admin/_page.svelte.js",
-    "name": "entries/pages/admin/_page.svelte",
-    "src": "src/routes/admin/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_context2.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.B-ksTbed.css"
-    ]
-  },
-  "src/routes/admin/+page.ts": {
-    "file": "entries/pages/admin/_page.ts.js",
-    "name": "entries/pages/admin/_page.ts",
-    "src": "src/routes/admin/+page.ts",
-    "isEntry": true
-  },
-  "src/routes/admin/pipeline/+page.svelte": {
-    "file": "entries/pages/admin/pipeline/_page.svelte.js",
-    "name": "entries/pages/admin/pipeline/_page.svelte",
-    "src": "src/routes/admin/pipeline/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.Bj6vkTay.css"
-    ]
-  },
-  "src/routes/admin/pipeline/+page.ts": {
-    "file": "entries/pages/admin/pipeline/_page.ts.js",
-    "name": "entries/pages/admin/pipeline/_page.ts",
-    "src": "src/routes/admin/pipeline/+page.ts",
-    "isEntry": true
-  },
-  "src/routes/annotate/+page.svelte": {
-    "file": "entries/pages/annotate/_page.svelte.js",
-    "name": "entries/pages/annotate/_page.svelte",
-    "src": "src/routes/annotate/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_MapToolbar.svelte_svelte_type_style_lang.js",
-      "_CatalogHeader.js",
-      "_index.js",
-      "_context.js",
-      "_context2.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.D_KrjiHj.css",
-      "_app/immutable/assets/mode-shared.0bMNOpi5.css",
-      "_app/immutable/assets/ol.BtPuoxOl.css"
-    ]
-  },
-  "src/routes/annotate/+page.ts": {
-    "file": "entries/pages/annotate/_page.ts.js",
-    "name": "entries/pages/annotate/_page.ts",
-    "src": "src/routes/annotate/+page.ts",
-    "isEntry": true
   },
   "src/routes/api/admin/footprints/+server.ts": {
     "file": "entries/endpoints/api/admin/footprints/_server.ts.js",
     "name": "entries/endpoints/api/admin/footprints/_server.ts",
     "src": "src/routes/api/admin/footprints/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js"
-    ]
-  },
-  "src/routes/api/admin/georef/+server.ts": {
-    "file": "entries/endpoints/api/admin/georef/_server.ts.js",
-    "name": "entries/endpoints/api/admin/georef/_server.ts",
-    "src": "src/routes/api/admin/georef/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js"
-    ]
-  },
-  "src/routes/api/admin/labels/+server.ts": {
-    "file": "entries/endpoints/api/admin/labels/_server.ts.js",
-    "name": "entries/endpoints/api/admin/labels/_server.ts",
-    "src": "src/routes/api/admin/labels/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js"
-    ]
-  },
-  "src/routes/api/admin/labels/[id]/+server.ts": {
-    "file": "entries/endpoints/api/admin/labels/_id_/_server.ts.js",
-    "name": "entries/endpoints/api/admin/labels/_id_/_server.ts",
-    "src": "src/routes/api/admin/labels/[id]/+server.ts",
     "isEntry": true,
     "imports": [
       "_public.js",
@@ -421,6 +688,26 @@
       "_private.js"
     ]
   },
+  "src/routes/api/admin/maps/[id]/iiif-sources/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/iiif-sources/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/iiif-sources/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/iiif-sources/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
+  "src/routes/api/admin/maps/[id]/iiif-sources/[sourceId]/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/iiif-sources/_sourceId_/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/iiif-sources/_sourceId_/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/iiif-sources/[sourceId]/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
   "src/routes/api/admin/maps/[id]/image/+server.ts": {
     "file": "entries/endpoints/api/admin/maps/_id_/image/_server.ts.js",
     "name": "entries/endpoints/api/admin/maps/_id_/image/_server.ts",
@@ -431,106 +718,60 @@
       "_private.js"
     ]
   },
-  "src/routes/api/admin/maps/bulk-datum-fix/+server.ts": {
-    "file": "entries/endpoints/api/admin/maps/bulk-datum-fix/_server.ts.js",
-    "name": "entries/endpoints/api/admin/maps/bulk-datum-fix/_server.ts",
-    "src": "src/routes/api/admin/maps/bulk-datum-fix/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js",
-      "_datumCorrection.js"
-    ]
-  },
-  "src/routes/api/admin/maps/propagate-from-ref/+server.ts": {
-    "file": "entries/endpoints/api/admin/maps/propagate-from-ref/_server.ts.js",
-    "name": "entries/endpoints/api/admin/maps/propagate-from-ref/_server.ts",
-    "src": "src/routes/api/admin/maps/propagate-from-ref/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js",
-      "_georefUtils.js"
-    ]
-  },
-  "src/routes/api/admin/maps/propagate-gcps/+server.ts": {
-    "file": "entries/endpoints/api/admin/maps/propagate-gcps/_server.ts.js",
-    "name": "entries/endpoints/api/admin/maps/propagate-gcps/_server.ts",
-    "src": "src/routes/api/admin/maps/propagate-gcps/+server.ts",
+  "src/routes/api/admin/maps/[id]/mirror-r2/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/mirror-r2/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/mirror-r2/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/mirror-r2/+server.ts",
     "isEntry": true,
     "imports": [
       "_public.js",
       "_private.js"
     ]
   },
-  "src/routes/api/admin/pipeline/annotate/+server.ts": {
-    "file": "entries/endpoints/api/admin/pipeline/annotate/_server.ts.js",
-    "name": "entries/endpoints/api/admin/pipeline/annotate/_server.ts",
-    "src": "src/routes/api/admin/pipeline/annotate/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js",
-      "_pipelineUtils.js"
-    ]
-  },
-  "src/routes/api/admin/pipeline/ia-upload/+server.ts": {
-    "file": "entries/endpoints/api/admin/pipeline/ia-upload/_server.ts.js",
-    "name": "entries/endpoints/api/admin/pipeline/ia-upload/_server.ts",
-    "src": "src/routes/api/admin/pipeline/ia-upload/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js",
-      "_pipelineUtils.js"
-    ]
-  },
-  "src/routes/api/admin/pipeline/index-sheets/+server.ts": {
-    "file": "entries/endpoints/api/admin/pipeline/index-sheets/_server.ts.js",
-    "name": "entries/endpoints/api/admin/pipeline/index-sheets/_server.ts",
-    "src": "src/routes/api/admin/pipeline/index-sheets/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js",
-      "_pipelineUtils.js"
-    ]
-  },
-  "src/routes/api/admin/pipeline/propagate-sheet/+server.ts": {
-    "file": "entries/endpoints/api/admin/pipeline/propagate-sheet/_server.ts.js",
-    "name": "entries/endpoints/api/admin/pipeline/propagate-sheet/_server.ts",
-    "src": "src/routes/api/admin/pipeline/propagate-sheet/+server.ts",
-    "isEntry": true,
-    "imports": [
-      "_public.js",
-      "_private.js",
-      "_georefUtils.js"
-    ]
-  },
-  "src/routes/api/admin/pipeline/seed-sheets/+server.ts": {
-    "file": "entries/endpoints/api/admin/pipeline/seed-sheets/_server.ts.js",
-    "name": "entries/endpoints/api/admin/pipeline/seed-sheets/_server.ts",
-    "src": "src/routes/api/admin/pipeline/seed-sheets/+server.ts",
+  "src/routes/api/admin/maps/[id]/ocr-review/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/ocr-review/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/ocr-review/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/ocr-review/+server.ts",
     "isEntry": true,
     "imports": [
       "_public.js",
       "_private.js"
     ]
   },
-  "src/routes/api/admin/pipeline/select-seeds/+server.ts": {
-    "file": "entries/endpoints/api/admin/pipeline/select-seeds/_server.ts.js",
-    "name": "entries/endpoints/api/admin/pipeline/select-seeds/_server.ts",
-    "src": "src/routes/api/admin/pipeline/select-seeds/+server.ts",
+  "src/routes/api/admin/maps/[id]/ocr-review/revert-recent/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/ocr-review/revert-recent/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/ocr-review/revert-recent/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/ocr-review/revert-recent/+server.ts",
     "isEntry": true,
     "imports": [
       "_public.js",
       "_private.js"
     ]
   },
-  "src/routes/api/admin/pipeline/status/+server.ts": {
-    "file": "entries/endpoints/api/admin/pipeline/status/_server.ts.js",
-    "name": "entries/endpoints/api/admin/pipeline/status/_server.ts",
-    "src": "src/routes/api/admin/pipeline/status/+server.ts",
+  "src/routes/api/admin/maps/[id]/ocr/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/ocr/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/ocr/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/ocr/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
+  "src/routes/api/admin/maps/[id]/ocr/apply/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/_id_/ocr/apply/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/_id_/ocr/apply/_server.ts",
+    "src": "src/routes/api/admin/maps/[id]/ocr/apply/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_public.js",
+      "_private.js"
+    ]
+  },
+  "src/routes/api/admin/maps/fetch-iiif-metadata/+server.ts": {
+    "file": "entries/endpoints/api/admin/maps/fetch-iiif-metadata/_server.ts.js",
+    "name": "entries/endpoints/api/admin/maps/fetch-iiif-metadata/_server.ts",
+    "src": "src/routes/api/admin/maps/fetch-iiif-metadata/+server.ts",
     "isEntry": true,
     "imports": [
       "_public.js",
@@ -562,93 +803,6 @@
     "src": "src/routes/auth/callback/+server.ts",
     "isEntry": true
   },
-  "src/routes/blog/+page.svelte": {
-    "file": "entries/pages/blog/_page.svelte.js",
-    "name": "entries/pages/blog/_page.svelte",
-    "src": "src/routes/blog/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_NavBar.js",
-      "_posts.js",
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.DDQJhGE_.css"
-    ]
-  },
-  "src/routes/blog/[slug]/+page.svelte": {
-    "file": "entries/pages/blog/_slug_/_page.svelte.js",
-    "name": "entries/pages/blog/_slug_/_page.svelte",
-    "src": "src/routes/blog/[slug]/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_posts.js",
-      "_NavBar.js",
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.DfABOGRq.css"
-    ]
-  },
-  "src/routes/blog/[slug]/+page.ts": {
-    "file": "entries/pages/blog/_slug_/_page.ts.js",
-    "name": "entries/pages/blog/_slug_/_page.ts",
-    "src": "src/routes/blog/[slug]/+page.ts",
-    "isEntry": true,
-    "imports": [
-      "_posts.js"
-    ]
-  },
-  "src/routes/catalog/+page.svelte": {
-    "file": "entries/pages/catalog/_page.svelte.js",
-    "name": "entries/pages/catalog/_page.svelte",
-    "src": "src/routes/catalog/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_context2.js",
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.dC7IEDJw.css"
-    ]
-  },
-  "src/routes/contribute/georef/+page.svelte": {
-    "file": "entries/pages/contribute/georef/_page.svelte.js",
-    "name": "entries/pages/contribute/georef/_page.svelte",
-    "src": "src/routes/contribute/georef/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_context2.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.CFUe8JvJ.css"
-    ]
-  },
-  "src/routes/contribute/label/+page.svelte": {
-    "file": "entries/pages/contribute/label/_page.svelte.js",
-    "name": "entries/pages/contribute/label/_page.svelte",
-    "src": "src/routes/contribute/label/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_context2.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.BNc2idO6.css",
-      "_app/immutable/assets/mode-shared.0bMNOpi5.css",
-      "_app/immutable/assets/ol.BtPuoxOl.css"
-    ]
-  },
-  "src/routes/contribute/label/+page.ts": {
-    "file": "entries/pages/contribute/label/_page.ts.js",
-    "name": "entries/pages/contribute/label/_page.ts",
-    "src": "src/routes/contribute/label/+page.ts",
-    "isEntry": true
-  },
   "src/routes/contribute/review/+page.svelte": {
     "file": "entries/pages/contribute/review/_page.svelte.js",
     "name": "entries/pages/contribute/review/_page.svelte",
@@ -667,93 +821,6 @@
     "file": "entries/pages/contribute/review/_page.ts.js",
     "name": "entries/pages/contribute/review/_page.ts",
     "src": "src/routes/contribute/review/+page.ts",
-    "isEntry": true
-  },
-  "src/routes/create/+page.svelte": {
-    "file": "entries/pages/create/_page.svelte.js",
-    "name": "entries/pages/create/_page.svelte",
-    "src": "src/routes/create/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_MapToolbar.svelte_svelte_type_style_lang.js",
-      "_CatalogHeader.js",
-      "_context2.js",
-      "_StoryPlayback.svelte_svelte_type_style_lang.js",
-      "_exports.js",
-      "_utils.js",
-      "_state.svelte.js"
-    ],
-    "css": [
-      "_app/immutable/assets/ol.BtPuoxOl.css"
-    ]
-  },
-  "src/routes/create/+page.ts": {
-    "file": "entries/pages/create/_page.ts.js",
-    "name": "entries/pages/create/_page.ts",
-    "src": "src/routes/create/+page.ts",
-    "isEntry": true
-  },
-  "src/routes/login/+page.svelte": {
-    "file": "entries/pages/login/_page.svelte.js",
-    "name": "entries/pages/login/_page.svelte",
-    "src": "src/routes/login/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_context2.js",
-      "_exports.js",
-      "_utils.js",
-      "_state.svelte.js",
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.BvsEncdf.css"
-    ]
-  },
-  "src/routes/signup/+page.svelte": {
-    "file": "entries/pages/signup/_page.svelte.js",
-    "name": "entries/pages/signup/_page.svelte",
-    "src": "src/routes/signup/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_context2.js",
-      "_exports.js",
-      "_utils.js",
-      "_state.svelte.js",
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.BCx_-o9u.css"
-    ]
-  },
-  "src/routes/view/+page.svelte": {
-    "file": "entries/pages/view/_page.svelte.js",
-    "name": "entries/pages/view/_page.svelte",
-    "src": "src/routes/view/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_MapToolbar.svelte_svelte_type_style_lang.js",
-      "_stores.js",
-      "_context2.js",
-      "_StoryPlayback.svelte_svelte_type_style_lang.js",
-      "_index.js",
-      "_exports.js",
-      "_utils.js",
-      "_state.svelte.js",
-      "_context.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.DPAhXi_5.css",
-      "_app/immutable/assets/ol.BtPuoxOl.css"
-    ]
-  },
-  "src/routes/view/+page.ts": {
-    "file": "entries/pages/view/_page.ts.js",
-    "name": "entries/pages/view/_page.ts",
-    "src": "src/routes/view/+page.ts",
     "isEntry": true
   }
 }

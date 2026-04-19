@@ -65,6 +65,7 @@
   let tileLayer: TileLayer | null = null;
   let loadingImage = false;
   let loadError = '';
+  let loadSeq = 0;
 
   // ── Color palette ─────────────────────────────────────────────────────────
   const labelColors: Record<string, string> = {};
@@ -174,12 +175,15 @@
   // ── IIIF loading ──────────────────────────────────────────────────────────
   async function loadIIIFImage(infoUrl: string) {
     if (!map) return;
+    const seq = ++loadSeq;
     loadingImage = true;
     loadError = '';
     try {
       const response = await fetch(infoUrl);
+      if (seq !== loadSeq) return; // superseded by a newer load
       if (!response.ok) throw new Error(`Failed to fetch IIIF info: ${response.status}`);
       const info = await response.json();
+      if (seq !== loadSeq) return;
       imgWidth = info.width ?? 0;
       imgHeight = info.height ?? 0;
       const iiifParser = new IIIFInfo(info);
@@ -195,6 +199,7 @@
       }
       loadingImage = false;
     } catch (err: any) {
+      if (seq !== loadSeq) return; // stale — don't clobber a successful load's state
       console.error('[ImageShell] IIIF load error:', err);
       loadError = err.message || 'Failed to load image';
       loadingImage = false;

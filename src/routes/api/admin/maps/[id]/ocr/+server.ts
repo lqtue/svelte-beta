@@ -43,6 +43,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     const overlap: number = body.overlap ?? 600;
     const concurrency: number = body.concurrency ?? 3;
     const minConfidence: number = body.min_confidence ?? 0.5;
+    const neatline: number[] | undefined = Array.isArray(body.neatline) && body.neatline.length === 4 ? body.neatline : undefined;
+    const targetCalls: number | undefined = body.target_calls ? Number(body.target_calls) : undefined;
+    const priorRun: string | undefined = body.prior_run ?? undefined;
+    const tileOverrides: Record<string, string> | undefined =
+        body.tile_overrides && typeof body.tile_overrides === 'object' ? body.tile_overrides : undefined;
 
     // Verify map exists and has an IIIF image
     const { data: map } = await (adminSupabase as any)
@@ -54,12 +59,35 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     if (!map) throw error(404, 'Map not found');
     if (!(map as any).iiif_image) throw error(400, 'Map has no iiif_image — cannot run OCR');
 
+    // Build the CLI args list (used for both spawn and CLI-command fallback)
+    const cliArgs = [
+        'batch',
+        '--map-id', mapId,
+        '--tile-size', String(tileSize),
+        '--overlap', String(overlap),
+        '--concurrency', String(concurrency),
+        '--min-confidence', String(minConfidence),
+        '--run-id', runId,
+        '--db',
+    ];
+    if (neatline) cliArgs.push('--crop', neatline.join(','));
+    if (targetCalls) cliArgs.push('--target-calls', String(targetCalls));
+    if (priorRun) cliArgs.push('--prior-run', priorRun);
+    if (tileOverrides && Object.keys(tileOverrides).length > 0) {
+        cliArgs.push('--tile-overrides', JSON.stringify(tileOverrides));
+    }
+
     // child_process only available in Node.js (local dev), not Cloudflare Workers
-    let spawn: typeof import('child_process').spawn;
+    let spawnFn: typeof import('child_process').spawn | null = null;
     try {
-        ({ spawn } = await import('child_process'));
+        ({ spawn: spawnFn } = await import('child_process'));
     } catch {
-        throw error(501, 'OCR batch requires local dev environment (child_process unavailable)');
+        // Production: return the exact CLI command so the user can run it locally
+        const cliCommand = `source .venv/bin/activate && python work/ocr/scripts/ocr.py ${cliArgs.join(' ')}`;
+        return json(
+            { ok: false, cli_only: true, cli_command: cliCommand, message: 'OCR must be run locally — copy the command below' },
+            { status: 422 },
+        );
     }
 
     const { resolve } = await import('path');
@@ -67,21 +95,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     const pythonBin = resolve(repoRoot, '.venv/bin/python');
     const script = resolve(repoRoot, 'work/ocr/scripts/ocr.py');
 
-    const args = [
-        script,
-        'batch',
-        '--map-id', mapId,
-        '--tile-size', String(tileSize),
-        '--overlap', String(overlap),
-        '--render-size', '1024',
-        '--concurrency', String(concurrency),
-        '--min-confidence', String(minConfidence),
-        '--run-id', runId,
-        '--db',
-    ];
-
     // Detached so the process outlives the HTTP request
-    const child = spawn(pythonBin, args, {
+    const child = spawnFn(pythonBin, [script, ...cliArgs], {
         cwd: repoRoot,
         detached: true,
         stdio: 'ignore',

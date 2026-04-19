@@ -140,6 +140,18 @@ def upsert_label_pins(map_id: str, rows: list[dict[str, Any]]) -> int:
     total = 0
     import requests
     import json
+
+    def _strip_nulls(obj):
+        if isinstance(obj, str):
+            return obj.replace("\x00", "")
+        if isinstance(obj, dict):
+            return {k: _strip_nulls(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_strip_nulls(v) for v in obj]
+        return obj
+
+    rows = [_strip_nulls(r) for r in rows]
+
     for i in range(0, len(rows), _CHUNK_SIZE):
         chunk = rows[i : i + _CHUNK_SIZE]
         resp = requests.post(

@@ -7,6 +7,7 @@ export interface LabelMapInfo {
 	id: string;
 	name: string;
 	allmapsId: string;
+	iiifImage?: string;
 	legend: LegendItem[];
 	categories: string[];
 }
@@ -14,7 +15,7 @@ export interface LabelMapInfo {
 export async function fetchLabelMaps(supabase: SupabaseClient): Promise<LabelMapInfo[]> {
 	const { data, error } = await supabase
 		.from('maps')
-		.select('id, name, allmaps_id, label_config')
+		.select('id, name, allmaps_id, iiif_image, label_config')
 		.eq('georef_done', true)
 		.order('priority', { ascending: false })
 		.order('name');
@@ -29,6 +30,7 @@ export async function fetchLabelMaps(supabase: SupabaseClient): Promise<LabelMap
 				id:         r.id,
 				name:       r.name,
 				allmapsId:  r.allmaps_id,
+				iiifImage:  r.iiif_image ?? undefined,
 				legend:     Array.isArray(cfg.legend)     ? cfg.legend     : [],
 				categories: Array.isArray(cfg.categories) ? cfg.categories : [],
 			};

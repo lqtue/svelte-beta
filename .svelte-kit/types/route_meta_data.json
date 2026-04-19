@@ -78,6 +78,10 @@
 	"/(editorial)/contribute": [
 		"src/routes/+layout.server.ts"
 	],
+	"/(app)/contribute/digitalize": [
+		"src/routes/(app)/contribute/digitalize/+page.ts",
+		"src/routes/+layout.server.ts"
+	],
 	"/(editorial)/contribute/georef": [
 		"src/routes/+layout.server.ts"
 	],

@@ -10,7 +10,7 @@ return {
 	assets: new Set(["favicon.ico","favicon.png","icon-192.png","icon-512.png","images/blog/vectorize-preview-plot.png","manifest.json","robots.txt","sw.js"]),
 	mimeTypes: {".png":"image/png",".json":"application/json",".txt":"text/plain",".js":"text/javascript"},
 	_: {
-		client: {start:"_app/immutable/entry/start.DSkE9VSS.js",app:"_app/immutable/entry/app.OJtBCQq3.js",imports:["_app/immutable/entry/start.DSkE9VSS.js","_app/immutable/chunks/5Eu1ykj-.js","_app/immutable/chunks/CnbiO5J4.js","_app/immutable/chunks/BAZTJ-Rb.js","_app/immutable/entry/app.OJtBCQq3.js","_app/immutable/chunks/PPVm8Dsz.js","_app/immutable/chunks/CnbiO5J4.js","_app/immutable/chunks/DsnmJJEf.js","_app/immutable/chunks/DibtaENM.js","_app/immutable/chunks/DVCaYPMG.js","_app/immutable/chunks/CHSdlpUR.js","_app/immutable/chunks/CLuu_piM.js","_app/immutable/chunks/BAZTJ-Rb.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.Cv_kUr0t.js",app:"_app/immutable/entry/app.DZlNWR8t.js",imports:["_app/immutable/entry/start.Cv_kUr0t.js","_app/immutable/chunks/CMsHy9zi.js","_app/immutable/chunks/B5MerJRl.js","_app/immutable/chunks/B9z2ZwV8.js","_app/immutable/chunks/D0iwhpLH.js","_app/immutable/entry/app.DZlNWR8t.js","_app/immutable/chunks/PPVm8Dsz.js","_app/immutable/chunks/B9z2ZwV8.js","_app/immutable/chunks/B5MerJRl.js","_app/immutable/chunks/DsnmJJEf.js","_app/immutable/chunks/BrZszOTp.js","_app/immutable/chunks/X7wtVBrg.js","_app/immutable/chunks/_wdC1yWe.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
 			__memo(() => import('../output/server/nodes/0.js')),
 			__memo(() => import('../output/server/nodes/1.js')),
@@ -28,45 +28,35 @@ return {
 			__memo(() => import('../output/server/nodes/13.js')),
 			__memo(() => import('../output/server/nodes/14.js')),
 			__memo(() => import('../output/server/nodes/15.js')),
-			__memo(() => import('../output/server/nodes/16.js'))
+			__memo(() => import('../output/server/nodes/16.js')),
+			__memo(() => import('../output/server/nodes/17.js')),
+			__memo(() => import('../output/server/nodes/18.js')),
+			__memo(() => import('../output/server/nodes/19.js')),
+			__memo(() => import('../output/server/nodes/20.js'))
 		],
 		remotes: {
 			
 		},
 		routes: [
 			{
-				id: "/",
-				pattern: /^\/$/,
+				id: "/(editorial)",
+				pattern: /^\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 2 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 11 },
 				endpoint: null
 			},
 			{
-				id: "/about",
+				id: "/(editorial)/about",
 				pattern: /^\/about\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 3 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 12 },
 				endpoint: null
 			},
 			{
-				id: "/admin",
-				pattern: /^\/admin\/?$/,
-				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 4 },
-				endpoint: null
-			},
-			{
-				id: "/admin/pipeline",
-				pattern: /^\/admin\/pipeline\/?$/,
-				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 5 },
-				endpoint: null
-			},
-			{
-				id: "/annotate",
+				id: "/(app)/annotate",
 				pattern: /^\/annotate\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 6 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 4 },
 				endpoint: null
 			},
 			{
@@ -77,27 +67,6 @@ return {
 				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/footprints/_server.ts.js'))
 			},
 			{
-				id: "/api/admin/georef",
-				pattern: /^\/api\/admin\/georef\/?$/,
-				params: [],
-				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/georef/_server.ts.js'))
-			},
-			{
-				id: "/api/admin/labels",
-				pattern: /^\/api\/admin\/labels\/?$/,
-				params: [],
-				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/labels/_server.ts.js'))
-			},
-			{
-				id: "/api/admin/labels/[id]",
-				pattern: /^\/api\/admin\/labels\/([^/]+?)\/?$/,
-				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
-				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/labels/_id_/_server.ts.js'))
-			},
-			{
 				id: "/api/admin/maps",
 				pattern: /^\/api\/admin\/maps\/?$/,
 				params: [],
@@ -105,25 +74,11 @@ return {
 				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_server.ts.js'))
 			},
 			{
-				id: "/api/admin/maps/bulk-datum-fix",
-				pattern: /^\/api\/admin\/maps\/bulk-datum-fix\/?$/,
+				id: "/api/admin/maps/fetch-iiif-metadata",
+				pattern: /^\/api\/admin\/maps\/fetch-iiif-metadata\/?$/,
 				params: [],
 				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/bulk-datum-fix/_server.ts.js'))
-			},
-			{
-				id: "/api/admin/maps/propagate-from-ref",
-				pattern: /^\/api\/admin\/maps\/propagate-from-ref\/?$/,
-				params: [],
-				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/propagate-from-ref/_server.ts.js'))
-			},
-			{
-				id: "/api/admin/maps/propagate-gcps",
-				pattern: /^\/api\/admin\/maps\/propagate-gcps\/?$/,
-				params: [],
-				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/propagate-gcps/_server.ts.js'))
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/fetch-iiif-metadata/_server.ts.js'))
 			},
 			{
 				id: "/api/admin/maps/[id]",
@@ -140,6 +95,20 @@ return {
 				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/annotation/_server.ts.js'))
 			},
 			{
+				id: "/api/admin/maps/[id]/iiif-sources",
+				pattern: /^\/api\/admin\/maps\/([^/]+?)\/iiif-sources\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
+				page: null,
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/iiif-sources/_server.ts.js'))
+			},
+			{
+				id: "/api/admin/maps/[id]/iiif-sources/[sourceId]",
+				pattern: /^\/api\/admin\/maps\/([^/]+?)\/iiif-sources\/([^/]+?)\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false},{"name":"sourceId","optional":false,"rest":false,"chained":false}],
+				page: null,
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/iiif-sources/_sourceId_/_server.ts.js'))
+			},
+			{
 				id: "/api/admin/maps/[id]/image",
 				pattern: /^\/api\/admin\/maps\/([^/]+?)\/image\/?$/,
 				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
@@ -147,53 +116,39 @@ return {
 				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/image/_server.ts.js'))
 			},
 			{
-				id: "/api/admin/pipeline/annotate",
-				pattern: /^\/api\/admin\/pipeline\/annotate\/?$/,
-				params: [],
+				id: "/api/admin/maps/[id]/mirror-r2",
+				pattern: /^\/api\/admin\/maps\/([^/]+?)\/mirror-r2\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/pipeline/annotate/_server.ts.js'))
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/mirror-r2/_server.ts.js'))
 			},
 			{
-				id: "/api/admin/pipeline/ia-upload",
-				pattern: /^\/api\/admin\/pipeline\/ia-upload\/?$/,
-				params: [],
+				id: "/api/admin/maps/[id]/ocr-review",
+				pattern: /^\/api\/admin\/maps\/([^/]+?)\/ocr-review\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/pipeline/ia-upload/_server.ts.js'))
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/ocr-review/_server.ts.js'))
 			},
 			{
-				id: "/api/admin/pipeline/index-sheets",
-				pattern: /^\/api\/admin\/pipeline\/index-sheets\/?$/,
-				params: [],
+				id: "/api/admin/maps/[id]/ocr-review/revert-recent",
+				pattern: /^\/api\/admin\/maps\/([^/]+?)\/ocr-review\/revert-recent\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/pipeline/index-sheets/_server.ts.js'))
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/ocr-review/revert-recent/_server.ts.js'))
 			},
 			{
-				id: "/api/admin/pipeline/propagate-sheet",
-				pattern: /^\/api\/admin\/pipeline\/propagate-sheet\/?$/,
-				params: [],
+				id: "/api/admin/maps/[id]/ocr",
+				pattern: /^\/api\/admin\/maps\/([^/]+?)\/ocr\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/pipeline/propagate-sheet/_server.ts.js'))
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/ocr/_server.ts.js'))
 			},
 			{
-				id: "/api/admin/pipeline/seed-sheets",
-				pattern: /^\/api\/admin\/pipeline\/seed-sheets\/?$/,
-				params: [],
+				id: "/api/admin/maps/[id]/ocr/apply",
+				pattern: /^\/api\/admin\/maps\/([^/]+?)\/ocr\/apply\/?$/,
+				params: [{"name":"id","optional":false,"rest":false,"chained":false}],
 				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/pipeline/seed-sheets/_server.ts.js'))
-			},
-			{
-				id: "/api/admin/pipeline/select-seeds",
-				pattern: /^\/api\/admin\/pipeline\/select-seeds\/?$/,
-				params: [],
-				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/pipeline/select-seeds/_server.ts.js'))
-			},
-			{
-				id: "/api/admin/pipeline/status",
-				pattern: /^\/api\/admin\/pipeline\/status\/?$/,
-				params: [],
-				page: null,
-				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/pipeline/status/_server.ts.js'))
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/admin/maps/_id_/ocr/apply/_server.ts.js'))
 			},
 			{
 				id: "/api/admin/upload-image",
@@ -217,73 +172,101 @@ return {
 				endpoint: __memo(() => import('../output/server/entries/endpoints/auth/callback/_server.ts.js'))
 			},
 			{
-				id: "/blog",
+				id: "/(editorial)/blog",
 				pattern: /^\/blog\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 7 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 13 },
 				endpoint: null
 			},
 			{
-				id: "/blog/[slug]",
+				id: "/(editorial)/blog/[slug]",
 				pattern: /^\/blog\/([^/]+?)\/?$/,
 				params: [{"name":"slug","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,], errors: [1,], leaf: 8 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 14 },
 				endpoint: null
 			},
 			{
-				id: "/catalog",
+				id: "/(editorial)/catalog",
 				pattern: /^\/catalog\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 9 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 15 },
 				endpoint: null
 			},
 			{
-				id: "/contribute/georef",
+				id: "/(editorial)/contribute",
+				pattern: /^\/contribute\/?$/,
+				params: [],
+				page: { layouts: [0,3,], errors: [1,,], leaf: 16 },
+				endpoint: null
+			},
+			{
+				id: "/(app)/contribute/digitalize",
+				pattern: /^\/contribute\/digitalize\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 5 },
+				endpoint: null
+			},
+			{
+				id: "/(editorial)/contribute/georef",
 				pattern: /^\/contribute\/georef\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 10 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 17 },
 				endpoint: null
 			},
 			{
-				id: "/contribute/label",
+				id: "/(app)/contribute/label",
 				pattern: /^\/contribute\/label\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 11 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 6 },
 				endpoint: null
 			},
 			{
 				id: "/contribute/review",
 				pattern: /^\/contribute\/review\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 12 },
+				page: { layouts: [0,], errors: [1,], leaf: 20 },
 				endpoint: null
 			},
 			{
-				id: "/create",
+				id: "/(app)/contribute/trace",
+				pattern: /^\/contribute\/trace\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 7 },
+				endpoint: null
+			},
+			{
+				id: "/(app)/create",
 				pattern: /^\/create\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 13 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 8 },
 				endpoint: null
 			},
 			{
-				id: "/login",
+				id: "/(app)/image",
+				pattern: /^\/image\/?$/,
+				params: [],
+				page: { layouts: [0,2,], errors: [1,,], leaf: 9 },
+				endpoint: null
+			},
+			{
+				id: "/(editorial)/login",
 				pattern: /^\/login\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 14 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 18 },
 				endpoint: null
 			},
 			{
-				id: "/signup",
-				pattern: /^\/signup\/?$/,
+				id: "/(editorial)/profile",
+				pattern: /^\/profile\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 15 },
+				page: { layouts: [0,3,], errors: [1,,], leaf: 19 },
 				endpoint: null
 			},
 			{
-				id: "/view",
+				id: "/(app)/view",
 				pattern: /^\/view\/?$/,
 				params: [],
-				page: { layouts: [0,], errors: [1,], leaf: 16 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 10 },
 				endpoint: null
 			}
 		],

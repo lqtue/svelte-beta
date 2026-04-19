@@ -73,6 +73,47 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     return json({ extractions: data ?? [], total: count ?? 0, statusCounts, runIds });
 };
 
+/** POST /api/admin/maps/[id]/ocr-review
+ *  Body: { run_id, global_x, global_y, global_w, global_h, category?, text?, tile_x?, tile_y?, tile_w?, tile_h? }
+ *  Creates a new blank extraction row with status=pending.
+ */
+export const POST: RequestHandler = async ({ params, request, locals }) => {
+    const { adminSupabase } = await getAdminClient(locals);
+    const mapId = params.id;
+    const body = await request.json();
+
+    const { run_id, global_x, global_y, global_w, global_h } = body;
+    if (!run_id) throw error(400, 'Missing run_id');
+    if (global_x == null || global_y == null || global_w == null || global_h == null) {
+        throw error(400, 'Missing bbox coords');
+    }
+
+    const row = {
+        map_id: mapId,
+        run_id,
+        tile_x: body.tile_x ?? 0,
+        tile_y: body.tile_y ?? 0,
+        tile_w: body.tile_w ?? 0,
+        tile_h: body.tile_h ?? 0,
+        global_x, global_y, global_w, global_h,
+        category: body.category ?? 'other',
+        text: body.text ?? '',
+        confidence: 1.0,
+        status: 'pending',
+        model: 'manual',
+        prompt: 'manual',
+    };
+
+    const { data, error: err } = await (adminSupabase as any)
+        .from('ocr_extractions')
+        .insert(row)
+        .select('id')
+        .single();
+
+    if (err) throw error(500, err.message);
+    return json({ ok: true, id: (data as any).id });
+};
+
 /** PATCH /api/admin/maps/[id]/ocr-review
  *  Body: { id: string, text?: string, category?: string, notes?: string, status: 'validated'|'rejected'|'pending' }
  *  Updates the extraction and records who validated it.

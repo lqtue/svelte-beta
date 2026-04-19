@@ -227,6 +227,107 @@ def adaptive_render_size(image: Image.Image, low: int = 1024, high: int = 2048, 
     return high if estimate_density(image) >= threshold else low
 
 
+def detect_neatline(image: Image.Image) -> tuple[int, int, int, int] | None:
+    """Detect map content bounding box (neatline) from a low-res overview.
+
+    Returns (x, y, w, h) in the overview's pixel space, or None if the
+    content fills >95% of the image (no meaningful margins to crop).
+    """
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    gray = np.array(image.convert("L"), dtype=np.float32)
+    h, w = gray.shape
+    content_mask = gray < 230
+    rows_any = np.any(content_mask, axis=1)
+    cols_any = np.any(content_mask, axis=0)
+    if not rows_any.any() or not cols_any.any():
+        return None
+    rmin, rmax = int(np.where(rows_any)[0][0]), int(np.where(rows_any)[0][-1])
+    cmin, cmax = int(np.where(cols_any)[0][0]), int(np.where(cols_any)[0][-1])
+    bw, bh = cmax - cmin, rmax - rmin
+    if bw * bh > 0.95 * w * h:
+        return None
+    return (cmin, rmin, bw, bh)
+
+
+def compute_tile_densities(
+    overview: Image.Image,
+    tiles: list[tuple[int, int, int, int]],
+    full_w: int,
+    full_h: int,
+    text_threshold: float = 25.0,
+) -> dict[tuple[int, int, int, int], float]:
+    """Compute text-likelihood fraction for each tile from a low-res overview.
+
+    Uses local 8×8 std-dev to detect high-frequency ink (text) vs smooth areas.
+    Returns {tile: fraction} where fraction is 0-1 (pct of tile area with
+    local std-dev above text_threshold).
+    """
+    try:
+        import numpy as np
+        from scipy.ndimage import uniform_filter
+    except ImportError:
+        return {t: 1.0 for t in tiles}
+
+    gray = np.array(overview.convert("L"), dtype=np.float32)
+    h, w = gray.shape
+    local_mean = uniform_filter(gray, size=8)
+    local_sqmean = uniform_filter(gray ** 2, size=8)
+    local_std = np.sqrt(np.maximum(local_sqmean - local_mean ** 2, 0))
+
+    densities = {}
+    for tile in tiles:
+        tx, ty, tw, th = tile
+        ox = int(tx / full_w * w)
+        oy = int(ty / full_h * h)
+        ow = max(1, int(tw / full_w * w))
+        oh = max(1, int(th / full_h * h))
+        region = local_std[oy : oy + oh, ox : ox + ow]
+        densities[tile] = float(np.mean(region > text_threshold)) if region.size > 0 else 0.0
+    return densities
+
+
+def auto_tile_params(
+    full_w: int,
+    full_h: int,
+    target_calls: int = 12,
+    base_render: int = 1024,
+    base_tile: int = 2400,
+    overlap_ratio: float = 0.125,
+) -> tuple[int, int, int]:
+    """Compute tile_size, overlap, and render_size to hit a target call count.
+
+    Scales tile_size up (and render_size proportionally) so that the uniform
+    grid produces approximately target_calls tiles. Maintains constant
+    pixel density per source pixel.
+
+    Returns (tile_size, overlap, render_size).
+    """
+    import math
+
+    best_tile = base_tile
+    best_diff = float("inf")
+    for tile_sz in range(base_tile, max(full_w, full_h) + 1, 200):
+        ovlp = int(tile_sz * overlap_ratio)
+        step = tile_sz - ovlp
+        cols = math.ceil(max(full_w - ovlp, 1) / step)
+        rows = math.ceil(max(full_h - ovlp, 1) / step)
+        n = cols * rows
+        diff = abs(n - target_calls)
+        if diff < best_diff:
+            best_diff = diff
+            best_tile = tile_sz
+        if n <= target_calls:
+            break
+
+    overlap = int(best_tile * overlap_ratio)
+    render_size = int(best_tile * base_render / base_tile)
+    render_size = min(render_size, 4096)
+    return best_tile, overlap, render_size
+
+
 def get_image_info(iiif_base: str, retries: int = 3) -> dict:
     """Fetch IIIF info.json.
 

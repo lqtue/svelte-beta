@@ -26,14 +26,14 @@ EXTRACTION_SCHEMA = {
                     },
                     "language": {
                         "type": "string",
-                        "enum": ["fr", "vi", "zh", "other"],
+                        "enum": ["fr", "vi", "zh", "mixed", "other"],
                     },
                     "bbox_px": {
                         "type": "array",
                         "items": {"type": "integer"},
                         "minItems": 4,
                         "maxItems": 4,
-                        "description": "[x, y, width, height] in pixels within the tile",
+                        "description": "[x, y, width, height] in 0-1000 normalized coordinates (0,0 = top-left, 1000,1000 = bottom-right)",
                     },
                     "rotation_deg": {
                         "type": "number",
@@ -318,7 +318,7 @@ SCOUT_SCHEMA = {
                 "properties": {
                     "text": {"type": "string"},
                     "category": {"type": "string", "enum": ["street", "place", "building", "institution", "legend", "title", "hydrology", "other"]},
-                    "language": {"type": "string", "enum": ["fr", "vi", "zh", "other"]},
+                    "language": {"type": "string", "enum": ["fr", "vi", "zh", "mixed", "other"]},
                     "bbox_px": {"type": "array", "items": {"type": "number"}},
                     "rotation_deg": {"type": "number"},
                     "confidence": {"type": "number"},
@@ -509,11 +509,77 @@ Preserve French accents and proper capitalisation.
 **For each label:**
 1. text: Visible text only, in reading order
 2. category: street | hydrology | place | building | institution | legend | title | other
-3. language: fr | vi | zh | other
+3. language: fr | vi | zh | mixed | other
+   Use "mixed" for labels combining languages (e.g. "Village Annamite de Chợ Quán").
 4. bbox_px: [x, y, width, height] (0–1000 scale, 0,0 = top-left)
 5. rotation_deg: baseline angle from horizontal (positive = counter-clockwise)
 6. confidence: 0.4–1.0. Omit labels below 0.4.
 7. notes: use "uncertain: <reason>" for confidence < 0.7; "fragment", "continues outside [edge] edge", "edge zone", "faded", etc.
+
+Return ONLY the JSON object. If no text is visible, return {"extractions": []}.
+"""
+
+
+# ── User prompt V8 — maximum recall (false-positive tolerant) ─────────────────
+# Key changes from V7:
+#   1. No confidence floor — the model reports EVERYTHING it can detect.
+#      The review UI, not the model, decides what to keep.
+#   2. Removed edge-zone penalty (was suppressing overlapping detections).
+#   3. Kept TRANSCRIPTION RULE (no hallucination) and hydrology category from V6.
+#   4. Kept numbered streets (N°29) from V7.
+#   5. Simplified skip list to only hard non-text cases (stamps, pure scale numbers).
+#   6. Explicit "err on the side of inclusion" instruction.
+
+PROMPT_V8 = """\
+Examine the map tile image provided and extract every readable text label.
+
+**TRANSCRIPTION RULE (critical):**
+Transcribe ONLY text that is physically visible in this tile image.
+Do NOT complete, infer, or reconstruct labels using prior knowledge of place names.
+- You see "Charner" but not "Boulevard" → text="Charner", notes="fragment"
+- You see the complete "Boulevard Charner" → return the full text normally
+
+**RECALL RULE (critical):**
+Err on the side of INCLUSION. If you can detect any text — even faded, rotated, or partially \
+cut off — return it. Set a low confidence score rather than omitting it. A human reviewer \
+will reject false positives. A missed label can never be recovered.
+
+**GROUPING RULE (multi-line buildings/institutions):**
+A building or institution name printed across 2–3 lines inside one parcel = ONE extraction. \
+The bbox must enclose all lines. Do NOT apply this rule to street names — extract only the visible words.
+
+**NUMBERED STREETS:**
+"N°29", "N° 7", "No. 12" etc. are valid street labels (category="street"), NOT parcel numbers. \
+Extract them when placed along a road centreline. Do NOT extract bare integers inside plot areas.
+
+**Classification:**
+- **street**: Roads, boulevards, quais, passages, and numbered streets (N°…)
+- **hydrology**: Canals (Rach), rivers, arroyos (e.g. "Arroyo de l'Avalanche")
+- **institution**: Public/private institutions (Abattoir, Poste de Police, Cathédrale)
+- **building**: Individual named buildings (Hôtel du Gouverneur)
+- **place**: Village names ("Vge de ..."), quarters, districts
+- **legend / title**: Map boilerplate, scale bars, cartouche text, large titles
+- **other**: Any other relevant text that does not fit the above
+
+**Normalization:**
+Expand abbreviations: "Vge de" → "Village de", "R." → "Rue", "Pce" → "Place".
+Preserve French accents and proper capitalisation.
+
+**What to skip (hard non-text only):**
+- Library/archival stamps added to the scan (BIBLIOTHÈQUE NATIONALE, handwritten inventory numbers like "A1005")
+- Scale bar tick-mark numbers (0, 100, 200 m) — numeric only, no associated text
+- North arrow compass letters (standalone "N", "S", "E", "O" next to an arrow symbol)
+- Hatching, stippling, or colour-fill patterns that only superficially resemble letters
+
+**For each label:**
+1. text: Visible text only, in reading order
+2. category: street | hydrology | place | building | institution | legend | title | other
+3. language: fr | vi | zh | mixed | other
+4. bbox_px: [x, y, width, height] (0–1000 scale, 0,0 = top-left)
+5. rotation_deg: baseline angle from horizontal (positive = counter-clockwise)
+6. confidence: 0.1–1.0. There is NO minimum threshold — include everything you detect.
+   Use low confidence (0.1–0.4) for very faded or uncertain text rather than omitting it.
+7. notes: "fragment", "continues outside [edge] edge", "faded", "uncertain: <reason>", etc.
 
 Return ONLY the JSON object. If no text is visible, return {"extractions": []}.
 """
@@ -529,7 +595,8 @@ PROMPTS: dict[str, str] = {
     "v5": PROMPT_V5,
     "v6": PROMPT_V6,
     "v7": PROMPT_V7,
+    "v8": PROMPT_V8,
     "scout": PROMPT_SCOUT,
 }
 
-DEFAULT_PROMPT = "v7"
+DEFAULT_PROMPT = "v8"

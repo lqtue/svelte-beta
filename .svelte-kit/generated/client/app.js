@@ -20,28 +20,30 @@ export const nodes = [
 	() => import('./nodes/16'),
 	() => import('./nodes/17'),
 	() => import('./nodes/18'),
-	() => import('./nodes/19')
+	() => import('./nodes/19'),
+	() => import('./nodes/20')
 ];
 
 export const server_loads = [0];
 
 export const dictionary = {
-		"/(editorial)": [10,[3]],
-		"/(editorial)/about": [11,[3]],
+		"/(editorial)": [11,[3]],
+		"/(editorial)/about": [12,[3]],
 		"/(app)/annotate": [4,[2]],
-		"/(editorial)/blog": [12,[3]],
-		"/(editorial)/blog/[slug]": [13,[3]],
-		"/(editorial)/catalog": [14,[3]],
-		"/(editorial)/contribute": [15,[3]],
-		"/(editorial)/contribute/georef": [16,[3]],
-		"/(app)/contribute/label": [5,[2]],
-		"/contribute/review": [19],
-		"/(app)/contribute/trace": [6,[2]],
-		"/(app)/create": [7,[2]],
-		"/(app)/image": [8,[2]],
-		"/(editorial)/login": [17,[3]],
-		"/(editorial)/profile": [~18,[3]],
-		"/(app)/view": [9,[2]]
+		"/(editorial)/blog": [13,[3]],
+		"/(editorial)/blog/[slug]": [14,[3]],
+		"/(editorial)/catalog": [15,[3]],
+		"/(editorial)/contribute": [16,[3]],
+		"/(app)/contribute/digitalize": [5,[2]],
+		"/(editorial)/contribute/georef": [17,[3]],
+		"/(app)/contribute/label": [6,[2]],
+		"/contribute/review": [20],
+		"/(app)/contribute/trace": [7,[2]],
+		"/(app)/create": [8,[2]],
+		"/(app)/image": [9,[2]],
+		"/(editorial)/login": [18,[3]],
+		"/(editorial)/profile": [~19,[3]],
+		"/(app)/view": [10,[2]]
 	};
 
 export const hooks = {

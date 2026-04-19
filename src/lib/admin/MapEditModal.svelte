@@ -216,6 +216,9 @@
         finally { batchValidating = false; }
     }
     let ocrMinConfidence = 0.7;
+    let ocrNeatline = "";        // "x,y,w,h" — paste from neatline HTML tool
+    let ocrTargetCalls = 12;     // target API call count (auto-scales tile size)
+    let ocrPriorRun = "";        // path to prior run dir for empty-tile skip
 
     async function loadOcrStatus() {
         ocrError = "";
@@ -235,7 +238,12 @@
             const res = await fetch(`/api/admin/maps/${map.id}/ocr`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ min_confidence: ocrMinConfidence }),
+                body: JSON.stringify({
+                    min_confidence: ocrMinConfidence,
+                    neatline: ocrNeatline ? ocrNeatline.split(',').map(Number) : undefined,
+                    target_calls: ocrTargetCalls || undefined,
+                    prior_run: ocrPriorRun || undefined,
+                }),
             });
             const data = await res.json();
             if (!res.ok) { ocrError = data.message ?? res.statusText; return; }
@@ -890,6 +898,21 @@
                                 <label class="form-label" style="max-width: 280px;">
                                     <span>Run ID (optional)</span>
                                     <input type="text" bind:value={ocrRunId} class="form-input mono" placeholder="e.g. 20260417T120000" />
+                                </label>
+                                <label class="form-label" style="max-width: 320px;">
+                                    <span>Neatline crop (x,y,w,h)</span>
+                                    <input type="text" bind:value={ocrNeatline} class="form-input mono" placeholder="390,295,11239,8143" />
+                                    <span class="form-hint">Paste coords from neatline tool. Crops the tile grid to map content.</span>
+                                </label>
+                                <label class="form-label" style="max-width: 160px;">
+                                    <span>Target API calls</span>
+                                    <input type="number" bind:value={ocrTargetCalls} class="form-input" min="4" max="64" />
+                                    <span class="form-hint">Auto-scales tile size</span>
+                                </label>
+                                <label class="form-label" style="max-width: 320px;">
+                                    <span>Prior run dir (optional)</span>
+                                    <input type="text" bind:value={ocrPriorRun} class="form-input mono" placeholder="work/ocr/outputs/…/runs/…" />
+                                    <span class="form-hint">Skip tiles that had 0 extractions in a previous run</span>
                                 </label>
                             </div>
                             <div class="ocr-actions">

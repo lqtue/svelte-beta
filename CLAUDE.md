@@ -56,22 +56,32 @@ python work/ocr/scripts/ocr.py batch \
 python work/ocr/scripts/ocr.py dedup \
   --map-id <uuid> --run-id <name> [--apply]
 
+# Fuzzy dedup + spatial fragment join for V1-style raw results → ocr_extractions
+python work/ocr/scripts/ocr.py clean \
+  --local work/ocr/outputs/<map-id>/runs/<run-id> \
+  --map-id <uuid> --run-id <clean-run-id> \
+  --min-confidence 0.1 [--apply]
+# --db instead of --local to fetch from Supabase; --proximity <px> --angle-tol <deg> to tune join
+
 # List available Gemini models
 python work/ocr/scripts/ocr.py list-models
 ```
 
 **Key design decisions:**
 - Gemini returns bboxes in **0–1000 normalized space** (not pixel coords) — all rendering scales by `img_dim / 1000`
-- Model: `gemini-3-flash-preview` (Paid tier 1, 10K RPD). Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation)
+- `global_x/y/w/h` stored in `ocr_extractions` are already full-image pixel coords (`tile_offset + bbox_norm * tile_dim`). No further scaling needed when rendering.
+- Model: `gemini-2.0-flash-preview` (Paid tier 1, 10K RPD). Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation)
 - Outputs are versioned: `work/ocr/outputs/<map_id>/runs/<run_id>/` — each run saves `run_config.json` for paper reproducibility
 - Tile images cached at `work/ocr/outputs/<map_id>/` (shared across runs); per-run JSONs + previews in `runs/<run_id>/`
-- Prompts are versioned (`v1`–`v5`) in `work/ocr/scripts/prompt.py`. Default is `v5` (adds hydrology category, noise filtering)
+- Prompts versioned `v1`–`v8` in `work/ocr/scripts/prompt.py`. **Default is `v8`** (high-recall, no confidence floor, explicit RECALL RULE — prefer false positives over false negatives). V6 introduced a strict 0.5 confidence floor that caused major recall regression; v8 reverts it.
 - `iiif_tiles.py` auto-detects IIIF version (v2/v3) and quality (`default` vs `native`); `fetch_crop()` accepts `quality` and `fit` params
+- `dedup` writes to `label_pins`; `clean` writes to `ocr_extractions` (correct target for the digitalize review UI)
 
 **Scripts:**
-- `ocr.py` — CLI entry: `run`, `scout`, `stitch`, `batch`, `dedup`, `preview`, `list-models` subcommands
+- `ocr.py` — CLI entry: `run`, `scout`, `stitch`, `batch`, `clean`, `dedup`, `preview`, `list-models` subcommands
 - `gemini_client.py` — Gemini wrapper: key rotation, 429/503 retry, single-image and multi-image sequence calls
 - `iiif_tiles.py` — IIIF crop fetch with IA fallback (full-image download + local crop), tile grid generator, density estimation; `get_image_info()` returns `version` + `quality`
+- `supabase_client.py` — direct REST calls to Supabase: `upsert_ocr_extractions`, `fetch_ocr_extractions`, `upsert_label_pins`
 - `prompt.py` — versioned prompts + JSON extraction schema
 
 ## Development Commands
@@ -127,7 +137,11 @@ Child components access the map via `getShellContext()` — never create a secon
 
 `HistoricalOverlay.svelte` is headless; it reacts to `mapStore.activeMapId` and `layerStore` to add/remove the warped historical map layer. `DualMapPane.svelte` handles side-by-side view mode.
 
-**Exception:** Label Studio (`/contribute/label`) creates its own separate OL instance for IIIF pixel-coordinate canvas — it does NOT use MapShell.
+**Exception:** Label Studio (`/contribute/label`) and Digitalize (`/contribute/digitalize`) each create their own OL instance via `ImageShell.svelte` for IIIF pixel-coordinate canvases — they do NOT use MapShell or global stores.
+
+**`ImageShell.svelte`** (`src/lib/shell/`) is the IIIF-canvas counterpart to MapShell. It creates an OL map with a static image extent, exposes it via `getImageShellStore()`, and binds `imgWidth`/`imgHeight`. Child tool components (`OcrBboxTool`, `TriageTool`, etc.) call `getImageShellStore()` to get the OL map.
+
+**IIIF canvas coordinate convention:** OL uses `ol_y = -image_y` (y-flip). All tool components store bboxes in image-space (y-down) and apply the flip when creating OL geometries. `src/lib/contribute/shared/bboxHandles.ts` centralises handle feature creation and the y-flip logic for all bbox-editing tools.
 
 ### Global Stores (`src/lib/stores/`)
 
@@ -154,8 +168,9 @@ Routes split into two layout groups:
 | `/contribute/georef` | Georeference maps | `src/routes/contribute/georef/` |
 | `/contribute/label` | Label Studio (pin + trace) | `src/lib/contribute/label/` |
 | `/contribute/review` | HITL review of SAM2 footprints | `src/lib/contribute/review/` |
+| `/contribute/digitalize` | OCR triage + bbox review | `src/routes/(app)/contribute/digitalize/` |
 
-All app modes except Label Studio share the same MapShell and global stores.
+All app modes except Label Studio and Digitalize share the same MapShell and global stores.
 
 ### Label Studio (`/contribute/label`)
 
@@ -178,6 +193,23 @@ Separate IIIF-based labeling tool with its own OL instance (pixel coordinates, n
 - `footprint_submissions` — polygon/line traces with name, category, featureType. No `allmaps_id` column — same join pattern.
 - Legend items can be strings (`"Building"`) or objects (`{ val: "1", label: "Abattoir Municipal" }`)
 - Task status: `open | in_progress | consensus | verified | hidden`
+
+### Digitalize Tool (`/contribute/digitalize`)
+
+Two-phase workflow sharing a single `ImageShell` canvas:
+
+**Phase 1 — Triage** (`src/lib/contribute/digitalize/`):
+- `TriageTool.svelte` — OL interactions for setting the neatline rect + tile priority grid. Corner handles for resizing (via `bboxHandles.ts`); body translate for moving. Dispatches `neatlineChange` and `tileOverridesChange`.
+- `TriageSidebar.svelte` — tile params (size, overlap, min_confidence), Run OCR button. When running in Cloudflare production (no `child_process`), the POST returns `{ cli_only: true, cli_command }` and the sidebar shows a copyable CLI command.
+- `tileParams.ts` / `rectUtils.ts` — tile grid computation and OL ↔ image-space rect conversion utilities.
+
+**Phase 2 — OCR Review** (`src/lib/contribute/ocr/`):
+- `OcrBboxTool.svelte` — renders `ocr_extractions` bboxes; Select + body Translate + corner-handle Translate. Also supports `drawMode` (OL `Draw` + `createBox()`) to add new manual bboxes; dispatches `draw` event → POST creates a new `ocr_extractions` row with `model: 'manual'`.
+- `OcrSidebar.svelte` — filterable table of extractions; inline text/category edit with auto-save on blur (PATCH); validate/reject buttons; batch validate confirmed tier. Exposes `load()`, `focusRow(id)`, `getRunId()`.
+- Floating `BboxPanel` in `+page.svelte` — text input + category select + validate/reject, shown when a bbox is selected on the canvas.
+
+**Shared:**
+- `src/lib/contribute/shared/bboxHandles.ts` — `createHandleFeatures`, `updateHandlePositions`, `oppositeCorner`, `rectFromHandleMove`, `olPointToImage`. Used by both `OcrBboxTool` and `TriageTool`. All image-space coords stay y-down; the module applies y-flip internally.
 
 ### Footprint Review Mode (`/contribute/review`)
 
@@ -260,6 +292,8 @@ When adding a new page, use the page template in `docs/design-system.md` and add
 - `/api/admin/labels/[id]/` — individual task updates
 - `/api/admin/georef/` — georef management
 - `/api/admin/maps/[id]/mirror-r2/` — POST: fetch Allmaps annotation → rewrite source URL to R2 → store in Supabase Storage → upsert `map_iiif_sources` R2 row as primary → returns `tile_command` for tiling script
+- `/api/admin/maps/[id]/ocr/` — GET run summaries; POST trigger batch OCR (local dev only; returns `{ cli_only, cli_command }` in CF Workers)
+- `/api/admin/maps/[id]/ocr-review/` — GET extractions + run list; POST create manual bbox; PATCH update text/category/status/coords; PUT batch status update. All endpoints require admin role.
 - `/api/admin/footprints/` — GET/PATCH SAM2 footprint review (service key required)
 - `/api/export/footprints/` — data export
 - `/auth/callback/` — OAuth callback
@@ -311,6 +345,7 @@ Key tables in `supabase/migrations/`:
 | `label_pins` | Point annotations | `task_id → label_tasks.id`, pixel coords |
 | `footprint_submissions` | Polygon traces | `map_id → maps.id`. No `allmaps_id`. Status: `needs_review → submitted/rejected`. |
 | `annotation_sets` | User-drawn GeoJSON | `map_id → maps.id` (nullable UUID FK). `user_id → auth.users`. |
+| `ocr_extractions` | OCR bbox results | `map_id → maps.id`, `run_id`, `tile_x/y/w/h`, `global_x/y/w/h` (full-image px), `category`, `text`, `text_validated`, `category_validated`, `confidence`, `status` (`pending/validated/rejected`), `model`, `prompt`. Unique on `(map_id, run_id, tile_x, tile_y, text)`. |
 | `hunts` | Stories/tours | `user_id`, `mode`, `is_public` |
 | `hunt_stops` | Story waypoints | `hunt_id`, pixel + geo coords |
 
