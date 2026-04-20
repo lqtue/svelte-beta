@@ -50,15 +50,20 @@
     if (canvas) canvas.style.display = "none";
 
     dispatch("loadstart");
+    overlayLoading = true;
 
-    // Clear any previous timeout
-    if (loadTimeout) clearTimeout(loadTimeout);
+    // Clear any previous timeout and listeners
+    if (loadTimeout) {
+      clearTimeout(loadTimeout);
+      loadTimeout = null;
+    }
+    tileListenerCleanup?.();
 
     // Set up tile-loading listeners for this load cycle
     const layer = warpedLayer as any;
-    let tileListenerCleanup: (() => void) | null = null;
 
     const onTilesLoaded = () => {
+      if (!overlayLoading) return;
       if (loadTimeout) {
         clearTimeout(loadTimeout);
         loadTimeout = null;
@@ -66,46 +71,63 @@
       // Show canvas now that tiles are ready
       const c = warpedLayer?.getCanvas();
       if (c) c.style.display = "";
+      overlayLoading = false;
       dispatch("loadend");
       tileListenerCleanup?.();
+    };
+
+    const onTileError = () => {
+      // If we get tile errors but some tiles might still load, we don't necessarily want to fail hard immediately,
+      // but if info.json fails internally, we might never get allrequestedtilesloaded.
+      // For now, let's just keep the timeout as the primary failure mechanism but maybe shorten it.
     };
 
     // Listen for the first tile so we know the source is working,
     // then wait for all requested tiles to finish
     layer.on("allrequestedtilesloaded", onTilesLoaded);
+    layer.on("tileloaderror", onTileError);
+
     tileListenerCleanup = () => {
       try {
         layer.un("allrequestedtilesloaded", onTilesLoaded);
+        layer.un("tileloaderror", onTileError);
       } catch {}
     };
 
-    // Timeout: if tiles don't load within 20s, treat as error
+    // Timeout: if tiles don't load within 12s, treat as error (reduced from 20s)
     loadTimeout = setTimeout(() => {
+      if (!overlayLoading) return;
       tileListenerCleanup?.();
       // Check if we actually got content — the canvas might still be hidden
       const c = warpedLayer?.getCanvas();
       if (c && c.style.display === "none") {
+        overlayLoading = false;
         dispatch("loaderror", {
           message: "Map tiles timed out. The image source may be unavailable.",
         });
       }
-    }, 20000);
+    }, 12000);
 
     try {
       const ls = get(layerStore);
       await loadOverlayByUrl(warpedLayer, olMap, id, ls.overlayOpacity);
+      // loadOverlayByUrl only fetches the annotation; tiles load asynchronously in the background
     } catch (err) {
+      if (!overlayLoading) return;
       if (loadTimeout) {
         clearTimeout(loadTimeout);
         loadTimeout = null;
       }
       tileListenerCleanup?.();
+      overlayLoading = false;
       console.warn("[HistoricalOverlay] Failed to load:", id, err);
       dispatch("loaderror", {
         message: "Failed to load map overlay. The annotation may be invalid.",
       });
     }
   }
+
+  let overlayLoading = false;
 
   function clear() {
     if (loadTimeout) {

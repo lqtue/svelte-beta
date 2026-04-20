@@ -83,10 +83,14 @@ OUTPUT_DIR="$TMPDIR/tiles"
 mkdir -p "$OUTPUT_DIR"
 
 echo "→ Tiling with vips (IIIF layout, 256px tiles, Q=85)..."
-vips dzsave "$TMPDIR/source.jpg" "$OUTPUT_DIR" \
+vips dzsave "$TMPDIR/source.jpg" "$OUTPUT_DIR/source" \
   --layout iiif3 \
   --tile-size 256 \
   --suffix ".jpg[Q=85]"
+
+# dzsave with --layout iiif3 creates a subfolder named after the input file (source).
+# We must rename it to the Map ID so the worker can find it at tiles/{id}/info.json
+mv "$OUTPUT_DIR/source" "$OUTPUT_DIR/$MAP_ID"
 
 echo "→ Uploading to R2 bucket: $BUCKET/tiles/$MAP_ID ..."
 rclone copy "$OUTPUT_DIR/$MAP_ID" "r2:$BUCKET/tiles/$MAP_ID" \

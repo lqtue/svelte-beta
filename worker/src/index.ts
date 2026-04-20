@@ -33,21 +33,24 @@ export default {
 			obj = await env.TILES.get(key);
 		}
 
+		const serviceUrl = new URL(url.href);
+		serviceUrl.search = '';
+		const infoServiceUrl = serviceUrl.href.replace(/\/info\.json$/, '');
+
 		if (obj) {
 			if (key.endsWith('info.json')) {
 				let text = await obj.text();
-				const serviceUrl = url.href.replace(/\/info\.json$/, '');
 				try {
 					const info = JSON.parse(text);
 					// All R2 info.jsons from dzsave are v3
-					info['id'] = serviceUrl;
+					info['id'] = infoServiceUrl;
 					info['@context'] = 'http://iiif.io/api/image/3/context.json';
 					info['type'] = 'ImageService3';
 					info['protocol'] = 'http://iiif.io/api/image';
 					info['profile'] = 'level2';
 					text = JSON.stringify(info);
 				} catch (e) {
-					text = text.replace(/"id"\s*:\s*"[^"]*"/, `"id": "${serviceUrl}"`);
+					text = text.replace(/"id"\s*:\s*"[^"]*"/, `"id": "${infoServiceUrl}"`);
 				}
 				return new Response(text, {
 					headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=0', ...CORS_HEADERS },
@@ -61,7 +64,10 @@ export default {
 		// ── R2 miss: proxy to original IIIF source ────────────────────────────
 		const sourceObj = await env.TILES.get(`sources/${mapId}`);
 		if (!sourceObj) {
-			return new Response(`no-source:${mapId}`, { status: 404, headers: CORS_HEADERS });
+			return new Response(JSON.stringify({ error: 'Source not found', mapId }), { 
+				status: 404, 
+				headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } 
+			});
 		}
 
 		const sourceBase = (await sourceObj.text()).trim().replace(/\/+$/, '');
@@ -72,11 +78,10 @@ export default {
 		try {
 			proxyRes = await fetch(originalUrl, { headers: { Accept: 'image/jpeg,image/png,*/*' } });
 		} catch (e: any) {
-			return new Response(`proxy-error:${e?.message}`, { status: 502, headers: CORS_HEADERS });
-		}
-
-		if (!proxyRes.ok) {
-			return new Response(`proxy-${proxyRes.status}:${originalUrl}`, { status: 404, headers: CORS_HEADERS });
+			return new Response(JSON.stringify({ error: 'Proxy fetch failed', message: e?.message }), { 
+				status: 502, 
+				headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } 
+			});
 		}
 
 		const contentType = proxyRes.headers.get('Content-Type') ?? 'image/jpeg';
@@ -84,61 +89,59 @@ export default {
 		// ── Metadata Splicing (info.json / manifest.json) ────────────────────────
 		if (contentType.includes('json') || rest.endsWith('.json') || rest.endsWith('info.json')) {
 			let text = await proxyRes.text();
-			const serviceUrl = url.href.replace(/\/info\.json$/, '');
-			
-			// If it is an info.json, determine if it came from R2 or proxy
+
 			if (rest.endsWith('info.json')) {
 				try {
 					const info = JSON.parse(text);
-					
-					// If it came from R2 (id matches mapId pattern), enhance it
 					const isR2 = text.includes('ImageService3') || !info['@context'];
-					
 					if (isR2) {
-						// Ensure it looks like a high-quality IIIF v3 service
-						info['id'] = serviceUrl;
+						info['id'] = infoServiceUrl;
 						info['@context'] = 'http://iiif.io/api/image/3/context.json';
 						info['type'] = 'ImageService3';
 						info['protocol'] = 'http://iiif.io/api/image';
 						info['profile'] = 'level2';
-						// Add some common service features to help OL
 						info['extraFeatures'] = ['mirroring'];
 					} else {
-						// Proxied from Gallica (v2)
-						info['@id'] = serviceUrl;
+						// Proxied v2 source (e.g. Gallica) — preserve version, just rewrite @id
+						info['@id'] = infoServiceUrl;
 					}
 					text = JSON.stringify(info);
 				} catch (e) {
-					text = text.replaceAll(sourceBase, serviceUrl);
+					text = text.replaceAll(sourceBase, infoServiceUrl);
 				}
 			} else {
-				// For manifests, just do the recursive replace
-				text = text.replaceAll(sourceBase, serviceUrl);
+				text = text.replaceAll(sourceBase, infoServiceUrl);
 			}
 
 			return new Response(text, {
-				headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=0', ...CORS_HEADERS },
+				// Cache info.json for 1 hour in browser to avoid hammering upstream (Gallica rate limits)
+				headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600', ...CORS_HEADERS },
 			});
 		}
 
-		// ── Reciprocal Suffix Mapping for R2 ──────────────────────────────────
-		// If R2 check fails with one suffix, try the other before falling back to proxy.
-		if (proxyRes.status === 404) {
-			let secondaryUrl = null;
+		// ── Non-OK tile response: try reciprocal quality suffix before giving up ──
+		// default.jpg (IIIF v3) ↔ native.jpg (IIIF v2 / Gallica)
+		if (!proxyRes.ok) {
+			let altUrl: string | null = null;
 			if (rest.endsWith('/default.jpg')) {
-				secondaryUrl = originalUrl.replace(/\/default\.jpg$/, '/native.jpg');
+				altUrl = originalUrl.replace(/\/default\.jpg$/, '/native.jpg');
 			} else if (rest.endsWith('/native.jpg')) {
-				secondaryUrl = originalUrl.replace(/\/native\.jpg$/, '/default.jpg');
+				altUrl = originalUrl.replace(/\/native\.jpg$/, '/default.jpg');
 			}
-
-			if (secondaryUrl) {
-				const secondaryRes = await fetch(secondaryUrl, { headers: { Accept: 'image/jpeg,image/png,*/*' } });
-				if (secondaryRes.ok) {
-					return new Response(secondaryRes.body, {
-						headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400', ...CORS_HEADERS },
-					});
-				}
+			if (altUrl) {
+				try {
+					const altRes = await fetch(altUrl, { headers: { Accept: 'image/jpeg,image/png,*/*' } });
+					if (altRes.ok) {
+						return new Response(altRes.body, {
+							headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400', ...CORS_HEADERS },
+						});
+					}
+				} catch {}
 			}
+			return new Response(JSON.stringify({ error: `Source returned ${proxyRes.status}`, url: originalUrl }), {
+				status: proxyRes.status === 429 ? 429 : 404,
+				headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+			});
 		}
 
 		return new Response(proxyRes.body, {
