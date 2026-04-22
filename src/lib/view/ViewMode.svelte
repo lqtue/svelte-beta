@@ -163,7 +163,6 @@
       const mapsWithAllmapsId = maps.filter((m) => m.allmaps_id);
       fetchMultipleBounds(
         mapsWithAllmapsId.map((m) => m.allmaps_id!),
-        5,
       ).then((boundsMap) => {
         mapList = mapList.map((map) => {
           const b = map.allmaps_id ? boundsMap.get(map.allmaps_id) : undefined;

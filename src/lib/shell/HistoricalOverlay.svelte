@@ -37,6 +37,7 @@
   let unsubs: Unsubscriber[] = [];
   let initialized = false;
   let loadTimeout: ReturnType<typeof setTimeout> | null = null;
+  let tileListenerCleanup: (() => void) | null = null;
 
   // ── Overlay loading (delegates to shared utility) ────────────────
 

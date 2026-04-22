@@ -162,6 +162,26 @@ Scale to 200 maps: ~$1.50/month.
 
 ---
 
+## Pending: Maps to Tile
+
+### btv1b52508901z (BnF Gallica)
+mirror-r2 has been run — DB already points to R2 (`maps.iiif_image = https://iiif.maparchive.vn/iiif/<uuid>`).
+Tiles not yet uploaded → worker falls back to Gallica proxy → 500s.
+
+Run once rclone + vips are confirmed:
+```bash
+./scripts/tile_map.sh <map-uuid> \
+  "https://gallica.bnf.fr/iiif/ark:/12148/btv1b52508901z/f1/full/full/0/native.jpg" \
+  "https://gallica.bnf.fr/iiif/ark:/12148/btv1b52508901z/f1"
+```
+(`tile_command` was also returned by POST /api/admin/maps/[id]/mirror-r2 — check admin modal Hosting tab for exact UUID.)
+
+Prerequisites:
+- `rclone listremotes` → must show `r2:`
+- `vips --version` → must be installed
+
+---
+
 ## Notes
 
 - `vips dzsave` with `--layout iiif` outputs IIIF Image API 2.1-compatible tiles

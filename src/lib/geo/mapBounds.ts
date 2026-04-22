@@ -1,8 +1,31 @@
 // Utility for fetching and calculating geographic bounds from Allmaps annotations
 import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
 
-// In-memory cache to avoid repeated API calls
+// In-memory + sessionStorage cache to avoid repeated API calls across reloads
 const boundsCache: Map<string, [number, number, number, number] | null> = new Map();
+const SESSION_KEY = 'vma-bounds-cache-v1';
+
+function loadSessionCache(): void {
+	try {
+		const raw = sessionStorage.getItem(SESSION_KEY);
+		if (!raw) return;
+		const parsed = JSON.parse(raw) as Record<string, [number, number, number, number] | null>;
+		for (const [k, v] of Object.entries(parsed)) boundsCache.set(k, v);
+	} catch {}
+}
+
+function saveToSessionCache(id: string, value: [number, number, number, number] | null): void {
+	try {
+		const raw = sessionStorage.getItem(SESSION_KEY);
+		const existing: Record<string, [number, number, number, number] | null> = raw
+			? JSON.parse(raw)
+			: {};
+		existing[id] = value;
+		sessionStorage.setItem(SESSION_KEY, JSON.stringify(existing));
+	} catch {}
+}
+
+loadSessionCache();
 
 interface GroundControlPoint {
 	world: [number, number];
@@ -19,7 +42,7 @@ export async function fetchAnnotationBounds(
 ): Promise<[number, number, number, number] | null> {
 	// Check cache first
 	if (boundsCache.has(mapId)) {
-		return boundsCache.get(mapId) || null;
+		return boundsCache.get(mapId) ?? null;
 	}
 
 	try {
@@ -27,6 +50,7 @@ export async function fetchAnnotationBounds(
 		if (!response.ok) {
 			console.warn(`Failed to fetch annotation for ${mapId}: ${response.status}`);
 			boundsCache.set(mapId, null);
+			saveToSessionCache(mapId, null);
 			return null;
 		}
 
@@ -53,10 +77,12 @@ export async function fetchAnnotationBounds(
 
 		// Cache and return
 		boundsCache.set(mapId, bounds);
+		saveToSessionCache(mapId, bounds);
 		return bounds;
 	} catch (error) {
 		console.error(`Error fetching bounds for ${mapId}:`, error);
 		boundsCache.set(mapId, null);
+		saveToSessionCache(mapId, null);
 		return null;
 	}
 }
@@ -160,7 +186,7 @@ function extractGCPs(annotation: unknown): GroundControlPoint[] {
  */
 export async function fetchMultipleBounds(
 	mapIds: string[],
-	concurrency: number = 5
+	concurrency: number = 2
 ): Promise<Map<string, [number, number, number, number] | null>> {
 	const results = new Map<string, [number, number, number, number] | null>();
 
