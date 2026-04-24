@@ -11,6 +11,7 @@
   export let total = 0;
   export let reviewed = 0;
   export let approving: string | null = null; // id currently being saved
+  export let mapId: string | null = null;
 
   const dispatch = createEventDispatcher<{
     select: { id: string };
@@ -18,6 +19,27 @@
     reject: { id: string };
     retype: { id: string; featureType: string };
   }>();
+
+  let markingReviewed = false;
+  let markReviewedError = '';
+
+  async function markSegReviewed() {
+    if (!mapId) return;
+    markingReviewed = true;
+    markReviewedError = '';
+    try {
+      const res = await fetch(`/api/admin/maps/${mapId}/pipeline`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage: 'seg_reviewed' }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (e: any) {
+      markReviewedError = e.message;
+    } finally {
+      markingReviewed = false;
+    }
+  }
 
   const CLASS_COLORS: Record<string, string> = {
     particulier: '#d2956e',
@@ -62,6 +84,20 @@
 
   {#if footprints.length === 0}
     <div class="empty">All done for this map.</div>
+    {#if mapId && total > 0}
+      <div class="mark-reviewed-block">
+        <button
+          class="btn-mark-reviewed"
+          disabled={markingReviewed}
+          on:click={markSegReviewed}
+        >
+          {markingReviewed ? 'Saving…' : 'Mark seg reviewed'}
+        </button>
+        {#if markReviewedError}
+          <p class="mark-reviewed-error">{markReviewedError}</p>
+        {/if}
+      </div>
+    {/if}
   {:else}
     <ul class="fp-list">
       {#each footprints as fp (fp.id)}
@@ -261,4 +297,26 @@
     outline: 1px solid #f97316;
     outline-offset: -1px;
   }
+
+  .mark-reviewed-block {
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .btn-mark-reviewed {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: inherit;
+    background: #166534;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .btn-mark-reviewed:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-mark-reviewed:hover:not(:disabled) { background: #14532d; }
+  .mark-reviewed-error { font-size: 0.72rem; color: #ef4444; margin: 0; }
 </style>

@@ -22,6 +22,46 @@ Feature-scoped context folders for in-progress development. Read these before wo
 - `work/review/CONTEXT.md` — HITL review UI specifically
 - `work/ocr/` — Gemini vision OCR pipeline for extracting text labels from historical map tiles
 
+## MapSAM2 Inference Pipeline (`work/MapSAM2/`)
+
+SAM2/MapSAM2 segmentation pipeline: IIIF tiles → binary masks → polygons → `footprint_submissions`. Runs on Colab (GPU) or locally (M1, base SAM2 only). Uses `.venv-m1/`.
+
+```bash
+# Local test (base SAM2, small region)
+python work/MapSAM2/inference_tiles_as_video.py \
+  --map-id <uuid> \
+  --checkpoint /path/to/sam2.1_hiera_small.pt \
+  --region 4800,4300,1024,1024 \
+  --out-json work/MapSAM2/outputs/test.json --preview
+
+# Full Colab run with LoRA + OCR seeds + Supabase write
+python work/MapSAM2/inference_tiles_as_video.py \
+  --map-id <uuid> \
+  --checkpoint /path/to/mapsam2_lora.pth \
+  --lora --mapsam2-dir /content/MapSAM2 \
+  --mode prompted --ocr-run-id <run_id> \
+  --tile-size 1024 --overlap 128 \
+  --text-mask --watershed \
+  --out-json footprints.json --preview --write-supabase
+
+# Evaluate against ground truth (SODUCO F1=0.59 baseline)
+python work/MapSAM2/evaluate.py \
+  --predictions footprints.json --map-id <uuid>
+```
+
+**Key scripts:**
+- `inference_tiles_as_video.py` — CLI orchestrator: loads model, grids IIIF tiles, runs SAM2, deduplicates polygons across tiles, writes JSON + Supabase. `--write-supabase` also updates `map_pipeline_status` (seg_queued → seg_done).
+- `masks_to_polygons.py` — `mask_to_polygon()` converts a single H×W SAM2 mask to `PolygonResult` (exterior + courtyard holes). `masks_to_polygons()` deduplicates a batch by IoU. `shift_polygons()` converts mask-space coords to full-image coords.
+- `evaluate.py` — polygon F1 at configurable IoU thresholds, geometric quality metrics (compactness, convexity, rectangularity). Fetches ground truth from Supabase (`footprint_submissions` status=verified) or local JSON.
+
+**Key flags:** `--mode automatic|prompted`, `--lora` (MapSAM2 LoRA checkpoint), `--text-mask` (erase OCR bbox regions before SAM2 — reduces text/contour confusion), `--watershed` (Meyer watershed post-processing for polygon boundary refinement), `--region x,y,w,h` (crop).
+
+**Inference modes:**
+- `automatic` — SAM2AutomaticMaskGenerator grid-scan (no seeds needed; base SAM2 only)
+- `prompted` — SAM2ImagePredictor with OCR bbox seeds from `ocr_extractions` (requires `--ocr-run-id`; best with LoRA checkpoint)
+
+Polygon coords are written to `footprint_submissions.coords` as `[[x,y],...]` pixel-space arrays.
+
 `work/vectorize/outputs/` and `work/ocr/outputs/` contain local run artifacts (gitignored).
 
 ## OCR Pipeline (`work/ocr/`)
@@ -81,7 +121,7 @@ python work/ocr/scripts/ocr.py list-models
 - `ocr.py` — CLI entry: `run`, `scout`, `stitch`, `batch`, `clean`, `dedup`, `preview`, `list-models` subcommands
 - `gemini_client.py` — Gemini wrapper: key rotation, 429/503 retry, single-image and multi-image sequence calls
 - `iiif_tiles.py` — IIIF crop fetch with IA fallback (full-image download + local crop), tile grid generator, density estimation; `get_image_info()` returns `version` + `quality`
-- `supabase_client.py` — direct REST calls to Supabase: `upsert_ocr_extractions`, `fetch_ocr_extractions`, `upsert_label_pins`
+- `supabase_client.py` — direct REST calls to Supabase: `upsert_ocr_extractions`, `fetch_ocr_extractions`, `upsert_label_pins`, `update_pipeline_status`
 - `prompt.py` — versioned prompts + JSON extraction schema
 
 ## Development Commands
@@ -196,7 +236,7 @@ Separate IIIF-based labeling tool with its own OL instance (pixel coordinates, n
 
 ### Digitalize Tool (`/contribute/digitalize`)
 
-Two-phase workflow sharing a single `ImageShell` canvas:
+Three-phase HITL workflow sharing a single `ImageShell` canvas. Phase is tracked per-map in `map_pipeline_status`.
 
 **Phase 1 — Triage** (`src/lib/contribute/digitalize/`):
 - `TriageTool.svelte` — OL interactions for setting the neatline rect + tile priority grid. Corner handles for resizing (via `bboxHandles.ts`); body translate for moving. Dispatches `neatlineChange` and `tileOverridesChange`.
@@ -208,12 +248,17 @@ Two-phase workflow sharing a single `ImageShell` canvas:
 - `OcrSidebar.svelte` — filterable table of extractions; inline text/category edit with auto-save on blur (PATCH); validate/reject buttons; batch validate confirmed tier. Exposes `load()`, `focusRow(id)`, `getRunId()`.
 - Floating `BboxPanel` in `+page.svelte` — text input + category select + validate/reject, shown when a bbox is selected on the canvas.
 
+**Phase 3 — Segmentation** (in `+page.svelte`):
+- Shows `map_pipeline_status.stage` badge, "Mark ready for segmentation" button (`ocr_done → reviewed`), pre-filled Colab CLI command, and link to review page once `seg_done`.
+- Status is polled on tab switch via `GET /api/admin/maps/[id]/pipeline`.
+- Stage advances automatically when OCR batch or SAM2 writes to Supabase.
+
 **Shared:**
 - `src/lib/contribute/shared/bboxHandles.ts` — `createHandleFeatures`, `updateHandlePositions`, `oppositeCorner`, `rectFromHandleMove`, `olPointToImage`. Used by both `OcrBboxTool` and `TriageTool`. All image-space coords stay y-down; the module applies y-flip internally.
 
 ### Footprint Review Mode (`/contribute/review`)
 
-HITL review interface for SAM2-generated `needs_review` polygons. Components: `ReviewMode.svelte` (orchestrator), `ReviewCanvas.svelte` (polygon inspection), `ReviewSidebar.svelte` (approve/reject). API: `GET/PATCH /api/admin/footprints`. Only allows transitions from `needs_review` status.
+HITL review interface for SAM2-generated `needs_review` polygons. Components: `ReviewMode.svelte` (orchestrator), `ReviewCanvas.svelte` (polygon inspection), `ReviewSidebar.svelte` (approve/reject + "Mark seg reviewed" when all done). API: `GET/PATCH /api/admin/footprints`. Only allows transitions from `needs_review` status. "Mark seg reviewed" PATCHes `/api/admin/maps/[id]/pipeline` → `seg_reviewed`.
 
 ### Annotation System (`src/lib/map/`)
 
@@ -258,7 +303,7 @@ Domain module for the map catalogue. Use this for new code; `src/lib/supabase/ma
 **Type quirks:**
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`)
 - `.select().single()` narrowing: cast `(data as any)?.field as Type`
-- `supabase/types.ts` is partially stale — lags behind the current migration head (041). Cast via `(supabase as any).from(...)` when accessing columns not yet reflected in the generated types.
+- `supabase/types.ts` is partially stale — lags behind the current migration head (043). Cast via `(supabase as any).from(...)` when accessing columns not yet reflected in the generated types.
 
 ### Styling
 
@@ -294,6 +339,7 @@ When adding a new page, use the page template in `docs/design-system.md` and add
 - `/api/admin/maps/[id]/mirror-r2/` — POST: fetch Allmaps annotation → rewrite source URL to R2 → store in Supabase Storage → upsert `map_iiif_sources` R2 row as primary → returns `tile_command` for tiling script
 - `/api/admin/maps/[id]/ocr/` — GET run summaries; POST trigger batch OCR (local dev only; returns `{ cli_only, cli_command }` in CF Workers)
 - `/api/admin/maps/[id]/ocr-review/` — GET extractions + run list; POST create manual bbox; PATCH update text/category/status/coords; PUT batch status update. All endpoints require admin role.
+- `/api/admin/maps/[id]/pipeline/` — GET current pipeline stage + timestamps; PATCH advance stage. Valid stages: `idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported`.
 - `/api/admin/footprints/` — GET/PATCH SAM2 footprint review (service key required)
 - `/api/export/footprints/` — data export
 - `/auth/callback/` — OAuth callback
@@ -346,6 +392,7 @@ Key tables in `supabase/migrations/`:
 | `footprint_submissions` | Polygon traces | `map_id → maps.id`. No `allmaps_id`. Status: `needs_review → submitted/rejected`. |
 | `annotation_sets` | User-drawn GeoJSON | `map_id → maps.id` (nullable UUID FK). `user_id → auth.users`. |
 | `ocr_extractions` | OCR bbox results | `map_id → maps.id`, `run_id`, `tile_x/y/w/h`, `global_x/y/w/h` (full-image px), `category`, `text`, `text_validated`, `category_validated`, `confidence`, `status` (`pending/validated/rejected`), `model`, `prompt`. Unique on `(map_id, run_id, tile_x, tile_y, text)`. |
+| `map_pipeline_status` | Pipeline state per map | `map_id` (PK → maps.id), `stage` (8-value enum), `ocr_run_id`, `seg_run_id`, per-stage timestamps. Updated automatically by OCR batch (`--db`) and SAM2 inference (`--write-supabase`). |
 | `hunts` | Stories/tours | `user_id`, `mode`, `is_public` |
 | `hunt_stops` | Story waypoints | `hunt_id`, pixel + geo coords |
 
@@ -353,7 +400,7 @@ Key tables in `supabase/migrations/`:
 
 ## Python Vectorization Pipeline
 
-`scripts/vectorize.py` — SAM2-based segmentation pipeline for cadastral map vectorization. Six subcommands: `vectorize`, `sample`, `calibrate`, `status`, `download`.
+`scripts/vectorize.py` — SAM2-based segmentation pipeline for cadastral map vectorization (color-profile approach, predates MapSAM2). Six subcommands: `vectorize`, `sample`, `calibrate`, `status`, `download`. **Note:** this file may not be present locally — check before referencing it.
 
 **Environment:** `.venv/` at repo root (Python 3.14 + SAM2). Always use `.venv/bin/python scripts/vectorize.py`.
 

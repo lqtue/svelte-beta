@@ -283,6 +283,15 @@ def cmd_batch(args: argparse.Namespace) -> None:
     tile_cache_dir.mkdir(parents=True, exist_ok=True)
     log_path = out_dir / "calls.jsonl"
 
+    if getattr(args, "db", False) and map_label != "unknown":
+        try:
+            from supabase_client import update_pipeline_status
+            from datetime import datetime, timezone
+            update_pipeline_status(map_label, "ocr_queued",
+                                   ocr_started_at=datetime.now(timezone.utc).isoformat())
+        except Exception as e:
+            print(f"[pipeline] status update skipped: {e}")
+
     prompt_text = PROMPTS.get(args.prompt, PROMPTS[DEFAULT_PROMPT])
     model = args.model
 
@@ -673,6 +682,15 @@ def cmd_batch(args: argparse.Namespace) -> None:
                 })
         n_written = upsert_ocr_extractions(map_label, out_dir.name, db_rows)
         print(f"DB: upserted {n_written} rows ({raw_n} per-tile) to ocr_extractions")
+
+        try:
+            from supabase_client import update_pipeline_status
+            from datetime import datetime, timezone
+            update_pipeline_status(map_label, "ocr_done",
+                                   ocr_run_id=out_dir.name,
+                                   ocr_finished_at=datetime.now(timezone.utc).isoformat())
+        except Exception as e:
+            print(f"[pipeline] status update skipped: {e}")
 
     save_run_config(out_dir, {
         "map_id": map_label,

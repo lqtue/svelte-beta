@@ -142,6 +142,7 @@
         total={initialTotal}
         {reviewed}
         {approving}
+        {mapId}
         on:select={(e) => handleSelect(e.detail.id)}
         on:approve={(e) => handleApprove(e.detail.id)}
         on:reject={(e) => handleReject(e.detail.id)}

@@ -52,7 +52,59 @@
   let isCompact = false;
 
   // ── Phase ─────────────────────────────────────────────────────────────────────
-  let phase: 'triage' | 'ocr' = 'triage';
+  let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
+
+  // ── Pipeline status ───────────────────────────────────────────────────────────
+  type PipelineStatus = {
+    map_id: string;
+    stage: string;
+    ocr_run_id?: string;
+    seg_run_id?: string;
+    ocr_started_at?: string;
+    ocr_finished_at?: string;
+    seg_started_at?: string;
+    seg_finished_at?: string;
+    reviewed_at?: string;
+  };
+  let pipelineStatus: PipelineStatus | null = null;
+  let pipelineLoading = false;
+  let pipelineError = '';
+
+  async function loadPipelineStatus() {
+    if (!currentMap?.id) return;
+    pipelineLoading = true;
+    pipelineError = '';
+    try {
+      const res = await fetch(`/api/admin/maps/${currentMap.id}/pipeline`);
+      if (!res.ok) throw new Error(res.statusText);
+      pipelineStatus = await res.json();
+    } catch (e: any) {
+      pipelineError = e.message;
+    } finally {
+      pipelineLoading = false;
+    }
+  }
+
+  async function advancePipelineStage(stage: string) {
+    if (!currentMap?.id) return;
+    try {
+      const res = await fetch(`/api/admin/maps/${currentMap.id}/pipeline`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      pipelineStatus = await res.json();
+    } catch (e: any) {
+      pipelineError = e.message;
+    }
+  }
+
+  $: segColabCommand = currentMap?.id && pipelineStatus?.ocr_run_id
+    ? `python work/MapSAM2/inference_tiles_as_video.py \\\n  --map-id ${currentMap.id} \\\n  --checkpoint /path/to/checkpoint.pth \\\n  --lora --mode prompted \\\n  --ocr-run-id ${pipelineStatus.ocr_run_id} \\\n  --tile-size 1024 --overlap 128 \\\n  --out-json footprints.json --preview --write-supabase`
+    : currentMap?.id
+    ? `python work/MapSAM2/inference_tiles_as_video.py \\\n  --map-id ${currentMap.id} \\\n  --checkpoint /path/to/checkpoint.pth \\\n  --tile-size 1024 --overlap 128 \\\n  --out-json footprints.json --preview --write-supabase`
+    : '';
 
   // ── Triage state ──────────────────────────────────────────────────────────────
   let neatline: [number, number, number, number] | null = null;
@@ -117,6 +169,8 @@
     selectedExtractionId = null;
     existingRuns = {};
     ocrError = '';
+    pipelineStatus = null;
+    pipelineError = '';
 
     // Restore persisted triage config
     try {
@@ -132,6 +186,7 @@
 
     await resolveIiifUrl();
     await checkExistingRuns();
+    await loadPipelineStatus();
   }
 
   async function resolveIiifUrl() {
@@ -343,7 +398,7 @@
             on:runOcr={runOcr}
             on:loadRun={loadRun}
           />
-        {:else}
+        {:else if phase === 'ocr'}
           <OcrSidebar
             bind:this={ocrSidebar}
             mapId={currentMap.id}
@@ -352,6 +407,57 @@
             on:filter={handleFilter}
             on:zoomToExtraction={handleZoomToExtraction}
           />
+        {:else}
+          <!-- Segmentation phase -->
+          <div class="seg-panel">
+            <div class="seg-status">
+              <span class="seg-stage-label">Stage</span>
+              <span class="seg-stage-badge stage-{pipelineStatus?.stage ?? 'idle'}">
+                {pipelineStatus?.stage ?? 'idle'}
+              </span>
+            </div>
+
+            {#if pipelineStatus?.stage === 'ocr_done' || pipelineStatus?.stage === 'reviewed'}
+              {#if pipelineStatus?.stage === 'ocr_done'}
+                <button class="action-btn seg-ready-btn" on:click={() => advancePipelineStage('reviewed')}>
+                  Mark ready for segmentation
+                </button>
+              {:else}
+                <p class="seg-hint">Ready. Run the Colab command below, then come back.</p>
+              {/if}
+            {:else if pipelineStatus?.stage === 'seg_done' || pipelineStatus?.stage === 'seg_reviewed'}
+              <a class="action-btn seg-review-link" href="/contribute/review?map={currentMap.id}">
+                Review footprints &rarr;
+              </a>
+            {:else if !pipelineStatus || pipelineStatus.stage === 'idle'}
+              <p class="seg-hint">Complete OCR review first, then return here.</p>
+            {/if}
+
+            {#if segColabCommand}
+              <div class="seg-command-block">
+                <div class="seg-command-label">Colab command</div>
+                <pre class="seg-command">{segColabCommand}</pre>
+                <button class="pill-btn" on:click={() => navigator.clipboard.writeText(segColabCommand)}>
+                  Copy
+                </button>
+              </div>
+            {/if}
+
+            {#if pipelineStatus?.seg_finished_at}
+              <div class="seg-meta">
+                <span>Run: <code>{pipelineStatus.seg_run_id ?? '—'}</code></span>
+                <span>Finished: {new Date(pipelineStatus.seg_finished_at).toLocaleString()}</span>
+              </div>
+            {/if}
+
+            {#if pipelineError}
+              <p class="seg-error">{pipelineError}</p>
+            {/if}
+
+            <button class="pill-btn seg-refresh" on:click={loadPipelineStatus} disabled={pipelineLoading}>
+              {pipelineLoading ? 'Loading…' : 'Refresh status'}
+            </button>
+          </div>
         {/if}
 
         <div class="panel-footer">
@@ -360,6 +466,8 @@
               on:click={() => (phase = 'triage')}>Triage</button>
             <button class="phase-tab" class:active={phase === 'ocr'}
               on:click={() => (phase = 'ocr')}>OCR Review</button>
+            <button class="phase-tab" class:active={phase === 'segmentation'}
+              on:click={() => { phase = 'segmentation'; loadPipelineStatus(); }}>Segmentation</button>
           </div>
         </div>
       </aside>
@@ -585,6 +693,59 @@
     opacity: 1;
     box-shadow: 0 1px 2px rgba(0,0,0,0.08);
   }
+
+  /* ── Segmentation panel ─────────────────────────────────── */
+  .seg-panel {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .seg-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+  }
+  .seg-stage-label { opacity: 0.55; }
+  .seg-stage-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: var(--color-bg-2, #f3f0eb);
+    color: var(--color-text, #111);
+  }
+  .seg-stage-badge.stage-ocr_done,
+  .seg-stage-badge.stage-reviewed { background: #fef3c7; color: #92400e; }
+  .seg-stage-badge.stage-seg_done,
+  .seg-stage-badge.stage-seg_reviewed { background: #dcfce7; color: #166534; }
+  .seg-ready-btn { width: 100%; font-size: 0.8rem; }
+  .seg-review-link {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    width: 100%;
+    font-size: 0.8rem;
+  }
+  .seg-hint { font-size: 0.75rem; opacity: 0.6; margin: 0; }
+  .seg-command-block { display: flex; flex-direction: column; gap: 0.35rem; }
+  .seg-command-label { font-size: 0.7rem; font-weight: 600; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.06em; }
+  .seg-command {
+    font-size: 0.65rem;
+    background: var(--color-bg-2, #f3f0eb);
+    border: 1px solid var(--color-border-soft, #d9d0c5);
+    border-radius: 4px;
+    padding: 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+  }
+  .seg-meta { font-size: 0.7rem; opacity: 0.6; display: flex; flex-direction: column; gap: 0.15rem; }
+  .seg-error { font-size: 0.75rem; color: #dc2626; margin: 0; }
+  .seg-refresh { align-self: flex-start; font-size: 0.72rem; }
 
   .bar-hint {
     font-size: 0.72rem;

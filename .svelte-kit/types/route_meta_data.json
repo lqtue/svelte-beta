@@ -56,6 +56,9 @@
 	"/api/admin/maps/[id]/ocr/apply": [
 		"src/routes/api/admin/maps/[id]/ocr/apply/+server.ts"
 	],
+	"/api/admin/maps/[id]/pipeline": [
+		"src/routes/api/admin/maps/[id]/pipeline/+server.ts"
+	],
 	"/api/admin/upload-image": [
 		"src/routes/api/admin/upload-image/+server.ts"
 	],

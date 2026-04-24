@@ -121,6 +121,23 @@ def fetch_ocr_extractions(map_id: str, run_id: str | None = None) -> list[dict[s
     return data
 
 
+def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:
+    """Upsert a row in map_pipeline_status for the given map_id and stage.
+
+    Extra keyword args (e.g. ocr_run_id, ocr_started_at) are merged into the row.
+    """
+    url, key = _load_config()
+    payload = {"map_id": map_id, "stage": stage, **kwargs}
+    resp = requests.post(
+        f"{url}/rest/v1/map_pipeline_status?on_conflict=map_id",
+        headers=_headers(key),
+        data=json.dumps(payload),
+        timeout=15,
+    )
+    if not resp.ok:
+        print(f"[pipeline] WARNING: status update failed {resp.status_code}: {resp.text[:200]}")
+
+
 def upsert_label_pins(map_id: str, rows: list[dict[str, Any]]) -> int:
     """Insert label_pins in Supabase.
     Each row: map_id, user_id, label, pixel_x, pixel_y, data.
