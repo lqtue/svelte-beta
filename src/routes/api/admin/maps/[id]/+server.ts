@@ -48,6 +48,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (body.year_label     !== undefined) updateData.year_label     = body.year_label || null;
     if (body.language       !== undefined) updateData.language       = body.language || null;
     if (body.rights         !== undefined) updateData.rights         = body.rights || null;
+    if (body.shelfmark      !== undefined) updateData.shelfmark      = body.shelfmark || null;
+    if (body.physical_description !== undefined) updateData.physical_description = body.physical_description || null;
+    if (body.dc_publisher   !== undefined) updateData.dc_publisher   = body.dc_publisher || null;
+    if (body.dc_subject     !== undefined) updateData.dc_subject     = body.dc_subject || null;
+    if (body.dc_coverage    !== undefined) updateData.dc_coverage    = body.dc_coverage || null;
     if (body.source_url     !== undefined) updateData.source_url     = body.source_url || null;
     if (body.collection     !== undefined) updateData.collection     = body.collection || null;
     if (body.map_type        !== undefined) updateData.map_type        = body.map_type || null;

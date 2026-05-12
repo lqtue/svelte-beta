@@ -48,6 +48,9 @@ export async function updateMap(id: string, data: Partial<{
     language: string;
     rights: string;
     physical_description: string;
+    dc_publisher: string;
+    dc_subject: string;
+    dc_coverage: string;
     extra_metadata: Record<string, string>;
     // contribution control
     label_config: { legend: any[]; categories: string[] } | null;

@@ -12,35 +12,13 @@
 
   const { supabase, session } = getSupabaseContext();
 
-  // ── Types ──────────────────────────────────────────────────────────
-  interface DCField {
-    key: string;
-    label: string;
-    dcElement: string;
-    placeholder?: string;
-    multiline?: boolean;
-  }
-
-  const CORE_FIELDS: DCField[] = [
-    { key: 'original_title',  label: 'Title',       dcElement: 'dc:title',       placeholder: 'Full original map title' },
-    { key: 'creator',         label: 'Creator',     dcElement: 'dc:creator',     placeholder: 'Cartographer or author' },
-    { key: 'dc_publisher',    label: 'Publisher',   dcElement: 'dc:publisher',   placeholder: 'e.g. Service Géographique...' },
-    { key: 'year_label',      label: 'Date',        dcElement: 'dc:date',        placeholder: 'e.g. 1882 or 1882-1885' },
-    { key: 'shelfmark',       label: 'Identifier',  dcElement: 'dc:identifier',  placeholder: 'Call number / shelfmark' },
-    { key: 'source_url',      label: 'Source',      dcElement: 'dc:source',      placeholder: 'Canonical URL' },
-    { key: 'rights',          label: 'Rights',      dcElement: 'dc:rights',      placeholder: 'License or rights statement' },
-    { key: 'dc_description',  label: 'Description', dcElement: 'dc:description', placeholder: 'Brief summary', multiline: true },
+  // ── Core DC fields (kept here only for list-view completeness count) ──
+  const CORE_FIELDS = [
+    { key: 'original_title' }, { key: 'creator' }, { key: 'dc_publisher' },
+    { key: 'year_label' }, { key: 'shelfmark' }, { key: 'source_url' },
+    { key: 'rights' }, { key: 'dc_description' },
   ];
 
-  const SUPP_FIELDS: DCField[] = [
-    { key: 'dc_subject',           label: 'Subject',              dcElement: 'dc:subject',   placeholder: 'Keywords' },
-    { key: 'dc_coverage',          label: 'Coverage',             dcElement: 'dc:coverage',  placeholder: 'e.g. Saigon' },
-    { key: 'language',             label: 'Language',             dcElement: 'dc:language',  placeholder: 'e.g. français' },
-    { key: 'physical_description', label: 'Format',               dcElement: 'dc:format',    placeholder: 'e.g. 67 × 57 cm' },
-    { key: 'collection',           label: 'Collection (VMA)',     dcElement: '',             placeholder: 'e.g. BnF Gallica' },
-  ];
-
-  const ALL_FIELDS = [...CORE_FIELDS, ...SUPP_FIELDS];
 
   // ── State ──────────────────────────────────────────────────────────
   let mounted = false;
@@ -65,18 +43,8 @@
   let filterYearMin: number | null = null;
   let filterYearMax: number | null = null;
 
-  // Mod edit state
+  // Mod/admin list-mode state (read-only completeness; edits happen in MapEditModal)
   let filterMissing = false;
-  let editingId: string | null = null;
-  let editValues: Record<string, string> = {};
-  let editLocation = '';
-  let editMapType = '';
-  let extraPairs: { key: string; value: string }[] = [];
-  let saving = false;
-  let saveError = '';
-  let saveSuccess = false;
-  let showSupp = false;
-  let showExtra = false;
 
   // Admin modals
   let editingMapFull: any | null = null;
@@ -169,58 +137,7 @@
     (event.target as HTMLImageElement).style.display = "none";
   }
 
-  // ── Mod Inline Edit Actions ──────────────────────────────────────────
-  function startEdit(map: any) {
-    editingId = map.id;
-    saveError = '';
-    saveSuccess = false;
-    showSupp = false;
-    showExtra = false;
-    editLocation = map.location ?? '';
-    editMapType = map.map_type ?? '';
-    editValues = {};
-    for (const { key } of ALL_FIELDS) { editValues[key] = map[key] ?? ''; }
-    extraPairs = Object.entries(map.extra_metadata ?? {}).map(([k, v]) => ({ key: k, value: String(v ?? '') }));
-  }
-
-  function cancelEdit() {
-    editingId = null;
-    saveError = '';
-    saveSuccess = false;
-  }
-
-  async function handleSave(map: any) {
-    saving = true; saveError = ''; saveSuccess = false;
-    try {
-      const extra_metadata: Record<string, string> = {};
-      for (const { key, value } of extraPairs) {
-        if (key.trim()) extra_metadata[key.trim()] = value;
-      }
-      const payload = { ...editValues, location: editLocation, map_type: editMapType, extra_metadata };
-      const res = await fetch(`/api/contribute/catalog/${map.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Save failed' }));
-        throw new Error(err.message || 'Save failed');
-      }
-      // Update local state
-      maps = maps.map(m => {
-        if (m.id !== map.id) return m;
-        const updated = { ...m, location: editLocation || null, map_type: editMapType || null, extra_metadata };
-        for (const { key } of ALL_FIELDS) { updated[key] = editValues[key] || null; }
-        return updated;
-      });
-      saveSuccess = true;
-      setTimeout(() => { saveSuccess = false; editingId = null; }, 1500);
-    } catch (e: any) {
-      saveError = e.message;
-    } finally {
-      saving = false;
-    }
-  }
+  // Inline edit removed — all edits now happen in MapEditModal via the Edit button.
 
   // Admin mod actions
   function handleMapSaved(e: CustomEvent<any>) {
@@ -509,7 +426,7 @@
           {#each filteredMaps as map (map.id)}
             {@const filled = coreFilledCount(map)}
             {@const total = CORE_FIELDS.length}
-            <div class="map-row" class:editing={editingId === map.id}>
+            <div class="map-row">
               <div class="map-summary">
                 {#if map.thumbnail}
                   <img class="thumb" src={map.thumbnail} alt={map.name} loading="lazy" />
@@ -530,95 +447,9 @@
                 </div>
 
                 <div class="row-actions">
-                  {#if role === 'admin'}
-                    <button class="btn btn-outline ml-2" on:click={() => editingMapFull = map}>Adv Edit</button>
-                  {/if}
-                  {#if editingId !== map.id}
-                    <button class="btn btn-edit" on:click={() => startEdit(map)}>Edit DC</button>
-                  {:else}
-                    <button class="btn btn-cancel" on:click={cancelEdit}>Cancel</button>
-                  {/if}
+                  <button class="btn btn-edit" on:click={() => editingMapFull = map}>Edit</button>
                 </div>
               </div>
-
-              {#if editingId === map.id}
-                <div class="edit-form">
-                  {#if saveError}<div class="alert alert-error">{saveError}</div>{/if}
-                  {#if saveSuccess}<div class="alert-success">Saved!</div>{/if}
-
-                  <div class="section-label">Classification</div>
-                  <div class="fields-grid">
-                    <label class="field-label">
-                      <span class="field-name">Location <span class="dc-tag vma-tag">city / region</span>{#if editLocation}<span class="filled-dot">●</span>{:else}<span class="empty-dot">○</span>{/if}</span>
-                      <input type="text" class="field-input" class:has-value={!!editLocation} bind:value={editLocation} placeholder="e.g. Saigon" />
-                    </label>
-                    <label class="field-label">
-                      <span class="field-name">Map Type <span class="dc-tag vma-tag">classification</span>{#if editMapType}<span class="filled-dot">●</span>{:else}<span class="empty-dot">○</span>{/if}</span>
-                      <select class="field-input" class:has-value={!!editMapType} bind:value={editMapType}>
-                        <option value="">— unknown —</option><option value="cadastral">Cadastral</option><option value="topographic">Topographic</option>
-                        <option value="city_plan">City Plan</option><option value="panorama">Panorama</option><option value="other">Other</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <div class="section-label">Core Dublin Core</div>
-                  <div class="fields-grid">
-                    {#each CORE_FIELDS as field}
-                      <label class="field-label" class:full-width={field.multiline}>
-                        <span class="field-name">
-                          {field.label} <span class="dc-tag">{field.dcElement}</span>
-                          {#if editValues[field.key]}<span class="filled-dot">●</span>{:else}<span class="empty-dot">○</span>{/if}
-                        </span>
-                        {#if field.multiline}
-                          <textarea class="field-input" class:has-value={!!editValues[field.key]} bind:value={editValues[field.key]} placeholder={field.placeholder ?? ''} rows="2"></textarea>
-                        {:else}
-                          <input type="text" class="field-input" class:has-value={!!editValues[field.key]} bind:value={editValues[field.key]} placeholder={field.placeholder ?? ''} />
-                        {/if}
-                      </label>
-                    {/each}
-                  </div>
-
-                  <button class="supp-toggle" type="button" on:click={() => showSupp = !showSupp}>
-                    {showSupp ? '▲' : '▼'} Supplementary fields ({SUPP_FIELDS.length})
-                  </button>
-                  {#if showSupp}
-                    <div class="section-label supp">Supplementary</div>
-                    <div class="fields-grid">
-                      {#each SUPP_FIELDS as field}
-                        <label class="field-label">
-                          <span class="field-name">
-                            {field.label} {#if field.dcElement}<span class="dc-tag">{field.dcElement}</span>{:else}<span class="dc-tag vma-tag">VMA</span>{/if}
-                            {#if editValues[field.key]}<span class="filled-dot">●</span>{:else}<span class="empty-dot">○</span>{/if}
-                          </span>
-                          <input type="text" class="field-input" class:has-value={!!editValues[field.key]} bind:value={editValues[field.key]} placeholder={field.placeholder ?? ''} />
-                        </label>
-                      {/each}
-                    </div>
-                  {/if}
-
-                  <button class="supp-toggle" type="button" on:click={() => showExtra = !showExtra}>
-                    {showExtra ? '▲' : '▼'} Custom fields ({extraPairs.filter(p => p.key.trim()).length} set)
-                  </button>
-                  {#if showExtra}
-                    <div class="section-label supp">Custom (stored as JSONB)</div>
-                    <div class="extra-pairs">
-                      {#each extraPairs as pair, i}
-                        <div class="extra-pair-row">
-                          <input type="text" class="field-input extra-key" bind:value={pair.key} placeholder="Field name" />
-                          <input type="text" class="field-input extra-val" bind:value={pair.value} placeholder="Value" />
-                          <button type="button" class="btn-remove-pair" on:click={() => extraPairs = extraPairs.filter((_, j) => j !== i)}>×</button>
-                        </div>
-                      {/each}
-                      <button type="button" class="btn-add-pair" on:click={() => extraPairs = [...extraPairs, { key: '', value: '' }]}>+ Add field</button>
-                    </div>
-                  {/if}
-
-                  <div class="form-footer">
-                    <button class="btn btn-save" on:click={() => handleSave(map)} disabled={saving}>{saving ? 'Saving…' : 'Save DC'}</button>
-                    <button class="btn btn-cancel" on:click={cancelEdit} disabled={saving}>Cancel</button>
-                  </div>
-                </div>
-              {/if}
             </div>
           {/each}
         </div>
