@@ -46,6 +46,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         source_type, iiif_manifest, iiif_image, ia_identifier,
         original_title, creator, year_label, language, rights, source_url,
         collection, map_type, bbox, status, extra_metadata,
+        thumbnail,
         // contribution flags
         georef_done,
     } = body;
@@ -76,6 +77,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     if (bbox            !== undefined) insertData.bbox            = bbox;
     if (status          !== undefined) insertData.status          = status;
     if (extra_metadata  !== undefined) insertData.extra_metadata  = extra_metadata;
+    if (thumbnail       !== undefined) insertData.thumbnail       = thumbnail;
     if (georef_done     !== undefined) insertData.georef_done     = georef_done;
 
     const { data, error: dbError } = await (adminSupabase as any)

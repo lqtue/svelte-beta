@@ -28,8 +28,22 @@
         try {
             maps = await fetchAdminMaps();
             loading = false;
-            // Fetch thumbnails in background
+            // Fetch thumbnails in background. Prefer the stored `thumbnail`
+            // column, then derive from `iiif_image` (works pre-georef), then
+            // fall back to the Allmaps annotation lookup.
             maps.forEach(async (map) => {
+                const stored = (map as any).thumbnail as string | undefined;
+                if (stored) {
+                    thumbnails.set(map.id, stored);
+                    thumbnails = thumbnails;
+                    return;
+                }
+                const iiif = (map as any).iiif_image as string | undefined;
+                if (iiif) {
+                    thumbnails.set(map.id, `${iiif.replace(/\/$/, '')}/full/,400/0/default.jpg`);
+                    thumbnails = thumbnails;
+                    return;
+                }
                 if (!map.allmaps_id) return;
                 const url = await fetchThumbnailUrl(map.allmaps_id);
                 if (url) {

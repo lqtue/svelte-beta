@@ -311,6 +311,7 @@
     <div slot="actions">
       {#if role === "admin"}
         <button class="action-btn primary-btn" on:click={() => showUploadModal = true}>+ New Map</button>
+        <a class="pill-btn" href="/admin/bulk">📦 Bulk Upload</a>
       {/if}
       {#if role === "admin" || role === "mod"}
         <button class="pill-btn" on:click={() => { editMode = !editMode; }}>

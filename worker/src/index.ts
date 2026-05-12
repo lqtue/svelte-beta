@@ -48,6 +48,20 @@ export default {
 					info['type'] = 'ImageService3';
 					info['protocol'] = 'http://iiif.io/api/image';
 					info['profile'] = 'level2';
+					// vips dzsave iiif3 omits tile height and the sizes array; OL's IIIFInfo
+					// parser produces stretched/seamy output without them.
+					if (Array.isArray(info.tiles)) {
+						for (const t of info.tiles) {
+							if (t && typeof t.width === 'number' && t.height == null) t.height = t.width;
+						}
+					}
+					if (!Array.isArray(info.sizes) && typeof info.width === 'number' && typeof info.height === 'number' && info.tiles?.[0]?.scaleFactors) {
+						const factors: number[] = info.tiles[0].scaleFactors;
+						info.sizes = factors.map((f: number) => ({
+							width: Math.ceil(info.width / f),
+							height: Math.ceil(info.height / f),
+						}));
+					}
 					text = JSON.stringify(info);
 				} catch (e) {
 					text = text.replace(/"id"\s*:\s*"[^"]*"/, `"id": "${infoServiceUrl}"`);

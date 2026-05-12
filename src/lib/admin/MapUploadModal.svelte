@@ -26,6 +26,7 @@
     let rights = "";
     let description = "";
     let allmapsId = "";
+    let thumbnail = "";
     let metaFetched = false;
 
     let saving = false;
@@ -74,6 +75,11 @@
             if (meta.rights)           rights    = meta.rights;
             if (meta.attribution)      collection = meta.attribution;
             if (meta.allmapsId)        allmapsId  = meta.allmapsId;
+            if (meta.thumbnail)        thumbnail  = meta.thumbnail;
+            // Fall back: derive a thumbnail from the IIIF image service URL.
+            if (!thumbnail && iiifImage) {
+                thumbnail = `${iiifImage.replace(/\/$/, "")}/full/,400/0/default.jpg`;
+            }
             sourceType  = inferSourceType(manifestUrl);
             metaFetched = true;
         } catch (e: any) {
@@ -105,6 +111,7 @@
                     rights:         rights.trim()      || null,
                     dc_description: description.trim() || null,
                     allmaps_id:     allmapsId.trim()   || null,
+                    thumbnail:      thumbnail.trim()   || null,
                     georef_done:    !!allmapsId.trim(),
                     status:         "draft",
                 }),

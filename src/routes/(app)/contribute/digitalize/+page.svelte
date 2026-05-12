@@ -70,6 +70,13 @@
   let pipelineLoading = false;
   let pipelineError = '';
 
+  // ── Segmentation command config ───────────────────────────────────────────────
+  let checkpointPath = '/content/drive/MyDrive/mapsam2_checkpoint.pth';
+  let mapsam2Dir = '/content/MapSAM2';
+  let encoder: 'vit_t' | 'vit_s' | 'vit_b' | 'vit_l' = 'vit_s';
+  let useTextMask = true;
+  let useWatershed = true;
+
   async function loadPipelineStatus() {
     if (!currentMap?.id) return;
     pipelineLoading = true;
@@ -100,11 +107,25 @@
     }
   }
 
-  $: segColabCommand = currentMap?.id && pipelineStatus?.ocr_run_id
-    ? `python work/MapSAM2/inference_tiles_as_video.py \\\n  --map-id ${currentMap.id} \\\n  --checkpoint /path/to/checkpoint.pth \\\n  --lora --mode prompted \\\n  --ocr-run-id ${pipelineStatus.ocr_run_id} \\\n  --tile-size 1024 --overlap 128 \\\n  --out-json footprints.json --preview --write-supabase`
-    : currentMap?.id
-    ? `python work/MapSAM2/inference_tiles_as_video.py \\\n  --map-id ${currentMap.id} \\\n  --checkpoint /path/to/checkpoint.pth \\\n  --tile-size 1024 --overlap 128 \\\n  --out-json footprints.json --preview --write-supabase`
-    : '';
+  $: segColabCommand = (() => {
+    if (!currentMap?.id) return '';
+    const hasOcr = !!pipelineStatus?.ocr_run_id;
+    const flags = [
+      `python work/MapSAM2/inference_tiles_as_video.py`,
+      `  --map-id ${currentMap.id}`,
+      `  --checkpoint ${checkpointPath}`,
+      `  --encoder ${encoder}`,
+      hasOcr ? `  --lora --mapsam2-dir ${mapsam2Dir}` : null,
+      hasOcr ? `  --mode prompted` : `  --mode automatic`,
+      hasOcr ? `  --ocr-run-id ${pipelineStatus!.ocr_run_id}` : null,
+      `  --tile-size 1024 --overlap 128`,
+      useTextMask ? `  --text-mask` : null,
+      useWatershed ? `  --watershed` : null,
+      `  --device cuda`,
+      `  --out-json footprints.json --preview --write-supabase`,
+    ].filter(Boolean);
+    return flags.join(' \\\n');
+  })();
 
   // ── Triage state ──────────────────────────────────────────────────────────────
   let neatline: [number, number, number, number] | null = null;
@@ -131,12 +152,20 @@
     prevGridKey = key;
   }
 
-  // Persist triage config to localStorage
+  // Persist triage + seg config to localStorage
   $: if (currentMap?.id && neatline) {
     try {
       localStorage.setItem(
         `digitalize-triage-${currentMap.id}`,
         JSON.stringify({ neatline, tile_size: tileSize, overlap, tile_overrides: tileOverrides })
+      );
+    } catch { /* storage quota or SSR */ }
+  }
+  $: if (currentMap?.id) {
+    try {
+      localStorage.setItem(
+        `digitalize-seg-${currentMap.id}`,
+        JSON.stringify({ checkpointPath, mapsam2Dir, encoder, useTextMask, useWatershed })
       );
     } catch { /* storage quota or SSR */ }
   }
@@ -181,6 +210,18 @@
         if (data.tile_size) tileSize = data.tile_size;
         if (data.overlap) overlap = data.overlap;
         if (data.tile_overrides) tileOverrides = data.tile_overrides;
+      }
+    } catch { /* ignore */ }
+    // Restore persisted seg config
+    try {
+      const saved = localStorage.getItem(`digitalize-seg-${m.id}`);
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.checkpointPath) checkpointPath = data.checkpointPath;
+        if (data.mapsam2Dir) mapsam2Dir = data.mapsam2Dir;
+        if (data.encoder) encoder = data.encoder;
+        if (typeof data.useTextMask === 'boolean') useTextMask = data.useTextMask;
+        if (typeof data.useWatershed === 'boolean') useWatershed = data.useWatershed;
       }
     } catch { /* ignore */ }
 
@@ -434,6 +475,40 @@
             {/if}
 
             {#if segColabCommand}
+              <div class="seg-config">
+                <div class="seg-config-label">Command config</div>
+                <label class="seg-field">
+                  <span>Checkpoint</span>
+                  <input type="text" bind:value={checkpointPath} placeholder="/content/drive/MyDrive/…" />
+                </label>
+                {#if pipelineStatus?.ocr_run_id}
+                  <label class="seg-field">
+                    <span>MapSAM2 dir</span>
+                    <input type="text" bind:value={mapsam2Dir} placeholder="/content/MapSAM2" />
+                  </label>
+                {/if}
+                <div class="seg-row">
+                  <label class="seg-field seg-field--inline">
+                    <span>Encoder</span>
+                    <select bind:value={encoder}>
+                      <option value="vit_t">vit_t (tiny)</option>
+                      <option value="vit_s">vit_s (small)</option>
+                      <option value="vit_b">vit_b (base)</option>
+                      <option value="vit_l">vit_l (large)</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="seg-row seg-row--checks">
+                  <label class="seg-check">
+                    <input type="checkbox" bind:checked={useTextMask} />
+                    Text mask
+                  </label>
+                  <label class="seg-check">
+                    <input type="checkbox" bind:checked={useWatershed} />
+                    Watershed
+                  </label>
+                </div>
+              </div>
               <div class="seg-command-block">
                 <div class="seg-command-label">Colab command</div>
                 <pre class="seg-command">{segColabCommand}</pre>
@@ -443,10 +518,15 @@
               </div>
             {/if}
 
-            {#if pipelineStatus?.seg_finished_at}
+            {#if pipelineStatus?.seg_started_at || pipelineStatus?.seg_finished_at}
               <div class="seg-meta">
                 <span>Run: <code>{pipelineStatus.seg_run_id ?? '—'}</code></span>
-                <span>Finished: {new Date(pipelineStatus.seg_finished_at).toLocaleString()}</span>
+                {#if pipelineStatus.seg_started_at}
+                  <span>Started: {new Date(pipelineStatus.seg_started_at).toLocaleString()}</span>
+                {/if}
+                {#if pipelineStatus.seg_finished_at}
+                  <span>Finished: {new Date(pipelineStatus.seg_finished_at).toLocaleString()}</span>
+                {/if}
               </div>
             {/if}
 
@@ -720,6 +800,7 @@
   }
   .seg-stage-badge.stage-ocr_done,
   .seg-stage-badge.stage-reviewed { background: #fef3c7; color: #92400e; }
+  .seg-stage-badge.stage-seg_queued { background: #dbeafe; color: #1e40af; }
   .seg-stage-badge.stage-seg_done,
   .seg-stage-badge.stage-seg_reviewed { background: #dcfce7; color: #166534; }
   .seg-ready-btn { width: 100%; font-size: 0.8rem; }
@@ -743,6 +824,37 @@
     word-break: break-all;
     margin: 0;
   }
+  .seg-config {
+    display: flex; flex-direction: column; gap: 0.45rem;
+    padding: 0.55rem 0.6rem;
+    background: var(--color-bg-2, #f3f0eb);
+    border: 1px solid var(--color-border-soft, #d9d0c5);
+    border-radius: 4px;
+  }
+  .seg-config-label { font-size: 0.68rem; font-weight: 700; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.06em; }
+  .seg-field {
+    display: flex; flex-direction: column; gap: 0.15rem;
+  }
+  .seg-field span { font-size: 0.68rem; font-weight: 600; opacity: 0.6; }
+  .seg-field input, .seg-field select {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.68rem;
+    border: 1px solid var(--color-border, #d1d5db);
+    border-radius: 3px;
+    padding: 0.25rem 0.4rem;
+    background: #fff;
+    width: 100%;
+  }
+  .seg-field--inline { flex-direction: row; align-items: center; gap: 0.4rem; }
+  .seg-field--inline span { white-space: nowrap; }
+  .seg-field--inline select { flex: 1; }
+  .seg-row { display: flex; gap: 0.5rem; align-items: center; }
+  .seg-row--checks { gap: 0.75rem; }
+  .seg-check {
+    display: flex; align-items: center; gap: 0.3rem;
+    font-size: 0.72rem; cursor: pointer;
+  }
+  .seg-check input[type="checkbox"] { cursor: pointer; }
   .seg-meta { font-size: 0.7rem; opacity: 0.6; display: flex; flex-direction: column; gap: 0.15rem; }
   .seg-error { font-size: 0.75rem; color: #dc2626; margin: 0; }
   .seg-refresh { align-self: flex-start; font-size: 0.72rem; }

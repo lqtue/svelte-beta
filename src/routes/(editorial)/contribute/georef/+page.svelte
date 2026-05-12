@@ -9,6 +9,8 @@
     id: string;
     name: string;
     allmaps_id: string | null;
+    iiif_image: string | null;
+    iiif_manifest: string | null;
     georef_done: boolean;
     year: number | null;
   }
@@ -23,7 +25,7 @@
     try {
       const { data, error } = await supabase
         .from('maps')
-        .select('id, name, allmaps_id, georef_done, year')
+        .select('id, name, allmaps_id, iiif_image, iiif_manifest, georef_done, year')
         .eq('is_public', false)
         .order('priority', { ascending: false })
         .order('name');
@@ -36,14 +38,25 @@
     }
   });
 
+  function withInfoJson(url: string): string {
+    return /\.json($|\?)/.test(url) ? url : `${url.replace(/\/$/, '')}/info.json`;
+  }
+
   function allmapsEditorUrl(map: MapItem): string {
+    if (map.iiif_manifest) {
+      return `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(map.iiif_manifest)}`;
+    }
+    if (map.iiif_image) {
+      return `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(withInfoJson(map.iiif_image))}`;
+    }
     if (map.allmaps_id) {
-      return `https://editor.allmaps.org/#annotationUrl=${encodeURIComponent(annotationStorageUrl(map.allmaps_id))}`;
+      return `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(annotationStorageUrl(map.allmaps_id))}`;
     }
     return `https://editor.allmaps.org/`;
   }
 
   function annotationStorageUrl(allmapsId: string): string {
+    if (allmapsId.startsWith('http')) return allmapsId;
     return `https://trioykjhhwrruwjsklfo.supabase.co/storage/v1/object/public/annotations/${allmapsId}.json`;
   }
 

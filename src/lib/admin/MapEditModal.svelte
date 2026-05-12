@@ -358,6 +358,12 @@
         || iiifSources.find(s => s.source_type !== 'r2' && s.iiif_image)?.iiif_image
         || (!allmaps_id?.startsWith('http') ? annotationUrl : '');
 
+    // Allmaps Editor's ?url= param needs an info.json or manifest URL, not a bare
+    // image-service base. Append /info.json when the URL has no .json suffix.
+    $: editorAllmapsUrl = editorIiifUrl
+        ? (/\.json($|\?)/.test(editorIiifUrl) ? editorIiifUrl : `${editorIiifUrl.replace(/\/$/, '')}/info.json`)
+        : '';
+
     async function handleSave() {
         if (!name.trim()) {
             error = "Name is required.";
@@ -766,8 +772,8 @@
                             <a href={annotationUrl} target="_blank" class="link-btn">
                                 View Annotation ↗
                             </a>
-                            <a href={editorIiifUrl ? `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(editorIiifUrl)}` : undefined}
-                               target="_blank" class="link-btn" class:disabled={!editorIiifUrl}>
+                            <a href={editorAllmapsUrl ? `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(editorAllmapsUrl)}` : undefined}
+                               target="_blank" class="link-btn" class:disabled={!editorAllmapsUrl}>
                                 Open in Allmaps Editor ↗
                             </a>
                         </div>
