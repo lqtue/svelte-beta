@@ -106,6 +106,39 @@
     ];
     let showSupp = false;
 
+    // ── Allmaps ID lookup ──────────────────────────────────────────────
+    let lookingUpAllmaps = false;
+    let lookupAllmapsStatus = "";
+    async function handleLookupAllmapsId() {
+        const iiif = (map.iiif_image || iiifSources.find(s => s.is_primary)?.iiif_image || "").trim();
+        if (!iiif) {
+            lookupAllmapsStatus = "No IIIF image URL set on this map.";
+            return;
+        }
+        lookingUpAllmaps = true;
+        lookupAllmapsStatus = "";
+        try {
+            const res = await fetch("/api/admin/maps/lookup-allmaps-id", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ iiifImage: iiif }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ message: res.statusText }));
+                throw new Error(err.message || `HTTP ${res.status}`);
+            }
+            const { allmapsId, hasAnnotation } = await res.json();
+            allmaps_id = allmapsId;
+            lookupAllmapsStatus = hasAnnotation
+                ? `✓ Found georeferenced annotation. Click Save to persist.`
+                : `Derived ID, but no georef yet on annotations.allmaps.org. Place GCPs in Allmaps Editor first.`;
+        } catch (e: any) {
+            lookupAllmapsStatus = `✗ ${e.message}`;
+        } finally {
+            lookingUpAllmaps = false;
+        }
+    }
+
     // Bind DC fields through a single record so we can drive them from the schema
     $: dcValues = {
         original_title, creator, dc_publisher, year_label, shelfmark,
@@ -810,7 +843,13 @@
                         <div class="subsection-heading">Georeference</div>
                         <label class="form-label full-width">
                             <span>Allmaps ID <span class="required">*</span></span>
-                            <input type="text" bind:value={allmaps_id} class="form-input mono" />
+                            <div class="allmaps-id-row">
+                                <input type="text" bind:value={allmaps_id} class="form-input mono" placeholder="16-char hex (auto-derived from IIIF URL)" />
+                                <button type="button" class="btn btn-outline btn-sm" on:click={handleLookupAllmapsId} disabled={lookingUpAllmaps || !map.iiif_image}>
+                                    {lookingUpAllmaps ? "Looking up…" : "Fetch from Allmaps"}
+                                </button>
+                            </div>
+                            {#if lookupAllmapsStatus}<span class="lookup-status">{lookupAllmapsStatus}</span>{/if}
                         </label>
                         <div class="georef-links">
                             <a href={annotationUrl} target="_blank" class="link-btn">
@@ -1230,4 +1269,9 @@
         background: #e2e8f0; border-radius: 8px; font-size: 0.7rem; font-weight: 700;
     }
     .tab.active .tab-counter { background: #111; color: #fff; }
+
+    .allmaps-id-row { display: flex; gap: 0.5rem; align-items: stretch; }
+    .allmaps-id-row .form-input { flex: 1; min-width: 0; }
+    .allmaps-id-row .btn { white-space: nowrap; }
+    .lookup-status { display: block; font-size: 0.78rem; color: #555; margin-top: 0.4rem; font-family: ui-monospace, monospace; }
 </style>
