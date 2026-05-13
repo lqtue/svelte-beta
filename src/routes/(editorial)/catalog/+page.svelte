@@ -34,7 +34,7 @@
   let filterCollection: "all" | "featured" | "favorites" = "all";
   let filterSource: string = "all";
   let searchQuery: string = "";
-  let sortBy: "name" | "year" | "newest" = "year";
+  let sortBy: "name" | "year" | "newest" | "completeness" = "year";
   let favoriteIds: string[] = [];
 
   // Extended Filtering
@@ -187,18 +187,15 @@
       );
     }
 
-    if (editMode) {
-      // In edit mode: incomplete maps first, then sort by year
+    if (sortBy === "completeness") {
       result = [...result].sort((a, b) => {
         const diff = coreFilledCount(a) - coreFilledCount(b);
         if (diff !== 0) return diff;
         return (a.year ?? 9999) - (b.year ?? 9999);
       });
-    } else {
-      if (sortBy === "name") result = [...result].sort((a, b) => a.name.localeCompare(b.name));
-      else if (sortBy === "year") result = [...result].sort((a, b) => (a.year || 9999) - (b.year || 9999));
-      else if (sortBy === "newest") result = [...result].sort((a, b) => (b.year || 0) - (a.year || 0));
-    }
+    } else if (sortBy === "name") result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === "year") result = [...result].sort((a, b) => (a.year || 9999) - (b.year || 9999));
+    else if (sortBy === "newest") result = [...result].sort((a, b) => (b.year || 0) - (a.year || 0));
 
     return result;
   })();
@@ -246,23 +243,22 @@
           <span class="search-emoji">🔍</span>
           <input type="text" placeholder="Search by name, creator, or description..." bind:value={searchQuery} class="chunky-input" />
         </div>
-        {#if !editMode}
-          <div class="controls-group">
-            <div class="view-toggle">
-              <button class="toggle-btn" class:active={viewMode === "grid"} on:click={() => setViewMode("grid")} aria-label="Grid view">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
-              </button>
-              <button class="toggle-btn" class:active={viewMode === "list"} on:click={() => setViewMode("list")} aria-label="List view">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" /></svg>
-              </button>
-            </div>
-            <select class="chunky-select" bind:value={sortBy}>
-              <option value="year">📅 Year (Asc)</option>
-              <option value="newest">📅 Year (Desc)</option>
-              <option value="name">🔤 Alphabetic A-Z</option>
-            </select>
+        <div class="controls-group">
+          <div class="view-toggle">
+            <button class="toggle-btn" class:active={viewMode === "grid"} on:click={() => setViewMode("grid")} aria-label="Grid view">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+            </button>
+            <button class="toggle-btn" class:active={viewMode === "list"} on:click={() => setViewMode("list")} aria-label="List view">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" /></svg>
+            </button>
           </div>
-        {/if}
+          <select class="chunky-select" bind:value={sortBy}>
+            <option value="year">📅 Year (Asc)</option>
+            <option value="newest">📅 Year (Desc)</option>
+            <option value="name">🔤 Alphabetic A-Z</option>
+            {#if editMode}<option value="completeness">📊 Completeness (asc)</option>{/if}
+          </select>
+        </div>
       </div>
 
       <div class="filter-main-tabs">
@@ -371,11 +367,12 @@
       </div>
     {:else}
 
-      {#if !editMode}
-        <!-- VIEW MODE (GRID OR LIST) -->
-        {#if viewMode === "grid"}
-          <div class="catalog-grid">
-            {#each filteredMaps as map (map.id)}
+      {#if viewMode === "grid"}
+        <div class="catalog-grid">
+          {#each filteredMaps as map (map.id)}
+            {@const filled = coreFilledCount(map)}
+            {@const total = CORE_FIELDS.length}
+            <div class="grid-cell">
               <MapCard
                 map={{
                   id: map.id, name: map.name, location: map.location,
@@ -389,68 +386,59 @@
                 showSourceBadge
                 on:toggleFavorite={(e) => toggleFavorite(e.detail)}
               />
-            {/each}
-          </div>
-        {:else}
-          <div class="catalog-list">
-            {#each filteredMaps as map (map.id)}
-              <a href={mapHref(map)} class="list-row">
-                <div class="list-thumb">
-                  {#if thumbnails.get(map.id)}
-                    <img src={thumbnails.get(map.id)} alt={map.name} loading="lazy" on:error={handleImageError} />
-                  {:else}<div class="placeholder-pattern"></div>{/if}
-                </div>
-                <div class="list-info">
-                  <h3 class="list-name">{map.name}</h3>
-                  {#if map.dc_description}<p class="list-summary">{map.dc_description}</p>{/if}
-                  <div class="list-meta">
-                    {#if map.year}<span class="badge year-badge">{map.year}</span>{/if}
-                    {#if map.location}<span class="badge city-badge">{map.location}</span>{/if}
-                    {#if map.collection}<span class="badge source-badge">{shortCollection(map.collection)}</span>{/if}
+              {#if editMode && (role === 'admin' || role === 'mod')}
+                <div class="admin-overlay">
+                  <div class="progress-bar mini" title="{filled}/{total} core DC fields filled">
+                    <div class="progress-fill" class:full={filled === total} style="width:{(filled/total)*100}%"></div>
                   </div>
+                  <button class="btn btn-edit btn-sm" on:click|preventDefault|stopPropagation={() => editingMapFull = map}>Edit</button>
                 </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div class="catalog-list">
+          {#each filteredMaps as map (map.id)}
+            {@const filled = coreFilledCount(map)}
+            {@const total = CORE_FIELDS.length}
+            <a href={mapHref(map)} class="list-row" class:editing-row={editMode}>
+              <div class="list-thumb">
+                {#if thumbnails.get(map.id)}
+                  <img src={thumbnails.get(map.id)} alt={map.name} loading="lazy" on:error={handleImageError} />
+                {:else}<div class="placeholder-pattern"></div>{/if}
+              </div>
+              <div class="list-info">
+                <h3 class="list-name">{map.name}</h3>
+                {#if !editMode && map.dc_description}<p class="list-summary">{map.dc_description}</p>{/if}
+                <div class="list-meta">
+                  {#if map.year}<span class="badge year-badge">{map.year}</span>{/if}
+                  {#if map.location}<span class="badge city-badge">{map.location}</span>{/if}
+                  {#if map.collection}<span class="badge source-badge">{shortCollection(map.collection)}</span>{/if}
+                  {#if editMode}
+                    {#if map.map_type}<span class="badge type-badge">{map.map_type}</span>{/if}
+                    {#if map.source_type}<span class="badge src-badge">{map.source_type}</span>{/if}
+                  {/if}
+                </div>
+                {#if editMode}
+                  <div class="completeness">
+                    <div class="progress-bar"><div class="progress-fill" class:full={filled === total} style="width:{(filled/total)*100}%"></div></div>
+                    <span class="progress-label">{filled}/{total} core</span>
+                  </div>
+                {/if}
+              </div>
+              <div class="row-actions">
+                {#if editMode && (role === 'admin' || role === 'mod')}
+                  <button class="btn btn-edit" on:click|preventDefault|stopPropagation={() => editingMapFull = map}>Edit</button>
+                {/if}
                 {#if session}
                   <button class="fav-btn-list" on:click|preventDefault|stopPropagation={() => toggleFavorite(map.id)} aria-label="Toggle Favorite">
                     <span class="notranslate" style="display: {favoriteIds.includes(map.id) ? 'block' : 'none'}">❤️</span>
                     <span class="notranslate" style="display: {!favoriteIds.includes(map.id) ? 'block' : 'none'}">🤍</span>
                   </button>
                 {/if}
-              </a>
-            {/each}
-          </div>
-        {/if}
-
-      {:else}
-        <!-- EDIT MODE (ROLE === ADMIN | MOD) -->
-        <div class="map-list edit-ui-list">
-          {#each filteredMaps as map (map.id)}
-            {@const filled = coreFilledCount(map)}
-            {@const total = CORE_FIELDS.length}
-            <div class="map-row">
-              <div class="map-summary">
-                {#if map.thumbnail}
-                  <img class="thumb" src={map.thumbnail} alt={map.name} loading="lazy" />
-                {:else}<div class="thumb placeholder"></div>{/if}
-
-                <div class="map-info-edit">
-                  <span class="map-name-edit">{map.name}</span>
-                  <div class="map-meta-row">
-                    {#if map.location}<span class="chip">{map.location}</span>{/if}
-                    {#if map.map_type}<span class="chip chip-type">{map.map_type}</span>{/if}
-                    {#if map.year}<span class="chip">{map.year}</span>{/if}
-                    {#if map.source_type}<span class="chip chip-src">{map.source_type}</span>{/if}
-                  </div>
-                  <div class="completeness">
-                    <div class="progress-bar"><div class="progress-fill" class:full={filled === total} style="width:{(filled/total)*100}%"></div></div>
-                    <span class="progress-label">{filled}/{total} core</span>
-                  </div>
-                </div>
-
-                <div class="row-actions">
-                  <button class="btn btn-edit" on:click={() => editingMapFull = map}>Edit</button>
-                </div>
               </div>
-            </div>
+            </a>
           {/each}
         </div>
       {/if}
@@ -472,29 +460,6 @@
   /* Base catalog styling comes from catalog.css, MapCard, and ChunkyTabs */
   /* Extra styles for unified topbar and edit mode elements */
 
-  .adv-btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-    font-family: inherit;
-    font-weight: 700;
-    border: 2px solid #111;
-    border-radius: 999px;
-    background: #fff;
-    color: #111;
-    cursor: pointer;
-    box-shadow: 2px 2px 0 #111;
-    transition: all 0.1s;
-    flex-shrink: 0;
-  }
-  .adv-btn:hover { background: #f5e9c8; transform: translate(-2px, -2px); box-shadow: 4px 4px 0 #111; }
-  .adv-btn:active { transform: translate(0, 0); box-shadow: 0 0 0 #111; }
-  .adv-btn.active { background: #111; color: #fff; }
-
-  .content.edit-layout {
-    max-width: 940px;
-    margin: 0 auto;
-  }
-
   .edit-toolbar {
     margin-top: 1rem;
     padding-top: 1rem;
@@ -504,72 +469,36 @@
     align-items: center;
   }
 
-  /* Map Row styles (from contribute/catalog admin layout) */
-  .edit-ui-list {
-    display: flex; flex-direction: column; gap: 0.75rem;
+  /* Admin extras layered onto the existing catalog list/grid */
+  .row-actions { flex-shrink: 0; display: flex; gap: 0.5rem; align-items: center; }
+  .btn-edit {
+    padding: 0.35rem 0.9rem; font-size: 0.85rem; font-weight: 700;
+    background: #111; color: #fff; border: 1.5px solid #111; border-radius: 6px;
+    cursor: pointer; font-family: inherit;
   }
-  .map-row {
-    background: #fff; border: 2px solid #111; border-radius: 12px;
-    overflow: hidden; box-shadow: 3px 3px 0 #111; transition: box-shadow 0.1s;
-  }
-  .map-row.editing { box-shadow: 5px 5px 0 #111; }
-  .map-summary { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; }
+  .btn-edit:hover { background: #333; }
+  .btn-edit.btn-sm { padding: 0.2rem 0.55rem; font-size: 0.72rem; }
 
-  .thumb { width: 72px; height: 54px; object-fit: cover; border: 1.5px solid #ddd; border-radius: 4px; flex-shrink: 0; }
-  .thumb.placeholder { background: repeating-linear-gradient(45deg, #f5e9c8 0, #f5e9c8 8px, #fff 8px, #fff 16px); }
-
-  .map-info-edit { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
-  .map-name-edit { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  .map-meta-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-  .chip { font-size: 0.72rem; font-weight: 600; background: #f3f4f6; color: #555; border: 1px solid #e5e7eb; border-radius: 999px; padding: 0.1rem 0.5rem; }
-  .chip-src  { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-  .chip-type { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
-
-  .completeness { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem; }
+  .completeness { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.3rem; }
   .progress-bar { height: 5px; width: 90px; background: #e5e5e5; border-radius: 3px; overflow: hidden; }
+  .progress-bar.mini { width: 100%; height: 4px; }
   .progress-fill { height: 100%; background: #f97316; border-radius: 3px; transition: width 0.3s; }
   .progress-fill.full { background: #00cc99; }
   .progress-label { font-size: 0.72rem; color: #888; white-space: nowrap; }
 
-  .row-actions { flex-shrink: 0; display: flex; gap: 0.5rem; }
+  .list-row.editing-row { box-shadow: 3px 3px 0 #111; }
+  .badge.type-badge { background: #e0e7ff; color: #3730a3; }
+  .badge.src-badge  { background: #fef3c7; color: #92400e; }
 
-  .btn-edit { padding: 0.35rem 1rem; font-size: 0.85rem; background: #111; color: #fff; border-color: #111; }
-  .btn-edit:hover { background: #333; }
-  .btn-cancel { padding: 0.35rem 1rem; font-size: 0.85rem; background: #fff; color: #111; border-color: #111; }
-  .btn-cancel:hover { background: #f5f5f5; }
-  .btn-outline { padding: 0.35rem 1rem; font-size: 0.85rem; background: transparent; border: 1.5px solid #111; border-radius: 4px; cursor: pointer; color: #111; }
-  .btn-outline:hover { background: #f5e9c8; }
-
-  /* Forms */
-  .edit-form { border-top: 2px solid #111; padding: 1.25rem 1rem 1rem; background: #fffbf5; }
-  .section-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin-bottom: 0.6rem; }
-  .section-label.supp { margin-top: 0.75rem; }
-  .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem 1.5rem; margin-bottom: 0.5rem; }
-  .field-label { display: flex; flex-direction: column; gap: 0.2rem; }
-  .field-label.full-width { grid-column: 1 / -1; }
-  .field-name { font-size: 0.77rem; font-weight: 700; color: #555; display: flex; align-items: center; gap: 0.35rem; }
-  .dc-tag { font-size: 0.65rem; font-weight: 600; font-family: monospace; background: #e0e7ff; color: #3730a3; border-radius: 3px; padding: 0 0.3rem; letter-spacing: 0; }
-  .vma-tag { background: #fef3c7; color: #92400e; }
-  .filled-dot { color: #00cc99; font-size: 0.65rem; }
-  .empty-dot  { color: #ccc; font-size: 0.65rem; }
-  .field-input { padding: 0.38rem 0.6rem; border: 1.5px solid #ddd; border-radius: 6px; font-size: 0.875rem; font-family: inherit; outline: none; background: #fff; transition: border-color 0.15s; resize: vertical; }
-  .field-input:focus { border-color: #111; }
-  .field-input.has-value { border-color: #00cc99; }
-  .supp-toggle { width: 100%; margin: 0.75rem 0 0; padding: 0.4rem; background: none; border: 1.5px dashed #ccc; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #888; cursor: pointer; text-align: center; font-family: inherit; }
-  .supp-toggle:hover { border-color: #999; color: #555; }
-  .form-footer { display: flex; gap: 0.75rem; margin-top: 1rem; }
-  .btn-save { padding: 0.5rem 1.5rem; background: #111; color: #fff; border-color: #111; }
-  .btn-save:hover:not(:disabled) { background: #333; }
-  .alert-success { padding: 0.5rem 0.75rem; background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 6px; font-size: 0.85rem; color: #065f46; margin-bottom: 0.75rem; }
-
-  /* Custom */
-  .extra-pairs { display: flex; flex-direction: column; gap: 0.4rem; }
-  .extra-pair-row { display: flex; gap: 0.5rem; align-items: center; }
-  .extra-key { flex: 0 0 160px; font-family: monospace; font-size: 0.82rem; }
-  .extra-val { flex: 1; }
-  .btn-remove-pair { flex-shrink: 0; padding: 0.2rem 0.5rem; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 4px; color: #991b1b; cursor: pointer; font-size: 0.8rem; }
-  .btn-remove-pair:hover { background: #fca5a5; }
-  .btn-add-pair { align-self: flex-start; margin-top: 0.25rem; padding: 0.3rem 0.75rem; background: #f0fdf4; border: 1px dashed #86efac; border-radius: 4px; color: #166534; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; }
-  .btn-add-pair:hover { background: #dcfce7; }
+  /* Admin overlay on grid cards (appears in edit mode) */
+  .grid-cell { position: relative; }
+  .admin-overlay {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 0.4rem 0.6rem;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.6));
+    display: flex; align-items: center; gap: 0.5rem;
+    pointer-events: none;
+  }
+  .admin-overlay .progress-bar { flex: 1; background: rgba(255,255,255,0.3); }
+  .admin-overlay .btn-edit { pointer-events: auto; }
 </style>
