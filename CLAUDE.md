@@ -332,7 +332,8 @@ When adding a new page, use the page template in `docs/design-system.md` and add
 - `/api/admin/maps/[id]/annotation/` — PATCH update Allmaps annotation GCPs
 - `/api/admin/maps/[id]/iiif-sources/` — GET list, POST add IIIF source
 - `/api/admin/maps/[id]/iiif-sources/[sourceId]/` — PATCH update (incl. set `is_primary`), DELETE
-- `/api/admin/maps/fetch-iiif-metadata/` — POST `{ manifestUrl }` → parsed IIIF manifest metadata
+- `/api/admin/maps/fetch-iiif-metadata/` — POST `{ manifestUrl }` → parsed IIIF manifest metadata + Allmaps ID probe
+- `/api/admin/maps/lookup-allmaps-id/` — POST `{ iiifImage }` → derive Allmaps image ID from IIIF service URL and probe annotation server
 - `/api/admin/labels/` — label task CRUD
 - `/api/admin/labels/[id]/` — individual task updates
 - `/api/admin/georef/` — georef management
@@ -349,31 +350,46 @@ When adding a new page, use the page template in `docs/design-system.md` and add
 Self-hosted IIIF tile serving via Cloudflare R2 + Worker at `https://iiif.maparchive.vn/iiif`.
 
 - `worker/` — Cloudflare Worker source + `wrangler.toml`; proxies IIIF tile requests to R2 bucket
-- `scripts/tile_map.sh <map-uuid> <source-image-url> [original-iiif-base]` — downloads source image, tiles it with `vips`, and uploads to R2 at `sources/<map-uuid>/`. The mirror-r2 API returns the exact command to run.
+- `scripts/tile_map.sh <map-uuid> <source-image-url-or-path> [original-iiif-base]` — downloads (or copies a local file), tiles with `vips dzsave --layout iiif3 --tile-size 256`, and uploads to R2 at `tiles/<map-uuid>/`. The mirror-r2 API and `/admin/bulk` return the exact command to run.
 - After mirroring: `maps.iiif_image` and the primary `map_iiif_sources` row point to `https://iiif.maparchive.vn/iiif/<map-uuid>`; `maps.allmaps_id` becomes the Supabase Storage public URL of the updated annotation JSON.
 
-### Admin Dashboard (`/admin`)
+**info.json patching:** the worker patches vips dzsave's info.json on the fly — injects `tiles[0].height` (defaults to width per spec but required by OL's IIIFInfo parser) and a `sizes` array computed from scaleFactors. Without these, OpenLayers renders stretched/seamy tiles. Served with `Cache-Control: public, max-age=0` so worker changes are visible immediately.
 
-`src/lib/admin/AdminDashboard.svelte` — map management + label task administration. Label task features:
-- Create tasks with map selection, legend (pin labels), and categories (trace classification)
-- Inline editing of existing tasks
-- Hide/unhide tasks (hidden tasks don't appear in volunteer Label Studio)
-- Delete tasks (cascades to pins)
+Deploy: `cd worker && npx wrangler deploy --env production` — the `production` env binds the `iiif.maparchive.vn/iiif/*` route. A bare `wrangler deploy` updates only the default env (orphan worker on `workers.dev`) and does NOT update the production route.
 
-**`MapEditModal.svelte`** — 4-tab structure (+ GCPs conditional):
+### Admin tooling (lives inside `/catalog`, gated by `role === 'admin' | 'mod'`)
+
+There is no separate `/admin` route — admin controls are inline in `src/routes/(editorial)/catalog/+page.svelte`. The standalone `src/lib/admin/AdminDashboard.svelte` file is legacy/unmounted.
+
+In catalog admin mode (toggle "Edit Meta"):
+- Same grid/list layout as the public catalog with admin extras layered on: completeness progress bar, `map_type`/`source_type` chips, and an **Edit** button per row that opens `MapEditModal`.
+- Sort can switch to "Completeness (asc)" to surface incomplete maps first.
+
+**`MapEditModal.svelte`** — 3-tab structure (+ GCPs conditional). One scrollable Metadata tab replaces the old Details + Provenance tabs.
 
 | Tab | Content |
 |-----|---------|
-| **Details** | Name, description, dates, dimensions, map type, status |
-| **Provenance** | Source type, collection, IA URL, manifest URL, notes |
-| **Hosting** | Image Sources list (primary indicator), Mirror to R2, Georeference (Allmaps ID + editor links), Image Upload |
-| **Contribute** | Visibility/priority toggles, Label Studio config (pin legend modes, categories), OCR pipeline controls |
-| **GCPs** | Ground control points editor (shown only for self-hosted maps) |
+| **Metadata** | Three sections: **Identity** (display name, location, map_type, year, source_type, featured) · **Dublin Core** (8 CORE + 5 SUPP fields with `dc:*` tags + ●/○ completeness dots; tab header shows `n/8 core` counter) · **Custom Fields** (extra_metadata JSONB pairs) |
+| **Hosting** | Image Sources list (primary indicator), Mirror to R2, Georeference (Allmaps ID + **Fetch from Allmaps** button + editor link), Image Upload to IA |
+| **Pipeline** (renamed from Contribute) | Visibility/priority toggles, Label Studio config, OCR pipeline controls |
+| **GCPs** | NeatlineEditor (shown only for self-hosted maps) |
 
-- `source_type` values on both `maps` and `map_iiif_sources`: `ia | bnf | efeo | gallica | rumsey | self | r2 | other`
-- Primary source indicator: green left-border + "★ PRIMARY" badge (`.source-row--primary`)
-- Orphan R2 detection: yellow warning when `maps.iiif_image` contains `maparchive.vn` but no `map_iiif_sources` row matches
-- Editor link uses `editorIiifUrl` (priority: `iiif_manifest` → non-R2 source → fallback). After mirror-r2, `allmaps_id` is a self-hosted Supabase URL — do NOT use it as the Allmaps Editor `?url=` param; Allmaps Editor requires a IIIF manifest/image service URL.
+- DC fields that flow through the admin PATCH endpoint: `original_title`, `creator`, `dc_publisher`, `year_label`, `shelfmark`, `source_url`, `rights`, `dc_description`, `dc_subject`, `dc_coverage`, `language`, `physical_description`, `collection`. Adding new ones requires both a binding in MapEditModal and a passthrough in `src/routes/api/admin/maps/[id]/+server.ts` (it silently drops unknown fields).
+- `source_type` values on both `maps` and `map_iiif_sources`: `ia | bnf | efeo | gallica | rumsey | self | other` (migration 027). A later migration may add `r2`; check `maps_status_check`-style constraints before inserting unknown values.
+- Primary source indicator: green left-border + "★ PRIMARY" badge (`.source-row--primary`).
+- Orphan R2 detection: yellow warning when `maps.iiif_image` contains `maparchive.vn` but no `map_iiif_sources` row matches.
+- Editor link uses `editorIiifUrl` (priority: `iiif_manifest` → non-R2 source → fallback annotation URL). For bare image-service URLs the code appends `/info.json` before passing to `editor.allmaps.org/?url=` — the editor will not auto-resolve a bare base.
+- After mirror-r2, `allmaps_id` is a self-hosted Supabase URL — do NOT use it as the Allmaps Editor `?url=` param.
+
+### Bulk Upload (`/admin/bulk`)
+
+Spreadsheet-style page for batch-creating draft `maps` rows. Admin pastes file paths (one per line, tab/CSV optional for per-row `name`/`year`/`collection`/`map_type`/`location`); names auto-parse from filenames using the pattern `<sheet#> <Place> <YYYY>.jpg`. "Create batch" inserts the rows via `POST /api/admin/maps` and outputs a copy-paste shell script of `./scripts/tile_map.sh <uuid> '<path>'` lines. Tiling still runs locally (vips constraint, can't run in browser or worker). After tiling, "Backfill thumbnails" fetches each map's info.json and PATCHes `thumbnail` + `iiif_image`.
+
+Companion local scripts:
+- `scripts/bulk_upload_local.sh <file-list.txt> [--collection ...]` — same flow from the CLI; tiles + inserts `maps` + `map_iiif_sources` rows in one pass. Logs to `scripts/bulk_upload_<timestamp>.log`.
+- `scripts/backfill_r2_names_thumbs.sh` — for R2-hosted maps: strips leading `<sheet#>` from the name, preserves it in `extra_metadata.sheet_number`, and sets `thumbnail` to the smallest pyramid level from info.json. Supports `DRY_RUN=1`. Idempotent.
+
+**Allmaps ID lookup:** `POST /api/admin/maps/lookup-allmaps-id` takes `{ iiifImage }`, derives the Allmaps image ID via `@allmaps/id` (first 16 chars of the SHA-1 of the canonical IIIF service URL), and probes `annotations.allmaps.org/images/<id>` to confirm a georef annotation exists. The MapEditModal Hosting tab has a "Fetch from Allmaps" button that calls this — used after placing GCPs in Allmaps Editor to auto-fill the field.
 
 ### Redirects
 
@@ -396,7 +412,7 @@ Key tables in `supabase/migrations/`:
 | `hunts` | Stories/tours | `user_id`, `mode`, `is_public` |
 | `hunt_stops` | Story waypoints | `hunt_id`, pixel + geo coords |
 
-`maps.status` lifecycle: `pending_georef → georeferenced → processing → published`
+`maps.status` enum (migration 038, current): `draft | public | featured`. Inserts default to `draft`. The older `pending_georef → georeferenced → processing → published` lifecycle was dropped — inserts using those values will fail the `maps_status_check` constraint.
 
 ## Python Vectorization Pipeline
 
