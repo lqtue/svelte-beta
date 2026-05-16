@@ -9,6 +9,84 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
 	{
+		slug: 'scout-pipeline-2026-05',
+		title: 'Scouting 3,373 Maps: Building a Discovery Pipeline for Vietnam Cartography',
+		date: '2026-05-16',
+		category: 'update',
+		excerpt:
+			'We built a multi-source discovery pipeline that pulls Vietnam-related map records from BnF Gallica, Humazur, David Rumsey, and the Library of Congress into a single reviewable grid. 3,373 candidates surfaced — 758 high-confidence — now curatable from /admin/scout with thumbnails, scoring, and one-click bulk-ingest into the catalog.',
+		content: `
+<p>Until this week, adding maps to VMA was a one-by-one job: paste a IIIF manifest URL into the admin form, click "Fetch from Allmaps," fill in the gaps, save. That works fine for the maps we already know about. It doesn't work for the ones we don't — and the colonial Vietnam corpus is scattered across at least a dozen institutions worldwide, most of which have public catalogs but no obvious entry point.</p>
+<p>So we built a scout. <strong>3,373 candidate maps</strong> are now sitting in a reviewable queue at <code>/admin/scout</code>, pulled from four institutions in one pass, scored for relevance, and ready to bulk-ingest with thumbnails and full Dublin Core metadata.</p>
+
+<h2>What "scout" means here</h2>
+<p>Each source has its own API quirks, but the shape of the work is the same: query for Vietnam-related material, normalize the metadata, dedup against what's already in the VMA catalog, derive a thumbnail, and score the result for relevance. We hit four sources:</p>
+<ul>
+<li><strong>BnF Gallica</strong> via the SRU API — 468 records. This also picks up federated partners (Bordeaux 3, Bibliothèques de Paris, Sorbonne, Institut catholique de Paris) for free.</li>
+<li><strong>Humazur</strong> (Université Côte d'Azur, Omeka S) — 2,827 records from the <em>Cartothèque ASEMI</em> set (417 pure maps) and the <em>Indochine française</em> set (1,500+ mixed maps and photos, filtered for cartographic items).</li>
+<li><strong>David Rumsey Map Collection</strong> at Stanford — 53 Vietnam-tagged records out of ~994 raw hits.</li>
+<li><strong>Library of Congress</strong> — 48 records across the Vietnam keywords.</li>
+</ul>
+<p>What we deliberately didn't scout: Internet Archive (3,500+ hits but no clean map filter), Cartomundi (their catalog is a JavaScript app with no API — would need a headless browser), Princeton GeoBlacklight (geographically indexed by bounding box, not by keyword — returns zero for "vietnam" as a subject query), Harvard LibraryCloud (endpoint quirks we didn't have time to chase), and HathiTrust (Cloudflare-blocked). Each of those is technically reachable; none was worth the effort relative to what the first four already give us.</p>
+
+<h2>Scoring is heuristic, but useful</h2>
+<p>Not all 3,373 are actually maps worth ingesting. The Indochine française set on Humazur, especially, is full of colonial-era <em>photographs</em> — pagoda interiors, market scenes, railway stations — that mention Vietnamese places in their metadata but aren't cartographic. So we apply a relevance score and a category guess to every record:</p>
+<ul>
+<li><strong>+20</strong> for a Vietnamese place name in the title, subject, or coverage fields</li>
+<li><strong>+20</strong> for a year between 1850 and 1955 (the colonial core), <strong>+10</strong> for pre-1850</li>
+<li><strong>+15</strong> for a map-type keyword in the title (<em>plan</em>, <em>carte</em>, <em>topographique</em>, <em>cadastral</em>, <em>atlas</em>, <em>levé</em>)</li>
+<li><strong>−60</strong> for photo-subject keywords without any map term (<em>vue</em>, <em>intérieur</em>, <em>rue</em>, <em>pagode</em>, <em>village</em>, <em>monument</em>, …)</li>
+<li><strong>−50</strong> for world maps with Vietnam as a projection center, <strong>−30</strong> for railway plates</li>
+</ul>
+<p>The result, across 3,373 records: 758 score ≥40 (likely maps), 100 score 20–39 (borderline), 1,540 score 0–19 (unclear, often non-cartographic atlas pages), and 975 score below zero (correctly flagged photos and railway scenes). A human still has to look, but the high-score bucket is now small enough to review in an afternoon instead of a week.</p>
+
+<h2>Thumbnails took most of the engineering</h2>
+<p>A grid of unlabeled rows is unusable. A grid of <em>thumbnails</em> is fast to scan. So the loader had to produce a thumbnail for each candidate before they ever hit the UI, and that turned out to be the harder problem.</p>
+<p>Gallica is easy — every ARK has a stable thumbnail URL at <code>https://gallica.bnf.fr/&lt;ark&gt;/f1.thumbnail</code>. David Rumsey returns thumbnail URLs (<code>urlSize2</code>) directly in its search response. The Library of Congress includes <code>image_url</code> in each result.</p>
+<p>Humazur is where it got interesting. Omeka S, the platform it runs on, doesn't expose thumbnails on the item object — they live on the <em>media</em> object that the item points to. So the backfill script has to fetch <code>/api/items/{id}</code>, read the first <code>o:media[@id]</code>, fetch <code>/api/media/{media_id}</code>, and pluck out <code>o:thumbnail_urls.medium</code>. Three round-trips per candidate, throttled at 150ms each. On the top-200 high-score Humazur rows, the success rate was 97%. The rest of the 2,400+ Humazur records can be backfilled in the background.</p>
+<p>One bug we caught in the process: our initial Humazur scout was building manifest URLs out of media IDs (<code>iiif/&lt;media_id&gt;/manifest</code>) when the correct pattern is <em>item</em> ID (<code>iiif/&lt;item_id&gt;/manifest</code>). Every Humazur manifest URL was returning 404. The loader silently fixes this at insert time so the stored URLs are correct.</p>
+
+<h2>The review UI</h2>
+<p>The page at <code>/admin/scout</code> is a thumbnail grid with filters along the top (status, source, category, minimum score, title search), facet counts that update as you filter, and per-card Approve / Reject / Revert buttons. Selecting multiple cards lets you bulk-approve, bulk-reject, or — for already-approved candidates — bulk-ingest as draft <code>maps</code> rows. Each ingested map carries an <code>extra_metadata.scout_candidate_id</code> reference so we can always trace a catalog row back to the source record that produced it.</p>
+<p>The ingest itself reuses the same metadata model we just standardized in last week's <code>holding_institution</code> work: each ingested row gets <code>source_type</code> mapped from the holding institution (Bibliothèque nationale de France → <code>bnf</code>, David Rumsey → <code>rumsey</code>, others → <code>other</code>), a populated <code>holding_institution</code> field separate from <code>collection</code> (which is the sub-collection at the holder), and the IIIF manifest URL ready for further enrichment via the "Fetch metadata from IIIF manifest" button in MapEditModal.</p>
+
+<h2>Why this matters for the project</h2>
+<p>VMA's core constraint is volunteer attention. Every minute spent hunting for a candidate map in BnF's catalog is a minute not spent georeferencing, OCR-ing, or annotating. By front-loading discovery into a tool that produces a curatable queue, we shift the work from "find one map at a time" to "review a batch and approve in bulk." The first pass already surfaces roughly twice as many viable candidates as VMA's current catalog of 100 maps — and that's before we extend the scout to Vietnamese-language sources (the National Archives have a digital catalog, and so does Hanoi's Institute of Sino-Nôm Studies).</p>
+<p>It's also a small piece of infrastructure that scales: each new source is one normalize function and one entry in the scout runner. Adding a fifth source — say, EFEO's <em>Bibliothèque Numérique</em> when we get around to it — is an afternoon of work, not a rebuild.</p>
+
+<h2>What's next</h2>
+<p>Two things follow from this:</p>
+<ol>
+<li><strong>Curate and ingest the high-score bucket.</strong> 758 candidates is a real afternoon's work, but a quiet one — most are obvious approves. Once they're in the catalog as drafts, the existing pipeline (georeference → OCR → annotate) picks up from there.</li>
+<li><strong>Extend to Vietnamese-language and regional sources.</strong> The biggest gap right now is anything held inside Vietnam. EFEO's collection, the Institut d'Asie Orientale at Lyon, and any digitized holdings from Hanoi or Ho Chi Minh City archives would push the corpus toward 5,000+ unique candidates.</li>
+</ol>
+<p>If you've been waiting for a way to help VMA without doing pixel-level work, scout review is exactly that — fast, judgment-based, and visible in its impact. Drop us a note and we'll get you admin access to <code>/admin/scout</code>.</p>
+		`
+	},
+	{
+		slug: 'tonkin-topographic-series-2026-05',
+		title: 'New Collection: 63 Tonkin Topographic Sheets (1903–1927)',
+		date: '2026-05-14',
+		category: 'announcement',
+		excerpt:
+			'A batch of 63 colonial-era topographic sheets covering the Red River delta — Hà Nội, Hải Phòng, Nam Định, Thanh Hóa, and surrounding provinces — has been tiled to R2 and added to the catalog. All from the Service Géographique de l\'Indochine, surveyed between 1903 and 1927.',
+		content: `
+<p>We've added <strong>63 new sheets</strong> to the catalog from the Service Géographique de l'Indochine — the French colonial mapping bureau that produced the most systematic topographic survey of northern Vietnam before WWII. The collection covers the Red River delta and surrounding provinces, with most sheets surveyed between 1903 and 1927 at roughly 1:100,000 scale.</p>
+
+<h2>What's in the batch</h2>
+<p>The sheets span the densely populated lowland north: Hà Nội itself (sheet 20, 1903), the port of Hải Phòng (31, 1904), and the major delta cities — Nam Định (55), Thái Bình (56), Ninh Bình (59), Phát Diệm (69), Thanh Hóa (75). Inland coverage extends to Sơn Tây (12), Bắc Ninh (10), Hưng Yên (42), and the Quảng Yên coastal zone (25, 32). A handful of named sheets sit outside the numbered grid: <em>Hà châu</em>, <em>Nhà nam</em>, <em>Bảo Lộc</em>, <em>Cẩm Lý</em>, and a cover plate that we've kept in the archive for completeness.</p>
+<p>For anyone tracing genealogy or urban history in northern Vietnam, this is the layer beneath everything: the administrative boundaries, village names, and road networks that the post-1954 state inherited and reshaped. Place names are in pre-reform romanization (no diacritics), which is itself a useful diff against modern toponymy.</p>
+
+<h2>Pipeline notes</h2>
+<p>This is the first batch processed entirely through the consolidated bulk-upload pipeline. Each sheet now flows in one pass: <code>tile_map.sh</code> writes a DZI pyramid to R2 under <code>iiif.maparchive.vn/iiif/&lt;uuid&gt;</code>, the maps row is inserted with the sheet number preserved in <code>extra_metadata.sheet_number</code>, and the thumbnail URL is derived from the smallest pyramid level the worker advertises in <code>info.json</code>. No separate backfill step.</p>
+<p>The previous version of the script split parsing across two passes — upload first, then run a clean-up to strip leading sheet numbers and fetch thumbnails. That worked but hid a latent bug: a <code>set -e + pipefail</code> shell trap silently aborted the cleanup on the first row whose name didn't have a leading number, which meant later uploads weren't being cleaned. Folding everything into the upload script eliminates the second pass and the failure mode at once.</p>
+
+<h2>What's next for these sheets</h2>
+<p>None of the new maps are georeferenced yet — they're in <code>draft</code> status until the corners are placed. The sheets are gridded enough that GCP propagation should work well: once we manually georeference one or two anchors per band, the rest can inherit corners arithmetically the same way the L7014 series did. After that, the OCR pipeline can scout the sheets for place names, and the toponym layer for northern Vietnam starts to materialize.</p>
+<p>If you can read the older romanization confidently and want to help validate place-name extractions, this is exactly the kind of contributor work we're set up to support. <a href="/catalog">Browse the catalog</a> to see the new sheets.</p>
+		`
+	},
+	{
 		slug: 'mid-april-2026-platform-notes',
 		title: 'Platform Notes: Universal IIIF, Gemini OCR, and the MapShell Refactor',
 		date: '2026-04-18',

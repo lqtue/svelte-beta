@@ -45,6 +45,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         // source / IIIF
         source_type, iiif_manifest, iiif_image, ia_identifier,
         original_title, creator, year_label, language, rights, source_url,
+        shelfmark, physical_description, dc_publisher, dc_subject, dc_coverage,
+        holding_institution,
         collection, map_type, bbox, status, extra_metadata,
         thumbnail,
         // contribution flags
@@ -72,6 +74,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     if (language       !== undefined) insertData.language       = language;
     if (rights         !== undefined) insertData.rights         = rights;
     if (source_url     !== undefined) insertData.source_url     = source_url;
+    if (shelfmark      !== undefined) insertData.shelfmark      = shelfmark;
+    if (physical_description !== undefined) insertData.physical_description = physical_description;
+    if (dc_publisher   !== undefined) insertData.dc_publisher   = dc_publisher;
+    if (dc_subject     !== undefined) insertData.dc_subject     = dc_subject;
+    if (dc_coverage    !== undefined) insertData.dc_coverage    = dc_coverage;
+    if (holding_institution !== undefined) insertData.holding_institution = holding_institution;
     if (collection     !== undefined) insertData.collection     = collection;
     if (map_type        !== undefined) insertData.map_type        = map_type;
     if (bbox            !== undefined) insertData.bbox            = bbox;

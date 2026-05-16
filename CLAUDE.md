@@ -391,6 +391,88 @@ Companion local scripts:
 
 **Allmaps ID lookup:** `POST /api/admin/maps/lookup-allmaps-id` takes `{ iiifImage }`, derives the Allmaps image ID via `@allmaps/id` (first 16 chars of the SHA-1 of the canonical IIIF service URL), and probes `annotations.allmaps.org/images/<id>` to confirm a georef annotation exists. The MapEditModal Hosting tab has a "Fetch from Allmaps" button that calls this — used after placing GCPs in Allmaps Editor to auto-fill the field.
 
+### Scout & Ingest (`/admin/scout`)
+
+External-source discovery + curate + bulk-ingest pipeline. Surfaces map candidates from external archives (Gallica, Humazur, David Rumsey, Library of Congress) as a reviewable grid of thumbnails. Admin approves rows, then bulk-ingests them as `draft` `maps` rows with full Dublin Core metadata + the new `holding_institution` column populated.
+
+**Data flow:** scout JSON → `scout_candidates` table → admin reviews in UI → approved → POST ingests as `maps` rows.
+
+**Scout scripts** (read-only, produce JSON):
+
+| Script | What it does |
+|--------|--------------|
+| `scripts/scout_all_sources.mjs` | Gallica SRU (BnF + federated: Bordeaux 3, Paris, Sorbonne) + David Rumsey Luna API + Library of Congress JSON API. Uses 14 Vietnam place keywords. |
+| `scripts/scout_humazur.mjs` | Humazur Omeka S API directly (sets 59 Cartothèque ASEMI + 519 Indochine française). Pass `--merge <existing>.json` to combine. |
+| `scripts/categorize_scout_results.mjs` | Scores + categorizes candidates (urban_plan, topographic, cadastral, regional, photo, route_road, route_railway, atlas_plate, world, unknown, non_cartographic). Outputs `scripts/scout_review.csv`. |
+| `scripts/load_scout_to_db.mjs` | Loads merged scout JSON into `scout_candidates`. **Fixes Humazur manifest URLs** (must use `iiif/{item_id}/manifest`, NOT media_id). Derives Gallica thumbnails from ARK pattern. |
+| `scripts/backfill_humazur_thumbs.mjs` | Backfills Humazur thumbnails (Omeka stores them on the media object, not the item — needs `/api/media/{id}` fetch). Throttled at 150ms/req. |
+| `scripts/ingest_scout_approved.mjs` | CSV-driven legacy ingest (alternative to the web UI). Reads `action=y` rows from `scout_review.csv`, fetches each manifest, inserts. |
+
+**Scout source patterns** (for adding new sources):
+
+- **Gallica SRU**: `https://gallica.bnf.fr/SRU?operation=searchRetrieve&version=1.2&query=(dc.type adj "carte") and (dc.title all "{keyword}")&maximumRecords=50&startRecord=1` — federated, also returns Bordeaux 3 / Paris records. Rate-limit ~3s/req, returns 429 if hammered. Use `--use-system-ca` or `NODE_TLS_REJECT_UNAUTHORIZED=0` for partners.
+- **David Rumsey Luna**: `https://www.davidrumsey.com/luna/servlet/as/search?q={kw}&dh=50&os=json&so={offset}` — JSON, ~994 raw hits for "Vietnam", filter on `fieldValues.Country/City/Region` to drop atlas pages that merely mention Vietnam.
+- **Library of Congress**: `https://www.loc.gov/maps/?q={kw}&fo=json&c=50&sp={page}` — small but high-quality, ~50 total Vietnam hits.
+- **Humazur Omeka S**: `https://humazur.univ-cotedazur.fr/api/items?item_set_id={set}&resource_class_id=33&per_page=100&page={n}` — `resource_class_id=33` is StillImage (filters out persons/places). Map item_sets: 59 (Cartothèque ASEMI, ~417 pure maps), 519 (Indochine française, 1500+ mixed maps+photos).
+
+**Skipped sources** (probed, not worth the effort): Internet Archive (3500+ noisy hits, no clean map filter); Cartomundi (JS app, requires headless browser); Princeton GeoBlacklight (geographic-bbox-indexed, returns 0 for "vietnam" keyword); Harvard LibraryCloud (endpoint quirks); HathiTrust (Cloudflare-blocked).
+
+**`scout_candidates` table** (migration 045):
+- Provenance: `source`, `external_id` (unique together), `source_url`, `manifest_url`
+- Display: `title`, `creator`, `publisher`, `date`, `year`, `rights`, `language`, `holding_institution`, `collection`, `thumbnail`
+- Scoring: `score`, `category`, `reasons`, `found_via`
+- Lifecycle: `status` ∈ `pending | approved | rejected | ingested`, `reviewer_id`, `reviewed_at`, `map_id` (set after ingest)
+- `raw` JSONB for the source-specific payload (subject, coverage, regional fields)
+
+**API endpoints** (admin/mod only):
+- `GET /api/admin/scout?status=pending&source=humazur&category=urban_plan&minScore=40&q=Saigon&limit=60&offset=0` — paginated list with facet counts on first page
+- `PATCH /api/admin/scout/[id]` — approve/reject/revert (sets `reviewer_id` + `reviewed_at`)
+- `POST /api/admin/scout` `{ ids: [...] }` — bulk-ingest approved candidates → `maps` rows (only operates on `status=approved`; sets `status=ingested` + `map_id` on success). Maps a holding-institution string to `source_type`: contains "David Rumsey" → `rumsey`; "Bibliothèque nationale" → `bnf`; else `other`. Stamps `extra_metadata.scout_candidate_id` on each new map for traceability.
+
+**Page** (`src/routes/(editorial)/admin/scout/+page.svelte`):
+- Thumbnail grid (lazy-loaded), score/source/category/year chips per card, click thumbnail to open source page
+- Filter bar: status, source, category, min score, title search — with live facet counts
+- Per-row Approve / Reject / Revert; bulk select-page + bulk approve/reject; bulk Ingest button (only visible when filtering by `approved`)
+- Color-coded score chips (green ≥60, orange ≥40, gray ≥0, red <0)
+
+**End-to-end workflow:**
+```bash
+# 1. Discover (~15 min total across sources)
+NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/scout_all_sources.mjs
+NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/scout_humazur.mjs --merge scripts/scout_all_<ts>.json
+
+# 2. Load into DB (auto-picks latest scout JSON)
+node scripts/load_scout_to_db.mjs
+
+# 3. (Optional) Backfill Humazur thumbnails — Omeka stores these on the media obj
+NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/backfill_humazur_thumbs.mjs --min-score 40
+
+# 4. Review + ingest via UI
+open https://<host>/admin/scout
+```
+
+### Holding institution model
+
+`maps.holding_institution` (migration 044) separates **who holds the original** from **how VMA serves it**.
+
+| Column | Meaning | Example |
+|--------|---------|---------|
+| `creator` | Who made the map | `Service Géographique de l'Indochine` |
+| `dc_publisher` | Who published/issued it | same as creator for govt maps, or `Imprimerie d'Extrême-Orient` |
+| `holding_institution` | Where the original lives now | `Bibliothèque nationale de France`, `Cartomundi (Aix-Marseille / CNRS)`, `Humazur, Université Côte d'Azur`, `David Rumsey Map Collection (Stanford)` |
+| `collection` | Archival sub-collection at the holder | `Département Cartes et plans`, `Cartothèque ASEMI`, `AMS Series L7014` |
+| `shelfmark` | Catalog ID at the holder | `GE C-2144` |
+| `source_url` | URL of the item page at the holder | `https://gallica.bnf.fr/ark:/12148/btv1b530291797` |
+| `source_type` | How VMA serves the image | `bnf` (direct IIIF) / `ia` (we mirrored) / `self` (R2 tiled) / `rumsey` / `humazur` / `other` |
+
+`holding_institution` is editable in MapEditModal (Hosting tab — "Holding institution" input next to Collection) and flows through both POST/PATCH admin endpoints. The **"Fetch metadata from IIIF manifest"** button in the same tab POSTs to `/api/admin/maps/fetch-iiif-metadata` and fills empty Metadata-tab fields (title, creator, date, shelfmark, rights, language, source URL, holding_institution from manifest attribution) — never overwrites existing curation.
+
+**Standardization scripts** (one-shot audit + backfill):
+- `scripts/audit_map_metadata.mjs` — DB-only field-coverage audit. Prints completeness, distinct-value counts, year/year_label mismatches, suspicious values.
+- `scripts/peek_hosted_urls.mjs` — inspect iiif_manifest/source_url for hosted maps (debug helper).
+- `scripts/fetch_hosted_metadata.mjs` — online verification: pulls authoritative metadata from BnF (IIIF manifests), Humazur (Omeka pages + IIIF), UT Austin (URL pattern), produces a diff report vs the DB. Read-only. Uses 2.5s/req for BnF (rate-limited). Set `NODE_TLS_REJECT_UNAUTHORIZED=0` for Humazur (CA cert issue locally).
+- `scripts/apply_metadata_backfill.mjs` — consumes the diff report + SGI hardcoded constants (Cartomundi origin, French language, public domain), PATCHes the maps table. Fills empty fields only; never overwrites. Dry-run by default; `--apply` to write.
+
 ### Redirects
 
 `/studio` → `/annotate`, `/trip` → `/view`, `/hunt` → `/view`, `/georef` → `/contribute/georef` (all 301, query params preserved).
@@ -401,7 +483,8 @@ Key tables in `supabase/migrations/`:
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `maps` | Map catalogue | `id` (uuid), `allmaps_id`, `iiif_image`, `iiif_manifest`, `source_type`, `collection`, `map_type`, `bbox`, `status`, `thumbnail` |
+| `maps` | Map catalogue | `id` (uuid), `allmaps_id`, `iiif_image`, `iiif_manifest`, `source_type`, `holding_institution` (mig 044), `collection`, `map_type`, `bbox`, `status`, `thumbnail`, full DC fields (`creator`, `dc_publisher`, `shelfmark`, `year_label`, `language`, `rights`, `physical_description`, `dc_subject`, `dc_coverage`, `original_title`, `source_url`) |
+| `scout_candidates` | External-source discoveries awaiting review (mig 045) | `source` (gallica/humazur/rumsey/loc), `external_id` (unique with source), `manifest_url`, `thumbnail`, `score`, `category`, `status` (`pending/approved/rejected/ingested`), `reviewer_id`, `map_id` (set on ingest), `raw` JSONB. Powers `/admin/scout`. |
 | `map_iiif_sources` | Multiple IIIF sources per map | `map_id → maps.id`, `iiif_image`, `source_type` (`ia/bnf/efeo/gallica/rumsey/self/r2/other`), `is_primary`, `sort_order`. Partial unique index enforces one primary per map. Trigger syncs primary to `maps.iiif_image`. |
 | `label_tasks` | Labeling tasks | `map_id → maps.id`. No `allmaps_id` — join through maps. |
 | `label_pins` | Point annotations | `task_id → label_tasks.id`, pixel coords |

@@ -53,6 +53,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (body.dc_publisher   !== undefined) updateData.dc_publisher   = body.dc_publisher || null;
     if (body.dc_subject     !== undefined) updateData.dc_subject     = body.dc_subject || null;
     if (body.dc_coverage    !== undefined) updateData.dc_coverage    = body.dc_coverage || null;
+    if (body.holding_institution !== undefined) updateData.holding_institution = body.holding_institution || null;
     if (body.source_url     !== undefined) updateData.source_url     = body.source_url || null;
     if (body.collection     !== undefined) updateData.collection     = body.collection || null;
     if (body.map_type        !== undefined) updateData.map_type        = body.map_type || null;
@@ -68,6 +69,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (body.priority     !== undefined) updateData.priority     = Number(body.priority) || 0;
     if (body.is_public    !== undefined) updateData.is_public    = Boolean(body.is_public);
     if (body.georef_done  !== undefined) updateData.georef_done  = Boolean(body.georef_done);
+    if (body.legend_done  !== undefined) updateData.legend_done  = Boolean(body.legend_done);
+    if (body.help_needed  !== undefined) updateData.help_needed  = Boolean(body.help_needed);
 
     const { data, error: dbError } = await (adminSupabase as any)
         .from('maps')

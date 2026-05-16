@@ -44,6 +44,7 @@
     let dc_publisher: string = (map as any).dc_publisher || "";
     let dc_subject: string = (map as any).dc_subject || "";
     let dc_coverage: string = (map as any).dc_coverage || "";
+    let holding_institution: string = (map as any).holding_institution || "";
 
     // IIIF sources state
     let iiifSources: IIIFSourceRow[] = [];
@@ -57,10 +58,14 @@
     let fetchingMeta = false;
     let fetchMetaError = "";
 
-    // Label config
+    // Catalog visibility / workflow flags
     let priority: number = (map as any).priority ?? 0;
     let is_public: boolean = (map as any).is_public ?? false;
     let georef_done: boolean = (map as any).georef_done ?? false;
+    let legend_done: boolean = (map as any).legend_done ?? false;
+    let help_needed: boolean = (map as any).help_needed ?? false;
+    let status: string = (map as any).status ?? 'draft';
+    let ia_identifier: string = (map as any).ia_identifier ?? '';
     let labelLegendMode: 'simple' | 'list' = 'simple';
     let labelLegendText = '';
     let labelCategories = '';
@@ -83,28 +88,11 @@
     let error = "";
     let successMsg = "";
     let uploadStatus = "";
-    let activeTab: "metadata" | "hosting" | "contribute" | "gcps" = "metadata";
+    let activeTab: "about" | "source" | "hosting" | "pipeline" = "about";
 
-    // Dublin Core field schema — drives the Metadata view
-    interface DCField { key: string; label: string; dcElement: string; placeholder?: string; multiline?: boolean; }
-    const CORE_FIELDS: DCField[] = [
-        { key: 'original_title',  label: 'Title',       dcElement: 'dc:title',       placeholder: 'Full original map title' },
-        { key: 'creator',         label: 'Creator',     dcElement: 'dc:creator',     placeholder: 'Cartographer or author' },
-        { key: 'dc_publisher',    label: 'Publisher',   dcElement: 'dc:publisher',   placeholder: 'e.g. Service Géographique…' },
-        { key: 'year_label',      label: 'Date',        dcElement: 'dc:date',        placeholder: 'e.g. 1882 or 1882–1885' },
-        { key: 'shelfmark',       label: 'Identifier',  dcElement: 'dc:identifier',  placeholder: 'Call number / shelfmark' },
-        { key: 'source_url',      label: 'Source',      dcElement: 'dc:source',      placeholder: 'Canonical URL' },
-        { key: 'rights',          label: 'Rights',      dcElement: 'dc:rights',      placeholder: 'License or rights statement' },
-        { key: 'dc_description',  label: 'Description', dcElement: 'dc:description', placeholder: 'Brief summary', multiline: true },
-    ];
-    const SUPP_FIELDS: DCField[] = [
-        { key: 'dc_subject',           label: 'Subject',          dcElement: 'dc:subject',  placeholder: 'Keywords' },
-        { key: 'dc_coverage',          label: 'Coverage',         dcElement: 'dc:coverage', placeholder: 'e.g. Saigon' },
-        { key: 'language',             label: 'Language',         dcElement: 'dc:language', placeholder: 'e.g. français' },
-        { key: 'physical_description', label: 'Format',           dcElement: 'dc:format',   placeholder: 'e.g. 67 × 57 cm' },
-        { key: 'collection',           label: 'Collection (VMA)', dcElement: '',            placeholder: 'e.g. BnF Gallica' },
-    ];
-    let showSupp = false;
+    // Essentials — the fields that must be filled for a clean catalog listing.
+    // Drives the completeness counter shown in the header.
+    const ESSENTIAL_KEYS = ['name', 'creator', 'year_label', 'source_type', 'collection', 'source_url', 'rights', 'dc_description'];
 
     // ── Allmaps ID lookup ──────────────────────────────────────────────
     let lookingUpAllmaps = false;
@@ -139,30 +127,60 @@
         }
     }
 
-    // Bind DC fields through a single record so we can drive them from the schema
-    $: dcValues = {
-        original_title, creator, dc_publisher, year_label, shelfmark,
-        source_url, rights, dc_description,
-        dc_subject, dc_coverage, language, physical_description, collection,
-    } as Record<string, string>;
-    function setDc(key: string, value: string) {
-        switch (key) {
-            case 'original_title':       original_title = value; break;
-            case 'creator':              creator = value; break;
-            case 'dc_publisher':         dc_publisher = value; break;
-            case 'year_label':           year_label = value; break;
-            case 'shelfmark':            shelfmark = value; break;
-            case 'source_url':           source_url = value; break;
-            case 'rights':               rights = value; break;
-            case 'dc_description':       dc_description = value; break;
-            case 'dc_subject':           dc_subject = value; break;
-            case 'dc_coverage':          dc_coverage = value; break;
-            case 'language':             language = value; break;
-            case 'physical_description': physical_description = value; break;
-            case 'collection':           collection = value; break;
+    // ── Auto-fetch IIIF manifest metadata ──────────────────────────────
+    let fetchingManifest = false;
+    let fetchManifestStatus = "";
+    async function handleFetchManifestMeta() {
+        const manifestUrl = ((map as any).iiif_manifest || iiifSources.find(s => !!s.iiif_image)?.iiif_image || "").trim();
+        if (!manifestUrl) {
+            fetchManifestStatus = "No IIIF manifest URL on this map.";
+            return;
+        }
+        fetchingManifest = true;
+        fetchManifestStatus = "";
+        try {
+            const res = await fetch("/api/admin/maps/fetch-iiif-metadata", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ manifestUrl }),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const meta = await res.json();
+            // Fill only empty fields — never overwrite existing curation
+            const filled: string[] = [];
+            const fill = (current: string, next: unknown, setter: (v: string) => void, label: string) => {
+                if (!current.trim() && typeof next === 'string' && next.trim()) {
+                    setter(next.trim()); filled.push(label);
+                }
+            };
+            fill(original_title, meta.title, v => original_title = v, "title");
+            fill(creator, meta.creator, v => creator = v, "creator");
+            fill(year_label, meta.date, v => year_label = v, "date");
+            fill(shelfmark, meta.shelfmark, v => shelfmark = v, "shelfmark");
+            fill(rights, meta.rights, v => rights = v, "rights");
+            fill(language, meta.language, v => language = v, "language");
+            fill(physical_description, meta.physicalDescription, v => physical_description = v, "physical");
+            fill(source_url, meta.sourceUrl, v => source_url = v, "source_url");
+            // Derive holding_institution from attribution
+            if (!holding_institution.trim() && typeof meta.attribution === 'string' && meta.attribution.trim()) {
+                holding_institution = meta.attribution.trim();
+                filled.push("holder");
+            }
+            fetchManifestStatus = filled.length
+                ? `✓ Filled: ${filled.join(', ')}. Review and Save.`
+                : "All fields already populated — nothing to fill.";
+        } catch (e: any) {
+            fetchManifestStatus = `✗ ${e.message?.slice(0, 200) || 'fetch failed'}`;
+        } finally {
+            fetchingManifest = false;
         }
     }
-    $: coreFilled = CORE_FIELDS.filter(f => dcValues[f.key]?.trim()).length;
+
+    // Essential completeness counter (drives the header pill)
+    $: essentialValues = {
+        name, creator, year_label, source_type, collection, source_url, rights, dc_description,
+    } as Record<string, string>;
+    $: essentialsFilled = ESSENTIAL_KEYS.filter(k => essentialValues[k]?.toString().trim()).length;
     let showAddSource = false;
 
     // True when maps.iiif_image points to R2 but no map_iiif_sources row exists for it
@@ -495,11 +513,16 @@
                 dc_publisher: dc_publisher.trim() || undefined,
                 dc_subject: dc_subject.trim() || undefined,
                 dc_coverage: dc_coverage.trim() || undefined,
+                holding_institution: holding_institution.trim() || undefined,
                 label_config: { legend: parsedLegend, categories: parsedCategories },
                 priority,
                 is_public,
                 georef_done,
-            });
+                legend_done,
+                help_needed,
+                status,
+                ia_identifier: ia_identifier.trim() || undefined,
+            } as any);
             successMsg = "Saved!";
             setTimeout(() => (successMsg = ""), 2000);
             dispatch("saved", updated);
@@ -555,7 +578,12 @@
 <div class="modal-backdrop" on:click={handleBackdropClick}>
     <div class="modal">
         <div class="modal-header">
-            <h2 class="modal-title">Edit Map</h2>
+            <h2 class="modal-title">
+                Edit Map
+                <span class="essentials-pill" class:full={essentialsFilled === ESSENTIAL_KEYS.length} title="Essential fields filled">
+                    {essentialsFilled}/{ESSENTIAL_KEYS.length}
+                </span>
+            </h2>
             <button
                 class="close-btn"
                 on:click={() => dispatch("close")}
@@ -563,29 +591,55 @@
             >
         </div>
 
+        <!-- Sticky toggle bar — always visible across tabs -->
+        <div class="quick-bar">
+            <label class="quick-status">
+                Status:
+                <select bind:value={status} class="status-select status-{status}">
+                    <option value="draft">Draft</option>
+                    <option value="public">Public</option>
+                    <option value="featured">Featured</option>
+                </select>
+            </label>
+            <label class="quick-toggle" title="Show on featured carousel">
+                <input type="checkbox" bind:checked={is_featured} />
+                <span>★ Featured</span>
+            </label>
+            <label class="quick-toggle" title="Visible publicly on site">
+                <input type="checkbox" bind:checked={is_public} />
+                <span>👁 Public</span>
+            </label>
+            <label class="quick-toggle" title="Flag for community help">
+                <input type="checkbox" bind:checked={help_needed} />
+                <span>⚠ Help needed</span>
+            </label>
+            <label class="quick-priority" title="Higher = surfaced first in tools">
+                Priority
+                <input type="number" bind:value={priority} class="priority-input" min="0" step="1" />
+            </label>
+        </div>
+
         <div class="tabs">
             <button
                 class="tab"
-                class:active={activeTab === "metadata"}
-                on:click={() => (activeTab = "metadata")}>Metadata <span class="tab-counter">{coreFilled}/{CORE_FIELDS.length}</span></button
+                class:active={activeTab === "about"}
+                on:click={() => (activeTab = "about")}>About</button
+            >
+            <button
+                class="tab"
+                class:active={activeTab === "source"}
+                on:click={() => (activeTab = "source")}>Source</button
             >
             <button
                 class="tab"
                 class:active={activeTab === "hosting"}
-                on:click={() => (activeTab = "hosting")}>Hosting</button
+                on:click={() => (activeTab = "hosting")}>Hosting &amp; Georef</button
             >
             <button
                 class="tab"
-                class:active={activeTab === "contribute"}
-                on:click={() => { activeTab = "contribute"; if (map.iiif_image) loadOcrStatus(); }}>Pipeline</button
+                class:active={activeTab === "pipeline"}
+                on:click={() => { activeTab = "pipeline"; if (map.iiif_image) loadOcrStatus(); }}>Pipeline</button
             >
-            {#if isSelfHosted}
-                <button
-                    class="tab"
-                    class:active={activeTab === "gcps"}
-                    on:click={() => (activeTab = "gcps")}>GCPs</button
-                >
-            {/if}
         </div>
 
         <div class="modal-body">
@@ -596,20 +650,50 @@
                 <div class="alert alert-success">{successMsg}</div>
             {/if}
 
-            {#if activeTab === "metadata"}
-                <!-- ── Identity (VMA basics) ───────────────────────────── -->
-                <div class="section-heading">Identity</div>
+            {#if activeTab === "about"}
+                <!-- ── Title & Date ───────────────────────────── -->
+                <div class="section-heading">Title & date</div>
                 <div class="form-grid">
-                    <label class="form-label">
-                        <span>Display Name <span class="required">*</span></span>
+                    <label class="form-label full-width">
+                        <span>Display name <span class="required">*</span></span>
                         <input type="text" bind:value={name} class="form-input" />
                     </label>
+                    <label class="form-label full-width">
+                        <span>Original title <span class="field-hint">as printed on the map</span></span>
+                        <input type="text" bind:value={original_title} class="form-input" placeholder="Full original map title" />
+                    </label>
+                    <label class="form-label">
+                        <span>Year <span class="field-hint">numeric, single year</span></span>
+                        <input type="number" bind:value={year} class="form-input" placeholder="e.g. 1890" />
+                    </label>
+                    <label class="form-label">
+                        <span>Date <span class="field-hint">range or fuzzy</span></span>
+                        <input type="text" bind:value={year_label} class="form-input" placeholder="e.g. 1882 or 1882–1885" />
+                    </label>
+                </div>
+
+                <!-- ── Authorship ───────────────────────────── -->
+                <div class="section-heading">Authorship</div>
+                <div class="form-grid">
+                    <label class="form-label">
+                        <span>Creator <span class="field-hint">cartographer / surveyor</span></span>
+                        <input type="text" bind:value={creator} class="form-input" placeholder="Cartographer or author" />
+                    </label>
+                    <label class="form-label">
+                        <span>Publisher</span>
+                        <input type="text" bind:value={dc_publisher} class="form-input" placeholder="e.g. Service Géographique de l'Indochine" />
+                    </label>
+                </div>
+
+                <!-- ── What it shows ───────────────────────────── -->
+                <div class="section-heading">What it shows</div>
+                <div class="form-grid">
                     <label class="form-label">
                         <span>Location <span class="field-hint">city / region</span></span>
                         <input type="text" bind:value={location} class="form-input" placeholder="e.g. Saigon, Hanoi, Hue" />
                     </label>
                     <label class="form-label">
-                        <span>Map Type</span>
+                        <span>Map type</span>
                         <select bind:value={map_type} class="form-input">
                             <option value="">— unknown —</option>
                             <option value="cadastral">Cadastral</option>
@@ -620,86 +704,39 @@
                         </select>
                     </label>
                     <label class="form-label">
-                        <span>Year <span class="field-hint">numeric</span></span>
-                        <input type="number" bind:value={year} class="form-input" placeholder="e.g. 1890" />
+                        <span>Coverage <span class="field-hint">geographic extent</span></span>
+                        <input type="text" bind:value={dc_coverage} class="form-input" placeholder="e.g. Saigon and surroundings" />
                     </label>
                     <label class="form-label">
-                        <span>Source Type</span>
-                        <select bind:value={source_type} class="form-input">
-                            <option value="">— unknown —</option>
-                            <option value="bnf">BnF Gallica</option>
-                            <option value="ia">Internet Archive</option>
-                            <option value="efeo">EFEO</option>
-                            <option value="rumsey">David Rumsey</option>
-                            <option value="self">Self-hosted</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </label>
-                    <label class="form-label form-label-toggle">
-                        <span>Featured</span>
-                        <input type="checkbox" bind:checked={is_featured} class="form-checkbox" />
+                        <span>Subjects <span class="field-hint">keywords, comma-separated</span></span>
+                        <input type="text" bind:value={dc_subject} class="form-input" placeholder="cadastre, urban planning, colonial" />
                     </label>
                 </div>
 
-                <!-- ── Dublin Core ─────────────────────────────────────── -->
-                <div class="section-heading dc-heading">
-                    Dublin Core
-                    <span class="completeness-pill" class:full={coreFilled === CORE_FIELDS.length}>{coreFilled}/{CORE_FIELDS.length} core</span>
-                </div>
+                <!-- ── Description ───────────────────────────── -->
+                <div class="section-heading">Description</div>
                 <div class="form-grid">
-                    {#each CORE_FIELDS as field}
-                        <label class="form-label" class:full-width={field.multiline || field.key === 'source_url' || field.key === 'original_title' || field.key === 'rights'}>
-                            <span>
-                                {field.label} <span class="field-hint">{field.dcElement}</span>
-                                {#if dcValues[field.key]?.trim()}<span class="filled-dot" title="filled">●</span>{:else}<span class="empty-dot" title="empty">○</span>{/if}
-                            </span>
-                            {#if field.multiline}
-                                <textarea
-                                    class="form-textarea"
-                                    rows="3"
-                                    placeholder={field.placeholder ?? ''}
-                                    value={dcValues[field.key]}
-                                    on:input={(e) => setDc(field.key, (e.target as HTMLTextAreaElement).value)}
-                                ></textarea>
-                            {:else}
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    class:mono={field.key === 'shelfmark' || field.key === 'source_url'}
-                                    placeholder={field.placeholder ?? ''}
-                                    value={dcValues[field.key]}
-                                    on:input={(e) => setDc(field.key, (e.target as HTMLInputElement).value)}
-                                />
-                            {/if}
-                        </label>
-                    {/each}
+                    <label class="form-label full-width">
+                        <span>Summary</span>
+                        <textarea bind:value={dc_description} class="form-textarea" rows="4" placeholder="Brief description of what this map shows, who made it, and why it matters."></textarea>
+                    </label>
                 </div>
 
-                <button type="button" class="supp-toggle" on:click={() => showSupp = !showSupp}>
-                    {showSupp ? '▲' : '▼'} Supplementary fields ({SUPP_FIELDS.length})
-                </button>
-                {#if showSupp}
-                    <div class="form-grid">
-                        {#each SUPP_FIELDS as field}
-                            <label class="form-label">
-                                <span>
-                                    {field.label} {#if field.dcElement}<span class="field-hint">{field.dcElement}</span>{:else}<span class="field-hint vma-tag">VMA</span>{/if}
-                                    {#if dcValues[field.key]?.trim()}<span class="filled-dot">●</span>{:else}<span class="empty-dot">○</span>{/if}
-                                </span>
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    placeholder={field.placeholder ?? ''}
-                                    value={dcValues[field.key]}
-                                    on:input={(e) => setDc(field.key, (e.target as HTMLInputElement).value)}
-                                />
-                            </label>
-                        {/each}
-                    </div>
-                {/if}
+                <!-- ── Physical ───────────────────────────── -->
+                <div class="section-heading">Physical & language</div>
+                <div class="form-grid">
+                    <label class="form-label">
+                        <span>Physical description <span class="field-hint">size, medium</span></span>
+                        <input type="text" bind:value={physical_description} class="form-input" placeholder="e.g. 67 × 57 cm, colour lithograph" />
+                    </label>
+                    <label class="form-label">
+                        <span>Language</span>
+                        <input type="text" bind:value={language} class="form-input" placeholder="e.g. français, English" />
+                    </label>
+                </div>
 
-                <!-- ── Custom JSONB pairs ──────────────────────────────── -->
-                <div class="section-heading">Custom Fields <span class="field-hint">extra_metadata</span></div>
+                <!-- ── Custom fields ───────────────────────────── -->
+                <div class="section-heading">Custom fields <span class="field-hint">e.g. sheet_number</span></div>
                 <div class="extra-meta-section">
                     {#each extraPairs as pair, i}
                         <div class="extra-pair">
@@ -711,8 +748,72 @@
                     <button type="button" class="btn-add-pair" on:click={() => extraPairs = [...extraPairs, { key: '', value: '' }]}>+ Add field</button>
                 </div>
 
+            {:else if activeTab === "source"}
+                <!-- ── Provenance ───────────────────────────── -->
+                <div class="section-heading">Provenance</div>
+                <div class="form-grid">
+                    <label class="form-label">
+                        <span>Source type <span class="field-hint">holding institution</span></span>
+                        <select bind:value={source_type} class="form-input">
+                            <option value="">— unknown —</option>
+                            <option value="bnf">BnF Gallica</option>
+                            <option value="ia">Internet Archive</option>
+                            <option value="efeo">EFEO</option>
+                            <option value="gallica">Gallica</option>
+                            <option value="rumsey">David Rumsey</option>
+                            <option value="self">Self-hosted</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </label>
+                    <label class="form-label">
+                        <span>Holding institution <span class="field-hint">where the original lives</span></span>
+                        <input type="text" bind:value={holding_institution} class="form-input" placeholder="e.g. Bibliothèque nationale de France" />
+                    </label>
+                    <label class="form-label">
+                        <span>Collection <span class="field-hint">sub-collection at the holder</span></span>
+                        <input type="text" bind:value={collection} class="form-input" placeholder="e.g. Département Cartes et plans" />
+                    </label>
+                    <label class="form-label">
+                        <span>Identifier <span class="field-hint">shelfmark / call number</span></span>
+                        <input type="text" bind:value={shelfmark} class="form-input mono" placeholder="e.g. GE D-10312" />
+                    </label>
+                    <label class="form-label">
+                        <span>IA identifier <span class="field-hint">Internet Archive item</span></span>
+                        <input type="text" bind:value={ia_identifier} class="form-input mono" placeholder="e.g. vma-map-1882-saigon" />
+                    </label>
+                    <label class="form-label full-width">
+                        <span>Source URL <span class="field-hint">canonical record at the institution</span></span>
+                        <input type="url" bind:value={source_url} class="form-input mono" placeholder="https://gallica.bnf.fr/ark:…" />
+                    </label>
+                    <label class="form-label full-width">
+                        <span>Rights <span class="field-hint">license / copyright</span></span>
+                        <input type="text" bind:value={rights} class="form-input" placeholder="e.g. Public domain, CC BY-SA 4.0" />
+                    </label>
+                </div>
+
             {:else if activeTab === "hosting"}
                 <div class="hosting-section">
+
+                    <!-- ── Auto-fill from IIIF manifest ─────────────────────── -->
+                    <div class="hosting-subsection" style="background: var(--surface-2, #fafafa); padding: 0.75rem 1rem; border: 1px dashed var(--border, #ccc);">
+                        <div class="subsection-heading" style="margin-bottom: 0.5rem;">Auto-fill metadata from manifest</div>
+                        <p style="margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--text-muted, #666);">
+                            Fetches the map's IIIF manifest and fills empty Metadata fields (title, creator, date, shelfmark, rights, language, source URL, holding institution). Existing values are never overwritten.
+                        </p>
+                        <button type="button" class="btn btn-outline btn-sm"
+                                on:click={handleFetchManifestMeta}
+                                disabled={fetchingManifest || !((map as any).iiif_manifest)}>
+                            {fetchingManifest ? "Fetching…" : "Fetch metadata from IIIF manifest"}
+                        </button>
+                        {#if !((map as any).iiif_manifest)}
+                            <span class="lookup-status" style="margin-left: 0.5rem; color: var(--text-muted, #666);">
+                                Set the IIIF manifest URL on this map first.
+                            </span>
+                        {/if}
+                        {#if fetchManifestStatus}
+                            <div class="lookup-status" style="margin-top: 0.5rem;">{fetchManifestStatus}</div>
+                        {/if}
+                    </div>
 
                     <!-- ── Image Sources ─────────────────────────────────────── -->
                     <div class="hosting-subsection">
@@ -879,41 +980,40 @@
                             </div>
                         {/if}
                     </div>
+
+                    <!-- ── GCPs (only for self-hosted maps) ──────────────────── -->
+                    {#if isSelfHosted}
+                        <div class="hosting-subsection">
+                            <div class="subsection-heading">Ground Control Points</div>
+                            <p class="section-desc">Place GCPs to refine the georeferencing for this self-hosted map.</p>
+                            <NeatlineEditor
+                                mapId={map.id}
+                                annotationUrl={allmaps_id}
+                                on:saved={() => {
+                                    successMsg = "GCPs saved!";
+                                    setTimeout(() => (successMsg = ""), 3000);
+                                }}
+                                on:error={(e) => { error = e.detail; }}
+                            />
+                        </div>
+                    {/if}
                 </div>
 
-            {:else if activeTab === "gcps"}
-                <NeatlineEditor
-                    mapId={map.id}
-                    annotationUrl={allmaps_id}
-                    on:saved={() => {
-                        successMsg = "GCPs saved!";
-                        setTimeout(() => (successMsg = ""), 3000);
-                    }}
-                    on:error={(e) => {
-                        error = e.detail;
-                    }}
-                />
-
-            {:else if activeTab === "contribute"}
+            {:else if activeTab === "pipeline"}
                 <div class="hosting-section">
 
-                    <!-- ── Visibility & Priority ──────────────────────────────── -->
+                    <!-- ── Workflow flags ──────────────────────────────── -->
                     <div class="hosting-subsection">
-                        <div class="subsection-heading">Visibility &amp; Priority</div>
+                        <div class="subsection-heading">Workflow stage</div>
+                        <p class="section-desc">Quick flags for downstream tooling. Catalog visibility (status, featured, public) lives in the header bar above.</p>
                         <div class="form-grid">
-                            <label class="form-label">
-                                <span>Priority</span>
-                                <input type="number" bind:value={priority} class="form-input" placeholder="0" min="0" step="1" />
-                                <span class="form-hint">Higher = shown first in Label Studio</span>
-                            </label>
-                            <div></div>
-                            <label class="form-label checkbox-label">
-                                <input type="checkbox" bind:checked={is_public} />
-                                <span>Published (public on site)</span>
-                            </label>
                             <label class="form-label checkbox-label">
                                 <input type="checkbox" bind:checked={georef_done} />
-                                <span>Georef done (available in Label Studio)</span>
+                                <span>Georef done <span class="form-hint">(available in Label Studio)</span></span>
+                            </label>
+                            <label class="form-label checkbox-label">
+                                <input type="checkbox" bind:checked={legend_done} />
+                                <span>Legend done <span class="form-hint">(pin legend validated)</span></span>
                             </label>
                         </div>
                     </div>
@@ -1274,4 +1374,47 @@
     .allmaps-id-row .form-input { flex: 1; min-width: 0; }
     .allmaps-id-row .btn { white-space: nowrap; }
     .lookup-status { display: block; font-size: 0.78rem; color: #555; margin-top: 0.4rem; font-family: ui-monospace, monospace; }
+
+    /* Essentials pill in modal title */
+    .essentials-pill {
+        display: inline-block;
+        margin-left: 0.65rem;
+        padding: 0.18rem 0.65rem;
+        font-size: 0.78rem; font-weight: 700;
+        background: #f1f5f9; color: #555;
+        border: 1.5px solid #111; border-radius: 12px;
+        vertical-align: middle;
+    }
+    .essentials-pill.full { background: #dcfce7; color: #166534; }
+
+    /* Sticky quick-toggle bar */
+    .quick-bar {
+        position: sticky; top: 0; z-index: 5;
+        display: flex; flex-wrap: wrap; gap: 0.85rem; align-items: center;
+        padding: 0.55rem 1rem;
+        background: #fafaf7;
+        border-bottom: 2px solid #111;
+        font-size: 0.85rem;
+    }
+    .quick-status, .quick-toggle, .quick-priority {
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .quick-toggle input[type="checkbox"] { cursor: pointer; }
+    .status-select {
+        border: 1.5px solid #111; border-radius: 999px;
+        padding: 0.2rem 0.7rem;
+        font-family: inherit; font-weight: 700; font-size: 0.82rem;
+        background: #fff; cursor: pointer;
+    }
+    .status-select.status-draft { background: #fef3c7; color: #92400e; }
+    .status-select.status-public { background: #dcfce7; color: #166534; }
+    .status-select.status-featured { background: #fce7f3; color: #9d174d; }
+    .priority-input {
+        width: 50px;
+        border: 1.5px solid #111; border-radius: 4px;
+        padding: 0.15rem 0.35rem;
+        font-family: inherit; font-size: 0.82rem;
+    }
 </style>
