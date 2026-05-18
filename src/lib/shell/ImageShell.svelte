@@ -41,8 +41,8 @@
   import { defaults as defaultInteractions } from 'ol/interaction/defaults';
   import 'ol/ol.css';
 
-  import type { LabelPin, FootprintSubmission } from '$lib/contribute/label/types';
-  import { geometryKind } from '$lib/contribute/label/types';
+  import type { LabelPin, FootprintSubmission } from '$lib/contribute/shared/types';
+  import { geometryKind } from '$lib/contribute/shared/types';
   import { createImageShellContext } from './imageContext';
 
   // Create context store synchronously during init so child tools can subscribe.

@@ -66,7 +66,7 @@ function rewriteSourceUrl(annotation: any, oldUrl: string, newUrl: string): any 
  * 1. Fetches the Allmaps annotation for the map.
  * 2. Rewrites the IIIF image source URL to the R2 worker URL.
  * 3. Stores the updated annotation in Supabase Storage (annotations bucket).
- * 4. Updates maps.allmaps_id → self-hosted annotation URL.
+ * 4. Updates maps.annotation_url → self-hosted annotation URL (allmaps_id stays as the bare ID).
  * 5. Updates maps.iiif_image → R2 worker URL.
  * 6. Returns tile CLI command and old source URL for the tiling script.
  */
@@ -76,17 +76,18 @@ export const POST: RequestHandler = async ({ locals, params }) => {
 
     const { data: map } = await adminSupabase
         .from('maps')
-        .select('id, name, allmaps_id, iiif_image')
+        .select('id, name, allmaps_id, annotation_url, iiif_image')
         .eq('id', mapId)
         .single();
 
     if (!map) throw error(404, 'Map not found');
-    if (!map.allmaps_id) throw error(400, 'Map has no Allmaps ID — cannot fetch annotation');
+    if (!map.allmaps_id && !map.annotation_url) {
+        throw error(400, 'Map has no allmaps_id or annotation_url — cannot fetch annotation');
+    }
 
-    // Resolve annotation URL (bare hex ID or full URL)
-    const annotationUrl = map.allmaps_id.startsWith('http')
-        ? map.allmaps_id
-        : `https://annotations.allmaps.org/images/${map.allmaps_id}`;
+    // Resolve annotation URL: prefer existing override, else build from allmaps_id.
+    const annotationUrl = map.annotation_url
+        ?? `https://annotations.allmaps.org/images/${map.allmaps_id}`;
 
     const annotationRes = await fetch(annotationUrl + '?_t=' + Date.now(), {
         headers: { Accept: 'application/json' },
@@ -127,15 +128,16 @@ export const POST: RequestHandler = async ({ locals, params }) => {
     const storageEmailUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${ANNOTATIONS_BUCKET}/${storagePath}`;
     const publicAnnotationUrl = storageEmailUrl.split('?')[0]; // Clean URL
 
-    // Update maps row
+    // Update maps row. Keep allmaps_id intact (it's the bare image ID); the
+    // self-hosted annotation URL lives in annotation_url as the runtime override.
     await adminSupabase
         .from('maps')
         .update({
             iiif_image: newIiifBase,
-            allmaps_id: publicAnnotationUrl,
+            annotation_url: publicAnnotationUrl,
             thumbnail: `${newIiifBase}/full/256,/0/default.jpg`,
             collection: 'Vietnam Map Archive',
-        } as any)
+        })
         .eq('id', mapId);
 
     // Upsert R2 source in map_iiif_sources and set as primary.

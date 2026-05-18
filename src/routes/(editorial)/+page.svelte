@@ -2,7 +2,7 @@
 	import { onMount } from "svelte";
 	import type { MapListItem } from "$lib/map/types";
 	import { getSupabaseContext } from "$lib/supabase/context";
-	import { fetchMaps, fetchFeaturedMaps } from "$lib/supabase/maps";
+	import { fetchMaps, fetchFeaturedMaps } from "$lib/maps/service";
 	import { annotationUrlForSource } from "$lib/shell/warpedOverlay";
 	import {
 		fetchFavorites,
@@ -303,15 +303,15 @@
 						for everyone.
 					</p>
 					<div class="micro-links">
-						<a href="/contribute/label" class="micro-link-card">
+						<a href="/contribute/digitalize" class="micro-link-card">
 							<span class="mlc-icon">🏷️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Label Maps</span>
-								<span class="mlc-desc">Identify and pin landmarks, streets, and districts on original map sheets</span>
+								<span class="mlc-title">Digitalize Maps</span>
+								<span class="mlc-desc">Triage neatlines and validate OCR-extracted toponyms on original map sheets</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
-						<a href="/contribute/label" class="micro-link-card">
+						<a href="/contribute/trace" class="micro-link-card">
 							<span class="mlc-icon">🖋️</span>
 							<span class="mlc-body">
 								<span class="mlc-title">Trace Footprints</span>

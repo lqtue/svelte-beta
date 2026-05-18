@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>VMA — Interactive Knowledge Graph</title>
+<script
+  src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"
+  crossorigin="anonymous"
+  onerror="document.body && document.body.insertAdjacentHTML('afterbegin', '<div style=&quot;background:#7f1d1d;color:#fff;padding:8px 12px;font:13px monospace&quot;>Failed to load cytoscape from jsdelivr. Check network/extensions.</div>')"
+></script>
+<style>
+  :root {
+    --bg: #0f0f10;
+    --panel: #18181b;
+    --panel-2: #232327;
+    --border: #2a2a2f;
+    --fg: #e9e9ec;
+    --fg-dim: #9a9aa3;
+    --accent: #ffd166;
+  }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif; }
+  #app { display: grid; grid-template-columns: 260px 1fr 320px; height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+  aside.right { border-right: none; border-left: 1px solid var(--border); }
+  h1 { font-size: 14px; margin: 0 0 4px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); }
+  h2 { font-size: 11px; margin: 18px 0 8px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-dim); }
+  p.sub { font-size: 12px; color: var(--fg-dim); margin: 0 0 12px; line-height: 1.5; }
+  .legend { display: flex; flex-direction: column; gap: 6px; }
+  .legend label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; padding: 4px 6px; border-radius: 4px; }
+  .legend label:hover { background: var(--panel-2); }
+  .legend input { accent-color: var(--accent); }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  #net { background: #131316; }
+  input[type="search"] { width: 100%; box-sizing: border-box; padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 13px; }
+  input[type="search"]:focus { outline: none; border-color: var(--accent); }
+  .detail { font-size: 13px; line-height: 1.55; }
+  .detail .label { color: var(--accent); font-weight: 600; font-size: 14px; }
+  .detail .meta { color: var(--fg-dim); font-size: 12px; margin-bottom: 12px; }
+  .detail code { background: var(--panel-2); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .neighbors { margin-top: 14px; }
+  .neighbor { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 12px; cursor: pointer; }
+  .neighbor:hover { color: var(--accent); }
+  .neighbor .arrow { color: var(--fg-dim); font-family: monospace; }
+  .controls { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  button { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  .stats { font-size: 11px; color: var(--fg-dim); margin-top: 12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <h1>VMA Knowledge Graph</h1>
+    <p class="sub">Architecture map: routes, components, stores, tables, pipelines, external services. Drag nodes. Click a node for details. Scroll to zoom.</p>
+
+    <h2>Filter by type</h2>
+    <div class="legend" id="legend"></div>
+
+    <h2>Search</h2>
+    <input id="search" type="search" placeholder="Find a node…" autocomplete="off" />
+
+    <h2>View</h2>
+    <div class="controls">
+      <button id="btn-fit">Fit</button>
+      <button id="btn-layout-concentric">Rings</button>
+      <button id="btn-layout-cose">Force</button>
+      <button id="btn-reset">Reset</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+  </aside>
+
+  <div id="net"></div>
+
+  <aside class="right">
+    <h1>Detail</h1>
+    <p class="sub" id="hint">Click any node to inspect its role and connections.</p>
+    <div class="detail" id="detail" style="display:none"></div>
+  </aside>
+</div>
+
+<script>
+// On-page error banner so failures aren't invisible.
+function showError(msg) {
+  let bar = document.getElementById("errbar");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "errbar";
+    bar.style.cssText = "position:fixed;top:0;left:0;right:0;background:#7f1d1d;color:#fff;padding:8px 12px;font:13px/1.4 monospace;z-index:9999;white-space:pre-wrap";
+    document.body.appendChild(bar);
+  }
+  bar.textContent = (bar.textContent ? bar.textContent + "\n" : "") + msg;
+}
+window.addEventListener("error", (e) => {
+  // Swallow benign vis-network ResizeObserver loop warning, surface everything else.
+  if (typeof e.message === "string" && e.message.includes("ResizeObserver loop")) {
+    e.stopImmediatePropagation(); e.preventDefault(); return;
+  }
+  showError("Error: " + (e.message || e) + (e.filename ? "  @ " + e.filename + ":" + e.lineno : ""));
+});
+window.addEventListener("unhandledrejection", (e) => showError("Promise rejection: " + (e.reason && e.reason.message || e.reason)));
+
+if (typeof cytoscape === "undefined") {
+  showError("cytoscape failed to load. Check network / extensions blocking cdn.jsdelivr.net.");
+}
+
+// ---------- Type palette ----------
+const groups = {
+  route:      { color: "#ffd166", label: "Route (page)" },
+  component:  { color: "#06d6a0", label: "Component" },
+  store:      { color: "#ef476f", label: "Store" },
+  module:     { color: "#7ee787", label: "Module" },
+  table:      { color: "#118ab2", label: "DB table" },
+  api:        { color: "#f78c6b", label: "API route" },
+  pipeline:   { color: "#c792ea", label: "Pipeline" },
+  script:     { color: "#a0a0a8", label: "Script" },
+  external:   { color: "#9d4edd", label: "External service" },
+};
+
+// ---------- Nodes ----------
+const nodes = [
+  // Routes — editorial
+  { id: "r:/",          group: "route",     label: "/",           detail: "Home (editorial)" },
+  { id: "r:/catalog",   group: "route",     label: "/catalog",    detail: "Map catalogue. Inline admin tools via 'Edit Meta' toggle. <code>?v=2</code> opens unified search UI." },
+  { id: "r:/about",     group: "route",     label: "/about" },
+  { id: "r:/blog",      group: "route",     label: "/blog" },
+  { id: "r:/profile",   group: "route",     label: "/profile" },
+  // Routes — app
+  { id: "r:/view",      group: "route",     label: "/view",       detail: "Browse maps, play stories. Uses MapShell + global stores." },
+  { id: "r:/create",    group: "route",     label: "/create",     detail: "Create stories/adventures." },
+  { id: "r:/annotate",  group: "route",     label: "/annotate",   detail: "Free-form annotation drawing." },
+  { id: "r:/image",     group: "route",     label: "/image",      detail: "IIIF image inspector." },
+  { id: "r:/contribute/georef",     group: "route", label: "/contribute/georef",     detail: "Georeference maps via Allmaps Editor." },
+  { id: "r:/contribute/trace",      group: "route", label: "/contribute/trace",      detail: "Polygon + line tracing of footprints; persists to footprint_submissions." },
+  { id: "r:/contribute/review",     group: "route", label: "/contribute/review",     detail: "HITL review of SAM2 'needs_review' polygons." },
+  { id: "r:/contribute/digitalize", group: "route", label: "/contribute/digitalize", detail: "Two-phase HITL: triage (neatline + tile grid) → OCR review. /contribute/label 301-redirects here." },
+  { id: "r:/admin/bulk",   group: "route", label: "/admin/bulk",  detail: "Batch-create draft maps rows. Outputs tile_map.sh commands." },
+  { id: "r:/admin/scout",  group: "route", label: "/admin/scout", detail: "Reviewable grid of scout_candidates from Gallica/Humazur/Rumsey/LoC." },
+
+  // Shells + components
+  { id: "c:MapShell",          group: "component", label: "MapShell",          detail: "Single OL Map instance. Syncs view with mapStore. Children call getShellContext()." },
+  { id: "c:ImageShell",        group: "component", label: "ImageShell",        detail: "IIIF pixel-coord OL canvas. Used by Label Studio + Digitalize." },
+  { id: "c:HistoricalOverlay", group: "component", label: "HistoricalOverlay", detail: "Headless. Reacts to activeAllmapsId + layerStore." },
+  { id: "c:DualMapPane",       group: "component", label: "DualMapPane",       detail: "Side-by-side view mode." },
+  { id: "c:ViewMode",          group: "component", label: "ViewMode" },
+  { id: "c:CreateMode",        group: "component", label: "CreateMode" },
+  { id: "c:AnnotateMode",      group: "component", label: "AnnotateMode" },
+  { id: "c:TraceTool",         group: "component", label: "TraceTool",         detail: "OL Draw + Select + Modify for polygon/line footprints (/contribute/trace)." },
+  { id: "c:TraceSidebar",      group: "component", label: "TraceSidebar",      detail: "Shapes table with category/type filtering." },
+  { id: "c:TriageTool",        group: "component", label: "TriageTool",        detail: "Neatline rect + tile priority grid (digitalize phase 1)." },
+  { id: "c:OcrBboxTool",       group: "component", label: "OcrBboxTool",       detail: "Renders + edits ocr_extractions bboxes; manual draw mode." },
+  { id: "c:OcrSidebar",        group: "component", label: "OcrSidebar" },
+  { id: "c:ReviewCanvas",      group: "component", label: "ReviewCanvas" },
+  { id: "c:ReviewSidebar",     group: "component", label: "ReviewSidebar" },
+  { id: "c:MapEditModal",      group: "component", label: "MapEditModal",      detail: "4-tab modal: Metadata · Hosting · Pipeline · GCPs." },
+  { id: "c:FacetRail",         group: "component", label: "FacetRail",         detail: "Multi-select facet chips with 'all-but-this-dimension' tallies." },
+  { id: "c:SearchResultCard",  group: "component", label: "SearchResultCard" },
+  { id: "c:bboxHandles",       group: "component", label: "bboxHandles.ts",    detail: "Centralised handle features + y-flip for all bbox-editing tools." },
+
+  // Stores
+  { id: "s:mapStore",   group: "store", label: "mapStore",   detail: "{ lng, lat, zoom, rotation, activeMapId (UUID), activeAllmapsId }. Default: Saigon zoom 14." },
+  { id: "s:layerStore", group: "store", label: "layerStore", detail: "{ basemap, overlayOpacity, overlayVisible, viewMode, sideRatio, lensRadius }." },
+  { id: "s:urlStore",   group: "store", label: "urlStore",   detail: "Bidirectional URL hash ↔ stores. #@lat,lng,zoomz,rotationr&map=id&base=key" },
+  { id: "s:annotation", group: "store", label: "annotationState", detail: "list + selection + undo/redo history." },
+
+  // Modules
+  { id: "m:maps",     group: "module", label: "lib/maps/",       detail: "Domain module: types, service, iiifManifest, adminApi. Canonical for new code." },
+  { id: "m:iiif",     group: "module", label: "lib/iiif/",       detail: "buildAnnotation, fetchIiifInfoWithRetry, fetchIIIFImageInfo." },
+  { id: "m:supabase", group: "module", label: "lib/supabase/",   detail: "Browser + SSR clients, auth context, data-layer modules." },
+  { id: "m:shared",   group: "module", label: "contribute/shared/", detail: "bboxHandles + y-flip logic." },
+
+  // DB tables
+  { id: "t:maps",                 group: "table", label: "maps",                 detail: "Map catalogue. id (uuid), allmaps_id, iiif_image, source_type, holding_institution, status (draft/public/featured), full DC fields." },
+  { id: "t:map_iiif_sources",     group: "table", label: "map_iiif_sources",     detail: "Multiple IIIF sources per map; partial unique index = one primary. Trigger syncs primary to maps.iiif_image." },
+  { id: "t:scout_candidates",     group: "table", label: "scout_candidates",     detail: "External discoveries awaiting review. (source, external_id) unique. status: pending/approved/rejected/ingested." },
+  { id: "t:label_tasks",          group: "table", label: "label_tasks",          detail: "Per-map labeling tasks. legend + categories. Status: open/in_progress/consensus/verified/hidden." },
+  { id: "t:label_pins",           group: "table", label: "label_pins",           detail: "Point annotations, pixel coords." },
+  { id: "t:footprint_submissions",group: "table", label: "footprint_submissions",detail: "Polygon traces. coords as [[x,y]...] px. Status: needs_review → submitted/rejected." },
+  { id: "t:annotation_sets",      group: "table", label: "annotation_sets",      detail: "User-drawn GeoJSON." },
+  { id: "t:ocr_extractions",      group: "table", label: "ocr_extractions",      detail: "OCR bboxes; global_* are full-image px. Unique (map_id, run_id, tile_x, tile_y, text)." },
+  { id: "t:map_pipeline_status",  group: "table", label: "map_pipeline_status",  detail: "Per-map pipeline stage: idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported." },
+  { id: "t:hunts",                group: "table", label: "hunts",                detail: "Stories/tours (legacy column names)." },
+  { id: "t:hunt_stops",           group: "table", label: "hunt_stops",           detail: "Story waypoints." },
+
+  // API routes
+  { id: "a:/api/admin/maps",          group: "api", label: "/api/admin/maps",          detail: "GET list, POST create." },
+  { id: "a:/api/admin/maps/[id]",     group: "api", label: "/api/admin/maps/[id]",     detail: "PATCH/DELETE. Silently drops unknown fields." },
+  { id: "a:mirror-r2",                group: "api", label: ".../mirror-r2",            detail: "Fetch Allmaps annotation → rewrite to R2 → Supabase Storage. Returns tile_command." },
+  { id: "a:ocr",                      group: "api", label: ".../ocr",                  detail: "GET runs; POST trigger batch (local only; CF returns cli_only + cli_command)." },
+  { id: "a:ocr-review",               group: "api", label: ".../ocr-review",           detail: "GET extractions; POST manual bbox; PATCH/PUT updates." },
+  { id: "a:pipeline",                 group: "api", label: ".../pipeline",             detail: "GET stage; PATCH advance." },
+  { id: "a:footprints",               group: "api", label: "/api/admin/footprints",    detail: "GET/PATCH SAM2 review (service key)." },
+  { id: "a:scout",                    group: "api", label: "/api/admin/scout",         detail: "GET list + facets; PATCH approve/reject/revert; POST bulk-ingest → maps rows." },
+  { id: "a:search",                   group: "api", label: "/api/search",              detail: "Unified GET over maps + scout_candidates. tsvector + 'simple' config. 'all-but-this-dimension' facets." },
+  { id: "a:lookup-allmaps-id",        group: "api", label: ".../lookup-allmaps-id",    detail: "Derive Allmaps image ID via @allmaps/id; probe annotation server." },
+  { id: "a:fetch-iiif-metadata",      group: "api", label: ".../fetch-iiif-metadata",  detail: "Parse manifest → fill empty Metadata fields." },
+
+  // Pipelines
+  { id: "p:OCR",        group: "pipeline", label: "OCR (Gemini)",  detail: "work/ocr/. Gemini Flash → ocr_extractions. Prompts v1–v8 (v8 default). Bboxes in 0–1000 normalized space." },
+  { id: "p:MapSAM2",    group: "pipeline", label: "MapSAM2",       detail: "work/MapSAM2/. Tiles → masks → polygons → footprint_submissions. --write-supabase advances pipeline stage." },
+
+  // Scripts
+  { id: "k:tile_map",          group: "script", label: "tile_map.sh",           detail: "vips dzsave → R2 upload. Runs locally (vips constraint)." },
+  { id: "k:bulk_upload",       group: "script", label: "bulk_upload_local.sh",  detail: "CLI bulk: tiles + inserts maps + map_iiif_sources rows." },
+  { id: "k:scout_all",         group: "script", label: "scout_all_sources.mjs", detail: "Gallica SRU + Rumsey Luna + LoC JSON. 14 Vietnam place keywords." },
+  { id: "k:scout_humazur",     group: "script", label: "scout_humazur.mjs",     detail: "Humazur Omeka S API directly." },
+  { id: "k:load_scout",        group: "script", label: "load_scout_to_db.mjs",  detail: "Loads merged scout JSON → scout_candidates. Fixes Humazur manifest URLs." },
+  { id: "k:audit_metadata",    group: "script", label: "audit_map_metadata.mjs",detail: "DB-only field-coverage audit." },
+  { id: "k:fetch_hosted",      group: "script", label: "fetch_hosted_metadata.mjs", detail: "Online: BnF/Humazur/UT Austin → diff vs DB." },
+  { id: "k:apply_backfill",    group: "script", label: "apply_metadata_backfill.mjs", detail: "Consumes diff + SGI constants; PATCHes maps. Fills empty fields only." },
+
+  // External
+  { id: "x:Allmaps",          group: "external", label: "Allmaps",                  detail: "Annotation server, editor, OL/MapLibre warping libs." },
+  { id: "x:Supabase",         group: "external", label: "Supabase",                 detail: "Postgres + Storage + Auth. Project ref trioykjhhwrruwjsklfo (Sydney)." },
+  { id: "x:R2Worker",         group: "external", label: "Cloudflare R2 + Worker",   detail: "iiif.maparchive.vn/iiif. Patches vips info.json on the fly." },
+  { id: "x:CFPages",          group: "external", label: "Cloudflare Pages",         detail: "Production host. Build output: .svelte-kit/cloudflare." },
+  { id: "x:IA",               group: "external", label: "Internet Archive",         detail: "S3 upload for original scans (IA_S3_*)." },
+  { id: "x:Gallica",          group: "external", label: "Gallica (BnF) SRU" },
+  { id: "x:Humazur",          group: "external", label: "Humazur (Omeka S)" },
+  { id: "x:Rumsey",           group: "external", label: "David Rumsey Luna" },
+  { id: "x:LoC",              group: "external", label: "Library of Congress" },
+  { id: "x:Gemini",           group: "external", label: "Gemini Flash API" },
+  { id: "x:OpenLayers",       group: "external", label: "OpenLayers" },
+  { id: "x:MapLibre",         group: "external", label: "MapLibre GL" },
+];
+
+// ---------- Edges ----------
+const E = (from, to, label) => ({ from, to, label });
+const edges = [
+  // Route → root component
+  E("r:/view", "c:ViewMode"), E("r:/create", "c:CreateMode"), E("r:/annotate", "c:AnnotateMode"),
+  E("r:/contribute/trace", "c:TraceTool"), E("r:/contribute/trace", "c:TraceSidebar"),
+  E("r:/contribute/review", "c:ReviewCanvas"),
+  E("r:/contribute/digitalize", "c:TriageTool"), E("r:/contribute/digitalize", "c:OcrBboxTool"),
+  E("r:/catalog", "c:MapEditModal"), E("r:/catalog", "c:FacetRail"), E("r:/catalog", "c:SearchResultCard"),
+
+  // Modes → shells
+  E("c:ViewMode", "c:MapShell", "uses"), E("c:CreateMode", "c:MapShell", "uses"),
+  E("c:AnnotateMode", "c:MapShell", "uses"),
+  E("c:TraceTool", "c:ImageShell", "uses"),
+  E("c:TriageTool", "c:ImageShell", "uses"), E("c:OcrBboxTool", "c:ImageShell", "uses"),
+  E("c:OcrBboxTool", "c:OcrSidebar"), E("c:ReviewCanvas", "c:ReviewSidebar"),
+  E("c:ReviewCanvas", "c:MapShell", "uses"),
+
+  // Shells → overlays
+  E("c:MapShell", "c:HistoricalOverlay", "context"), E("c:MapShell", "c:DualMapPane", "context"),
+
+  // Tools share bboxHandles
+  E("c:TriageTool", "c:bboxHandles", "uses"), E("c:OcrBboxTool", "c:bboxHandles", "uses"),
+  E("c:bboxHandles", "m:shared", "in"),
+
+  // Stores
+  E("c:MapShell", "s:mapStore", "syncs"), E("c:HistoricalOverlay", "s:mapStore", "reads"),
+  E("c:HistoricalOverlay", "s:layerStore", "reads"), E("c:DualMapPane", "s:layerStore", "reads"),
+  E("s:urlStore", "s:mapStore", "syncs"), E("s:urlStore", "s:layerStore", "syncs"),
+  E("c:AnnotateMode", "s:annotation", "uses"),
+
+  // Modules → tables
+  E("m:maps", "t:maps", "reads"), E("m:maps", "t:map_iiif_sources", "reads"),
+  E("m:supabase", "t:label_tasks", "reads/writes"), E("m:supabase", "t:label_pins", "reads/writes"),
+  E("m:supabase", "t:annotation_sets", "reads/writes"), E("m:supabase", "t:footprint_submissions", "reads"),
+  E("m:supabase", "t:hunts", "reads/writes"), E("m:supabase", "t:hunt_stops", "reads/writes"),
+  E("c:MapEditModal", "m:maps", "uses adminApi"),
+  E("c:TraceTool", "t:footprint_submissions", "writes"),
+  E("c:OcrBboxTool", "t:ocr_extractions", "writes"),
+
+  // IIIF + Allmaps
+  E("m:iiif", "x:Allmaps", "buildAnnotation"), E("c:HistoricalOverlay", "x:Allmaps", "@allmaps/openlayers"),
+  E("c:MapShell", "x:OpenLayers", "uses"), E("c:ImageShell", "x:OpenLayers", "uses"),
+
+  // API routes → tables
+  E("a:/api/admin/maps", "t:maps", "writes"), E("a:/api/admin/maps/[id]", "t:maps", "writes"),
+  E("a:mirror-r2", "t:maps", "writes"), E("a:mirror-r2", "t:map_iiif_sources", "writes"),
+  E("a:mirror-r2", "x:R2Worker", "uploads to"), E("a:mirror-r2", "x:Supabase", "Storage"),
+  E("a:ocr-review", "t:ocr_extractions", "writes"), E("a:pipeline", "t:map_pipeline_status", "writes"),
+  E("a:footprints", "t:footprint_submissions", "writes"),
+  E("a:scout", "t:scout_candidates", "reads/writes"), E("a:scout", "t:maps", "ingests → "),
+  E("a:search", "t:maps", "tsvector"), E("a:search", "t:scout_candidates", "tsvector"),
+  E("a:lookup-allmaps-id", "x:Allmaps", "probes"), E("a:fetch-iiif-metadata", "x:Allmaps", "probes"),
+
+  // Components → API
+  E("c:MapEditModal", "a:/api/admin/maps/[id]", "PATCH"), E("c:MapEditModal", "a:mirror-r2", "POST"),
+  E("c:MapEditModal", "a:lookup-allmaps-id", "POST"), E("c:MapEditModal", "a:fetch-iiif-metadata", "POST"),
+  E("c:TriageTool", "a:ocr", "POST"), E("c:OcrBboxTool", "a:ocr-review", "POST/PATCH"),
+  E("c:OcrSidebar", "a:ocr-review", "PATCH/PUT"),
+  E("c:ReviewSidebar", "a:footprints", "PATCH"), E("c:ReviewSidebar", "a:pipeline", "PATCH"),
+  E("r:/admin/scout", "a:scout"), E("r:/catalog", "a:search"),
+  E("r:/admin/bulk", "a:/api/admin/maps", "POST batch"),
+
+  // Pipelines
+  E("p:OCR", "t:ocr_extractions", "writes"), E("p:OCR", "t:map_pipeline_status", "advances"),
+  E("p:OCR", "x:Gemini", "calls"),
+  E("p:MapSAM2", "t:footprint_submissions", "writes"), E("p:MapSAM2", "t:map_pipeline_status", "advances"),
+  E("p:MapSAM2", "t:ocr_extractions", "seeds from"),
+  E("r:/contribute/digitalize", "p:OCR", "triggers"), E("r:/contribute/digitalize", "p:MapSAM2", "triggers"),
+
+  // Scripts
+  E("k:tile_map", "x:R2Worker", "uploads"), E("k:bulk_upload", "k:tile_map", "calls"),
+  E("k:bulk_upload", "t:maps", "inserts"), E("k:bulk_upload", "t:map_iiif_sources", "inserts"),
+  E("k:scout_all", "x:Gallica"), E("k:scout_all", "x:Rumsey"), E("k:scout_all", "x:LoC"),
+  E("k:scout_humazur", "x:Humazur"),
+  E("k:load_scout", "t:scout_candidates", "inserts"),
+  E("k:audit_metadata", "t:maps", "reads"), E("k:fetch_hosted", "t:maps", "reads"),
+  E("k:fetch_hosted", "x:Gallica", "fetches"), E("k:fetch_hosted", "x:Humazur", "fetches"),
+  E("k:apply_backfill", "t:maps", "PATCH"),
+
+  // Deployment
+  E("r:/", "x:CFPages", "deployed to"),
+  E("x:R2Worker", "x:CFPages", "Cloudflare"),
+];
+
+// ---------- Wiring (Cytoscape.js) ----------
+if (typeof cytoscape === "undefined") {
+  showError("cytoscape library did not load — see network/console.");
+}
+
+// Tier assignment: 1 = main hub, 2 = mid-tier, 3 = leaf. Used for node size + layout ring.
+const MAIN = new Set([
+  "c:MapShell", "c:ImageShell",
+  "t:maps", "t:map_pipeline_status",
+  "x:Supabase", "x:Allmaps", "x:R2Worker",
+  "p:OCR", "p:MapSAM2",
+  "s:mapStore",
+  "r:/catalog", "r:/contribute/digitalize", "r:/view", "r:/contribute/trace",
+]);
+const MID = new Set([
+  "c:MapEditModal", "c:HistoricalOverlay", "c:TriageTool", "c:OcrBboxTool", "c:ReviewCanvas", "c:TraceTool",
+  "c:ViewMode", "c:CreateMode", "c:AnnotateMode",
+  "t:map_iiif_sources", "t:footprint_submissions", "t:ocr_extractions", "t:label_tasks", "t:scout_candidates",
+  "s:layerStore", "s:urlStore",
+  "m:maps", "m:supabase", "m:iiif",
+  "a:/api/admin/maps", "a:/api/admin/maps/[id]", "a:scout", "a:search", "a:pipeline", "a:mirror-r2", "a:ocr-review",
+  "x:OpenLayers", "x:Internet Archive", "x:CFPages", "x:Gemini",
+  "r:/admin/scout", "r:/admin/bulk", "r:/contribute/review", "r:/annotate", "r:/contribute/georef",
+]);
+function tierOf(id) { return MAIN.has(id) ? 1 : MID.has(id) ? 2 : 3; }
+
+const cyNodes = nodes.map(n => ({
+  data: {
+    id: n.id, label: n.label, group: n.group, detail: n.detail || "",
+    color: groups[n.group].color, tier: tierOf(n.id),
+  }
+}));
+const cyEdges = edges.map((e, i) => ({
+  data: { id: "e" + i, source: e.from, target: e.to, label: e.label || "" }
+}));
+
+const cy = cytoscape({
+  container: document.getElementById("net"),
+  elements: { nodes: cyNodes, edges: cyEdges },
+  wheelSensitivity: 0.2,
+  style: [
+    {
+      selector: "node",
+      style: {
+        "background-color": "data(color)",
+        "label": "data(label)",
+        "color": "#0a0a0a",
+        "font-family": "Inter, system-ui, sans-serif",
+        "font-weight": 600,
+        "text-valign": "center",
+        "text-halign": "center",
+        "text-wrap": "wrap",
+        "shape": "round-rectangle",
+        "width": "label",
+        "height": "label",
+        "border-width": 1,
+        "border-color": "#000",
+        // Size by tier
+        "font-size": "mapData(tier, 1, 3, 17, 10)",
+        "padding": "mapData(tier, 1, 3, 14, 5)",
+        "text-max-width": "mapData(tier, 1, 3, 200, 110)",
+      },
+    },
+    {
+      selector: "node[tier = 1]",
+      style: { "border-width": 2, "border-color": "#000" },
+    },
+    {
+      selector: "node[tier = 3]",
+      style: { "opacity": 0.92 },
+    },
+    {
+      selector: "node:selected",
+      style: { "border-width": 3, "border-color": "#ffd166" },
+    },
+    {
+      selector: "node.dim",
+      style: { "opacity": 0.12 },
+    },
+    {
+      selector: "node.hidden",
+      style: { "display": "none" },
+    },
+    {
+      selector: "edge",
+      style: {
+        "width": 1,
+        "line-color": "#3a3a40",
+        "target-arrow-color": "#3a3a40",
+        "target-arrow-shape": "triangle",
+        "arrow-scale": 0.9,
+        "curve-style": "bezier",
+        "label": "data(label)",
+        "font-size": 9,
+        "color": "#7a7a82",
+        "text-rotation": "autorotate",
+        "text-background-color": "#131316",
+        "text-background-opacity": 0.85,
+        "text-background-padding": 1,
+      },
+    },
+    {
+      selector: "edge.hl",
+      style: { "line-color": "#ffd166", "target-arrow-color": "#ffd166", "width": 2, "z-index": 999 },
+    },
+    {
+      selector: "edge.dim",
+      style: { "opacity": 0.08 },
+    },
+    {
+      selector: "edge.hidden",
+      style: { "display": "none" },
+    },
+  ],
+  layout: concentricLayout(),
+});
+
+function concentricLayout() {
+  return {
+    name: "concentric",
+    concentric: (n) => 4 - n.data("tier"), // tier 1 → ring 3 (innermost = highest)
+    levelWidth: () => 1,
+    minNodeSpacing: 28,
+    spacingFactor: 1.1,
+    avoidOverlap: true,
+    startAngle: -Math.PI / 2,
+    padding: 40,
+    animate: false,
+  };
+}
+function coseLayout() {
+  return {
+    name: "cose", animate: false, nodeRepulsion: 9000, idealEdgeLength: 120,
+    gravity: 0.25, numIter: 1500, padding: 30, randomize: false,
+  };
+}
+
+cy.ready(() => cy.fit(null, 40));
+
+// Legend
+const legendEl = document.getElementById("legend");
+Object.entries(groups).forEach(([key, g]) => {
+  const row = document.createElement("label");
+  row.innerHTML = `<input type="checkbox" checked data-group="${key}"><span class="swatch" style="background:${g.color}"></span>${g.label}`;
+  legendEl.appendChild(row);
+});
+
+const activeGroups = new Set(Object.keys(groups));
+legendEl.addEventListener("change", (e) => {
+  const t = e.target;
+  if (!t.matches('input[type="checkbox"]')) return;
+  const g = t.dataset.group;
+  if (t.checked) activeGroups.add(g); else activeGroups.delete(g);
+  applyFilter();
+});
+
+function applyFilter() {
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  cy.batch(() => {
+    cy.nodes().forEach(n => {
+      const d = n.data();
+      const groupOk = activeGroups.has(d.group);
+      const searchOk = !q || d.label.toLowerCase().includes(q) || (d.detail || "").toLowerCase().includes(q);
+      const visible = groupOk && searchOk;
+      n.toggleClass("hidden", !visible);
+    });
+    cy.edges().forEach(e => {
+      const hide = e.source().hasClass("hidden") || e.target().hasClass("hidden");
+      e.toggleClass("hidden", hide);
+    });
+  });
+}
+
+document.getElementById("search").addEventListener("input", applyFilter);
+
+// Detail panel
+function highlight(id) {
+  cy.elements().removeClass("hl dim");
+  if (!id) return;
+  const node = cy.getElementById(id);
+  if (!node || node.empty()) return;
+  const connected = node.connectedEdges();
+  const neighbors = connected.connectedNodes();
+  const focused = node.union(neighbors).union(connected);
+  cy.elements().not(focused).addClass("dim");
+  connected.addClass("hl");
+}
+
+function showDetail(id) {
+  const node = cy.getElementById(id);
+  if (!node || node.empty()) return;
+  const d = node.data();
+  const incoming = node.incomers("edge");
+  const outgoing = node.outgoers("edge");
+  const neighborHtml = (col, dir) => col.map(e => {
+    const other = dir === "out" ? e.target() : e.source();
+    const od = other.data();
+    const arrow = dir === "out" ? "→" : "←";
+    const lbl = e.data("label");
+    return `<div class="neighbor" data-id="${od.id}"><span class="arrow">${arrow}</span> ${od.label}${lbl ? ` <span style="color:#666">(${lbl})</span>` : ""}</div>`;
+  }).join("");
+
+  const html = `
+    <div class="label">${d.label}</div>
+    <div class="meta">${groups[d.group].label}</div>
+    <div>${d.detail || "<em style='color:#666'>No detail.</em>"}</div>
+    <div class="neighbors">
+      ${outgoing.length ? `<h2 style="margin-top:14px">Outgoing (${outgoing.length})</h2>${neighborHtml(outgoing, "out")}` : ""}
+      ${incoming.length ? `<h2 style="margin-top:14px">Incoming (${incoming.length})</h2>${neighborHtml(incoming, "in")}` : ""}
+    </div>
+  `;
+  document.getElementById("hint").style.display = "none";
+  const panel = document.getElementById("detail");
+  panel.style.display = "block";
+  panel.innerHTML = html;
+  panel.querySelectorAll(".neighbor").forEach(el => {
+    el.addEventListener("click", () => {
+      const tid = el.dataset.id;
+      cy.$(":selected").unselect();
+      cy.getElementById(tid).select();
+      cy.animate({ fit: { eles: cy.getElementById(tid), padding: 200 }, duration: 350 });
+      highlight(tid);
+      showDetail(tid);
+    });
+  });
+  highlight(id);
+}
+
+cy.on("tap", "node", (e) => showDetail(e.target.id()));
+cy.on("tap", (e) => {
+  if (e.target === cy) {
+    cy.elements().removeClass("hl dim");
+    document.getElementById("hint").style.display = "block";
+    document.getElementById("detail").style.display = "none";
+  }
+});
+
+// Controls
+document.getElementById("btn-fit").onclick = () => cy.animate({ fit: { padding: 40 }, duration: 400 });
+document.getElementById("btn-layout-concentric").onclick = () => cy.layout({ ...concentricLayout(), animate: true, animationDuration: 500 }).run();
+document.getElementById("btn-layout-cose").onclick = () => cy.layout({ ...coseLayout(), animate: true, animationDuration: 500 }).run();
+document.getElementById("btn-reset").onclick = () => {
+  document.getElementById("search").value = "";
+  legendEl.querySelectorAll("input").forEach(i => { i.checked = true; activeGroups.add(i.dataset.group); });
+  applyFilter();
+  cy.elements().removeClass("hl dim");
+  cy.animate({ fit: { padding: 40 }, duration: 400 });
+};
+
+document.getElementById("stats").textContent = `${nodes.length} nodes · ${edges.length} edges`;
+</script>
+</body>
+</html>

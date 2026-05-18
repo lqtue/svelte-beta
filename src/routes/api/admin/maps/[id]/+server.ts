@@ -33,6 +33,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
     if (body.name          !== undefined) updateData.name          = body.name;
     if (body.allmaps_id    !== undefined) updateData.allmaps_id    = body.allmaps_id;
+    if (body.annotation_url !== undefined) updateData.annotation_url = body.annotation_url || null;
     if (body.location      !== undefined) updateData.location      = body.location || null;
     if (body.year          !== undefined) updateData.year          = body.year ? Number(body.year) : null;
     if (body.dc_description !== undefined) updateData.dc_description = body.dc_description || null;

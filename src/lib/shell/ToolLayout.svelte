@@ -1,5 +1,5 @@
 <!--
-  ToolLayout.svelte — Shared responsive layout for all tool pages (/view, /create, /annotate, /image, /contribute/label, /contribute/trace).
+  ToolLayout.svelte — Shared responsive layout for all tool pages (/view, /create, /annotate, /image, /contribute/digitalize, /contribute/trace).
 
   Provides:
   - workspace + map-stage grid (with-sidebar / compact breakpoints)

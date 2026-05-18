@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
     const body = await request.json();
     const {
-        name, allmaps_id, location, year, dc_description, is_featured,
+        name, allmaps_id, annotation_url, location, year, dc_description, is_featured,
         // source / IIIF
         source_type, iiif_manifest, iiif_image, ia_identifier,
         original_title, creator, year_label, language, rights, source_url,
@@ -59,6 +59,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     const insertData: Record<string, any> = {
         name,
         allmaps_id: allmaps_id || null,
+        annotation_url: annotation_url || null,
         location: location || null,
         year: year ? Number(year) : null,
         dc_description: dc_description || null,

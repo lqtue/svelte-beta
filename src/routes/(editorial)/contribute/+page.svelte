@@ -41,15 +41,15 @@
   <main class="editorial-main">
     <section class="contribute-grid">
 
-      <a href="/contribute/label" class="section-card card-link">
+      <a href="/contribute/digitalize" class="section-card card-link">
         <div class="section-card-header">
           <div class="icon-blob color-orange">✏️</div>
           <div>
-            <h2 class="section-title-sm">Label Maps</h2>
-            <p class="section-desc">Place pins on named places and trace building outlines on IIIF map images. Training data for the SAM2 vectorization pipeline.</p>
+            <h2 class="section-title-sm">Digitalize Maps</h2>
+            <p class="section-desc">Set the neatline, prioritize tiles, and validate OCR-extracted toponyms — feeds the SAM2 segmentation pipeline.</p>
           </div>
         </div>
-        <span class="card-cta">Start labeling →</span>
+        <span class="card-cta">Start digitalizing →</span>
       </a>
 
       <a href="/contribute/georef" class="section-card card-link">

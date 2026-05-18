@@ -12,6 +12,7 @@ function toMapListItem(row: DbRow): MapListItem {
   return {
     id: row.id,
     allmaps_id: row.allmaps_id ?? undefined,
+    annotation_url: (row as unknown as MapRecord).annotation_url ?? undefined,
     name: row.name,
     location: (row as unknown as MapRecord).location ?? undefined,
     map_type: (row as unknown as MapRecord).map_type ?? undefined,
@@ -51,12 +52,12 @@ export async function fetchFeaturedMaps(supabase: SupabaseClient<Database>): Pro
   return (data as unknown as DbRow[]).map(toMapListItem);
 }
 
-/** Maps that have been georeferenced (have allmaps_id). For view/overlay mode. */
+/** Maps that have been georeferenced (have allmaps_id OR annotation_url). For view/overlay mode. */
 export async function fetchGeoreferencedMaps(supabase: SupabaseClient<Database>): Promise<MapListItem[]> {
   const { data, error } = await supabase
     .from('maps')
     .select('*')
-    .not('allmaps_id', 'is', null)
+    .or('allmaps_id.not.is.null,annotation_url.not.is.null')
     .order('year', { ascending: true, nullsFirst: false });
 
   if (error) { console.error('fetchGeoreferencedMaps:', error); return []; }

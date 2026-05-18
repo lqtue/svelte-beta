@@ -18,14 +18,16 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import NavBar from '$lib/ui/NavBar.svelte';
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import ImageShell from '$lib/shell/ImageShell.svelte';
   import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
   import TraceTool from '$lib/contribute/trace/TraceTool.svelte';
   import TraceSidebar from '$lib/contribute/trace/TraceSidebar.svelte';
+  import ToolPanelHeader from '$lib/contribute/shared/ToolPanelHeader.svelte';
+  import EmptyPanel from '$lib/contribute/shared/EmptyPanel.svelte';
+  import SidebarToggleButton from '$lib/contribute/shared/SidebarToggleButton.svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
-  import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
+  import { resolveIiifInfoUrl } from '$lib/iiif/iiifImageInfo';
   import {
     fetchLabelMaps,
     fetchMapFootprints,
@@ -35,7 +37,7 @@
     deleteFootprint,
   } from '$lib/supabase/labels';
   import type { LabelMapInfo } from '$lib/supabase/labels';
-  import type { FootprintSubmission, PixelCoord, FeatureType } from '$lib/contribute/label/types';
+  import type { FootprintSubmission, PixelCoord, FeatureType } from '$lib/contribute/shared/types';
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id ?? null;
@@ -80,29 +82,14 @@
   }
 
   // ── Select a map ──────────────────────────────────────────────────────────
-  async function selectMap(map: LabelMapInfo) {
-    if (currentMap?.id === map.id) return;
-    currentMap = map;
+  async function selectMap(m: LabelMapInfo) {
+    if (currentMap?.id === m.id) return;
+    currentMap = m;
     iiifInfoUrl = null;
     footprints = [];
-    await Promise.all([resolveIiifUrl(), loadFootprints()]);
-  }
-
-  async function resolveIiifUrl() {
-    if (!currentMap?.allmapsId) return;
-    try {
-      const res = await fetch(annotationUrlForSource(currentMap.allmapsId));
-      if (!res.ok) throw new Error(`Allmaps fetch failed: ${res.status}`);
-      const annotation = await res.json();
-      const items = annotation.items;
-      if (!items?.length) throw new Error('No items in annotation');
-      const sourceId = items[0]?.target?.source?.id;
-      if (!sourceId) throw new Error('No source ID in annotation');
-      iiifInfoUrl = `${sourceId}/info.json`;
-    } catch (err) {
-      console.error('[TracePage] Failed to resolve IIIF URL:', err);
-      iiifInfoUrl = null;
-    }
+    const resolve = m.allmapsId ? resolveIiifInfoUrl(m.allmapsId) : Promise.resolve(null);
+    const [url] = await Promise.all([resolve, loadFootprints()]);
+    iiifInfoUrl = url;
   }
 
   async function loadFootprints() {
@@ -209,37 +196,13 @@
 
 <!-- ── Page shell ─────────────────────────────────────────────────────────────── -->
 <div class="tool-page">
-  <NavBar />
   <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
     <!-- Sidebar -->
     <svelte:fragment slot="sidebar">
       <aside class="panel">
-        <div class="panel-header">
-          <a href="/contribute" class="home-link" aria-label="Back to Contribute">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12.5 15L7.5 10L12.5 5"/>
-            </svg>
-            Contribute
-          </a>
-          <div class="panel-mode-label">Trace Mode</div>
-          <button
-            type="button"
-            class="collapse-btn"
-            on:click={() => (sidebarCollapsed = true)}
-            aria-label="Collapse sidebar"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10"/><path d="M19 8l-4 4 4 4"/>
-            </svg>
-          </button>
-        </div>
+        <ToolPanelHeader title="Trace Mode" onCollapse={() => (sidebarCollapsed = true)} />
         {#if !currentMap}
-          <div class="panel-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
-              <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
-            </svg>
-            <p>Select a map to start tracing.</p>
-          </div>
+          <EmptyPanel message="Select a map to start tracing." />
         {:else}
           <TraceSidebar
             {traceCategories}
@@ -297,18 +260,7 @@
     <!-- Mobile sidebar -->
     <svelte:fragment slot="mobile-sidebar">
       <aside class="panel">
-        <div class="panel-header">
-          <a href="/contribute" class="home-link" aria-label="Back to Contribute">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12.5 15L7.5 10L12.5 5"/>
-            </svg>
-            Contribute
-          </a>
-          <div class="panel-mode-label">{currentMap?.name ?? 'Trace'}</div>
-          <button type="button" class="collapse-btn" on:click={() => (sidebarCollapsed = true)} aria-label="Close">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
+        <ToolPanelHeader title={currentMap?.name ?? 'Trace'} onCollapse={() => (sidebarCollapsed = true)} />
         {#if currentMap}
           <TraceSidebar
             {traceCategories}
@@ -320,7 +272,7 @@
             on:zoomToFootprint={handleZoomToFootprint}
           />
         {:else}
-          <div class="panel-empty">Select a map first.</div>
+          <EmptyPanel showIcon={false} />
         {/if}
       </aside>
     </svelte:fragment>
@@ -371,17 +323,11 @@
       <div class="bar-divider"></div>
 
       {#if !isMobile}
-        <button
-          type="button"
-          class="tool-btn sidebar-toggle"
-          on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
-          title={sidebarCollapsed ? 'Show shapes panel' : 'Hide shapes panel'}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>
-          </svg>
-          <span>{sidebarCollapsed ? 'Shapes' : 'Hide'}</span>
-        </button>
+        <SidebarToggleButton
+          collapsed={sidebarCollapsed}
+          labelShow="Shapes"
+          onClick={() => (sidebarCollapsed = !sidebarCollapsed)}
+        />
       {/if}
     </footer>
   {/if}

@@ -7,14 +7,13 @@
               tile cells (normal / low-res / skip). Runs OCR batch via API.
 
   OCR Review — Validate/reject OCR extraction bboxes. Verbatim reuse of
-               OcrBboxTool + OcrSidebar from /contribute/label.
+               OcrBboxTool + OcrSidebar from $lib/contribute/ocr/.
 
   Tile priority cycle: click once → low-res (amber) · again → skip (gray) · again → normal.
 -->
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import OlMap from 'ol/Map';
-  import NavBar from '$lib/ui/NavBar.svelte';
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import ImageShell from '$lib/shell/ImageShell.svelte';
   import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
@@ -22,10 +21,13 @@
   import OcrBboxTool from '$lib/contribute/ocr/OcrBboxTool.svelte';
   import TriageSidebar from '$lib/contribute/digitalize/TriageSidebar.svelte';
   import TriageTool from '$lib/contribute/digitalize/TriageTool.svelte';
+  import ToolPanelHeader from '$lib/contribute/shared/ToolPanelHeader.svelte';
+  import EmptyPanel from '$lib/contribute/shared/EmptyPanel.svelte';
+  import SidebarToggleButton from '$lib/contribute/shared/SidebarToggleButton.svelte';
   import type { OcrExtraction } from '$lib/contribute/ocr/types';
   import type { TileOverrides } from '$lib/contribute/digitalize/tileParams';
   import { getSupabaseContext } from '$lib/supabase/context';
-  import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
+  import { resolveIiifInfoUrl } from '$lib/iiif/iiifImageInfo';
   import { fetchLabelMaps } from '$lib/supabase/labels';
   import type { LabelMapInfo } from '$lib/supabase/labels';
 
@@ -170,7 +172,7 @@
     } catch { /* storage quota or SSR */ }
   }
 
-  // ── OCR Review state (mirrors /contribute/label exactly) ─────────────────────
+  // ── OCR Review state (mirrors the legacy /contribute/label flow) ─────────────────────
   let ocrSidebar: OcrSidebar;
   let ocrExtractions: OcrExtraction[] = [];
   let visibleExtractionIds = new Set<string>();
@@ -238,16 +240,7 @@
     }
     // Fallback: resolve from Allmaps annotation
     if (!currentMap?.allmapsId) return;
-    try {
-      const res = await fetch(annotationUrlForSource(currentMap.allmapsId));
-      if (!res.ok) throw new Error(`Allmaps fetch failed: ${res.status}`);
-      const annotation = await res.json();
-      const sourceId = annotation.items?.[0]?.target?.source?.id;
-      if (!sourceId || !String(sourceId).startsWith('http')) throw new Error('No valid source ID in annotation');
-      iiifInfoUrl = `${sourceId}/info.json`;
-    } catch (err) {
-      console.error('[Digitalize] Failed to resolve IIIF URL:', err);
-    }
+    iiifInfoUrl = await resolveIiifInfoUrl(currentMap.allmapsId);
   }
 
   async function checkExistingRuns() {
@@ -301,7 +294,7 @@
     tick().then(() => ocrSidebar?.load?.());
   }
 
-  // ── OCR review handlers (verbatim from /contribute/label) ────────────────────
+  // ── OCR review handlers (verbatim from the legacy /contribute/label) ────────────────────
   function handleLoaded(e: CustomEvent<{ extractions: OcrExtraction[] }>) {
     ocrExtractions = e.detail.extractions;
     selectedExtractionId = null;
@@ -402,33 +395,15 @@
 </svelte:head>
 
 <div class="tool-page">
-  <NavBar />
   <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
 
     <!-- Sidebar (desktop) -->
     <svelte:fragment slot="sidebar">
       <aside class="panel">
-        <div class="panel-header">
-          <a href="/contribute" class="home-link" aria-label="Back to Contribute">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M12.5 15L7.5 10L12.5 5"/>
-            </svg>
-            Contribute
-          </a>
-          <button type="button" class="collapse-btn" on:click={() => (sidebarCollapsed = true)} aria-label="Collapse">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10"/><path d="M19 8l-4 4 4 4"/>
-            </svg>
-          </button>
-        </div>
+        <ToolPanelHeader onCollapse={() => (sidebarCollapsed = true)} />
 
         {#if !currentMap}
-          <div class="panel-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.3">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-            </svg>
-            <p>Select a map to begin.</p>
-          </div>
+          <EmptyPanel message="Select a map to begin." />
         {:else if phase === 'triage'}
           <TriageSidebar
             {imgWidth} {imgHeight} {iiifInfoUrl}
@@ -649,12 +624,7 @@
     <!-- Mobile sidebar -->
     <svelte:fragment slot="mobile-sidebar">
       <aside class="panel">
-        <div class="panel-header">
-          <a href="/contribute" class="home-link">← Contribute</a>
-          <button type="button" class="collapse-btn" on:click={() => (sidebarCollapsed = true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
+        <ToolPanelHeader onCollapse={() => (sidebarCollapsed = true)} />
         {#if currentMap && phase === 'triage'}
           <TriageSidebar
             {imgWidth} {imgHeight} {iiifInfoUrl}
@@ -672,7 +642,7 @@
             on:loaded={handleLoaded}
           />
         {:else}
-          <div class="panel-empty">Select a map first.</div>
+          <EmptyPanel showIcon={false} />
         {/if}
 
         <div class="panel-footer">
@@ -711,21 +681,11 @@
         </button>
       {/if}
       <div class="bar-divider"></div>
-      {#if !isMobile}
-        <button type="button" class="tool-btn" on:click={() => (sidebarCollapsed = !sidebarCollapsed)}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>
-          </svg>
-          <span>{sidebarCollapsed ? 'Panel' : 'Hide'}</span>
-        </button>
-      {:else}
-        <button type="button" class="tool-btn" on:click={() => (sidebarCollapsed = !sidebarCollapsed)}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M3 12h18M3 6h18M3 18h18"/>
-          </svg>
-          <span>Panel</span>
-        </button>
-      {/if}
+      <SidebarToggleButton
+        collapsed={sidebarCollapsed}
+        compact={isMobile}
+        onClick={() => (sidebarCollapsed = !sidebarCollapsed)}
+      />
     </footer>
   {/if}
 </div>

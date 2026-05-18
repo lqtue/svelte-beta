@@ -1,25 +1,11 @@
 import type { FeatureCollection, GeoJsonObject } from 'geojson';
 
+// Canonical map types live in $lib/maps/. This module re-exports MapListItem
+// for the many UI-side consumers and adds UI-only types (ViewMode, etc).
+export type { MapListItem } from '$lib/maps/types';
+
 export type ViewMode = 'overlay' | 'spy' | 'dual';
 export type DrawingMode = 'point' | 'line' | 'polygon';
-
-export interface MapListItem {
-  id: string;
-  name: string;
-  location?: string;          // city / region (was `type`)
-  map_type?: string;          // cartographic type: cadastral, topographic, city_plan, panorama
-  dc_description?: string;    // dc:description (was `summary`)
-  thumbnail?: string;
-  isFeatured?: boolean;
-  year?: number;
-  year_label?: string;
-  bounds?: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
-  allmaps_id?: string;
-  collection?: string;
-  source_type?: string;
-  extra_metadata?: Record<string, string>;
-  iiif_image?: string;
-}
 
 export interface AnnotationSummary {
   id: string;

@@ -30,7 +30,7 @@
   import { click as clickCondition } from 'ol/events/condition';
   import { getImageShellStore } from '$lib/shell/imageContext';
   import type { ImageShellContext } from '$lib/shell/imageContext';
-  import type { PixelCoord } from '$lib/contribute/label/types';
+  import type { PixelCoord } from '$lib/contribute/shared/types';
 
   export let drawMode: 'trace' | 'select' = 'trace';
   export let geometryMode: 'Polygon' | 'LineString' = 'Polygon';

@@ -5,8 +5,8 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
   import '$styles/components/label.css';
-  import type { FootprintSubmission, FeatureType } from '$lib/contribute/label/types';
-  import { FEATURE_TYPE_LABELS } from '$lib/contribute/label/types';
+  import type { FootprintSubmission, FeatureType } from '$lib/contribute/shared/types';
+  import { FEATURE_TYPE_LABELS } from '$lib/contribute/shared/types';
 
   const dispatch = createEventDispatcher<{
     removeFootprint: { footprintId: string };

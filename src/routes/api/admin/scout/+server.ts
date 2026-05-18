@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const orderBy = url.searchParams.get('order') || 'score';
   const orderDir = url.searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
 
-  let q = (supabase as any).from('scout_candidates').select('*', { count: 'exact' });
+  let q = supabase.from('scout_candidates').select('*', { count: 'exact' });
   if (status !== 'all') q = q.eq('status', status);
   if (source) q = q.eq('source', source);
   if (category) q = q.eq('category', category);
@@ -43,16 +43,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   // Facet counts (lightweight — only when offset=0)
   let facets: Record<string, Record<string, number>> | undefined;
   if (offset === 0) {
-    const facetBase = (supabase as any).from('scout_candidates');
+    const facetBase = supabase.from('scout_candidates');
     const [bySource, byCategory, byStatus] = await Promise.all([
       facetBase.select('source').eq('status', status),
       facetBase.select('category').eq('status', status),
       facetBase.select('status'),
     ]);
-    const tally = (rows: { source?: string; category?: string; status?: string }[] | null, key: string) => {
+    const tally = (rows: Record<string, string | null>[] | null, key: string) => {
       const m: Record<string, number> = {};
       for (const r of rows || []) {
-        const v = (r as Record<string, string | undefined>)[key] || '(none)';
+        const v = r[key] || '(none)';
         m[v] = (m[v] || 0) + 1;
       }
       return m;
@@ -74,7 +74,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   const ids: string[] = body.ids || [];
   if (!ids.length) throw error(400, 'ids[] required');
 
-  const { data: cands, error: fetchErr } = await (supabase as any)
+  const { data: cands, error: fetchErr } = await supabase
     .from('scout_candidates')
     .select('*')
     .in('id', ids)
@@ -82,27 +82,28 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   if (fetchErr) throw error(500, fetchErr.message);
 
   const results: { id: string; map_id?: string; error?: string }[] = [];
-  for (const c of cands as Record<string, unknown>[]) {
+  for (const c of cands ?? []) {
     try {
+      const holdingInst = c.holding_institution ?? '';
       const insertPayload = {
-        name: ((c.title as string) || '(untitled)').slice(0, 240),
+        name: (c.title || '(untitled)').slice(0, 240),
         year: c.year ?? null,
-        year_label: (c.date as string) || null,
+        year_label: c.date ?? null,
         status: 'draft',
         source_type:
-          (c.holding_institution as string)?.includes('David Rumsey') ? 'rumsey'
-          : (c.holding_institution as string)?.includes('Bibliothèque nationale') ? 'bnf'
+          holdingInst.includes('David Rumsey') ? 'rumsey'
+          : holdingInst.includes('Bibliothèque nationale') ? 'bnf'
           : 'other',
-        holding_institution: c.holding_institution || null,
-        collection: c.collection || null,
-        original_title: c.title || null,
-        creator: c.creator || null,
-        dc_publisher: c.publisher || null,
-        language: c.language || null,
-        rights: c.rights || null,
-        iiif_manifest: c.manifest_url || null,
-        source_url: c.source_url || null,
-        thumbnail: c.thumbnail || null,
+        holding_institution: c.holding_institution ?? null,
+        collection: c.collection ?? null,
+        original_title: c.title ?? null,
+        creator: c.creator ?? null,
+        dc_publisher: c.publisher ?? null,
+        language: c.language ?? null,
+        rights: c.rights ?? null,
+        iiif_manifest: c.manifest_url ?? null,
+        source_url: c.source_url ?? null,
+        thumbnail: c.thumbnail ?? null,
         extra_metadata: {
           scout_source: c.source,
           scout_external_id: c.external_id,
@@ -111,18 +112,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
           scout_candidate_id: c.id,
         },
       };
-      const { data: newMap, error: insErr } = await (supabase as any)
+      const { data: newMap, error: insErr } = await supabase
         .from('maps').insert(insertPayload).select('id').single();
       if (insErr) throw new Error(insErr.message);
-      const mapId = (newMap as { id: string }).id;
+      const mapId = newMap.id;
 
-      await (supabase as any).from('scout_candidates')
+      await supabase.from('scout_candidates')
         .update({ status: 'ingested', map_id: mapId, reviewer_id: user.id, reviewed_at: new Date().toISOString() })
         .eq('id', c.id);
 
-      results.push({ id: c.id as string, map_id: mapId });
+      results.push({ id: c.id, map_id: mapId });
     } catch (e) {
-      results.push({ id: c.id as string, error: (e as Error).message.slice(0, 200) });
+      results.push({ id: c.id, error: (e as Error).message.slice(0, 200) });
     }
   }
 

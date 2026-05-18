@@ -2,7 +2,7 @@
   /image — Read-only IIIF image viewer.
   URL: /image?map=<uuid>
 
-  Same shell pattern as /contribute/label and /contribute/trace:
+  Same shell pattern as /contribute/digitalize and /contribute/trace:
     NavBar → top-bar (map picker) → ToolLayout (sidebar + ImageShell)
 
   Sidebar shows map metadata. No tools — read-only.
@@ -11,7 +11,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import NavBar from '$lib/ui/NavBar.svelte';
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import ImageShell from '$lib/shell/ImageShell.svelte';
   import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
@@ -65,8 +64,6 @@
 
 <!-- ── Page shell ──────────────────────────────────────────────────────────── -->
 <div class="tool-page">
-  <NavBar />
-
   <!-- ── Workspace ───────────────────────────────────────────────────────── -->
   <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
     <!-- Sidebar: map metadata -->

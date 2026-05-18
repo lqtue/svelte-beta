@@ -19,7 +19,7 @@ async function getAdminClient(locals: App.Locals) {
 export const GET: RequestHandler = async ({ locals, params }) => {
     const supabase = await getAdminClient(locals);
 
-    const { data, error: dbError } = await (supabase as any)
+    const { data, error: dbError } = await supabase
         .from('map_iiif_sources')
         .select('*')
         .eq('map_id', params.id)
@@ -38,7 +38,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     if (!iiif_image) throw error(400, 'iiif_image is required');
 
     // If making this primary, the DB trigger handles demoting others
-    const { data, error: dbError } = await (supabase as any)
+    const { data, error: dbError } = await supabase
         .from('map_iiif_sources')
         .insert({
             map_id: params.id,

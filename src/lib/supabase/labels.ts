@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LabelPin, FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/contribute/label/types';
+import type { LabelPin, FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/contribute/shared/types';
 
 // ── Label Maps ────────────────────────────────────────────────────────────────
 

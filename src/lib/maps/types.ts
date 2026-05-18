@@ -53,7 +53,8 @@ export interface MapRecord {
   iiif_image?: string;           // image service base URL
 
   // Georeferencing
-  allmaps_id?: string;           // Allmaps annotation URL (present once georeferenced)
+  allmaps_id?: string;           // 16-char Allmaps image ID (from @allmaps/id over canonical IIIF URL)
+  annotation_url?: string;       // Optional override URL to W3C annotation JSON (set by mirror-r2 → Supabase Storage)
 
   // Classification
   map_type?: MapType | string;
@@ -72,7 +73,8 @@ export interface MapRecord {
 /** Lightweight item used in catalog lists and map selector dropdowns. */
 export interface MapListItem {
   id: string;                    // maps.id (uuid)
-  allmaps_id?: string;           // Allmaps annotation URL
+  allmaps_id?: string;           // 16-char Allmaps image ID (or null until derived)
+  annotation_url?: string;       // Optional override URL to the annotation JSON
   name: string;
   location?: string;             // city / region (renamed from `type`)
   map_type?: string;             // cartographic type: cadastral, topographic, city_plan, panorama
@@ -84,9 +86,28 @@ export interface MapListItem {
   collection?: string;
   source_type?: MapSourceType;
   status?: MapStatus;
-  bbox?: [number, number, number, number];
+  bbox?: [number, number, number, number];          // DB column maps.bbox
+  bounds?: [number, number, number, number];        // Runtime-enriched in useMapList; equivalent to bbox once resolved.
   extra_metadata?: Record<string, string>;
   iiif_image?: string;           // IIIF image service base URL (present once ingested)
+  creator?: string;              // present in search results
+  holding_institution?: string;  // present in search results
+  // Search-result-only enrichment (only set by /api/search responses)
+  _table?: 'maps' | 'scout';
+  _score?: number;
+  _snippet?: string;             // ts_headline HTML (already sanitized to allow only <b>)
+  _scout?: {                     // when _table === 'scout'
+    id: string;
+    source: string;
+    category?: string;
+    score?: number;
+    status: string;
+    source_url?: string;
+    manifest_url?: string;
+    publisher?: string;
+    year?: number;
+    date?: string;
+  };
 }
 
 /** Metadata extracted from a IIIF manifest. */
@@ -157,6 +178,7 @@ export interface MapEditPayload {
   bbox?: [number, number, number, number];
   status?: MapStatus;
   allmaps_id?: string;
+  annotation_url?: string;
   iiif_manifest?: string;
   iiif_image?: string;
   extra_metadata?: Record<string, string>;

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       annotation_sets: {
@@ -290,9 +315,57 @@ export type Database = {
           },
         ]
       }
+      map_pipeline_status: {
+        Row: {
+          map_id: string
+          ocr_finished_at: string | null
+          ocr_run_id: string | null
+          ocr_started_at: string | null
+          reviewed_at: string | null
+          seg_finished_at: string | null
+          seg_run_id: string | null
+          seg_started_at: string | null
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          map_id: string
+          ocr_finished_at?: string | null
+          ocr_run_id?: string | null
+          ocr_started_at?: string | null
+          reviewed_at?: string | null
+          seg_finished_at?: string | null
+          seg_run_id?: string | null
+          seg_started_at?: string | null
+          stage?: string
+          updated_at?: string
+        }
+        Update: {
+          map_id?: string
+          ocr_finished_at?: string | null
+          ocr_run_id?: string | null
+          ocr_started_at?: string | null
+          reviewed_at?: string | null
+          seg_finished_at?: string | null
+          seg_run_id?: string | null
+          seg_started_at?: string | null
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "map_pipeline_status_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: true
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maps: {
         Row: {
           allmaps_id: string | null
+          annotation_url: string | null
           bbox: number[] | null
           collection: string | null
           created_at: string | null
@@ -305,6 +378,7 @@ export type Database = {
           extra_metadata: Json | null
           georef_done: boolean
           help_needed: boolean
+          holding_institution: string | null
           ia_identifier: string | null
           id: string
           iiif_image: string | null
@@ -321,6 +395,7 @@ export type Database = {
           physical_description: string | null
           priority: number
           rights: string | null
+          search_vector: unknown
           shelfmark: string | null
           source_type: string | null
           source_url: string | null
@@ -332,6 +407,7 @@ export type Database = {
         }
         Insert: {
           allmaps_id?: string | null
+          annotation_url?: string | null
           bbox?: number[] | null
           collection?: string | null
           created_at?: string | null
@@ -344,6 +420,7 @@ export type Database = {
           extra_metadata?: Json | null
           georef_done?: boolean
           help_needed?: boolean
+          holding_institution?: string | null
           ia_identifier?: string | null
           id?: string
           iiif_image?: string | null
@@ -360,6 +437,7 @@ export type Database = {
           physical_description?: string | null
           priority?: number
           rights?: string | null
+          search_vector?: unknown
           shelfmark?: string | null
           source_type?: string | null
           source_url?: string | null
@@ -371,6 +449,7 @@ export type Database = {
         }
         Update: {
           allmaps_id?: string | null
+          annotation_url?: string | null
           bbox?: number[] | null
           collection?: string | null
           created_at?: string | null
@@ -383,6 +462,7 @@ export type Database = {
           extra_metadata?: Json | null
           georef_done?: boolean
           help_needed?: boolean
+          holding_institution?: string | null
           ia_identifier?: string | null
           id?: string
           iiif_image?: string | null
@@ -399,6 +479,7 @@ export type Database = {
           physical_description?: string | null
           priority?: number
           rights?: string | null
+          search_vector?: unknown
           shelfmark?: string | null
           source_type?: string | null
           source_url?: string | null
@@ -448,6 +529,95 @@ export type Database = {
           },
         ]
       }
+      ocr_extractions: {
+        Row: {
+          category: string
+          category_validated: string | null
+          confidence: number
+          created_at: string
+          global_h: number | null
+          global_w: number | null
+          global_x: number | null
+          global_y: number | null
+          id: string
+          map_id: string
+          model: string | null
+          notes: string | null
+          prompt: string | null
+          rotation_deg: number | null
+          run_id: string
+          status: string
+          text: string
+          text_validated: string | null
+          tile_h: number
+          tile_w: number
+          tile_x: number
+          tile_y: number
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          category: string
+          category_validated?: string | null
+          confidence?: number
+          created_at?: string
+          global_h?: number | null
+          global_w?: number | null
+          global_x?: number | null
+          global_y?: number | null
+          id?: string
+          map_id: string
+          model?: string | null
+          notes?: string | null
+          prompt?: string | null
+          rotation_deg?: number | null
+          run_id: string
+          status?: string
+          text: string
+          text_validated?: string | null
+          tile_h: number
+          tile_w: number
+          tile_x: number
+          tile_y: number
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          category?: string
+          category_validated?: string | null
+          confidence?: number
+          created_at?: string
+          global_h?: number | null
+          global_w?: number | null
+          global_x?: number | null
+          global_y?: number | null
+          id?: string
+          map_id?: string
+          model?: string | null
+          notes?: string | null
+          prompt?: string | null
+          rotation_deg?: number | null
+          run_id?: string
+          status?: string
+          text?: string
+          text_validated?: string | null
+          tile_h?: number
+          tile_w?: number
+          tile_x?: number
+          tile_y?: number
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocr_extractions_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -468,6 +638,250 @@ export type Database = {
           role?: string | null
         }
         Relationships: []
+      }
+      scout_candidates: {
+        Row: {
+          category: string | null
+          collection: string | null
+          created_at: string
+          creator: string | null
+          date: string | null
+          external_id: string
+          found_via: string | null
+          holding_institution: string | null
+          id: string
+          language: string | null
+          manifest_url: string | null
+          map_id: string | null
+          publisher: string | null
+          raw: Json | null
+          reasons: string | null
+          reviewed_at: string | null
+          reviewer_id: string | null
+          rights: string | null
+          score: number
+          search_vector: unknown
+          source: string
+          source_url: string | null
+          status: string
+          thumbnail: string | null
+          title: string
+          year: number | null
+        }
+        Insert: {
+          category?: string | null
+          collection?: string | null
+          created_at?: string
+          creator?: string | null
+          date?: string | null
+          external_id: string
+          found_via?: string | null
+          holding_institution?: string | null
+          id?: string
+          language?: string | null
+          manifest_url?: string | null
+          map_id?: string | null
+          publisher?: string | null
+          raw?: Json | null
+          reasons?: string | null
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          rights?: string | null
+          score?: number
+          search_vector?: unknown
+          source: string
+          source_url?: string | null
+          status?: string
+          thumbnail?: string | null
+          title: string
+          year?: number | null
+        }
+        Update: {
+          category?: string | null
+          collection?: string | null
+          created_at?: string
+          creator?: string | null
+          date?: string | null
+          external_id?: string
+          found_via?: string | null
+          holding_institution?: string | null
+          id?: string
+          language?: string | null
+          manifest_url?: string | null
+          map_id?: string | null
+          publisher?: string | null
+          raw?: Json | null
+          reasons?: string | null
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          rights?: string | null
+          score?: number
+          search_vector?: unknown
+          source?: string
+          source_url?: string | null
+          status?: string
+          thumbnail?: string | null
+          title?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scout_candidates_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          mode: string
+          region: Json
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          mode?: string
+          region?: Json
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          mode?: string
+          region?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      story_points: {
+        Row: {
+          camera: Json
+          challenge: Json
+          created_at: string
+          description: string | null
+          hint: string | null
+          id: string
+          interaction: string
+          lat: number
+          lon: number
+          overlay_map_id: string | null
+          qr_payload: string | null
+          quest: string | null
+          sort_order: number
+          story_id: string
+          title: string
+          trigger_radius: number
+        }
+        Insert: {
+          camera?: Json
+          challenge?: Json
+          created_at?: string
+          description?: string | null
+          hint?: string | null
+          id?: string
+          interaction?: string
+          lat: number
+          lon: number
+          overlay_map_id?: string | null
+          qr_payload?: string | null
+          quest?: string | null
+          sort_order?: number
+          story_id: string
+          title: string
+          trigger_radius?: number
+        }
+        Update: {
+          camera?: Json
+          challenge?: Json
+          created_at?: string
+          description?: string | null
+          hint?: string | null
+          id?: string
+          interaction?: string
+          lat?: number
+          lon?: number
+          overlay_map_id?: string | null
+          qr_payload?: string | null
+          quest?: string | null
+          sort_order?: number
+          story_id?: string
+          title?: string
+          trigger_radius?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_points_overlay_map_id_fkey"
+            columns: ["overlay_map_id"]
+            isOneToOne: false
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_points_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_progress: {
+        Row: {
+          completed_at: string | null
+          completed_points: string[]
+          current_point_index: number
+          id: string
+          started_at: string
+          story_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_points?: string[]
+          current_point_index?: number
+          id?: string
+          started_at?: string
+          story_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_points?: string[]
+          current_point_index?: number
+          id?: string
+          started_at?: string
+          story_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_progress_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_favorites: {
         Row: {
@@ -632,6 +1046,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

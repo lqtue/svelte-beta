@@ -4,7 +4,7 @@
   Desktop: VMA | Catalog ▾  Tools ▾  Contribute ▾  About  Blog | [avatar/signin] [theme]
   Catalog ▾:    Browse Catalog /catalog | View on Map /view | View Image /image
   Tools ▾:      Story /create | Annotate /annotate
-  Contribute ▾: Label Maps /contribute/label | Trace Maps /contribute/trace | Georeference /contribute/georef
+  Contribute ▾: Digitalize /contribute/digitalize | Trace Maps /contribute/trace | Georeference /contribute/georef
 
   Mobile (<=640px): hamburger → bottom-anchored drawer with flat link list.
 
@@ -71,7 +71,7 @@
     </NavDropdown>
 
     <NavDropdown label="Contribute" active={activeContribute}>
-      <a href="/contribute/label"  class="dropdown-item" on:click={closeDrawer}>Label Maps</a>
+      <a href="/contribute/digitalize"  class="dropdown-item" on:click={closeDrawer}>Digitalize</a>
       <a href="/contribute/trace"  class="dropdown-item" on:click={closeDrawer}>Trace Maps</a>
       <a href="/contribute/georef" class="dropdown-item" on:click={closeDrawer}>Georeference</a>
     </NavDropdown>
@@ -135,7 +135,7 @@
       <a href="/annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
 
       <p class="drawer-section-label">Contribute</p>
-      <a href="/contribute/label"  class="drawer-link" on:click={closeDrawer}>Label Maps</a>
+      <a href="/contribute/digitalize"  class="drawer-link" on:click={closeDrawer}>Digitalize</a>
       <a href="/contribute/trace"  class="drawer-link" on:click={closeDrawer}>Trace Maps</a>
       <a href="/contribute/georef" class="drawer-link" on:click={closeDrawer}>Georeference</a>
 

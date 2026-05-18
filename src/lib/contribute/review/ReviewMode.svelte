@@ -8,7 +8,7 @@
   import { fetchSubmittedFootprints } from '$lib/supabase/labels';
   import type { SamFootprint } from '$lib/supabase/labels';
   import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
-  import type { FeatureType } from '$lib/contribute/label/types';
+  import type { FeatureType } from '$lib/contribute/shared/types';
   import ReviewCanvas from './ReviewCanvas.svelte';
   import ReviewSidebar from './ReviewSidebar.svelte';
 

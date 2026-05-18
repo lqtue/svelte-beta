@@ -31,7 +31,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     patch.reviewer_id = user.id;
     patch.reviewed_at = new Date().toISOString();
   }
-  const { data, error: dbErr } = await (supabase as any)
+  const { data, error: dbErr } = await supabase
     .from('scout_candidates')
     .update(patch).eq('id', params.id).select().single();
   if (dbErr) throw error(500, dbErr.message);

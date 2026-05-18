@@ -33,7 +33,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     // unique index violation on (map_id) WHERE is_primary = true.
     // The trigger would do this too, but it runs AFTER the constraint check.
     if (updateData.is_primary === true) {
-        const { error: clearErr } = await (supabase as any)
+        const { error: clearErr } = await supabase
             .from('map_iiif_sources')
             .update({ is_primary: false })
             .eq('map_id', params.id)
@@ -42,7 +42,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
         if (clearErr) throw error(500, clearErr.message);
     }
 
-    const { data, error: dbError } = await (supabase as any)
+    const { data, error: dbError } = await supabase
         .from('map_iiif_sources')
         .update(updateData)
         .eq('id', params.sourceId)
@@ -59,7 +59,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
     const supabase = await getAdminClient(locals);
 
     // Guard: don't delete the primary if it's the only source
-    const { data: sources } = await (supabase as any)
+    const { data: sources } = await supabase
         .from('map_iiif_sources')
         .select('id, is_primary')
         .eq('map_id', params.id);
@@ -71,7 +71,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
         throw error(400, 'Cannot delete the only IIIF source for a map');
     }
 
-    const { error: dbError } = await (supabase as any)
+    const { error: dbError } = await supabase
         .from('map_iiif_sources')
         .delete()
         .eq('id', params.sourceId)

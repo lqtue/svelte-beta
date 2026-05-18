@@ -41,7 +41,7 @@ export function geometryKind(ft: FeatureType): 'Polygon' | 'LineString' {
 	return ft === 'road' || ft === 'waterway' ? 'LineString' : 'Polygon';
 }
 
-// Canonical SAM color-class categories (matches vectorize.py color profiles)
+// Canonical SAM color-class categories (from the 1882/1898 Saigon cadastral legend).
 export type SamCategory = 'particulier' | 'communal' | 'militaire' | 'local_svc' | 'non_affect';
 
 export const SAM_CATEGORY_LABELS: Record<SamCategory, string> = {
