@@ -9,6 +9,7 @@ Guidance for Claude Code working in the Vietnam Map Archive (VMA) repo — a Sve
 - `docs/design-system.md` — tokens, shared CSS, page template
 - `docs/pipelines.md` — OCR + MapSAM2 inference command reference
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker, holding-institution model
+- `docs/knowledge-graph.html` — interactive graph of routes, components, stores, tables, pipelines (open in browser)
 - `work/MapSAM2/CLAUDE.md` — fine-tuned SAM2 fork (LoRA, M1, training). Has its own venv: `.venv-m1/`.
 - `work/vectorize/`, `work/review/`, `work/ocr/`, `work/iiif-r2/` — feature-scoped artifact dirs and context.
 
@@ -23,6 +24,8 @@ npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 ```
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
+
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/supabase/types.ts`. Run `npm run check` to catch fallout from the new schema.
 
 ## Conventions
 
@@ -39,8 +42,7 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 
 **Supabase types:**
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `.select().single()` narrowing: cast `(data as any)?.field as Type`.
-- `supabase/types.ts` is regenerated from migration head 046. To refresh after a new migration: `supabase gen types typescript --linked 2>/dev/null > src/lib/supabase/types.ts`. About 14 `(supabase as any)` casts remain — audit them when touching the relevant code path; many are legacy and can probably die now that types are current.
+- `supabase/types.ts` is regenerated from migration head 047 — prefer the real types over `as any` casts. If you need to narrow a `.select().single()` result, define an explicit type rather than reaching for `(data as any)`.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css` (tokens + components). Two themes (default neo-brutalist / archival) via tokens — no per-component overrides. New pages should use the template in `docs/design-system.md` and be added to nav + footer everywhere.
 
@@ -52,7 +54,7 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 
 `HistoricalOverlay.svelte` is headless and reacts to `mapStore.activeMapId` + `layerStore` to add/remove the warped historical layer. `DualMapPane.svelte` handles side-by-side.
 
-**Exception — `ImageShell.svelte`** (same dir): IIIF-canvas counterpart to MapShell for pixel-coordinate work. Creates an OL map with a static image extent, exposes via `getImageShellStore()`, binds `imgWidth`/`imgHeight`. Used by Label Studio (`/contribute/label`) and Digitalize (`/contribute/digitalize`) — they do NOT use MapShell or global stores.
+**Exception — `ImageShell.svelte`** (same dir): IIIF-canvas counterpart to MapShell for pixel-coordinate work. Creates an OL map with a static image extent, exposes via `getImageShellStore()`, binds `imgWidth`/`imgHeight`. Used by the `/contribute/digitalize`, `/contribute/trace`, and `/contribute/review` tools — they do NOT use MapShell or global stores.
 
 **IIIF canvas coords:** OL uses `ol_y = -image_y` (y-flip). All tool components store bboxes image-space (y-down) and apply the flip when creating OL geometries. `src/lib/contribute/shared/bboxHandles.ts` centralises handle features and the y-flip for all bbox-editing tools.
 
@@ -69,7 +71,7 @@ State persisted to localStorage as `vma-viewer-state-v1` (debounced 500ms).
 - `(editorial)` — public pages with nav/footer: `/`, `/catalog`, `/about`, `/blog`, `/profile`, `/login`, `/signup`.
 - `(app)` — full-screen map tools with their own layout: `/view`, `/create`, `/annotate`, `/image`, `/contribute/*`.
 
-Redirects: `/studio` → `/annotate`, `/trip` → `/view`, `/hunt` → `/view`, `/georef` → `/contribute/georef` (all 301, query params preserved).
+Redirects: `/contribute/label` → `/contribute/digitalize` (`+page.server.ts`, 301, query params preserved). No other redirect routes are implemented in code despite older references.
 
 ### Modes
 
@@ -88,7 +90,7 @@ Redirects: `/studio` → `/annotate`, `/trip` → `/view`, `/hunt` → `/view`, 
 
 **OCR review** is implemented inside `/contribute/digitalize` (Phase 2). `OcrBboxTool.svelte` renders + edits `ocr_extractions` bboxes; also supports `drawMode` for manual bboxes (POSTs with `model: 'manual'`). `OcrSidebar.svelte` is a filterable table with inline text/category edit + auto-save on blur. Floating `BboxPanel` in `+page.svelte` shows when a bbox is selected.
 
-**Trace (`/contribute/trace`)** uses `TraceTool.svelte` (OL Draw + Select + Modify) + `TraceSidebar.svelte` (shapes table with category/type filtering). Polygon for closed footprints, line for roads/waterways. Persists to `footprint_submissions`. Same data model as the legacy Label Studio; new map-selection UX.
+**Trace (`/contribute/trace`)** uses `TraceTool.svelte` (OL Draw + Select + Modify) + `TraceSidebar.svelte` (shapes table with category/type filtering). Polygon for closed footprints, line for roads/waterways. Persists to `footprint_submissions`.
 
 **Digitalize (`/contribute/digitalize`)** is the two-phase HITL workflow on a single `ImageShell`:
 - **Triage** (`src/lib/contribute/digitalize/`): `TriageTool.svelte` for neatline rect + tile priority grid (click cycle: normal → low-res amber → skip gray → normal); `TriageSidebar.svelte` for tile params + Run OCR. In Cloudflare prod (no `child_process`) the POST returns `{ cli_only, cli_command }` for copy-paste.
@@ -134,7 +136,7 @@ Two directories — singular for UI state, plural for data:
 
 ### Supabase (`src/lib/supabase/`)
 
-`client.ts` / `server.ts` (browser + SSR), `context.ts` (auth via Svelte context), `annotations.ts`, `stories.ts`, `labels.ts`, `georef.ts`. `labels.ts` also has SAM2 review functions including `fetchMapsWithSubmittedFootprints()` (used by `/contribute/review`) and the legacy `fetchLabelMaps()` consumed by both `/contribute/label` and `/contribute/digitalize`.
+`client.ts` / `server.ts` (browser + SSR), `context.ts` (auth via Svelte context), `annotations.ts`, `stories.ts`, `labels.ts`, `georef.ts`. `labels.ts` also has the SAM2 review entry points: `fetchMapsWithSubmittedFootprints()` (used by `/contribute/review`) and `fetchLabelMaps()` (the map-selector data source for `/contribute/digitalize` and `/contribute/trace`).
 
 ## API routes (`src/routes/api/`)
 
@@ -158,7 +160,6 @@ Pipeline:
 
 Other:
 - `/api/admin/labels/`, `/api/admin/labels/[id]/` — task CRUD.
-- `/api/admin/georef/` — georef mgmt.
 - `/api/admin/scout`, `/api/admin/scout/[id]` — see `docs/admin-tooling.md`.
 - `/api/search/` — unified GET over `maps` + (admin/mod) `scout_candidates`. Postgres tsvector via `.textSearch('search_vector', q, { config: 'simple' })`. Query: `q, institution, type, period, source, scoutSource, category, georef, include=maps,scout, limit, offset`. Returns `{ maps, scout, total, facets, periods, role }`. Facets use "all-but-this-dimension" tally. Public users get `status IN ('public','featured')` server-enforced; `include=scout` silently dropped for non-admin/mod.
 - `/auth/callback/`.
