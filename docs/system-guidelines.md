@@ -360,7 +360,84 @@ The contribute hub (`/contribute`) shows review and catalog cards only to `mod` 
 
 ---
 
-## 11. Known debt
+## 11. MapWorkspace plugin contract
+
+`src/lib/shell/MapWorkspace.svelte` is the unified base for every geo-map mode. ViewMode, CreateMode, and AnnotateMode all build on it; new geo-map experiences (LabelMode, RouteMode, etc.) MUST use it rather than mounting `MapShell` directly.
+
+### What MapWorkspace owns
+- `ToolLayout` chrome (responsive workspace, sidebar resize, mobile drawer)
+- `MapShell` + `HistoricalOverlay` (single OL Map instance, basemap layers, warped overlay)
+- `MapToolbar` (view-mode cycle, opacity slider)
+- `MapSearchBar` (geocoding + map title search)
+- `MapModeOverlays` (lens-resize knob, overlay loading toast, error toast)
+- `useMapList` map catalogue fetch + bounds backfill
+- Floating basemap toggle + mobile sidebar toggle
+
+### What MapWorkspace does NOT own
+- Auth gates → caller (route page) decides whether to render the workspace
+- Mode-specific stores (storyPlayer, projectStore, storyLibrary, compareStore, annotation context)
+- Library/editor activeView state → that pattern lives in the mode component
+- URL parameter parsing → route page reads params and seeds the stores
+
+### Required props
+| Prop | Type | Purpose |
+|---|---|---|
+| `mapStore` | `MapStore` | Created via `createGeoMapStores()` in the mode page |
+| `layerStore` | `LayerStore` | Same |
+| `supabase` | `SupabaseClient \| null` | For internal `fetchMaps()` call. Pass `null` to skip auto-load |
+
+### Optional props
+| Prop | Default | When to set |
+|---|---|---|
+| `showDual` | `false` | ViewMode only (only mode that supports dual pane) |
+| `showAddAsPointInSearch` | `false` | CreateMode only |
+| `searchMapsOnly` | `false` | Search shouldn't include geocoded locations |
+| `dualPaneActive` | `false` | Reactive: ViewMode flips this on for dual/compare-split |
+
+### Bind targets
+`bind:mapList`, `bind:selectedMap`, `bind:shellMap`, `bind:sidebarCollapsed`, `bind:isMobile`, `bind:isCompact`. The mode reads these to drive its own logic (e.g. compare-tray needs `mapList`).
+
+### Slots
+| Slot | Render position | Use for |
+|---|---|---|
+| `sidebar` | ToolLayout desktop sidebar | Main editor panel (StoryEditor, AnnotationsPanel, ViewSidebar) |
+| `mobile-sidebar` | ToolLayout mobile drawer | Same panel, mobile presentation |
+| `map-children` | Inside `<MapShell>`'s default slot | OL layers needing shell context: GpsTracker, StoryMarkers, StackedOverlay, DrawTool, MapClickCapture |
+| `dual-pane` | Right pane when `dualPaneActive` | DualMapPane in ViewMode |
+| `map-overlay` | Absolute over the map | Mode-specific DOM toasts (CompareTray, GPS error) |
+| `floating` | Bottom-right next to basemap toggle | Mode-specific buttons (GPS toggle) |
+
+### Events forwarded
+`overlayloadstart`, `overlayloadend`, `overlayloaderror`, `searchnavigate`, `selectmap`, `changeviewmode`, `changeopacity`, `mapsloaded`. Wire whichever ones the plugin needs.
+
+### Z-index layers
+Plugins MUST follow the existing scale in `src/styles/layouts/mode-shared.css`:
+- `5–40`: in-map elements (markers, overlays, draw shapes)
+- `60`: `.overlay-loading` toast
+- `70`: `.overlay-error` toast
+- `90`: `.mobile-overlay` backdrop
+- `100`: `.top-controls`, `.floating-controls`, `.lens-overlay`, sidebar resize handle
+- `200+`: mobile sidebar panel itself
+
+### Example
+```svelte
+<MapWorkspace
+  {supabase}
+  {mapStore}
+  {layerStore}
+  showDual={false}
+  bind:mapList bind:selectedMap bind:shellMap
+  bind:sidebarCollapsed bind:isMobile bind:isCompact
+  on:searchnavigate={handleSearchNavigate}
+>
+  <svelte:fragment slot="sidebar"><MyEditorPanel ... /></svelte:fragment>
+  <svelte:fragment slot="map-children"><MyDrawTool bind:this={drawRef} /></svelte:fragment>
+</MapWorkspace>
+```
+
+---
+
+## 12. Known debt
 
 | Item | Location | Fix |
 |------|----------|-----|
