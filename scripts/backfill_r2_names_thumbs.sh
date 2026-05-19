@@ -29,7 +29,7 @@ echo "$maps" | jq -c '.[]' | while IFS= read -r row; do
   extra=$(echo "$row"   | jq -c '.extra_metadata // {}')
 
   # Parse leading "<number>[b]?" e.g. "20 Ha Noi", "05b Bao Loc"
-  sheet=$(echo "$name" | grep -oE '^[0-9]+[a-z]?\.?' | head -1 | sed 's/\.$//')
+  sheet=$(echo "$name" | grep -oE '^[0-9]+[a-z]?\.?' | head -1 | sed 's/\.$//' || true)
   newname="$name"
   if [[ -n "$sheet" ]]; then
     newname=$(echo "$name" | sed -E "s/^[0-9]+[a-z]?\.?[[:space:]]+//")

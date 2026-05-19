@@ -30,18 +30,22 @@ LOG="scripts/bulk_upload_$(date +%Y%m%d_%H%M%S).log"
 echo "→ Log: $LOG"
 
 parse_meta() {
-  # $1 = basename without .jpg → echoes "NAME|YEAR"
+  # $1 = basename without .jpg → echoes "NAME|YEAR|SHEET"
+  # NAME has both trailing year and leading sheet number stripped.
   local base="$1"
-  # Trailing 4-digit year
-  local year
+  local year sheet name
   year=$(echo "$base" | grep -oE '[0-9]{4}$' || true)
-  local name="$base"
+  name="$base"
   if [[ -n "$year" ]]; then
-    name=$(echo "$base" | sed -E "s/[[:space:]]*$year$//")
+    name=$(echo "$name" | sed -E "s/[[:space:]]*$year$//")
   fi
-  # Collapse whitespace
+  # Leading "<number>[b]?" optionally followed by '.' (e.g. "20 ", "05b ", "00.")
+  sheet=$(echo "$name" | grep -oE '^[0-9]+[a-z]?\.?' | head -1 | sed 's/\.$//' || true)
+  if [[ -n "$sheet" ]]; then
+    name=$(echo "$name" | sed -E "s/^[0-9]+[a-z]?\.?[[:space:]]*//")
+  fi
   name=$(echo "$name" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')
-  echo "${name}|${year}"
+  echo "${name}|${year}|${sheet}"
 }
 
 total=0; ok=0; fail=0
@@ -51,18 +55,23 @@ while IFS= read -r path; do
   total=$((total+1))
 
   base=$(basename "$path" .jpg)
-  IFS='|' read -r NAME YEAR <<< "$(parse_meta "$base")"
+  IFS='|' read -r NAME YEAR SHEET <<< "$(parse_meta "$base")"
   MAP_ID=$(uuidgen | tr 'A-Z' 'a-z')
 
   echo "" | tee -a "$LOG"
   echo "── [$total] $base ──" | tee -a "$LOG"
-  echo "   name=$NAME  year=${YEAR:-?}  uuid=$MAP_ID" | tee -a "$LOG"
+  echo "   name=$NAME  year=${YEAR:-?}  sheet=${SHEET:-?}  uuid=$MAP_ID" | tee -a "$LOG"
 
   # 1) Insert maps row
+  extra_json='{}'
+  if [[ -n "$SHEET" ]]; then
+    extra_json=$(jq -nc --arg s "$SHEET" '{sheet_number: $s}')
+  fi
   insert_payload=$(jq -n \
     --arg id "$MAP_ID" --arg name "$NAME" \
     --arg col "$COLLECTION" \
     --argjson year "${YEAR:-null}" \
+    --argjson extra "$extra_json" \
     '{
       id: $id,
       name: $name,
@@ -70,7 +79,8 @@ while IFS= read -r path; do
       collection: $col,
       source_type: "self",
       status: "draft",
-      map_type: "topographic"
+      map_type: "topographic",
+      extra_metadata: $extra
     }')
   resp=$(curl -s -w "\n%{http_code}" -X POST "$SB_URL/rest/v1/maps" \
     -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" \
@@ -104,13 +114,25 @@ while IFS= read -r path; do
     fail=$((fail+1)); continue
   fi
 
-  # 4) Update maps.iiif_image (trigger on map_iiif_sources should also sync; redundant but safe)
+  # 4) Fetch info.json → derive thumbnail URL from smallest pyramid size
+  THUMB_URL=""
+  info=$(curl -sf "${IIIF_URL}/info.json" || echo "")
+  if [[ -n "$info" ]]; then
+    last=$(echo "$info" | jq -r '.sizes // [] | last | "\(.width),\(.height)"' 2>/dev/null || echo "")
+    if [[ -n "$last" && "$last" != "null,null" ]]; then
+      THUMB_URL="${IIIF_URL}/full/${last}/0/default.jpg"
+    fi
+  fi
+
+  # 5) Update maps.iiif_image (+ thumbnail). Trigger on map_iiif_sources also syncs iiif_image; redundant but safe.
+  patch_payload=$(jq -nc --arg url "$IIIF_URL" --arg thumb "$THUMB_URL" \
+    'if $thumb == "" then {iiif_image: $url} else {iiif_image: $url, thumbnail: $thumb} end')
   curl -s -X PATCH "$SB_URL/rest/v1/maps?id=eq.$MAP_ID" \
     -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"iiif_image\":\"$IIIF_URL\"}" > /dev/null
+    -d "$patch_payload" > /dev/null
 
-  echo "   ✓ $IIIF_URL" | tee -a "$LOG"
+  echo "   ✓ $IIIF_URL${THUMB_URL:+ (thumb ok)}" | tee -a "$LOG"
   ok=$((ok+1))
 done < "$FILE_LIST"
 
