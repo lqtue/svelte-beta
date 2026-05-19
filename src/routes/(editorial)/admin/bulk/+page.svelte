@@ -170,6 +170,24 @@
     }
     createSummary += " · thumbnails backfilled";
   }
+
+  // ── Sync georef status from the Allmaps annotation server ───────────────
+  let syncing = false;
+  let syncResult: string | null = null;
+  async function syncGeorefFromAllmaps() {
+    syncing = true;
+    syncResult = null;
+    try {
+      const res = await fetch('/api/admin/maps/sync-georef', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+      syncResult = `Checked ${data.checked}, flipped ${data.flipped} to georef_done.`;
+    } catch (e: any) {
+      syncResult = `Failed: ${e.message}`;
+    } finally {
+      syncing = false;
+    }
+  }
 </script>
 
 <svelte:head><title>Bulk Upload — Admin</title></svelte:head>
@@ -247,6 +265,17 @@
         </button>
       </div>
       {#if createSummary}<p class="status">{createSummary}</p>{/if}
+    </section>
+
+    <section class="panel">
+      <h2>Sync georef status</h2>
+      <p class="hint">Probe the Allmaps annotation server for every map with an <code>allmaps_id</code> but <code>georef_done = false</code>. Volunteers who finish georef in the Allmaps Editor become visible to /contribute/digitalize after this runs. Idempotent.</p>
+      <div class="script-actions">
+        <button class="pill-btn" on:click={syncGeorefFromAllmaps} disabled={syncing}>
+          {syncing ? 'Syncing…' : 'Sync georef from Allmaps'}
+        </button>
+      </div>
+      {#if syncResult}<p class="status">{syncResult}</p>{/if}
     </section>
 
     {#if resultScript}
