@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem } from '$lib/map/types';
+  import { compareStore, MAX_COMPARE } from '$lib/stores/compareStore';
 
   export let map: MapListItem;
   /** Full href for the card link. Caller builds it (home page adds &city=, catalog doesn't). */
@@ -13,8 +14,20 @@
   export let isFavorited: boolean = false;
   /** Show the collection/source badge (catalog uses it; home page omits it). */
   export let showSourceBadge: boolean = false;
+  /** Show the "add to compare" button. */
+  export let showCompare: boolean = true;
 
   const dispatch = createEventDispatcher<{ toggleFavorite: string }>();
+
+  $: inCompare = $compareStore.ids.includes(map.id);
+  $: compareFull = $compareStore.ids.length >= MAX_COMPARE && !inCompare;
+
+  function handleCompareClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (inCompare) compareStore.remove(map.id);
+    else compareStore.add(map.id);
+  }
 
   function handleImageError(e: Event) {
     (e.target as HTMLImageElement).style.display = 'none';
@@ -59,6 +72,20 @@
       {/if}
     </div>
   </a>
+
+  {#if showCompare && map.allmaps_id}
+    <button
+      class="compare-btn"
+      class:active={inCompare}
+      class:disabled={compareFull}
+      on:click={handleCompareClick}
+      title={inCompare ? 'Remove from compare' : compareFull ? `Compare set is full (${MAX_COMPARE} max)` : 'Add to compare'}
+      aria-label={inCompare ? 'Remove from compare' : 'Add to compare'}
+      disabled={compareFull}
+    >
+      {inCompare ? '✓' : '⇄'}
+    </button>
+  {/if}
 
   {#if showFavorite}
     <button
@@ -196,4 +223,34 @@
   .fav-btn:hover  { transform: scale(1.1) rotate(10deg); }
   .fav-btn:active { transform: scale(0.95); }
 
+  .compare-btn {
+    position: absolute;
+    top: -10px;
+    right: 36px;
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    font-weight: 800;
+    background: var(--color-white);
+    color: #111;
+    border: var(--border-thick);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: var(--shadow-solid-sm);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s, background 0.1s, color 0.1s;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .compare-btn:hover  { transform: scale(1.1); background: #fef3c7; }
+  .compare-btn:active { transform: scale(0.95); }
+  .compare-btn.active { background: #111; color: #fff; }
+  .compare-btn.active:hover { background: #333; }
+  .compare-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+  .compare-btn.disabled:hover { transform: none; background: var(--color-white); }
+
+  /* When showFavorite is false, the compare button takes the favorite slot */
+  .map-card-wrapper:not(:has(.fav-btn)) .compare-btn { right: -10px; }
 </style>

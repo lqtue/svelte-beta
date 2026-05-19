@@ -10,6 +10,16 @@
   import { createEventDispatcher } from "svelte";
   import type { SearchResult, MapListItem } from "$lib/map/types";
   import { parseCoordinates, findNearbyMaps } from "./searchUtils";
+  import { compareStore, MAX_COMPARE } from "$lib/stores/compareStore";
+
+  $: compareIds = $compareStore.ids;
+  $: compareFull = compareIds.length >= MAX_COMPARE;
+
+  function toggleCompare(e: Event, map: MapListItem) {
+    e.stopPropagation();
+    if (compareIds.includes(map.id)) compareStore.remove(map.id);
+    else compareStore.add(map.id);
+  }
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -351,25 +361,43 @@
       <div class="results-list custom-scrollbar">
         {#if filteredMaps.length}
           {#each filteredMaps as map (map.id)}
-            <button
-              type="button"
+            {@const inCompare = compareIds.includes(map.id)}
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div
               class="result-item map-item"
               class:active-map={map.id === selectedMapId}
               on:click={() => handleMapResultClick(map)}
+              role="button"
+              tabindex="0"
+              on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleMapResultClick(map); }}
             >
-              <div class="result-row">
-                <span class="result-title">{map.name}</span>
-                {#if map.id === selectedMapId}
-                  <span class="badge active-badge">Active</span>
-                {/if}
+              <div class="result-body">
+                <div class="result-row">
+                  <span class="result-title">{map.name}</span>
+                  {#if map.id === selectedMapId}
+                    <span class="badge active-badge">Active</span>
+                  {/if}
+                </div>
+                <div class="result-meta">
+                  {#if map.year}<span class="badge year-badge">{map.year}</span>{/if}
+                  {#if map.location}<span class="badge type-badge">{map.location}</span>{/if}
+                </div>
               </div>
-              <div class="result-meta">
-                {#if map.year}<span class="badge year-badge">{map.year}</span
-                  >{/if}
-                {#if map.location}<span class="badge type-badge">{map.location}</span
-                  >{/if}
-              </div>
-            </button>
+              {#if map.allmaps_id}
+                <button
+                  type="button"
+                  class="compare-row-btn"
+                  class:active={inCompare}
+                  disabled={compareFull && !inCompare}
+                  on:click={(e) => toggleCompare(e, map)}
+                  title={inCompare ? 'Remove from compare' : compareFull ? `Compare set is full (${MAX_COMPARE} max)` : 'Add to compare'}
+                  aria-label={inCompare ? 'Remove from compare' : 'Add to compare'}
+                >
+                  {inCompare ? '✓' : '⇄'}
+                </button>
+              {/if}
+            </div>
           {/each}
         {:else if mapsQuery.trim()}
           <p class="empty-msg">No maps match "{mapsQuery}"</p>
@@ -662,13 +690,55 @@
     border-radius: var(--radius-md);
     padding: 0.75rem;
     display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
     transition: all 0.1s;
     text-align: left;
     cursor: pointer;
     width: 100%;
     box-shadow: 2px 2px 0px var(--color-border);
+    box-sizing: border-box;
+}
+.result-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.compare-row-btn {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-white);
+    color: var(--color-text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s, background 0.1s, color 0.1s;
+}
+.compare-row-btn:hover:not(:disabled) {
+    background: #fef3c7;
+    transform: scale(1.08);
+}
+.compare-row-btn.active {
+    background: #111;
+    color: #fff;
+}
+.compare-row-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.result-item.active-map .compare-row-btn {
+    background: rgba(255,255,255,0.92);
+    color: var(--color-text);
 }
 
 button.result-item {
