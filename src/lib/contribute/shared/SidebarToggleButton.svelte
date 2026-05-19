@@ -28,3 +28,7 @@
   {/if}
   <span>{collapsed ? labelShow : labelHide}</span>
 </button>
+
+<style>
+  @import '$styles/layouts/tool-page.css';
+</style>

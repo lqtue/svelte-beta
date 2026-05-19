@@ -32,3 +32,7 @@
     </button>
   {/if}
 </div>
+
+<style>
+  @import '$styles/layouts/tool-page.css';
+</style>

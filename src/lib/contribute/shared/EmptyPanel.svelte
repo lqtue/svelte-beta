@@ -15,3 +15,7 @@
   {/if}
   <p>{message}</p>
 </div>
+
+<style>
+  @import '$styles/layouts/tool-page.css';
+</style>
