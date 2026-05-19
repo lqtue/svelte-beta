@@ -4,6 +4,7 @@ import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
 import type { Database } from '$lib/supabase/types';
+import { deriveAllmapsId } from '$lib/iiif/allmapsId';
 
 async function getAdminClient(locals: App.Locals) {
     const { session, user } = await locals.safeGetSession();
@@ -72,6 +73,18 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     if (body.georef_done  !== undefined) updateData.georef_done  = Boolean(body.georef_done);
     if (body.legend_done  !== undefined) updateData.legend_done  = Boolean(body.legend_done);
     if (body.help_needed  !== undefined) updateData.help_needed  = Boolean(body.help_needed);
+
+    // Auto-derive allmaps_id when iiif_image is being set and caller didn't
+    // provide an explicit allmaps_id. Look up the existing row to see whether
+    // we already have one — never overwrite a present value silently.
+    if (updateData.iiif_image && body.allmaps_id === undefined) {
+        const { data: existing } = await (adminSupabase as any)
+            .from('maps').select('allmaps_id').eq('id', mapId).single();
+        if (!existing?.allmaps_id) {
+            try { updateData.allmaps_id = await deriveAllmapsId(updateData.iiif_image); }
+            catch (e) { console.error('[admin/maps PATCH] deriveAllmapsId failed:', e); }
+        }
+    }
 
     const { data, error: dbError } = await (adminSupabase as any)
         .from('maps')

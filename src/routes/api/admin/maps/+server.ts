@@ -4,6 +4,7 @@ import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
 import type { Database } from '$lib/supabase/types';
+import { deriveAllmapsId } from '$lib/iiif/allmapsId';
 
 async function getAdminClient(locals: App.Locals) {
     const { session, user } = await locals.safeGetSession();
@@ -55,10 +56,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
     if (!name) throw error(400, 'name is required');
 
+    // Auto-derive allmaps_id from iiif_image when caller didn't supply one.
+    let resolvedAllmapsId = allmaps_id || null;
+    if (!resolvedAllmapsId && iiif_image) {
+        try { resolvedAllmapsId = await deriveAllmapsId(iiif_image); }
+        catch (e) { console.error('[admin/maps POST] deriveAllmapsId failed:', e); }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const insertData: Record<string, any> = {
         name,
-        allmaps_id: allmaps_id || null,
+        allmaps_id: resolvedAllmapsId,
         annotation_url: annotation_url || null,
         location: location || null,
         year: year ? Number(year) : null,

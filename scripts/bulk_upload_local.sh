@@ -124,15 +124,20 @@ while IFS= read -r path; do
     fi
   fi
 
-  # 5) Update maps.iiif_image (+ thumbnail). Trigger on map_iiif_sources also syncs iiif_image; redundant but safe.
-  patch_payload=$(jq -nc --arg url "$IIIF_URL" --arg thumb "$THUMB_URL" \
-    'if $thumb == "" then {iiif_image: $url} else {iiif_image: $url, thumbnail: $thumb} end')
+  # 5) Derive allmaps_id via @allmaps/id (SHA-1 hex first 16 of canonical IIIF URL).
+  ALLMAPS_ID=$(node -e "import('@allmaps/id').then(async m => { const u = process.argv[1].replace(/\/(info\.json)?\$/, '').replace(/\/+\$/, ''); process.stdout.write(await m.generateId(u)); })" "$IIIF_URL" 2>/dev/null || echo "")
+
+  # 6) Update maps.iiif_image (+ thumbnail + allmaps_id). Trigger on map_iiif_sources also syncs iiif_image; redundant but safe.
+  patch_payload=$(jq -nc --arg url "$IIIF_URL" --arg thumb "$THUMB_URL" --arg aid "$ALLMAPS_ID" \
+    '{iiif_image: $url}
+     + (if $thumb == "" then {} else {thumbnail: $thumb} end)
+     + (if $aid   == "" then {} else {allmaps_id: $aid}  end)')
   curl -s -X PATCH "$SB_URL/rest/v1/maps?id=eq.$MAP_ID" \
     -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" \
     -H "Content-Type: application/json" \
     -d "$patch_payload" > /dev/null
 
-  echo "   ✓ $IIIF_URL${THUMB_URL:+ (thumb ok)}" | tee -a "$LOG"
+  echo "   ✓ $IIIF_URL${THUMB_URL:+ (thumb ok)}${ALLMAPS_ID:+ (allmaps=$ALLMAPS_ID)}" | tee -a "$LOG"
   ok=$((ok+1))
 done < "$FILE_LIST"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Backfill maps.allmaps_id for rows that had a self-hosted annotation_url but
-// no bare allmaps_id after migration 047. Re-derives the Allmaps image ID from
-// the current iiif_image URL via @allmaps/id.
+// Backfill maps.allmaps_id for any row that has an iiif_image but no
+// allmaps_id. Re-derives the 16-char Allmaps image ID (SHA-1 hex first 16)
+// from the canonical IIIF image service URL via @allmaps/id.
 //
 // Usage:
 //   node scripts/backfill_allmaps_ids.mjs              # dry-run
@@ -9,7 +9,7 @@
 //   node scripts/backfill_allmaps_ids.mjs --map-id <id> [--apply]
 
 import { createClient } from '@supabase/supabase-js';
-import { generateImageId } from '@allmaps/id';
+import { generateId } from '@allmaps/id';
 
 const SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -38,7 +38,6 @@ async function main() {
   let q = sb.from('maps')
     .select('id, name, iiif_image, allmaps_id, annotation_url')
     .is('allmaps_id', null)
-    .not('annotation_url', 'is', null)
     .not('iiif_image', 'is', null);
   if (onlyMapId) q = q.eq('id', onlyMapId);
   const { data: rows, error } = await q;
@@ -52,10 +51,10 @@ async function main() {
   console.log(apply ? 'APPLY mode — writing changes.' : 'DRY-RUN — pass --apply to write.\n');
 
   for (const r of rows) {
-    const canonical = r.iiif_image.replace(/\/+$/, '');
+    const canonical = r.iiif_image.replace(/\/(info\.json)?$/, '').replace(/\/+$/, '');
     let derivedId;
     try {
-      derivedId = await generateImageId(canonical);
+      derivedId = await generateId(canonical);
     } catch (e) {
       console.log(`  ✗ ${r.name} — failed to derive ID: ${e.message}`);
       continue;
