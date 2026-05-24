@@ -88,6 +88,10 @@
   // ── Overlays sync ────────────────────────────────────────────────
   async function syncOverlays(overlays: OverlayLayer[]) {
     if (!olMap) return;
+    // In side-by-side mode the left pane shows ONLY the topmost overlay; the right pane
+    // (DualMapPane) handles the second overlay independently. Hide everything beyond index 0.
+    const ls = get(layerStore);
+    const sideBySide = ls.viewMode === 'dual';
     // Top of stack = first item → highest z. base sits at z=0 or 5; overlays start at z=10.
     const existingIds = new Set(overlayInstances.keys());
     const wantedIds = new Set(overlays.map((o) => o.id));
@@ -126,9 +130,10 @@
         setOverlayOpacity(inst.layer, olMap, o.opacity);
       }
 
-      // Visibility via canvas display (matches HistoricalOverlay behaviour)
+      // Visibility: respect the layer's own toggle, and in side-by-side hide overlays past the top.
+      const visible = o.visible && !(sideBySide && i > 0);
       const canvas = inst.layer.getCanvas?.();
-      if (canvas) canvas.style.display = o.visible ? '' : 'none';
+      if (canvas) canvas.style.display = visible ? '' : 'none';
     }
   }
 
@@ -158,7 +163,11 @@
         );
 
         unsubs.push(
-          layerStore.subscribe(() => refreshClips()),
+          layerStore.subscribe(() => {
+            refreshClips();
+            // viewMode changes (e.g. entering/leaving side-by-side) affect overlay visibility.
+            syncOverlays(get(layersStore).overlays);
+          }),
         );
 
         $map.on('moveend', refreshClips);

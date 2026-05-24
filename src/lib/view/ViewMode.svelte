@@ -80,8 +80,8 @@
   } else if ($mapStore.activeMapId) {
     mapStore.setActiveMap(null, null);
   }
-  /** Side-by-side: right pane uses the 2nd overlay (top - 1). */
-  $: sideAlt = $layersStore.overlays[1]?.ref ?? null;
+  /** Side-by-side: right pane uses the 2nd overlay (R). Left pane shows overlay[0] (L) only. */
+  $: sideAlt = $layersStore.overlays[1] ?? null;
 
   // Track previous mode to detect entering/leaving dual
 
@@ -355,15 +355,14 @@
 
     <svelte:fragment slot="dual-pane">
       {#if viewMode === "dual" && shellMap}
-        <!-- Side-by-side: right pane drops the topmost overlay.
-             If there's a 2nd overlay (sideAlt), it becomes the right pane's overlay.
-             Otherwise the right pane is just the base. -->
+        <!-- Side-by-side: left pane shows overlay[0] (L) only via LayerRenderer;
+             right pane shows overlay[1] (R) only with its own opacity. -->
         <DualMapPane
           primaryMap={shellMap}
           basemap={basemapSelection}
           showOverlay={!!sideAlt}
-          overlayOpacity={1}
-          activeAllmapsId={sideAlt?.allmapsId ?? ''}
+          overlayOpacity={sideAlt?.opacity ?? 1}
+          activeAllmapsId={sideAlt?.ref.allmapsId ?? ''}
         />
       {/if}
     </svelte:fragment>

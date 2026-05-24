@@ -66,21 +66,6 @@
 </script>
 
 <div class="lsp">
-  <div class="lsp-display">
-    {#each DISPLAY_MODES as m}
-      <button
-        type="button"
-        class="lsp-display-pill"
-        class:on={viewMode === m.mode}
-        on:click={() => dispatch('changeViewMode', { mode: m.mode })}
-        title={m.label}
-      >
-        <span class="lsp-display-icon" aria-hidden="true">{m.icon}</span>
-        <span class="lsp-display-name">{m.label}</span>
-      </button>
-    {/each}
-  </div>
-
   <div class="lsp-heading">My layers</div>
 
   <div class="lsp-slot">
@@ -142,13 +127,28 @@
     {/if}
   </div>
 
-  <div class="lsp-base">
-    <span class="lsp-base-label">Base</span>
-    <div class="lsp-base-pills">
+  <div class="lsp-picker">
+    <span class="lsp-picker-label">Display</span>
+    <div class="lsp-picker-pills">
+      {#each DISPLAY_MODES as m}
+        <button
+          type="button"
+          class="lsp-picker-pill"
+          class:on={viewMode === m.mode}
+          on:click={() => dispatch('changeViewMode', { mode: m.mode })}
+          title={m.label}
+        >{m.icon} {m.label}</button>
+      {/each}
+    </div>
+  </div>
+
+  <div class="lsp-picker">
+    <span class="lsp-picker-label">Base</span>
+    <div class="lsp-picker-pills">
       {#each BASE_CHOICES as c}
         <button
           type="button"
-          class="lsp-base-pill"
+          class="lsp-picker-pill"
           class:on={currentBaseKey === c.key}
           on:click={() => setBase(c.key)}
         >{c.label}</button>
@@ -175,26 +175,6 @@
     color: #555; margin: 0.5rem 0 0.4rem;
   }
 
-  /* Display mode (Stacked / Lens / Side-by-side) */
-  .lsp-display {
-    flex-shrink: 0;
-    display: flex; gap: 0.25rem;
-  }
-  .lsp-display-pill {
-    flex: 1;
-    display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;
-    padding: 0.3rem 0.4rem;
-    background: #fff; color: #111;
-    border: 1.5px solid #111; border-radius: 999px;
-    font: inherit; font-family: 'Outfit', sans-serif;
-    font-size: 0.72rem; font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .lsp-display-pill:hover { background: #fafaf7; }
-  .lsp-display-pill.on { background: #111; color: #fff; border-color: #111; }
-  .lsp-display-icon { font-size: 0.85rem; line-height: 1; }
-  @media (max-width: 360px) { .lsp-display-name { display: none; } }
   /* Layer list slot fills the panel and scrolls internally. */
   .lsp-slot {
     flex: 1 1 auto;
@@ -262,19 +242,20 @@
   }
   .lsp-x:hover { background: #fee2e2; color: #b91c1c; }
 
-  .lsp-base {
+  /* Shared bottom pickers (Display + Base). */
+  .lsp-picker {
     flex-shrink: 0;
-    margin-top: 0.5rem; padding-top: 0.4rem;
+    margin-top: 0.4rem; padding-top: 0.35rem;
     border-top: 1.5px dashed #d9d4c0;
     display: flex; flex-direction: column; gap: 0.3rem;
   }
-  .lsp-base-label {
+  .lsp-picker-label {
     font-size: 0.6rem; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.05em;
     color: #777;
   }
-  .lsp-base-pills { display: flex; gap: 0.25rem; }
-  .lsp-base-pill {
+  .lsp-picker-pills { display: flex; gap: 0.25rem; }
+  .lsp-picker-pill {
     flex: 1;
     padding: 0.3rem 0.4rem;
     background: #fff; color: #111;
@@ -284,7 +265,8 @@
     cursor: pointer;
     text-align: center;
     white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
   }
-  .lsp-base-pill:hover { background: #fafaf7; }
-  .lsp-base-pill.on { background: #111; color: #fff; }
+  .lsp-picker-pill:hover { background: #fafaf7; }
+  .lsp-picker-pill.on { background: #111; color: #fff; }
 </style>
