@@ -9,6 +9,45 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
 	{
+		slug: 'layer-stack-2026-05',
+		title: 'Rebuilding /view Around a Single Concept: the Layer Stack',
+		date: '2026-05-24',
+		category: 'update',
+		excerpt:
+			'A short post on a long refactor. The map viewer had grown three overlapping mental models — active map, base map, compare set — each with their own UI surface, each leaking into the others. We collapsed them into one Photoshop-style layer stack with a single store, then redesigned mobile around two labeled bottom drawers.',
+		content: `
+<p>If you opened <code>/view</code> a week ago and tried to put one historical map under another and a third on top to compare, you would have used three different buttons in three different places, talking to three different stores, rendered by three different components. It worked, but only if you already understood the model. New users didn't. Even we kept tripping on it.</p>
+<p>This post is about the cleanup: what was wrong, what we replaced it with, and the mobile UX that fell out of doing the work properly.</p>
+
+<h2>What was wrong</h2>
+<p>The state for "what the map is showing" was split across three stores:</p>
+<ul>
+<li><strong><code>mapStore.activeMapId</code></strong> — the single overlay historical map (set by clicking a catalog row)</li>
+<li><strong><code>mapStore.baseMapId</code></strong> — a separate slot for a historical map used as the base layer (set by a "B" button)</li>
+<li><strong><code>compareStore.ids[]</code></strong> — additional overlays for compare/stack modes (set by a "+" button)</li>
+</ul>
+<p>Three writes, three renderers (<code>HistoricalOverlay</code>, <code>HistoricalBaseLayer</code>, a manual <code>StackedOverlay</code> loop), three concepts the user had to keep straight. On top of that, the bottom map toolbar had its own "view mode" (Overlay/Lens/Dual) AND "compare mode" (Split/Stack) — and Split and Dual rendered the same thing, while Stack and the default "show two overlays" did the same thing differently. The opacity slider in the toolbar only controlled one of the layers; the others were hard-coded at 0.6. So toggling between modes changed which thing was opaque-controllable in confusing ways.</p>
+<p>This is what happens when features land sequentially without revisiting the model.</p>
+
+<h2>The new mental model</h2>
+<p>One concept: a <strong>layer stack</strong>, exactly like Photoshop. There's a <em>base</em> at the bottom (Maps, Satellite, or None) and zero-to-ten <em>overlays</em> stacked on top. Each overlay has its own opacity slider, visibility toggle, remove button, and drag handle for reordering. The catalog has two actions per row: click the row replaces the stack with this one map, and the "+" button adds to the stack alongside whatever's there.</p>
+<p>Display mode (Stacked / Lens / Side-by-side) is now orthogonal to the stack contents — it's how the stack is shown, not what's in it. Side-by-side drops the topmost overlay in the right pane, so you can flick between "with this top map" and "without" by looking left vs. right. The top two layers get a small L / R badge so it's obvious which one is which.</p>
+<p>Internally, this collapsed three stores into one (<code>layersStore</code>) and three renderers into one (<code>LayerRenderer</code>). Persistence to <code>localStorage</code> means your stack survives a refresh, which is a small thing that matters a lot when you're comparing maps.</p>
+
+<h2>The cleanup was bigger than the new feature</h2>
+<p>The actual layer-stack work was maybe a third of this commit. The other two thirds were deletion: <code>compareStore</code>, <code>CompareTray</code>, <code>HistoricalOverlay</code>, <code>HistoricalBaseLayer</code>, <code>StackedOverlay</code>, <code>MapToolbar</code>, the floating basemap toggle, the active-info card, the "Back to Catalog" sidebar link, and a couple hundred lines of orphaned CSS in <code>tool-page.css</code>. Net change: +2,543 / −2,334 across 34 files. Roughly break-even line-wise; substantially less surface area.</p>
+<p>One of the warnings about premature abstraction is that the abstractions stop being neutral — they start nudging future code into shapes that fit them. <code>compareStore</code> was that. Anything to do with multiple maps got routed through "compare," which made it hard to think of layers as a generic stack. Deleting it freed us to think about layers as layers.</p>
+
+<h2>Mobile got rebuilt around two drawers</h2>
+<p>Once layers were a stack, the desktop sidebar split into two halves — layer controls on top, browse catalog on the bottom — at a 40/60 ratio. On mobile, we couldn't fit both at once, but tabs felt wrong: users coming from the map don't want to lose the map to read a list. So the answer was two bottom drawers, stacked: one labeled <strong>🗺️ Layers</strong>, the other <strong>📋 Browse</strong>. Both labels are always visible at the bottom of the screen. Tap one, it slides up to 70vh; tap again or tap the backdrop, it slides back down. The labels stay pinned at the bottom of each drawer so you never lose orientation.</p>
+<p>This came out of a small reusable component, <code>MobileDrawer.svelte</code>, that takes a label, an icon, and an open boolean. Most of the complexity that used to live in <code>ToolLayout</code>'s mobile branch is now just two instances of that component plus an open-drawer state.</p>
+
+<h2>Why this post exists</h2>
+<p>VMA is a small project run on volunteer time. The pace of feature work means it's easy to add things and never look back. But complexity compounds — every new feature that lands on a confused model multiplies the confusion. Spending a week to rip out three half-baked abstractions and replace them with one good one is rarely the loudest commit, but it's often the most useful. The next person to touch the viewer — possibly future-me, possibly a new contributor — will hopefully look at <code>layersStore</code>, understand it in two minutes, and add their feature without breaking anything else.</p>
+<p>If you want to try it: open <a href="/view" target="_blank">/view</a>, click any map in the catalog to load it, click "+" on another to stack them, drag layers to reorder, and switch between Stacked / Lens / Side-by-side from the panel header. On a phone, the two drawers sit at the bottom and behave like the rest of mobile internet. That's it. That's the whole interface.</p>
+		`
+	},
+	{
 		slug: 'scout-pipeline-2026-05',
 		title: 'Scouting 3,373 Maps: Building a Discovery Pipeline for Vietnam Cartography',
 		date: '2026-05-16',
