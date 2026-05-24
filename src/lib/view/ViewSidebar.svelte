@@ -8,51 +8,28 @@
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem } from '$lib/map/types';
   import type { Story } from '$lib/story/types';
-  import { shareContent, getMapShareData, getStoryShareData } from '$lib/utils/share';
+  import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
+  import LayerStackPanel from '$lib/ui/catalog/LayerStackPanel.svelte';
+  import type { ViewMode } from '$lib/map/types';
 
   const dispatch = createEventDispatcher<{
     selectStory: { story: Story };
     toggleCollapse: void;
     zoomToMap: { map: MapListItem };
+    pickMap: any;
+    pickLocation: { lat: number; lng: number; label: string; bbox?: [number, number, number, number] };
+    changeViewMode: { mode: ViewMode };
   }>();
 
   export let selectedMap: MapListItem | null = null;
   export let stories: Story[] = [];
   export let activeStoryId: string | null = null;
-
-  let shareStatus: 'idle' | 'success' | 'error' = 'idle';
-  let shareStatusTimer: ReturnType<typeof setTimeout> | null = null;
-
-  async function handleShareMap() {
-    if (!selectedMap) return;
-
-    const shareData = getMapShareData(selectedMap.id, selectedMap.name);
-    const success = await shareContent(shareData);
-
-    shareStatus = success ? 'success' : 'error';
-    if (shareStatusTimer) clearTimeout(shareStatusTimer);
-    shareStatusTimer = setTimeout(() => {
-      shareStatus = 'idle';
-    }, 2000);
-  }
-
-  async function handleShareStory(story: Story) {
-    const shareData = getStoryShareData(story.id, story.title);
-    const success = await shareContent(shareData);
-
-    // Could show a toast notification here
-    return success;
-  }
+  export let role: 'user' | 'mod' | 'admin' = 'user';
+  export let viewMode: ViewMode = 'overlay';
 </script>
 
 <aside class="panel">
   <div class="panel-header">
-    <a href="/catalog" class="home-link" aria-label="Back to Catalog">
-      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12.5 15L7.5 10L12.5 5" />
-      </svg>
-      Catalog
-    </a>
     <span class="panel-mode-label">Map Viewer</span>
     <button
       type="button"
@@ -66,51 +43,19 @@
     </button>
   </div>
 
-  <div class="panel-scroll">
-    {#if selectedMap}
-      <div class="map-meta">
-        <h3 class="meta-name">{selectedMap.name}</h3>
+  <div class="slot-layers">
+    <LayerStackPanel {viewMode} on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)} />
+  </div>
 
-        {#if selectedMap.year || selectedMap.location}
-          <div class="meta-tags">
-            {#if selectedMap.year}
-              <span class="meta-tag tag-year">{selectedMap.year}</span>
-            {/if}
-            {#if selectedMap.location}
-              <span class="meta-tag tag-city">{selectedMap.location}</span>
-            {/if}
-          </div>
-        {/if}
-
-        {#if selectedMap.dc_description}
-          <p class="meta-desc">{selectedMap.dc_description}</p>
-        {/if}
-
-        <div class="meta-actions">
-          <button type="button" class="meta-action-btn primary" on:click={() => dispatch('zoomToMap', { map: selectedMap })}>
-            Zoom to map
-          </button>
-          <button
-            type="button"
-            class="meta-action-btn secondary"
-            class:success={shareStatus === 'success'}
-            on:click={handleShareMap}
-          >
-            {shareStatus === 'success' ? 'Link copied!' : 'Share map'}
-          </button>
-          <a href="/image?map={selectedMap.id}" class="meta-action-btn secondary">View image</a>
-          <a href="/annotate?map={selectedMap.id}" class="meta-action-btn secondary">Annotate</a>
-          <a href="/create?map={selectedMap.id}" class="meta-action-btn secondary">Create story</a>
-        </div>
-      </div>
-    {:else}
-      <div class="panel-empty">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
-          <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-        </svg>
-        <p>Select a map from the search bar.</p>
-      </div>
-    {/if}
+  <div class="panel-scroll slot-browse">
+    <CatalogSidebarPanel
+      {role}
+      activeId={selectedMap?.id ?? null}
+      requireGeoref={true}
+      showLayerActions={true}
+      on:pick={(e) => dispatch('pickMap', e.detail)}
+      on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
+    />
 
     {#if stories.length}
       <div class="stories-section">
@@ -138,9 +83,21 @@
 <style>
   @import '$styles/layouts/tool-page.css';
 
+  /* 40 / 60 split on desktop: layer stack (top) and browse (bottom). */
+  .slot-layers {
+    flex: 4 1 0;
+    min-height: 0;
+    display: flex; flex-direction: column;
+  }
+  .slot-browse {
+    flex: 6 1 0;
+    min-height: 0;
+    display: flex; flex-direction: column;
+  }
+
+
   /* ── Scroll area (view-sidebar-specific) ─────────────────────────────── */
   .panel-scroll {
-    flex: 1 1 auto;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--color-gray-300) transparent;

@@ -13,12 +13,22 @@
   import { page } from '$app/stores';
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import ImageShell from '$lib/shell/ImageShell.svelte';
-  import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
+  import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
   import { fetchMaps } from '$lib/maps/service';
   import type { MapListItem } from '$lib/maps/types';
 
-  const { supabase } = getSupabaseContext();
+  const { supabase, session } = getSupabaseContext();
+
+  let catalogRole: 'user' | 'mod' | 'admin' = 'user';
+
+  function handleCatalogPick(e: CustomEvent<any>) {
+    const item = e.detail;
+    if (!item?.id) return;
+    const match = maps.find((m) => m.id === item.id);
+    if (match) selectMap(match);
+    else if (item.iiif_image) selectMap(item as MapListItem);
+  }
 
   // ── Map list ───────────────────────────────────────────────────────────────
   let maps: MapListItem[] = [];
@@ -53,6 +63,10 @@
       const match = maps.find((m) => m.id === paramId);
       if (match) selectMap(match);
     }
+    if (session?.user?.id) {
+      const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      catalogRole = ((data as any)?.role as 'user' | 'mod' | 'admin') ?? 'user';
+    }
   });
 </script>
 
@@ -70,12 +84,6 @@
     <svelte:fragment slot="sidebar">
       <aside class="panel">
         <div class="panel-header">
-          <a href="/catalog" class="home-link" aria-label="Back to Catalog">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12.5 15L7.5 10L12.5 5"/>
-            </svg>
-            Catalog
-          </a>
           <div class="panel-mode-label">Image Viewer</div>
           <button
             type="button"
@@ -89,60 +97,45 @@
           </button>
         </div>
 
-        {#if !currentMap}
-          <div class="panel-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
-              <rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M9 21V9"/>
-            </svg>
-            <p>Select a map to view its image.</p>
-          </div>
-        {:else}
-          <div class="map-meta">
-            <h3 class="meta-name">{currentMap.name}</h3>
-
-            {#if currentMap.year_label ?? currentMap.year}
-              <p class="meta-row">
-                <span class="meta-key">Year</span>
-                <span class="meta-val">{currentMap.year_label ?? currentMap.year}</span>
-              </p>
-            {/if}
-
-            {#if currentMap.location}
-              <p class="meta-row">
-                <span class="meta-key">Location</span>
-                <span class="meta-val">{currentMap.location}</span>
-              </p>
-            {/if}
-
-            {#if currentMap.collection}
-              <p class="meta-row">
-                <span class="meta-key">Source</span>
-                <span class="meta-val">{currentMap.collection}</span>
-              </p>
-            {/if}
-
-            {#if currentMap.dc_description}
-              <p class="meta-desc">{currentMap.dc_description}</p>
-            {/if}
-
-            <div class="meta-actions">
-              {#if currentMap.allmaps_id}
-                <a href="/view?map={currentMap.id}" class="meta-action-btn primary">View on Map</a>
+        <div class="active-slot">
+          {#if currentMap}
+            <div class="active-card" title={currentMap.name}>
+              {#if currentMap.thumbnail}
+                <img class="ac-thumb" src={currentMap.thumbnail} alt="" loading="lazy" />
               {/if}
-              <a href="/catalog" class="meta-action-btn secondary">← Catalog</a>
+              <div class="ac-body">
+                <div class="ac-eyebrow">Now viewing</div>
+                <h3 class="ac-name">{currentMap.name}</h3>
+                <div class="ac-meta">
+                  {#if currentMap.year_label || currentMap.year}<span>{currentMap.year_label || currentMap.year}</span>{/if}
+                  {#if currentMap.location}<span>· {currentMap.location}</span>{/if}
+                  {#if currentMap.collection}<span>· {currentMap.collection}</span>{/if}
+                </div>
+                <div class="ac-actions">
+                  {#if currentMap.allmaps_id}
+                    <a class="ac-btn primary" href={`/view?map=${currentMap.id}`}>🌍 Open on map</a>
+                  {/if}
+                  <a class="ac-btn" href={`/annotate?map=${currentMap.id}`}>✏️ Annotate</a>
+                </div>
+              </div>
             </div>
-          </div>
-        {/if}
+          {:else}
+            <div class="active-empty">
+              <span class="ae-icon" aria-hidden="true">🖼️</span>
+              <div class="ae-text">
+                <span class="ae-label">No map selected</span>
+                <span class="ae-hint">Pick one below to view</span>
+              </div>
+            </div>
+          {/if}
+        </div>
+
+        <div class="panel-scroll">
+          <CatalogSidebarPanel role={catalogRole} showLocation={false} activeId={currentMap?.id ?? null} on:pick={handleCatalogPick} />
+        </div>
       </aside>
     </svelte:fragment>
 
-    <!-- Floating map search (canvas, top-center) — maps only, no location tab -->
-    <MapSearchBar
-      maps={imageMaps as any}
-      selectedMapId={currentMap?.id ?? null}
-      mapsOnly={true}
-      on:selectMap={(e) => selectMap(e.detail.map as any)}
-    />
 
     <!-- Image stage -->
     {#if currentMap && iiifInfoUrl}
@@ -158,4 +151,55 @@
 
 <style>
   @import '$styles/layouts/tool-page.css';
+
+  .active-slot {
+    flex-shrink: 0;
+    min-height: 90px;
+    display: flex; flex-direction: column;
+  }
+  .active-empty {
+    display: flex; align-items: center; gap: 0.6rem;
+    margin: 0.6rem 0.6rem 0;
+    padding: 0.7rem 0.85rem;
+    background: #f5f3ea;
+    border: 1.5px dashed #c8c4b5; border-radius: 10px;
+    font-family: 'Outfit', sans-serif; color: #777;
+  }
+  .ae-icon { font-size: 1.4rem; opacity: 0.6; }
+  .ae-text { display: flex; flex-direction: column; }
+  .ae-label { font-size: 0.82rem; font-weight: 700; color: #555; }
+  .ae-hint { font-size: 0.7rem; color: #888; }
+
+  .active-card {
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+    margin: 0.6rem 0.6rem 0;
+    background: #fff7d1;
+    border: 1.5px solid #111; border-radius: 10px;
+    font-family: 'Outfit', sans-serif;
+    overflow: hidden;
+  }
+  .ac-thumb { width: 100%; max-height: 120px; object-fit: cover; display: block; border-bottom: 1.5px solid #111; background: #f1ede0; }
+  .ac-body { padding: 0.55rem 0.7rem 0.7rem; }
+  .ac-eyebrow { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #555; }
+  .ac-name { margin: 0.15rem 0 0.3rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.95rem; line-height: 1.2; color: #111; }
+  .ac-meta { display: flex; flex-wrap: wrap; gap: 0.2rem; font-size: 0.72rem; color: #444; margin-bottom: 0.5rem; }
+  .ac-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .ac-btn {
+    flex: 1; min-width: 90px;
+    padding: 0.35rem 0.55rem; text-align: center;
+    background: #fff; color: #111; text-decoration: none;
+    border: 1.5px solid #111; border-radius: 6px;
+    box-shadow: 1.5px 1.5px 0 #111;
+    font: inherit; font-size: 0.75rem; font-weight: 700;
+  }
+  .ac-btn:hover { transform: translate(-0.5px, -0.5px); box-shadow: 2px 2px 0 #111; }
+  .ac-btn.primary { background: #111; color: #fff; }
+
+  .panel-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
 </style>

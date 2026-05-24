@@ -1,30 +1,34 @@
 <!--
-  ToolLayout.svelte — Shared responsive layout for all tool pages (/view, /create, /annotate, /image, /contribute/digitalize, /contribute/trace).
+  ToolLayout.svelte — responsive shell for map tool pages.
 
-  Provides:
-  - workspace + map-stage grid (with-sidebar / compact breakpoints)
-  - Responsive breakpoint detection (isMobile, isCompact) — bind: these out
-  - Sidebar collapse/toggle logic + "show panel" button
-  - Mobile sidebar sliding panel + backdrop overlay
-  - floating-controls container (bottom-right of map-stage)
+  Desktop (≥ 901px):
+    [sidebar slot]  [resize handle]  [map-stage]
+
+  Mobile (< 900px):
+    Full-screen map with stacked labeled MobileDrawers at the bottom.
+    Only one drawer is open at a time. Tabs always visible; tap to expand.
 
   Slots:
-  - sidebar         — desktop panel (rendered inside workspace grid, left column)
-  - default         — map content inside map-stage (MapShell, StudioMap, etc.)
-  - floating        — controls rendered inside .floating-controls (bottom-right)
-  - mobile-sidebar  — content inside the mobile sliding panel (optional)
+    sidebar           — desktop panel
+    default           — map content
+    floating          — bottom-right controls
+    mobile-layers     — mobile drawer 1 body  (label: "Layers")
+    mobile-browse     — mobile drawer 2 body  (label: "Browse")
+    mobile-sidebar    — legacy fallback (single drawer, label: "Tools")
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import '$styles/layouts/mode-shared.css';
+  import MobileDrawer from '$lib/ui/MobileDrawer.svelte';
 
-  /** Bind this from the parent to read or control sidebar state. */
   export let sidebarCollapsed = false;
-  /** Bind to read responsive state in the parent. */
   export let isMobile = false;
   export let isCompact = false;
 
-  let responsiveCleanup: (() => void) | null = null;
+  /** Mobile: which drawer is open. */
+  let openDrawer: 'none' | 'layers' | 'browse' | 'legacy' = 'none';
+
+  // ── Sidebar resizing (desktop) ───────────────────────────────
   let sidebarWidth = 320;
   let isResizing = false;
 
@@ -35,14 +39,10 @@
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }
-
   function handleMouseMove(e: MouseEvent) {
     if (!isResizing) return;
-    // sidebar typically starts after a 1rem (16px) padding
-    const newWidth = Math.max(260, Math.min(600, e.clientX - 16));
-    sidebarWidth = newWidth;
+    sidebarWidth = Math.max(260, Math.min(600, e.clientX - 16));
   }
-
   function stopResizing() {
     isResizing = false;
     window.removeEventListener('mousemove', handleMouseMove);
@@ -51,6 +51,8 @@
     document.body.style.userSelect = '';
   }
 
+  // ── Responsive breakpoints ───────────────────────────────────
+  let responsiveCleanup: (() => void) | null = null;
   onMount(() => {
     const mobileQuery = window.matchMedia('(max-width: 900px)');
     const compactQuery = window.matchMedia('(max-width: 1400px)');
@@ -71,28 +73,33 @@
     responsiveCleanup?.();
     stopResizing();
   });
+
+  $: hasSidebar = !!$$slots.sidebar;
+  $: hasMobileLayers = !!$$slots['mobile-layers'];
+  $: hasMobileBrowse = !!$$slots['mobile-browse'];
+  $: hasMobileSidebar = !!$$slots['mobile-sidebar'];
+  $: hasAnyDrawer = hasMobileLayers || hasMobileBrowse || hasMobileSidebar;
+  $: showDesktopSidebar = hasSidebar && !sidebarCollapsed && !isMobile;
 </script>
 
 <div
   class="workspace"
-  class:with-sidebar={!sidebarCollapsed && !isMobile}
+  class:with-sidebar={showDesktopSidebar}
   class:compact={isCompact}
+  class:mobile={isMobile}
   style="--sidebar-width: {sidebarWidth}px"
 >
-  {#if !sidebarCollapsed && !isMobile}
-    <slot name="sidebar" />
-    <div 
-      class="resize-handle" 
-      on:mousedown={startResizing}
-      role="presentation"
-    ></div>
+  {#if showDesktopSidebar}
+    <div class="sidebar-slot">
+      <slot name="sidebar" />
+    </div>
+    <div class="resize-handle" on:mousedown={startResizing} role="presentation"></div>
   {/if}
 
   <div class="map-stage">
     <slot />
 
-    <!-- Show Panel button (top-left, only when sidebar is collapsed on desktop) -->
-    {#if sidebarCollapsed && !isMobile && $$slots.sidebar}
+    {#if sidebarCollapsed && !isMobile && hasSidebar}
       <div class="top-controls">
         <button
           type="button"
@@ -101,8 +108,7 @@
           title="Show panel"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M9 3v18" />
+            <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" />
           </svg>
         </button>
       </div>
@@ -114,50 +120,92 @@
       </div>
     {/if}
   </div>
+
+  {#if isMobile && hasAnyDrawer}
+    {#if openDrawer !== 'none'}
+      <div class="drawer-backdrop" on:click={() => (openDrawer = 'none')} role="presentation"></div>
+    {/if}
+
+    <div class="drawer-stack">
+      {#if hasMobileLayers}
+        <MobileDrawer
+          label="Layers"
+          icon="🗺️"
+          open={openDrawer === 'layers'}
+          on:toggle={(e) => (openDrawer = e.detail.open ? 'layers' : 'none')}
+        >
+          <slot name="mobile-layers" />
+        </MobileDrawer>
+      {/if}
+
+      {#if hasMobileBrowse}
+        <MobileDrawer
+          label="Browse"
+          icon="📋"
+          open={openDrawer === 'browse'}
+          on:toggle={(e) => (openDrawer = e.detail.open ? 'browse' : 'none')}
+        >
+          <slot name="mobile-browse" />
+        </MobileDrawer>
+      {/if}
+
+      {#if hasMobileSidebar && !hasMobileLayers && !hasMobileBrowse}
+        <MobileDrawer
+          label="Tools"
+          icon="📋"
+          open={openDrawer === 'legacy'}
+          on:toggle={(e) => (openDrawer = e.detail.open ? 'legacy' : 'none')}
+        >
+          <slot name="mobile-sidebar" />
+        </MobileDrawer>
+      {/if}
+    </div>
+  {/if}
 </div>
 
-<!-- Mobile sidebar (sliding panel) -->
-{#if isMobile && !sidebarCollapsed && $$slots['mobile-sidebar']}
-  <div
-    class="mobile-overlay"
-    on:click={() => (sidebarCollapsed = true)}
-    role="presentation"
-  ></div>
-  <div class="mobile-sidebar">
-    <slot name="mobile-sidebar" />
-  </div>
-{/if}
-
 <style>
-  .resize-handle {
-    position: absolute;
-    top: 1rem;
-    bottom: 1rem;
-    left: calc(var(--sidebar-width) + 1rem); /* Start of the gap */
-    width: 1rem; /* Full gap width */
-    cursor: col-resize;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .sidebar-slot {
+    min-width: 0; min-height: 0;
+    display: flex; flex-direction: column;
   }
 
+  .resize-handle {
+    position: absolute;
+    top: 1rem; bottom: 1rem;
+    left: calc(var(--sidebar-width) + 1rem);
+    width: 1rem;
+    cursor: col-resize;
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+  }
   .resize-handle::after {
     content: '';
-    width: 2px;
-    height: 48px;
+    width: 2px; height: 48px;
     background: var(--color-gray-300);
     border-radius: 1px;
     transition: all 0.2s;
   }
-
   .resize-handle:hover::after {
     background: var(--color-blue);
-    height: 64px;
-    width: 4px;
+    height: 64px; width: 4px;
   }
+  .workspace:not(.with-sidebar) .resize-handle { display: none; }
 
-  .workspace:not(.with-sidebar) .resize-handle {
-    display: none;
+  /* ── Mobile drawer stack ───────────────────────────────────── */
+  .drawer-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 55;
+    animation: db-fade 0.15s ease-out;
+  }
+  @keyframes db-fade { from { opacity: 0; } to { opacity: 1; } }
+
+  .drawer-stack {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    display: flex; flex-direction: column;
+    pointer-events: none;   /* drawers opt in so map stays interactive between tabs */
+    padding-bottom: env(safe-area-inset-bottom);
   }
 </style>

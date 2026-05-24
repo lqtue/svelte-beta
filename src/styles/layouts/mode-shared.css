@@ -28,6 +28,19 @@
     grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr);
 }
 
+/* Mobile: full-screen panes with bottom tab bar (ToolLayout handles which pane is visible). */
+.workspace.mobile {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    padding: 0;
+    gap: 0;
+}
+.workspace.mobile .map-stage {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+}
+
 .map-stage {
     position: relative;
     min-height: 0;

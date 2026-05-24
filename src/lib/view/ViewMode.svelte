@@ -4,12 +4,11 @@
   Provides view-specific behavior:
     • Story playback (storyPlayer store + StoryPlayback panel + StoryMarkers)
     • GPS tracker overlay + toggle button
-    • Dual-pane mode (DualMapPane in the right pane)
-    • Compare tray (split / stack / off) with StackedOverlay loops
+    • Side-by-side pane (DualMapPane) when viewMode === 'dual'
     • URL params: ?map=<id> and ?story=<id>
+    • Mobile drawer slots: mobile-layers (LayerStackPanel) + mobile-browse (CatalogSidebarPanel)
 
-  Chrome (MapShell, HistoricalOverlay, MapToolbar, MapSearchBar, MapModeOverlays,
-  basemap toggle, mobile sidebar) is provided by MapWorkspace via slots.
+  Chrome (MapShell, LayerRenderer, MapModeOverlays) is provided by MapWorkspace via slots.
 -->
 <script lang="ts">
   import { onMount } from "svelte";
@@ -28,16 +27,21 @@
   import { createStoryPlayerStore } from "$lib/story/stores/storyStore";
   import { fetchAnnotationBounds } from "$lib/geo/mapBounds";
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
+  import { transformExtent } from "ol/proj";
+
+  function toLonLatExtent(extent: number[]): [number, number, number, number] {
+    return transformExtent(extent, 'EPSG:3857', 'EPSG:4326') as [number, number, number, number];
+  }
 
   import MapWorkspace from "$lib/shell/MapWorkspace.svelte";
   import ViewSidebar from "./ViewSidebar.svelte";
+  import LayerStackPanel from "$lib/ui/catalog/LayerStackPanel.svelte";
+  import CatalogSidebarPanel from "$lib/ui/catalog/CatalogSidebarPanel.svelte";
   import StoryPlayback from "./StoryPlayback.svelte";
   import StoryMarkers from "./StoryMarkers.svelte";
   import GpsTracker from "./GpsTracker.svelte";
   import DualMapPane from "$lib/shell/DualMapPane.svelte";
-  import StackedOverlay from "$lib/shell/StackedOverlay.svelte";
-  import CompareTray from "$lib/ui/CompareTray.svelte";
-  import { compareStore } from "$lib/stores/compareStore";
+  import { layersStore } from "$lib/stores/layersStore";
 
   const { supabase } = getSupabaseContext();
 
@@ -64,57 +68,27 @@
   let gpsActive = false;
   let gpsError: string | null = null;
 
-  // Dual-mode state
-  let secondaryBasemap = "g-streets";
-  let secondaryShowOverlay = true;
-  let primaryShowOverlay = false;
-
-  // Compare-mode state
-  $: compareIds = $compareStore.ids;
-  $: compareMode = $compareStore.mode;
-  $: compareActive = compareMode !== 'off' && compareIds.length >= 2;
-  $: compareMaps = compareIds
-    .map((id) => mapList.find((m) => m.id === id))
-    .filter((m): m is MapListItem => !!m);
-  let stackOpacities: Record<string, number> = {};
-
-  $: {
-    for (const m of compareMaps) {
-      if (stackOpacities[m.id] === undefined) stackOpacities[m.id] = 0.6;
+  // Top overlay (from layersStore) drives the "active map" UI (info card, etc.)
+  $: topOverlay = $layersStore.overlays[0]?.ref ?? null;
+  $: topOverlayMapId = topOverlay?.mapId ?? null;
+  // Keep mapStore.activeMapId in sync with the topmost overlay so legacy
+  // consumers (story playback, share, URL hash) still work.
+  $: if (topOverlay) {
+    if ($mapStore.activeMapId !== topOverlay.mapId) {
+      mapStore.setActiveMap(topOverlay.mapId, topOverlay.allmapsId);
     }
+  } else if ($mapStore.activeMapId) {
+    mapStore.setActiveMap(null, null);
   }
-
-  // Sync the primary map (mapStore.activeMapId) with compareIds[0] when compare is active,
-  // so the existing HistoricalOverlay shows the first map in the tray.
-  $: if (compareActive && compareMaps[0]) {
-    const primary = compareMaps[0];
-    if ($mapStore.activeMapId !== primary.id && primary.allmaps_id) {
-      mapStore.setActiveMap(primary.id, primary.annotation_url ?? primary.allmaps_id);
-    }
-  }
+  /** Side-by-side: right pane uses the 2nd overlay (top - 1). */
+  $: sideAlt = $layersStore.overlays[1]?.ref ?? null;
 
   // Track previous mode to detect entering/leaving dual
-  let prevViewMode: ViewModeType | null = null;
-  $: {
-    if (viewMode === "dual" && prevViewMode !== "dual") {
-      layerStore.setBasemap("g-satellite");
-      layerStore.setOverlayVisible(false);
-      primaryShowOverlay = false;
-      secondaryBasemap = "g-streets";
-      secondaryShowOverlay = true;
-    } else if (viewMode === "dual") {
-      layerStore.setOverlayVisible(primaryShowOverlay);
-    } else if (prevViewMode === "dual") {
-      layerStore.setOverlayVisible(true);
-    }
-    prevViewMode = viewMode;
-  }
 
   // Resize primary map after dual/compare layout changes
   $: {
     const _mode = viewMode;
-    const _cmode = $compareStore.mode;
-    const _cn = $compareStore.ids.length;
+    const _n = $layersStore.overlays.length;
     if (shellMap) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -124,7 +98,7 @@
     }
   }
 
-  $: dualPaneActive = viewMode === "dual" || (compareActive && compareMode === 'split');
+  $: dualPaneActive = viewMode === "dual";
 
   $: playerState = $storyPlayer;
   $: activeStoryProgress = activeStory
@@ -138,8 +112,11 @@
   function applyUrlParams(maps: MapListItem[]) {
     if (paramMapId) {
       const found = maps.find((m) => m.id === paramMapId || m.allmaps_id === paramMapId);
-      if (found) mapStore.setActiveMap(found.id, found.annotation_url ?? found.allmaps_id);
-      else mapStore.setActiveMap(paramMapId);
+      const allmapsId = found?.annotation_url ?? found?.allmaps_id;
+      const mapId = found?.id ?? paramMapId;
+      if (mapId && allmapsId && !layersStore.isOverlay(mapId)) {
+        layersStore.addOverlay({ kind: 'historical', mapId, allmapsId, name: found?.name, thumbnail: found?.thumbnail });
+      }
     }
     if (paramStoryId) {
       const story = stories.find((s) => s.id === paramStoryId);
@@ -184,7 +161,12 @@
     }
     if (point.overlayMapId) {
       const found = mapList.find((m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId);
-      mapStore.setActiveMap(found?.id ?? point.overlayMapId, found?.annotation_url ?? found?.allmaps_id);
+      const allmapsId = found?.annotation_url ?? found?.allmaps_id ?? null;
+      const mapId = found?.id ?? point.overlayMapId;
+      if (allmapsId) {
+        layersStore.clearOverlays();
+        layersStore.addOverlay({ kind: 'historical', mapId, allmapsId, name: found?.name, thumbnail: found?.thumbnail });
+      }
     }
   }
 
@@ -207,6 +189,65 @@
   function handleFinishStory() {
     storyPlayer.stopStory();
     activeStory = null;
+  }
+
+  // ── Catalog pick from sidebar ─────────────────────────────────────
+  let role: 'user' | 'mod' | 'admin' = 'user';
+
+  function handlePickLocation(event: CustomEvent<{ lat: number; lng: number; bbox?: [number, number, number, number] }>) {
+    const { lat, lng, bbox } = event.detail;
+    if (bbox) {
+      const center = boundsCenter(bbox);
+      const zoom = boundsZoom(bbox);
+      mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
+    } else {
+      mapStore.setView({ lng, lat, zoom: 15 });
+    }
+  }
+
+  /**
+   * Row click in the catalog = "show this map".
+   * Replaces the overlay stack with just this map. To stack, use the + button.
+   */
+  async function handlePickMap(event: CustomEvent<any>) {
+    const item = event.detail;
+    if (!item?.id) return;
+    let map = mapList.find((m) => m.id === item.id) ?? null;
+    if (!map) map = { ...item } as MapListItem;
+    const allmapsId = map.annotation_url ?? map.allmaps_id;
+
+    if (allmapsId) {
+      layersStore.clearOverlays();
+      layersStore.addOverlay({
+        kind: 'historical',
+        mapId: map.id,
+        allmapsId,
+        name: map.name,
+        thumbnail: map.thumbnail,
+      });
+    }
+
+    // Zoom to bounds only if not already in view.
+    let bounds = map.bounds ?? map.bbox ?? null;
+    if (!bounds && map.allmaps_id) bounds = await fetchAnnotationBounds(map.allmaps_id);
+    if (!bounds) return;
+
+    if (shellMap) {
+      const view = shellMap.getView();
+      const size = shellMap.getSize();
+      if (size) {
+        const [vMinLon, vMinLat, vMaxLon, vMaxLat] = toLonLatExtent(view.calculateExtent(size));
+        const [bMinLon, bMinLat, bMaxLon, bMaxLat] = bounds;
+        const overlaps =
+          bMinLon < vMaxLon && bMaxLon > vMinLon &&
+          bMinLat < vMaxLat && bMaxLat > vMinLat;
+        if (overlaps) return;
+      }
+    }
+
+    const center = boundsCenter(bounds);
+    const zoom = boundsZoom(bounds);
+    mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
   }
 
   async function handleZoomToMap(event: CustomEvent<{ map: MapListItem }>) {
@@ -232,6 +273,11 @@
     } catch (err) {
       console.error('[ViewMode] Failed to load stories:', err);
     }
+    const sess = getSupabaseContext().session;
+    if (sess?.user?.id) {
+      const { data } = await supabase.from('profiles').select('role').eq('id', sess.user.id).single();
+      role = ((data as any)?.role as 'user' | 'mod' | 'admin') ?? 'user';
+    }
   });
 </script>
 
@@ -254,23 +300,42 @@
       <ViewSidebar
         {selectedMap}
         {stories}
+        {role}
+        {viewMode}
         activeStoryId={activeStory?.id ?? null}
         on:selectStory={handleSelectStory}
         on:zoomToMap={handleZoomToMap}
+        on:pickMap={handlePickMap}
+        on:pickLocation={handlePickLocation}
+        on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
         on:toggleCollapse={() => (sidebarCollapsed = true)}
       />
     </svelte:fragment>
 
+    <svelte:fragment slot="mobile-layers">
+      <div class="mobile-pane">
+        <LayerStackPanel
+          {viewMode}
+          on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
+        />
+      </div>
+    </svelte:fragment>
+
+    <svelte:fragment slot="mobile-browse">
+      <div class="mobile-pane">
+        <CatalogSidebarPanel
+          {role}
+          activeId={selectedMap?.id ?? null}
+          requireGeoref={true}
+          showLayerActions={true}
+          on:pick={handlePickMap}
+          on:pickLocation={handlePickLocation}
+        />
+      </div>
+    </svelte:fragment>
+
     <svelte:fragment slot="map-children">
       <GpsTracker active={gpsActive} on:error={handleGpsError} />
-
-      {#if compareActive && compareMode === 'stack'}
-        {#each compareMaps.slice(1) as cm (cm.id)}
-          {#if cm.allmaps_id}
-            <StackedOverlay allmapsId={cm.allmaps_id} opacity={stackOpacities[cm.id] ?? 0.6} />
-          {/if}
-        {/each}
-      {/if}
 
       {#if activeStory}
         <StoryMarkers
@@ -290,26 +355,20 @@
 
     <svelte:fragment slot="dual-pane">
       {#if viewMode === "dual" && shellMap}
-        <DualMapPane
-          primaryMap={shellMap}
-          basemap={secondaryBasemap}
-          showOverlay={secondaryShowOverlay}
-          overlayOpacity={opacity}
-          activeAllmapsId={$mapStore.activeAllmapsId ?? ''}
-        />
-      {:else if compareActive && compareMode === 'split' && (compareMaps[1]?.annotation_url || compareMaps[1]?.allmaps_id) && shellMap}
+        <!-- Side-by-side: right pane drops the topmost overlay.
+             If there's a 2nd overlay (sideAlt), it becomes the right pane's overlay.
+             Otherwise the right pane is just the base. -->
         <DualMapPane
           primaryMap={shellMap}
           basemap={basemapSelection}
-          showOverlay={true}
-          overlayOpacity={opacity}
-          activeAllmapsId={compareMaps[1].annotation_url ?? compareMaps[1].allmaps_id ?? ''}
+          showOverlay={!!sideAlt}
+          overlayOpacity={1}
+          activeAllmapsId={sideAlt?.allmapsId ?? ''}
         />
       {/if}
     </svelte:fragment>
 
     <svelte:fragment slot="map-overlay">
-      <CompareTray mapList={mapList} bind:stackOpacities />
       {#if gpsError}
         <div class="gps-error">{gpsError}</div>
       {/if}
@@ -330,15 +389,5 @@
       </button>
     </svelte:fragment>
 
-    <svelte:fragment slot="mobile-sidebar">
-      <ViewSidebar
-        {selectedMap}
-        {stories}
-        activeStoryId={activeStory?.id ?? null}
-        on:selectStory={(e) => { handleSelectStory(e); sidebarCollapsed = true; }}
-        on:zoomToMap={handleZoomToMap}
-        on:toggleCollapse={() => (sidebarCollapsed = true)}
-      />
-    </svelte:fragment>
   </MapWorkspace>
 </div>

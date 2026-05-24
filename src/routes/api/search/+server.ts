@@ -87,7 +87,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   let mapsRows: Record<string, unknown>[] = [];
   if (includeMaps) {
     let qMaps = supabase.from('maps').select(
-      'id,name,location,map_type,dc_description,thumbnail,is_featured,year,year_label,collection,source_type,status,bbox,extra_metadata,iiif_image,allmaps_id,creator,holding_institution,original_title'
+      'id,name,location,map_type,dc_description,thumbnail,is_featured,year,year_label,collection,source_type,status,bbox,extra_metadata,iiif_image,allmaps_id,annotation_url,georef_done,creator,holding_institution,original_title,dc_publisher,shelfmark,physical_description,rights,language,source_url'
     );
     if (role !== 'admin' && role !== 'mod') {
       // Public users only see public/featured.
@@ -210,8 +210,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     extra_metadata: r.extra_metadata,
     iiif_image: r.iiif_image,
     allmaps_id: r.allmaps_id,
+    annotation_url: r.annotation_url,
+    georef_done: r.georef_done,
     creator: r.creator,
     holding_institution: r.holding_institution,
+    original_title: r.original_title,
+    dc_publisher: r.dc_publisher,
+    shelfmark: r.shelfmark,
+    physical_description: r.physical_description,
+    rights: r.rights,
+    language: r.language,
+    source_url: r.source_url,
     _table: 'maps' as const,
   }));
 

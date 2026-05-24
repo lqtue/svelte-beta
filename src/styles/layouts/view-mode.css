@@ -1,3 +1,12 @@
+.mobile-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--color-bg, #f5f0ea);
+}
+
 .view-mode {
     position: fixed;
     inset: var(--nav-height) 0 0 0;

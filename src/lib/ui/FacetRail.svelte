@@ -5,9 +5,6 @@
   export let periods: { key: string; label: string }[] = [];
   // Selections by facet key — kept in sync via two-way bind:
   export let selected: Record<string, string[]> = {};
-  // 'yes' | 'no' | null
-  export let georef: string | null = null;
-  export let georefCounts: { yes: number; no: number } = { yes: 0, no: 0 };
   export let showScoutFacets = false;
 
   const dispatch = createEventDispatcher();
@@ -20,25 +17,23 @@
     dispatch('change');
   }
 
-  function setGeoref(v: string | null) {
-    georef = georef === v ? null : v;
-    dispatch('change');
-  }
-
   function sortedEntries(o: Record<string, number>, max = 12): [string, number][] {
     return Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, max);
   }
 
+  const STATUS_LABELS: Record<string, string> = { map: '🌍 On map', image: '🖼️ Image only', scout: '✨ Scout' };
+  function labelFor(group: string, val: string): string {
+    if (group === 'status') return STATUS_LABELS[val] ?? val;
+    return val;
+  }
+
   type Group = { title: string; key: string; entries: [string, number][] };
   $: groups = [
-    { title: 'Holding institution', key: 'institution', entries: sortedEntries(facets.institution ?? {}) },
-    { title: 'Map type',            key: 'type',        entries: sortedEntries(facets.map_type ?? {}) },
-    { title: 'Source type',         key: 'source',      entries: sortedEntries(facets.source_type ?? {}, 8) },
+    { title: 'Area',   key: 'area',   entries: sortedEntries(facets.area ?? {}) },
+    { title: 'Type',   key: 'type',   entries: sortedEntries(facets.map_type ?? {}) },
+    { title: 'Status', key: 'status', entries: sortedEntries(facets.status ?? {}) },
     ...(showScoutFacets
-      ? [
-          { title: 'Scout source',   key: 'scoutSource', entries: sortedEntries(facets.scout_source ?? {}, 8) },
-          { title: 'Scout category', key: 'category',    entries: sortedEntries(facets.scout_category ?? {}, 12) },
-        ]
+      ? [{ title: 'Scout category', key: 'category', entries: sortedEntries(facets.scout_category ?? {}, 12) }]
       : []),
   ] as Group[];
 </script>
@@ -61,21 +56,6 @@
     </section>
   {/if}
 
-  <!-- Availability -->
-  <section class="facet-group">
-    <h4>Availability</h4>
-    <div class="chips">
-      <button class="chip" class:on={georef === 'yes'} on:click={() => setGeoref('yes')}>
-        <span class="lbl">🌍 Georeferenced</span>
-        <span class="n">{georefCounts.yes}</span>
-      </button>
-      <button class="chip" class:on={georef === 'no'} on:click={() => setGeoref('no')}>
-        <span class="lbl">📄 Not yet</span>
-        <span class="n">{georefCounts.no}</span>
-      </button>
-    </div>
-  </section>
-
   {#each groups as g}
     {#if g.entries.length}
       <section class="facet-group">
@@ -84,7 +64,7 @@
           {#each g.entries as [val, n]}
             {@const on = (selected[g.key] ?? []).includes(val)}
             <button class="chip" class:on on:click={() => toggle(g.key, val)} title={val}>
-              <span class="lbl">{val}</span>
+              <span class="lbl">{labelFor(g.key, val)}</span>
               <span class="n">{n}</span>
             </button>
           {/each}

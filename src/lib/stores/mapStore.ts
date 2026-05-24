@@ -21,16 +21,18 @@ export interface MapViewState {
 }
 
 export interface MapStoreValue extends MapViewState {
-	/** Currently loaded historical map — maps.id UUID (canonical key) */
+	/** Currently loaded historical map — maps.id UUID (canonical key).
+	 *  Derived from layersStore.overlays[0] (top overlay). Kept here for legacy consumers
+	 *  (URL hash, story playback, share). */
 	activeMapId: string | null;
 	/** maps.allmaps_id — Allmaps service credential for tile loading.
-	 *  Set alongside activeMapId. Null when restoring from URL until map list resolves it. */
+	 *  Set alongside activeMapId. */
 	activeAllmapsId: string | null;
 }
 
 export interface MapStore extends Readable<MapStoreValue> {
 	setView(view: Partial<MapViewState>): void;
-	/** Set the active map. Pass allmapsId when available so HistoricalOverlay can load tiles. */
+	/** Set the active map. Pass allmapsId when available so LayerRenderer can load tiles. */
 	setActiveMap(id: string | null, allmapsId?: string | null): void;
 	setAll(value: Partial<MapStoreValue>): void;
 	reset(): void;

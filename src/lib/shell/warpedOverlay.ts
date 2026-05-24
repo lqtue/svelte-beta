@@ -14,10 +14,10 @@ import type Map from 'ol/Map';
  * Creates a WarpedMapLayer with the required OL polyfills
  * and attaches it to the map via setMap().
  */
-export function createWarpedLayer(map: Map): WarpedMapLayer {
+export function createWarpedLayer(map: Map, opts: { zIndex?: number; name?: string } = {}): WarpedMapLayer {
 	const layer = new WarpedMapLayer();
-	layer.setZIndex(10);
-	layer.setProperties({ name: 'allmaps-overlay' });
+	layer.setZIndex(opts.zIndex ?? 10);
+	layer.setProperties({ name: opts.name ?? 'allmaps-overlay' });
 
 	// Polyfills required by some OL versions
 	const compat = layer as unknown as {

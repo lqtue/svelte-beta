@@ -14,22 +14,36 @@
 -->
 <script lang="ts">
   import FacetRail from '$lib/ui/FacetRail.svelte';
-  import SearchResultCard from '$lib/ui/SearchResultCard.svelte';
+  import CatalogTable from '$lib/ui/catalog/CatalogTable.svelte';
+  import CatalogDetailDrawer from '$lib/ui/catalog/CatalogDetailDrawer.svelte';
 
   export let searchQuery: string = '';
   export let role: 'user' | 'mod' | 'admin' = 'user';
+  /** When true, row clicks dispatch `pick` instead of opening the detail drawer. */
+  export let pickMode: boolean = false;
+  /** Compact layout: facet rail collapses to a chip strip, table loses extra cols. Suitable for narrow sidebars. */
+  export let compact: boolean = false;
+  /** Highlight this row as the currently-active map. */
+  export let activeId: string | null = null;
+  /** Restrict results to maps with georeferencing (excludes image-only entries). */
+  export let requireGeoref: boolean = false;
+  /** Show "+ overlay" and "B base" toggles on each row (only enabled in /view sidebar). */
+  export let showLayerActions: boolean = false;
+
+  import { createEventDispatcher } from 'svelte';
+  const dispatch = createEventDispatcher<{ pick: any }>();
 
   const V2_PERIODS = [
     { key: 'pre_colonial',   label: 'Pre-colonial (≤1858)',          from: 0,    to: 1858 },
     { key: 'early_colonial', label: 'Early colonial (1859–1887)',    from: 1859, to: 1887 },
-    { key: 'indochina',      label: 'French Indochina (1888–1939)',  from: 1888, to: 1939 },
+    { key: 'belle_epoque',   label: 'Belle Époque (1888–1918)',      from: 1888, to: 1918 },
+    { key: 'interwar',       label: 'Interwar (1919–1939)',          from: 1919, to: 1939 },
     { key: 'war_years',      label: 'War years (1940–1954)',         from: 1940, to: 1954 },
     { key: 'republic',       label: 'Republic era (1955–1975)',      from: 1955, to: 1975 },
     { key: 'reunification',  label: 'Reunification+ (1976–)',        from: 1976, to: 9999 },
   ];
 
   let selected: Record<string, string[]> = {};
-  let georef: string | null = null;
   let includeScout = false;
   let periods: { key: string; label: string }[] = V2_PERIODS;
   let loading = false;
@@ -43,6 +57,12 @@
     return null;
   }
 
+  const cache = new Map<string, { maps: any[]; scout: any[]; periods: any[] }>();
+
+  function cacheKey(): string {
+    return `${searchQuery.trim().toLowerCase()}|${includeScout ? 1 : 0}`;
+  }
+
   function buildQS(): string {
     const sp = new URLSearchParams();
     if (searchQuery.trim()) sp.set('q', searchQuery.trim());
@@ -51,17 +71,31 @@
     return sp.toString();
   }
 
+  let inflight: AbortController | null = null;
   async function doFetch() {
+    const key = cacheKey();
+    const hit = cache.get(key);
+    if (hit) {
+      periods = hit.periods;
+      rawMaps = hit.maps;
+      rawScout = hit.scout;
+      loading = false;
+      return;
+    }
+    if (inflight) inflight.abort();
+    inflight = new AbortController();
     loading = true;
     try {
-      const res = await fetch(`/api/search?${buildQS()}`);
+      const res = await fetch(`/api/search?${buildQS()}`, { signal: inflight.signal });
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
-      periods = json.periods ?? V2_PERIODS;
-      rawMaps = json.maps ?? [];
-      rawScout = json.scout ?? [];
-    } catch (e) {
-      console.error('catalog search failed:', e);
+      const entry = { maps: json.maps ?? [], scout: json.scout ?? [], periods: json.periods ?? V2_PERIODS };
+      cache.set(key, entry);
+      periods = entry.periods;
+      rawMaps = entry.maps;
+      rawScout = entry.scout;
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') console.error('catalog search failed:', e);
     } finally {
       loading = false;
     }
@@ -69,7 +103,7 @@
 
   function scheduleFetch() {
     if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(doFetch, 180);
+    debounce = setTimeout(doFetch, 100);
   }
 
   // Refetch only when q or include toggle changes.
@@ -88,78 +122,82 @@
     return m;
   }
 
-  $: passInst   = (r: any) => !(selected.institution?.length) || selected.institution.includes(String(r.holding_institution ?? ''));
-  $: passType   = (r: any) => !(selected.type?.length)        || selected.type.includes(String(r.map_type ?? ''));
-  $: passSource = (r: any) => !(selected.source?.length)      || selected.source.includes(String(r.source_type ?? ''));
+  function statusOf(r: any): string {
+    if (r._table === 'scout') return 'scout';
+    return r.georef_done ? 'map' : 'image';
+  }
+
+  $: passArea   = (r: any) => !(selected.area?.length) || selected.area.includes(String(r.location ?? ''));
+  $: passType   = (r: any) => !(selected.type?.length) || selected.type.includes(String(r.map_type ?? ''));
+  $: passStatus = (r: any) => !(selected.status?.length) || selected.status.includes(statusOf(r));
   $: passPeriod = (r: any) => {
     if (!selected.period?.length) return true;
     const p = periodOf(r.year);
     return p ? selected.period.includes(p) : false;
   };
-  $: passGeoref = (r: any) => !georef || (georef === 'yes' ? !!r.allmaps_id : !r.allmaps_id);
-  $: passScoutSrc = (r: any) => !(selected.scoutSource?.length) || selected.scoutSource.includes(String(r._scout?.source ?? ''));
-  $: passScoutCat = (r: any) => !(selected.category?.length)    || selected.category.includes(String(r._scout?.category ?? ''));
+  $: passScoutCat = (r: any) => !(selected.category?.length) || selected.category.includes(String(r._scout?.category ?? ''));
 
-  $: filteredMaps  = rawMaps.filter(r => passInst(r) && passType(r) && passSource(r) && passPeriod(r) && passGeoref(r));
-  $: filteredScout = rawScout.filter(r => passInst(r) && passPeriod(r) && passScoutSrc(r) && passScoutCat(r));
+  $: filteredMaps  = rawMaps.filter(r => passArea(r) && passType(r) && passPeriod(r) && passStatus(r) && (!requireGeoref || !!r.georef_done));
+  $: filteredScout = rawScout.filter(r => passArea(r) && passPeriod(r) && passScoutCat(r) && passStatus(r));
 
   $: facets = (() => {
-    const mapsForInst   = rawMaps.filter(r => passType(r) && passSource(r) && passPeriod(r) && passGeoref(r));
-    const mapsForType   = rawMaps.filter(r => passInst(r) && passSource(r) && passPeriod(r) && passGeoref(r));
-    const mapsForSource = rawMaps.filter(r => passInst(r) && passType(r)   && passPeriod(r) && passGeoref(r));
-    const mapsForPeriod = rawMaps.filter(r => passInst(r) && passType(r)   && passSource(r) && passGeoref(r));
+    const mapsForArea   = rawMaps.filter(r => passType(r) && passPeriod(r) && passStatus(r));
+    const mapsForType   = rawMaps.filter(r => passArea(r) && passPeriod(r) && passStatus(r));
+    const mapsForStatus = rawMaps.filter(r => passArea(r) && passType(r)   && passPeriod(r));
+    const mapsForPeriod = rawMaps.filter(r => passArea(r) && passType(r)   && passStatus(r));
     const periodCounts: Record<string, number> = {};
     for (const r of mapsForPeriod) {
       const p = periodOf(r.year);
       if (p) periodCounts[p] = (periodCounts[p] ?? 0) + 1;
     }
-    const scoutForSrc = rawScout.filter(r => passScoutCat(r) && passInst(r) && passPeriod(r));
-    const scoutForCat = rawScout.filter(r => passScoutSrc(r) && passInst(r) && passPeriod(r));
-    const scoutSrcTally: Record<string, number> = {};
+    const statusCounts: Record<string, number> = {};
+    for (const r of mapsForStatus) { const s = statusOf(r); statusCounts[s] = (statusCounts[s] ?? 0) + 1; }
+    const scoutForCat = rawScout.filter(r => passArea(r) && passPeriod(r));
     const scoutCatTally: Record<string, number> = {};
-    for (const r of scoutForSrc) { const s = r._scout?.source; if (s) scoutSrcTally[s] = (scoutSrcTally[s] ?? 0) + 1; }
     for (const r of scoutForCat) { const c = r._scout?.category; if (c) scoutCatTally[c] = (scoutCatTally[c] ?? 0) + 1; }
     return {
-      institution: tally(mapsForInst, 'holding_institution'),
+      area:        tally(mapsForArea, 'location'),
       map_type:    tally(mapsForType, 'map_type'),
-      source_type: tally(mapsForSource, 'source_type'),
       period:      periodCounts,
-      scout_source:   includeScout ? scoutSrcTally : {},
+      status:      statusCounts,
       scout_category: includeScout ? scoutCatTally : {},
     };
-  })();
-
-  $: georefCounts = (() => {
-    const base = rawMaps.filter(r => passInst(r) && passType(r) && passSource(r) && passPeriod(r));
-    return { yes: base.filter(r => !!r.allmaps_id).length, no: base.filter(r => !r.allmaps_id).length };
   })();
 
   $: results = [...filteredMaps, ...filteredScout];
   $: total = { maps: filteredMaps.length, scout: filteredScout.length };
 
-  function onFacetChip(e: CustomEvent<{ group: string; value: string }>) {
-    const { group, value } = e.detail;
+  let openedItem: any | null = null;
+
+  function toggleFacet(group: string, value: string) {
     const cur = new Set(selected[group] ?? []);
     if (cur.has(value)) cur.delete(value);
     else cur.add(value);
     selected = { ...selected, [group]: Array.from(cur) };
   }
 
-  function handleScoutChanged(e: CustomEvent<{ id: string; status: string }>) {
-    rawScout = rawScout.filter(r => !(r._table === 'scout' && r._scout?.id === e.detail.id));
+  function handleRowFacet(e: CustomEvent<{ group: string; value: string }>) {
+    const { group, value } = e.detail;
+    if (group === 'year') {
+      // Translate a clicked year into its containing period.
+      const p = periodOf(Number(value));
+      if (p) toggleFacet('period', p);
+      return;
+    }
+    toggleFacet(group, value);
   }
 </script>
 
-<div class="v2-layout">
-  <FacetRail
-    {facets}
-    {periods}
-    bind:selected
-    bind:georef
-    {georefCounts}
-    showScoutFacets={includeScout}
-    on:change={scheduleFetch}
-  />
+<div class="v2-layout" class:compact>
+  {#if !compact}
+    <FacetRail
+      {facets}
+      {periods}
+      bind:selected
+      showScoutFacets={includeScout}
+      on:change={scheduleFetch}
+    />
+  {/if}
   <div class="v2-results">
     <div class="v2-toolbar">
       <span class="v2-count">
@@ -181,19 +219,21 @@
         <p class="state-desc">Try a different keyword or clear a filter.</p>
       </div>
     {:else}
-      <div class="v2-grid">
-        {#each results as item (item.id)}
-          <SearchResultCard
-            {item}
-            canAdminScout={role === 'admin' || role === 'mod'}
-            on:facet={onFacetChip}
-            on:scoutChanged={handleScoutChanged}
-          />
-        {/each}
-      </div>
+      <CatalogTable
+        items={results}
+        {compact}
+        {activeId}
+        {showLayerActions}
+        on:open={(e) => pickMode ? dispatch('pick', e.detail) : (openedItem = e.detail)}
+        on:facet={handleRowFacet}
+      />
     {/if}
   </div>
 </div>
+
+{#if !pickMode}
+  <CatalogDetailDrawer item={openedItem} on:close={() => (openedItem = null)} />
+{/if}
 
 <style>
   .v2-layout {
@@ -202,6 +242,8 @@
     gap: 1.25rem;
     align-items: start;
   }
+  .v2-layout.compact { grid-template-columns: 1fr; gap: 0.5rem; }
+  .v2-layout.compact .v2-toolbar { font-size: 0.78rem; padding: 0.35rem 0.55rem; }
   .v2-results { display: flex; flex-direction: column; gap: 0.75rem; }
   .v2-toolbar {
     display: flex; justify-content: space-between; align-items: center;

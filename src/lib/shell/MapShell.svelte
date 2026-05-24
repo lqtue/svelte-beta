@@ -3,16 +3,15 @@
 
   Responsibilities:
     1. Create and own the single OL Map instance
-    2. Manage basemap tile layers (switch via layerStore)
+    2. Mount basemap tile layers (visibility is owned by LayerRenderer via layersStore)
     3. Expose the map + stores via Svelte context
     4. Sync OL View ↔ mapStore (bidirectional)
     5. Start/stop URL hash sync
-    6. Render children (modes, panels, toolbars) in a slot on top of the map
+    6. Render children (LayerRenderer, modes, panels) in a slot on top of the map
 
   Usage:
     <MapShell {mapStore} {layerStore}>
-      <HistoricalOverlay overlayId="abc" />
-      <StudioMode />
+      <LayerRenderer />
     </MapShell>
 -->
 <script lang="ts">
@@ -166,8 +165,9 @@
     // 7. Store → OL sync on store change
     mapStoreUnsub = mapStore.subscribe(() => storeToOlView());
 
-    // 8. Layer store → basemap switching
-    layerUnsub = layerStore.subscribe(($l) => applyBasemap($l.basemap));
+    // 8. Basemap visibility is now owned by LayerRenderer (driven by layersStore.base).
+    //    Keep layerUnsub a no-op so existing teardown stays safe.
+    layerUnsub = () => {};
 
     // 9. URL sync
     if (!disableUrlSync) {

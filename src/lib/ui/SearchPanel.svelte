@@ -10,15 +10,26 @@
   import { createEventDispatcher } from "svelte";
   import type { SearchResult, MapListItem } from "$lib/map/types";
   import { parseCoordinates, findNearbyMaps } from "./searchUtils";
-  import { compareStore, MAX_COMPARE } from "$lib/stores/compareStore";
+  import { layersStore, MAX_OVERLAY_LAYERS } from "$lib/stores/layersStore";
 
-  $: compareIds = $compareStore.ids;
-  $: compareFull = compareIds.length >= MAX_COMPARE;
+  $: compareIds = $layersStore.overlays.map((o) => o.ref.mapId);
+  $: compareFull = compareIds.length >= MAX_OVERLAY_LAYERS;
 
   function toggleCompare(e: Event, map: MapListItem) {
     e.stopPropagation();
-    if (compareIds.includes(map.id)) compareStore.remove(map.id);
-    else compareStore.add(map.id);
+    if (compareIds.includes(map.id)) {
+      layersStore.removeOverlayByMapId(map.id);
+      return;
+    }
+    const allmapsId = (map as any).annotation_url ?? map.allmaps_id;
+    if (!allmapsId) return;
+    layersStore.addOverlay({
+      kind: 'historical',
+      mapId: map.id,
+      allmapsId,
+      name: map.name,
+      thumbnail: (map as any).thumbnail,
+    });
   }
 
   const dispatch = createEventDispatcher<{
@@ -391,7 +402,7 @@
                   class:active={inCompare}
                   disabled={compareFull && !inCompare}
                   on:click={(e) => toggleCompare(e, map)}
-                  title={inCompare ? 'Remove from compare' : compareFull ? `Compare set is full (${MAX_COMPARE} max)` : 'Add to compare'}
+                  title={inCompare ? 'Remove overlay' : compareFull ? `Overlay stack full (${MAX_OVERLAY_LAYERS} max)` : 'Add as overlay'}
                   aria-label={inCompare ? 'Remove from compare' : 'Add to compare'}
                 >
                   {inCompare ? '✓' : '⇄'}

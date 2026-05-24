@@ -1,8 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem } from '$lib/map/types';
-  import { compareStore, MAX_COMPARE } from '$lib/stores/compareStore';
-
   export let map: MapListItem;
   /** Full href for the card link. Caller builds it (home page adds &city=, catalog doesn't). */
   export let href: string;
@@ -14,20 +12,7 @@
   export let isFavorited: boolean = false;
   /** Show the collection/source badge (catalog uses it; home page omits it). */
   export let showSourceBadge: boolean = false;
-  /** Show the "add to compare" button. */
-  export let showCompare: boolean = true;
-
   const dispatch = createEventDispatcher<{ toggleFavorite: string }>();
-
-  $: inCompare = $compareStore.ids.includes(map.id);
-  $: compareFull = $compareStore.ids.length >= MAX_COMPARE && !inCompare;
-
-  function handleCompareClick(e: MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (inCompare) compareStore.remove(map.id);
-    else compareStore.add(map.id);
-  }
 
   function handleImageError(e: Event) {
     (e.target as HTMLImageElement).style.display = 'none';
@@ -72,20 +57,6 @@
       {/if}
     </div>
   </a>
-
-  {#if showCompare && map.allmaps_id}
-    <button
-      class="compare-btn"
-      class:active={inCompare}
-      class:disabled={compareFull}
-      on:click={handleCompareClick}
-      title={inCompare ? 'Remove from compare' : compareFull ? `Compare set is full (${MAX_COMPARE} max)` : 'Add to compare'}
-      aria-label={inCompare ? 'Remove from compare' : 'Add to compare'}
-      disabled={compareFull}
-    >
-      {inCompare ? '✓' : '⇄'}
-    </button>
-  {/if}
 
   {#if showFavorite}
     <button
