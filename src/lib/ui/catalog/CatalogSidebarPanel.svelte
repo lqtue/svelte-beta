@@ -34,7 +34,7 @@
       <circle cx="11" cy="11" r="7" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
-    <input type="text" placeholder="Search maps or places…" bind:value={searchQuery} />
+    <input type="text" placeholder="Search maps…" bind:value={searchQuery} />
     </div>
   </div>
 
@@ -68,6 +68,13 @@
     text-transform: uppercase; letter-spacing: 0.06em;
     color: #555;
     padding: 0.1rem;
+    display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap;
+  }
+  .csp-sub {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.66rem; font-weight: 500;
+    text-transform: none; letter-spacing: 0;
+    color: #888;
   }
   .csp-search {
     display: flex; align-items: center; gap: 0.5rem;

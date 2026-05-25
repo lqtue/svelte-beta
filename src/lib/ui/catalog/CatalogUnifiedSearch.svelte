@@ -178,14 +178,32 @@
 
   function handleRowFacet(e: CustomEvent<{ group: string; value: string }>) {
     const { group, value } = e.detail;
-    if (group === 'year') {
-      // Translate a clicked year into its containing period.
-      const p = periodOf(Number(value));
-      if (p) toggleFacet('period', p);
-      return;
-    }
+    // Only the area chip is a filter. Other clicks (year, type, etc.) are no-ops.
+    if (group !== 'area') return;
     toggleFacet(group, value);
   }
+
+  function clearGroup(group: string) {
+    selected = { ...selected, [group]: [] };
+  }
+  $: activeAreas = selected.area ?? [];
+  $: activeTypes = selected.map_type ?? [];
+
+  /** Distinct values of a field across results that match the panel's
+      `requireGeoref` constraint. Sorted by frequency desc. */
+  function distinctValues(field: 'location' | 'map_type'): string[] {
+    const counts: Record<string, number> = {};
+    for (const r of rawMaps) {
+      if (requireGeoref && !r.georef_done) continue;
+      const v = (r as any)?.[field];
+      if (v == null || v === '') continue;
+      counts[String(v)] = (counts[String(v)] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([name]) => name);
+  }
+  $: areaChoices = rawMaps.length || requireGeoref ? distinctValues('location') : [];
+  $: typeChoices = rawMaps.length || requireGeoref ? distinctValues('map_type') : [];
+  $: hasActiveFilter = activeAreas.length > 0 || activeTypes.length > 0;
 </script>
 
 <div class="v2-layout" class:compact>
@@ -199,6 +217,44 @@
     />
   {/if}
   <div class="v2-results">
+    {#if compact && (areaChoices.length > 0 || typeChoices.length > 0)}
+      <div class="v2-selects">
+        {#if areaChoices.length > 0}
+          <label class="v2-select">
+            <span class="v2-select-label">Show maps of</span>
+            <select
+              value={activeAreas[0] ?? ''}
+              on:change={(e) => {
+                const v = (e.currentTarget as HTMLSelectElement).value;
+                selected = { ...selected, area: v ? [v] : [] };
+              }}
+            >
+              <option value="">All areas</option>
+              {#each areaChoices as a}
+                <option value={a}>{a}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+        {#if typeChoices.length > 0}
+          <label class="v2-select">
+            <span class="v2-select-label">Type</span>
+            <select
+              value={activeTypes[0] ?? ''}
+              on:change={(e) => {
+                const v = (e.currentTarget as HTMLSelectElement).value;
+                selected = { ...selected, map_type: v ? [v] : [] };
+              }}
+            >
+              <option value="">All types</option>
+              {#each typeChoices as t}
+                <option value={t}>{t}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+      </div>
+    {/if}
     {#if !compact}
       <div class="v2-toolbar">
         <span class="v2-count">
@@ -266,6 +322,33 @@
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 1rem;
   }
+  .v2-selects {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    font-family: 'Outfit', sans-serif;
+  }
+  .v2-select {
+    flex: 1 1 140px;
+    min-width: 0;
+    display: flex; flex-direction: column; gap: 0.2rem;
+  }
+  .v2-select-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.62rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: #555;
+  }
+  .v2-select select {
+    width: 100%;
+    min-height: 38px;
+    padding: 0.35rem 0.55rem;
+    background: #fff;
+    border: 1.5px solid #111; border-radius: 6px;
+    font: inherit; font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem; font-weight: 700;
+    color: #111;
+    cursor: pointer;
+  }
+
   .state-panel { text-align: center; padding: 3rem 1rem; }
   .empty-emoji { font-size: 3rem; }
   .state-title { font-family: 'Space Grotesk', sans-serif; font-weight: 800; margin: 0.5rem 0; }

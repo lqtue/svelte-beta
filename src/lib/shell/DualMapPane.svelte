@@ -9,6 +9,7 @@
   import OlMap from "ol/Map";
   import BaseLayer from "ol/layer/Base";
   import { defaults as defaultControls } from "ol/control/defaults";
+  import { Attribution, ScaleLine } from "ol/control";
   import { BASEMAP_DEFS } from "$lib/map/constants";
   import {
     createWarpedLayer,
@@ -100,7 +101,12 @@
         attribution: false,
         rotate: false,
         zoom: false,
-      }),
+      }).extend([
+        // Tile attribution + scale live on the secondary pane so they sit in
+        // the rightmost (desktop) / bottommost (mobile) corner of the workspace.
+        new Attribution({ collapsible: false }),
+        new ScaleLine(),
+      ]),
     });
 
     applyBasemap(basemap);

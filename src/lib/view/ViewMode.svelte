@@ -27,17 +27,10 @@
   import { createStoryPlayerStore } from "$lib/story/stores/storyStore";
   import { fetchAnnotationBounds } from "$lib/geo/mapBounds";
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
-  import { transformExtent } from "ol/proj";
-
-  function toLonLatExtent(extent: number[]): [number, number, number, number] {
-    return transformExtent(extent, 'EPSG:3857', 'EPSG:4326') as [number, number, number, number];
-  }
-
   import MapWorkspace from "$lib/shell/MapWorkspace.svelte";
   import ViewSidebar from "./ViewSidebar.svelte";
   import LayerStackPanel from "$lib/ui/catalog/LayerStackPanel.svelte";
-  import LayerStackPanelMobile from "$lib/ui/catalog/LayerStackPanelMobile.svelte";
-  import MobileControlsPanel from "$lib/ui/catalog/MobileControlsPanel.svelte";
+  import LayerControlsPanel from "$lib/ui/catalog/LayerControlsPanel.svelte";
   import CatalogSidebarPanel from "$lib/ui/catalog/CatalogSidebarPanel.svelte";
   import StoryPlayback from "./StoryPlayback.svelte";
   import StoryMarkers from "./StoryMarkers.svelte";
@@ -111,13 +104,27 @@
   $: paramMapId = $page.url.searchParams.get("map");
   $: paramStoryId = $page.url.searchParams.get("story");
 
-  function applyUrlParams(maps: MapListItem[]) {
+  async function applyUrlParams(maps: MapListItem[]) {
     if (paramMapId) {
       const found = maps.find((m) => m.id === paramMapId || m.allmaps_id === paramMapId);
       const allmapsId = found?.annotation_url ?? found?.allmaps_id;
       const mapId = found?.id ?? paramMapId;
       if (mapId && allmapsId && !layersStore.isOverlay(mapId)) {
         layersStore.addOverlay({ kind: 'historical', mapId, allmapsId, name: found?.name, thumbnail: found?.thumbnail });
+      }
+      // Zoom to the linked map so the user actually sees it (otherwise the
+      // page loads at the default Saigon center and a Hanoi map is offscreen).
+      if (found) {
+        let bounds = found.bounds ?? found.bbox ?? null;
+        if (!bounds) {
+          const src = found.annotation_url ?? found.allmaps_id;
+          if (src) bounds = await fetchAnnotationBounds(src);
+        }
+        if (bounds) {
+          const center = boundsCenter(bounds);
+          const zoom = boundsZoom(bounds);
+          mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
+        }
       }
     }
     if (paramStoryId) {
@@ -229,37 +236,36 @@
       });
     }
 
-    // Zoom to bounds only if not already in view.
+    // Always zoom to the picked map. (Earlier we skipped when the map already
+    // overlapped the current view, but on mobile that made taps feel silently
+    // ignored.) Prefer annotation_url over allmaps_id so R2-mirrored maps work.
     let bounds = map.bounds ?? map.bbox ?? null;
-    if (!bounds && map.allmaps_id) bounds = await fetchAnnotationBounds(map.allmaps_id);
-    if (!bounds) return;
-
-    if (shellMap) {
-      const view = shellMap.getView();
-      const size = shellMap.getSize();
-      if (size) {
-        const [vMinLon, vMinLat, vMaxLon, vMaxLat] = toLonLatExtent(view.calculateExtent(size));
-        const [bMinLon, bMinLat, bMaxLon, bMaxLat] = bounds;
-        const overlaps =
-          bMinLon < vMaxLon && bMaxLon > vMinLon &&
-          bMinLat < vMaxLat && bMaxLat > vMinLat;
-        if (overlaps) return;
-      }
+    if (!bounds) {
+      const src = map.annotation_url ?? map.allmaps_id;
+      if (src) bounds = await fetchAnnotationBounds(src);
     }
-
-    const center = boundsCenter(bounds);
-    const zoom = boundsZoom(bounds);
-    mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
-  }
-
-  async function handleZoomToMap(event: CustomEvent<{ map: MapListItem }>) {
-    const { map } = event.detail;
-    let bounds = map.bounds ?? null;
-    if (!bounds) bounds = await fetchAnnotationBounds(map.allmaps_id ?? '');
     if (bounds) {
       const center = boundsCenter(bounds);
       const zoom = boundsZoom(bounds);
       mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
+    } else {
+      console.warn('[ViewMode] No bounds available for map', map.id, map.name);
+    }
+  }
+
+  async function handleZoomToMap(event: CustomEvent<{ map: MapListItem }>) {
+    const { map } = event.detail;
+    let bounds = map.bounds ?? map.bbox ?? null;
+    if (!bounds) {
+      const src = map.annotation_url ?? map.allmaps_id;
+      if (src) bounds = await fetchAnnotationBounds(src);
+    }
+    if (bounds) {
+      const center = boundsCenter(bounds);
+      const zoom = boundsZoom(bounds);
+      mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
+    } else {
+      console.warn('[ViewMode] No bounds available for map', map.id, map.name);
     }
   }
 
@@ -304,19 +310,26 @@
         {stories}
         {role}
         {viewMode}
+        {mapList}
+        {gpsActive}
         activeStoryId={activeStory?.id ?? null}
         on:selectStory={handleSelectStory}
         on:zoomToMap={handleZoomToMap}
+        on:zoomToOverlay={(e) => {
+          const m = mapList.find((m) => m.id === e.detail.mapId);
+          if (m) handleZoomToMap(new CustomEvent('zoomToMap', { detail: { map: m } }));
+        }}
         on:pickMap={handlePickMap}
         on:pickLocation={handlePickLocation}
         on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
+        on:toggleGps={() => { gpsActive = !gpsActive; gpsError = null; }}
         on:toggleCollapse={() => (sidebarCollapsed = true)}
       />
     </svelte:fragment>
 
     <svelte:fragment slot="mobile-layers">
       <div class="mobile-pane">
-        <LayerStackPanelMobile
+        <LayerStackPanel
           {viewMode}
           {mapList}
           on:zoomToOverlay={(e) => {
@@ -329,7 +342,7 @@
 
     <svelte:fragment slot="mobile-controls">
       <div class="mobile-pane">
-        <MobileControlsPanel
+        <LayerControlsPanel
           {viewMode}
           {gpsActive}
           on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
@@ -346,8 +359,8 @@
           activeId={selectedMap?.id ?? null}
           requireGeoref={true}
           showLayerActions={true}
+          showLocation={false}
           on:pick={handlePickMap}
-          on:pickLocation={handlePickLocation}
         />
       </div>
     </svelte:fragment>
@@ -388,23 +401,6 @@
     <svelte:fragment slot="map-overlay">
       {#if gpsError}
         <div class="gps-error">{gpsError}</div>
-      {/if}
-    </svelte:fragment>
-
-    <svelte:fragment slot="floating">
-      {#if !isMobile}
-        <button
-          type="button"
-          class="ctrl-btn"
-          class:active={gpsActive}
-          on:click={() => { gpsActive = !gpsActive; gpsError = null; }}
-          title={gpsActive ? "Stop GPS tracking" : "Start GPS tracking"}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-          </svg>
-        </button>
       {/if}
     </svelte:fragment>
 

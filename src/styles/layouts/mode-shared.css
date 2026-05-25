@@ -248,6 +248,13 @@
     min-height: 0;
 }
 
+/* In dual mode, attribution + scale live on the secondary pane only
+   (rightmost on desktop, bottommost on mobile). */
+.dual-primary.dual-active .ol-attribution,
+.dual-primary.dual-active .ol-scale-line {
+    display: none !important;
+}
+
 .dual-secondary {
     position: relative;
     flex: 1 1 50%;

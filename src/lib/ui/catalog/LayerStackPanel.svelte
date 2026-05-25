@@ -1,272 +1,236 @@
 <!--
-  LayerStackPanel.svelte — sidebar UI showing the current layer stack.
-  Top of list = top of stack. Each overlay has opacity slider + remove + visibility.
-  Base at the bottom shows current base (modern key or historical map name) with a "Reset" affordance.
+  LayerStackPanel.svelte — unified layer stack used by both the desktop sidebar
+  and the mobile "Layers" drawer.
+
+  Behavior:
+    • Whole row is the opacity slider (pointer drag, 6px threshold so taps
+      still register as zoom-to-overlay).
+    • Reorder via ▲ / ▼ buttons (works on touch and mouse).
+    • Remove (×) only — no hide/show.
+    • Display mode + Base picker live in LayerControlsPanel, not here.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { layersStore } from '$lib/stores/layersStore';
-  import type { ViewMode } from '$lib/map/types';
+  import type { ViewMode, MapListItem } from '$lib/map/types';
 
-  /** Current display mode ('overlay' | 'spy' | 'dual'). Passed in by the page. */
   export let viewMode: ViewMode = 'overlay';
+  /** Catalog list used to enrich rows with year. */
+  export let mapList: MapListItem[] = [];
 
-  $: isSideBySide = viewMode === 'dual';
-
-  const dispatch = createEventDispatcher<{ changeViewMode: { mode: ViewMode } }>();
-  const DISPLAY_MODES: { mode: ViewMode; label: string; icon: string }[] = [
-    { mode: 'overlay', label: 'Stacked',      icon: '≡' },
-    { mode: 'spy',     label: 'Lens',         icon: '◎' },
-    { mode: 'dual',    label: 'Side-by-side', icon: '⊟' },
-  ];
-
-  const BASE_CHOICES: { key: string; label: string }[] = [
-    { key: 'g-streets',   label: '🗺️ Maps' },
-    { key: 'g-satellite', label: '🛰️ Satellite' },
-    { key: 'none',        label: '⊘ None' },
-  ];
+  const dispatch = createEventDispatcher<{ zoomToOverlay: { mapId: string } }>();
 
   $: state = $layersStore;
-  $: currentBaseKey = state.base.kind === 'basemap' ? state.base.key : 'g-streets';
+  $: isSideBySide = viewMode === 'dual';
 
-  function setBase(key: string) {
-    layersStore.setBase({ kind: 'basemap', key });
+  $: yearByMapId = (() => {
+    const m = new Map<string, number | string>();
+    for (const item of mapList) if (item?.id && item.year != null) m.set(item.id, item.year as any);
+    return m;
+  })();
+
+  // ── Per-row drag-to-opacity ──────────────────────────────────────
+  const DRAG_THRESHOLD_PX = 6;
+  let pressId: string | null = null;
+  let pressStartX = 0;
+  let dragging = false;
+
+  function setOpacityFromPointer(rowEl: HTMLElement, id: string, e: PointerEvent) {
+    const rect = rowEl.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const snapped = Math.round(pct * 20) / 20;     // 5% steps
+    layersStore.setOpacity(id, snapped);
   }
 
-  function onOpacityInput(id: string, e: Event) {
-    const v = parseFloat((e.target as HTMLInputElement).value);
-    layersStore.setOpacity(id, v);
+  function onRowPointerDown(id: string, e: PointerEvent) {
+    if ((e.target as HTMLElement).closest('.lsp-action')) return;
+    const row = e.currentTarget as HTMLElement;
+    pressId = id;
+    pressStartX = e.clientX;
+    dragging = false;
+    try { row.setPointerCapture(e.pointerId); } catch {}
   }
-
-  // ── Drag to reorder ──────────────────────────────────────────────
-  let dragFrom: number | null = null;
-  let dragOver: number | null = null;
-
-  function onDragStart(i: number, e: DragEvent) {
-    dragFrom = i;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      // Some browsers require data to be set for drag to fire.
-      e.dataTransfer.setData('text/plain', String(i));
+  function onRowPointerMove(id: string, e: PointerEvent) {
+    if (pressId !== id) return;
+    if (!dragging && Math.abs(e.clientX - pressStartX) >= DRAG_THRESHOLD_PX) dragging = true;
+    if (dragging) setOpacityFromPointer(e.currentTarget as HTMLElement, id, e);
+  }
+  function onRowPointerUp(id: string, e: PointerEvent) {
+    if (pressId !== id) return;
+    const row = e.currentTarget as HTMLElement;
+    try { row.releasePointerCapture(e.pointerId); } catch {}
+    if (!dragging) {
+      const ov = state.overlays.find(o => o.id === id);
+      if (ov) dispatch('zoomToOverlay', { mapId: ov.ref.mapId });
     }
+    pressId = null;
+    dragging = false;
   }
-  function onDragOver(i: number, e: DragEvent) {
-    if (dragFrom === null) return;
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-    dragOver = i;
-  }
-  function onDrop(i: number, e: DragEvent) {
-    e.preventDefault();
-    if (dragFrom !== null && dragFrom !== i) layersStore.reorderOverlay(dragFrom, i);
-    dragFrom = null;
-    dragOver = null;
-  }
-  function onDragEnd() { dragFrom = null; dragOver = null; }
+
+  function moveUp(i: number)   { if (i > 0) layersStore.reorderOverlay(i, i - 1); }
+  function moveDown(i: number) { if (i < state.overlays.length - 1) layersStore.reorderOverlay(i, i + 1); }
 </script>
 
 <div class="lsp">
-  <div class="lsp-heading">My layers</div>
-
-  <div class="lsp-slot">
-    {#if state.overlays.length === 0}
-      <div class="lsp-empty">Click <strong>+</strong> to add a layer and drag to organize.</div>
-    {:else}
-      <ul class="lsp-list">
-    {#each state.overlays as o, i (o.id)}
-      <li
-        class="lsp-row"
-        class:top={i === 0}
-        class:dragging={dragFrom === i}
-        class:drag-over={dragOver === i && dragFrom !== null && dragFrom !== i}
-        on:dragover={(e) => onDragOver(i, e)}
-        on:drop={(e) => onDrop(i, e)}
-      >
-        <span
-          class="lsp-grip"
-          draggable="true"
-          on:dragstart={(e) => onDragStart(i, e)}
-          on:dragend={onDragEnd}
-          aria-hidden="true"
-          title="Drag to reorder"
-        >⋮⋮</span>
-        <button
-          type="button"
-          class="lsp-vis"
-          on:click={() => layersStore.setVisible(o.id, !o.visible)}
-          title={o.visible ? 'Hide' : 'Show'}
-          aria-label={o.visible ? 'Hide layer' : 'Show layer'}
-        >{o.visible ? '👁' : '🚫'}</button>
-
-        <div class="lsp-body">
-          <div class="lsp-name" title={o.ref.name ?? ''}>
-            {#if isSideBySide && (i === 0 || i === 1)}
-              <span
-                class="lsp-pane"
-                class:left={i === 0}
-                class:right={i === 1}
-                title="Drag rows to swap left/right"
-                aria-label={i === 0 ? 'Left pane' : 'Right pane'}
-              >{i === 0 ? 'L' : 'R'}</span>
-            {/if}
-            {o.ref.name ?? o.ref.mapId.slice(0, 8)}
-          </div>
-          <input
-            type="range" min="0" max="1" step="0.05"
-            value={o.opacity}
-            on:input={(e) => onOpacityInput(o.id, e)}
-            class="lsp-slider"
-            disabled={!o.visible}
-          />
-        </div>
-
-        <button class="lsp-x" on:click={() => layersStore.removeOverlay(o.id)} title="Remove" aria-label="Remove layer">×</button>
-      </li>
-    {/each}
-      </ul>
+  <div class="lsp-heading">
+    My layers
+    {#if state.overlays.length > 0}
+      <span class="lsp-sub">Drag row for opacity · tap to zoom</span>
     {/if}
   </div>
 
-  <div class="lsp-picker">
-    <span class="lsp-picker-label">Display</span>
-    <div class="lsp-picker-pills">
-      {#each DISPLAY_MODES as m}
-        <button
-          type="button"
-          class="lsp-picker-pill"
-          class:on={viewMode === m.mode}
-          on:click={() => dispatch('changeViewMode', { mode: m.mode })}
-          title={m.label}
-        >{m.icon} {m.label}</button>
-      {/each}
-    </div>
-  </div>
+  {#if state.overlays.length === 0}
+    <div class="lsp-empty">Open <strong>Browse</strong> and tap <strong>+</strong> to add a layer.</div>
+  {:else}
+    <ul class="lsp-list">
+      {#each state.overlays as o, i (o.id)}
+        <li
+          class="lsp-row"
+          class:dragging={pressId === o.id && dragging}
+          style="--fill: {Math.round(o.opacity * 100)}%"
+          on:pointerdown={(e) => onRowPointerDown(o.id, e)}
+          on:pointermove={(e) => onRowPointerMove(o.id, e)}
+          on:pointerup={(e) => onRowPointerUp(o.id, e)}
+          on:pointercancel={(e) => onRowPointerUp(o.id, e)}
+        >
+          <div class="lsp-reorder">
+            <button type="button" class="lsp-action lsp-arrow" on:click={() => moveUp(i)}
+              disabled={i === 0} aria-label="Move layer up" title="Move up">▲</button>
+            <button type="button" class="lsp-action lsp-arrow" on:click={() => moveDown(i)}
+              disabled={i === state.overlays.length - 1} aria-label="Move layer down" title="Move down">▼</button>
+          </div>
 
-  <div class="lsp-picker">
-    <span class="lsp-picker-label">Base</span>
-    <div class="lsp-picker-pills">
-      {#each BASE_CHOICES as c}
-        <button
-          type="button"
-          class="lsp-picker-pill"
-          class:on={currentBaseKey === c.key}
-          on:click={() => setBase(c.key)}
-        >{c.label}</button>
+          <div class="lsp-body">
+            <div class="lsp-name" title={o.ref.name ?? ''}>
+              {#if isSideBySide && (i === 0 || i === 1)}
+                <span class="lsp-pane" class:left={i === 0} class:right={i === 1}
+                  >{i === 0 ? 'Top' : 'Bottom'}</span>
+              {/if}
+              {#if yearByMapId.get(o.ref.mapId) != null}
+                <span class="lsp-year">{yearByMapId.get(o.ref.mapId)}</span>
+              {/if}
+              <span class="lsp-text">{o.ref.name ?? o.ref.mapId.slice(0, 8)}</span>
+            </div>
+          </div>
+
+          <div class="lsp-pct">{Math.round(o.opacity * 100)}%</div>
+
+          <button type="button" class="lsp-action lsp-x"
+            on:click={() => layersStore.removeOverlay(o.id)}
+            aria-label="Remove layer" title="Remove">×</button>
+        </li>
       {/each}
-    </div>
-  </div>
+    </ul>
+  {/if}
 </div>
 
 <style>
   .lsp {
     display: flex; flex-direction: column;
     height: 100%;
-    margin: 0.6rem 0.6rem 0;
-    padding: 0.55rem 0.65rem 0.6rem;
+    margin: 0.5rem 0.6rem;
+    padding: 0.5rem 0.55rem 0.6rem;
     background: #fff;
     border: 1.5px solid #111; border-radius: 10px;
     font-family: 'Outfit', sans-serif;
-    overflow: hidden;
+    overflow-y: auto;
   }
   .lsp-heading {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.7rem; font-weight: 800;
+    font-size: 0.72rem; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.06em;
-    color: #555; margin: 0.5rem 0 0.4rem;
+    color: #555;
+    margin: 0.25rem 0 0.5rem;
+    display: flex; align-items: baseline; gap: 0.5rem;
+    flex-wrap: wrap;
   }
-
-  /* Layer list slot fills the panel and scrolls internally. */
-  .lsp-slot {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
+  .lsp-sub {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.66rem; font-weight: 500;
+    text-transform: none; letter-spacing: 0;
+    color: #888;
   }
-  .lsp-slot::-webkit-scrollbar { width: 4px; }
-  .lsp-slot::-webkit-scrollbar-thumb { background: #c8c4b5; border-radius: 999px; }
   .lsp-empty {
-    height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    padding: 0.5rem;
-    font-size: 0.75rem; color: #888;
+    padding: 1rem;
+    font-size: 0.8rem; color: #888;
     background: #fafaf7; border-radius: 6px;
     border: 1px dashed #d9d4c0;
     text-align: center;
   }
-  .lsp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+  .lsp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+
   .lsp-row {
-    display: flex; align-items: center; gap: 0.45rem;
-    padding: 0.35rem 0.4rem;
-    background: #fafaf7;
-    border: 1.5px solid #111; border-radius: 6px;
+    position: relative;
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.55rem 0.55rem;
+    min-height: 52px;
+    background:
+      linear-gradient(to right,
+        rgba(37, 99, 235, 0.18) 0,
+        rgba(37, 99, 235, 0.18) var(--fill),
+        #fafaf7 var(--fill),
+        #fafaf7 100%);
+    border: 1.5px solid #111; border-radius: 8px;
+    touch-action: pan-y;
+    user-select: none;
+    cursor: ew-resize;
   }
-  .lsp-row.top { background: #fff7d1; }
-  .lsp-row.dragging { opacity: 0.4; }
-  .lsp-row.drag-over { box-shadow: 0 -3px 0 #2563eb inset; }
-  .lsp-grip {
+  .lsp-row.dragging { box-shadow: 0 0 0 3px rgba(37,99,235,0.35); }
+
+  .lsp-reorder {
     flex-shrink: 0;
-    color: #aaa; font-size: 0.85rem; line-height: 1;
-    cursor: grab; user-select: none;
-    padding: 0 0.1rem;
+    display: flex; flex-direction: column; gap: 2px;
   }
-  .lsp-grip:active { cursor: grabbing; }
-  .lsp-vis {
-    width: 22px; height: 22px; flex-shrink: 0;
-    background: transparent; border: none; cursor: pointer;
-    font-size: 0.85rem; padding: 0;
+  .lsp-arrow {
+    width: 28px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; border: 1.5px solid #111; border-radius: 4px;
+    font: inherit; font-size: 0.7rem; line-height: 1;
+    cursor: pointer; color: #111; padding: 0;
   }
+  .lsp-arrow:disabled { opacity: 0.3; cursor: default; }
+  .lsp-arrow:not(:disabled):active { background: #fff7d1; }
+
   .lsp-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
   .lsp-name {
-    font-size: 0.78rem; font-weight: 700; color: #111;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    display: flex; align-items: center; gap: 0.35rem;
+    font-size: 0.88rem; font-weight: 700; color: #111;
+    display: flex; align-items: center; gap: 0.4rem;
+    min-width: 0;
+  }
+  .lsp-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .lsp-year {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.82rem; font-weight: 800;
+    color: #2563eb;
   }
   .lsp-pane {
     flex-shrink: 0;
-    width: 18px; height: 18px;
+    padding: 0.1rem 0.45rem;
     display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 4px; border: 1.5px solid #111;
-    font-family: 'Outfit', sans-serif;
-    font-size: 0.65rem; font-weight: 800; line-height: 1;
-    padding: 0;
+    border-radius: 999px; border: 1.5px solid #111;
+    font-size: 0.66rem; font-weight: 800; line-height: 1.2;
+    text-transform: uppercase; letter-spacing: 0.03em;
     background: #fff; color: #111;
   }
-  .lsp-pane.left { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .lsp-pane.left  { background: #2563eb; color: #fff; border-color: #2563eb; }
   .lsp-pane.right { background: #f59e0b; color: #fff; border-color: #f59e0b; }
-  .lsp-slider { width: 100%; height: 4px; cursor: pointer; }
+
+  .lsp-pct {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.78rem; font-weight: 800;
+    color: #111;
+    min-width: 38px; text-align: right;
+  }
+
   .lsp-x {
-    width: 22px; height: 22px; flex-shrink: 0;
+    flex-shrink: 0;
+    width: 32px; height: 32px;
     background: #fff; border: 1.5px solid #111; border-radius: 999px;
-    font: inherit; font-size: 0.9rem; font-weight: 800; line-height: 1;
+    font: inherit; font-size: 1.1rem; font-weight: 800; line-height: 1;
     cursor: pointer; padding: 0; color: #666;
   }
-  .lsp-x:hover { background: #fee2e2; color: #b91c1c; }
-
-  /* Shared bottom pickers (Display + Base). */
-  .lsp-picker {
-    flex-shrink: 0;
-    margin-top: 0.4rem; padding-top: 0.35rem;
-    border-top: 1.5px dashed #d9d4c0;
-    display: flex; flex-direction: column; gap: 0.3rem;
-  }
-  .lsp-picker-label {
-    font-size: 0.6rem; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.05em;
-    color: #777;
-  }
-  .lsp-picker-pills { display: flex; gap: 0.25rem; }
-  .lsp-picker-pill {
-    flex: 1;
-    padding: 0.3rem 0.4rem;
-    background: #fff; color: #111;
-    border: 1.5px solid #111; border-radius: 6px;
-    font: inherit; font-family: 'Outfit', sans-serif;
-    font-size: 0.72rem; font-weight: 700;
-    cursor: pointer;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
-  }
-  .lsp-picker-pill:hover { background: #fafaf7; }
-  .lsp-picker-pill.on { background: #111; color: #fff; }
+  .lsp-x:active { background: #fee2e2; color: #b91c1c; }
 </style>

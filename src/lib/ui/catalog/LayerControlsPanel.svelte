@@ -1,7 +1,8 @@
 <!--
-  MobileControlsPanel.svelte — the "Controls" mobile drawer body.
+  LayerControlsPanel.svelte — shared map controls panel.
 
-  Houses everything that isn't a layer or a catalog row:
+  Used by both the desktop sidebar and the mobile "Controls" drawer. Houses
+  everything that isn't a layer row or a catalog row:
     • Display mode (Stacked / Lens / Side-by-side)
     • Base map (Maps / Satellite / None)
     • Location search (Nominatim)

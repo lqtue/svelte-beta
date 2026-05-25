@@ -349,13 +349,49 @@
   .ct.compact { box-shadow: none; border-width: 1.5px; border-radius: 6px; font-size: 0.85rem; }
   .ct.compact thead th { padding: 0.5rem 0.4rem; font-size: 0.68rem; }
   .ct.compact tbody td { padding: 0.55rem 0.4rem; vertical-align: middle; }
-  /* Hide thumb (1), Type (5), Collection (6), Status (7). Keep Title/Author (2), Year (3), Area (4). */
+  /* Hide thumb (1), Area (4), Type (5), Collection (6), Status (7). Keep Title (2), Year (3). */
   .ct.compact th:nth-child(1), .ct.compact td:nth-child(1),
+  .ct.compact th:nth-child(4), .ct.compact td:nth-child(4),
   .ct.compact th:nth-child(5), .ct.compact td:nth-child(5),
   .ct.compact th:nth-child(6), .ct.compact td:nth-child(6),
   .ct.compact th:nth-child(7), .ct.compact td:nth-child(7) { display: none; }
-  .ct.compact .title-link { font-size: 0.88rem; }
-  .ct.compact .title-col .sub { font-size: 0.72rem; color: #666; margin-top: 0.15rem; }
-  .ct.compact .tag-chip { font-size: 0.76rem; padding: 0.1rem 0.45rem; }
+  /* Hide table header in compact (column meaning is obvious; filter is shown above). */
+  .ct.compact thead { display: none; }
+  /* Use flex rows so we can put Year (col 3) BEFORE Title (col 2). */
+  .ct.compact tbody tr {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.45rem 0.55rem;
+    border-bottom: 1px dashed #ddd;
+  }
+  .ct.compact tbody tr:last-child { border-bottom: none; }
+  .ct.compact tbody td {
+    padding: 0; border: none;
+    display: flex; align-items: center;
+  }
+  .ct.compact td:nth-child(2) { order: 2; flex: 1 1 auto; min-width: 0; }
+  .ct.compact td:nth-child(3) { order: 1; flex: 0 0 auto; }
+  /* Title secondary in compact mode — name + creator stacked, smaller. */
+  .ct.compact .title-col { flex-direction: column; align-items: flex-start; gap: 0.1rem; min-width: 0; }
+  .ct.compact .title-row { min-width: 0; max-width: 100%; }
+  .ct.compact .title-link {
+    font-size: 0.82rem; font-weight: 600; color: #333;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    line-height: 1.25;
+  }
+  .ct.compact .title-col .sub { font-size: 0.68rem; color: #888; }
+
+  /* Year cell in compact: prominent label, no chip styling (not filterable). */
+  .ct.compact td:nth-child(3) .tag-chip {
+    font-size: 1rem; font-weight: 800;
+    padding: 0; border: none; background: transparent;
+    box-shadow: none;
+    color: #2563eb;
+    cursor: default;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
   .ct.compact .num { text-align: left; }
+  .ct.compact td:nth-child(3) { white-space: nowrap; min-width: 3rem; }
 </style>

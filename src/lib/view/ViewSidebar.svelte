@@ -10,6 +10,7 @@
   import type { Story } from '$lib/story/types';
   import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
   import LayerStackPanel from '$lib/ui/catalog/LayerStackPanel.svelte';
+  import LayerControlsPanel from '$lib/ui/catalog/LayerControlsPanel.svelte';
   import type { ViewMode } from '$lib/map/types';
 
   const dispatch = createEventDispatcher<{
@@ -19,6 +20,8 @@
     pickMap: any;
     pickLocation: { lat: number; lng: number; label: string; bbox?: [number, number, number, number] };
     changeViewMode: { mode: ViewMode };
+    zoomToOverlay: { mapId: string };
+    toggleGps: void;
   }>();
 
   export let selectedMap: MapListItem | null = null;
@@ -26,6 +29,8 @@
   export let activeStoryId: string | null = null;
   export let role: 'user' | 'mod' | 'admin' = 'user';
   export let viewMode: ViewMode = 'overlay';
+  export let mapList: MapListItem[] = [];
+  export let gpsActive: boolean = false;
 </script>
 
 <aside class="panel">
@@ -44,7 +49,21 @@
   </div>
 
   <div class="slot-layers">
-    <LayerStackPanel {viewMode} on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)} />
+    <LayerStackPanel
+      {viewMode}
+      {mapList}
+      on:zoomToOverlay={(e) => dispatch('zoomToOverlay', e.detail)}
+    />
+  </div>
+
+  <div class="slot-controls">
+    <LayerControlsPanel
+      {viewMode}
+      {gpsActive}
+      on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)}
+      on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
+      on:toggleGps={() => dispatch('toggleGps')}
+    />
   </div>
 
   <div class="panel-scroll slot-browse">
@@ -53,8 +72,8 @@
       activeId={selectedMap?.id ?? null}
       requireGeoref={true}
       showLayerActions={true}
+      showLocation={false}
       on:pick={(e) => dispatch('pickMap', e.detail)}
-      on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
     />
 
     {#if stories.length}
@@ -83,14 +102,19 @@
 <style>
   @import '$styles/layouts/tool-page.css';
 
-  /* 40 / 60 split on desktop: layer stack (top) and browse (bottom). */
+  /* Desktop sidebar layout: Layers | Controls | Browse, stacked. */
   .slot-layers {
-    flex: 4 1 0;
+    flex: 3 1 0;
     min-height: 0;
     display: flex; flex-direction: column;
   }
+  .slot-controls {
+    flex: 0 0 auto;
+    border-top: 1.5px dashed var(--color-gray-300, #d9d4c0);
+    border-bottom: 1.5px dashed var(--color-gray-300, #d9d4c0);
+  }
   .slot-browse {
-    flex: 6 1 0;
+    flex: 5 1 0;
     min-height: 0;
     display: flex; flex-direction: column;
   }
