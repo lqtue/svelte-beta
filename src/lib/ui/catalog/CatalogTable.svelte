@@ -158,6 +158,7 @@
       {#if g.label === null || !collapsed.has(g.label)}
         {#each g.rows as item (item.id)}
           {@const isScout = item._table === 'scout'}
+          {@const isOverlay = overlayMapIds.has(item.id)}
           <tr class:scout-row={isScout} class:active-row={item.id === activeId} on:click={() => openItem(item)}>
             <td class="thumb-col">
               {#if item.thumbnail}
@@ -170,7 +171,6 @@
               <div class="title-row">
                 <span class="title-link">{item.name || '—'}</span>
                 {#if showLayerActions && !isScout && item.georef_done}
-                  {@const isOverlay = overlayMapIds.has(item.id)}
                   <button
                     type="button"
                     class="cmp-btn"
@@ -345,18 +345,17 @@
     .ct th:nth-child(6), .ct td:nth-child(6) { display: none; }
   }
 
-  /* Compact: shown inside sidebars. Keep thumb + title + year + status only. */
+  /* Compact: shown inside sidebars. Year + Area + Name/Author only — no thumb. */
   .ct.compact { box-shadow: none; border-width: 1.5px; border-radius: 6px; font-size: 0.85rem; }
-  .ct.compact thead th { padding: 0.5rem 0.45rem; font-size: 0.7rem; }
-  .ct.compact tbody td { padding: 0.5rem 0.45rem; }
-  .ct.compact .thumb-col { width: 56px; padding: 0.35rem 0.4rem; }
-  .ct.compact .thumb-col img,
-  .ct.compact .thumb-col .thumb-empty { width: 48px; height: 38px; border-radius: 4px; }
-  .ct.compact .title-link { font-size: 0.85rem; }
-  .ct.compact .title-col .sub { font-size: 0.7rem; }
-  /* Hide Type (5), Collection (6), Status (7). Keep thumb, title, Year (3), Area (4). */
+  .ct.compact thead th { padding: 0.5rem 0.4rem; font-size: 0.68rem; }
+  .ct.compact tbody td { padding: 0.55rem 0.4rem; vertical-align: middle; }
+  /* Hide thumb (1), Type (5), Collection (6), Status (7). Keep Title/Author (2), Year (3), Area (4). */
+  .ct.compact th:nth-child(1), .ct.compact td:nth-child(1),
   .ct.compact th:nth-child(5), .ct.compact td:nth-child(5),
   .ct.compact th:nth-child(6), .ct.compact td:nth-child(6),
   .ct.compact th:nth-child(7), .ct.compact td:nth-child(7) { display: none; }
-  .ct.compact .tag-chip { font-size: 0.72rem; padding: 0.1rem 0.4rem; }
+  .ct.compact .title-link { font-size: 0.88rem; }
+  .ct.compact .title-col .sub { font-size: 0.72rem; color: #666; margin-top: 0.15rem; }
+  .ct.compact .tag-chip { font-size: 0.76rem; padding: 0.1rem 0.45rem; }
+  .ct.compact .num { text-align: left; }
 </style>

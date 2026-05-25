@@ -184,6 +184,10 @@
     <slot name="mobile-layers" />
   </svelte:fragment>
 
+  <svelte:fragment slot="mobile-controls">
+    <slot name="mobile-controls" />
+  </svelte:fragment>
+
   <svelte:fragment slot="mobile-browse">
     <slot name="mobile-browse" />
   </svelte:fragment>

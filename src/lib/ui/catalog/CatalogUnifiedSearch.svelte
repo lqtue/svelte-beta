@@ -199,19 +199,21 @@
     />
   {/if}
   <div class="v2-results">
-    <div class="v2-toolbar">
-      <span class="v2-count">
-        <strong>{total.maps}</strong> in archive
-        {#if includeScout}· <strong>{total.scout}</strong> in scout queue{/if}
-        {#if loading}<span class="v2-loading">…</span>{/if}
-      </span>
-      {#if role === 'admin' || role === 'mod'}
-        <label class="v2-scout-toggle">
-          <input type="checkbox" bind:checked={includeScout} />
-          Include scout queue
-        </label>
-      {/if}
-    </div>
+    {#if !compact}
+      <div class="v2-toolbar">
+        <span class="v2-count">
+          <strong>{total.maps}</strong> in archive
+          {#if includeScout}· <strong>{total.scout}</strong> in scout queue{/if}
+          {#if loading}<span class="v2-loading">…</span>{/if}
+        </span>
+        {#if role === 'admin' || role === 'mod'}
+          <label class="v2-scout-toggle">
+            <input type="checkbox" bind:checked={includeScout} />
+            Include scout queue
+          </label>
+        {/if}
+      </div>
+    {/if}
     {#if results.length === 0 && !loading}
       <div class="state-panel">
         <div class="empty-emoji">🏜️</div>

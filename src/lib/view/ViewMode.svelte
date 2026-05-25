@@ -36,6 +36,8 @@
   import MapWorkspace from "$lib/shell/MapWorkspace.svelte";
   import ViewSidebar from "./ViewSidebar.svelte";
   import LayerStackPanel from "$lib/ui/catalog/LayerStackPanel.svelte";
+  import LayerStackPanelMobile from "$lib/ui/catalog/LayerStackPanelMobile.svelte";
+  import MobileControlsPanel from "$lib/ui/catalog/MobileControlsPanel.svelte";
   import CatalogSidebarPanel from "$lib/ui/catalog/CatalogSidebarPanel.svelte";
   import StoryPlayback from "./StoryPlayback.svelte";
   import StoryMarkers from "./StoryMarkers.svelte";
@@ -314,9 +316,25 @@
 
     <svelte:fragment slot="mobile-layers">
       <div class="mobile-pane">
-        <LayerStackPanel
+        <LayerStackPanelMobile
           {viewMode}
+          {mapList}
+          on:zoomToOverlay={(e) => {
+            const m = mapList.find((m) => m.id === e.detail.mapId);
+            if (m) handleZoomToMap(new CustomEvent('zoomToMap', { detail: { map: m } }));
+          }}
+        />
+      </div>
+    </svelte:fragment>
+
+    <svelte:fragment slot="mobile-controls">
+      <div class="mobile-pane">
+        <MobileControlsPanel
+          {viewMode}
+          {gpsActive}
           on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
+          on:pickLocation={handlePickLocation}
+          on:toggleGps={() => { gpsActive = !gpsActive; gpsError = null; }}
         />
       </div>
     </svelte:fragment>
@@ -374,18 +392,20 @@
     </svelte:fragment>
 
     <svelte:fragment slot="floating">
-      <button
-        type="button"
-        class="ctrl-btn"
-        class:active={gpsActive}
-        on:click={() => { gpsActive = !gpsActive; gpsError = null; }}
-        title={gpsActive ? "Stop GPS tracking" : "Start GPS tracking"}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-        </svg>
-      </button>
+      {#if !isMobile}
+        <button
+          type="button"
+          class="ctrl-btn"
+          class:active={gpsActive}
+          on:click={() => { gpsActive = !gpsActive; gpsError = null; }}
+          title={gpsActive ? "Stop GPS tracking" : "Start GPS tracking"}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+          </svg>
+        </button>
+      {/if}
     </svelte:fragment>
 
   </MapWorkspace>

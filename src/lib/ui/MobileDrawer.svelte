@@ -44,11 +44,12 @@
 
 <style>
   .drawer {
+    --tab-h: clamp(36px, 6.5vh, 48px);
     pointer-events: auto;
     background: var(--color-bg, #f5f0ea);
     border-top: 2px solid #111;
     display: flex; flex-direction: column;
-    max-height: 44px;             /* closed: only the tab is visible */
+    max-height: var(--tab-h);     /* closed: only the tab is visible */
     overflow: hidden;
     transition: max-height 0.25s ease;
   }
@@ -63,7 +64,7 @@
 
   .drawer-tab {
     flex-shrink: 0;
-    height: 44px;
+    height: var(--tab-h, 44px);
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 1rem;
     background: #fff;

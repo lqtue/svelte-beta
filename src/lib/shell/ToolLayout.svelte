@@ -13,20 +13,20 @@
     default           — map content
     floating          — bottom-right controls
     mobile-layers     — mobile drawer 1 body  (label: "Layers")
-    mobile-browse     — mobile drawer 2 body  (label: "Browse")
+    mobile-controls   — mobile drawer 2 body  (label: "Controls")
+    mobile-browse     — mobile drawer 3 body  (label: "Browse")
     mobile-sidebar    — legacy fallback (single drawer, label: "Tools")
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import '$styles/layouts/mode-shared.css';
-  import MobileDrawer from '$lib/ui/MobileDrawer.svelte';
 
   export let sidebarCollapsed = false;
   export let isMobile = false;
   export let isCompact = false;
 
   /** Mobile: which drawer is open. */
-  let openDrawer: 'none' | 'layers' | 'browse' | 'legacy' = 'none';
+  let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
 
   // ── Sidebar resizing (desktop) ───────────────────────────────
   let sidebarWidth = 320;
@@ -76,9 +76,10 @@
 
   $: hasSidebar = !!$$slots.sidebar;
   $: hasMobileLayers = !!$$slots['mobile-layers'];
+  $: hasMobileControls = !!$$slots['mobile-controls'];
   $: hasMobileBrowse = !!$$slots['mobile-browse'];
   $: hasMobileSidebar = !!$$slots['mobile-sidebar'];
-  $: hasAnyDrawer = hasMobileLayers || hasMobileBrowse || hasMobileSidebar;
+  $: hasAnyDrawer = hasMobileLayers || hasMobileControls || hasMobileBrowse || hasMobileSidebar;
   $: showDesktopSidebar = hasSidebar && !sidebarCollapsed && !isMobile;
 </script>
 
@@ -126,39 +127,70 @@
       <div class="drawer-backdrop" on:click={() => (openDrawer = 'none')} role="presentation"></div>
     {/if}
 
-    <div class="drawer-stack">
-      {#if hasMobileLayers}
-        <MobileDrawer
-          label="Layers"
-          icon="🗺️"
-          open={openDrawer === 'layers'}
-          on:toggle={(e) => (openDrawer = e.detail.open ? 'layers' : 'none')}
-        >
-          <slot name="mobile-layers" />
-        </MobileDrawer>
-      {/if}
+    <div class="drawer-stack" class:open={openDrawer !== 'none'}>
+      <!-- Shared body: shows the active drawer's content. Hidden when closed. -->
+      <div class="drawer-body" aria-hidden={openDrawer === 'none'}>
+        {#if hasMobileLayers}
+          <div class="drawer-pane" class:active={openDrawer === 'layers'}>
+            <slot name="mobile-layers" />
+          </div>
+        {/if}
+        {#if hasMobileControls}
+          <div class="drawer-pane" class:active={openDrawer === 'controls'}>
+            <slot name="mobile-controls" />
+          </div>
+        {/if}
+        {#if hasMobileBrowse}
+          <div class="drawer-pane" class:active={openDrawer === 'browse'}>
+            <slot name="mobile-browse" />
+          </div>
+        {/if}
+        {#if hasMobileSidebar && !hasMobileLayers && !hasMobileBrowse && !hasMobileControls}
+          <div class="drawer-pane" class:active={openDrawer === 'legacy'}>
+            <slot name="mobile-sidebar" />
+          </div>
+        {/if}
+      </div>
 
-      {#if hasMobileBrowse}
-        <MobileDrawer
-          label="Browse"
-          icon="📋"
-          open={openDrawer === 'browse'}
-          on:toggle={(e) => (openDrawer = e.detail.open ? 'browse' : 'none')}
-        >
-          <slot name="mobile-browse" />
-        </MobileDrawer>
-      {/if}
-
-      {#if hasMobileSidebar && !hasMobileLayers && !hasMobileBrowse}
-        <MobileDrawer
-          label="Tools"
-          icon="📋"
-          open={openDrawer === 'legacy'}
-          on:toggle={(e) => (openDrawer = e.detail.open ? 'legacy' : 'none')}
-        >
-          <slot name="mobile-sidebar" />
-        </MobileDrawer>
-      {/if}
+      <!-- Tab row: horizontal, equal-width. -->
+      <div class="drawer-tabs" role="tablist">
+        {#if hasMobileLayers}
+          <button
+            type="button"
+            class="drawer-tab"
+            class:on={openDrawer === 'layers'}
+            on:click={() => (openDrawer = openDrawer === 'layers' ? 'none' : 'layers')}
+            aria-pressed={openDrawer === 'layers'}
+          ><span aria-hidden="true">🗺️</span><span>Layers</span></button>
+        {/if}
+        {#if hasMobileControls}
+          <button
+            type="button"
+            class="drawer-tab"
+            class:on={openDrawer === 'controls'}
+            on:click={() => (openDrawer = openDrawer === 'controls' ? 'none' : 'controls')}
+            aria-pressed={openDrawer === 'controls'}
+          ><span aria-hidden="true">⚙️</span><span>Controls</span></button>
+        {/if}
+        {#if hasMobileBrowse}
+          <button
+            type="button"
+            class="drawer-tab"
+            class:on={openDrawer === 'browse'}
+            on:click={() => (openDrawer = openDrawer === 'browse' ? 'none' : 'browse')}
+            aria-pressed={openDrawer === 'browse'}
+          ><span aria-hidden="true">📋</span><span>Browse</span></button>
+        {/if}
+        {#if hasMobileSidebar && !hasMobileLayers && !hasMobileBrowse && !hasMobileControls}
+          <button
+            type="button"
+            class="drawer-tab"
+            class:on={openDrawer === 'legacy'}
+            on:click={() => (openDrawer = openDrawer === 'legacy' ? 'none' : 'legacy')}
+            aria-pressed={openDrawer === 'legacy'}
+          ><span aria-hidden="true">📋</span><span>Tools</span></button>
+        {/if}
+      </div>
     </div>
   {/if}
 </div>
@@ -201,11 +233,63 @@
   @keyframes db-fade { from { opacity: 0; } to { opacity: 1; } }
 
   .drawer-stack {
+    --tab-h: clamp(40px, 7vh, 52px);
     position: absolute;
     left: 0; right: 0; bottom: 0;
     z-index: 60;
     display: flex; flex-direction: column;
-    pointer-events: none;   /* drawers opt in so map stays interactive between tabs */
+    pointer-events: auto;
     padding-bottom: env(safe-area-inset-bottom);
+    background: transparent;
   }
+
+  /* Shared body: collapses to 0 when no drawer open, expands to 70vh when open. */
+  .drawer-body {
+    max-height: 0;
+    overflow: hidden;
+    background: var(--color-bg, #f5f0ea);
+    transition: max-height 0.25s ease, border-top-width 0.25s ease;
+    border-top: 0 solid #111;
+    display: flex; flex-direction: column;
+  }
+  .drawer-stack.open .drawer-body {
+    max-height: 70vh;
+    border-top-width: 2px;
+  }
+  .drawer-pane {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .drawer-pane.active { display: flex; flex-direction: column; }
+  /* Force scroll inside any wrapper that uses overflow:hidden (e.g. .mobile-pane). */
+  .drawer-pane > :global(*) { overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
+
+  /* Horizontal tab row. Equal-width, side-by-side. */
+  .drawer-tabs {
+    display: flex; flex-direction: row;
+    height: var(--tab-h);
+    background: #fff;
+    border-top: 2px solid #111;
+  }
+  .drawer-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 0.35rem;
+    padding: 0 0.5rem;
+    background: #fff;
+    border: none;
+    border-left: 1.5px solid #111;
+    font: inherit; font-family: 'Outfit', sans-serif;
+    font-weight: 700; font-size: 0.82rem;
+    color: #111;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .drawer-tab:first-child { border-left: none; }
+  .drawer-tab:active { background: #f5f3ea; }
+  .drawer-tab.on { background: #111; color: #fff; }
 </style>
