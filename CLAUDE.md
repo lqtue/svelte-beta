@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-Guidance for Claude Code working in the Vietnam Map Archive (VMA) repo — a SvelteKit 5 app for exploring georeferenced historical maps of Saigon/Ho Chi Minh City. Integrates Allmaps with OpenLayers and MapLibre.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced historical maps of Saigon/Ho Chi Minh City. Integrates Allmaps with OpenLayers and MapLibre.
 
 ## Where to look first
 
@@ -50,9 +52,9 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 
 ### MapShell — central map pattern
 
-`src/lib/shell/MapShell.svelte` owns the single OpenLayers Map and is the entry point for all geo-map pages. It manages the OL Map, syncs the View with `mapStore`, handles basemap switching, and exposes everything via Svelte context (`src/lib/shell/context.ts`). Children call `getShellContext()` — never create a second OL map.
+`src/lib/shell/MapShell.svelte` owns the single OpenLayers Map and is the entry point for all geo-map pages. It mounts basemap tile layers and exposes everything via Svelte context (`src/lib/shell/context.ts`). Children call `getShellContext()` — never create a second OL map. Basemap *visibility* is owned by `LayerRenderer`, not MapShell.
 
-`HistoricalOverlay.svelte` is headless and reacts to `mapStore.activeMapId` + `layerStore` to add/remove the warped historical layer. `DualMapPane.svelte` handles side-by-side.
+`src/lib/shell/LayerRenderer.svelte` is the single component that renders **all** map layers — base (modern tile OR historical warped) and overlays — by subscribing to `layersStore`. Replaces the older `HistoricalOverlay` / `HistoricalBaseLayer` / `StackedOverlay` trio (removed). In side-by-side mode it hides overlays past index 0 so the left pane shows only the topmost; `DualMapPane.svelte` independently renders overlays[1] in the right pane.
 
 **Exception — `ImageShell.svelte`** (same dir): IIIF-canvas counterpart to MapShell for pixel-coordinate work. Creates an OL map with a static image extent, exposes via `getImageShellStore()`, binds `imgWidth`/`imgHeight`. Used by the `/contribute/digitalize`, `/contribute/trace`, and `/contribute/review` tools — they do NOT use MapShell or global stores.
 
@@ -60,8 +62,9 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 
 ### Global stores (`src/lib/stores/`)
 
-- **mapStore** — `{ lng, lat, zoom, rotation, activeMapId, activeAllmapsId }`. Default: Saigon (106.70098, 10.77653) zoom 14. `activeMapId` is `maps.id` UUID. `activeAllmapsId` despite the name holds the **annotation source string** — either a bare Allmaps image ID or a full annotation URL. The runtime `annotationUrlForSource()` accepts both. Always pass `m.annotation_url ?? m.allmaps_id` to `setActiveMap(id, source)`.
-- **layerStore** — `{ basemap, overlayOpacity, overlayVisible, viewMode, sideRatio, lensRadius }`. View modes: `'overlay' | 'side' | 'spyglass'`.
+- **layersStore** *(new — single source of truth for what the map renders)* — `{ base: LayerRef, overlays: OverlayLayer[] }` where `base` is either `{ kind: 'basemap', key }` (`'g-streets' | 'g-satellite' | 'none'`) or `{ kind: 'historical', mapId, allmapsId, name?, thumbnail? }`. `overlays` is top-of-stack-first; each item has its own `opacity`, `visible`, and stable local `id`. Max 10 overlays. Persists to `localStorage` as `vma-layers-v1`. API: `setBase`, `addOverlay`, `removeOverlay`, `removeOverlayByMapId`, `setOpacity`, `setVisible`, `reorderOverlay`, `clearOverlays`, `isOverlay`, `isBase`.
+- **mapStore** — `{ lng, lat, zoom, rotation, activeMapId, activeAllmapsId }`. Default: Saigon (106.70098, 10.77653) zoom 14. `activeMapId` is `maps.id` UUID and is now a **one-way mirror** of `layersStore.overlays[0]` (kept for legacy callers: URL hash, story playback, share). `activeAllmapsId` holds the annotation source string — either a bare Allmaps image ID or a full annotation URL; the runtime `annotationUrlForSource()` accepts both.
+- **layerStore** — `{ basemap, overlayOpacity, overlayVisible, viewMode, sideRatio, lensRadius }`. View modes: `'overlay' | 'spy' | 'dual'` (UI labels: Stacked / Lens / Side-by-side). `basemap` / `overlayOpacity` / `overlayVisible` are legacy and no longer drive rendering — `layersStore` owns base + per-layer opacity now.
 - **urlStore** — bidirectional URL hash ↔ stores sync. Hash: `#@lat,lng,zoomz,rotationr&map=id&base=key`.
 
 State persisted to localStorage as `vma-viewer-state-v1` (debounced 500ms).
@@ -87,6 +90,21 @@ Redirects: `/contribute/label` → `/contribute/digitalize` (`+page.server.ts`, 
 | `/contribute/review` | HITL review of SAM2 footprints | `src/routes/contribute/review/` (no route group) + `src/lib/contribute/review/` |
 
 `/contribute/label` is retired — `+page.server.ts` 301-redirects to `/contribute/digitalize` (which now owns the OCR review flow as well as Triage). All app modes except the contribute IIIF-canvas tools (trace, digitalize) share MapShell + global stores.
+
+### /view sidebar + mobile pattern
+
+Same components drive both viewports — desktop sidebar and mobile drawers share the panels. Four reusable pieces in `src/lib/ui/catalog/`:
+
+- **`LayerStackPanel.svelte`** — the layer stack. Whole row is the opacity slider (horizontal pointer drag, 6px threshold so clean taps still register as zoom-to-overlay). Reorder via ▲/▼ buttons. **Remove (×) only** — no hide/show toggle. Shows year + name. In side-by-side mode the top 2 overlays get **Top** / **Bottom** badges (mobile dual splits vertically).
+- **`LayerControlsPanel.svelte`** — Display mode (Stacked / Lens / Side-by-side) · Base map (🗺️ Maps / 🛰️ Satellite / ⊘ None) · Location search (Nominatim) · "My location" GPS toggle. **Single source of GPS on both viewports** — there is no longer a floating GPS button.
+- **`CatalogSidebarPanel.svelte`** — compact catalog browser. One search input filters maps. In `/view` it's passed `showLocation={false}` because Controls owns location search.
+- **`CatalogTable.svelte`** — in compact mode, rows show **Year + Name only** (thumb hidden, title clamped 2 lines, year as bold blue tabular-num label). Above the table, **Show maps of** and **Type** render as two native `<select>` dropdowns (single-select; respects `requireGeoref` so empty regions don't appear). Year and Area row chips are intentionally **not** clickable filters — only the dropdowns are.
+
+Desktop `ViewSidebar` stacks the three panels: **Layers → Controls → Browse** (flex 3 / auto / 5).
+
+Mobile (`< 900px`): `ToolLayout` shows a full-bleed map with a **horizontal 3-tab bottom bar** — Layers · Controls · Browse — backed by a single shared drawer body that slides up to 70vh. Tabs scale via `clamp(36px, 6.5vh, 48px)`. Slots: `mobile-layers`, `mobile-controls`, `mobile-browse`. Only one open at a time; backdrop dismisses. Legacy `mobile-sidebar` single-drawer fallback still works for other tool pages.
+
+In dual mode, OL attribution + scale live on the **secondary** pane (right on desktop, bottom on mobile) — hidden on the primary via CSS. Map-bounds resolution (`handlePickMap` / `handleZoomToMap` / `applyUrlParams`) tries `bounds → bbox → annotation_url → allmaps_id` so R2-mirrored maps and arriving via `?map=<id>` both zoom correctly.
 
 **OCR review** is implemented inside `/contribute/digitalize` (Phase 2). `OcrBboxTool.svelte` renders + edits `ocr_extractions` bboxes; also supports `drawMode` for manual bboxes (POSTs with `model: 'manual'`). `OcrSidebar.svelte` is a filterable table with inline text/category edit + auto-save on blur. Floating `BboxPanel` in `+page.svelte` shows when a bbox is selected.
 
@@ -203,6 +221,3 @@ Full command reference in `docs/pipelines.md`:
 
 Cloudflare Pages adapter. Build output: `.svelte-kit/cloudflare`.
 
-## Large file warning
-
-`src/lib/shell/MapShell.svelte` is very large. Use `offset`/`limit` when reading, or grep for specific sections.
