@@ -20,12 +20,26 @@
 
 .workspace.with-sidebar {
     grid-template-columns: var(--sidebar-width, 320px) minmax(0, 1fr);
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0;
+    padding: 0;
+}
+
+.workspace.with-sidebar.with-right-sidebar {
+    grid-template-columns: var(--sidebar-width, 320px) minmax(0, 1fr) var(--right-sidebar-width, 360px);
+}
+
+.workspace:not(.with-sidebar).with-right-sidebar {
+    grid-template-columns: minmax(0, 1fr) var(--right-sidebar-width, 360px);
+    gap: 0;
+    padding: 0;
 }
 
 .workspace.with-sidebar.compact {
     grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr);
+}
+
+.workspace.with-sidebar.with-right-sidebar.compact {
+    grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr) var(--right-sidebar-width, 300px);
 }
 
 /* Mobile: full-screen panes with bottom tab bar (ToolLayout handles which pane is visible). */
@@ -44,17 +58,12 @@
 .map-stage {
     position: relative;
     min-height: 0;
+    min-width: 0;
     height: 100%;
-    border-radius: var(--radius-lg);
     overflow: hidden;
     background: var(--color-gray-100);
-    border: var(--border-thick);
-    box-shadow: var(--shadow-solid);
-}
-
-.workspace:not(.with-sidebar) .map-stage {
-    border-radius: 0;
     border: none;
+    border-radius: 0;
     box-shadow: none;
 }
 

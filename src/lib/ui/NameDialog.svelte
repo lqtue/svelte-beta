@@ -45,178 +45,52 @@
 {#if open}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="name-dialog-overlay"
+    class="mo-overlay"
     bind:this={overlayEl}
     on:click={handleOverlayClick}
     on:keydown={handleKeydown}
   >
-    <div
-      class="name-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-label={heading}
-    >
-      <h2 class="name-dialog-heading">{heading}</h2>
+    <div class="mo-dialog is-narrow" role="dialog" aria-modal="true" aria-label={heading}>
+      <header class="mo-dialog-head">
+        <span class="mo-dialog-title">{heading}</span>
+        <button type="button" class="sb-btn is-icon is-ghost"
+          on:click={() => dispatch('close')} aria-label="Close">×</button>
+      </header>
 
-      <label class="name-dialog-field">
-        <span class="name-dialog-label">Title</span>
-        <input
-          type="text"
-          bind:this={inputEl}
-          bind:value
-          placeholder="Enter a title"
-        />
-      </label>
-
-      {#if showDescription}
-        <label class="name-dialog-field">
-          <span class="name-dialog-label">Description</span>
-          <textarea
-            rows="2"
-            bind:value={descriptionValue}
-            placeholder="Optional description"
-          ></textarea>
+      <div class="mo-dialog-body">
+        <label class="mo-field">
+          <span class="mo-field-label">Title</span>
+          <input
+            class="sb-input"
+            type="text"
+            bind:this={inputEl}
+            bind:value
+            placeholder="Enter a title"
+          />
         </label>
-      {/if}
 
-      <div class="name-dialog-actions">
-        <button
-          type="button"
-          class="name-dialog-btn secondary"
-          on:click={() => dispatch("close")}
-        >
+        {#if showDescription}
+          <label class="mo-field">
+            <span class="mo-field-label">Description</span>
+            <textarea
+              class="sb-textarea"
+              rows="2"
+              bind:value={descriptionValue}
+              placeholder="Optional description"
+            ></textarea>
+          </label>
+        {/if}
+      </div>
+
+      <footer class="mo-dialog-foot">
+        <button type="button" class="sb-btn is-ghost" on:click={() => dispatch('close')}>
           Cancel
         </button>
-        <button
-          type="button"
-          class="name-dialog-btn primary"
-          on:click={handleSubmit}
-          disabled={!value.trim()}
-        >
+        <button type="button" class="sb-btn is-on"
+          on:click={handleSubmit} disabled={!value.trim()}>
           OK
         </button>
-      </div>
+      </footer>
     </div>
   </div>
 {/if}
-
-<style>
-  .name-dialog-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-  }
-
-  .name-dialog {
-    background: var(--color-white);
-    border: var(--border-thick);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: var(--shadow-solid);
-  }
-
-  .name-dialog-heading {
-    margin: 0 0 1.25rem;
-    font-family: var(--font-family-display);
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: var(--color-text);
-    text-transform: uppercase;
-  }
-
-  .name-dialog-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    margin-bottom: 1rem;
-  }
-
-  .name-dialog-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--color-text);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    opacity: 0.7;
-  }
-
-  .name-dialog-field input[type="text"],
-  .name-dialog-field textarea {
-    border-radius: var(--radius-md);
-    border: var(--border-thin);
-    background: var(--color-bg);
-    color: var(--color-text);
-    padding: 0.55rem 0.75rem;
-    font-family: var(--font-family-base);
-    font-size: 0.9rem;
-    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.05);
-  }
-
-  .name-dialog-field input:focus,
-  .name-dialog-field textarea:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 2px 2px 0px var(--color-border);
-  }
-
-  .name-dialog-field textarea {
-    resize: vertical;
-    min-height: 60px;
-  }
-
-  .name-dialog-actions {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: flex-end;
-    margin-top: 1.25rem;
-  }
-
-  .name-dialog-btn {
-    padding: 0.5rem 1.25rem;
-    border-radius: var(--radius-pill);
-    font-size: 0.85rem;
-    font-weight: 700;
-    font-family: var(--font-family-base);
-    cursor: pointer;
-    transition: all 0.1s;
-  }
-
-  .name-dialog-btn.secondary {
-    border: var(--border-thin);
-    border-style: dashed;
-    background: var(--color-white);
-    color: var(--color-text);
-    box-shadow: none;
-  }
-
-  .name-dialog-btn.secondary:hover {
-    background: var(--color-bg);
-    border-style: solid;
-    transform: translate(-1px, -1px);
-    box-shadow: 2px 2px 0px var(--color-border);
-  }
-
-  .name-dialog-btn.primary {
-    border: var(--border-thick);
-    background: var(--color-blue);
-    color: white;
-    box-shadow: 2px 2px 0px var(--color-border);
-  }
-
-  .name-dialog-btn.primary:hover:not(:disabled) {
-    transform: translate(-2px, -2px);
-    box-shadow: 4px 4px 0px var(--color-border);
-  }
-
-  .name-dialog-btn.primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-</style>

@@ -2,6 +2,8 @@
 @import './components/buttons.css';
 @import './components/nav-buttons.css';
 @import './components/editorial.css';
+@import './components/sidebar.css';
+@import './components/modal.css';
 
 *,
 *::before,

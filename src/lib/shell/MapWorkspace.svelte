@@ -68,6 +68,13 @@
   export let sidebarCollapsed: boolean = false;
   export let isMobile: boolean = false;
   export let isCompact: boolean = false;
+  /** Initial sidebar width and max-drag width — forwarded to ToolLayout. */
+  export let sidebarWidth: number = 320;
+  export let sidebarMaxWidth: number = 600;
+  /** Width / max-drag / collapsed state of the optional right sidebar. */
+  export let rightSidebarWidth: number = 360;
+  export let rightSidebarMaxWidth: number = 560;
+  export let rightSidebarCollapsed: boolean = false;
   /** Reactive map list. */
   export let mapList: MapListItem[] = [];
   /** Derived from mapList + activeMapId; read-only for callers. */
@@ -124,9 +131,19 @@
   }
 </script>
 
-<ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
+<ToolLayout
+  bind:sidebarCollapsed bind:isMobile bind:isCompact
+  bind:sidebarWidth {sidebarMaxWidth}
+  bind:rightSidebarWidth {rightSidebarMaxWidth}
+  bind:rightSidebarCollapsed
+  hasRightSidebar={!!$$slots['right-sidebar']}
+>
   <svelte:fragment slot="sidebar">
     <slot name="sidebar" />
+  </svelte:fragment>
+
+  <svelte:fragment slot="right-sidebar">
+    <slot name="right-sidebar" />
   </svelte:fragment>
 
   <!-- Map stage -->

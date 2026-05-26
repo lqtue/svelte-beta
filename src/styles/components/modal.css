@@ -1,0 +1,202 @@
+/*
+  modal.css — shared building blocks for dialogs and floating search/result UIs.
+
+  Two distinct surfaces are covered here because they share the same chrome
+  conventions (border, radius, shadow, focus ring, button family):
+
+    1. Dialog modals      (NameDialog, future SearchDialog, etc.)
+    2. Searchable lists    (location lookup, map catalogue, future quick-pick)
+
+  Hierarchy
+  ─────────
+    .mo-overlay         fixed full-screen backdrop, centers .mo-dialog
+    .mo-dialog          the white card
+      .mo-dialog-head    heading row (title + close button)
+      .mo-dialog-body    scrollable content area
+      .mo-dialog-foot    button row (right-aligned by default)
+    .mo-field           label + control pair inside dialog or sidebar
+      .mo-field-label    uppercase caption
+
+  Search inputs and result lists
+  ──────────────────────────────
+    .mo-search          pill-shaped icon + input bar (reusable in sidebars too)
+      .mo-search-input   the actual <input>
+      .mo-search-icon    svg slot, sits left of input
+    .mo-results         vertical list of result rows
+      .mo-result         row button — title + sub
+        .mo-result-title primary text
+        .mo-result-sub   secondary muted text
+      .mo-result.is-active highlighted (keyboard nav / current pick)
+    .mo-results-label   "PLACES" / "MAPS" caption above the list
+
+  Tokens come from sidebar.css so everything stays visually unified.
+*/
+
+/* ── Dialog shell ─────────────────────────────────────────────── */
+.mo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  padding: 1rem;
+}
+
+.mo-dialog {
+  display: flex; flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100vh - 2rem);
+  background: var(--sb-card-bg, #fff);
+  border: var(--sb-border, 1.5px solid #111);
+  border-radius: var(--sb-radius, 10px);
+  box-shadow: 6px 6px 0 #111;
+  overflow: hidden;
+  font-family: var(--sb-font-base, 'Outfit', sans-serif);
+}
+.mo-dialog.is-wide { max-width: 640px; }
+.mo-dialog.is-narrow { max-width: 340px; }
+
+.mo-dialog-head {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  border-bottom: var(--sb-border, 1.5px solid #111);
+  background: var(--sb-head-bg, #fafaf7);
+}
+.mo-dialog-title {
+  font-family: var(--sb-font-display, 'Space Grotesk', sans-serif);
+  font-size: 0.85rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--sb-text, #111);
+}
+
+.mo-dialog-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 0.85rem;
+  display: flex; flex-direction: column;
+  gap: 0.75rem;
+}
+.mo-dialog-body.is-flush { padding: 0; }
+
+.mo-dialog-foot {
+  flex-shrink: 0;
+  display: flex; gap: 0.5rem; justify-content: flex-end;
+  padding: 0.65rem 0.85rem;
+  border-top: var(--sb-border, 1.5px solid #111);
+  background: var(--sb-head-bg, #fafaf7);
+}
+.mo-dialog-foot.is-split { justify-content: space-between; }
+
+/* ── Field (label + control) ──────────────────────────────────── */
+.mo-field {
+  display: flex; flex-direction: column;
+  gap: 0.3rem;
+}
+.mo-field-label {
+  font-family: var(--sb-font-display, 'Space Grotesk', sans-serif);
+  font-size: 0.66rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--sb-text-meta, #555);
+}
+
+/* ── Search input (pill with icon) ────────────────────────────── */
+.mo-search {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  background: var(--sb-card-bg, #fff);
+  border: var(--sb-border, 1.5px solid #111);
+  border-radius: var(--sb-radius-pill, 999px);
+  min-height: 36px;
+}
+.mo-search:focus-within {
+  background: var(--sb-accent-yellow, #fff7d1);
+}
+.mo-search-icon {
+  flex-shrink: 0;
+  width: 14px; height: 14px;
+  color: var(--sb-text, #111);
+}
+.mo-search-input {
+  flex: 1; min-width: 0;
+  border: none; outline: none; background: transparent;
+  font-family: var(--sb-font-base, 'Outfit', sans-serif);
+  font-size: 0.85rem;
+  color: var(--sb-text, #111);
+}
+.mo-search-input::placeholder { color: var(--sb-text-muted, #888); }
+.mo-search-clear {
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  border: none; background: transparent;
+  cursor: pointer;
+  color: var(--sb-text-meta, #555);
+  font-size: 1rem; line-height: 1;
+  padding: 0;
+}
+.mo-search-clear:hover { color: var(--sb-text, #111); }
+
+/* Compact variant for use inside narrow toolbars / sidebars. */
+.mo-search.is-compact {
+  min-height: 28px;
+  padding: 0.25rem 0.55rem;
+}
+.mo-search.is-compact .mo-search-input { font-size: 0.78rem; }
+
+/* ── Result lists ─────────────────────────────────────────────── */
+.mo-results-label {
+  font-family: var(--sb-font-display, 'Space Grotesk', sans-serif);
+  font-size: 0.62rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--sb-text-meta, #555);
+  padding: 0 0.1rem;
+}
+.mo-results {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column;
+  gap: 0.25rem;
+}
+.mo-result {
+  display: flex; flex-direction: column; gap: 0.1rem;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  background: var(--sb-card-bg, #fff);
+  border: var(--sb-border, 1.5px solid #111);
+  border-radius: var(--sb-radius-sm, 6px);
+  font: inherit;
+  font-family: var(--sb-font-base, 'Outfit', sans-serif);
+  text-align: left;
+  cursor: pointer;
+  color: var(--sb-text, #111);
+}
+.mo-result:hover { background: var(--sb-accent-yellow, #fff7d1); }
+.mo-result.is-active {
+  background: var(--sb-accent, #2563eb); color: #fff;
+  border-color: var(--sb-accent, #2563eb);
+}
+.mo-result.is-active .mo-result-sub { color: rgba(255,255,255,0.8); }
+
+.mo-result-title {
+  display: block;
+  font-size: 0.82rem; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mo-result-sub {
+  display: block;
+  font-size: 0.7rem; color: var(--sb-text-meta, #555);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.mo-results-empty {
+  padding: 0.7rem;
+  font-size: 0.78rem; color: var(--sb-text-muted, #888);
+  background: var(--sb-bg, #fafaf7);
+  border: var(--sb-border-soft, 1px dashed #d9d4c0);
+  border-radius: var(--sb-radius-sm, 6px);
+  text-align: center;
+}

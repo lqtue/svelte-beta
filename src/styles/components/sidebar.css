@@ -1,0 +1,243 @@
+/*
+  sidebar.css — design system for map-tool sidebars (left and right).
+  Used by /view (ViewSidebar), /create (CreateSidebar, CreateRightPane),
+  and the panels they compose (LayerStackPanel, LayerControlsPanel,
+  CatalogSidebarPanel, StoryHeaderPanel, StoryPointsPanel, PointInspector).
+
+  Hierarchy
+  ─────────
+    .sb-bar          Top crown of a sidebar:   MODE TITLE        [<]
+    .sb-card         White box repeated below it (one per panel)
+      .sb-card-head   ─── CARD TITLE ────────── [head-actions] ───
+      .sb-card-body   scroll region
+    .sb-subtitle     One-line caption near the top of a card body
+    .sb-section      Vertical group inside a card body
+      .sb-section-label   small uppercase label
+    .sb-row          Generic horizontal line (label + value, etc.)
+
+  Inputs
+  ──────
+    .sb-input, .sb-textarea   Bordered fields with consistent padding.
+
+  Buttons (single class .sb-btn with modifier flags)
+  ──────────────────────────────────────────────────
+    .sb-btn              default (white, black border, pill radius)
+    .sb-btn.is-primary   yellow accent (call to action)
+    .sb-btn.is-on        active / filled (blue or black)
+    .sb-btn.is-danger    red (destructive)
+    .sb-btn.is-ghost     transparent + dashed
+    .sb-btn.is-block     full-width
+    .sb-btn.is-sm        compact
+
+  Pills (for toggle groups — Display, Base picker, etc.)
+  ──────────────────────────────────────────────────────
+    .sb-pill-row    flex container
+    .sb-pill        item (white, black border, square-ish)
+    .sb-pill.is-on  active (filled black)
+
+  Tokens
+  ──────
+    All values come from a single block at the top so we can re-skin without
+    touching every panel.
+*/
+
+:root {
+  --sb-bg:               #fafaf7;
+  --sb-card-bg:          #fff;
+  --sb-border:           1.5px solid #111;
+  --sb-border-soft:      1px dashed #d9d4c0;
+  --sb-radius:           10px;
+  --sb-radius-sm:        6px;
+  --sb-radius-pill:      999px;
+
+  --sb-card-margin:      0.5rem 0.6rem;
+  --sb-card-pad-x:       0.65rem;
+  --sb-card-pad-y:       0.6rem;
+
+  --sb-head-bg:          #fafaf7;
+  --sb-head-pad:         0.5rem 0.7rem;
+
+  --sb-accent:           #2563eb;
+  --sb-accent-warm:      #f59e0b;
+  --sb-accent-yellow:    #fff7d1;
+  --sb-danger:           #b91c1c;
+  --sb-danger-bg:        #fee2e2;
+  --sb-success:          #166534;
+  --sb-success-bg:       #dcfce7;
+
+  --sb-text:             #111;
+  --sb-text-meta:        #555;
+  --sb-text-muted:       #888;
+
+  --sb-font-base:        'Outfit', sans-serif;
+  --sb-font-display:     'Space Grotesk', sans-serif;
+}
+
+/* ── Top bar (crown) ─────────────────────────────────────────── */
+.sb-bar {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--sb-card-bg);
+  border-bottom: var(--sb-border);
+  font-family: var(--sb-font-display);
+}
+.sb-bar-title {
+  font-size: 0.72rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--sb-text);
+}
+
+/* ── Card ────────────────────────────────────────────────────── */
+.sb-card {
+  display: flex; flex-direction: column;
+  min-height: 0;
+  margin: var(--sb-card-margin);
+  background: var(--sb-card-bg);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius);
+  overflow: hidden;
+  font-family: var(--sb-font-base);
+}
+.sb-card.is-flush { margin: 0; border-radius: 0; border: none; }
+
+.sb-card-head {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem;
+  padding: var(--sb-head-pad);
+  border-bottom: var(--sb-border);
+  background: var(--sb-head-bg);
+}
+.sb-card-title {
+  flex: 1; min-width: 0;
+  font-family: var(--sb-font-display);
+  font-size: 0.7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--sb-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-card-body {
+  min-height: 0;
+  display: flex; flex-direction: column;
+  padding: var(--sb-card-pad-y) var(--sb-card-pad-x);
+  gap: 0.5rem;
+}
+.sb-card-body.is-scroll { overflow-y: auto; }
+.sb-card-body.is-flush  { padding: 0; }
+
+/* ── Inline content helpers ──────────────────────────────────── */
+.sb-subtitle {
+  font-size: 0.66rem; font-weight: 500;
+  color: var(--sb-text-muted);
+  margin: 0;
+}
+.sb-section { display: flex; flex-direction: column; gap: 0.35rem; }
+.sb-section + .sb-section { margin-top: 0.35rem; }
+.sb-section-label {
+  font-family: var(--sb-font-display);
+  font-size: 0.66rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--sb-text-meta);
+}
+.sb-row { display: flex; align-items: center; gap: 0.4rem; }
+.sb-row > .sb-grow { flex: 1; min-width: 0; }
+.sb-empty {
+  padding: 0.8rem;
+  font-size: 0.78rem; color: var(--sb-text-muted);
+  background: var(--sb-bg);
+  border: var(--sb-border-soft); border-radius: var(--sb-radius-sm);
+  text-align: center;
+}
+
+/* ── Inputs ──────────────────────────────────────────────────── */
+.sb-input,
+.sb-textarea {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  background: var(--sb-bg);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius-sm);
+  font-family: var(--sb-font-base);
+  font-size: 0.86rem;
+  color: var(--sb-text);
+  box-sizing: border-box;
+}
+.sb-textarea { resize: vertical; min-height: 60px; }
+.sb-input:focus,
+.sb-textarea:focus { outline: none; background: var(--sb-card-bg); }
+.sb-input.is-pill { border-radius: var(--sb-radius-pill); padding: 0.5rem 0.75rem; }
+.sb-coords {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.74rem; color: var(--sb-text-meta);
+  background: var(--sb-bg);
+  border: var(--sb-border); border-radius: var(--sb-radius-sm);
+  padding: 0.35rem 0.5rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.sb-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  background: var(--sb-card-bg);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius-sm);
+  font-family: var(--sb-font-base);
+  font-size: 0.78rem; font-weight: 700;
+  color: var(--sb-text);
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
+  transition: background 0.08s, transform 0.05s;
+}
+.sb-btn:hover:not(:disabled) { background: var(--sb-accent-yellow); }
+.sb-btn:active:not(:disabled) { transform: translateY(1px); }
+.sb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.sb-btn.is-primary { background: var(--sb-accent-yellow); }
+.sb-btn.is-primary:hover:not(:disabled) { background: #ffe88a; }
+
+.sb-btn.is-on {
+  background: var(--sb-accent); color: #fff; border-color: var(--sb-accent);
+}
+.sb-btn.is-on:hover:not(:disabled) { background: var(--sb-accent); }
+
+.sb-btn.is-success {
+  background: var(--sb-success-bg); color: var(--sb-success);
+  border-color: var(--sb-success);
+}
+.sb-btn.is-danger {
+  background: var(--sb-danger-bg); color: var(--sb-danger);
+  border-color: var(--sb-danger);
+}
+.sb-btn.is-danger:hover:not(:disabled) { background: #fecaca; }
+
+.sb-btn.is-ghost { background: transparent; border-style: dashed; }
+.sb-btn.is-ghost:hover:not(:disabled) { background: var(--sb-bg); border-style: solid; }
+
+.sb-btn.is-block { width: 100%; }
+.sb-btn.is-sm { padding: 0.3rem 0.55rem; font-size: 0.72rem; }
+.sb-btn.is-icon {
+  width: 28px; height: 28px; padding: 0;
+  border-radius: var(--sb-radius-pill);
+}
+
+/* ── Pills (toggle group items) ──────────────────────────────── */
+.sb-pill-row { display: flex; gap: 0.35rem; }
+.sb-pill {
+  flex: 1;
+  min-height: 38px;
+  padding: 0.4rem 0.45rem;
+  background: var(--sb-card-bg); color: var(--sb-text);
+  border: var(--sb-border); border-radius: var(--sb-radius-sm);
+  font-family: var(--sb-font-base);
+  font-size: 0.78rem; font-weight: 700;
+  cursor: pointer; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.sb-pill:hover:not(.is-on) { background: var(--sb-accent-yellow); }
+.sb-pill.is-on { background: var(--sb-text); color: #fff; }

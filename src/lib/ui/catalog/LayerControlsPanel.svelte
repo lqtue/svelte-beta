@@ -49,111 +49,87 @@
 </script>
 
 <div class="mcp">
-  <section class="mcp-section">
-    <div class="mcp-label">Display</div>
-    <div class="mcp-pills">
+  <div class="mcp-row">
+    <span class="mcp-leader">Display</span>
+    <div class="sb-pill-row mcp-grow">
       {#each DISPLAY_MODES as m}
-        <button
-          type="button"
-          class="mcp-pill"
-          class:on={viewMode === m.mode}
+        <button type="button" class="sb-pill is-compact"
+          class:is-on={viewMode === m.mode}
           on:click={() => dispatch('changeViewMode', { mode: m.mode })}
-        >{m.icon} {m.label}</button>
+        >{m.icon} <span class="mcp-lbl">{m.label}</span></button>
       {/each}
     </div>
-  </section>
+  </div>
 
-  <section class="mcp-section">
-    <div class="mcp-label">Base</div>
-    <div class="mcp-pills">
+  <div class="mcp-row">
+    <span class="mcp-leader">Base</span>
+    <div class="sb-pill-row mcp-grow">
       {#each BASE_CHOICES as c}
-        <button
-          type="button"
-          class="mcp-pill"
-          class:on={currentBaseKey === c.key}
+        <button type="button" class="sb-pill is-compact"
+          class:is-on={currentBaseKey === c.key}
           on:click={() => setBase(c.key)}
         >{c.label}</button>
       {/each}
     </div>
-  </section>
+  </div>
 
-  <section class="mcp-section">
-    <div class="mcp-label">Find a place</div>
-    <input
-      type="search"
-      class="mcp-input"
-      placeholder="Search Saigon, Cholon, Thủ Đức…"
-      bind:value={locQuery}
-    />
-    <LocationSearch query={locQuery} on:pickLocation={onPickLocation} />
-  </section>
-
-  <section class="mcp-section">
-    <button
-      type="button"
-      class="mcp-big-btn"
-      class:on={gpsActive}
+  <div class="mcp-row">
+    <button type="button" class="sb-btn is-sm mcp-gps" class:is-on={gpsActive}
       on:click={() => dispatch('toggleGps')}
+      title={gpsActive ? 'Stop GPS tracking' : 'Use my location'}
     >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
       </svg>
-      <span>{gpsActive ? 'Stop GPS tracking' : 'My location'}</span>
+      <span>{gpsActive ? 'GPS on' : 'My location'}</span>
     </button>
-  </section>
+    <label class="mo-search is-compact mcp-grow">
+      <svg class="mo-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input class="mo-search-input" type="search" placeholder="Search a place…" bind:value={locQuery} />
+      {#if locQuery}
+        <button type="button" class="mo-search-clear" on:click={() => (locQuery = '')} aria-label="Clear">×</button>
+      {/if}
+    </label>
+  </div>
+  {#if locQuery}
+    <LocationSearch query={locQuery} on:pickLocation={onPickLocation} />
+  {/if}
 </div>
 
 <style>
   .mcp {
     display: flex; flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.7rem 0.7rem 1rem;
-    font-family: 'Outfit', sans-serif;
+    gap: 0.35rem;
+    padding: 0.5rem 0.55rem 0.55rem;
   }
-  .mcp-section { display: flex; flex-direction: column; gap: 0.4rem; }
-  .mcp-label {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.68rem; font-weight: 800;
+  .mcp-row {
+    display: flex; gap: 0.4rem;
+    align-items: center;
+  }
+  .mcp-leader {
+    flex-shrink: 0;
+    width: 44px;
+    font-family: var(--sb-font-display);
+    font-size: 0.62rem; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.06em;
-    color: #555;
+    color: var(--sb-text-meta);
   }
-  .mcp-pills { display: flex; gap: 0.35rem; }
-  .mcp-pill {
-    flex: 1;
-    min-height: 40px;
-    padding: 0.45rem 0.4rem;
-    background: #fff; color: #111;
-    border: 1.5px solid #111; border-radius: 6px;
-    font: inherit; font-family: 'Outfit', sans-serif;
-    font-size: 0.78rem; font-weight: 700;
-    cursor: pointer;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
+  .mcp-grow { flex: 1; min-width: 0; }
+  .mcp-gps { flex-shrink: 0; }
+  .mcp-lbl {
+    /* Hide labels on narrow sidebars; icons remain readable. */
+    display: inline;
   }
-  .mcp-pill.on { background: #111; color: #fff; }
+  @media (max-width: 320px) { .mcp-lbl { display: none; } }
 
-  .mcp-input {
-    width: 100%;
-    min-height: 42px;
-    padding: 0.5rem 0.65rem;
-    background: #fff;
-    border: 1.5px solid #111; border-radius: 6px;
-    font: inherit; font-family: 'Outfit', sans-serif;
-    font-size: 0.88rem;
+  :global(.sb-pill.is-compact) {
+    min-height: 28px;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.74rem;
+    gap: 0.25rem;
+    display: inline-flex; align-items: center; justify-content: center;
   }
-
-  .mcp-big-btn {
-    display: flex; align-items: center; justify-content: center;
-    gap: 0.5rem;
-    min-height: 48px;
-    padding: 0.6rem 0.8rem;
-    background: #fff; color: #111;
-    border: 1.5px solid #111; border-radius: 8px;
-    font: inherit; font-family: 'Outfit', sans-serif;
-    font-size: 0.9rem; font-weight: 700;
-    cursor: pointer;
-  }
-  .mcp-big-btn.on { background: #2563eb; color: #fff; border-color: #2563eb; }
 </style>

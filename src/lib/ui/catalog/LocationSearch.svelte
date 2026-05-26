@@ -55,13 +55,13 @@
 
 {#if !hidden && results.length > 0}
   <div class="ls">
-    <div class="ls-label">📍 Places{loading ? ' …' : ''}</div>
-    <ul class="ls-list">
+    <div class="mo-results-label">📍 Places{loading ? ' …' : ''}</div>
+    <ul class="mo-results">
       {#each results as r}
         <li>
-          <button type="button" on:click={() => pick(r)}>
-            <strong>{r.display_name.split(',')[0]}</strong>
-            <span>{r.display_name}</span>
+          <button type="button" class="mo-result" on:click={() => pick(r)}>
+            <span class="mo-result-title">{r.display_name.split(',')[0]}</span>
+            <span class="mo-result-sub">{r.display_name}</span>
           </button>
         </li>
       {/each}
@@ -71,25 +71,4 @@
 
 <style>
   .ls { display: flex; flex-direction: column; gap: 0.25rem; }
-  .ls-label {
-    font-family: 'Outfit', sans-serif;
-    font-size: 0.66rem; font-weight: 800; color: #555;
-    text-transform: uppercase; letter-spacing: 0.05em;
-    padding: 0 0.1rem;
-  }
-  .ls-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
-  .ls-list button {
-    display: block; width: 100%; text-align: left;
-    padding: 0.4rem 0.55rem;
-    background: #fff;
-    border: 1.5px solid #111; border-radius: 6px;
-    font: inherit; font-family: 'Outfit', sans-serif;
-    cursor: pointer;
-  }
-  .ls-list button:hover { background: #fff7d1; }
-  .ls-list strong { display: block; font-size: 0.8rem; font-weight: 700; color: #111; }
-  .ls-list span {
-    display: block; font-size: 0.68rem; color: #666; margin-top: 0.1rem;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
 </style>

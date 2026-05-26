@@ -73,12 +73,9 @@
 </script>
 
 <div class="lsp">
-  <div class="lsp-heading">
-    My layers
-    {#if state.overlays.length > 0}
-      <span class="lsp-sub">Drag row for opacity · tap to zoom</span>
-    {/if}
-  </div>
+  {#if state.overlays.length > 0}
+    <div class="lsp-sub">Swipe row for opacity · tap to zoom</div>
+  {/if}
 
   {#if state.overlays.length === 0}
     <div class="lsp-empty">Open <strong>Browse</strong> and tap <strong>+</strong> to add a layer.</div>
@@ -128,28 +125,13 @@
 <style>
   .lsp {
     display: flex; flex-direction: column;
-    height: 100%;
-    margin: 0.5rem 0.6rem;
-    padding: 0.5rem 0.55rem 0.6rem;
-    background: #fff;
-    border: 1.5px solid #111; border-radius: 10px;
+    padding: 0.5rem 0.6rem 0.6rem;
     font-family: 'Outfit', sans-serif;
-    overflow-y: auto;
-  }
-  .lsp-heading {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.72rem; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    color: #555;
-    margin: 0.25rem 0 0.5rem;
-    display: flex; align-items: baseline; gap: 0.5rem;
-    flex-wrap: wrap;
   }
   .lsp-sub {
-    font-family: 'Outfit', sans-serif;
     font-size: 0.66rem; font-weight: 500;
-    text-transform: none; letter-spacing: 0;
     color: #888;
+    margin: 0 0 0.4rem;
   }
   .lsp-empty {
     padding: 1rem;

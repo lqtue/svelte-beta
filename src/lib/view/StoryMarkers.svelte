@@ -29,11 +29,13 @@
   let layer: VectorImageLayer<VectorSource> | null = null;
 
   function createStyle(index: number, isCurrent: boolean): Style {
-    const radius = isCurrent ? 16 : 12;
-    const bgColor = isCurrent ? '#d4af37' : 'rgba(244, 232, 216, 0.95)';
-    const textColor = isCurrent ? '#fff' : '#4a3f35';
-    const borderColor = isCurrent ? '#b8942f' : '#d4af37';
-    const borderWidth = isCurrent ? 3 : 2;
+    // Mirrors the .pt-num circles in StoryPointsPanel: blue accent normally,
+    // warm-amber when current. Black hairline border matches sidebar chrome.
+    const radius = isCurrent ? 15 : 12;
+    const bgColor = isCurrent ? '#f59e0b' : '#2563eb';
+    const textColor = '#fff';
+    const borderColor = '#111';
+    const borderWidth = 1.5;
 
     return new Style({
       image: new CircleStyle({
@@ -43,7 +45,7 @@
       }),
       text: new Text({
         text: String(index + 1),
-        font: `bold ${isCurrent ? 13 : 11}px 'Be Vietnam Pro', sans-serif`,
+        font: `800 ${isCurrent ? 13 : 11}px 'Space Grotesk', sans-serif`,
         fill: new Fill({ color: textColor }),
         offsetY: 0
       }),
