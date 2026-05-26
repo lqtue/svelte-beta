@@ -25,9 +25,11 @@
 		"@allmaps/annotation": "^1.0.0-beta.35",
 		"@allmaps/maplibre": "^1.0.0-beta.38",
 		"@allmaps/openlayers": "^1.0.0-beta.81",
+		"@protomaps/basemaps": "^5.7.2",
 		"@supabase/ssr": "^0.8.0",
 		"@supabase/supabase-js": "^2.95.3",
 		"maplibre-gl": "^5.10.0",
-		"ol": "^10.6.1"
+		"ol": "^10.6.1",
+		"ol-mapbox-style": "^13.4.1"
 	}
 }
