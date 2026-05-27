@@ -276,10 +276,10 @@
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
-						<a href="/annotate" class="micro-link-card">
+						<a href="/studio" class="micro-link-card">
 							<span class="mlc-icon">✏️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Annotate</span>
+								<span class="mlc-title">Studio</span>
 								<span class="mlc-desc">Draw points, lines, and shapes on maps to create searchable records</span>
 							</span>
 							<span class="mlc-arrow">→</span>

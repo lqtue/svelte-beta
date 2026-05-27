@@ -115,7 +115,7 @@
                   {#if currentMap.allmaps_id}
                     <a class="ac-btn primary" href={`/view?map=${currentMap.id}`}>🌍 Open on map</a>
                   {/if}
-                  <a class="ac-btn" href={`/annotate?map=${currentMap.id}`}>✏️ Annotate</a>
+                  <a class="ac-btn" href={`/studio?map=${currentMap.id}`}>✏️ Studio</a>
                 </div>
               </div>
             </div>

@@ -91,7 +91,7 @@
         <a class="act" href="/image?map={item.id}">🖼️ Image</a>
       {/if}
       {#if canAnnotate}
-        <a class="act" href="/annotate?map={item.id}">✏️ Annotate</a>
+        <a class="act" href="/studio?map={item.id}">✏️ Studio</a>
       {/if}
       {#if isScout && (item._scout?.source_url || item._scout?.manifest_url)}
         <a class="act primary" href={item._scout.source_url || item._scout.manifest_url} target="_blank" rel="noopener">↗ Open source</a>

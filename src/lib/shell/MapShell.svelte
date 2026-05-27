@@ -20,6 +20,8 @@
   import OlMap from "ol/Map";
   import View from "ol/View";
   import BaseLayer from "ol/layer/Base";
+  import TileLayer from "ol/layer/Tile";
+  import XYZ from "ol/source/XYZ";
   import { Attribution, Rotate, ScaleLine, Zoom } from "ol/control";
   import { defaults as defaultControls } from "ol/control/defaults";
   import DragRotate from "ol/interaction/DragRotate";
@@ -166,8 +168,27 @@
     mapStoreUnsub = mapStore.subscribe(() => storeToOlView());
 
     // 8. Basemap visibility is now owned by LayerRenderer (driven by layersStore.base).
-    //    Keep layerUnsub a no-op so existing teardown stays safe.
-    layerUnsub = () => {};
+    //    But the custom-URL basemap needs its XYZ source assigned from layerStore.customBaseUrl.
+    const customLayer = basemapLayers.get('g-custom') as TileLayer<XYZ> | undefined;
+    let lastCustomUrl: string | null = null;
+    layerUnsub = layerStore.subscribe((s) => {
+      if (!customLayer) return;
+      const url = s.customBaseUrl;
+      if (url === lastCustomUrl) return;
+      lastCustomUrl = url;
+      if (url) {
+        customLayer.setSource(
+          new XYZ({
+            urls: [url],
+            crossOrigin: 'anonymous',
+            maxZoom: 22,
+            attributions: 'Custom tile source'
+          })
+        );
+      } else {
+        customLayer.setSource(null as any);
+      }
+    });
 
     // 9. URL sync
     if (!disableUrlSync) {

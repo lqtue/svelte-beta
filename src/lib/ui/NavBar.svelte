@@ -3,7 +3,7 @@
 
   Desktop: VMA | Catalog ▾  Tools ▾  Contribute ▾  About  Blog | [avatar/signin] [theme]
   Catalog ▾:    Browse Catalog /catalog | View on Map /view | View Image /image
-  Tools ▾:      Story /create | Annotate /annotate
+  Tools ▾:      Story /create | Studio /studio
   Contribute ▾: Digitalize /contribute/digitalize | Trace Maps /contribute/trace | Georeference /contribute/georef
 
   Mobile (<=640px): hamburger → bottom-anchored drawer with flat link list.
@@ -41,7 +41,7 @@
 
   $: path = $page.url.pathname;
   $: activeCatalog    = path.startsWith('/catalog') || path.startsWith('/view') || path.startsWith('/image');
-  $: activeTools      = path.startsWith('/create') || path.startsWith('/annotate');
+  $: activeTools      = path.startsWith('/create') || path.startsWith('/studio') || path.startsWith('/annotate');
   $: activeContribute = path.startsWith('/contribute');
   $: activeAbout      = path.startsWith('/about');
   $: activeBlog       = path.startsWith('/blog');
@@ -67,7 +67,7 @@
 
     <NavDropdown label="Tools" active={activeTools}>
       <a href="/create"   class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
-      <a href="/annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
+      <a href="/studio" class="dropdown-item" on:click={closeDrawer}>Studio</a>
     </NavDropdown>
 
     <NavDropdown label="Contribute" active={activeContribute}>
@@ -132,7 +132,7 @@
 
       <p class="drawer-section-label">Tools</p>
       <a href="/create"   class="drawer-link" on:click={closeDrawer}>Story Builder</a>
-      <a href="/annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
+      <a href="/studio" class="drawer-link" on:click={closeDrawer}>Studio</a>
 
       <p class="drawer-section-label">Contribute</p>
       <a href="/contribute/digitalize"  class="drawer-link" on:click={closeDrawer}>Digitalize</a>

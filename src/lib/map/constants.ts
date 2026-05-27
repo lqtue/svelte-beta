@@ -1,6 +1,5 @@
 import TileLayer from 'ol/layer/Tile';
 import XYZ from 'ol/source/XYZ';
-import VectorTileLayer from 'ol/layer/VectorTile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import LayerGroup from 'ol/layer/Group';
@@ -12,9 +11,6 @@ import Text from 'ol/style/Text';
 import Fill from 'ol/style/Fill';
 import Stroke from 'ol/style/Stroke';
 import type BaseLayer from 'ol/layer/Base';
-import { applyStyle } from 'ol-mapbox-style';
-import { layers as pmLayers, namedFlavor } from '@protomaps/basemaps';
-import { PUBLIC_PROTOMAPS_KEY } from '$env/static/public';
 
 export const DEFAULT_ANNOTATION_COLOR = '#2563eb';
 export const APP_STATE_KEY = 'vma-viewer-state-v1';
@@ -65,29 +61,24 @@ function buildVnClaimsLayer(): VectorLayer<VectorSource> {
   });
 }
 
-function buildProtomapsGroup(visible: boolean): LayerGroup {
-  const tileLayer = new VectorTileLayer({
-    declutter: true,
+function buildStadiaGroup(visible: boolean): LayerGroup {
+  const tileLayer = new TileLayer({
+    source: new XYZ({
+      urls: [
+        'https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}@2x.png'
+      ],
+      tilePixelRatio: 2,
+      tileSize: 256,
+      attributions: [
+        '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>',
+        '&copy; <a href="https://stamen.com" target="_blank">Stamen Design</a>',
+        '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+      ],
+      maxZoom: 20,
+      crossOrigin: 'anonymous'
+    }),
     zIndex: 0
-  });
-  const style = {
-    version: 8 as const,
-    glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
-    sprite: 'https://protomaps.github.io/basemaps-assets/sprites/v4/light',
-    sources: {
-      protomaps: {
-        type: 'vector' as const,
-        tiles: [
-          `https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt?key=${PUBLIC_PROTOMAPS_KEY}`
-        ],
-        attribution:
-          '<a href="https://protomaps.com" target="_blank">Protomaps</a> &copy; <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a>'
-      }
-    },
-    layers: pmLayers('protomaps', namedFlavor('light'), { lang: 'vi' })
-  };
-  applyStyle(tileLayer, style as any, 'protomaps').catch((err) => {
-    console.error('[basemap] Failed to apply Protomaps style', err);
   });
 
   return new LayerGroup({
@@ -101,8 +92,8 @@ function buildProtomapsGroup(visible: boolean): LayerGroup {
 export const BASEMAP_DEFS: BasemapDefinition[] = [
   {
     key: 'g-streets',
-    label: 'Protomaps (Tiếng Việt)',
-    layer: () => buildProtomapsGroup(true)
+    label: 'OSM Bright',
+    layer: () => buildStadiaGroup(true)
   },
   {
     key: 'g-satellite',
@@ -120,6 +111,17 @@ export const BASEMAP_DEFS: BasemapDefinition[] = [
         }),
         visible: false,
         properties: { name: 'g-satellite', base: true },
+        zIndex: 0
+      })
+  },
+  {
+    key: 'g-custom',
+    label: 'Custom URL',
+    layer: () =>
+      new TileLayer({
+        // Source is assigned dynamically by MapShell from layerStore.customBaseUrl.
+        visible: false,
+        properties: { name: 'g-custom', base: true },
         zIndex: 0
       })
   }

@@ -10,7 +10,7 @@
   /** Hide the list (parent controls visibility, e.g. when collapsed). */
   export let hidden: boolean = false;
 
-  const dispatch = createEventDispatcher<{ pickLocation: { lat: number; lng: number; label: string; bbox?: [number, number, number, number] } }>();
+  const dispatch = createEventDispatcher<{ pickLocation: { lat: number; lng: number; label: string; bbox?: [number, number, number, number]; geojson?: import('geojson').Geometry } }>();
 
   let results: any[] = [];
   let loading = false;
@@ -32,7 +32,7 @@
     abortCtrl = new AbortController();
     loading = true;
     try {
-      const params = new URLSearchParams({ format: 'jsonv2', q: q + ', Vietnam', addressdetails: '1', limit: '3' });
+      const params = new URLSearchParams({ format: 'jsonv2', q: q + ', Vietnam', addressdetails: '1', limit: '3', polygon_geojson: '1' });
       const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, { signal: abortCtrl.signal });
       results = res.ok ? await res.json() : [];
     } catch (e: any) {
@@ -49,7 +49,7 @@
       const [s, n, w, e] = r.boundingbox.map(parseFloat);
       bbox = [w, s, e, n];
     }
-    dispatch('pickLocation', { lat, lng, label: r.display_name, bbox });
+    dispatch('pickLocation', { lat, lng, label: r.display_name, bbox, geojson: r.geojson });
   }
 </script>
 

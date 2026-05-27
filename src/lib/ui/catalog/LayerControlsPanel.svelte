@@ -13,6 +13,9 @@
   import { layersStore } from '$lib/stores/layersStore';
   import type { ViewMode } from '$lib/map/types';
   import LocationSearch from './LocationSearch.svelte';
+  import { getShellContext } from '$lib/shell/context';
+
+  const { layerStore } = getShellContext();
 
   export let viewMode: ViewMode = 'overlay';
   export let gpsActive: boolean = false;
@@ -31,14 +34,28 @@
   const BASE_CHOICES: { key: string; label: string }[] = [
     { key: 'g-streets',   label: '🗺️ Maps' },
     { key: 'g-satellite', label: '🛰️ Satellite' },
-    { key: 'none',        label: '⊘ None' },
+    { key: 'g-custom',    label: '🔗 Custom' },
   ];
 
   $: state = $layersStore;
   $: currentBaseKey = state.base.kind === 'basemap' ? state.base.key : 'g-streets';
+  $: customUrl = $layerStore.customBaseUrl ?? '';
 
   function setBase(key: string) {
     layersStore.setBase({ kind: 'basemap', key });
+  }
+
+  let customUrlDraft = '';
+  $: customUrlDraft = customUrl;
+
+  function applyCustomUrl() {
+    const v = customUrlDraft.trim();
+    layerStore.setCustomBaseUrl(v || null);
+    if (v) layersStore.setBase({ kind: 'basemap', key: 'g-custom' });
+  }
+  function clearCustomUrl() {
+    customUrlDraft = '';
+    layerStore.setCustomBaseUrl(null);
   }
 
   let locQuery = '';
@@ -72,6 +89,23 @@
       {/each}
     </div>
   </div>
+
+  {#if currentBaseKey === 'g-custom'}
+    <div class="mcp-row mcp-custom">
+      <span class="mcp-leader">URL</span>
+      <input
+        class="mcp-url-input mcp-grow"
+        type="url"
+        placeholder={'https://…/{z}/{x}/{y}.png'}
+        bind:value={customUrlDraft}
+        on:change={applyCustomUrl}
+        on:keydown={(e) => e.key === 'Enter' && applyCustomUrl()}
+      />
+      {#if customUrl}
+        <button type="button" class="sb-btn is-sm" on:click={clearCustomUrl} title="Clear">×</button>
+      {/if}
+    </div>
+  {/if}
 
   <div class="mcp-row">
     <button type="button" class="sb-btn is-sm mcp-gps" class:is-on={gpsActive}
@@ -124,6 +158,18 @@
     display: inline;
   }
   @media (max-width: 320px) { .mcp-lbl { display: none; } }
+
+  .mcp-url-input {
+    flex: 1; min-width: 0;
+    min-height: 28px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.74rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid var(--sb-border, #ccc);
+    border-radius: 4px;
+    background: var(--sb-bg-input, #fff);
+    color: var(--sb-text, #000);
+  }
 
   :global(.sb-pill.is-compact) {
     min-height: 28px;

@@ -27,6 +27,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
+  import { writable } from 'svelte/store';
   import type Map from 'ol/Map';
   import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -36,6 +37,7 @@
   import { createMapList } from '$lib/shell/useMapList';
   import { boundsCenter, boundsZoom } from '$lib/ui/searchUtils';
   import { fetchAnnotationBounds } from '$lib/geo/mapBounds';
+  import { setShellContext } from '$lib/shell/context';
 
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import MapShell from '$lib/shell/MapShell.svelte';
@@ -85,6 +87,13 @@
   const dispatch = createEventDispatcher<{
     mapsloaded: { maps: MapListItem[] };
   }>();
+
+  // Set shell context up here so sidebar slot content (which renders as a
+  // sibling of MapShell, not a descendant) can resolve `getShellContext()`.
+  // MapShell still sets its own context for its real descendants.
+  const mapWritable = writable<Map | null>(null);
+  setShellContext({ map: mapWritable, mapStore, layerStore });
+  $: mapWritable.set(shellMap);
 
   // ── Reactive store reads ─────────────────────────────────────────
 

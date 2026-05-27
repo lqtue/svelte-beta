@@ -1,9 +1,16 @@
 <!--
-  AnnotateMode.svelte — /annotate plugin on MapWorkspace.
-  Free-form annotation builder. Auth gate → library → editor (MapWorkspace).
+  StudioMode.svelte — /studio plugin on MapWorkspace.
+
+  Desktop two-sidebar layout (mirrors /create):
+    • Left sidebar  — Layers · Controls · Browse (CreateSidebar, reused)
+    • Right sidebar — Project header · Annotations · Inspector (StudioRightPane)
+
+  Mobile is intentionally unsupported here — the library view still works on
+  mobile (read-only project list), but the editor itself is desktop-only.
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { toLonLat } from "ol/proj";
   import "$styles/layouts/create-mode.css";
 
   import type {
@@ -19,11 +26,21 @@
   import { getSupabaseContext } from "$lib/supabase/context";
   import { fetchAnnotationBounds } from "$lib/geo/mapBounds";
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
+  import { layersStore } from "$lib/stores/layersStore";
   import { createAnnotationProjectStore } from "./stores/annotationProjectStore";
 
   import MapWorkspace from "$lib/shell/MapWorkspace.svelte";
   import DrawTool from "$lib/shell/DrawTool.svelte";
-  import AnnotationsPanel from "./AnnotationsPanel.svelte";
+  import CreateSidebar from "$lib/create/CreateSidebar.svelte";
+  import StudioRightPane from "./StudioRightPane.svelte";
+  import StudioOverpassDialog from "./StudioOverpassDialog.svelte";
+  import BboxSelector from "./BboxSelector.svelte";
+  import OverpassPreviewLayer from "./OverpassPreviewLayer.svelte";
+  import type { FeatureCollection } from "geojson";
+  import {
+    buildQuery, fetchOverpass, overpassToGeoJson,
+    type Bbox4, type OverpassPreset,
+  } from "./overpass";
   import NameDialog from "$lib/ui/NameDialog.svelte";
   import PageHero from "$lib/ui/PageHero.svelte";
   import CatalogGrid from "$lib/ui/catalog/CatalogGrid.svelte";
@@ -52,13 +69,14 @@
   let selectedMap: MapListItem | null = null;
   let shellMap: import('ol/Map').default | null = null;
   let sidebarCollapsed = false;
+  let rightSidebarCollapsed = false;
   let isMobile = false;
   let isCompact = false;
 
-  // Annotate-specific state
+  // Studio-specific state
   let drawingMode: DrawingMode | null = null;
   let drawToolRef: DrawTool;
-  let annotationsPanelRef: AnnotationsPanel;
+  let rightPaneRef: StudioRightPane;
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
   // Library/Editor view state
@@ -74,14 +92,26 @@
   let nameDialogHeading = "New Project";
   let nameDialogEditId: string | null = null;
 
+  // Overpass dialog state
+  let overpassOpen = false;
+  let overpassBbox: Bbox4 | null = null;
+  let overpassFetching = false;
+  let overpassError: string | null = null;
+  // Bbox-on-map picker state
+  let bboxPickerActive = false;
+  let pickerBbox: Bbox4 | null = null;
+  // OSM preview state (between fetch and Add)
+  let overpassPreview: FeatureCollection | null = null;
+  $: overpassResultCount = overpassPreview?.features.length ?? null;
+
   function handleSearchNavigate(event: CustomEvent<{ result: SearchResult }>) {
     drawToolRef?.zoomToSearchResult(event.detail.result);
   }
 
   async function handleZoomToMap(event: CustomEvent<{ map: MapListItem }>) {
     const { map } = event.detail;
-    let bounds = map.bounds ?? null;
-    if (!bounds) bounds = await fetchAnnotationBounds(map.allmaps_id ?? '');
+    let bounds = map.bounds ?? map.bbox ?? null;
+    if (!bounds) bounds = await fetchAnnotationBounds(map.annotation_url ?? map.allmaps_id ?? '');
     if (bounds) {
       const center = boundsCenter(bounds);
       const zoom = boundsZoom(bounds);
@@ -97,7 +127,47 @@
     }
   }
 
-  // ── Panel event handlers (delegate to DrawTool) ────────────────
+  function handleZoomToOverlay(e: CustomEvent<{ mapId: string }>) {
+    const m = mapList.find((x) => x.id === e.detail.mapId);
+    if (m) handleZoomToMap(new CustomEvent('zoomToMap', { detail: { map: m } }));
+  }
+
+  /** Catalog row click = swap top overlay to this map (same as /view + /create). */
+  async function handlePickMap(event: CustomEvent<any>) {
+    const item = event.detail;
+    if (!item?.id) return;
+    let map = mapList.find((m) => m.id === item.id) ?? null;
+    if (!map) map = { ...item } as MapListItem;
+    const allmapsId = map.annotation_url ?? map.allmaps_id;
+    if (allmapsId) {
+      layersStore.clearOverlays();
+      layersStore.addOverlay({
+        kind: 'historical', mapId: map.id, allmapsId,
+        name: map.name, thumbnail: map.thumbnail,
+      });
+    }
+    let bounds = map.bounds ?? map.bbox ?? null;
+    if (!bounds) {
+      const src = map.annotation_url ?? map.allmaps_id;
+      if (src) bounds = await fetchAnnotationBounds(src);
+    }
+    if (bounds) {
+      const center = boundsCenter(bounds);
+      mapStore.setView({ lng: center.lng, lat: center.lat, zoom: boundsZoom(bounds) });
+    }
+  }
+
+  function handlePickLocation(event: CustomEvent<{ lat: number; lng: number; bbox?: [number, number, number, number] }>) {
+    const { lat, lng, bbox } = event.detail;
+    if (bbox) {
+      const c = boundsCenter(bbox);
+      mapStore.setView({ lng: c.lng, lat: c.lat, zoom: boundsZoom(bbox) });
+    } else {
+      mapStore.setView({ lng, lat, zoom: 15 });
+    }
+  }
+
+  // ── Annotation event handlers (delegate to DrawTool) ────────────────
 
   function handleSetDrawingMode(event: CustomEvent<{ mode: DrawingMode | null }>) {
     drawingMode = event.detail.mode;
@@ -107,53 +177,135 @@
   function handleAnnotationRename(event: CustomEvent<{ id: string; label: string }>) {
     drawToolRef?.updateAnnotationLabel(event.detail.id, event.detail.label);
   }
-
   function handleAnnotationUpdateDetails(event: CustomEvent<{ id: string; details: string }>) {
     drawToolRef?.updateAnnotationDetails(event.detail.id, event.detail.details);
   }
-
   function handleAnnotationChangeColor(event: CustomEvent<{ id: string; color: string }>) {
     drawToolRef?.updateAnnotationColor(event.detail.id, event.detail.color);
   }
-
   function handleAnnotationToggleVisibility(event: CustomEvent<{ id: string }>) {
     drawToolRef?.toggleAnnotationVisibility(event.detail.id);
   }
-
   function handleAnnotationSelect(event: CustomEvent<{ id: string | null }>) {
     annotationState.setSelected(event.detail.id);
   }
-
   function handleAnnotationDelete(event: CustomEvent<{ id: string }>) {
     drawToolRef?.deleteAnnotation(event.detail.id);
   }
-
   function handleAnnotationZoomTo(event: CustomEvent<{ id: string }>) {
     drawToolRef?.zoomToAnnotation(event.detail.id);
   }
-
   function handleAnnotationClear() {
     drawToolRef?.clearAnnotations();
-    annotationsPanelRef?.setNotice("All annotations cleared.", "info");
+    rightPaneRef?.setNotice("All annotations cleared.", "info");
   }
-
   function handleAnnotationExport() {
     drawToolRef?.exportAnnotationsAsGeoJSON();
-    annotationsPanelRef?.setNotice("GeoJSON downloaded.", "success");
+    rightPaneRef?.setNotice("GeoJSON downloaded.", "success");
   }
-
   async function handleAnnotationImport(event: CustomEvent<{ file: File }>) {
     try {
       const text = await event.detail.file.text();
       const count = await drawToolRef?.importGeoJsonText(text);
-      annotationsPanelRef?.setNotice(
+      rightPaneRef?.setNotice(
         `Imported ${count ?? 0} feature${(count ?? 0) !== 1 ? "s" : ""}.`,
         "success",
       );
     } catch (e) {
       console.error("GeoJSON import failed", e);
-      annotationsPanelRef?.setNotice("Failed to import GeoJSON file.", "error");
+      rightPaneRef?.setNotice("Failed to import GeoJSON file.", "error");
     }
+  }
+
+  function currentViewportBbox(): Bbox4 | null {
+    if (!shellMap) return null;
+    const view = shellMap.getView();
+    const extent = view.calculateExtent(shellMap.getSize() ?? undefined);
+    // OL extent is EPSG:3857; convert to lon/lat for Overpass.
+    const [w, s] = toLonLat([extent[0], extent[1]]);
+    const [e, n] = toLonLat([extent[2], extent[3]]);
+    return [w, s, e, n];
+  }
+
+  function openOverpassDialog() {
+    overpassError = null;
+    if (!overpassBbox) overpassBbox = currentViewportBbox();
+    overpassOpen = true;
+  }
+
+  function startBboxPicker() {
+    pickerBbox = overpassBbox ?? currentViewportBbox();
+    bboxPickerActive = true;
+    overpassOpen = false;
+  }
+
+  function confirmBboxPicker() {
+    if (pickerBbox) overpassBbox = pickerBbox;
+    bboxPickerActive = false;
+    overpassOpen = true;
+  }
+
+  function cancelBboxPicker() {
+    bboxPickerActive = false;
+    overpassOpen = true;
+  }
+
+  function useViewportBbox() {
+    overpassBbox = currentViewportBbox();
+  }
+
+  async function handlePickBboxFromSearch(event: CustomEvent<{ bbox: Bbox4; label: string }>) {
+    const { bbox } = event.detail;
+    overpassBbox = bbox;
+    // Pan/zoom so the chosen area is on-screen — useful before tweaking via Draw on map.
+    if (shellMap) {
+      const { fromLonLat } = await import('ol/proj');
+      const [w, s] = fromLonLat([bbox[0], bbox[1]]);
+      const [e, n] = fromLonLat([bbox[2], bbox[3]]);
+      shellMap.getView().fit([w, s, e, n], { duration: 400, padding: [40, 40, 40, 40] });
+    }
+  }
+
+  async function runOverpassImport(event: CustomEvent<{ preset: OverpassPreset; customQuery: string }>) {
+    if (!overpassBbox) return;
+    overpassFetching = true;
+    overpassError = null;
+    try {
+      const query = buildQuery({
+        preset: event.detail.preset,
+        customQuery: event.detail.customQuery,
+        bbox: overpassBbox,
+      });
+      const data = await fetchOverpass(query);
+      const geojson = overpassToGeoJson(data);
+      if (geojson.features.length === 0) {
+        overpassError = 'No features returned for this area + query.';
+        overpassFetching = false;
+        return;
+      }
+      // Show as a preview on the map; the Add button commits.
+      overpassPreview = geojson;
+    } catch (e) {
+      console.error('Overpass import failed', e);
+      overpassError = e instanceof Error ? e.message : String(e);
+    } finally {
+      overpassFetching = false;
+    }
+  }
+
+  async function addOverpassResult() {
+    if (!overpassPreview) return;
+    const count = await drawToolRef?.importGeoJsonText(JSON.stringify(overpassPreview));
+    rightPaneRef?.setNotice(
+      `Added ${count ?? 0} OSM feature${(count ?? 0) !== 1 ? 's' : ''}.`,
+      'success',
+    );
+    overpassPreview = null;
+    overpassOpen = false;
+  }
+
+  function discardOverpassResult() {
+    overpassPreview = null;
   }
 
   async function handleSave() {
@@ -167,6 +319,13 @@
     isSaving = false;
     saveSuccess = true;
     setTimeout(() => { saveSuccess = false; }, 2000);
+  }
+
+  function handleRenameProject(event: CustomEvent<{ title: string }>) {
+    if (!currentProject) return;
+    const title = event.detail.title;
+    projectStore.updateProject(currentProject.id, { title });
+    currentProject = { ...currentProject, title };
   }
 
   function handleUndo() { drawToolRef?.undoLastAction(); }
@@ -275,7 +434,7 @@
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
         <path d="M7 11V7a5 5 0 0110 0v4" />
       </svg>
-      <h2 class="auth-gate-title">Sign in to Annotate</h2>
+      <h2 class="auth-gate-title">Sign in to Studio</h2>
       <p class="auth-gate-text">Sign in with your Google account to create and manage annotation projects.</p>
       <button
         type="button"
@@ -303,7 +462,7 @@
 {:else if activeView === "library"}
   <div class="page">
     <PageHero eyebrow="Tools" sub="Create annotation projects on historical maps">
-      <svelte:fragment slot="title">My <span class="text-highlight">Projects.</span></svelte:fragment>
+      <svelte:fragment slot="title">My <span class="text-highlight">Studio.</span></svelte:fragment>
       <div slot="actions">
         <button type="button" class="action-btn primary-btn" on:click={handleOpenNewProject}>
           + New Project
@@ -379,33 +538,47 @@
     on:close={() => (nameDialogOpen = false)}
   />
 
-  <!-- Editor View -->
+  <!-- Editor View — desktop two-sidebar layout -->
 {:else}
-  <div class="annotate-mode" class:mobile={isMobile}>
+  <div class="studio-mode">
     <MapWorkspace
       {supabase}
       {mapStore}
       {layerStore}
       showDual={false}
+      rightSidebarWidth={380}
       bind:mapList
       bind:selectedMap
       bind:shellMap
       bind:sidebarCollapsed
+      bind:rightSidebarCollapsed
       bind:isMobile
       bind:isCompact
       on:searchnavigate={handleSearchNavigate}
     >
       <svelte:fragment slot="sidebar">
-        <AnnotationsPanel
-          bind:this={annotationsPanelRef}
+        <CreateSidebar
+          {mapList}
+          {selectedMap}
+          viewMode={$layerStore.viewMode}
+          on:toggleCollapse={() => (sidebarCollapsed = true)}
+          on:zoomToOverlay={handleZoomToOverlay}
+          on:pickMap={handlePickMap}
+          on:pickLocation={handlePickLocation}
+          on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
+        />
+      </svelte:fragment>
+
+      <svelte:fragment slot="right-sidebar">
+        <StudioRightPane
+          bind:this={rightPaneRef}
+          project={currentProject}
           {annotations}
           {selectedAnnotationId}
           {selectedMap}
           {drawingMode}
           {isSaving}
           {saveSuccess}
-          collapsed={false}
-          on:toggleCollapse={() => (sidebarCollapsed = true)}
           on:rename={handleAnnotationRename}
           on:changeColor={handleAnnotationChangeColor}
           on:updateDetails={handleAnnotationUpdateDetails}
@@ -418,47 +591,59 @@
           on:clear={handleAnnotationClear}
           on:exportGeoJSON={handleAnnotationExport}
           on:importFile={handleAnnotationImport}
+          on:importOSM={openOverpassDialog}
           on:save={handleSave}
+          on:renameProject={handleRenameProject}
           on:backToLibrary={handleBackToLibrary}
+          on:toggleCollapse={() => (rightSidebarCollapsed = true)}
         />
       </svelte:fragment>
 
       <svelte:fragment slot="map-children">
         <DrawTool bind:this={drawToolRef} {drawingMode} editingEnabled={true} />
-      </svelte:fragment>
-
-      <svelte:fragment slot="mobile-sidebar">
-        <AnnotationsPanel
-          {annotations}
-          {selectedAnnotationId}
-          {selectedMap}
-          {drawingMode}
-          {isSaving}
-          {saveSuccess}
-          collapsed={false}
-          on:toggleCollapse={() => (sidebarCollapsed = true)}
-          on:rename={handleAnnotationRename}
-          on:changeColor={handleAnnotationChangeColor}
-          on:updateDetails={handleAnnotationUpdateDetails}
-          on:toggleVisibility={handleAnnotationToggleVisibility}
-          on:select={handleAnnotationSelect}
-          on:delete={handleAnnotationDelete}
-          on:zoomTo={handleAnnotationZoomTo}
-          on:setDrawingMode={handleSetDrawingMode}
-          on:zoomToMap={handleZoomToMap}
-          on:clear={handleAnnotationClear}
-          on:exportGeoJSON={handleAnnotationExport}
-          on:importFile={handleAnnotationImport}
-          on:save={handleSave}
-          on:backToLibrary={handleBackToLibrary}
+        <BboxSelector
+          enabled={bboxPickerActive}
+          bind:bbox={pickerBbox}
         />
+        <OverpassPreviewLayer features={overpassPreview} />
       </svelte:fragment>
     </MapWorkspace>
+
+    {#if bboxPickerActive}
+      <div class="bbox-picker-bar">
+        <span class="bbox-picker-label">Drag the rectangle corners to resize · drag inside to move</span>
+        <code class="bbox-picker-coords">
+          {pickerBbox
+            ? `${pickerBbox[1].toFixed(4)}, ${pickerBbox[0].toFixed(4)} → ${pickerBbox[3].toFixed(4)}, ${pickerBbox[2].toFixed(4)}`
+            : '—'}
+        </code>
+        <button type="button" class="sb-btn is-sm" on:click={cancelBboxPicker}>Cancel</button>
+        <button type="button" class="sb-btn is-sm is-primary" on:click={confirmBboxPicker} disabled={!pickerBbox}>
+          Use this bbox
+        </button>
+      </div>
+    {/if}
   </div>
+
+  <StudioOverpassDialog
+    open={overpassOpen}
+    bbox={overpassBbox}
+    isFetching={overpassFetching}
+    error={overpassError}
+    resultCount={overpassResultCount}
+    on:close={() => { if (!overpassFetching) { overpassOpen = false; overpassPreview = null; } }}
+    on:pickOnMap={startBboxPicker}
+    on:useViewport={useViewportBbox}
+    on:pickBbox={handlePickBboxFromSearch}
+    on:previewLocation={(e) => (overpassPreview = e.detail.features)}
+    on:submit={runOverpassImport}
+    on:addResult={addOverpassResult}
+    on:discardResult={discardOverpassResult}
+  />
 {/if}
 
 <style>
-  .annotate-mode {
+  .studio-mode {
     position: fixed;
     inset: var(--nav-height) 0 0 0;
     display: flex;
@@ -469,12 +654,6 @@
     overflow: hidden;
   }
 
-  .annotate-mode.mobile :global(.workspace) {
-    padding: 0;
-    gap: 0;
-  }
-
-  /* Edit icon button in library cards */
   .btn-icon-edit {
     display: flex;
     align-items: center;
@@ -494,5 +673,30 @@
     color: var(--color-blue);
     background: #dbeafe;
     transform: translate(-1px, -1px);
+  }
+
+  /* Floating bbox-picker bar (top center of map) */
+  .bbox-picker-bar {
+    position: absolute;
+    top: calc(var(--nav-height) + 0.75rem);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--color-white, #fff);
+    border: var(--border-thick, 2px solid #111);
+    border-radius: 10px;
+    box-shadow: 4px 4px 0 #111;
+    z-index: 150;
+    font-size: 0.85rem;
+    max-width: calc(100vw - 2rem);
+  }
+  .bbox-picker-label { font-weight: 600; }
+  .bbox-picker-coords {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.4rem;
+    background: var(--color-bg, #f6f4ef);
+    border-radius: 4px;
   }
 </style>
