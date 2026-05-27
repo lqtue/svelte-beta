@@ -89,8 +89,9 @@
 				const visible =
 					featuredMaps.some((m) => m.id === map.id) ||
 					favoriteIds.includes(map.id);
-				if (!visible || map.thumbnail || !map.allmaps_id) return;
-				const url = await fetchThumbnailUrl(map.allmaps_id);
+				const source = map.annotation_url ?? map.allmaps_id;
+				if (!visible || map.thumbnail || !source) return;
+				const url = await fetchThumbnailUrl(source);
 				if (url) {
 					thumbnails.set(map.id, url);
 					thumbnails = thumbnails;
@@ -242,7 +243,7 @@
 								<MapCard
 									{map}
 									href="/view?map={map.id}{map.location ? `&city=${encodeURIComponent(map.location)}` : ''}"
-									thumbnail={thumbnails.get(map.id)}
+									thumbnail={thumbnails.get(map.id) ?? map.thumbnail ?? undefined}
 									showFavorite={!!session}
 									isFavorited={favoriteIds.includes(map.id)}
 									on:toggleFavorite={(e) => toggleFavorite(e.detail)}
