@@ -13,7 +13,10 @@
     addKeyframe: void;
     removeKeyframe: { id: string };
     reorderKeyframe: { id: string; delta: 1 | -1 };
-    updateKeyframe: { id: string; patch: { label?: string; duration_ms?: number; hold_ms?: number } };
+    updateKeyframe: {
+      id: string;
+      patch: { label?: string; duration_ms?: number; hold_ms?: number; overlay_transition?: 'cut' | 'crossfade' };
+    };
     play: void;
     stop: void;
     clearTimeline: void;
@@ -72,7 +75,7 @@
               })} />
             <div class="kf-desc" title={describeFrame(f)}>{describeFrame(f)}</div>
             <div class="kf-fields">
-              <label class="kf-field" title="Transition into this keyframe (ms)">
+              <label class="kf-field" title="Camera transition into this keyframe (ms)">
                 <span>in</span>
                 <input type="number" min="0" step="100" value={f.duration_ms}
                   on:change={(e) => dispatch('updateKeyframe', {
@@ -90,6 +93,16 @@
                   })} />
                 <span class="unit">ms</span>
               </label>
+              <button type="button" class="kf-transition" class:is-fade={(f.overlay_transition ?? 'cut') === 'crossfade'}
+                title="Overlay transition: cut = instant, fade = tween opacity"
+                on:click={() => dispatch('updateKeyframe', {
+                  id: f.id,
+                  patch: {
+                    overlay_transition: (f.overlay_transition ?? 'cut') === 'cut' ? 'crossfade' : 'cut'
+                  }
+                })}>
+                {(f.overlay_transition ?? 'cut') === 'crossfade' ? 'fade' : 'cut'}
+              </button>
             </div>
           </div>
           <div class="kf-actions">
@@ -230,6 +243,25 @@
     border-radius: var(--sb-radius-sm);
   }
   .kf-field .unit { opacity: 0.6; }
+
+  .kf-transition {
+    appearance: none;
+    padding: 0.18rem 0.45rem;
+    font: inherit;
+    font-size: 0.66rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    background: var(--sb-bg, #f6f4ef);
+    color: var(--sb-text);
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .kf-transition:hover { background: var(--sb-accent-yellow, #fff3a3); }
+  .kf-transition.is-fade {
+    background: var(--sb-text, #111);
+    color: var(--sb-card-bg, #fff);
+  }
 
   .kf-actions {
     grid-area: actions;

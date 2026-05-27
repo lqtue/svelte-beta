@@ -17,11 +17,19 @@ export interface KeyframeOverlay {
 	visible: boolean;
 }
 
+export type OverlayTransition = 'cut' | 'crossfade';
+
 export interface Keyframe {
 	id: string;
 	label: string;
-	duration_ms: number; // transition INTO this keyframe
+	duration_ms: number; // transition INTO this keyframe (camera tween)
 	hold_ms: number; // pause after arriving
+	/**
+	 * How overlay opacity changes coming INTO this keyframe.
+	 *   'cut'       — instant (default; camera still glides)
+	 *   'crossfade' — opacity tweens over duration_ms in parallel with the camera
+	 */
+	overlay_transition: OverlayTransition;
 	camera: { lng: number; lat: number; zoom: number; rotation: number };
 	layers: {
 		base: LayerRef;
@@ -61,7 +69,10 @@ function snapshot(mapStore: MapStore): Pick<Keyframe, 'camera' | 'layers'> {
 
 export interface TimelineStore extends Readable<TimelineState> {
 	addFromCurrent(mapStore: MapStore): string;
-	update(id: string, patch: Partial<Pick<Keyframe, 'label' | 'duration_ms' | 'hold_ms'>>): void;
+	update(
+		id: string,
+		patch: Partial<Pick<Keyframe, 'label' | 'duration_ms' | 'hold_ms' | 'overlay_transition'>>
+	): void;
 	remove(id: string): void;
 	reorder(id: string, delta: 1 | -1): void;
 	clear(): void;
@@ -84,6 +95,7 @@ function create(): TimelineStore {
 					label: `Step ${s.frames.length + 1}`,
 					duration_ms: 1500,
 					hold_ms: 0,
+					overlay_transition: 'cut',
 					...snapshot(mapStore)
 				};
 				return { ...s, frames: [...s.frames, frame] };

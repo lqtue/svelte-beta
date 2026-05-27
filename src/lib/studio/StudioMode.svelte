@@ -344,7 +344,7 @@
   function handleReorderKeyframe(e: CustomEvent<{ id: string; delta: 1 | -1 }>) {
     timelineStore.reorder(e.detail.id, e.detail.delta);
   }
-  function handleUpdateKeyframe(e: CustomEvent<{ id: string; patch: Partial<Pick<Keyframe, 'label' | 'duration_ms' | 'hold_ms'>> }>) {
+  function handleUpdateKeyframe(e: CustomEvent<{ id: string; patch: Partial<Pick<Keyframe, 'label' | 'duration_ms' | 'hold_ms' | 'overlay_transition'>> }>) {
     timelineStore.update(e.detail.id, e.detail.patch);
   }
   function handleClearTimeline() {

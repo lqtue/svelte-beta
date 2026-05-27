@@ -41,7 +41,10 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 	});
 }
 
-function reconcileOverlays(target: Keyframe): Map<string, string> {
+function reconcileOverlays(
+	target: Keyframe,
+	mode: 'cut' | 'crossfade'
+): Map<string, string> {
 	// Returns mapId → local overlay id in the live store after reconciliation.
 	const live = get(layersStore);
 	const liveByMap = new Map(live.overlays.map((o) => [o.ref.mapId, o] as const));
@@ -65,7 +68,9 @@ function reconcileOverlays(target: Keyframe): Map<string, string> {
 			liveBase.key !== targetBase.key);
 	if (baseChanged) layersStore.setBase(targetBase);
 
-	// Add missing overlays at opacity 0 so the tween fades them in.
+	// Add missing overlays. In crossfade mode start at 0 so the tween fades them
+	// in; in cut mode start at target opacity (the tween loop will see no diff
+	// and skip them — instant appearance).
 	for (const t of target.layers.overlays) {
 		if (!liveByMap.has(t.mapId)) {
 			layersStore.addOverlay(
@@ -76,7 +81,7 @@ function reconcileOverlays(target: Keyframe): Map<string, string> {
 					name: t.name,
 					thumbnail: t.thumbnail
 				},
-				{ opacity: 0 }
+				{ opacity: mode === 'crossfade' ? 0 : t.opacity }
 			);
 		}
 	}
@@ -120,9 +125,10 @@ export function playTimeline(
 				const frame = frames[i];
 				opts.onFrameEnter?.(i);
 
-				const overlayIds = reconcileOverlays(frame);
+				const mode = frame.overlay_transition ?? 'cut';
+				const overlayIds = reconcileOverlays(frame, mode);
 
-				// Build opacity tweens for every overlay currently in the live store.
+				// Opacity diff between current live state and target keyframe.
 				const live = get(layersStore);
 				const targetByMap = new Map(frame.layers.overlays.map((o) => [o.mapId, o] as const));
 				active = [];
@@ -130,8 +136,13 @@ export function playTimeline(
 					const target = targetByMap.get(o.ref.mapId);
 					const to = target ? target.opacity : 0;
 					if (Math.abs(o.opacity - to) < 0.001) continue;
-					const proxy = { v: o.opacity };
 					const id = overlayIds.get(o.ref.mapId) ?? o.id;
+					if (mode === 'cut') {
+						// Hard cut — apply immediately.
+						layersStore.setOpacity(id, to);
+						continue;
+					}
+					const proxy = { v: o.opacity };
 					const anim = animate(proxy, {
 						v: to,
 						duration: frame.duration_ms,
@@ -186,7 +197,7 @@ function easeInOutCubic(t: number): number {
 
 /** Apply a keyframe instantly (no tween). Used for "Jump to". */
 export function applyKeyframeInstant(map: OLMap, frame: Keyframe): void {
-	reconcileOverlays(frame);
+	reconcileOverlays(frame, 'cut');
 	const live = get(layersStore);
 	const targetByMap = new Map(frame.layers.overlays.map((o) => [o.mapId, o] as const));
 	for (const o of live.overlays) {
