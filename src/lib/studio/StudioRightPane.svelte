@@ -15,6 +15,7 @@
     AnnotationSet,
   } from '$lib/map/types';
   import SidebarCard from '$lib/ui/catalog/SidebarCard.svelte';
+  import StudioAnimationPanel from './StudioAnimationPanel.svelte';
 
   const dispatch = createEventDispatcher<{
     rename: { id: string; label: string };
@@ -307,6 +308,17 @@
       </div>
     {/if}
   </SidebarCard>
+
+  <StudioAnimationPanel
+    on:addKeyframe
+    on:removeKeyframe
+    on:reorderKeyframe
+    on:updateKeyframe
+    on:play
+    on:stop
+    on:clearTimeline
+    on:jumpToKeyframe
+  />
 </aside>
 
 <style>

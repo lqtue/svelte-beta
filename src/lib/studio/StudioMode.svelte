@@ -28,6 +28,8 @@
   import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
   import { layersStore } from "$lib/stores/layersStore";
   import { createAnnotationProjectStore } from "./stores/annotationProjectStore";
+  import { timelineStore, type Keyframe } from "./animation/timelineStore";
+  import { playTimeline, applyKeyframeInstant, type PlaybackHandle } from "./animation/playback";
 
   import MapWorkspace from "$lib/shell/MapWorkspace.svelte";
   import DrawTool from "$lib/shell/DrawTool.svelte";
@@ -331,6 +333,55 @@
   function handleUndo() { drawToolRef?.undoLastAction(); }
   function handleRedo() { drawToolRef?.redoLastAction(); }
 
+  // ── Timeline / animation playback ────────────────────────────
+
+  let playbackHandle: PlaybackHandle | null = null;
+
+  function handleAddKeyframe() { timelineStore.addFromCurrent(mapStore); }
+  function handleRemoveKeyframe(e: CustomEvent<{ id: string }>) {
+    timelineStore.remove(e.detail.id);
+  }
+  function handleReorderKeyframe(e: CustomEvent<{ id: string; delta: 1 | -1 }>) {
+    timelineStore.reorder(e.detail.id, e.detail.delta);
+  }
+  function handleUpdateKeyframe(e: CustomEvent<{ id: string; patch: Partial<Pick<Keyframe, 'label' | 'duration_ms' | 'hold_ms'>> }>) {
+    timelineStore.update(e.detail.id, e.detail.patch);
+  }
+  function handleClearTimeline() {
+    playbackHandle?.stop();
+    playbackHandle = null;
+    timelineStore.clear();
+    timelineStore.setPlaying(false, null);
+  }
+  function handleJumpToKeyframe(e: CustomEvent<{ id: string }>) {
+    if (!shellMap) return;
+    const frame = $timelineStore.frames.find((f) => f.id === e.detail.id);
+    if (frame) applyKeyframeInstant(shellMap, frame);
+  }
+  function handlePlayTimeline() {
+    if (!shellMap) return;
+    const frames = $timelineStore.frames;
+    if (frames.length < 2) return;
+    playbackHandle?.stop();
+    timelineStore.setPlaying(true, 0);
+    playbackHandle = playTimeline(shellMap, frames, {
+      onFrameEnter: (i) => timelineStore.setCurrentIndex(i),
+      onFinish: () => {
+        timelineStore.setPlaying(false, null);
+        playbackHandle = null;
+      },
+      onError: () => {
+        timelineStore.setPlaying(false, null);
+        playbackHandle = null;
+      },
+    });
+  }
+  function handleStopTimeline() {
+    playbackHandle?.stop();
+    playbackHandle = null;
+    timelineStore.setPlaying(false, null);
+  }
+
   $: canUndo = $annotationHistory.history.length > 0;
   $: canRedo = $annotationHistory.future.length > 0;
 
@@ -386,6 +437,9 @@
   }
 
   function handleBackToLibrary() {
+    playbackHandle?.stop();
+    playbackHandle = null;
+    timelineStore.setPlaying(false, null);
     currentProject = null;
     drawingMode = null;
     activeView = "library";
@@ -423,6 +477,8 @@
       window.removeEventListener("keydown", keydownHandler);
       keydownHandler = null;
     }
+    playbackHandle?.stop();
+    playbackHandle = null;
   });
 </script>
 
@@ -596,6 +652,14 @@
           on:renameProject={handleRenameProject}
           on:backToLibrary={handleBackToLibrary}
           on:toggleCollapse={() => (rightSidebarCollapsed = true)}
+          on:addKeyframe={handleAddKeyframe}
+          on:removeKeyframe={handleRemoveKeyframe}
+          on:reorderKeyframe={handleReorderKeyframe}
+          on:updateKeyframe={handleUpdateKeyframe}
+          on:clearTimeline={handleClearTimeline}
+          on:jumpToKeyframe={handleJumpToKeyframe}
+          on:play={handlePlayTimeline}
+          on:stop={handleStopTimeline}
         />
       </svelte:fragment>
 
