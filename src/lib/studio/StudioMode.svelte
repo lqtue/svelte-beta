@@ -450,6 +450,9 @@
   }
 
   onMount(() => {
+    // /studio doesn't support side-by-side — snap back if state is stale from /view.
+    if ($layerStore.viewMode === 'dual') layerStore.setViewMode('overlay');
+
     projectStore.loadFromSupabase().finally(() => { projectsLoading = false; });
 
     keydownHandler = (event: KeyboardEvent) => {
@@ -616,6 +619,7 @@
         <CreateSidebar
           {mapList}
           {selectedMap}
+          allowDual={false}
           viewMode={$layerStore.viewMode}
           on:toggleCollapse={() => (sidebarCollapsed = true)}
           on:zoomToOverlay={handleZoomToOverlay}

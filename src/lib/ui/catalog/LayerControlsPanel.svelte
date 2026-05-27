@@ -19,6 +19,8 @@
 
   export let viewMode: ViewMode = 'overlay';
   export let gpsActive: boolean = false;
+  /** When false, "Side-by-side" is hidden — used by tool pages (/studio, /create). */
+  export let allowDual: boolean = true;
 
   const dispatch = createEventDispatcher<{
     changeViewMode: { mode: ViewMode };
@@ -26,11 +28,12 @@
     toggleGps: void;
   }>();
 
-  const DISPLAY_MODES: { mode: ViewMode; label: string; icon: string }[] = [
+  const ALL_DISPLAY_MODES: { mode: ViewMode; label: string; icon: string }[] = [
     { mode: 'overlay', label: 'Stacked',      icon: '≡' },
     { mode: 'spy',     label: 'Lens',         icon: '◎' },
     { mode: 'dual',    label: 'Side-by-side', icon: '⊟' },
   ];
+  $: DISPLAY_MODES = allowDual ? ALL_DISPLAY_MODES : ALL_DISPLAY_MODES.filter((m) => m.mode !== 'dual');
   const BASE_CHOICES: { key: string; label: string }[] = [
     { key: 'g-streets',   label: '🗺️ Maps' },
     { key: 'g-satellite', label: '🛰️ Satellite' },

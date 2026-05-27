@@ -543,6 +543,9 @@
   }
 
   onMount(() => {
+    // /create doesn't support side-by-side — snap back if state is stale from /view.
+    if ($layerStore.viewMode === 'dual') layerStore.setViewMode('overlay');
+
     storyLibrary.loadFromSupabase().finally(() => { storiesLoading = false; });
     // Pre-fetch the catalog so the Saigon seed (running on the library page,
     // before MapWorkspace mounts) can pick a real historical layer.
@@ -723,6 +726,7 @@
         <CreateSidebar
           {mapList}
           {selectedMap}
+          allowDual={false}
           viewMode={$layerStore.viewMode}
           on:toggleCollapse={() => (sidebarCollapsed = true)}
           on:zoomToOverlay={handleZoomToOverlay}
@@ -782,6 +786,7 @@
           <LayerControlsPanel
             viewMode={$layerStore.viewMode}
             gpsActive={false}
+            allowDual={false}
             on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
             on:pickLocation={handlePickLocation}
           />

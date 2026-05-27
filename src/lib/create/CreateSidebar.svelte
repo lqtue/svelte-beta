@@ -25,6 +25,8 @@
   export let viewMode: ViewMode = 'overlay';
   export let gpsActive = false;
   export let role: 'user' | 'mod' | 'admin' = 'user';
+  /** When false, hides Side-by-side from the display-mode toggle. */
+  export let allowDual: boolean = true;
 </script>
 
 <aside class="panel">
@@ -50,6 +52,7 @@
     <LayerControlsPanel
       {viewMode}
       {gpsActive}
+      {allowDual}
       on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)}
       on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
       on:toggleGps={() => dispatch('toggleGps')}
