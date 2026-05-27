@@ -61,19 +61,20 @@ function buildVnClaimsLayer(): VectorLayer<VectorSource> {
   });
 }
 
-function buildStadiaGroup(visible: boolean): LayerGroup {
+function buildStreetsGroup(visible: boolean): LayerGroup {
   const tileLayer = new TileLayer({
     source: new XYZ({
       urls: [
-        'https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}@2x.png'
+        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'
       ],
       tilePixelRatio: 2,
       tileSize: 256,
       attributions: [
-        '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>',
-        '&copy; <a href="https://stamen.com" target="_blank">Stamen Design</a>',
-        '&copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a>',
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+        '&copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>'
       ],
       maxZoom: 20,
       crossOrigin: 'anonymous'
@@ -92,8 +93,8 @@ function buildStadiaGroup(visible: boolean): LayerGroup {
 export const BASEMAP_DEFS: BasemapDefinition[] = [
   {
     key: 'g-streets',
-    label: 'OSM Bright',
-    layer: () => buildStadiaGroup(true)
+    label: 'Streets',
+    layer: () => buildStreetsGroup(true)
   },
   {
     key: 'g-satellite',

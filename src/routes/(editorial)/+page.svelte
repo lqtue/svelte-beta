@@ -24,24 +24,44 @@
 	let favoriteIds: string[] = [];
 	let filterCollection: "featured" | "favorites" = "featured";
 
+	// sessionStorage cache so a 404 (un-georeferenced map) isn't refetched on reload
+	const THUMB_CACHE_KEY = 'vma-thumb-cache-v1';
+	function readThumbCache(): Record<string, string | null> {
+		try { return JSON.parse(sessionStorage.getItem(THUMB_CACHE_KEY) ?? '{}'); } catch { return {}; }
+	}
+	function writeThumbCache(id: string, value: string | null): void {
+		try {
+			const c = readThumbCache();
+			c[id] = value;
+			sessionStorage.setItem(THUMB_CACHE_KEY, JSON.stringify(c));
+		} catch {}
+	}
+
 	// Fetch IIIF thumbnail URL from Allmaps annotation
 	async function fetchThumbnailUrl(mapId: string): Promise<string | null> {
+		if (!mapId) return null;
+		const cache = readThumbCache();
+		if (Object.prototype.hasOwnProperty.call(cache, mapId)) return cache[mapId];
 		try {
 			const response = await fetch(annotationUrlForSource(mapId));
-			if (!response.ok) return null;
+			if (!response.ok) {
+				writeThumbCache(mapId, null);
+				return null;
+			}
 
 			const annotation = await response.json();
-
 			const items = annotation.items;
-			if (!items || items.length === 0) return null;
+			const source = items?.[0]?.target?.source;
+			if (!source?.id) {
+				writeThumbCache(mapId, null);
+				return null;
+			}
 
-			const source = items[0]?.target?.source;
-			if (!source?.id) return null;
-
-			const imageServiceUrl = source.id;
-			return `${imageServiceUrl}/full/,400/0/default.jpg`;
-		} catch (err) {
-			console.error(`Failed to fetch thumbnail for ${mapId}:`, err);
+			const url = `${source.id}/full/,400/0/default.jpg`;
+			writeThumbCache(mapId, url);
+			return url;
+		} catch {
+			writeThumbCache(mapId, null);
 			return null;
 		}
 	}
@@ -64,16 +84,16 @@
 			loading = false;
 
 			const fetchPromises = maps.map(async (map) => {
-				// Only fetch thumbnails for what might be visible
-				if (
+				// Only fetch thumbnails for what might be visible, and only if
+				// the DB doesn't already have one (skips 404s on un-georeferenced maps).
+				const visible =
 					featuredMaps.some((m) => m.id === map.id) ||
-					favoriteIds.includes(map.id)
-				) {
-					const url = await fetchThumbnailUrl(map.allmaps_id ?? '');
-					if (url) {
-						thumbnails.set(map.id, url);
-						thumbnails = thumbnails;
-					}
+					favoriteIds.includes(map.id);
+				if (!visible || map.thumbnail || !map.allmaps_id) return;
+				const url = await fetchThumbnailUrl(map.allmaps_id);
+				if (url) {
+					thumbnails.set(map.id, url);
+					thumbnails = thumbnails;
 				}
 			});
 			await Promise.all(fetchPromises);

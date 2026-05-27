@@ -48,7 +48,7 @@ export async function fetchAnnotationBounds(
 	try {
 		const response = await fetch(annotationUrlForSource(mapId));
 		if (!response.ok) {
-			console.warn(`Failed to fetch annotation for ${mapId}: ${response.status}`);
+			// 404 is expected for un-georeferenced maps — cache null silently.
 			boundsCache.set(mapId, null);
 			saveToSessionCache(mapId, null);
 			return null;
