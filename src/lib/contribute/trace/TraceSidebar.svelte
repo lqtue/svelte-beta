@@ -121,7 +121,7 @@
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="7" cy="7" r="5"/><path d="M15 15l-3.5-3.5"/>
       </svg>
-      <input type="text" placeholder="Filter shapes…" bind:value={filterSearch} class="shapes-search-input" />
+      <input type="text" placeholder="Filter by name…" bind:value={filterSearch} class="shapes-search-input" />
     </div>
     <select class="filter-type-select" bind:value={filterType} aria-label="Filter by type">
       <option value="">All types</option>

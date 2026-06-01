@@ -1,31 +1,49 @@
 // Utility for fetching and calculating geographic bounds from Allmaps annotations
 import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
 
-// In-memory + sessionStorage cache to avoid repeated API calls across reloads
+// In-memory + localStorage cache. Persists across reloads AND across sessions
+// so repeat /explore visits do zero network for the same catalogue. Allmaps
+// annotations are immutable for a given image id, so cache invalidation is
+// not a concern; we only ever cache success (bbox) or null (no GCPs / 404).
 const boundsCache: Map<string, [number, number, number, number] | null> = new Map();
-const SESSION_KEY = 'vma-bounds-cache-v1';
+const STORAGE_KEY = 'vma-bounds-cache-v2';
 
-function loadSessionCache(): void {
+function loadPersistedCache(): void {
 	try {
-		const raw = sessionStorage.getItem(SESSION_KEY);
+		const raw = (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY))
+			|| (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('vma-bounds-cache-v1'));
 		if (!raw) return;
 		const parsed = JSON.parse(raw) as Record<string, [number, number, number, number] | null>;
 		for (const [k, v] of Object.entries(parsed)) boundsCache.set(k, v);
 	} catch {}
 }
 
-function saveToSessionCache(id: string, value: [number, number, number, number] | null): void {
+function persistCache(): void {
 	try {
-		const raw = sessionStorage.getItem(SESSION_KEY);
-		const existing: Record<string, [number, number, number, number] | null> = raw
-			? JSON.parse(raw)
-			: {};
-		existing[id] = value;
-		sessionStorage.setItem(SESSION_KEY, JSON.stringify(existing));
+		if (typeof localStorage === 'undefined') return;
+		const obj: Record<string, [number, number, number, number] | null> = {};
+		for (const [k, v] of boundsCache) obj[k] = v;
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
 	} catch {}
 }
 
-loadSessionCache();
+// Debounce localStorage writes — fetchMultipleBounds will call this many
+// times in quick succession.
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+function schedulePersist() {
+	if (persistTimer) return;
+	persistTimer = setTimeout(() => {
+		persistTimer = null;
+		persistCache();
+	}, 250);
+}
+
+function saveToSessionCache(id: string, value: [number, number, number, number] | null): void {
+	boundsCache.set(id, value);
+	schedulePersist();
+}
+
+loadPersistedCache();
 
 interface GroundControlPoint {
 	world: [number, number];
@@ -186,19 +204,24 @@ function extractGCPs(annotation: unknown): GroundControlPoint[] {
  */
 export async function fetchMultipleBounds(
 	mapIds: string[],
-	concurrency: number = 2
+	concurrency: number = 12
 ): Promise<Map<string, [number, number, number, number] | null>> {
 	const results = new Map<string, [number, number, number, number] | null>();
 
-	// Process in batches
-	for (let i = 0; i < mapIds.length; i += concurrency) {
-		const batch = mapIds.slice(i, i + concurrency);
-		const promises = batch.map(async (id) => {
+	// Drain via a sliding window of N workers — keeps `concurrency`
+	// requests in flight at all times instead of waiting for the slowest
+	// of each batch (the old code paused the whole batch on its tail
+	// latency, costing ~3-5× wall time on slow maps).
+	let cursor = 0;
+	async function worker() {
+		while (cursor < mapIds.length) {
+			const i = cursor++;
+			const id = mapIds[i];
 			const bounds = await fetchAnnotationBounds(id);
 			results.set(id, bounds);
-		});
-		await Promise.all(promises);
+		}
 	}
+	await Promise.all(Array.from({ length: Math.min(concurrency, mapIds.length) }, worker));
 
 	return results;
 }

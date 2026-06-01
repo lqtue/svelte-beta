@@ -142,7 +142,7 @@
       const data = (await response.json()) as SearchResult[];
       locationResults = data;
       if (!data.length) {
-        locationNotice = "No results found.";
+        locationNotice = "Nothing matched that search.";
         locationNoticeType = "info";
         nearbyMaps = [];
         nearbyLabel = "";
@@ -158,7 +158,7 @@
       }
     } catch (error) {
       if ((error as Error).name === "AbortError") return;
-      locationNotice = "Search failed. Please try again.";
+      locationNotice = "Search failed. Try again in a moment.";
       locationNoticeType = "error";
       locationResults = [];
       nearbyMaps = [];
@@ -227,7 +227,7 @@
 
   function handleLocateMe() {
     if (!navigator.geolocation) {
-      locationNotice = "Geolocation is not supported by your browser.";
+      locationNotice = "Your browser doesn't support geolocation.";
       locationNoticeType = "error";
       return;
     }
@@ -255,16 +255,16 @@
         locatingUser = false;
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            locationNotice = "Location permission denied.";
+            locationNotice = "We need permission to read your location.";
             break;
           case error.POSITION_UNAVAILABLE:
-            locationNotice = "Location unavailable.";
+            locationNotice = "Couldn't pin down your location.";
             break;
           case error.TIMEOUT:
-            locationNotice = "Location request timed out.";
+            locationNotice = "Location request timed out. Try again.";
             break;
           default:
-            locationNotice = "Failed to get location.";
+            locationNotice = "Couldn't read your location.";
         }
         locationNoticeType = "error";
       },
@@ -364,7 +364,7 @@
       <div class="search-form">
         <input
           type="text"
-          placeholder="Filter maps by name, city, year..."
+          placeholder="Filter by title, city, or year…"
           bind:value={mapsQuery}
           bind:this={searchInputEl}
         />
@@ -402,7 +402,7 @@
                   class:active={inCompare}
                   disabled={compareFull && !inCompare}
                   on:click={(e) => toggleCompare(e, map)}
-                  title={inCompare ? 'Remove overlay' : compareFull ? `Overlay stack full (${MAX_OVERLAY_LAYERS} max)` : 'Add as overlay'}
+                  title={inCompare ? 'Remove from layer stack' : compareFull ? `Layer stack full (${MAX_OVERLAY_LAYERS} max)` : 'Add to layer stack'}
                   aria-label={inCompare ? 'Remove from compare' : 'Add to compare'}
                 >
                   {inCompare ? '✓' : '⇄'}
@@ -411,9 +411,9 @@
             </div>
           {/each}
         {:else if mapsQuery.trim()}
-          <p class="empty-msg">No maps match "{mapsQuery}"</p>
+          <p class="empty-msg">No maps match “{mapsQuery}”.</p>
         {:else}
-          <p class="empty-msg">No maps available</p>
+          <p class="empty-msg">No maps loaded yet.</p>
         {/if}
       </div>
 
@@ -422,7 +422,7 @@
       <div class="search-form">
         <input
           type="text"
-          placeholder="Search place, address, or coordinates..."
+          placeholder="Place, address, or lat,lng…"
           bind:value={locationQuery}
           bind:this={searchInputEl}
           on:input={(e) =>

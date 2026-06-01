@@ -273,8 +273,8 @@
     {#if results.length === 0 && !loading}
       <div class="state-panel">
         <div class="empty-emoji">🏜️</div>
-        <h2 class="state-title">No matches</h2>
-        <p class="state-desc">Try a different keyword or clear a filter.</p>
+        <h2 class="state-title">Nothing matches.</h2>
+        <p class="state-desc">Try another keyword, or clear a filter and start over.</p>
       </div>
     {:else}
       <CatalogTable

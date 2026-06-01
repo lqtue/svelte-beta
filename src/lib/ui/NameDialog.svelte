@@ -65,7 +65,7 @@
             type="text"
             bind:this={inputEl}
             bind:value
-            placeholder="Enter a title"
+            placeholder="Give it a title"
           />
         </label>
 
@@ -76,7 +76,7 @@
               class="sb-textarea"
               rows="2"
               bind:value={descriptionValue}
-              placeholder="Optional description"
+              placeholder="Add a description (optional)"
             ></textarea>
           </label>
         {/if}
@@ -88,7 +88,7 @@
         </button>
         <button type="button" class="sb-btn is-on"
           on:click={handleSubmit} disabled={!value.trim()}>
-          OK
+          Save
         </button>
       </footer>
     </div>

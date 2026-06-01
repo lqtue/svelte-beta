@@ -27,7 +27,7 @@
 	<title>Blog — Vietnam Map Archive</title>
 	<meta
 		name="description"
-		content="Updates, research notes, and announcements from the Vietnam Map Archive team."
+		content="Monthly digests, research notes, and announcements from the Vietnam Map Archive."
 	/>
 	<link
 		href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap"
@@ -37,9 +37,9 @@
 
 <div class="page blog-page" class:mounted>
 	<PageHero
-		eyebrow="Field Notes"
-		title="Updates from the Archive"
-		sub="Monthly digests, research notes, and community announcements. No newsletter. Everything lives here."
+		eyebrow="Field notes"
+		title="Updates from the archive"
+		sub="Monthly digests, research notes, and announcements. No newsletter — everything lives here."
 	/>
 
 	<main class="main">
@@ -65,7 +65,7 @@
 		<!-- OLDER POSTS -->
 		{#if olderPosts.length > 0}
 			<div class="posts-section">
-				<h2 class="section-title">More Posts</h2>
+				<h2 class="section-title">Earlier posts</h2>
 				<div class="posts-grid">
 					{#each olderPosts as post}
 						<a href="/blog/{post.slug}" class="post-card">
@@ -91,13 +91,13 @@
 		<div class="subscribe-card">
 			<div class="subscribe-icon">📬</div>
 			<div class="subscribe-text">
-				<h3>No newsletter required</h3>
+				<h3>No newsletter</h3>
 				<p>
-					Everything is here. Bookmark this page or check the
-					<a href="/about">About</a> page for live project progress. If you'd
-					like to be notified about major updates, send a note to
+					Everything's here. Bookmark this page, or check
+					<a href="/about">About</a> for live project progress. If you'd
+					rather be pinged when something big lands, email
 					<a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a>
-					and we'll add you to a very short, very infrequent announcement list.
+					and we'll add you to a short, infrequent announcement list.
 				</p>
 			</div>
 		</div>

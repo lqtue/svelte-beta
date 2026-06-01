@@ -77,6 +77,10 @@
   export let rightSidebarWidth: number = 360;
   export let rightSidebarMaxWidth: number = 560;
   export let rightSidebarCollapsed: boolean = false;
+  /** Forwarded to ToolLayout — mobile tab order. */
+  export let tabOrder: Array<'layers' | 'controls' | 'browse'> = ['layers', 'controls', 'browse'];
+  /** Mobile drawer open state — bindable so callers can drive tabs. */
+  export let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
   /** Reactive map list. */
   export let mapList: MapListItem[] = [];
   /** Derived from mapList + activeMapId; read-only for callers. */
@@ -146,6 +150,8 @@
   bind:rightSidebarWidth {rightSidebarMaxWidth}
   bind:rightSidebarCollapsed
   hasRightSidebar={!!$$slots['right-sidebar']}
+  {tabOrder}
+  bind:openDrawer
 >
   <svelte:fragment slot="sidebar">
     <slot name="sidebar" />

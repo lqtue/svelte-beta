@@ -32,12 +32,12 @@
 </script>
 
 <svelte:head>
-	<title>Login — Vietnam Map Archive</title>
+	<title>Sign in — Vietnam Map Archive</title>
 </svelte:head>
 
 <div class="auth-page">
 	<div class="auth-card">
-		<h1 class="auth-title">Login</h1>
+		<h1 class="auth-title">Sign in</h1>
 
 		{#if error}
 			<div class="auth-error">{error}</div>
@@ -56,7 +56,7 @@
 		</div>
 
 		<p class="auth-notice">
-			By signing in, you agree to contribute to the open-access preservation of Vietnamese historical maps.
+			Signing in lets you save favorites and contribute to the archive. Everything you add is released as open data under CC-BY.
 		</p>
 	</div>
 </div>

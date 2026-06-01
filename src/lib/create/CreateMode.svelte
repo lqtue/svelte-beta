@@ -33,8 +33,8 @@
   import MapClickCapture from "./MapClickCapture.svelte";
   import CreateSidebar from "./CreateSidebar.svelte";
   import CreateRightPane from "./CreateRightPane.svelte";
-  import StoryMarkers from "$lib/view/StoryMarkers.svelte";
-  import StoryPlayback from "$lib/view/StoryPlayback.svelte";
+  import StoryMarkers from "$lib/story/StoryMarkers.svelte";
+  import StoryPlayback from "$lib/story/StoryPlayback.svelte";
   import LayerStackPanel from "$lib/ui/catalog/LayerStackPanel.svelte";
   import LayerControlsPanel from "$lib/ui/catalog/LayerControlsPanel.svelte";
   import CatalogSidebarPanel from "$lib/ui/catalog/CatalogSidebarPanel.svelte";
@@ -585,8 +585,8 @@
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
         <path d="M7 11V7a5 5 0 0110 0v4" />
       </svg>
-      <h2 class="auth-gate-title">Sign in to Create</h2>
-      <p class="auth-gate-text">Sign in with your Google account to create and manage stories.</p>
+      <h2 class="auth-gate-title">Sign in to build a story</h2>
+      <p class="auth-gate-text">Stories are saved to your account so you can come back and edit them.</p>
       <button type="button" class="auth-gate-btn google" on:click={async () => {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
@@ -608,11 +608,11 @@
 <!-- Library View (desktop + mobile) -->
 {:else if activeView === "library"}
   <div class="page">
-    <PageHero eyebrow="Tools" sub="Create guided stories and adventures on historical maps">
-      <svelte:fragment slot="title">My <span class="text-highlight">Stories.</span></svelte:fragment>
+    <PageHero eyebrow="Tools" sub="Walk readers through a place, one historical layer at a time.">
+      <svelte:fragment slot="title">Your <span class="text-highlight">stories.</span></svelte:fragment>
       <div slot="actions">
         {#if !isMobile}
-          <button type="button" class="action-btn primary-btn" on:click={handleCreateNewStory}>+ New Story</button>
+          <button type="button" class="action-btn primary-btn" on:click={handleCreateNewStory}>+ New story</button>
         {/if}
       </div>
     </PageHero>
@@ -620,7 +620,7 @@
     {#if isMobile}
       <div class="mobile-banner">
         <strong>Editing is desktop-only.</strong>
-        Tap a story to play it here. Open Vietnam Map Archive on a laptop to add or edit points.
+        Tap a story here to play it. To author or edit one, open VMA on a laptop.
       </div>
     {/if}
 
@@ -628,7 +628,7 @@
       {#if storiesLoading}
         <div class="library-loading">
           <div class="loading-spinner"></div>
-          <span>Loading stories...</span>
+          <span>Loading your stories…</span>
         </div>
       {:else if myStories.length === 0}
         <div class="library-empty">
@@ -637,18 +637,18 @@
             <polyline points="14 2 14 8 20 8" />
             <path d="M12 18v-6M9 15h6" />
           </svg>
-          <h2 class="empty-title">{isMobile ? 'No stories yet' : 'Create your first story'}</h2>
+          <h2 class="empty-title">{isMobile ? 'No stories yet.' : 'Start your first story.'}</h2>
           <p class="empty-text">
             {isMobile
-              ? 'Open the site on a laptop to author a guided tour or treasure hunt.'
-              : 'Place points on historical maps, add descriptions and challenges, and share your creation.'}
+              ? 'Open the site on a laptop to author a guided tour or scrollytelling walk.'
+              : 'Drop points on a historical map, write a line or two for each, optionally add a challenge, and share.'}
           </p>
           {#if !isMobile}
             <button type="button" class="library-create-btn large" on:click={handleCreateNewStory}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              Create Story
+              New story
             </button>
           {/if}
         </div>
@@ -663,7 +663,7 @@
                 <span class="meta-tag">{story.points.length} point{story.points.length !== 1 ? "s" : ""}</span>
                 <span class="meta-tag date">{new Date(story.updatedAt).toLocaleDateString("en-GB")}</span>
                 <span class="meta-tag publish-status" class:published={story.isPublic}>
-                  {story.isPublic ? "🌍 Public" : "🔒 Private"}
+                  {story.isPublic ? "Public" : "Private"}
                 </span>
               </div>
               <div slot="description" class="description">{story.description || "No description"}</div>

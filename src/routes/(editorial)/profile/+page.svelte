@@ -68,13 +68,13 @@
 </script>
 
 <svelte:head>
-  <title>Your Profile — Vietnam Map Archive</title>
+  <title>Your profile — Vietnam Map Archive</title>
 </svelte:head>
 
 <div class="page profile-page">
-  <PageHero eyebrow="Account" sub="Manage your profile and track your contributions.">
+  <PageHero eyebrow="Account" sub="Your contributions, your settings, in one place.">
     <svelte:fragment slot="title">
-      Your <span class="text-highlight">Profile.</span>
+      Your <span class="text-highlight">profile.</span>
     </svelte:fragment>
   </PageHero>
 
@@ -99,18 +99,18 @@
       </div>
 
       <div class="stats-section">
-        <h3 class="section-title">Contribution Stats</h3>
+        <h3 class="section-title">Your contributions</h3>
         {#if loading}
-          <div class="loading-pulse">Calculating stats...</div>
+          <div class="loading-pulse">Counting…</div>
         {:else}
           <div class="stats-grid">
             <div class="stat-card">
               <span class="stat-value">{stats.pins}</span>
-              <span class="stat-label">Pins Placed</span>
+              <span class="stat-label">Pins placed</span>
             </div>
             <div class="stat-card">
               <span class="stat-value">{stats.traces}</span>
-              <span class="stat-label">Building Traces</span>
+              <span class="stat-label">Buildings traced</span>
             </div>
           </div>
         {/if}
@@ -122,7 +122,7 @@
           <div class="setting-item">
             <div class="setting-info">
               <span class="setting-name">Language</span>
-              <span class="setting-desc">Switch between English and Tiếng Việt (Beta)</span>
+              <span class="setting-desc">Switch between English and Tiếng Việt — translation is beta</span>
             </div>
             <button class="pill-btn lang-btn" on:click={toggleLanguage}>
               {isVietnamese ? '🇬🇧 Switch to English' : '🇻🇳 Tiếng Việt'}

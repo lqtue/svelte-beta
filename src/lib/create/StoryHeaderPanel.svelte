@@ -60,15 +60,15 @@
   {/if}
 
   <div class="sh-meta">
-    <span class="sh-autosave" title="Changes save automatically">✓ Auto-saved</span>
+    <span class="sh-autosave" title="Saves as you type">Saved</span>
     <button type="button" class="sb-btn is-sm" class:is-on={story?.isPublic} class:is-success={publishSuccess}
       on:click={() => dispatch('togglePublish')} disabled={isPublishing || publishSuccess}
-      title={story?.isPublic ? 'Public — click to unpublish' : 'Private — click to publish'}>
+      title={story?.isPublic ? 'Public — click to make private' : 'Private — click to publish'}>
       {publishSuccess
-        ? (story?.isPublic ? '✓ Published' : '✓ Unpublished')
+        ? (story?.isPublic ? 'Published' : 'Unpublished')
         : isPublishing
         ? '…'
-        : (story?.isPublic ? '🌍 Public' : '🔒 Private')}
+        : (story?.isPublic ? 'Public' : 'Private')}
     </button>
   </div>
 </div>

@@ -192,7 +192,7 @@
 	<title>About — Vietnam Map Archive</title>
 	<meta
 		name="description"
-		content="Vietnam Map Archive is reconstructing Saigon's urban history as a navigable, time-layered digital city — starting with 1880–1930 French colonial Saigon."
+		content="Vietnam Map Archive is rebuilding Saigon's urban history as a time-layered, georeferenced digital city — starting with 1880–1930 French colonial Saigon."
 	/>
 	<link
 		href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap"
@@ -202,8 +202,8 @@
 
 <div class="page about-page" class:mounted>
 	<PageHero
-		eyebrow="About the Project"
-		sub="We started in Saigon — the city we know, live in, and have the best archives for. The 1880–1930 French colonial period is our testbed: the most documented, most transformative, most underserved window in the city's history. Once the method is proven here, it replicates. Vietnam next. Then any city in the world with a map archive and a community that cares."
+		eyebrow="About the project"
+		sub="We started in Saigon — the city we know, live in, and have the best archives for. The 1880–1930 French colonial period is the testbed: the most documented, most transformative, most underserved window in the city's history. Once the method works here, it travels. Vietnam next. Then any city with a map archive and a community that cares."
 	>
 		<svelte:fragment slot="title">
 			The city disappears<br />into the past.<br />
@@ -249,11 +249,11 @@
 				<div class="section-card-header">
 					<div class="icon-blob color-blue">📊</div>
 					<div>
-						<h2 class="section-title-sm">What We're Building</h2>
+						<h2 class="section-title-sm">What we're building</h2>
 						<p class="section-desc">
-							Six layers, each building on the last — from old maps pinned
-							to real coordinates, all the way up to a 3D city you can
-							walk through with family memories attached. Click any layer
+							Six layers, each one resting on the one below — from
+							maps pinned to real coordinates up to a walkable 3D
+							city with family memories attached. Click any layer
 							to see what's done and what's next.
 						</p>
 					</div>
@@ -301,7 +301,7 @@
 											{/each}
 										</ul>
 										<div class="next-row">
-											<span class="detail-label next-label">Unlocks</span>
+											<span class="detail-label next-label">What's next</span>
 											<span class="next-text">{layer.next}</span>
 										</div>
 									</div>
@@ -315,7 +315,7 @@
 
 		<!-- 3-PHASE ROADMAP -->
 		<section class="roadmap-section">
-			<h2 class="section-title">Three-Phase Roadmap</h2>
+			<h2 class="section-title">The roadmap, in three phases</h2>
 			<div class="phases-grid">
 				{#each phases as phase}
 					<div class="phase-card" style="--phase-color: {phase.color}">
@@ -345,11 +345,11 @@
 				<div class="section-card-header">
 					<div class="icon-blob color-yellow">💡</div>
 					<div>
-						<h2 class="section-title-sm">Model & Sustainability</h2>
+						<h2 class="section-title-sm">How this stays alive</h2>
 						<p class="section-desc">
-							Not a startup. Not a closed archive. Public infrastructure
-							for historical memory — open, honest, designed to be useful
-							in 50 years.
+							Not a startup. Not a closed archive. Public
+							infrastructure for historical memory — open,
+							honest, designed to still be useful in 50 years.
 						</p>
 					</div>
 				</div>
@@ -400,13 +400,13 @@
 		<!-- GET INVOLVED -->
 		<section class="cta-section">
 			<div class="cta-card">
-				<h2 class="cta-title">Get Involved</h2>
+				<h2 class="cta-title">Get involved</h2>
 				<p class="cta-desc">
-					VMA is built on the same model as OpenStreetMap and Wikipedia —
-					open data, community-verified, permanently attributed. No single
-					organisation controls it. Every traced building, cited source, and
-					added fact becomes part of a shared public record anyone can use,
-					correct, or build on.
+					VMA runs on the OpenStreetMap and Wikipedia model — open
+					data, community-verified, permanently attributed. No single
+					organisation controls it. Every traced building, cited
+					source, and added fact lands in a shared public record
+					anyone can use, correct, or build on.
 				</p>
 				<div class="cta-grid">
 					<div class="cta-role">
@@ -444,12 +444,13 @@
 					<span class="latest-chip">Latest update</span>
 					<a href="/blog" class="all-updates-link">All updates →</a>
 				</div>
-				<h3 class="latest-title">March 2026: First Buildings Extracted from the 1882 Map</h3>
+				<h3 class="latest-title">March 2026 — first buildings out of the 1882 map</h3>
 				<p class="latest-excerpt">
-					Zero-shot SAM pipeline running on IIIF tiles — 91 city blocks detected
-					from the 1882 Saigon cadastral map, no training data required. Two
-					painting-map pairs (1881 + 1901) confirmed as the height calibration
-					source for the 3D pipeline.
+					A zero-shot SAM pipeline on IIIF tiles pulled 91 city
+					blocks out of the 1882 Saigon cadastral survey — no
+					training data required. The 1881 and 1901 painting–map
+					pairs are now confirmed as the height-calibration source
+					for the 3D pipeline.
 				</p>
 				<a href="/blog/buildings-as-ground-control" class="action-btn primary-btn">Read the update</a>
 			</div>
