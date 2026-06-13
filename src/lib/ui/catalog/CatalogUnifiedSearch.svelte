@@ -1,12 +1,7 @@
 <!--
-  CatalogUnifiedSearch.svelte — v2 unified search UI (feature-flagged via ?v=2 in /catalog).
-
-  Owns:
-    - facet selection state (institution, type, source, period, scout source/category)
-    - geo-ref filter
-    - "include scout queue" toggle (admin/mod only)
-    - debounced fetch of /api/search on q/include changes
-    - client-side filtering + everything-but-this-dimension facet tallying
+  CatalogUnifiedSearch.svelte — the catalog page / sidebar view over the shared
+  search engine (`$lib/catalog/catalogSearch`). The engine owns the /api/search
+  fetch, caching, facet tallying, and filtering; this component only renders.
 
   Inputs:
     searchQuery   — bind from parent's search box
@@ -16,6 +11,8 @@
   import FacetRail from '$lib/ui/FacetRail.svelte';
   import CatalogTable from '$lib/ui/catalog/CatalogTable.svelte';
   import CatalogDetailDrawer from '$lib/ui/catalog/CatalogDetailDrawer.svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
+  import { createCatalogSearch } from '$lib/catalog/catalogSearch';
 
   export let searchQuery: string = '';
   export let role: 'user' | 'mod' | 'admin' = 'user';
@@ -30,196 +27,53 @@
   /** Show "+ overlay" and "B base" toggles on each row (only enabled in /view sidebar). */
   export let showLayerActions: boolean = false;
 
-  import { createEventDispatcher } from 'svelte';
   const dispatch = createEventDispatcher<{ pick: any }>();
 
-  const V2_PERIODS = [
-    { key: 'pre_colonial',   label: 'Pre-colonial (≤1858)',          from: 0,    to: 1858 },
-    { key: 'early_colonial', label: 'Early colonial (1859–1887)',    from: 1859, to: 1887 },
-    { key: 'belle_epoque',   label: 'Belle Époque (1888–1918)',      from: 1888, to: 1918 },
-    { key: 'interwar',       label: 'Interwar (1919–1939)',          from: 1919, to: 1939 },
-    { key: 'war_years',      label: 'War years (1940–1954)',         from: 1940, to: 1954 },
-    { key: 'republic',       label: 'Republic era (1955–1975)',      from: 1955, to: 1975 },
-    { key: 'reunification',  label: 'Reunification+ (1976–)',        from: 1976, to: 9999 },
-  ];
+  const search = createCatalogSearch({ requireGeoref });
+  const { query, loading, periods, results, facets, total, areaChoices, typeChoices, includeScout } = search;
 
+  // Mirror the parent's search box into the engine's query store.
+  $: query.set(searchQuery);
+
+  // Facet selection lives locally (FacetRail two-way binds it; the compact
+  // selects mutate it); we push it into the engine which owns the filtering.
   let selected: Record<string, string[]> = {};
-  let includeScout = false;
-  let periods: { key: string; label: string }[] = V2_PERIODS;
-  let loading = false;
-  let debounce: any = null;
-  let rawMaps: any[] = [];
-  let rawScout: any[] = [];
+  $: search.selected.set(selected);
 
-  function periodOf(year: number | null | undefined): string | null {
-    if (year == null) return null;
-    for (const p of V2_PERIODS) if (year >= p.from && year <= p.to) return p.key;
-    return null;
-  }
-
-  const cache = new Map<string, { maps: any[]; scout: any[]; periods: any[] }>();
-
-  function cacheKey(): string {
-    return `${searchQuery.trim().toLowerCase()}|${includeScout ? 1 : 0}`;
-  }
-
-  function buildQS(): string {
-    const sp = new URLSearchParams();
-    if (searchQuery.trim()) sp.set('q', searchQuery.trim());
-    if (includeScout) sp.set('include', 'maps,scout');
-    sp.set('limit', '500');
-    return sp.toString();
-  }
-
-  let inflight: AbortController | null = null;
-  async function doFetch() {
-    const key = cacheKey();
-    const hit = cache.get(key);
-    if (hit) {
-      periods = hit.periods;
-      rawMaps = hit.maps;
-      rawScout = hit.scout;
-      loading = false;
-      return;
-    }
-    if (inflight) inflight.abort();
-    inflight = new AbortController();
-    loading = true;
-    try {
-      const res = await fetch(`/api/search?${buildQS()}`, { signal: inflight.signal });
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
-      const entry = { maps: json.maps ?? [], scout: json.scout ?? [], periods: json.periods ?? V2_PERIODS };
-      cache.set(key, entry);
-      periods = entry.periods;
-      rawMaps = entry.maps;
-      rawScout = entry.scout;
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') console.error('catalog search failed:', e);
-    } finally {
-      loading = false;
-    }
-  }
-
-  function scheduleFetch() {
-    if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(doFetch, 100);
-  }
-
-  // Refetch only when q or include toggle changes.
-  let mounted = false;
-  $: if (mounted) { searchQuery; includeScout; scheduleFetch(); }
-  import { onMount } from 'svelte';
-  onMount(() => { mounted = true; doFetch(); });
-
-  function tally(rows: any[], key: string): Record<string, number> {
-    const m: Record<string, number> = {};
-    for (const r of rows) {
-      const v = r?.[key];
-      if (v == null || v === '') continue;
-      m[String(v)] = (m[String(v)] ?? 0) + 1;
-    }
-    return m;
-  }
-
-  function statusOf(r: any): string {
-    if (r._table === 'scout') return 'scout';
-    return r.georef_done ? 'map' : 'image';
-  }
-
-  $: passArea   = (r: any) => !(selected.area?.length) || selected.area.includes(String(r.location ?? ''));
-  $: passType   = (r: any) => !(selected.type?.length) || selected.type.includes(String(r.map_type ?? ''));
-  $: passStatus = (r: any) => !(selected.status?.length) || selected.status.includes(statusOf(r));
-  $: passPeriod = (r: any) => {
-    if (!selected.period?.length) return true;
-    const p = periodOf(r.year);
-    return p ? selected.period.includes(p) : false;
-  };
-  $: passScoutCat = (r: any) => !(selected.category?.length) || selected.category.includes(String(r._scout?.category ?? ''));
-
-  $: filteredMaps  = rawMaps.filter(r => passArea(r) && passType(r) && passPeriod(r) && passStatus(r) && (!requireGeoref || !!r.georef_done));
-  $: filteredScout = rawScout.filter(r => passArea(r) && passPeriod(r) && passScoutCat(r) && passStatus(r));
-
-  $: facets = (() => {
-    const mapsForArea   = rawMaps.filter(r => passType(r) && passPeriod(r) && passStatus(r));
-    const mapsForType   = rawMaps.filter(r => passArea(r) && passPeriod(r) && passStatus(r));
-    const mapsForStatus = rawMaps.filter(r => passArea(r) && passType(r)   && passPeriod(r));
-    const mapsForPeriod = rawMaps.filter(r => passArea(r) && passType(r)   && passStatus(r));
-    const periodCounts: Record<string, number> = {};
-    for (const r of mapsForPeriod) {
-      const p = periodOf(r.year);
-      if (p) periodCounts[p] = (periodCounts[p] ?? 0) + 1;
-    }
-    const statusCounts: Record<string, number> = {};
-    for (const r of mapsForStatus) { const s = statusOf(r); statusCounts[s] = (statusCounts[s] ?? 0) + 1; }
-    const scoutForCat = rawScout.filter(r => passArea(r) && passPeriod(r));
-    const scoutCatTally: Record<string, number> = {};
-    for (const r of scoutForCat) { const c = r._scout?.category; if (c) scoutCatTally[c] = (scoutCatTally[c] ?? 0) + 1; }
-    return {
-      area:        tally(mapsForArea, 'location'),
-      map_type:    tally(mapsForType, 'map_type'),
-      period:      periodCounts,
-      status:      statusCounts,
-      scout_category: includeScout ? scoutCatTally : {},
-    };
-  })();
-
-  $: results = [...filteredMaps, ...filteredScout];
-  $: total = { maps: filteredMaps.length, scout: filteredScout.length };
+  onMount(() => search.start());
 
   let openedItem: any | null = null;
-
-  function toggleFacet(group: string, value: string) {
-    const cur = new Set(selected[group] ?? []);
-    if (cur.has(value)) cur.delete(value);
-    else cur.add(value);
-    selected = { ...selected, [group]: Array.from(cur) };
-  }
 
   function handleRowFacet(e: CustomEvent<{ group: string; value: string }>) {
     const { group, value } = e.detail;
     // Only the area chip is a filter. Other clicks (year, type, etc.) are no-ops.
     if (group !== 'area') return;
-    toggleFacet(group, value);
+    const cur = new Set(selected.area ?? []);
+    if (cur.has(value)) cur.delete(value);
+    else cur.add(value);
+    selected = { ...selected, area: Array.from(cur) };
   }
 
-  function clearGroup(group: string) {
-    selected = { ...selected, [group]: [] };
-  }
   $: activeAreas = selected.area ?? [];
-  $: activeTypes = selected.map_type ?? [];
-
-  /** Distinct values of a field across results that match the panel's
-      `requireGeoref` constraint. Sorted by frequency desc. */
-  function distinctValues(field: 'location' | 'map_type'): string[] {
-    const counts: Record<string, number> = {};
-    for (const r of rawMaps) {
-      if (requireGeoref && !r.georef_done) continue;
-      const v = (r as any)?.[field];
-      if (v == null || v === '') continue;
-      counts[String(v)] = (counts[String(v)] ?? 0) + 1;
-    }
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([name]) => name);
-  }
-  $: areaChoices = rawMaps.length || requireGeoref ? distinctValues('location') : [];
-  $: typeChoices = rawMaps.length || requireGeoref ? distinctValues('map_type') : [];
-  $: hasActiveFilter = activeAreas.length > 0 || activeTypes.length > 0;
+  // Type selections live under the `type` key — the same key the engine's
+  // filter and the FacetRail use. (The compact <select> below previously wrote
+  // `map_type`, which the filter never read, so it silently did nothing.)
+  $: activeTypes = selected.type ?? [];
 </script>
 
 <div class="v2-layout" class:compact>
   {#if !compact}
     <FacetRail
-      {facets}
-      {periods}
+      facets={$facets}
+      periods={$periods}
       bind:selected
-      showScoutFacets={includeScout}
-      on:change={scheduleFetch}
+      showScoutFacets={$includeScout}
     />
   {/if}
   <div class="v2-results">
-    {#if compact && (areaChoices.length > 0 || typeChoices.length > 0)}
+    {#if compact && ($areaChoices.length > 0 || $typeChoices.length > 0)}
       <div class="v2-selects">
-        {#if areaChoices.length > 0}
+        {#if $areaChoices.length > 0}
           <label class="v2-select">
             <span class="v2-select-label">Show maps of</span>
             <select
@@ -230,24 +84,24 @@
               }}
             >
               <option value="">All areas</option>
-              {#each areaChoices as a}
+              {#each $areaChoices as a}
                 <option value={a}>{a}</option>
               {/each}
             </select>
           </label>
         {/if}
-        {#if typeChoices.length > 0}
+        {#if $typeChoices.length > 0}
           <label class="v2-select">
             <span class="v2-select-label">Type</span>
             <select
               value={activeTypes[0] ?? ''}
               on:change={(e) => {
                 const v = (e.currentTarget as HTMLSelectElement).value;
-                selected = { ...selected, map_type: v ? [v] : [] };
+                selected = { ...selected, type: v ? [v] : [] };
               }}
             >
               <option value="">All types</option>
-              {#each typeChoices as t}
+              {#each $typeChoices as t}
                 <option value={t}>{t}</option>
               {/each}
             </select>
@@ -258,19 +112,19 @@
     {#if !compact}
       <div class="v2-toolbar">
         <span class="v2-count">
-          <strong>{total.maps}</strong> in archive
-          {#if includeScout}· <strong>{total.scout}</strong> in scout queue{/if}
-          {#if loading}<span class="v2-loading">…</span>{/if}
+          <strong>{$total.maps}</strong> in archive
+          {#if $includeScout}· <strong>{$total.scout}</strong> in scout queue{/if}
+          {#if $loading}<span class="v2-loading">…</span>{/if}
         </span>
         {#if role === 'admin' || role === 'mod'}
           <label class="v2-scout-toggle">
-            <input type="checkbox" bind:checked={includeScout} />
+            <input type="checkbox" bind:checked={$includeScout} />
             Include scout queue
           </label>
         {/if}
       </div>
     {/if}
-    {#if results.length === 0 && !loading}
+    {#if $results.length === 0 && !$loading}
       <div class="state-panel">
         <div class="empty-emoji">🏜️</div>
         <h2 class="state-title">Nothing matches.</h2>
@@ -278,7 +132,7 @@
       </div>
     {:else}
       <CatalogTable
-        items={results}
+        items={$results as any}
         {compact}
         {activeId}
         {showLayerActions}

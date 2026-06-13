@@ -73,6 +73,7 @@
   let gpsError: string | null = null;
   let stories: Story[] = [];
   let activeStory: Story | null = null;
+  let role: 'user' | 'mod' | 'admin' = 'user';
 
   // ── Reactive derivations ───────────────────────────────────────
   $: viewMode = $layerStore.viewMode;
@@ -281,6 +282,10 @@
 
   onMount(async () => {
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
+    if (session?.user?.id) {
+      const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      role = ((data as any)?.role as 'user' | 'mod' | 'admin') ?? 'user';
+    }
     try {
       stories = await fetchPublicStories(supabase);
     } catch (err) {
@@ -315,6 +320,7 @@
         {mapList}
         {gpsActive}
         {matches}
+        {role}
         forceBrowseExpanded={mode === 'all'}
         on:zoomToOverlay={handleZoomToOverlay}
         on:pickMap={handlePickMap}
@@ -348,7 +354,7 @@
       <div class="mobile-pane" data-tour="browse-mobile">
         <ExploreBrowsePanel
           {matches}
-          allMaps={mapList}
+          {role}
           forceExpanded={mode === 'all'}
           on:pick={handlePickMap}
           on:remove={handleRemoveOverlay}

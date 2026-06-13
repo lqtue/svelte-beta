@@ -14,7 +14,9 @@ import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
 import type { Database } from '$lib/supabase/types';
 
-const MAX_LIMIT = 200;
+// No pagination UI on the catalog/sidebar yet, so the page slice must be able
+// to hold the whole archive. Raw queries keep their own 2000-row safety ceiling.
+const MAX_LIMIT = 1000;
 const DEFAULT_LIMIT = 60;
 
 const PERIODS: { key: string; label: string; from: number; to: number }[] = [
