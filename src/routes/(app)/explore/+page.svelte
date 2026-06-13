@@ -106,37 +106,42 @@
   // Admins/mods get draft maps in coverage too (mirrors the browse panel).
   $: canSeeDrafts = role === 'admin' || role === 'mod';
 
+  // Maps whose bounds we've already tried to resolve. Some annotations have no
+  // GCPs / 404 on allmaps.org (e.g. R2-mirrored drafts) and resolve to null —
+  // those can never become valid, so without tracking attempts they'd keep the
+  // "Looking up maps…" spinner on forever. `loading` means "a fetch is still
+  // pending for a map we haven't tried", NOT "every map produced a bbox".
+  let attemptedBounds = new Set<string>();
+  function pendingBoundsIds(): string[] {
+    return unresolvedAllmapsIds(mapList, canSeeDrafts).filter((id) => !attemptedBounds.has(id));
+  }
+
   // Coverage match runs whenever the user moves OR new bounds land. Pure
   // client-side filter — no Supabase round-trip.
   $: if (userPosition && mapList.length > 0) {
     matches = matchMapsAtPoint(mapList, userPosition[0], userPosition[1], canSeeDrafts);
-    loading = unresolvedAllmapsIds(mapList, canSeeDrafts).length > 0;
+    loading = pendingBoundsIds().length > 0;
   }
 
-  // Trigger bounds resolution as new entries arrive; debounced to avoid
-  // racing with useMapList's own kickoff. Also re-runs when canSeeDrafts flips
-  // (role lands after mount) so draft maps get their bounds backfilled too.
-  let lastFetchedAt = 0;
-  let lastIncludeDrafts = false;
+  // Trigger bounds resolution as new entries arrive. Re-runs when canSeeDrafts
+  // flips (role lands after mount) so draft maps get their bounds backfilled
+  // too. The attemptedBounds guard prevents re-fetching the same ids.
   $: if (mapList.length > 0) { void canSeeDrafts; ensureBoundsResolved(); }
 
   async function ensureBoundsResolved() {
-    const need = unresolvedAllmapsIds(mapList, canSeeDrafts);
+    const need = pendingBoundsIds();
     if (need.length === 0) { loading = false; return; }
-    const now = Date.now();
-    // Throttle rapid re-entries, but bypass when the draft-visibility set just
-    // changed — otherwise a role that lands within 1s of the first resolve
-    // would leave draft bounds unfetched.
-    if (canSeeDrafts === lastIncludeDrafts && now - lastFetchedAt < 1000) return;
-    lastFetchedAt = now;
-    lastIncludeDrafts = canSeeDrafts;
+    loading = true;
+    for (const id of need) attemptedBounds.add(id);
     const resolved = await fetchMultipleBounds(need, 12);
     mapList = mapList.map((m) => {
       if (!m.allmaps_id) return m;
       const b = resolved.get(m.allmaps_id);
       return b ? { ...m, bounds: b } : m;
     });
-    loading = unresolvedAllmapsIds(mapList, canSeeDrafts).length > 0;
+    // Clears once every needed map has been attempted, even if some yielded no
+    // bbox — the reassignment above re-triggers this block, which then exits.
+    loading = pendingBoundsIds().length > 0;
   }
 
   // ── Helpers ────────────────────────────────────────────────────
