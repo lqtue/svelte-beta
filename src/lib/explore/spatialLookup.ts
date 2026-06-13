@@ -62,14 +62,15 @@ export function matchMapsAtPoint(
   mapList: MapListItem[],
   lon: number,
   lat: number,
+  includeDrafts = false,
 ): ResolvedMap[] {
-  const publicOnly = mapList.filter(
+  const visible = mapList.filter(
     (m) =>
-      (m.status === 'public' || m.status === 'featured') &&
+      (includeDrafts || m.status === 'public' || m.status === 'featured') &&
       (!!m.allmaps_id || !!m.annotation_url),
   );
   const candidates: ResolvedMap[] = [];
-  for (const m of publicOnly) {
+  for (const m of visible) {
     const candidate = looksValid(m.bbox) ? (m.bbox as Bbox) : looksValid(m.bounds) ? (m.bounds as Bbox) : null;
     if (!candidate) continue;
     if (!bboxContainsPoint(candidate, lon, lat)) continue;
@@ -89,11 +90,11 @@ export function matchMapsAtPoint(
  * Caller passes these to fetchMultipleBounds to fill the gaps; the next
  * call to matchMapsAtPoint will pick them up automatically.
  */
-export function unresolvedAllmapsIds(mapList: MapListItem[]): string[] {
+export function unresolvedAllmapsIds(mapList: MapListItem[], includeDrafts = false): string[] {
   return mapList
     .filter(
       (m) =>
-        (m.status === 'public' || m.status === 'featured') &&
+        (includeDrafts || m.status === 'public' || m.status === 'featured') &&
         !looksValid(m.bbox) &&
         !looksValid(m.bounds) &&
         !!m.allmaps_id,

@@ -103,31 +103,40 @@
     applyUrlParams(mapList);
   }
 
+  // Admins/mods get draft maps in coverage too (mirrors the browse panel).
+  $: canSeeDrafts = role === 'admin' || role === 'mod';
+
   // Coverage match runs whenever the user moves OR new bounds land. Pure
   // client-side filter — no Supabase round-trip.
   $: if (userPosition && mapList.length > 0) {
-    matches = matchMapsAtPoint(mapList, userPosition[0], userPosition[1]);
-    loading = unresolvedAllmapsIds(mapList).length > 0;
+    matches = matchMapsAtPoint(mapList, userPosition[0], userPosition[1], canSeeDrafts);
+    loading = unresolvedAllmapsIds(mapList, canSeeDrafts).length > 0;
   }
 
   // Trigger bounds resolution as new entries arrive; debounced to avoid
-  // racing with useMapList's own kickoff.
+  // racing with useMapList's own kickoff. Also re-runs when canSeeDrafts flips
+  // (role lands after mount) so draft maps get their bounds backfilled too.
   let lastFetchedAt = 0;
-  $: if (mapList.length > 0) ensureBoundsResolved();
+  let lastIncludeDrafts = false;
+  $: if (mapList.length > 0) { void canSeeDrafts; ensureBoundsResolved(); }
 
   async function ensureBoundsResolved() {
-    const need = unresolvedAllmapsIds(mapList);
+    const need = unresolvedAllmapsIds(mapList, canSeeDrafts);
     if (need.length === 0) { loading = false; return; }
     const now = Date.now();
-    if (now - lastFetchedAt < 1000) return;
+    // Throttle rapid re-entries, but bypass when the draft-visibility set just
+    // changed — otherwise a role that lands within 1s of the first resolve
+    // would leave draft bounds unfetched.
+    if (canSeeDrafts === lastIncludeDrafts && now - lastFetchedAt < 1000) return;
     lastFetchedAt = now;
+    lastIncludeDrafts = canSeeDrafts;
     const resolved = await fetchMultipleBounds(need, 12);
     mapList = mapList.map((m) => {
       if (!m.allmaps_id) return m;
       const b = resolved.get(m.allmaps_id);
       return b ? { ...m, bounds: b } : m;
     });
-    loading = unresolvedAllmapsIds(mapList).length > 0;
+    loading = unresolvedAllmapsIds(mapList, canSeeDrafts).length > 0;
   }
 
   // ── Helpers ────────────────────────────────────────────────────
