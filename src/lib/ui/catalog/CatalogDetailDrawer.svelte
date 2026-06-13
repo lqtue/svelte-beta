@@ -7,6 +7,8 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 
   export let item: any | null = null;
+  /** Staff get an Edit action that opens the admin map editor. */
+  export let role: 'user' | 'mod' | 'admin' = 'user';
 
   const dispatch = createEventDispatcher();
 
@@ -19,6 +21,7 @@
   onDestroy(() => typeof window !== 'undefined' && window.removeEventListener('keydown', onKey));
 
   $: isScout = item?._table === 'scout';
+  $: canEdit = item && !isScout && (role === 'admin' || role === 'mod');
   $: canMap = item && !isScout && item.georef_done;
   $: canImage = item && !isScout && item.iiif_image;
   $: canAnnotate = item && !isScout && item.georef_done;
@@ -84,6 +87,9 @@
     </dl>
 
     <div class="actions">
+      {#if canEdit}
+        <button type="button" class="act" on:click={() => dispatch('edit', item)}>✎ Edit</button>
+      {/if}
       {#if canMap}
         <a class="act primary" href="/view?map={item.id}">🌍 Map</a>
       {/if}

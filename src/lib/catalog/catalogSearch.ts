@@ -64,6 +64,8 @@ export interface CatalogSearchController {
   setSingle: (group: string, value: string) => void;
   /** Begin fetching + reacting to query/include changes. Call once in onMount. */
   start: () => void;
+  /** Drop cached results and re-fetch (e.g. after an admin edit). */
+  refresh: () => void;
 }
 
 // ── Pure helpers (shared by filtered* and facet derivations) ──────────────
@@ -200,6 +202,12 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
     includeScout.subscribe(() => scheduleFetch());
   }
 
+  /** Drop cached results and re-fetch — call after an edit changes the data. */
+  function refresh() {
+    cache.clear();
+    doFetch();
+  }
+
   const filteredMaps = derived([rawMaps, selected, periods], ([$maps, $sel, $periods]) =>
     $maps.filter(
       (r) =>
@@ -319,5 +327,6 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
     clearGroup,
     setSingle,
     start,
+    refresh,
   };
 }

@@ -13,6 +13,9 @@
   import CatalogDetailDrawer from '$lib/ui/catalog/CatalogDetailDrawer.svelte';
   import { createEventDispatcher, onMount } from 'svelte';
   import { createCatalogSearch } from '$lib/catalog/catalogSearch';
+  import { getSupabaseContext } from '$lib/supabase/context';
+  import MapEditModal from '$lib/admin/MapEditModal.svelte';
+  import type { MapRow } from '$lib/admin/adminApi';
 
   export let searchQuery: string = '';
   export let role: 'user' | 'mod' | 'admin' = 'user';
@@ -43,6 +46,27 @@
   onMount(() => search.start());
 
   let openedItem: any | null = null;
+
+  // ── Admin edit (staff only, non-pick mode) ─────────────────────────────
+  // The detail-drawer item is the search-result shape (a subset of columns),
+  // but MapEditModal writes back many flags (is_public, status, priority,
+  // label_config…). Load the FULL row first so saving can't clobber fields
+  // the search result didn't carry.
+  const { supabase } = getSupabaseContext();
+  let editingMap: MapRow | null = null;
+  let editError = '';
+
+  async function openEditor(item: any) {
+    editError = '';
+    const { data, error } = await supabase.from('maps').select('*').eq('id', item.id).single();
+    if (error) { editError = error.message; return; }
+    editingMap = data as MapRow;
+  }
+  function afterEdit() {
+    editingMap = null;
+    openedItem = null;
+    search.refresh();
+  }
 
   function handleRowFacet(e: CustomEvent<{ group: string; value: string }>) {
     const { group, value } = e.detail;
@@ -144,7 +168,21 @@
 </div>
 
 {#if !pickMode}
-  <CatalogDetailDrawer item={openedItem} on:close={() => (openedItem = null)} />
+  <CatalogDetailDrawer
+    item={openedItem}
+    {role}
+    on:close={() => (openedItem = null)}
+    on:edit={(e) => openEditor(e.detail)}
+  />
+  {#if editError}<div class="edit-error" role="alert">{editError}</div>{/if}
+  {#if editingMap}
+    <MapEditModal
+      map={editingMap}
+      on:saved={afterEdit}
+      on:deleted={afterEdit}
+      on:close={() => (editingMap = null)}
+    />
+  {/if}
 {/if}
 
 <style>
@@ -203,6 +241,14 @@
     cursor: pointer;
   }
 
+  .edit-error {
+    position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+    z-index: 60;
+    padding: 0.6rem 1rem;
+    background: #ffe0e0; border: 2px solid #111; border-radius: 8px;
+    box-shadow: 3px 3px 0 #111;
+    font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.85rem;
+  }
   .state-panel { text-align: center; padding: 3rem 1rem; }
   .empty-emoji { font-size: 3rem; }
   .state-title { font-family: 'Space Grotesk', sans-serif; font-weight: 800; margin: 0.5rem 0; }
