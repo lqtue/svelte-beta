@@ -200,7 +200,7 @@
     <!-- Sidebar -->
     <svelte:fragment slot="sidebar">
       <aside class="panel">
-        <ToolPanelHeader title="Trace Mode" onCollapse={() => (sidebarCollapsed = true)} />
+        <ToolPanelHeader title="Trace" onCollapse={() => (sidebarCollapsed = true)} />
         {#if !currentMap}
           <EmptyPanel message="Select a map to start tracing." />
         {:else}
@@ -247,8 +247,8 @@
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.25">
           <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
         </svg>
-        <p>Select a map to begin tracing.</p>
-        <a href="/catalog" class="catalog-link">Browse catalog →</a>
+        <p>Pick a map to start tracing.</p>
+        <a href="/catalog" class="catalog-link">Browse the catalog →</a>
       </div>
     {:else}
       <div class="loading-stage">
@@ -286,7 +286,7 @@
         class="tool-btn"
         class:active={traceTool === 'polygon'}
         on:click={() => (traceTool = 'polygon')}
-        title="Draw polygon (closed area)"
+        title="Polygon — for buildings and closed shapes"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
@@ -299,7 +299,7 @@
         class="tool-btn"
         class:active={traceTool === 'line'}
         on:click={() => (traceTool = 'line')}
-        title="Draw line (road, waterway)"
+        title="Line — for roads and waterways"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="4 19 8 10 14 14 20 5"/>
@@ -312,7 +312,7 @@
         class="tool-btn"
         class:active={traceTool === 'edit'}
         on:click={() => (traceTool = 'edit')}
-        title="Select and edit shapes"
+        title="Select and edit a shape"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>

@@ -40,8 +40,30 @@
       <slot> tag, even if its own parent provided no content. */
   export let hasRightSidebar = false;
 
-  /** Mobile: which drawer is open. */
-  let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
+  /** Mobile tab order. Defaults to the historical Layers/Controls/Browse
+      order; routes that want a different default (e.g. /explore = browse
+      first) pass their own. */
+  export let tabOrder: Array<'layers' | 'controls' | 'browse'> = ['layers', 'controls', 'browse'];
+
+  /** Mobile: which drawer is open. Exposed so a parent (e.g. the
+      /explore tour) can programmatically switch tabs. */
+  export let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
+
+  // Bottom-sheet snap: drawer defaults to 60vh max-height; when the user
+  // scrolls inside it past the top, expand to ~90vh so the long list is
+  // browseable without forcing them to remember it's behind the fold.
+  let drawerExpanded = false;
+  function onDrawerScroll(e: Event) {
+    const t = e.target as HTMLElement | null;
+    if (!t) return;
+    drawerExpanded = t.scrollTop > 4;
+  }
+  $: if (openDrawer === 'none') drawerExpanded = false;
+
+  $: orderOf = (key: 'layers' | 'controls' | 'browse') => {
+    const i = tabOrder.indexOf(key);
+    return i === -1 ? 99 : i;
+  };
 
   // ── Sidebar resizing (desktop) ───────────────────────────────
   let resizing: 'left' | 'right' | null = null;
@@ -173,21 +195,21 @@
       <div class="drawer-backdrop" on:click={() => (openDrawer = 'none')} role="presentation"></div>
     {/if}
 
-    <div class="drawer-stack" class:open={openDrawer !== 'none'}>
+    <div class="drawer-stack" class:open={openDrawer !== 'none'} class:is-expanded={drawerExpanded}>
       <!-- Shared body: shows the active drawer's content. Hidden when closed. -->
-      <div class="drawer-body" aria-hidden={openDrawer === 'none'}>
+      <div class="drawer-body" aria-hidden={openDrawer === 'none'} on:scroll|capture={onDrawerScroll}>
         {#if hasMobileLayers}
-          <div class="drawer-pane" class:active={openDrawer === 'layers'}>
+          <div class="drawer-pane" class:active={openDrawer === 'layers'} style="order: {orderOf('layers')}">
             <slot name="mobile-layers" />
           </div>
         {/if}
         {#if hasMobileControls}
-          <div class="drawer-pane" class:active={openDrawer === 'controls'}>
+          <div class="drawer-pane" class:active={openDrawer === 'controls'} style="order: {orderOf('controls')}">
             <slot name="mobile-controls" />
           </div>
         {/if}
         {#if hasMobileBrowse}
-          <div class="drawer-pane" class:active={openDrawer === 'browse'}>
+          <div class="drawer-pane" class:active={openDrawer === 'browse'} style="order: {orderOf('browse')}">
             <slot name="mobile-browse" />
           </div>
         {/if}
@@ -207,6 +229,7 @@
             class:on={openDrawer === 'layers'}
             on:click={() => (openDrawer = openDrawer === 'layers' ? 'none' : 'layers')}
             aria-pressed={openDrawer === 'layers'}
+            style="order: {orderOf('layers')}"
           ><span aria-hidden="true">🗺️</span><span>Layers</span></button>
         {/if}
         {#if hasMobileControls}
@@ -216,6 +239,7 @@
             class:on={openDrawer === 'controls'}
             on:click={() => (openDrawer = openDrawer === 'controls' ? 'none' : 'controls')}
             aria-pressed={openDrawer === 'controls'}
+            style="order: {orderOf('controls')}"
           ><span aria-hidden="true">⚙️</span><span>Controls</span></button>
         {/if}
         {#if hasMobileBrowse}
@@ -225,6 +249,7 @@
             class:on={openDrawer === 'browse'}
             on:click={() => (openDrawer = openDrawer === 'browse' ? 'none' : 'browse')}
             aria-pressed={openDrawer === 'browse'}
+            style="order: {orderOf('browse')}"
           ><span aria-hidden="true">📋</span><span>Browse</span></button>
         {/if}
         {#if hasMobileSidebar && !hasMobileLayers && !hasMobileBrowse && !hasMobileControls}
@@ -315,7 +340,10 @@
     background: transparent;
   }
 
-  /* Shared body: collapses to 0 when no drawer open, expands to 70vh when open. */
+  /* Shared body: collapses to 0 when no drawer open, defaults to 60vh
+     when open. Expands to 90vh once the user scrolls inside it past the
+     top — so the bottom sheet acts like a snap drawer without needing a
+     drag handle. Closing or switching the drawer resets to default. */
   .drawer-body {
     max-height: 0;
     overflow: hidden;
@@ -325,8 +353,11 @@
     display: flex; flex-direction: column;
   }
   .drawer-stack.open .drawer-body {
-    max-height: 70vh;
+    max-height: 60vh;
     border-top-width: 2px;
+  }
+  .drawer-stack.open.is-expanded .drawer-body {
+    max-height: 90vh;
   }
   .drawer-pane {
     display: none;

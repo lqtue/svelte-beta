@@ -6,6 +6,7 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 
 ## Where to look first
 
+- `docs/voice.md` — voice, tone, terminology lock; read before writing any user-facing copy
 - `docs/db-guidelines.md` — schema conventions; all migrations must follow these
 - `docs/system-guidelines.md` — page structure, component patterns, styling rules, route map, known debt
 - `docs/design-system.md` — tokens, shared CSS, page template

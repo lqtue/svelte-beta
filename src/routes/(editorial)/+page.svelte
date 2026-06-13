@@ -161,10 +161,10 @@
 </script>
 
 <svelte:head>
-	<title>Vietnam Map Archive — Colonial Saigon, Mapped and Open</title>
+	<title>Vietnam Map Archive — Saigon's historical maps, open and georeferenced</title>
 	<meta
 		name="description"
-		content="Extracting building footprints from colonial Saigon's historical maps using SAM2 — georeferenced, vectorized, and published as open data under CC-BY."
+		content="A volunteer-built archive of Saigon's historical maps — georeferenced, traced, and released as open data under CC-BY."
 	/>
 	<link
 		href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&family=Be+Vietnam+Pro:wght@400;600;800&display=swap"
@@ -181,11 +181,10 @@
 				Vietnam<br /><span class="text-highlight">Map Archive</span>
 			</h1>
 			<p class="hero-subtitle">
-				Bringing Vietnam’s cartographic heritage back to life on today’s
-				map. From the citadels of Hue to the streets of Saigon, we
-				bridge history and geography to create a living archive. Every
-				discovery is turned into open data—preserved, vectorized, and
-				free for all.
+				A volunteer-built archive of Saigon's historical maps —
+				georeferenced and laid over today's city. We trace every
+				building, name every street, and publish the result as open
+				data. Open data. Volunteer-built. Forkable.
 			</p>
 		</div>
 	</header>
@@ -201,11 +200,11 @@
 				<div class="feature-header-split">
 					<div class="icon-blob color-blue">📚</div>
 					<div class="feature-content-full">
-						<h2 class="feature-title">Explore the Catalog</h2>
+						<h2 class="feature-title">The Catalog</h2>
 						<p class="feature-description">
-							Discover historical layers of Vietnam. Browse our curated catalog,
-							overlay vintage cartography on modern maps, or inspect high-resolution
-							IIIF images in detail.
+							Every map in the archive. Browse the catalog,
+							stack historical layers on today's city, or inspect
+							the high-resolution IIIF scans up close.
 						</p>
 					</div>
 				</div>
@@ -225,24 +224,24 @@
 					{#if loading}
 						<div class="maps-loading">
 							<div class="spinner">🌎</div>
-							<span>Loading the archive...</span>
+							<span>Opening the archive…</span>
 						</div>
 					{:else if filterCollection === "favorites" && !session}
 						<div class="empty-state">
 							<div class="empty-emoji">🙈</div>
-							<h3>Oops! You're not logged in.</h3>
+							<h3>No favorites yet — sign in to start a list.</h3>
 							<p>
-								Sign in to build your own collection of favorite
-								maps.
+								Heart any map and it lands here, on every device
+								you sign in from.
 							</p>
-							<p style="font-size:0.9rem;opacity:0.7">Use the Sign in button in the top nav.</p>
+							<p style="font-size:0.9rem;opacity:0.7">Sign in from the top nav.</p>
 						</div>
 					{:else if displayedMaps.length > 0}
 						<div class="maps-grid">
 							{#each displayedMaps as map (map.id)}
 								<MapCard
 									{map}
-									href="/view?map={map.id}{map.location ? `&city=${encodeURIComponent(map.location)}` : ''}"
+									href="/explore?map={map.id}{map.location ? `&city=${encodeURIComponent(map.location)}` : ''}"
 									thumbnail={thumbnails.get(map.id) ?? map.thumbnail ?? undefined}
 									showFavorite={!!session}
 									isFavorited={favoriteIds.includes(map.id)}
@@ -253,18 +252,18 @@
 					{:else}
 						<div class="empty-state">
 							<div class="empty-emoji">🏜️</div>
-							<h3>It's pretty quiet here.</h3>
-							<p>No maps found in this section right now.</p>
+							<h3>Nothing here yet.</h3>
+							<p>No maps match this view — try another tab or the catalog.</p>
 						</div>
 					{/if}
 
 					<div class="action-footer">
 						<div class="footer-links-group">
-							<a href="/catalog" class="text-link">Browse Catalog →</a>
-							<a href="/image" class="text-link">Inspect Images →</a>
+							<a href="/catalog" class="text-link">Browse the catalog →</a>
+							<a href="/image" class="text-link">Inspect a scan →</a>
 						</div>
-						<a href="/view" class="action-btn primary-btn">
-							Enter Map Viewer 🚀
+						<a href="/explore" class="action-btn primary-btn">
+							Open the map viewer 🚀
 						</a>
 					</div>
 				</div>
@@ -281,27 +280,27 @@
 				<div class="feature-card hover-lift">
 					<div class="icon-blob color-green">🛠️</div>
 					<h2 class="feature-title">
-						Creative Tools <span class="fun-badge">Beta</span>
+						Tools <span class="fun-badge">Beta</span>
 					</h2>
 					<p class="feature-description">
-						Author your own explorations. Build scrollytelling
-						stories or annotate maps with custom data points, 
-						lines, and shapes.
+						Build something on top of the archive. Stitch a
+						scrollytelling story across historical layers, or annotate
+						a map with your own points, lines, and shapes.
 					</p>
 					<div class="micro-links">
 						<a href="/create" class="micro-link-card">
 							<span class="mlc-icon">🎨</span>
 							<span class="mlc-body">
 								<span class="mlc-title">Story Builder</span>
-								<span class="mlc-desc">Build scrollytelling narratives layered over historical maps</span>
+								<span class="mlc-desc">Walk readers through a place, one historical layer at a time</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
-						<a href="/studio" class="micro-link-card">
+						<a href="/annotate" class="micro-link-card">
 							<span class="mlc-icon">✏️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Studio</span>
-								<span class="mlc-desc">Draw points, lines, and shapes on maps to create searchable records</span>
+								<span class="mlc-title">Annotate</span>
+								<span class="mlc-desc">Draw points, lines, and shapes on any map and save them as a set</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
@@ -319,24 +318,25 @@
 					<div class="icon-blob color-orange">🤝</div>
 					<h2 class="feature-title">Contribute</h2>
 					<p class="feature-description">
-						Help recover the archive. Every label placed, outline
-						traced, and map georeferenced makes the dataset richer
-						for everyone.
+						The archive is built by volunteers. Trace a building,
+						crop a map for OCR, or anchor a scan to today's
+						coordinates — every contribution is attributed and
+						released as open data.
 					</p>
 					<div class="micro-links">
 						<a href="/contribute/digitalize" class="micro-link-card">
 							<span class="mlc-icon">🏷️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Digitalize Maps</span>
-								<span class="mlc-desc">Triage neatlines and validate OCR-extracted toponyms on original map sheets</span>
+								<span class="mlc-title">OCR &amp; Triage</span>
+								<span class="mlc-desc">Crop a map's neatline and validate the toponyms our pipeline pulls out</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
 						<a href="/contribute/trace" class="micro-link-card">
 							<span class="mlc-icon">🖋️</span>
 							<span class="mlc-body">
-								<span class="mlc-title">Trace Footprints</span>
-								<span class="mlc-desc">Digitize building outlines to help build the open dataset</span>
+								<span class="mlc-title">Trace buildings</span>
+								<span class="mlc-desc">Outline buildings, roads, and waterways on a georeferenced map</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
@@ -344,7 +344,7 @@
 							<span class="mlc-icon">📍</span>
 							<span class="mlc-body">
 								<span class="mlc-title">Georeference</span>
-								<span class="mlc-desc">Pin old maps to modern geography using precise control points</span>
+								<span class="mlc-desc">Pin a historical map to real-world coordinates in the Allmaps Editor</span>
 							</span>
 							<span class="mlc-arrow">→</span>
 						</a>
@@ -356,23 +356,25 @@
 		<div class="info-row">
 			<section class="info-card">
 				<div class="info-icon color-yellow">✦</div>
-				<h2 class="info-title">About the Project</h2>
+				<h2 class="info-title">About the project</h2>
 				<p class="info-desc">
-					VMA is extracting every building footprint from colonial Saigon's
-					historical maps — automatically, openly, with community review.
-					The 1882 and 1898 surveys are the starting point. CC-BY / ODbL.
+					We're pulling every building out of colonial Saigon's
+					historical maps — automatically, in the open, with
+					volunteer review. The 1882 and 1898 surveys are where it
+					starts. Released under CC-BY / ODbL.
 				</p>
 				<a href="/about" class="info-link">Project overview →</a>
 			</section>
 
 			<section class="info-card">
 				<div class="info-icon color-blue">📝</div>
-				<h2 class="info-title">Latest Update</h2>
-				<p class="info-title-sm">April 2026: SAM2 Pipeline Running on 1882 Map</p>
+				<h2 class="info-title">Latest update</h2>
+				<p class="info-title-sm">April 2026 — SAM2 running on the 1882 survey</p>
 				<p class="info-desc">
-					Zero-shot SAM2 segmentation active on the 1882 Saigon cadastral
-					survey — city blocks extracted, building footprints in progress.
-					Human-in-the-loop review live for validating AI polygons.
+					Zero-shot SAM2 segmentation is live on the 1882 Saigon
+					cadastral survey. City blocks are out; building footprints
+					are in progress. Volunteers are reviewing the polygons as
+					they land.
 				</p>
 				<a href="/blog" class="info-link">All updates →</a>
 			</section>

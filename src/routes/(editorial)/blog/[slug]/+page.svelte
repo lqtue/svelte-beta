@@ -60,14 +60,14 @@
 
 			<footer class="article-footer">
 				<div class="footer-cta">
-					<h3>Interested in contributing?</h3>
+					<h3>Want to help?</h3>
 					<p>
-						Every traced building, tagged photo, and cited source is
-						permanently attributed in the archive.
+						Every traced building, tagged photo, and cited source
+						is permanently attributed in the archive.
 					</p>
 					<div class="footer-cta-links">
 						<a href="/contribute" class="cta-btn primary">Start contributing</a>
-						<a href="/about" class="cta-btn secondary">Learn more about the project</a>
+						<a href="/about" class="cta-btn secondary">Read the project overview</a>
 					</div>
 				</div>
 			</footer>
@@ -76,18 +76,18 @@
 		<!-- SIDEBAR -->
 		<aside class="sidebar">
 			<div class="sidebar-card">
-				<h3 class="sidebar-title">About the Project</h3>
+				<h3 class="sidebar-title">About the project</h3>
 				<p class="sidebar-text">
-					Vietnam Map Archive is reconstructing Saigon's urban history as a
-					navigable, time-layered digital city — 1880–1930 French colonial
-					period first.
+					Vietnam Map Archive is rebuilding Saigon's urban history
+					as a georeferenced, time-layered city — starting with
+					1880–1930 French colonial Saigon.
 				</p>
 				<a href="/about" class="sidebar-link">Project overview →</a>
 			</div>
 
 			{#if otherPosts.length > 0}
 				<div class="sidebar-card">
-					<h3 class="sidebar-title">More Posts</h3>
+					<h3 class="sidebar-title">More posts</h3>
 					<div class="other-posts">
 						{#each otherPosts as p}
 							<a href="/blog/{p.slug}" class="other-post">

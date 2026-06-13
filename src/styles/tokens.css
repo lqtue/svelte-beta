@@ -56,6 +56,7 @@
 
   --shadow-solid: 6px 6px 0px var(--color-border);
   --shadow-solid-sm: 4px 4px 0px var(--color-border);
+  --shadow-solid-xs: 2px 2px 0px var(--color-border);
   --shadow-solid-hover: 10px 10px 0px var(--color-border);
 
   /* Legacy shadow mappings */

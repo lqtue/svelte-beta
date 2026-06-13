@@ -65,8 +65,8 @@
 </script>
 
 <svelte:head>
-  <title>Georeference Maps — Vietnam Map Archive</title>
-  <meta name="description" content="Place ground control points on historical maps to anchor them to real-world coordinates using the Allmaps Editor." />
+  <title>Georeference a map — Vietnam Map Archive</title>
+  <meta name="description" content="Pin a historical map to real-world coordinates in the Allmaps Editor. No specialist software — just a browser." />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
@@ -76,8 +76,8 @@
   >
     <svelte:fragment slot="eyebrow"><a href="/contribute" class="chip-back">← Contribute</a></svelte:fragment>
     <svelte:fragment slot="title">
-      Georeference<br />
-      <span class="text-highlight">historical maps.</span>
+      Pin a map<br />
+      <span class="text-highlight">to the world.</span>
     </svelte:fragment>
   </PageHero>
 
@@ -91,9 +91,9 @@
         </div>
       </div>
       <ol class="steps-list">
-        <li>Pick a map from the list below and click <strong>Open in Allmaps</strong>.</li>
-        <li>Place at least 3 ground control points (GCPs) matching map features to real-world coordinates.</li>
-        <li>Copy the annotation URL from Allmaps and share it with the team (Discord or email) so an admin can record it.</li>
+        <li>Pick a map below and hit <strong>Open in Allmaps</strong>.</li>
+        <li>Drop at least 3 ground control points — match a spot on the map to the same spot on the modern world.</li>
+        <li>Copy the annotation URL Allmaps gives you and send it to us (Discord or email). An admin records it on the map.</li>
       </ol>
     </section>
 
@@ -109,7 +109,7 @@
       <section class="section-card">
         <h2 class="section-label">Needs georeferencing <span class="count-badge">{pending.length}</span></h2>
         {#if pending.length === 0}
-          <p class="empty-msg">All maps are georeferenced — nothing to do here.</p>
+          <p class="empty-msg">Every map is georeferenced. Check back later — new ones land every few weeks.</p>
         {:else}
           <ul class="map-list">
             {#each pending as map (map.id)}
@@ -129,7 +129,7 @@
 
       {#if done.length > 0}
         <section class="section-card">
-          <h2 class="section-label">Already georeferenced <span class="count-badge chip-green">{done.length}</span></h2>
+          <h2 class="section-label">Already done <span class="count-badge chip-green">{done.length}</span></h2>
           <ul class="map-list done-list">
             {#each done as map (map.id)}
               <li class="map-row done">

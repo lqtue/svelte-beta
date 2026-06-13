@@ -12,7 +12,7 @@
   let searchQuery: string = "";
 
   const CONTRIBUTE_EMAIL = "vietnammaproject@gmail.com";
-  const contributeHref = `mailto:${CONTRIBUTE_EMAIL}?subject=${encodeURIComponent('VMA — Map submission')}&body=${encodeURIComponent('Hi VMA team,\n\nI’d like to submit a map to the archive. Details below:\n\n• Title:\n• Year / period:\n• Location (city / region):\n• Source (URL, institution, or attached file):\n• Anything else we should know:\n\nThanks!')}`;
+  const contributeHref = `mailto:${CONTRIBUTE_EMAIL}?subject=${encodeURIComponent('VMA — map submission')}&body=${encodeURIComponent('Hi VMA,\n\nI\'d like to submit a map to the archive.\n\n• Title:\n• Year / period:\n• Location (city / region):\n• Source (URL, institution, or attachment):\n• Anything else we should know:\n\nThanks!')}`;
 
   onMount(async () => {
     mounted = true;
@@ -24,13 +24,13 @@
 </script>
 
 <svelte:head>
-  <title>Map Catalog — Vietnam Map Archive</title>
-  <meta name="description" content="Browse the full collection of historical maps of Vietnam." />
+  <title>Catalog — Vietnam Map Archive</title>
+  <meta name="description" content="Every historical map in the archive — georeferenced, searchable, free to download." />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Outfit:wght@400;600;800&family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
 <div class="page catalog-page" class:mounted>
-  <PageHero eyebrow="Collection" sub="Browse the full archive of georeferenced historical maps.">
+  <PageHero eyebrow="Collection" sub="Every historical map in the archive — georeferenced, searchable, free to download.">
     <svelte:fragment slot="title">The <span class="text-highlight">Archive.</span></svelte:fragment>
     <div slot="actions">
       <a class="action-btn primary-btn" href={contributeHref}>✉️ Submit a map</a>
@@ -45,7 +45,7 @@
       </svg>
       <input
         type="text"
-        placeholder="Search by name, creator, or description…"
+        placeholder="Search by title, creator, year, or description…"
         bind:value={searchQuery}
         class="chunky-input"
       />

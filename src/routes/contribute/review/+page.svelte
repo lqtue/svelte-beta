@@ -30,7 +30,7 @@
 </script>
 
 <svelte:head>
-  <title>Review SAM Footprints — Vietnam Map Archive</title>
+  <title>Review footprints — Vietnam Map Archive</title>
   <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
@@ -44,8 +44,8 @@
   <div class="page">
     <header class="page-header">
       <a href="/contribute" class="back-link">← Contribute</a>
-      <h1>Review SAM Footprints</h1>
-      <p>Inspect and approve or reject building polygons flagged by the SAM2 pipeline.</p>
+      <h1>Review footprints</h1>
+      <p>Check the building polygons SAM2 (Segment Anything Model v2) pulled out of the map — approve the good ones, reject the rest.</p>
     </header>
 
     {#if loading}
@@ -53,7 +53,7 @@
     {:else if loadError}
       <div class="state-msg error">{loadError}</div>
     {:else if maps.length === 0}
-      <div class="state-msg">No maps with pending review items.</div>
+      <div class="state-msg">Queue's clear — no footprints waiting on review.</div>
     {:else}
       <ul class="map-list">
         {#each maps as map}
@@ -68,7 +68,7 @@
           </li>
         {/each}
       </ul>
-      <p class="hint">Select a map to start reviewing. The canvas loads IIIF tiles directly from Internet Archive.</p>
+      <p class="hint">Pick a map to start. The canvas loads IIIF tiles straight from Internet Archive.</p>
     {/if}
   </div>
 {/if}

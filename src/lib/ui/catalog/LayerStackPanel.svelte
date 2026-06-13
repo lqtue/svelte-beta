@@ -74,11 +74,11 @@
 
 <div class="lsp">
   {#if state.overlays.length > 0}
-    <div class="lsp-sub">Swipe row for opacity · tap to zoom</div>
+    <div class="lsp-sub">Drag a row for opacity · tap to zoom</div>
   {/if}
 
   {#if state.overlays.length === 0}
-    <div class="lsp-empty">Open <strong>Browse</strong> and tap <strong>+</strong> to add a layer.</div>
+    <div class="lsp-empty">Nothing stacked yet. Open <strong>Browse</strong> and tap <strong>+</strong> on a map to add it.</div>
   {:else}
     <ul class="lsp-list">
       {#each state.overlays as o, i (o.id)}

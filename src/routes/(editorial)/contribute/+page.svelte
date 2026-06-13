@@ -23,14 +23,14 @@
 
 <svelte:head>
   <title>Contribute — Vietnam Map Archive</title>
-  <meta name="description" content="Help digitize and enrich historical maps of Saigon. Label buildings, review AI output, georeference maps, and complete catalogue records." />
+  <meta name="description" content="Trace buildings, georeference maps, and review AI output. Anyone with an account can contribute to the Vietnam Map Archive." />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
 <div class="page" class:mounted>
   <PageHero
     eyebrow="Open contribution"
-    sub="Label building outlines, georeference maps, and help verify AI output. Anyone with an account can contribute — an admin reviews and publishes the best work."
+    sub="Trace a building, anchor a scan, or check the AI's work. Anyone with an account can contribute — an admin reviews and publishes what's ready."
   >
     <svelte:fragment slot="title">
       Build the archive<br />
@@ -45,22 +45,33 @@
         <div class="section-card-header">
           <div class="icon-blob color-orange">✏️</div>
           <div>
-            <h2 class="section-title-sm">Digitalize Maps</h2>
-            <p class="section-desc">Set the neatline, prioritize tiles, and validate OCR-extracted toponyms — feeds the SAM2 segmentation pipeline.</p>
+            <h2 class="section-title-sm">OCR &amp; Triage</h2>
+            <p class="section-desc">Crop a map's neatline, set tile priorities, and validate the toponyms our pipeline extracts. Feeds the SAM2 segmentation step.</p>
           </div>
         </div>
-        <span class="card-cta">Start digitalizing →</span>
+        <span class="card-cta">Start triaging →</span>
+      </a>
+
+      <a href="/contribute/trace" class="section-card card-link">
+        <div class="section-card-header">
+          <div class="icon-blob color-yellow">🖋️</div>
+          <div>
+            <h2 class="section-title-sm">Trace buildings</h2>
+            <p class="section-desc">Outline buildings, roads, and waterways on a georeferenced map. Every shape goes into the open dataset.</p>
+          </div>
+        </div>
+        <span class="card-cta">Open the tracer →</span>
       </a>
 
       <a href="/contribute/georef" class="section-card card-link">
         <div class="section-card-header">
           <div class="icon-blob color-blue">📍</div>
           <div>
-            <h2 class="section-title-sm">Georeference Maps</h2>
-            <p class="section-desc">Place ground control points in the Allmaps Editor to anchor historical maps to real-world coordinates.</p>
+            <h2 class="section-title-sm">Georeference a map</h2>
+            <p class="section-desc">Place ground control points in the Allmaps Editor to anchor a historical map to real-world coordinates.</p>
           </div>
         </div>
-        <span class="card-cta">Open georef list →</span>
+        <span class="card-cta">See what needs georef →</span>
       </a>
 
       {#if role === 'admin' || role === 'mod'}
@@ -68,22 +79,22 @@
           <div class="section-card-header">
             <div class="icon-blob color-green">✅</div>
             <div>
-              <h2 class="section-title-sm">Review Footprints</h2>
-              <p class="section-desc">Approve or reject submitted building traces from volunteers and the SAM2 pipeline. Moderators and admins only.</p>
+              <h2 class="section-title-sm">Review footprints</h2>
+              <p class="section-desc">Approve or reject building traces from volunteers and the SAM2 pipeline. Mods and admins only.</p>
             </div>
           </div>
-          <span class="card-cta">Open review queue →</span>
+          <span class="card-cta">Open the review queue →</span>
         </a>
 
         <a href="/catalog" class="section-card card-link catalog-card">
           <div class="section-card-header">
             <div class="icon-blob color-purple">📚</div>
             <div>
-              <h2 class="section-title-sm">Catalog Metadata</h2>
+              <h2 class="section-title-sm">Catalog metadata</h2>
               <p class="section-desc">Complete bibliographic records: titles, shelfmarks, creators, dates, rights, and physical descriptions.</p>
             </div>
           </div>
-          <span class="card-cta">Edit catalog →</span>
+          <span class="card-cta">Edit the catalog →</span>
         </a>
       {/if}
 

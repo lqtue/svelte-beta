@@ -104,7 +104,7 @@
       />
     {:else}
       <div class="sb-empty">
-        Tap a point in the list above to edit its title, description, challenge, and pinned layer.
+        Pick a point in the list to edit its title, description, challenge, and pinned layer.
       </div>
     {/if}
   </SidebarCard>

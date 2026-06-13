@@ -2,7 +2,7 @@
   NavBar.svelte — Shared top navigation for editorial pages.
 
   Desktop: VMA | Catalog ▾  Tools ▾  Contribute ▾  About  Blog | [avatar/signin] [theme]
-  Catalog ▾:    Browse Catalog /catalog | View on Map /view | View Image /image
+  Catalog ▾:    Browse Catalog /catalog | Map Viewer /explore | View Image /image
   Tools ▾:      Story /create | Studio /studio
   Contribute ▾: Digitalize /contribute/digitalize | Trace Maps /contribute/trace | Georeference /contribute/georef
 
@@ -40,7 +40,7 @@
   });
 
   $: path = $page.url.pathname;
-  $: activeCatalog    = path.startsWith('/catalog') || path.startsWith('/view') || path.startsWith('/image');
+  $: activeCatalog    = path.startsWith('/catalog') || path.startsWith('/view') || path.startsWith('/explore') || path.startsWith('/image');
   $: activeTools      = path.startsWith('/create') || path.startsWith('/studio') || path.startsWith('/annotate');
   $: activeContribute = path.startsWith('/contribute');
   $: activeAbout      = path.startsWith('/about');
@@ -60,19 +60,19 @@
   <!-- Desktop links -->
   <div class="nav-links">
     <NavDropdown label="Catalog" active={activeCatalog}>
-      <a href="/catalog"  class="dropdown-item" on:click={closeDrawer}>Browse Catalog</a>
-      <a href="/view"     class="dropdown-item" on:click={closeDrawer}>View on Map</a>
-      <a href="/image"    class="dropdown-item" on:click={closeDrawer}>View Image</a>
+      <a href="/catalog"  class="dropdown-item" on:click={closeDrawer}>Browse the catalog</a>
+      <a href="/explore"  class="dropdown-item" on:click={closeDrawer}>Open the map viewer</a>
+      <a href="/image"    class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
     </NavDropdown>
 
     <NavDropdown label="Tools" active={activeTools}>
       <a href="/create"   class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
-      <a href="/studio" class="dropdown-item" on:click={closeDrawer}>Studio</a>
+      <a href="/annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
     </NavDropdown>
 
     <NavDropdown label="Contribute" active={activeContribute}>
-      <a href="/contribute/digitalize"  class="dropdown-item" on:click={closeDrawer}>Digitalize</a>
-      <a href="/contribute/trace"  class="dropdown-item" on:click={closeDrawer}>Trace Maps</a>
+      <a href="/contribute/digitalize"  class="dropdown-item" on:click={closeDrawer}>OCR &amp; Triage</a>
+      <a href="/contribute/trace"  class="dropdown-item" on:click={closeDrawer}>Trace buildings</a>
       <a href="/contribute/georef" class="dropdown-item" on:click={closeDrawer}>Georeference</a>
     </NavDropdown>
 
@@ -126,17 +126,17 @@
 
     <nav class="drawer-nav">
       <p class="drawer-section-label">Catalog</p>
-      <a href="/catalog"  class="drawer-link" on:click={closeDrawer}>Browse Catalog</a>
-      <a href="/view"     class="drawer-link" on:click={closeDrawer}>View on Map</a>
-      <a href="/image"    class="drawer-link" on:click={closeDrawer}>View Image</a>
+      <a href="/catalog"  class="drawer-link" on:click={closeDrawer}>Browse the catalog</a>
+      <a href="/explore"  class="drawer-link" on:click={closeDrawer}>Open the map viewer</a>
+      <a href="/image"    class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
 
       <p class="drawer-section-label">Tools</p>
       <a href="/create"   class="drawer-link" on:click={closeDrawer}>Story Builder</a>
-      <a href="/studio" class="drawer-link" on:click={closeDrawer}>Studio</a>
+      <a href="/annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
 
       <p class="drawer-section-label">Contribute</p>
-      <a href="/contribute/digitalize"  class="drawer-link" on:click={closeDrawer}>Digitalize</a>
-      <a href="/contribute/trace"  class="drawer-link" on:click={closeDrawer}>Trace Maps</a>
+      <a href="/contribute/digitalize"  class="drawer-link" on:click={closeDrawer}>OCR &amp; Triage</a>
+      <a href="/contribute/trace"  class="drawer-link" on:click={closeDrawer}>Trace buildings</a>
       <a href="/contribute/georef" class="drawer-link" on:click={closeDrawer}>Georeference</a>
 
       <p class="drawer-section-label">Info</p>
@@ -146,7 +146,7 @@
 
     <div class="drawer-footer">
       {#if session}
-        <a href="/profile" class="drawer-link" on:click={closeDrawer}>Your Profile</a>
+        <a href="/profile" class="drawer-link" on:click={closeDrawer}>Your profile</a>
       {:else}
         <a href="/login" class="pill-btn signin-link" on:click={closeDrawer}>Sign in</a>
       {/if}

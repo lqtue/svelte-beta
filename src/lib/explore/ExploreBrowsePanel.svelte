@@ -1,22 +1,24 @@
 <!--
-  ExploreBrowsePanel.svelte — location-filtered map list for /explore,
-  with an in-place "show all" expansion that adds a search + map-type
-  filter without leaving the panel.
+  ExploreBrowsePanel.svelte — map list for /explore, with an in-place "show
+  all" expansion.
 
-  Default view: just the maps that cover the user's location, with a big
-  tick-circle first cell for add/remove. "Browse the full archive →"
-  toggles the panel into a wider mode that lists ALL georeferenced maps,
-  filterable by name and map_type. Rows behave identically in both
-  modes — tap to add, tap again to remove.
+  Default view: just the maps that cover the user's location (GPS coverage),
+  with a big tick-circle first cell for add/remove. "Browse the full archive →"
+  toggles the panel into a wider mode driven by the shared catalog engine
+  (`$lib/catalog/catalogSearch`) — the same full-text search + facet logic that
+  powers /catalog — restricted to georeferenced maps since only those overlay.
+  Rows behave identically in both modes — tap to add, tap again to remove.
 -->
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { layersStore } from '$lib/stores/layersStore';
-  import type { MapListItem } from '$lib/maps/types';
   import type { ResolvedMap } from './spatialLookup';
+  import { createCatalogSearch } from '$lib/catalog/catalogSearch';
 
   export let matches: ResolvedMap[] = [];
-  export let allMaps: MapListItem[] = [];
+  // Admins/mods may browse draft maps in the viewer; everyone else is
+  // capped to public/featured (mirrors /catalog's role gating).
+  export let role: 'user' | 'mod' | 'admin' = 'user';
   // When the parent's welcome-mode is "Show all maps", force-expand so the
   // user lands on the full archive immediately. When the parent's mode is
   // location-based, leave `expanded` user-controlled — never auto-expand on
@@ -25,14 +27,17 @@
   export let forceExpanded = false;
 
   const dispatch = createEventDispatcher<{
-    pick: { map: MapListItem };
+    pick: { map: any };
     remove: { mapId: string };
   }>();
 
+  // Shared catalog engine. Draft visibility is enforced server-side by role,
+  // so the expanded archive doesn't need its own status filter.
+  const search = createCatalogSearch({ requireGeoref: true });
+  const { query, results, loading, areaChoices, typeChoices, periodChoices, selected } = search;
+  onMount(() => search.start());
+
   let expanded = false;
-  let searchQuery = '';
-  let typeFilter = '';
-  let areaFilter = '';
 
   // Parent owns the "Show all maps" decision. When it flips on, expand;
   // when off, leave whatever the user chose manually.
@@ -40,34 +45,34 @@
 
   $: stackedIds = new Set($layersStore.overlays.map((o) => o.ref.mapId));
 
-  // The wider corpus is "all georeferenced maps with bounds resolvable" —
-  // mirror /view's requireGeoref filter so users see the same set.
-  $: archiveCorpus = allMaps.filter(
-    (m) => (!!m.allmaps_id || !!m.annotation_url) && (m.status === 'public' || m.status === 'featured'),
-  );
-
-  $: mapTypes = Array.from(new Set(archiveCorpus.map((m) => m.map_type).filter(Boolean) as string[]))
-    .sort((a, b) => a.localeCompare(b));
-
-  $: areas = Array.from(new Set(archiveCorpus.map((m) => m.location).filter(Boolean) as string[]))
-    .sort((a, b) => a.localeCompare(b));
-
-  function filterRows(rows: MapListItem[]): MapListItem[] {
-    const q = searchQuery.trim().toLowerCase();
-    return rows.filter((m) => {
-      if (typeFilter && m.map_type !== typeFilter) return false;
-      if (areaFilter && m.location !== areaFilter) return false;
-      if (!q) return true;
-      return (
-        m.name.toLowerCase().includes(q) ||
-        String(m.year ?? '').includes(q) ||
-        (m.map_type ?? '').toLowerCase().includes(q) ||
-        (m.location ?? '').toLowerCase().includes(q)
-      );
-    });
+  // Oldest → newest, matching /catalog's default sort. Undated maps sink
+  // to the bottom; ties break by name so the order is stable.
+  function byYear(a: { year?: number | null; name?: string }, b: { year?: number | null; name?: string }): number {
+    const ay = a.year ?? Infinity;
+    const by = b.year ?? Infinity;
+    if (ay !== by) return ay - by;
+    return (a.name ?? '').localeCompare(b.name ?? '');
   }
 
-  $: shownRows = expanded ? filterRows(archiveCorpus) : matches;
+  // Default view: maps covering the user's GPS spot. `matches` comes from the
+  // RLS-readable map list (which leaks drafts), so role-gate it here too.
+  $: canSeeDrafts = role === 'admin' || role === 'mod';
+  $: visibleMatches = [...matches]
+    .filter((m) => canSeeDrafts || m.status === 'public' || m.status === 'featured')
+    .sort(byYear);
+
+  $: shownRows = expanded ? [...$results].sort(byYear) : visibleMatches;
+
+  $: hasFilters =
+    !!$query.trim() ||
+    ($selected.area?.length ?? 0) > 0 ||
+    ($selected.type?.length ?? 0) > 0 ||
+    ($selected.period?.length ?? 0) > 0;
+
+  function resetFilters() {
+    query.set('');
+    selected.set({});
+  }
 
   // Stable colour per map_type so the type chip is scannable. Hashes the
   // string to a hue (golden-angle stepped to keep adjacent types distinct).
@@ -83,7 +88,7 @@
     return `background: hsl(${h} 70% 88%); border-color: hsl(${h} 45% 30%); color: hsl(${h} 50% 22%);`;
   }
 
-  function onRowClick(map: MapListItem) {
+  function onRowClick(map: any) {
     if (stackedIds.has(map.id)) {
       dispatch('remove', { mapId: map.id });
     } else {
@@ -115,38 +120,56 @@
           <circle cx="11" cy="11" r="7" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <input type="text" placeholder="Search maps…" bind:value={searchQuery} />
-        {#if searchQuery}
-          <button type="button" class="clear" on:click={() => (searchQuery = '')} aria-label="Clear">×</button>
+        <input type="text" placeholder="Search maps…" bind:value={$query} />
+        {#if $query}
+          <button type="button" class="clear" on:click={() => query.set('')} aria-label="Clear">×</button>
         {/if}
       </label>
       <div class="dropdowns">
-        {#if areas.length}
-          <select bind:value={areaFilter} aria-label="Filter by area">
+        {#if $areaChoices.length}
+          <select
+            value={$selected.area?.[0] ?? ''}
+            on:change={(e) => search.setSingle('area', (e.currentTarget as HTMLSelectElement).value)}
+            aria-label="Filter by area"
+          >
             <option value="">All areas</option>
-            {#each areas as a}
+            {#each $areaChoices as a}
               <option value={a}>{a}</option>
             {/each}
           </select>
         {/if}
-        {#if mapTypes.length}
-          <select bind:value={typeFilter} aria-label="Filter by map type">
+        {#if $typeChoices.length}
+          <select
+            value={$selected.type?.[0] ?? ''}
+            on:change={(e) => search.setSingle('type', (e.currentTarget as HTMLSelectElement).value)}
+            aria-label="Filter by map type"
+          >
             <option value="">All types</option>
-            {#each mapTypes as t}
+            {#each $typeChoices as t}
               <option value={t}>{t}</option>
+            {/each}
+          </select>
+        {/if}
+        {#if $periodChoices.length}
+          <select
+            value={$selected.period?.[0] ?? ''}
+            on:change={(e) => search.setSingle('period', (e.currentTarget as HTMLSelectElement).value)}
+            aria-label="Filter by period"
+          >
+            <option value="">All periods</option>
+            {#each $periodChoices as p}
+              <option value={p.key}>{p.label}</option>
             {/each}
           </select>
         {/if}
       </div>
     </div>
     <div class="count-row">
-      <span class="count">{shownRows.length} map{shownRows.length === 1 ? '' : 's'}</span>
-      {#if searchQuery || typeFilter || areaFilter}
-        <button
-          type="button"
-          class="reset"
-          on:click={() => { searchQuery = ''; typeFilter = ''; areaFilter = ''; }}
-        >Reset filters</button>
+      <span class="count">
+        {shownRows.length} map{shownRows.length === 1 ? '' : 's'}{#if $loading}<span class="loading"> …</span>{/if}
+      </span>
+      {#if hasFilters}
+        <button type="button" class="reset" on:click={resetFilters}>Reset filters</button>
       {/if}
     </div>
   {/if}
@@ -186,7 +209,7 @@
   <button
     type="button"
     class="browse-toggle"
-    on:click={() => { expanded = !expanded; if (!expanded) { searchQuery = ''; typeFilter = ''; } }}
+    on:click={() => { expanded = !expanded; if (!expanded) resetFilters(); }}
   >
     {#if expanded}
       ← Back to maps at this location

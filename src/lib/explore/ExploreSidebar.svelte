@@ -32,6 +32,7 @@
   export let gpsActive: boolean = false;
   export let matches: ResolvedMap[] = [];
   export let forceBrowseExpanded = false;
+  export let role: 'user' | 'mod' | 'admin' = 'user';
 
   $: hasMatches = matches.length > 0;
 
@@ -121,7 +122,7 @@
     >
       <ExploreBrowsePanel
         {matches}
-        allMaps={mapList}
+        {role}
         forceExpanded={forceBrowseExpanded}
         on:pick={(e) => dispatch('pickMap', e.detail)}
         on:remove={(e) => dispatch('removeOverlay', e.detail)}

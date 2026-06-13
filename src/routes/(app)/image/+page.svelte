@@ -71,8 +71,8 @@
 </script>
 
 <svelte:head>
-  <title>{currentMap ? `${currentMap.name} — Image Viewer` : 'Image Viewer'} — Vietnam Map Archive</title>
-  <meta name="description" content="View high-resolution scans of historical maps of Vietnam." />
+  <title>{currentMap ? `${currentMap.name} — scan` : 'Image viewer'} — Vietnam Map Archive</title>
+  <meta name="description" content="Inspect high-resolution scans of historical maps from the Vietnam Map Archive." />
   <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
@@ -84,7 +84,7 @@
     <svelte:fragment slot="sidebar">
       <aside class="panel">
         <div class="panel-header">
-          <div class="panel-mode-label">Image Viewer</div>
+          <div class="panel-mode-label">Image viewer</div>
           <button
             type="button"
             class="collapse-btn"
@@ -113,9 +113,9 @@
                 </div>
                 <div class="ac-actions">
                   {#if currentMap.allmaps_id}
-                    <a class="ac-btn primary" href={`/view?map=${currentMap.id}`}>🌍 Open on map</a>
+                    <a class="ac-btn primary" href={`/view?map=${currentMap.id}`}>Open on map</a>
                   {/if}
-                  <a class="ac-btn" href={`/studio?map=${currentMap.id}`}>✏️ Studio</a>
+                  <a class="ac-btn" href={`/annotate?map=${currentMap.id}`}>Annotate</a>
                 </div>
               </div>
             </div>
@@ -123,8 +123,8 @@
             <div class="active-empty">
               <span class="ae-icon" aria-hidden="true">🖼️</span>
               <div class="ae-text">
-                <span class="ae-label">No map selected</span>
-                <span class="ae-hint">Pick one below to view</span>
+                <span class="ae-label">Nothing loaded.</span>
+                <span class="ae-hint">Pick a map from the list below.</span>
               </div>
             </div>
           {/if}
@@ -142,8 +142,8 @@
       <ImageShell {iiifInfoUrl} />
     {:else if !currentMap}
       <div class="empty-stage">
-        <p>Select a map from the search bar above.</p>
-        <a href="/catalog" class="catalog-link">Browse catalog →</a>
+        <p>Pick a map to inspect its scan.</p>
+        <a href="/catalog" class="catalog-link">Browse the catalog →</a>
       </div>
     {/if}
   </ToolLayout>

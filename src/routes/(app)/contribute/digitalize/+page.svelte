@@ -390,7 +390,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 <svelte:head>
-  <title>{currentMap ? `${currentMap.name} — Digitalize` : 'Digitalize'} — Vietnam Map Archive</title>
+  <title>{currentMap ? `${currentMap.name} — OCR & Triage` : 'OCR & Triage'} — Vietnam Map Archive</title>
   <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
@@ -403,7 +403,7 @@
         <ToolPanelHeader onCollapse={() => (sidebarCollapsed = true)} />
 
         {#if !currentMap}
-          <EmptyPanel message="Select a map to begin." />
+          <EmptyPanel message="Pick a map to start." />
         {:else if phase === 'triage'}
           <TriageSidebar
             {imgWidth} {imgHeight} {iiifInfoUrl}
@@ -439,14 +439,14 @@
                   Mark ready for segmentation
                 </button>
               {:else}
-                <p class="seg-hint">Ready. Run the Colab command below, then come back.</p>
+                <p class="seg-hint">Ready. Run the Colab command below, then come back here.</p>
               {/if}
             {:else if pipelineStatus?.stage === 'seg_done' || pipelineStatus?.stage === 'seg_reviewed'}
               <a class="action-btn seg-review-link" href="/contribute/review?map={currentMap.id}">
                 Review footprints &rarr;
               </a>
             {:else if !pipelineStatus || pipelineStatus.stage === 'idle'}
-              <p class="seg-hint">Complete OCR review first, then return here.</p>
+              <p class="seg-hint">Finish OCR review first. The segmentation step needs validated toponyms to run.</p>
             {/if}
 
             {#if segColabCommand}
@@ -659,9 +659,9 @@
   {#if currentMap}
     <footer class="bottom-bar">
       {#if phase === 'triage'}
-        <div class="bar-hint">Drag amber rect to set neatline · drag corners to resize · click tile to set priority</div>
+        <div class="bar-hint">Drag the amber rectangle to set the neatline · click a tile to change its priority</div>
       {:else}
-        <div class="bar-hint">{drawMode ? 'Draw a rectangle to add bbox · Esc to cancel' : 'Click bbox to edit · drag to reposition'}</div>
+        <div class="bar-hint">{drawMode ? 'Drag a rectangle to add a bbox · Esc to cancel' : 'Click a bbox to edit it · drag to move it'}</div>
         <div class="bar-divider"></div>
         <button type="button" class="tool-btn" class:active={drawMode}
           on:click={() => { drawMode = !drawMode; if (drawMode) selectedExtractionId = null; }}>
