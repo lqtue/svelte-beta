@@ -4,6 +4,8 @@
   labels via the `compact` prop.
 -->
 <script lang="ts">
+  import '$styles/layouts/tool-page.css';
+
   export let collapsed: boolean = false;
   export let labelShow: string = 'Panel';
   export let labelHide: string = 'Hide';
@@ -28,7 +30,3 @@
   {/if}
   <span>{collapsed ? labelShow : labelHide}</span>
 </button>
-
-<style>
-  @import '$styles/layouts/tool-page.css';
-</style>

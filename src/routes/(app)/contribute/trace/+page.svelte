@@ -26,6 +26,7 @@
   import ToolPanelHeader from '$lib/contribute/shared/ToolPanelHeader.svelte';
   import EmptyPanel from '$lib/contribute/shared/EmptyPanel.svelte';
   import SidebarToggleButton from '$lib/contribute/shared/SidebarToggleButton.svelte';
+  import '$styles/layouts/tool-page.css';
   import { getSupabaseContext } from '$lib/supabase/context';
   import { resolveIiifInfoUrl } from '$lib/iiif/iiifImageInfo';
   import {
@@ -332,7 +333,3 @@
     </footer>
   {/if}
 </div>
-
-<style>
-  @import '$styles/layouts/tool-page.css';
-</style>

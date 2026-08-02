@@ -14,6 +14,7 @@
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import ImageShell from '$lib/shell/ImageShell.svelte';
   import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
+  import '$styles/layouts/tool-page.css';
   import { getSupabaseContext } from '$lib/supabase/context';
   import { fetchMaps } from '$lib/maps/service';
   import type { MapListItem } from '$lib/maps/types';
@@ -150,8 +151,6 @@
 </div>
 
 <style>
-  @import '$styles/layouts/tool-page.css';
-
   .active-slot {
     flex-shrink: 0;
     min-height: 90px;

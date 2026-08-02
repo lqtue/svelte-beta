@@ -8,6 +8,8 @@
     onCollapse — handler for the collapse chevron button. If omitted, the button is hidden.
 -->
 <script lang="ts">
+  import '$styles/layouts/tool-page.css';
+
   export let title: string = '';
   export let backHref: string = '/contribute';
   export let backLabel: string = 'Contribute';
@@ -32,7 +34,3 @@
     </button>
   {/if}
 </div>
-
-<style>
-  @import '$styles/layouts/tool-page.css';
-</style>

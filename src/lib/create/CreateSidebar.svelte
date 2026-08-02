@@ -10,6 +10,7 @@
   import LayerControlsPanel from '$lib/ui/catalog/LayerControlsPanel.svelte';
   import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
   import SidebarCard from '$lib/ui/catalog/SidebarCard.svelte';
+  import '$styles/layouts/tool-page.css';
 
   const dispatch = createEventDispatcher<{
     toggleCollapse: void;
@@ -70,8 +71,3 @@
     />
   </SidebarCard>
 </aside>
-
-<style>
-  @import '$styles/layouts/tool-page.css';
-
-</style>

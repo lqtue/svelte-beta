@@ -24,6 +24,7 @@
   import ToolPanelHeader from '$lib/contribute/shared/ToolPanelHeader.svelte';
   import EmptyPanel from '$lib/contribute/shared/EmptyPanel.svelte';
   import SidebarToggleButton from '$lib/contribute/shared/SidebarToggleButton.svelte';
+  import '$styles/layouts/tool-page.css';
   import type { OcrExtraction } from '$lib/contribute/ocr/types';
   import type { TileOverrides } from '$lib/contribute/digitalize/tileParams';
   import { getSupabaseContext } from '$lib/supabase/context';
@@ -691,8 +692,6 @@
 </div>
 
 <style>
-  @import '$styles/layouts/tool-page.css';
-
   .phase-tabs {
     display: flex;
     gap: 2px;

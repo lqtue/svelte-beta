@@ -3,6 +3,8 @@
   Renders an icon (default: document grid) + a short message.
 -->
 <script lang="ts">
+  import '$styles/layouts/tool-page.css';
+
   export let message: string = 'Select a map first.';
   export let showIcon: boolean = true;
 </script>
@@ -15,7 +17,3 @@
   {/if}
   <p>{message}</p>
 </div>
-
-<style>
-  @import '$styles/layouts/tool-page.css';
-</style>
