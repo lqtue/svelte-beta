@@ -6,14 +6,14 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 
 ## Where to look first
 
-- `docs/voice.md` — voice, tone, terminology lock; read before writing any user-facing copy
 - `docs/db-guidelines.md` — schema conventions; all migrations must follow these
 - `docs/system-guidelines.md` — page structure, component patterns, styling rules, route map, known debt
 - `docs/design-system.md` — tokens, shared CSS, page template
 - `docs/pipelines.md` — OCR + MapSAM2 inference command reference
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker, holding-institution model
-- `docs/knowledge-graph.html` — interactive graph of routes, components, stores, tables, pipelines (open in browser)
-- `work/MapSAM2/CLAUDE.md` — fine-tuned SAM2 fork (LoRA, M1, training). Has its own venv: `.venv-m1/`.
+- `docs/system-map.excalidraw` — current architecture, generated from HEAD. Drag onto excalidraw.com.
+- `docs/knowledge-graph.html` — older interactive graph. **Stale** (May 2026): missing `/studio`, `/explore`, `/trip`. Prefer `system-map.excalidraw`.
+- `work/MapSAM2/` — fine-tuned SAM2 fork (LoRA, M1, training). Has its own venv: `.venv-m1/`.
 - `work/vectorize/`, `work/review/`, `work/ocr/`, `work/iiif-r2/` — feature-scoped artifact dirs and context.
 
 ## Commands
@@ -37,15 +37,14 @@ Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabas
 **Environment variables:**
 
 ```
-PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_KEY            # admin API routes only
-PUBLIC_MAPTILER_KEY             # optional; falls back to demo tiles
+PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY   # anon key = the sb_publishable_… key
+SUPABASE_SERVICE_KEY            # admin API routes only; the sb_secret_… key
 IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 ```
 
 **Supabase types:**
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `supabase/types.ts` is regenerated from migration head 047 — prefer the real types over `as any` casts. If you need to narrow a `.select().single()` result, define an explicit type rather than reaching for `(data as any)`.
+- `src/lib/supabase/types.ts` is regenerated from migration head 048 — prefer the real types over `as any` casts. If you need to narrow a `.select().single()` result, define an explicit type rather than reaching for `(data as any)`.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css` (tokens + components). Two themes (default neo-brutalist / archival) via tokens — no per-component overrides. New pages should use the template in `docs/design-system.md` and be added to nav + footer everywhere.
 
@@ -65,25 +64,27 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 
 - **layersStore** *(new — single source of truth for what the map renders)* — `{ base: LayerRef, overlays: OverlayLayer[] }` where `base` is either `{ kind: 'basemap', key }` (`'g-streets' | 'g-satellite' | 'none'`) or `{ kind: 'historical', mapId, allmapsId, name?, thumbnail? }`. `overlays` is top-of-stack-first; each item has its own `opacity`, `visible`, and stable local `id`. Max 10 overlays. Persists to `localStorage` as `vma-layers-v1`. API: `setBase`, `addOverlay`, `removeOverlay`, `removeOverlayByMapId`, `setOpacity`, `setVisible`, `reorderOverlay`, `clearOverlays`, `isOverlay`, `isBase`.
 - **mapStore** — `{ lng, lat, zoom, rotation, activeMapId, activeAllmapsId }`. Default: Saigon (106.70098, 10.77653) zoom 14. `activeMapId` is `maps.id` UUID and is now a **one-way mirror** of `layersStore.overlays[0]` (kept for legacy callers: URL hash, story playback, share). `activeAllmapsId` holds the annotation source string — either a bare Allmaps image ID or a full annotation URL; the runtime `annotationUrlForSource()` accepts both.
-- **layerStore** — `{ basemap, overlayOpacity, overlayVisible, viewMode, sideRatio, lensRadius }`. View modes: `'overlay' | 'spy' | 'dual'` (UI labels: Stacked / Lens / Side-by-side). `basemap` / `overlayOpacity` / `overlayVisible` are legacy and no longer drive rendering — `layersStore` owns base + per-layer opacity now.
+- **layerStore** — per-shell view settings: `{ basemap, viewMode, sideRatio, lensRadius, customBaseUrl }`. View modes: `'overlay' | 'spy' | 'dual'` (UI labels: Stacked / Lens / Side-by-side). `layersStore` owns base + per-layer opacity; the legacy `overlayOpacity` / `overlayVisible` fields were removed Aug 2026. `sideRatio` is read but has no setter — pinned at 0.5 until a drag handle ships.
 - **urlStore** — bidirectional URL hash ↔ stores sync. Hash: `#@lat,lng,zoomz,rotationr&map=id&base=key`.
 
 State persisted to localStorage as `vma-viewer-state-v1` (debounced 500ms).
 
 ### Route groups
 
-- `(editorial)` — public pages with nav/footer: `/`, `/catalog`, `/about`, `/blog`, `/profile`, `/login`, `/signup`.
-- `(app)` — full-screen map tools with their own layout: `/view`, `/create`, `/annotate`, `/image`, `/contribute/*`.
+- `(editorial)` — public pages with nav/footer: `/`, `/catalog`, `/about`, `/blog`, `/profile`, `/login`, `/contribute`, `/contribute/georef`, `/admin/bulk`, `/admin/scout`. There is no `/signup`.
+- `(app)` — full-screen tools with their own layout: `/explore`, `/studio`, `/create`, `/trip/[id]`, `/image`, `/contribute/digitalize`, `/contribute/trace`.
+- `/contribute/review` sits in **no** route group — an accident, not a design choice.
 
-Redirects: `/contribute/label` → `/contribute/digitalize` (`+page.server.ts`, 301, query params preserved). No other redirect routes are implemented in code despite older references.
+Redirects (301, query params preserved): `/view` → `/explore`, `/annotate` → `/studio`, `/contribute/label` → `/contribute/digitalize`. There is no `/admin`, `/hunt` or `/georef` route.
 
 ### Modes
 
 | Route | Purpose | Source |
 |-------|---------|--------|
-| `/view` | Browse maps, play stories | `src/lib/view/`, `src/routes/(app)/view/` |
+| `/explore` | Browse maps, play stories | `src/lib/explore/`, `src/routes/(app)/explore/` |
+| `/studio` | Free-form annotation + timeline animation | `src/lib/studio/`, `src/routes/(app)/studio/` |
 | `/create` | Create stories/adventures | `src/lib/create/`, `src/routes/(app)/create/` |
-| `/annotate` | Free-form annotation | `src/lib/annotate/`, `src/routes/(app)/annotate/` |
+| `/trip/[id]` | Story playback | `src/lib/trip/`, `src/routes/(app)/trip/[id]/` |
 | `/image` | IIIF inspector | `src/routes/(app)/image/` |
 | `/contribute/georef` | Georeference maps via Allmaps Editor | `src/routes/(editorial)/contribute/georef/` (editorial layout) |
 | `/contribute/trace` | Polygon/line tracing of footprints | `src/routes/(app)/contribute/trace/` + `src/lib/contribute/trace/` |
@@ -92,13 +93,13 @@ Redirects: `/contribute/label` → `/contribute/digitalize` (`+page.server.ts`, 
 
 `/contribute/label` is retired — `+page.server.ts` 301-redirects to `/contribute/digitalize` (which now owns the OCR review flow as well as Triage). All app modes except the contribute IIIF-canvas tools (trace, digitalize) share MapShell + global stores.
 
-### /view sidebar + mobile pattern
+### /explore sidebar + mobile pattern
 
 Same components drive both viewports — desktop sidebar and mobile drawers share the panels. Four reusable pieces in `src/lib/ui/catalog/`:
 
 - **`LayerStackPanel.svelte`** — the layer stack. Whole row is the opacity slider (horizontal pointer drag, 6px threshold so clean taps still register as zoom-to-overlay). Reorder via ▲/▼ buttons. **Remove (×) only** — no hide/show toggle. Shows year + name. In side-by-side mode the top 2 overlays get **Top** / **Bottom** badges (mobile dual splits vertically).
 - **`LayerControlsPanel.svelte`** — Display mode (Stacked / Lens / Side-by-side) · Base map (🗺️ Maps / 🛰️ Satellite / ⊘ None) · Location search (Nominatim) · "My location" GPS toggle. **Single source of GPS on both viewports** — there is no longer a floating GPS button.
-- **`CatalogSidebarPanel.svelte`** — compact catalog browser. One search input filters maps. In `/view` it's passed `showLocation={false}` because Controls owns location search.
+- **`CatalogSidebarPanel.svelte`** — compact catalog browser. One search input filters maps. In `/explore` it is passed `showLocation={false}` because Controls owns location search.
 - **`CatalogTable.svelte`** — in compact mode, rows show **Year + Name only** (thumb hidden, title clamped 2 lines, year as bold blue tabular-num label). Above the table, **Show maps of** and **Type** render as two native `<select>` dropdowns (single-select; respects `requireGeoref` so empty regions don't appear). Year and Area row chips are intentionally **not** clickable filters — only the dropdowns are.
 
 Desktop `ViewSidebar` stacks the three panels: **Layers → Controls → Browse** (flex 3 / auto / 5).
@@ -128,7 +129,7 @@ Two directories — singular for UI state, plural for data:
   - `types.ts` — `MapRecord`, `MapListItem`, `MapIIIFSource`, `MapSourceType`, `MapStatus`, `IIIFManifestMeta`, `MapEditPayload`, etc.
   - `service.ts` — `fetchMaps`, `fetchFeaturedMaps`, `fetchGeoreferencedMaps`, `fetchMapById`, `fetchMapsByLocation`.
   - `iiifManifest.ts` — `parseIIIFManifest(raw)`, `fetchIIIFManifest(url)`; handles IIIF v2 + v3.
-  - `adminApi.ts` — admin client functions: map CRUD, image upload, IIIF source mgmt, annotation update.
+  - Admin client functions live in `src/lib/admin/adminApi.ts` (map CRUD, image upload, IIIF source mgmt, R2 mirror). A duplicate `src/lib/maps/adminApi.ts` was deleted Aug 2026.
 - **`src/lib/map/`** (singular) — UI-side state for map display.
   - `annotationState.ts`, `annotationHistory.ts`, `annotationContext.ts`, `olAnnotations.ts` — annotation stores + OL utilities.
   - `constants.ts` — `BASEMAP_DEFS` etc.
@@ -140,14 +141,12 @@ Two directories — singular for UI state, plural for data:
 
 ### IIIF utilities (`src/lib/iiif/iiifImageInfo.ts`)
 
-- `buildAnnotation(opts)` — W3C Georeference Annotation JSON from IIIF source + GCP corners.
-- `fetchIiifInfoWithRetry(iiifBase)` — info.json with retries.
-- `fetchIIIFImageInfo(allmapsId)` — resolves image dimensions from an Allmaps annotation.
+- `resolveIiifInfoUrl(source)` — normalises a IIIF image/manifest reference to its `info.json` URL. The only live export; used by `/contribute/trace` and `/contribute/digitalize`.
 
 ### Map libraries
 
-- **OpenLayers** — primary; used by MapShell + ImageShell. `@allmaps/openlayers` warps historical tiles.
-- **MapLibre GL** (`src/lib/Map.svelte`) — lightweight embed-only via `@allmaps/maplibre`.
+- **OpenLayers** — the only map engine. Used by MapShell + ImageShell. `@allmaps/openlayers` warps historical tiles.
+- MapLibre GL was removed (Aug 2026) along with `@allmaps/maplibre`, `@protomaps/basemaps` and `ol-mapbox-style` — all four were unreferenced.
 
 ### Annotation system (`src/lib/map/`)
 
@@ -155,7 +154,7 @@ Two directories — singular for UI state, plural for data:
 
 ### Supabase (`src/lib/supabase/`)
 
-`client.ts` / `server.ts` (browser + SSR), `context.ts` (auth via Svelte context), `annotations.ts`, `stories.ts`, `labels.ts`, `georef.ts`. `labels.ts` also has the SAM2 review entry points: `fetchMapsWithSubmittedFootprints()` (used by `/contribute/review`) and `fetchLabelMaps()` (the map-selector data source for `/contribute/digitalize` and `/contribute/trace`).
+`client.ts` / `server.ts` (browser + SSR), `context.ts` (auth via Svelte context), `annotations.ts`, `stories.ts`, `labels.ts`. `labels.ts` also has the SAM2 review entry points: `fetchMapsWithSubmittedFootprints()` (used by `/contribute/review`) and `fetchLabelMaps()` (the map-selector data source for `/contribute/digitalize` and `/contribute/trace`).
 
 ## API routes (`src/routes/api/`)
 
@@ -192,13 +191,12 @@ Schema lives in `supabase/migrations/`. Key tables:
 | `maps` | Map catalogue | `id` (uuid), `allmaps_id` (16-char hex), `annotation_url` (mig 047 override), `iiif_image`, `iiif_manifest`, `source_type`, `holding_institution` (mig 044), `collection`, `map_type`, `bbox`, `status`, `thumbnail`, full DC fields |
 | `scout_candidates` | External discoveries (mig 045) | `source`, `external_id` (unique with source), `manifest_url`, `score`, `category`, `status` (`pending/approved/rejected/ingested`), `map_id` set on ingest, `raw` JSONB |
 | `map_iiif_sources` | Multiple IIIF sources per map | `map_id → maps.id`, `source_type`, `is_primary`, `sort_order`. Partial unique index = one primary per map. Trigger syncs primary to `maps.iiif_image`. |
-| `label_tasks` | Labeling tasks | `map_id → maps.id`. No `allmaps_id` — join through maps. |
-| `label_pins` | Point annotations | `task_id → label_tasks.id`, pixel coords |
+| `label_pins` | Point annotations | `map_id → maps.id`, pixel coords. `label_tasks` was dropped in mig 038; `task_id` went with it. |
 | `footprint_submissions` | Polygon traces | `map_id → maps.id`. Status: `needs_review → submitted/rejected` |
 | `annotation_sets` | User GeoJSON | `map_id → maps.id` nullable, `user_id → auth.users` |
 | `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected` |
 | `map_pipeline_status` | Per-map pipeline state | `map_id` PK, `stage` (8-value enum), `ocr_run_id`, `seg_run_id`, timestamps. Auto-updated by OCR `--db` and SAM2 `--write-supabase`. |
-| `hunts`, `hunt_stops` | Stories/tours | legacy table names; Story types alias these |
+| `stories`, `story_points`, `story_progress` | Stories/tours | `hunts` / `hunt_stops` were dropped in mig 034. Some `hunt*` aliases survive in `storyStore.ts` for legacy callers. |
 
 `maps.status` (mig 038): `draft | public | featured`. Inserts default to `draft`. Older `pending_georef → georeferenced → processing → published` lifecycle was dropped — those values fail `maps_status_check`.
 

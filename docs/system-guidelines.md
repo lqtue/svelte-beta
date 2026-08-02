@@ -109,40 +109,48 @@ This is the only page type whose CSS is not yet extracted. Until task #25 is don
 
 | Register | Routes | Shell |
 |----------|--------|-------|
-| Editorial | `/`, `/about`, `/blog`, `/contribute`, `/contribute/georef`, `/login`, `/signup` | NavBar + editorial-hero + editorial-main + footer |
+| Editorial | `/`, `/about`, `/blog`, `/blog/[slug]`, `/contribute`, `/contribute/georef`, `/login`, `/profile` | NavBar + editorial-hero + editorial-main + footer |
 | Catalog browser | `/catalog` | NavBar + filter-bar + card grid (inline CSS) |
-| Geo-map tool | `/view`, `/create`, `/annotate` | GeoMapShell (fullscreen, no nav) |
-| Pixel-map label | `/contribute/label` | LabelStudio (own OL, top-bar + workspace) |
+| Geo-map tool | `/explore`, `/studio`, `/create`, `/trip/[id]` | MapShell / MapWorkspace (fullscreen, no nav) |
+| IIIF-canvas tool | `/image`, `/contribute/digitalize`, `/contribute/trace` | ImageShell + ToolLayout |
 | Pixel-map review | `/contribute/review` | ReviewMode (dark, review-header + review-body) |
-| Admin | `/admin` | admin.css dashboard (top-bar + content, 1200px max) |
-| Cataloger | `/contribute/catalog` | admin.css dashboard (top-bar + content, 940px max) |
+| Admin | `/admin/bulk`, `/admin/scout` | admin.css dashboard (editorial layout) |
 
 ---
 
 ## 2. Route map
 
-| Route | Register | Component | Auth |
-|-------|----------|-----------|------|
-| `/` | editorial | `+page.svelte` (monolith, pending split) | none |
-| `/about` | editorial | `+page.svelte` | none |
-| `/blog` | editorial | `+page.svelte` | none |
-| `/catalog` | editorial | `CatalogPage` | none |
-| `/contribute` | editorial | `+page.svelte` | none |
-| `/contribute/georef` | editorial | `+page.svelte` | none |
-| `/contribute/catalog` | editorial | `+page.svelte` | mod/admin |
-| `/contribute/label` | tool | `LabelStudio.svelte` | any auth |
-| `/contribute/review` | tool | `ReviewMode.svelte` | mod/admin |
-| `/view` | tool | `ViewMode.svelte` | none |
-| `/create` | tool | `CreateMode.svelte` | auth |
-| `/annotate` | tool | `AnnotateMode.svelte` | auth |
-| `/admin` | tool | `AdminDashboard.svelte` | admin |
-| `/login`, `/signup` | editorial | `+page.svelte` | none |
+Route group in parentheses is the SvelteKit layout group, not part of the URL.
+
+| Route | Group | Component | Auth |
+|-------|-------|-----------|------|
+| `/` | (editorial) | `+page.svelte` (monolith, pending split) | none |
+| `/about` | (editorial) | `+page.svelte` | none |
+| `/blog`, `/blog/[slug]` | (editorial) | `+page.svelte` + `lib/blog/posts.ts` | none |
+| `/catalog` | (editorial) | `CatalogPage` | none |
+| `/contribute` | (editorial) | `+page.svelte` | none (mod card gated) |
+| `/contribute/georef` | (editorial) | `+page.svelte` → Allmaps Editor | none |
+| `/login` | (editorial) | `+page.svelte` | none |
+| `/profile` | (editorial) | `+page.svelte` | auth (303 → `/login`) |
+| `/admin/bulk` | (editorial) | `+page.svelte` | admin |
+| `/admin/scout` | (editorial) | `+page.svelte` | admin/mod |
+| `/explore` | (app) | `+page.svelte` + `MapWorkspace` | none |
+| `/studio` | (app) | `StudioMode.svelte` | auth |
+| `/create` | (app) | `CreateMode.svelte` | auth |
+| `/trip/[id]` | (app) | `+page.svelte` + `MapShell` | none |
+| `/image` | (app) | `+page.svelte` + `ImageShell` | none |
+| `/contribute/digitalize` | (app) | `TriageTool` + `OcrBboxTool` | auth |
+| `/contribute/trace` | (app) | `TraceTool.svelte` | auth |
+| `/contribute/review` | *(none)* | `ReviewMode.svelte` | mod/admin |
+
+`/contribute/review` sits outside both route groups — an accident, not a design choice.
 
 **Redirects** (301, query params preserved):
-- `/studio` → `/annotate`
-- `/trip` → `/view`
-- `/hunt` → `/view`
-- `/georef` → `/contribute/georef`
+- `/view` → `/explore`
+- `/annotate` → `/studio`
+- `/contribute/label` → `/contribute/digitalize`
+
+There is no `/admin`, `/signup`, `/contribute/catalog`, `/hunt` or `/georef` route.
 
 ---
 
