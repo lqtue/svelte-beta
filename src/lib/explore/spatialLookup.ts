@@ -104,8 +104,3 @@ export function unresolvedAllmapsIds(mapList: MapListItem[], includeDrafts = fal
 
 export { fetchMultipleBounds };
 
-export function coverageStateFor(matches: ResolvedMap[]): CoverageState {
-  if (matches.length >= 2) return 'rich';
-  if (matches.length === 1) return 'sparse';
-  return 'empty';
-}

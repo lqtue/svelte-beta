@@ -15,13 +15,3 @@ export function haversineDistance(a: [number, number], b: [number, number]): num
   return 2 * EARTH_RADIUS * Math.asin(Math.sqrt(h));
 }
 
-/**
- * Checks if position is within radius meters of target
- */
-export function isWithinRadius(
-  position: [number, number],
-  target: [number, number],
-  radiusMeters: number
-): boolean {
-  return haversineDistance(position, target) <= radiusMeters;
-}

@@ -51,7 +51,7 @@
 
   // React to overlay visibility
   $: if (warpedLayer) {
-    const canvas = warpedLayer.getCanvas();
+    const canvas = warpedLayer.canvas;
     if (canvas) {
       canvas.style.display = showOverlay ? "" : "none";
     }
@@ -77,7 +77,7 @@
     currentOverlayId = id;
     try {
       await loadOverlayByUrl(warpedLayer, secondaryMap, id, overlayOpacity);
-      const canvas = warpedLayer.getCanvas();
+      const canvas = warpedLayer.canvas;
       if (canvas) canvas.style.display = showOverlay ? "" : "none";
       secondaryMap.render();
     } catch (err) {

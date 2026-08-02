@@ -7,6 +7,7 @@
 import { writable, get, type Readable } from 'svelte/store';
 import { layersStore, type LayerRef } from '$lib/stores/layersStore';
 import type { MapStore } from '$lib/stores/mapStore';
+import { randomId } from '$lib/utils/id';
 
 export interface KeyframeOverlay {
 	mapId: string;
@@ -43,10 +44,7 @@ export interface TimelineState {
 	isPlaying: boolean;
 }
 
-function makeId(): string {
-	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-	return Math.random().toString(36).slice(2, 10);
-}
+const makeId = () => randomId('kf');
 
 function snapshot(mapStore: MapStore): Pick<Keyframe, 'camera' | 'layers'> {
 	const m = get(mapStore);

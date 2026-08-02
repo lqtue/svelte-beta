@@ -64,26 +64,3 @@ export async function fetchGeoreferencedMaps(supabase: SupabaseClient<Database>)
   return (data as unknown as DbRow[]).map(toMapListItem);
 }
 
-/** Maps by location (city / region). */
-export async function fetchMapsByLocation(supabase: SupabaseClient<Database>, location: string): Promise<MapListItem[]> {
-  const { data, error } = await supabase
-    .from('maps')
-    .select('*')
-    .eq('location', location)
-    .order('name');
-
-  if (error) { console.error('fetchMapsByType:', error); return []; }
-  return (data as unknown as DbRow[]).map(toMapListItem);
-}
-
-/** Fetch a single map by its uuid (maps.id). */
-export async function fetchMapById(supabase: SupabaseClient<Database>, id: string): Promise<MapListItem | null> {
-  const { data, error } = await supabase
-    .from('maps')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) { console.error('fetchMapById:', error); return null; }
-  return data ? toMapListItem(data as unknown as DbRow) : null;
-}

@@ -4,14 +4,12 @@
 
 	const { supabase, session } = getSupabaseContext();
 
-	let error = $state("");
-	let loading = $state(false);
+	let error = "";
+	let loading = false;
 
-	$effect(() => {
-		if (session) {
-			goto("/");
-		}
-	});
+	$: if (session) {
+		goto("/");
+	}
 
 	async function loginWithGoogle() {
 		error = "";

@@ -13,7 +13,6 @@ import Stroke from 'ol/style/Stroke';
 import type BaseLayer from 'ol/layer/Base';
 
 export const DEFAULT_ANNOTATION_COLOR = '#2563eb';
-export const APP_STATE_KEY = 'vma-viewer-state-v1';
 
 export const DRAW_TYPE_MAP = {
   point: 'Point',
@@ -21,7 +20,6 @@ export const DRAW_TYPE_MAP = {
   polygon: 'Polygon'
 } as const;
 
-export const INITIAL_CENTER = fromLonLat([106.70098, 10.77653]);
 
 export interface BasemapDefinition {
   key: string;

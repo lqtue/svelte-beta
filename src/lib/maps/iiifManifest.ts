@@ -101,7 +101,7 @@ function extractThumbnail(manifest: Record<string, unknown>, version: 2 | 3): st
 // ---- public API ----
 
 /** Parse a raw IIIF manifest object into normalised metadata. */
-export function parseIIIFManifest(manifest: Record<string, unknown>): IIIFManifestMeta {
+function parseIIIFManifest(manifest: Record<string, unknown>): IIIFManifestMeta {
   const context = manifest['@context'] as string | string[] | undefined;
   const contextStr = Array.isArray(context) ? context.join(' ') : (context ?? '');
   const isV3 = contextStr.includes('presentation/3') || manifest['type'] === 'Manifest';

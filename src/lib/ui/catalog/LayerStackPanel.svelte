@@ -11,7 +11,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { layersStore } from '$lib/stores/layersStore';
+  import { layersStore, clamp01 } from '$lib/stores/layersStore';
   import type { ViewMode, MapListItem } from '$lib/map/types';
 
   export let viewMode: ViewMode = 'overlay';
@@ -38,7 +38,7 @@
   function setOpacityFromPointer(rowEl: HTMLElement, id: string, e: PointerEvent) {
     const rect = rowEl.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const pct = clamp01(x / rect.width);
     const snapped = Math.round(pct * 20) / 20;     // 5% steps
     layersStore.setOpacity(id, snapped);
   }

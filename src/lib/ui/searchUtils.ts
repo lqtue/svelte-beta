@@ -79,44 +79,6 @@ function boundsArea(bounds: [number, number, number, number]): number {
 	return (bounds[2] - bounds[0]) * (bounds[3] - bounds[1]);
 }
 
-/**
- * Find the map whose bounds cover the given point, preferring the smallest (most specific).
- * Falls back to the nearest map within `maxDistanceKm` if none contain the point.
- */
-export function findCoveringMap(
-	lat: number,
-	lng: number,
-	maps: MapListItem[],
-	maxDistanceKm: number = 50
-): MapListItem | null {
-	// Filter maps that contain the point
-	const containing = maps.filter((m) => {
-		if (!m.bounds) return false;
-		const [minLon, minLat, maxLon, maxLat] = m.bounds;
-		return lng >= minLon && lng <= maxLon && lat >= minLat && lat <= maxLat;
-	});
-
-	if (containing.length > 0) {
-		// Pick smallest bounding box
-		containing.sort((a, b) => boundsArea(a.bounds!) - boundsArea(b.bounds!));
-		return containing[0];
-	}
-
-	// Fallback: nearest within maxDistanceKm
-	let nearest: MapListItem | null = null;
-	let nearestDist = Infinity;
-
-	for (const m of maps) {
-		if (!m.bounds) continue;
-		const dist = distanceToBox(lng, lat, m.bounds);
-		if (dist < nearestDist && dist <= maxDistanceKm) {
-			nearestDist = dist;
-			nearest = m;
-		}
-	}
-
-	return nearest;
-}
 
 /**
  * Find all maps near a point, sorted by distance (closest first).

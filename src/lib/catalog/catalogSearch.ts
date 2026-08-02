@@ -24,7 +24,7 @@ export interface PeriodDef {
 }
 
 /** Fallback until /api/search responds. Mirrors the server's PERIODS. */
-export const DEFAULT_PERIODS: PeriodDef[] = [
+const DEFAULT_PERIODS: PeriodDef[] = [
   { key: 'pre_colonial', label: 'Pre-colonial (≤1858)', from: 0, to: 1858 },
   { key: 'early_colonial', label: 'Early colonial (1859–1887)', from: 1859, to: 1887 },
   { key: 'indochina', label: 'French Indochina (1888–1939)', from: 1888, to: 1939 },

@@ -2,31 +2,6 @@ import type { Database } from '$lib/supabase/types';
 
 export type MapRow = Database['public']['Tables']['maps']['Row'];
 
-export async function fetchAdminMaps(): Promise<MapRow[]> {
-    const res = await fetch('/api/admin/maps');
-    if (!res.ok) throw new Error('Failed to fetch maps');
-    return res.json();
-}
-
-export async function createMap(data: {
-    name: string;
-    allmaps_id?: string;
-    location?: string;
-    year?: number | null;
-    dc_description?: string;
-    is_featured?: boolean;
-}): Promise<MapRow> {
-    const res = await fetch('/api/admin/maps', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to create map' }));
-        throw new Error(err.message || 'Failed to create map');
-    }
-    return res.json();
-}
 
 export async function updateMap(id: string, data: Partial<{
     name: string;
@@ -100,25 +75,6 @@ export async function uploadMapImage(id: string, file: File): Promise<{
     return res.json();
 }
 
-export async function uploadImageToIA(file: File, name: string): Promise<{
-    iiif_url: string;
-    ia_identifier: string;
-    ia_filename: string;
-}> {
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('name', name);
-
-    const res = await fetch('/api/admin/upload-image', {
-        method: 'POST',
-        body: formData
-    });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to upload image' }));
-        throw new Error(err.message || 'Failed to upload image');
-    }
-    return res.json();
-}
 
 // ---- IIIF Sources ----
 

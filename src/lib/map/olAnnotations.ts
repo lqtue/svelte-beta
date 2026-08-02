@@ -48,7 +48,7 @@ export function toAnnotationSummary(feature: Feature<Geometry>): AnnotationSumma
   };
 }
 
-export function hexToRgba(hex: string, alpha: number) {
+function hexToRgba(hex: string, alpha: number) {
   const normalized = hex.replace('#', '');
   if (![3, 6].includes(normalized.length)) {
     return `rgba(37, 99, 235, ${alpha})`;

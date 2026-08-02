@@ -44,19 +44,6 @@ export function geometryKind(ft: FeatureType): 'Polygon' | 'LineString' {
 // Canonical SAM color-class categories (from the 1882/1898 Saigon cadastral legend).
 export type SamCategory = 'particulier' | 'communal' | 'militaire' | 'local_svc' | 'non_affect';
 
-export const SAM_CATEGORY_LABELS: Record<SamCategory, string> = {
-	particulier: 'Particulier (Private)',
-	communal:    'Communal',
-	militaire:   'Militaire',
-	local_svc:   'Local Service',
-	non_affect:  'Non-affecté'
-};
-
-// Guard: check if a string is a known SAM category
-export function isSamCategory(s: string): s is SamCategory {
-	return s === 'particulier' || s === 'communal' || s === 'militaire'
-		|| s === 'local_svc' || s === 'non_affect';
-}
 
 export interface FootprintSubmission {
 	id: string;

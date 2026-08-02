@@ -20,7 +20,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   const { user, supabase } = await assertAdmin(locals);
   const body = await request.json();
   const allowed = ['status', 'category', 'thumbnail', 'title', 'creator', 'year', 'language', 'rights'] as const;
-  const patch: Record<string, unknown> = {};
+  const patch: Database['public']['Tables']['scout_candidates']['Update'] = {};
   for (const k of allowed) {
     if (body[k] !== undefined) patch[k] = body[k];
   }

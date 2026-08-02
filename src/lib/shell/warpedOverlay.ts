@@ -123,7 +123,7 @@ export function applyClipMask(
 	sideRatio: number,
 	lensRadius: number
 ): void {
-	const canvas = layer.getCanvas();
+	const canvas = layer.canvas;
 	if (!canvas) return;
 
 	const size = map.getSize();
@@ -141,41 +141,3 @@ export function applyClipMask(
 }
 // ── Metadata fetching ────────────────────────────────────────────
 
-/**
- * Fetches the Allmaps annotation for a source and returns its bbox.
- * Returns null if fetch fails or no bbox found.
- * 
- * BBox format: [minLon, minLat, maxLon, maxLat]
- */
-export async function fetchMapBounds(source: string): Promise<[number, number, number, number] | null> {
-	try {
-		const url = annotationUrlForSource(source);
-		const resp = await fetch(url);
-		if (!resp.ok) return null;
-
-		const json = await resp.json();
-
-		// Map (annotation) -> maps (or body.maps) -> bbox
-		let maps: any[] = [];
-
-		if (Array.isArray(json)) {
-			maps = json;
-		} else if (json.body && json.body.maps) {
-			// Standard Georeference Annotation
-			maps = json.body.maps;
-		} else if (json.maps) {
-			maps = json.maps;
-		} else if (json.items) {
-			maps = json.items;
-		}
-
-		if (maps.length > 0 && maps[0].bbox) {
-			return maps[0].bbox;
-		}
-
-		return null;
-	} catch (err) {
-		console.warn('[Warper] Failed to fetch bounds:', err);
-		return null;
-	}
-}

@@ -262,6 +262,3 @@ export function createStoryPlayerStore(
 export type StoryLibraryStore = ReturnType<typeof createStoryLibraryStore>;
 export type StoryPlayerStore = ReturnType<typeof createStoryPlayerStore>;
 
-// Legacy aliases
-export const createHuntLibraryStore = createStoryLibraryStore;
-export const createHuntPlayerStore = createStoryPlayerStore;

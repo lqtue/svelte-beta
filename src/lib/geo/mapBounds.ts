@@ -226,9 +226,3 @@ export async function fetchMultipleBounds(
 	return results;
 }
 
-/**
- * Clears the bounds cache (useful for testing or memory management)
- */
-export function clearBoundsCache(): void {
-	boundsCache.clear();
-}

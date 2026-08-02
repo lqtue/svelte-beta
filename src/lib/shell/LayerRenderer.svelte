@@ -132,7 +132,7 @@
 
       // Visibility: respect the layer's own toggle, and in side-by-side hide overlays past the top.
       const visible = o.visible && !(sideBySide && i > 0);
-      const canvas = inst.layer.getCanvas?.();
+      const canvas = inst.layer.canvas;
       if (canvas) canvas.style.display = visible ? '' : 'none';
     }
   }

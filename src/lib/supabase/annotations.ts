@@ -43,24 +43,6 @@ export async function fetchUserAnnotationSets(
 	return (data as unknown as DbAnnotationSet[]).map(toAnnotationSet);
 }
 
-export async function fetchAnnotationSetsByMap(
-	supabase: SupabaseClient,
-	mapId: string
-): Promise<AnnotationSet[]> {
-	const { data, error } = await supabase
-		.from('annotation_sets')
-		.select('*')
-		.eq('map_id', mapId)
-		.eq('is_public', true)
-		.order('updated_at', { ascending: false });
-
-	if (error || !data) {
-		console.error('Failed to fetch public annotation sets:', error);
-		return [];
-	}
-
-	return (data as unknown as DbAnnotationSet[]).map(toAnnotationSet);
-}
 
 export async function createAnnotationSet(
 	supabase: SupabaseClient,

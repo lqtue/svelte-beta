@@ -80,10 +80,6 @@ export function createMapStore(initial?: Partial<MapStoreValue>): MapStore {
 
 // ── Derived helpers ──────────────────────────────────────────────────
 
-/** Derive an EPSG:3857 coordinate pair from mapStore (for OL View) */
-export function deriveOlCenter(store: Readable<MapStoreValue>): Readable<[number, number]> {
-	return derived(store, ($s) => fromLonLat([$s.lng, $s.lat]) as [number, number]);
-}
 
 /** Read the current OL center synchronously */
 export function getOlCenter(store: MapStore): [number, number] {

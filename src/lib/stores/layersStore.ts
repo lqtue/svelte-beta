@@ -10,6 +10,7 @@
  */
 import { writable, derived, get, type Readable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { randomId } from '$lib/utils/id';
 
 export type BasemapRef = { kind: 'basemap'; key: string };
 export type HistoricalRef = {
@@ -71,8 +72,8 @@ function persist(s: LayersState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {}
 }
 
-function clamp01(n: number): number { return Math.max(0, Math.min(1, n)); }
-function makeId(): string { return Math.random().toString(36).slice(2, 10); }
+export function clamp01(n: number): number { return Math.max(0, Math.min(1, n)); }
+const makeId = () => randomId('layer');
 
 function create() {
   const inner = writable<LayersState>(load());

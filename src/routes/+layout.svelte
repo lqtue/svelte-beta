@@ -7,11 +7,11 @@
 	import { setSupabaseContext } from '$lib/supabase/context';
 	import { registerServiceWorker } from '$lib/utils/pwa';
 
-	let { data, children } = $props();
+	export let data;
 
 	const supabase = createSupabaseBrowserClient();
 
-	let currentSession = $state(data.session);
+	let currentSession = data.session;
 
 	// Pass initial session value to context; auth changes trigger full page invalidation
 	setSupabaseContext({ supabase, session: data.session });
@@ -35,4 +35,4 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{@render children?.()}
+<slot />

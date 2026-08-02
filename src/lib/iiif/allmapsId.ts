@@ -4,7 +4,7 @@ import { generateId } from '@allmaps/id';
  * Canonical form of a IIIF Image service URL for hashing.
  * Strips an optional trailing `/info.json` and any trailing slashes.
  */
-export function canonicalIiifUrl(url: string): string {
+function canonicalIiifUrl(url: string): string {
 	return url.replace(/\/(info\.json)?$/, '').replace(/\/+$/, '');
 }
 

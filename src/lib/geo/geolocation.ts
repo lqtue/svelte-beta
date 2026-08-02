@@ -1,6 +1,6 @@
 import type { GeolocationConfig, TrackingCallbacks } from './types';
 
-export const DEFAULT_CONFIG: GeolocationConfig = {
+const DEFAULT_CONFIG: GeolocationConfig = {
 	enableHighAccuracy: true,
 	timeout: 10000,
 	maximumAge: 0

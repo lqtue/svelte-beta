@@ -20,8 +20,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const supabase = await getAdminClient(locals);
     const body = await request.json();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateData: Record<string, any> = {};
+    const updateData: Database['public']['Tables']['map_iiif_sources']['Update'] = {};
     if (body.label        !== undefined) updateData.label        = body.label;
     if (body.source_type  !== undefined) updateData.source_type  = body.source_type;
     if (body.iiif_manifest !== undefined) updateData.iiif_manifest = body.iiif_manifest;
