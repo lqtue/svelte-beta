@@ -21,10 +21,13 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 ```bash
 npm run dev          # Dev server
 npm run build        # Production build
-npm run check        # Type-check (primary verification — no test runner)
+npm run check        # Type-check (primary verification)
+npm run test         # Playwright smoke suite (tests/smoke.spec.ts)
 npm run deploy       # Build + deploy to Cloudflare Pages via wrangler
 npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 ```
+
+`npm run test` starts a dev server on 5173, or reuses one already running. The six smokes are **read-only** — they hit the real Supabase project but never write. Covering the OCR-bbox and footprint write paths needs auth plus a seeded test project; until that exists, don't point write tests at production.
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
