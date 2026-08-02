@@ -1,1 +1,0 @@
-let e="",t=e;const i="_app",r=!0,a={base:e,assets:t};function o(s){e=s.base,t=s.assets}function c(){e=a.base,t=a.assets}function u(s){t=a.assets=s}let n=!1;function f(){}function l(){n=!0}export{t as a,e as b,i as c,c as d,f as e,l as f,o,n as p,r,u as s};

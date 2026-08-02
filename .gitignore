@@ -2,7 +2,11 @@
 node_modules
 /build
 /.svelte-kit
+/.vercel
+/.wrangler
 /package
+__pycache__/
+*.pyc
 .env
 .env.*
 !.env.example
