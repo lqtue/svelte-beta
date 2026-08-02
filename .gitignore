@@ -13,6 +13,11 @@ __pycache__/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# Playwright
+/test-results
+/playwright-report
+/blob-report
+
 # SAM2 model checkpoints
 *.pt
 *.pth
