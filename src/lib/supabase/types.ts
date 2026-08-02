@@ -315,6 +315,32 @@ export type Database = {
           },
         ]
       }
+      map_opens: {
+        Row: {
+          created_at: string | null
+          id: string
+          map_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          map_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          map_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "map_opens_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       map_pipeline_status: {
         Row: {
           map_id: string

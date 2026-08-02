@@ -13,6 +13,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { pushState } from '$app/navigation';
   import type Map from 'ol/Map';
 
   import { getSupabaseContext } from '$lib/supabase/context';
@@ -238,6 +239,55 @@
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
   }
 
+  // ── URL ← state ────────────────────────────────────────────────
+  // Writes the topmost overlay into ?map= so the selection is shareable and,
+  // more importantly, so each opened map shows up as its own path+query in
+  // Cloudflare Web Analytics. /explore was previously a single opaque URL, so
+  // there was no way to tell which of the ~100 maps anyone actually looked at.
+  //
+  // ponytail: mirrors only the topmost overlay, not the whole stack. The
+  // existing applyUrlParams() reader takes a single ?map= id, so a full stack
+  // encoding would need a reader change too — do that if sharing multi-map
+  // stacks is ever asked for.
+  function syncMapParam(mapId: string | null) {
+    // Read window.location, NOT $page.url: pushState() is shallow routing, so it
+    // updates $page.state and leaves $page.url pinned at the last real
+    // navigation ("/explore"). Building from $page.url meant the delete below hit
+    // a URL that never had ?map= on it, so removal silently no-op'd.
+    // MapShell's initUrlSync also owns the #@lat,lng,zoom hash — carrying the
+    // live href over keeps its camera state instead of clobbering it.
+    const url = new URL(window.location.href);
+    if (mapId) url.searchParams.set('map', mapId);
+    else url.searchParams.delete('map');
+    if (url.href === window.location.href) return;
+    // Belt-and-braces: $page.url doesn't currently see our writes, but if that
+    // ever changes the applyUrlParams block below would fire on our own URL and
+    // force-zoom a second time right after handlePickMap's soft zoom.
+    appliedUrl = true;
+    // pushState (not replaceState) so the beacon registers a new pageview and
+    // back/forward walks the maps the visitor opened.
+    pushState(url, {});
+  }
+
+  // Tally one row per map open (migration 049). This is the only way to learn
+  // which maps get looked at: Cloudflare Web Analytics reports requestPath and
+  // has no query-string dimension, so the ?map= above is invisible to it.
+  //
+  // Staff opens are skipped. label_pins and footprint_submissions are both 100%
+  // admin rows, which makes them useless as interest signals — cataloguing work
+  // would drown out the handful of real visitors here too.
+  function recordMapOpen(mapId: string) {
+    if (role !== 'user') return;
+    // ponytail: fire-and-forget. A dropped tally must never interrupt opening a
+    // map, so nothing awaits this and failures only warn.
+    void supabase
+      .from('map_opens')
+      .insert({ map_id: mapId })
+      .then(({ error }) => {
+        if (error) console.warn('[explore] map_opens insert failed:', error.message);
+      });
+  }
+
   // ── Catalog / sidebar event handlers ───────────────────────────
   function handlePickLocation(e: CustomEvent<{ lat: number; lng: number; bbox?: Bbox }>) {
     const { lat, lng, bbox } = e.detail;
@@ -252,10 +302,13 @@
     if (!item?.id) return;
     const map = mapList.find((m) => m.id === item.id) ?? (item as MapListItem);
     addMapOverlay(map);
+    syncMapParam(map.id);
+    recordMapOpen(map.id);
     await zoomToMap(map);
   }
   function handleRemoveOverlay(e: CustomEvent<{ mapId: string }>) {
     layersStore.removeOverlayByMapId(e.detail.mapId);
+    syncMapParam($layersStore.overlays[0]?.ref.mapId ?? null);
   }
   function handleZoomToOverlay(e: CustomEvent<{ mapId: string }>) {
     const m = mapList.find((m) => m.id === e.detail.mapId);
@@ -285,6 +338,9 @@
       const found = maps.find((m) => m.id === paramMapId || m.allmaps_id === paramMapId);
       if (found) {
         addMapOverlay(found);
+        // Arriving on a shared ?map= link is an open too — and it's the one path
+        // where the visitor never touches the browse panel.
+        recordMapOpen(found.id);
         await zoomToMap(found, { force: true });
       }
     }

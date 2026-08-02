@@ -1,4 +1,16 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+// Opening a map tallies a row in the production map_opens table (migration 049),
+// which would pollute the real per-map counts with test traffic. Any test that
+// opens a map must call this first. Returns a live counter of blocked inserts.
+async function blockMapOpenTally(page: Page): Promise<() => number> {
+	let n = 0;
+	await page.route('**/rest/v1/map_opens*', (route) => {
+		if (route.request().method() === 'POST') n++;
+		return route.abort();
+	});
+	return () => n;
+}
 
 // ponytail: read-only smokes against the dev server and the real Supabase
 // project. Nothing here writes a row. The two write paths worth covering —
@@ -34,6 +46,9 @@ test('explore mounts an OpenLayers map', async ({ page }) => {
 });
 
 test('an overlay renders on the map', async ({ page }) => {
+	// Deeplinking counts as an open, so keep this one out of the tally too.
+	await blockMapOpenTally(page);
+
 	// Pick a georeferenced map from the API rather than hardcoding a UUID.
 	// georef takes 'yes' | 'no', not a boolean.
 	const res = await page.request.get('/api/search?georef=yes&limit=1');
@@ -46,6 +61,35 @@ test('an overlay renders on the map', async ({ page }) => {
 	await expect(page.locator('.shell-map canvas').first()).toBeVisible({ timeout: 20_000 });
 	// layersStore is the single source of truth; LayerStackPanel renders it.
 	await expect(page.locator('.lsp-text').first()).toBeVisible({ timeout: 20_000 });
+});
+
+test('picking a map writes ?map= and tallies the open', async ({ page }) => {
+	// /explore used to be one opaque URL, so analytics could not attribute which
+	// map anyone opened. syncMapParam() + recordMapOpen() fix that — assert both.
+
+	// Aborting the insert still proves the call was made; that the server accepts
+	// it is enforced by the RLS policies in migration 049.
+	const tallied = await blockMapOpenTally(page);
+
+	// The first-run tour's driver.js overlay swallows clicks on the browse rows,
+	// so ack it up front the way a returning visitor would have.
+	await page.addInitScript(() => localStorage.setItem('vma-explore-tour-ack-v1', 'true'));
+	await page.goto('/explore');
+	// Welcome chooser gates the browse panel; take the "show everything" branch.
+	await page.locator('button.choice:not(.primary)').click();
+
+	const row = page.locator('.ebp ul.rows button.row').first();
+	await expect(row).toBeVisible({ timeout: 20_000 });
+	await row.click();
+
+	await expect(page).toHaveURL(/[?&]map=[0-9a-f-]{36}/);
+	await expect.poll(tallied, { timeout: 10_000 }).toBe(1);
+
+	// Tapping the same row again removes the overlay, which must drop the param
+	// rather than leave a stale id behind. Removal is not an open — no new tally.
+	await row.click();
+	await expect(page).not.toHaveURL(/[?&]map=/);
+	expect(tallied()).toBe(1);
 });
 
 test('the IIIF tool pages mount their ImageShell', async ({ page }) => {
