@@ -78,9 +78,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     }
 
     // child_process only available in Node.js (local dev), not Cloudflare Workers
-    let spawnFn: typeof import('child_process').spawn | null = null;
+    // ponytail: node: prefix is required — bare 'child_process'/'path' fail the
+    // Cloudflare Pages Functions bundle step (esbuild can't resolve them).
+    let spawnFn: typeof import('node:child_process').spawn | null = null;
     try {
-        ({ spawn: spawnFn } = await import('child_process'));
+        ({ spawn: spawnFn } = await import('node:child_process'));
     } catch {
         // Production: return the exact CLI command so the user can run it locally
         const cliCommand = `source .venv/bin/activate && python work/ocr/scripts/ocr.py ${cliArgs.join(' ')}`;
@@ -90,7 +92,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
         );
     }
 
-    const { resolve } = await import('path');
+    const { resolve } = await import('node:path');
     const repoRoot = resolve('.');
     const pythonBin = resolve(repoRoot, '.venv/bin/python');
     const script = resolve(repoRoot, 'work/ocr/scripts/ocr.py');
