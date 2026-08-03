@@ -27,7 +27,11 @@ npm run deploy       # Build + deploy to Cloudflare Pages via wrangler
 npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 ```
 
-**Do not drop the `rm -rf` from `build`.** Cloudflare Pages restores `.svelte-kit` from its build-output cache between runs. Vite then rewrites the manifest but leaves orphaned chunks behind, and the deploy uploads an `app.<hash>.js` referencing a `nodes/N.<hash>.js` that was never emitted. Every route with `ssr = false` — which is all of them — goes fully blank with `Failed to fetch dynamically imported module`. Building from a clean output dir is the fix. Also: never import a Node builtin bare (`import('path')`); the CF Functions bundle only tolerates the `node:` prefix.
+**Blank page right after a deploy is expected, and self-heals.** Cloudflare Pages serves the new HTML + `entry/app.<hash>.js` before every `_app/immutable/` chunk is reachable at the edge; individual chunks 404 for a minute or two, and which one is missing moves between requests. Because every route sets `ssr = false`, one unreachable chunk means a fully blank document whose only symptom is `Failed to fetch dynamically imported module` (WebKit says `Importing a module script failed`). Wait for propagation and hard-reload before debugging — verify with `curl -o /dev/null -w "%{http_code}"` against the chunk the console names, and retry a few times to see it flip to 200.
+
+`build` wipes `.svelte-kit/output` and runs `scripts/check-bundle.mjs`, which fails the build if an emitted chunk imports one that wasn't written. That guards against a genuinely inconsistent bundle — it does **not** address the propagation lag above, which no build-time check can see.
+
+Never import a Node builtin bare (`import('path')`); the CF Functions bundle errors with `Could not resolve "path"` and publishes nothing. Use the `node:` prefix.
 
 `npm run test` starts a dev server on 5173, or reuses one already running. The six smokes are **read-only** — they hit the real Supabase project but never write. Covering the OCR-bbox and footprint write paths needs auth plus a seeded test project; until that exists, don't point write tests at production.
 
