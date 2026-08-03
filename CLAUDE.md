@@ -20,12 +20,14 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 
 ```bash
 npm run dev          # Dev server
-npm run build        # Production build
+npm run build        # Production build (wipes .svelte-kit/output first — see note below)
 npm run check        # Type-check (primary verification)
 npm run test         # Playwright smoke suite (tests/smoke.spec.ts)
 npm run deploy       # Build + deploy to Cloudflare Pages via wrangler
 npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 ```
+
+**Do not drop the `rm -rf` from `build`.** Cloudflare Pages restores `.svelte-kit` from its build-output cache between runs. Vite then rewrites the manifest but leaves orphaned chunks behind, and the deploy uploads an `app.<hash>.js` referencing a `nodes/N.<hash>.js` that was never emitted. Every route with `ssr = false` — which is all of them — goes fully blank with `Failed to fetch dynamically imported module`. Building from a clean output dir is the fix. Also: never import a Node builtin bare (`import('path')`); the CF Functions bundle only tolerates the `node:` prefix.
 
 `npm run test` starts a dev server on 5173, or reuses one already running. The six smokes are **read-only** — they hit the real Supabase project but never write. Covering the OCR-bbox and footprint write paths needs auth plus a seeded test project; until that exists, don't point write tests at production.
 

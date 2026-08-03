@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "rm -rf .svelte-kit/output .svelte-kit/cloudflare && vite build && node scripts/check-bundle.mjs",
 		"preview": "vite preview",
 		"deploy": "npm run build && wrangler pages deploy",
 		"prepare": "svelte-kit sync || echo ''",
