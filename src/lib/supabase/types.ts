@@ -561,6 +561,7 @@ export type Database = {
           category_validated: string | null
           confidence: number
           created_at: string
+          footprint_id: string | null
           global_h: number | null
           global_w: number | null
           global_x: number | null
@@ -587,6 +588,7 @@ export type Database = {
           category_validated?: string | null
           confidence?: number
           created_at?: string
+          footprint_id?: string | null
           global_h?: number | null
           global_w?: number | null
           global_x?: number | null
@@ -613,6 +615,7 @@ export type Database = {
           category_validated?: string | null
           confidence?: number
           created_at?: string
+          footprint_id?: string | null
           global_h?: number | null
           global_w?: number | null
           global_x?: number | null
@@ -635,6 +638,13 @@ export type Database = {
           validated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ocr_extractions_footprint_id_fkey"
+            columns: ["footprint_id"]
+            isOneToOne: false
+            referencedRelation: "footprint_submissions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ocr_extractions_map_id_fkey"
             columns: ["map_id"]

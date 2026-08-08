@@ -121,6 +121,55 @@ def fetch_ocr_extractions(map_id: str, run_id: str | None = None) -> list[dict[s
     return data
 
 
+def fetch_footprints(map_id: str) -> list[dict[str, Any]]:
+    """Fetch footprint_submissions polygons for a map (for the label join)."""
+    url, key = _load_config()
+    endpoint = (
+        f"{url}/rest/v1/footprint_submissions?map_id=eq.{map_id}"
+        "&select=id,pixel_polygon,feature_type,category,name"
+    )
+    resp = requests.get(
+        endpoint,
+        headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        timeout=30,
+    )
+    if not resp.ok:
+        raise requests.HTTPError(f"{resp.status_code} footprints fetch failed: {resp.text}", response=resp)
+    return resp.json()
+
+
+def link_extractions_to_footprints(assignments: dict[str, str]) -> int:
+    """Write footprint_id back to ocr_extractions (migration 050).
+
+    assignments = {extraction_id: footprint_id}. Grouped by footprint so a whole
+    building's labels update in one PATCH — one request per distinct footprint.
+    """
+    if not assignments:
+        return 0
+
+    url, key = _load_config()
+    by_footprint: dict[str, list[str]] = {}
+    for ext_id, fp_id in assignments.items():
+        by_footprint.setdefault(fp_id, []).append(ext_id)
+
+    total = 0
+    for fp_id, ext_ids in by_footprint.items():
+        for i in range(0, len(ext_ids), _CHUNK_SIZE):
+            chunk = ext_ids[i : i + _CHUNK_SIZE]
+            id_list = ",".join(chunk)
+            resp = requests.patch(
+                f"{url}/rest/v1/ocr_extractions?id=in.({id_list})",
+                headers=_headers(key),
+                data=json.dumps({"footprint_id": fp_id}),
+                timeout=30,
+            )
+            if not resp.ok:
+                raise requests.HTTPError(f"{resp.status_code} link failed: {resp.text[:400]}", response=resp)
+            total += len(chunk)
+
+    return total
+
+
 def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:
     """Upsert a row in map_pipeline_status for the given map_id and stage.
 
