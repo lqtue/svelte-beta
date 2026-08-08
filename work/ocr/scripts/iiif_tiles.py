@@ -289,6 +289,27 @@ def compute_tile_densities(
     return densities
 
 
+def auto_tile_overrides(
+    densities: dict[tuple[int, int, int, int], float],
+    skip_below: float = 0.01,
+    low_res_below: float = 0.08,
+) -> dict[str, str]:
+    """Turn per-tile text-density fractions into a priority-grid override map.
+
+    Auto-fills what the Triage grid does by hand: blank tiles (below skip_below)
+    → "skip" so they cost no API call; sparse tiles (below low_res_below) → a
+    cheap low-res render; dense tiles are omitted (full render, the default).
+    Same {"x_y_w_h": "skip"|"low_res"} shape ocr.py already consumes.
+    """
+    out: dict[str, str] = {}
+    for (x, y, w, h), frac in densities.items():
+        if frac < skip_below:
+            out[f"{x}_{y}_{w}_{h}"] = "skip"
+        elif frac < low_res_below:
+            out[f"{x}_{y}_{w}_{h}"] = "low_res"
+    return out
+
+
 def auto_tile_params(
     full_w: int,
     full_h: int,
@@ -442,3 +463,13 @@ def choose_scale_levels(
             seen_widths.add(best["width"])
 
     return sorted(chosen, key=lambda s: s["width"])
+
+
+if __name__ == "__main__":
+    # Self-check: density fractions map to the right priority tiers.
+    _d = {(0, 0, 10, 10): 0.005,   # blank  → skip
+          (10, 0, 10, 10): 0.05,   # sparse → low_res
+          (20, 0, 10, 10): 0.40}   # dense  → omitted (full render)
+    _ov = auto_tile_overrides(_d, skip_below=0.01, low_res_below=0.08)
+    assert _ov == {"0_0_10_10": "skip", "10_0_10_10": "low_res"}, _ov
+    print("[ok] iiif_tiles auto_tile_overrides self-check passed")

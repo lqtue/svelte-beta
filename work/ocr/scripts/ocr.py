@@ -36,6 +36,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 from iiif_tiles import (
     adaptive_render_size,
+    auto_tile_overrides,
     auto_tile_params,
     choose_scale_levels,
     compute_tile_densities,
@@ -384,6 +385,18 @@ def cmd_batch(args: argparse.Namespace) -> None:
             tile_overrides = json.loads(args.tile_overrides)
         except json.JSONDecodeError as e:
             print(f"  Warning: could not parse --tile-overrides JSON: {e}")
+    elif not local_image and getattr(args, "auto_priority", False):
+        # Auto-fill the priority grid from a color pre-pass instead of by hand:
+        # blank → skip, sparse → low_res, dense → full render.
+        print("  Auto-priority: computing tile density pre-pass ...")
+        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024,
+                              quality=iiif_quality)
+        densities = compute_tile_densities(overview, tiles, img_w, img_h)
+        tile_overrides = auto_tile_overrides(
+            densities,
+            skip_below=getattr(args, "skip_below", 0.01),
+            low_res_below=getattr(args, "low_res_below", 0.08),
+        )
     low_res_render = getattr(args, "low_res_render", 512)
 
     skip_keys = {k for k, v in tile_overrides.items() if v == "skip"}
@@ -2057,6 +2070,13 @@ def build_parser() -> argparse.ArgumentParser:
                               'Example: \'{"390_295_2000_2000":"skip","2390_0_2000_2000":"low_res"}\'')
     p_batch.add_argument("--low-res-render", type=int, default=512,
                          help="Render size (px) for low_res tiles (default 512)")
+    p_batch.add_argument("--auto-priority", action="store_true",
+                         help="Auto-fill the priority grid from a density pre-pass "
+                              "(blank→skip, sparse→low_res). Ignored if --tile-overrides is given.")
+    p_batch.add_argument("--skip-below", type=float, default=0.01,
+                         help="Text-density fraction below which --auto-priority marks a tile skip (default 0.01)")
+    p_batch.add_argument("--low-res-below", type=float, default=0.08,
+                         help="Text-density fraction below which --auto-priority marks a tile low_res (default 0.08)")
     p_batch.set_defaults(func=cmd_batch)
 
     # dedup
