@@ -178,6 +178,10 @@ def extract_labels(
         "system_instruction": system_prompt,
         "response_mime_type": "application/json",
         "response_schema": schema,
+        # A dense tile can hold 100+ labels; the model default output cap
+        # truncates mid-JSON (the "unterminated string" malformed error). Give
+        # it plenty of headroom so a full tile never gets cut off.
+        "max_output_tokens": 65536,
     }
 
     # Small stagger before every call to smooth per-second burst spikes.
@@ -401,3 +405,70 @@ def list_models() -> list[str]:
     client, _ = _load_client()
     models = client.models.list()
     return sorted(m.name for m in models)
+
+
+# ── Legend extraction (structured numbered-legend read) ────────────────────────
+
+_LEGEND_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "entries": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "n": {"type": "integer"},
+                    "name": {"type": "string"},
+                    "name_vn": {"type": "string"},
+                    "grid": {"type": "string"},
+                },
+                "required": ["n", "name", "grid"],
+            },
+        }
+    },
+    "required": ["entries"],
+}
+
+
+def extract_legend(image: Image.Image, model: str = DEFAULT_MODEL,
+                   bilingual: bool = False) -> list[dict]:
+    """Extract a numbered map legend as [{n, name, name_vn?, grid}].
+
+    Forces JSON via response_schema, so the return is always valid structured
+    data. `bilingual` tells the model the rows carry both a Vietnamese and an
+    English name (name_vn = Vietnamese, name = English).
+    """
+    from io import BytesIO
+    buf = BytesIO()
+    image.save(buf, format="JPEG", quality=92)
+    image_bytes = buf.getvalue()
+
+    if bilingual:
+        prompt = (
+            "This is a numbered legend from a historical map of Saigon. Each row has: "
+            "a Vietnamese name, a number, a grid-cell code (letter+number like 'H10'), "
+            "and an English name. Extract EVERY numbered entry: n = the number, "
+            "name_vn = Vietnamese name, name = English name, grid = the grid cell. "
+            "Read the grid letter carefully — columns sit at ruled edges."
+        )
+    else:
+        prompt = (
+            "This is a numbered legend from a historical map. Each entry has a number, "
+            "a name (French/Vietnamese, keep diacritics), and a grid-cell code "
+            "(letter+number like 'C10'). Extract EVERY numbered entry: n, name, grid."
+        )
+
+    client, _ = _load_client()
+    config = genai_types.GenerateContentConfig(
+        temperature=0,
+        response_mime_type="application/json",
+        response_schema=_LEGEND_SCHEMA,
+        max_output_tokens=65536,  # a 244-row bilingual legend is long — avoid truncation
+    )
+    resp = client.models.generate_content(
+        model=model,
+        contents=[genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"), prompt],
+        config=config,
+    )
+    data = json.loads(resp.text)
+    return data.get("entries", [])

@@ -29,6 +29,30 @@ python work/ocr/scripts/ocr.py clean \
 
 Subcommands: `run`, `scout`, `stitch`, `batch`, `clean`, `dedup`, `preview`, `list-models`.
 
+### Local passes (no API — run on the M-series for free)
+
+Two subcommands offload the geometry/digit parts of map OCR to local tools, keeping Gemini for semantic text (place names, legend descriptions). Both live in `work/ocr/scripts/local_vision.py`.
+
+They need only `numpy`, `scipy`, `Pillow`, `pytesseract` + the `tesseract` binary (`brew install tesseract`) — **not** `google-genai`. They run in `work/ocr/.venv` (created with `--system-site-packages` to reuse brew numpy/scipy/PIL, since Homebrew Python is PEP-668 externally-managed):
+
+```bash
+python3 -m venv --system-site-packages work/ocr/.venv
+work/ocr/.venv/bin/pip install pytesseract
+
+# Find legend/cartouche/title boxes (scipy ruled-rectangle finder)
+work/ocr/.venv/bin/python work/ocr/scripts/ocr.py detect-layout \
+  --map-id <uuid> --run-id <name>          # → runs/<name>/layout.json (legend_region boxes)
+
+# Spot standalone numerals / legend refs (Tesseract, digit whitelist)
+work/ocr/.venv/bin/python work/ocr/scripts/ocr.py numerals \
+  --map-id <uuid> --run-id <name> [--db]   # → runs/<name>/numerals.json; --db writes category='legend_ref'
+```
+
+- `detect-layout` finds **bordered** boxes only; borderless legends fall back to a manual region or the whole-image legend pass. The regions feed the (Gemini) structured legend pass.
+- `numerals` writes `category='legend_ref'` rows — a later join `legend_ref.text == legend_entry.number` links each map numeral to its legend entry (pure SQL, no model).
+- Both accept `--local-image <path>` to skip IIIF entirely. Self-check: `work/ocr/.venv/bin/python work/ocr/scripts/local_vision.py`.
+- **Known limit:** Tesseract single-digit recall is mediocre (rotated glyphs missed). Upgrade path if recall is too low — swap `spot_numerals()` for a PaddleOCR detector in a Python 3.11 venv, keeping the same `[{text, bbox, confidence}]` shape.
+
 Design notes:
 - Gemini bboxes are **0–1000 normalized space**; render with `img_dim / 1000`.
 - `ocr_extractions.global_x/y/w/h` already store full-image pixel coords.

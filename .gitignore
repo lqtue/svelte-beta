@@ -31,3 +31,4 @@ work/vectorize/outputs/
 
 # OCR pipeline outputs (local artifacts)
 work/ocr/outputs/
+work/ocr/.venv/

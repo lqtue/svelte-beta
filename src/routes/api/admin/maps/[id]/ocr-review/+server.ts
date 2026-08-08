@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     const mapId = params.id;
     const runId = url.searchParams.get('run_id');
     const status = url.searchParams.get('status');
-    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '200'), 500);
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '200'), 2000);
     const offset = parseInt(url.searchParams.get('offset') ?? '0');
 
     let q = (adminSupabase as any)

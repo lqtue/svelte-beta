@@ -16,7 +16,7 @@
   export let mapId: string;
   export let selectedId: string | null = null;
 
-  const OCR_CATEGORIES = ['street','hydrology','place','building','institution','legend','title','other'] as const;
+  const OCR_CATEGORIES = ['street','hydrology','place','building','institution','legend','legend_entry','legend_ref','title','other'] as const;
   type OcrCategory = typeof OCR_CATEGORIES[number];
 
   type Extraction = {
@@ -131,36 +131,16 @@
     if (!mapId) return;
     loading = true; error = '';
     try {
-      const params = new URLSearchParams({ limit: '500' });
+      // Default to All runs (filterRunId '') so every category shows at once;
+      // the run dropdown still lets you narrow to one. 2000 covers big legends.
+      const params = new URLSearchParams({ limit: '2000' });
       if (filterStatus) params.set('status', filterStatus);
       if (filterRunId.trim()) params.set('run_id', filterRunId.trim());
       const res = await fetch(`/api/admin/maps/${mapId}/ocr-review?${params}`);
       if (!res.ok) { error = await res.text(); return; }
       const data = await res.json();
       statusCounts = data.statusCounts ?? {};
-      // Populate run list and auto-select latest on first load
-      if (data.runIds?.length) {
-        availableRuns = data.runIds;
-        if (!filterRunId && availableRuns.length > 0) {
-          filterRunId = availableRuns[availableRuns.length - 1];
-          // Re-fetch with run filter applied
-          const p2 = new URLSearchParams({ limit: '500', run_id: filterRunId });
-          if (filterStatus) p2.set('status', filterStatus);
-          const r2 = await fetch(`/api/admin/maps/${mapId}/ocr-review?${p2}`);
-          if (r2.ok) {
-            const d2 = await r2.json();
-            statusCounts = d2.statusCounts ?? {};
-            extractions = (d2.extractions ?? []).map((e: any) => ({
-              ...e,
-              _editText: e.text_validated ?? e.text,
-              _editCategory: e.category_validated ?? e.category,
-              _saving: false,
-            }));
-            dispatch('loaded', { extractions });
-            return;
-          }
-        }
-      }
+      if (data.runIds?.length) availableRuns = data.runIds;
       extractions = (data.extractions ?? []).map((e: any) => ({
         ...e,
         _editText: e.text_validated ?? e.text,

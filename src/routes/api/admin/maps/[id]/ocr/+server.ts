@@ -71,6 +71,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
         '--db',
     ];
     if (neatline) cliArgs.push('--crop', neatline.join(','));
+    // Fully automated chain (default on): scout neatline + auto legend extract.
+    // Stops at stage 'ocr_done' — extractions land pending for human review.
+    const auto: boolean = body.auto !== false;
+    if (auto) {
+        if (!neatline) cliArgs.push('--scout'); // manual --crop already pins the neatline
+        cliArgs.push('--legend');
+    }
     if (targetCalls) cliArgs.push('--target-calls', String(targetCalls));
     if (priorRun) cliArgs.push('--prior-run', priorRun);
     if (tileOverrides && Object.keys(tileOverrides).length > 0) {
