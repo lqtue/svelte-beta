@@ -98,3 +98,20 @@ Polygons written to `footprint_submissions.coords` as `[[x,y],...]` pixel-space 
 `idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported`
 
 Advances automatically when OCR batch (`--db`) or SAM2 inference (`--write-supabase`) writes. Manual transitions via PATCH `/api/admin/maps/[id]/pipeline`.
+
+## Eval harness (`work/ocr/scripts/eval.py`)
+
+The gate for any core-pipeline change: baseline, refactor, compare. Scores a run against the ground truth the HITL review already produces — validated OCR extractions and verified footprints — so no separate labelling step is needed. Needs `shapely` (seg polygon IoU) + `requests`; `eval_metrics.py` holds the pure scorers (self-check: `python work/ocr/scripts/eval_metrics.py`).
+
+```bash
+# OCR: a run's raw extractions vs human-validated rows (box IoU + char-acc)
+python work/ocr/scripts/eval.py ocr --map-id <uuid> --run-id <run> [--iou 0.5]
+
+# Seg: sam-auto footprints vs verified/consensus footprints (polygon IoU)
+python work/ocr/scripts/eval.py seg --map-id <uuid> [--iou 0.5]
+
+# Offline, no DB — score two JSON files directly
+python work/ocr/scripts/eval.py ocr --pred-file p.json --gt-file g.json
+```
+
+Reports precision / recall / F1 / mean IoU (+ char-acc for OCR). Reads only, never writes. Distinct from `work/MapSAM2/evaluate.py`, which scores a `predictions.json` against a map rather than against DB ground truth.

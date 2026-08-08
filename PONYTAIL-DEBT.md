@@ -25,5 +25,8 @@ and the trigger to revisit. Regenerate: `/ponytail-debt`.
 ## work/ocr/scripts/join_labels.py
 - **:77** — ray-cast PIP + O(labels × footprints) scan. ceiling: one map (hundreds each). upgrade: grid-bucket footprints if a map holds tens of thousands.
 
+## work/ocr/scripts/eval_metrics.py
+- **:48** — char-acc via difflib SequenceMatcher.ratio() (2·M/T similarity), not true CharACC/CER. ceiling: tracks regressions, not an exact CER. upgrade: rapidfuzz normalized_similarity if exact CER needed.
+
 ---
-**8 markers, 2 with no trigger.**
+**9 markers, 2 with no trigger.**
