@@ -29,6 +29,7 @@
   import DualMapPane from '$lib/shell/DualMapPane.svelte';
   import GpsTracker from '$lib/shell/GpsTracker.svelte';
   import StoryMarkers from '$lib/story/StoryMarkers.svelte';
+  import LegendPointsLayer from '$lib/explore/LegendPointsLayer.svelte';
   import StoryPlayback from '$lib/story/StoryPlayback.svelte';
   import LayerStackPanel from '$lib/ui/catalog/LayerStackPanel.svelte';
   import LayerControlsPanel from '$lib/ui/catalog/LayerControlsPanel.svelte';
@@ -82,6 +83,10 @@
   $: dualPaneActive = viewMode === 'dual';
   $: sideAlt = $layersStore.overlays[1] ?? null;
   $: stackCount = $layersStore.overlays.length;
+  // Numbered-legend point overlay — gated to the active (top) overlay map.
+  $: activeOverlayMapId = $layersStore.overlays[0]?.ref.mapId ?? null;
+  let showLegendPoints = false;
+  $: if (!activeOverlayMapId) showLegendPoints = false;
   $: playerState = $storyPlayer;
   $: activeStoryProgress = activeStory ? (playerState.progress[activeStory.id] ?? null) : null;
 
@@ -391,6 +396,8 @@
         {gpsActive}
         {matches}
         {role}
+        legendPointsAvailable={!!activeOverlayMapId}
+        {showLegendPoints}
         forceBrowseExpanded={mode === 'all'}
         on:zoomToOverlay={handleZoomToOverlay}
         on:pickMap={handlePickMap}
@@ -398,6 +405,7 @@
         on:pickLocation={handlePickLocation}
         on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
         on:toggleGps={toggleGps}
+        on:toggleLegendPoints={() => (showLegendPoints = !showLegendPoints)}
         on:toggleCollapse={() => (sidebarCollapsed = true)}
       />
     </svelte:fragment>
@@ -413,9 +421,12 @@
         <LayerControlsPanel
           {viewMode}
           {gpsActive}
+          legendPointsAvailable={!!activeOverlayMapId}
+          {showLegendPoints}
           on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
           on:pickLocation={handlePickLocation}
           on:toggleGps={toggleGps}
+          on:toggleLegendPoints={() => (showLegendPoints = !showLegendPoints)}
         />
       </div>
     </svelte:fragment>
@@ -434,6 +445,7 @@
 
     <svelte:fragment slot="map-children">
       <GpsTracker active={gpsActive && gpsAllowed} on:position={handleGpsPosition} on:error={handleGpsError} />
+      <LegendPointsLayer mapId={activeOverlayMapId} enabled={showLegendPoints} />
       {#if activeStory}
         <StoryMarkers points={activeStory.points} currentIndex={activeStoryProgress?.currentPointIndex ?? 0} />
         <StoryPlayback

@@ -25,6 +25,7 @@
     changeViewMode: { mode: ViewMode };
     zoomToOverlay: { mapId: string };
     toggleGps: void;
+    toggleLegendPoints: void;
   }>();
 
   export let viewMode: ViewMode = 'overlay';
@@ -33,6 +34,8 @@
   export let matches: ResolvedMap[] = [];
   export let forceBrowseExpanded = false;
   export let role: 'user' | 'mod' | 'admin' = 'user';
+  export let legendPointsAvailable = false;
+  export let showLegendPoints = false;
 
   $: hasMatches = matches.length > 0;
 
@@ -161,9 +164,12 @@
       <LayerControlsPanel
         {viewMode}
         {gpsActive}
+        {legendPointsAvailable}
+        {showLegendPoints}
         on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)}
         on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
         on:toggleGps={() => dispatch('toggleGps')}
+        on:toggleLegendPoints={() => dispatch('toggleLegendPoints')}
       />
     </SidebarCard>
   </div>

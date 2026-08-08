@@ -21,11 +21,15 @@
   export let gpsActive: boolean = false;
   /** When false, "Side-by-side" is hidden — used by tool pages (/studio, /create). */
   export let allowDual: boolean = true;
+  /** Show the "Legend points" toggle (only when the active overlay has legend data). */
+  export let legendPointsAvailable: boolean = false;
+  export let showLegendPoints: boolean = false;
 
   const dispatch = createEventDispatcher<{
     changeViewMode: { mode: ViewMode };
     pickLocation: { lat: number; lng: number; label: string; bbox?: [number, number, number, number] };
     toggleGps: void;
+    toggleLegendPoints: void;
   }>();
 
   const ALL_DISPLAY_MODES: { mode: ViewMode; label: string; icon: string }[] = [
@@ -110,6 +114,16 @@
     </div>
   {/if}
 
+  {#if legendPointsAvailable}
+    <button type="button" class="sb-btn is-sm mcp-legend" class:is-on={showLegendPoints}
+      on:click={() => dispatch('toggleLegendPoints')}
+      title="Show numbered legend references on the map"
+    >
+      <span class="mcp-legend-dot">№</span>
+      <span>{showLegendPoints ? 'Legend points on' : 'Legend points'}</span>
+    </button>
+  {/if}
+
   <div class="mcp-row">
     <button type="button" class="sb-btn is-sm mcp-gps" class:is-on={gpsActive}
       on:click={() => dispatch('toggleGps')}
@@ -156,6 +170,8 @@
   }
   .mcp-grow { flex: 1; min-width: 0; }
   .mcp-gps { flex-shrink: 0; }
+  .mcp-legend { width: 100%; justify-content: flex-start; margin-bottom: 0.4rem; }
+  .mcp-legend-dot { font-family: var(--sb-font-display); font-weight: 800; }
   .mcp-lbl {
     /* Hide labels on narrow sidebars; icons remain readable. */
     display: inline;
