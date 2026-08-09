@@ -125,7 +125,9 @@ def _parse_result(response_text: str, schema: dict, model: str, user_prompt: str
         "\n\nIMPORTANT: Your previous response was not valid JSON. "
         "Return ONLY a valid JSON object with this exact structure:\n"
         '{"extractions": [{"text": "...", "category": "...", "language": "...", '
-        '"bbox_px": [x, y, w, h], "rotation_deg": 0, "confidence": 0.9}]}'
+        '"bbox_px": [x, y, w, h], "rotation_deg": 0, "confidence": 0.9}]}\n'
+        "bbox_px is [x, y, width, height] in 0-1000 normalized scale "
+        "(0,0 = top-left, 1000,1000 = bottom-right of the frame)."
     )
     retry_prompt = user_prompt + schema_hint if isinstance(user_prompt, str) else schema_hint
     retry_response = client.models.generate_content(
