@@ -8,7 +8,6 @@ Subcommands:
   dedup        Deduplicate existing labels from DB or local files
   preview      Render bbox overlay on a saved output JSON
   stitch       Composite multiple tiles into one preview image
-  compare      Stub for future A/B of models / prompt versions
   list-models  List available Gemini models
   detect-layout  Local (scipy): find legend/cartouche boxes — no API
   numerals       Local (Tesseract): spot legend-ref numerals — no API
@@ -333,11 +332,19 @@ def cmd_batch(args: argparse.Namespace) -> None:
         print(f"  Auto-tile: tile={tile_size} overlap={overlap} render={render_size} "
               f"(targeting ~{target_calls} calls)")
 
+    # Shared 1024px full-image overview — neatline, skip-sparse, and
+    # auto-priority all want the same downscale; fetch it at most once.
+    _ov_cache: dict = {}
+    def _overview():
+        if "img" not in _ov_cache:
+            _ov_cache["img"] = fetch_crop(iiif_base, 0, 0, img_w, img_h,
+                                          size=1024, quality=iiif_quality)
+        return _ov_cache["img"]
+
     # 3. Local neatline detection as fallback (no API call, pure image processing)
     if not grid_region and not local_image and getattr(args, "smart_grid", False):
         print("  Detecting neatline from overview image ...")
-        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024,
-                              quality=iiif_quality)
+        overview = _overview()
         neatline = detect_neatline(overview)
         if neatline:
             ox, oy, ow, oh = neatline
@@ -356,9 +363,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
     if not local_image and getattr(args, "skip_sparse", False):
         min_text_frac = getattr(args, "min_text_frac", 0.01)
         print(f"  Computing text density (threshold={min_text_frac}) ...")
-        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024,
-                              quality=iiif_quality)
-        densities = compute_tile_densities(overview, tiles, img_w, img_h)
+        densities = compute_tile_densities(_overview(), tiles, img_w, img_h)
         tiles = [t for t in tiles if densities.get(t, 1.0) >= min_text_frac]
         skipped = total_before_filter - len(tiles)
         if skipped:
@@ -394,9 +399,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
         # Auto-fill the priority grid from a color pre-pass instead of by hand:
         # blank → skip, sparse → low_res, dense → full render.
         print("  Auto-priority: computing tile density pre-pass ...")
-        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024,
-                              quality=iiif_quality)
-        densities = compute_tile_densities(overview, tiles, img_w, img_h)
+        densities = compute_tile_densities(_overview(), tiles, img_w, img_h)
         tile_overrides = auto_tile_overrides(
             densities,
             skip_below=getattr(args, "skip_below", 0.01),
@@ -1657,7 +1660,7 @@ def cmd_dedup(args: argparse.Namespace) -> None:
                 print(f"  ... and {len(uncertain) - 5} more")
 
     # Save a preview JSON
-    out_name = f"dedup_preview_{datetime.now().strftime('%Y%H%M%S')}.json"
+    out_name = f"dedup_preview_{datetime.now().strftime('%Y%m%dT%H%M%S')}.json"
     if args.local:
         out_path = Path(args.local) / out_name
     else:
@@ -1675,8 +1678,9 @@ def cmd_dedup(args: argparse.Namespace) -> None:
         if not args.map_id:
             raise SystemExit("Provide --map-id for --apply")
         
-        # Use provided user_id or fall back to the discovered admin ID be1961db-ba19-47ad-9530-5ecf4a055f8b
-        user_id = args.user_id or "be1961db-ba19-47ad-9530-5ecf4a055f8b"
+        if not args.user_id:
+            raise SystemExit("Provide --user-id for --apply (pins need an owner)")
+        user_id = args.user_id
         
         print(f"\nApplying {len(deduped)} labels as Map Pins for user {user_id} ...")
         from supabase_client import upsert_label_pins
@@ -1830,11 +1834,6 @@ def cmd_clean(args: argparse.Namespace) -> None:
         print(f"\nUpserting {len(rows)} rows to ocr_extractions (run_id={args.run_id}) ...")
         n = upsert_ocr_extractions(args.map_id, args.run_id, rows)
         print(f"Done — {n} rows in ocr_extractions.")
-
-
-def cmd_compare(args: argparse.Namespace) -> None:
-    print("compare subcommand — stub for future A/B of models/prompts")
-    print("Not implemented in POC phase.")
 
 
 def cmd_scout(args: argparse.Namespace) -> None:
@@ -2411,12 +2410,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_st.add_argument("--min-confidence", type=float, default=0.3, help="Filter extractions below this confidence (default 0.3)")
     p_st.add_argument("--adaptive", action="store_true", help="Auto-scale render size by tile density")
     p_st.set_defaults(func=cmd_stitch)
-
-    # compare
-    p_cmp = sub.add_parser("compare", help="A/B compare models or prompts (stub)")
-    p_cmp.add_argument("--map-id", help="Map UUID")
-    p_cmp.add_argument("--tiles", type=int, default=3, help="Number of tiles to compare")
-    p_cmp.set_defaults(func=cmd_compare)
 
     # list-models
     p_lm = sub.add_parser("list-models", help="List available Gemini models")
