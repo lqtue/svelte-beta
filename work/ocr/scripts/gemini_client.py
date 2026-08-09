@@ -107,8 +107,13 @@ def _log_malformed(log_path: Path | None, raw_text: str, model: str, context: st
 
 def _parse_result(response_text: str, schema: dict, model: str, user_prompt: str,
                   config_kwargs: dict, client: Any, log_path: Path | None,
-                  context: str = "") -> dict:
-    """Parse JSON from response text; retry once with schema hint on failure."""
+                  context: str = "", image_parts: list | None = None) -> dict:
+    """Parse JSON from response text; retry once with schema hint on failure.
+
+    image_parts: the image Part(s) from the original call. Must be re-sent on
+    retry — a text-only retry gives the model nothing to read (it would
+    hallucinate or return empty extractions).
+    """
     try:
         return json.loads(response_text)
     except json.JSONDecodeError:
@@ -132,7 +137,7 @@ def _parse_result(response_text: str, schema: dict, model: str, user_prompt: str
     retry_prompt = user_prompt + schema_hint if isinstance(user_prompt, str) else schema_hint
     retry_response = client.models.generate_content(
         model=model,
-        contents=[retry_prompt],
+        contents=(image_parts or []) + [retry_prompt],
         config=genai_types.GenerateContentConfig(**config_kwargs),
     )
     try:
@@ -208,7 +213,8 @@ def extract_labels(
             elapsed = time.monotonic() - t_start
             result = _parse_result(
                 response.text, schema, model, user_prompt, config_kwargs, client,
-                log_path, context="extract_labels"
+                log_path, context="extract_labels",
+                image_parts=[genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")],
             )
             if log_path:
                 _log_call(log_path=log_path, model=model, elapsed=elapsed,
@@ -370,7 +376,8 @@ def extract_labels_sequence(
             elapsed = time.monotonic() - t_start
             result = _parse_result(
                 response.text, seq_schema, model, sequence_prompt, config_kwargs, client,
-                log_path, context="extract_labels_sequence"
+                log_path, context="extract_labels_sequence",
+                image_parts=parts,
             )
             if log_path:
                 _log_call(log_path=log_path, model=model, elapsed=elapsed,
