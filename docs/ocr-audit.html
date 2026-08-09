@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VMA OCR Pipeline — Audit of Design Choices</title>
+<style>
+  html { color-scheme: light dark; }
+  :root {
+    --paper:#E4E6DF; --surface:#F2F3ED; --surface-2:#D8DAD0;
+    --ink:#1E2420; --muted:#545B52; --line:#8C9188; --hairline:#C4C7BC;
+    --ocr:#A65228; --sam:#2F6B57; --join:#35538F; --pre:#6C5D9C;
+    --keep:#2F6B57; --tune:#A6791F; --fix:#B23A48;
+    --keep-bg:#E2EBE4; --tune-bg:#EFE7D4; --fix-bg:#F0DEE0;
+    --font-display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --font-body:system-ui,-apple-system,"Segoe UI",sans-serif;
+    --font-mono:ui-monospace,"SF Mono","Menlo","Cascadia Mono",monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#14171A; --surface:#1F252A; --surface-2:#272E33;
+      --ink:#E7E9E3; --muted:#A2A99E; --line:#737B72; --hairline:#333A3F;
+      --ocr:#DA8A5B; --sam:#5FAD8E; --join:#82A2DA; --pre:#A99AD6;
+      --keep:#5FAD8E; --tune:#D6AE5A; --fix:#E08795;
+      --keep-bg:#1E2A26; --tune-bg:#2A2620; --fix-bg:#2C2024;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#14171A; --surface:#1F252A; --surface-2:#272E33;
+    --ink:#E7E9E3; --muted:#A2A99E; --line:#737B72; --hairline:#333A3F;
+    --ocr:#DA8A5B; --sam:#5FAD8E; --join:#82A2DA; --pre:#A99AD6;
+    --keep:#5FAD8E; --tune:#D6AE5A; --fix:#E08795;
+    --keep-bg:#1E2A26; --tune-bg:#2A2620; --fix-bg:#2C2024;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--font-body); line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1000px; margin:0 auto; padding:clamp(28px,5vw,64px) clamp(20px,4vw,40px) 88px; }
+
+  header { border-bottom:1px solid var(--hairline); padding-bottom:24px; margin-bottom:8px; }
+  .eyebrow {
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 12px;
+  }
+  h1 {
+    font-family:var(--font-display); font-weight:600; font-size:clamp(30px,5vw,46px);
+    line-height:1.05; letter-spacing:-.01em; text-wrap:balance; margin:0 0 16px;
+  }
+  .thesis { font-size:clamp(15px,2.2vw,18px); max-width:64ch; margin:0; color:var(--ink); }
+  .thesis b { color:var(--ocr); font-weight:600; }
+
+  h2 {
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--muted); font-weight:600; margin:48px 0 4px; padding-top:20px;
+    border-top:1px solid var(--hairline);
+  }
+  h2 .h2-note { text-transform:none; letter-spacing:0; font-family:var(--font-body); color:var(--line); font-weight:400; }
+
+  /* ── verdict ledger ── */
+  .ledger { display:flex; flex-wrap:wrap; gap:12px; margin:28px 0 4px; }
+  .tally {
+    flex:1 1 150px; background:var(--surface); border:1px solid var(--hairline);
+    border-left-width:3px; border-radius:5px; padding:14px 16px;
+  }
+  .tally .n { font-family:var(--font-display); font-size:34px; font-weight:600; line-height:1; }
+  .tally .lbl { font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:6px; }
+  .tally .desc { font-size:13px; color:var(--muted); margin-top:6px; }
+  .t-keep { border-left-color:var(--keep); } .t-keep .n { color:var(--keep); }
+  .t-tune { border-left-color:var(--tune); } .t-tune .n { color:var(--tune); }
+  .t-fix  { border-left-color:var(--fix);  } .t-fix  .n { color:var(--fix); }
+
+  /* ── top risks ── */
+  ol.risks { list-style:none; counter-reset:r; margin:18px 0 0; padding:0; display:grid; gap:10px; }
+  ol.risks li {
+    counter-increment:r; display:grid; grid-template-columns:34px 1fr; gap:14px; align-items:baseline;
+    background:var(--fix-bg); border:1px solid var(--hairline); border-left:3px solid var(--fix);
+    border-radius:5px; padding:13px 16px;
+  }
+  ol.risks li::before {
+    content:counter(r); font-family:var(--font-display); font-size:22px; font-weight:600; color:var(--fix); line-height:1;
+  }
+  ol.risks .r-t { font-weight:600; }
+  ol.risks .r-d { color:var(--muted); font-size:14px; margin-top:3px; }
+  ol.risks code, .dd code, .desc code, .r-d code {
+    font-family:var(--font-mono); font-size:.86em; background:var(--surface-2);
+    padding:1px 5px; border-radius:3px; color:var(--ink); word-break:break-word;
+  }
+
+  /* ── decision cards ── */
+  .decks { display:grid; gap:14px; margin-top:18px; }
+  @media (min-width:720px){ .decks { grid-template-columns:1fr 1fr; } }
+  article.dec {
+    background:var(--surface); border:1px solid var(--hairline);
+    border-left-width:3px; border-radius:5px; padding:15px 17px; display:flex; flex-direction:column;
+  }
+  article.keep { border-left-color:var(--keep); }
+  article.tune { border-left-color:var(--tune); }
+  article.fix  { border-left-color:var(--fix); }
+  .dec-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .dec-head h4 { font-family:var(--font-display); font-size:19px; font-weight:600; margin:0; line-height:1.15; letter-spacing:-.005em; }
+  .badge {
+    flex-shrink:0; font-family:var(--font-mono); font-size:10px; font-weight:700; letter-spacing:.08em;
+    padding:3px 8px; border-radius:20px; text-transform:uppercase; margin-top:2px;
+  }
+  .b-keep { background:var(--keep-bg); color:var(--keep); }
+  .b-tune { background:var(--tune-bg); color:var(--tune); }
+  .b-fix  { background:var(--fix-bg);  color:var(--fix); }
+  .anchor { font-family:var(--font-mono); font-size:11.5px; color:var(--muted); margin:7px 0 12px; display:block; word-break:break-all; }
+  dl.dd { margin:0; display:grid; gap:8px; }
+  dl.dd > div { display:grid; grid-template-columns:76px 1fr; gap:10px; }
+  dl.dd dt {
+    font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--line); padding-top:2px;
+  }
+  dl.dd dd { margin:0; font-size:14px; }
+  dl.dd dd.tradeoff { color:var(--muted); }
+
+  footer { margin-top:56px; padding-top:20px; border-top:1px solid var(--hairline); font-family:var(--font-mono); font-size:12px; color:var(--muted); line-height:1.7; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Vietnam Map Archive · pipeline audit</p>
+    <h1>The OCR pipeline, read as a ledger of choices</h1>
+    <p class="thesis">Every stage of the OCR pipeline is a decision someone made under a real constraint — cost, a faded 1882 map, Cloudflare's missing <code>child_process</code>, a schema that never grew a legend column. This audits <b>each choice</b> against the road not taken, and rates it <b>keep</b>, <b>tune</b>, or <b>fix</b>. Rated from source at HEAD; anchors are <code>file:line</code>.</p>
+  </header>
+
+  <div class="ledger">
+    <div class="tally t-keep"><div class="n">14</div><div class="lbl">Keep</div><div class="desc">sound choice for the constraint</div></div>
+    <div class="tally t-tune"><div class="n">13</div><div class="lbl">Tune</div><div class="desc">works, has a rough edge worth filing off</div></div>
+    <div class="tally t-fix"><div class="n">9</div><div class="lbl">Fix</div><div class="desc">real correctness / data-integrity risk</div></div>
+  </div>
+
+  <h2>Top risks <span class="h2-note">— ranked by blast radius, fix these first</span></h2>
+  <ol class="risks">
+    <li><div><div class="r-t">Four coordinate conventions, no single normalization point</div><div class="r-d">Schema says <code>0–1000</code> normalized; V1–V3 prompts say tile pixels; the retry-hint says pixels; <code>local_vision</code> returns raw image px; SCOUT uses float bboxes, extraction uses int. Which convention a row is in depends on <em>which prompt version ran</em> — not schema-enforceable. Silent geometry corruption.</div></div></li>
+    <li><div><div class="r-t"><code>status</code> never gates derived reads</div><div class="r-d"><code>legend-points</code> and <code>join_labels</code> both read every row regardless of status → <b>rejected</b> and un-reviewed <b>pending</b> extractions still project onto the public map, and human <code>text_validated</code> corrections are ignored. HITL rejections don't propagate. Highest-value single fix.</div></div></li>
+    <li><div><div class="r-t">RLS UPDATE open to any authenticated user</div><div class="r-d">Migration 042's UPDATE policy allows any <code>authenticated</code> role, not just admins. The API enforces admin; the DB does not. Authz depends on the app route being the only path in.</div></div></li>
+    <li><div><div class="r-t">Cache can serve a result from a different sampling regime</div><div class="r-d">Cache key = SHA256(image+prompt+model+manual <code>SCHEMA_VERSION</code>). It omits temperature, <code>max_output_tokens</code>, and <code>system_instruction</code>. Extraction runs at <em>default</em> (nondeterministic) temperature, and <code>SCHEMA_VERSION</code> is a hand-bumped string already drifted from the real schema. Stale/mismatched hits served silently.</div></div></li>
+    <li><div><div class="r-t">Default extraction path silently ignores the versioned prompt</div><div class="r-d"><code>extract_labels_sequence</code> takes no <code>user_prompt</code>, so in row-sequence mode (the default) the whole <code>--prompt v8</code> selection is dead — only <code>SYSTEM_PROMPT</code> plus a hard-coded inline prompt drives it, and that inline prompt uses the <em>rejected</em> V4 "assemble the full label" philosophy V6+ abandoned for hallucination.</div></div></li>
+    <li><div><div class="r-t">Malformed-JSON retry drops the image</div><div class="r-d">On a parse failure the one retry re-sends <code>contents=[retry_prompt]</code> with no image, asking the model to re-emit JSON it can no longer see — and the retry hint hard-codes the <em>old</em> schema shape (px bbox, no <code>frame_idx</code>, no <code>hydrology</code>).</div></div></li>
+    <li><div><div class="r-t">Manual bboxes collide on the unique key</div><div class="r-d">Manual POST defaults <code>tile_x/y=0</code>, <code>text=''</code>; the unique index is <code>(map_id,run_id,tile_x,tile_y,text)</code>. Draw two empty boxes in a run → the second insert fails on <code>(…,0,0,'')</code>.</div></div></li>
+    <li><div><div class="r-t">Fire-and-forget spawn discards all output</div><div class="r-d">Trigger route spawns detached with <code>stdio:'ignore'</code> and returns 202. A crashed run is indistinguishable from a running one; operators learn of failure only from absent DB rows.</div></div></li>
+  </ol>
+
+  <h2>Tiling &amp; region</h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4>Uniform overlapping grid</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">iiif_tiles.py:135 · ocr.py:351</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Fixed <code>step = tile − overlap</code> sweep; tile key = geometry → resumable.</dd></div>
+        <div><dt>Instead of</dt><dd>Quadtree / adaptive tiling; aligning to the IIIF tile pyramid.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Dead-simple &amp; resumable; overlap gives seam context — but the overlap is exactly what forces the whole downstream dedup machine.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Three overlap defaults</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:2288 (run 600) · 2305 (batch 300) · iiif_tiles.py:138 (256)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd><code>run</code> 25%, <code>batch</code> 12.5%, helper 256px — three values.</dd></div>
+        <div><dt>Instead of</dt><dd>One documented overlap constant.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">No rationale recorded for the spread; easy to tune one and forget the others.</dd></div>
+      </dl>
+    </article>
+    <article class="dec keep">
+      <div class="dec-head"><h4>Cost-first autoscale (<code>--target-calls</code>)</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">iiif_tiles.py:313 · ocr.py:325</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Grow tile size until grid ≈ target call count; render scales with it.</dd></div>
+        <div><dt>Instead of</dt><dd>Closed-form solve.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">"~12 calls" is the knob users actually want; loop is free. Silently skipped for <code>--local-image</code>.</dd></div>
+      </dl>
+    </article>
+    <article class="dec keep">
+      <div class="dec-head"><h4>Hard→soft region ladder</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">ocr.py:307–349</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>manual <code>--crop</code> → scout neatline → <code>--target-calls</code> → local <code>--smart-grid</code>.</dd></div>
+        <div><dt>Instead of</dt><dd>A single detector.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Sensible precedence: human beats model beats free-numpy. Bad auto-neatline skews every <code>global_*</code> with no gate.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Tile skipping <span class="h2-note">— four overlapping paths</span></h2>
+  <div class="decks">
+    <article class="dec tune">
+      <div class="dec-head"><h4>Four independent skip mechanisms</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:355–412</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd><code>--skip-sparse</code>, <code>--prior-run</code>, <code>--tile-overrides</code>, <code>--auto-priority</code>.</dd></div>
+        <div><dt>Instead of</dt><dd>One unified density gate.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Fine-grained cost/recall control — but a lot of surface, and two of them share a threshold that can desync.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Density overview fetched twice</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">ocr.py:360 &amp; 398</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd><code>--skip-sparse</code> and <code>--auto-priority</code> each re-fetch the same 1024px overview.</dd></div>
+        <div><dt>Instead of</dt><dd>Fetch once, share (also across smart-grid + legend fallback).</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Duplicated network + compute when both are on; four call sites re-pull an overview.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Batch strategy</h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4>Row-sequence multi-frame call</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">ocr.py:434–566 · group_tiles_by_row:1284</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Send a horizontal strip (≤4 frames) in one call; model assembles across seams, distributed back by <code>frame_idx</code>.</dd></div>
+        <div><dt>Instead of</dt><dd>Per-tile calls + post-hoc stitching.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Attacks the seam problem at the model layer — and empirically beat the fancier neighbour-window rewrite (recall 0.77 vs 0.60).</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Default path is serial</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:459 (serial) vs 615 (ThreadPool)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Row-sequence runs serially; only the <em>non-default</em> per-tile path uses <code>ThreadPoolExecutor</code>.</dd></div>
+        <div><dt>Instead of</dt><dd>Concurrent row calls.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">The "better" default is likely slower wall-clock on big maps; one row failure loses the whole strip.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Sequence call ignores <code>--prompt</code></h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">gemini_client.py:277 · prompt inline :308</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd><code>extract_labels_sequence</code> has no <code>user_prompt</code> param; a hard-coded inline prompt drives it.</dd></div>
+        <div><dt>Instead of</dt><dd>Feeding the selected versioned prompt.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">In the default path the whole <code>PROMPTS</code> registry is dead, and the inline text uses the abandoned V4 "assemble" philosophy.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4><code>frame_idx</code> clamp</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:545</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Out-of-range <code>frame_idx</code> clamped to the last tile in the row.</dd></div>
+        <div><dt>Instead of</dt><dd>Drop or re-derive by geometry.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Never crashes, but a bad index silently mis-attributes a label to the wrong tile → wrong <code>global_*</code>.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Scout &amp; legend passes</h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4>Two-scale: macro scout + micro tiles</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">ocr.py:1840 · SCOUT_SCHEMA prompt.py:286</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>One low-res whole-map pass → neatline, cartouche, metadata, big spanning features; folded into master dedup as a full-image pseudo-tile.</dd></div>
+        <div><dt>Instead of</dt><dd>Tiles only (miss map-spanning features) or free numpy neatline.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">One extra call buys a crop + cartouche + macro labels tiles can't see.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Scout's multi-scale prompt is dead code</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">ocr.py:1886–1899</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Per-frame level guidance is carefully built, then never passed (same no-<code>user_prompt</code> issue).</dd></div>
+        <div><dt>Instead of</dt><dd>Passing it, or deleting it.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">The coarse-structure / fine-text guidance never reaches the model; misleading to a maintainer.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Legend metadata stuffed into <code>notes</code></h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:2149 · legend-points reader :42</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>No number/grid columns, so <code>n=..;grid=..;vn=..</code> packed into a <code>notes</code> string; <code>text="n. name"</code> carries the join key.</dd></div>
+        <div><dt>Instead of</dt><dd>A legend table / typed columns.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Ships on the existing schema (ponytail-flagged); brittle regex contract between Python writer and TS reader.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Hard-coded consensus model IDs</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">ocr.py:2220</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Legend <code>--consensus</code> cross-checks against literal <code>gemini-3.5-flash</code> etc.</dd></div>
+        <div><dt>Instead of</dt><dd>Config / model list.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Will rot as models are renamed/retired; same fragility as the <code>-preview</code> default.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Coordinates &amp; sanitize</h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4><code>render_w/h</code> pinned to 1000</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">ocr.py:_to_global:843</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Store render dims as 1000 always → treat model bbox as per-mille; one tile→global converter.</dd></div>
+        <div><dt>Instead of</dt><dd>Carrying true render px through.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Decouples coord math from render resolution — clean. Breaks silently if a model ever returns true px.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Sanitize clamps instead of dropping</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">ocr.py:_sanitize_extractions:800</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Drop coords &lt;0 or &gt;10000; <em>clamp</em> survivors to [0,1000].</dd></div>
+        <div><dt>Instead of</dt><dd>One consistent threshold.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">A bbox of 5000 is kept and clamped to 1000 — silently relocated to the tile edge, not rejected.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Scout has its own coord math</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:1922–1958</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Scout scales <code>bbox*full_w/1000</code> inline, not via <code>_to_global</code>.</dd></div>
+        <div><dt>Instead of</dt><dd>Reusing the one converter.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Duplicated math; scout also uses float bboxes vs int elsewhere.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Dedup &amp; confidence</h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4>Per-category confidence floors</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">ocr.py:_apply_conf_floors:789 · CATEGORY_MIN_CONF:777</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>street/water admitted at 0.40, legend/other held to 0.65, before dedup.</dd></div>
+        <div><dt>Instead of</dt><dd>One global floor.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">High-value low-risk classes kept cheap; noisy classes gated harder. Sound.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Recall-biased dedup radius</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:dedup_items:1096 (IoU 0.15 + 1.5× max-dim)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Collapse text-similar boxes at IoU≥0.15 OR centroid within 1.5× max dimension.</dd></div>
+        <div><dt>Instead of</dt><dd>Stricter IoU-only.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Catches wide-overlap-band dupes; risks merging two genuinely distinct same-name features. Signature default 0.25 is dead (callers pass 0.15).</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>O(n²) suppress, order-sensitive</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:1122–1197</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Pairwise suppress-loser with break-on-self; winner rules cascade (scout&lt;tile, longer substring, higher conf).</dd></div>
+        <div><dt>Instead of</dt><dd>Union-find / clustering.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Fine at hundreds/tile; iteration order can change which survivor wins. Stale "1.2×" comment vs 1.5× code.</dd></div>
+      </dl>
+    </article>
+    <article class="dec keep">
+      <div class="dec-head"><h4>Write deduped, keyed to winning tile</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">ocr.py:675–705</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Persist global-deduped rows keyed to each survivor's <code>_tile_origin</code>, not raw per-tile.</dd></div>
+        <div><dt>Instead of</dt><dd>Raw rows + DB-side dedup.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">The unique key can't dedup across the overlap band, so raw would reintroduce seam dupes; this keeps re-run idempotency.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Model calls</h2>
+  <div class="decks">
+    <article class="dec tune">
+      <div class="dec-head"><h4>Preview model, hard-coded</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">gemini_client.py:25 (gemini-3-flash-preview)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Flash preview channel — cheap, fast, latest vision early.</dd></div>
+        <div><dt>Instead of</dt><dd>Pinned GA model, or Pro tier.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Right tier for high-volume fan-out; the <code>-preview</code> string drifts and has no pinned fallback.</dd></div>
+      </dl>
+    </article>
+    <article class="dec keep">
+      <div class="dec-head"><h4>Server-enforced JSON schema</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">gemini_client.py:179 · 354 · 464</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd><code>response_mime_type=json</code> + <code>response_schema</code> on every call.</dd></div>
+        <div><dt>Instead of</dt><dd>Free text + parse, or tool-calling.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Shape guaranteed server-side. A full malformed-retry layer still exists — the schema isn't fully trusted in practice.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Two divergent retry classifiers</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">gemini_client.py:218 vs 379</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Copy-pasted backoff/rotate loops that classify the same errors differently (two retry-after regexes; "429+quota" treated as rate-limit in one, quota-rotate in the other).</dd></div>
+        <div><dt>Instead of</dt><dd>One shared resilience helper.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff"><code>while True</code> with no max-attempt cap → a persistent 503 can loop on 30s forever.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Default temperature on extraction</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">gemini_client.py:463 (legend=0) vs extract unset</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Only legend pinned <code>temperature=0</code>; extraction paths use provider default (~1.0).</dd></div>
+        <div><dt>Instead of</dt><dd>Pin extraction to 0 too.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Nondeterministic output volume, undercuts cache value, hurts reproducibility — likely unintended asymmetry.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Lossy JPEG on a faded map</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">gemini_client.py:169/300 (q90) · 443 (q92)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>JPEG q90–92 to shrink upload/token cost.</dd></div>
+        <div><dt>Instead of</dt><dd>PNG lossless for thin glyphs / diacritics.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Ringing near text edges fights recognition of exactly the faint strokes that matter; the 90/92 split is arbitrary.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Legend path has no safety net</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">gemini_client.py:433 (bare json.loads :473)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd><code>extract_legend</code> skips cache, retry, and <code>_parse_result</code>.</dd></div>
+        <div><dt>Instead of</dt><dd>The same machinery the other two calls share.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">A truncated 200-row legend just throws — the least robust call is the one reading the densest region.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Prompts</h2>
+  <div class="decks">
+    <article class="dec tune">
+      <div class="dec-head"><h4>V1–V8 registry retained</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">prompt.py:590 · DEFAULT_PROMPT v8</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Keep all 9 prompt versions with "what changed &amp; why" headers.</dd></div>
+        <div><dt>Instead of</dt><dd>Delete superseded versions.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Great provenance; ~500 lines mostly-dead. Only v8 + scout are live, and the cache key hashes prompt text so picking an old one silently re-runs everything.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Recall-vs-precision philosophy flip-flop</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">prompt.py: V4 assemble → V6 "never infer" → V8 no-floor</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>V8 = maximum recall, no floor, UI decides.</dd></div>
+        <div><dt>Instead of</dt><dd>A single settled stance.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">The live sequence path still runs V4's rejected "assemble the full label" philosophy — the two live paths contradict each other.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Taxonomy drift: prompt vs schema</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">prompt.py:16 enum vs per-version category lists</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Categories maintained in the schema enum <em>and</em> restated in every prompt.</dd></div>
+        <div><dt>Instead of</dt><dd>Single source injected into the prompt.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Already diverged — <code>hydrology</code> missing from early prompts and the retry hint; <code>mixed</code> language dropped then restored.</dd></div>
+      </dl>
+    </article>
+    <article class="dec keep">
+      <div class="dec-head"><h4>Semantics in prompt, shape in schema</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">prompt.py: grouping rules · EXTRACTION_SCHEMA</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Schema enforces fields/enums/types; prompt carries "same road axis = one label", parcel-number rules, skip lists.</dd></div>
+        <div><dt>Instead of</dt><dd>Cramming semantics into schema descriptions.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Right split — except bbox coordinate space lives only in prose and contradicts itself across versions (see top risk 1).</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Cache</h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4>Content-addressed file cache</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">cache.py:20 (SHA256 image+prompt+model)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Hash raw image bytes + prompt + model → flat JSON files.</dd></div>
+        <div><dt>Instead of</dt><dd>Keyed DB / LRU / path-hash.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Identical tile+prompt reused free; hashing bytes is correctly strict. But see the config-omission fix.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Unbounded, self-deleting cache</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">cache.py:48 (delete-on-read-error) · no eviction</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>No expiry/size cap; delete the file on any read/parse exception.</dd></div>
+        <div><dt>Instead of</dt><dd>LRU + TTL.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Self-healing, but grows one file per tile per prompt-version sweep, and a transient FS error silently discards a good entry.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Local vision <span class="h2-note">— free, no API</span></h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4>Split by strength</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">local_vision.py:1–19</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Local scipy/Tesseract for boxes + digits; Gemini for faded/rotated/multilingual text.</dd></div>
+        <div><dt>Instead of</dt><dd>cv2/PaddleOCR (no clean 3.14 wheel yet — deferral recorded).</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Right tool per subproblem, zero cost on the easy 80%. The split is partly driven by toolchain, not pure accuracy.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Brittle magic constants</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">local_vision.py:30 (ink&lt;200, edge 0.35, line_len 4%)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Fixed global threshold + morphology tuned to one map's line weight/DPI.</dd></div>
+        <div><dt>Instead of</dt><dd>Adaptive/Otsu threshold.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Fails on uneven lighting/darker scans; dilation can merge two nearby boxes. Only finds bordered legends (self-stated).</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Persistence &amp; web integration</h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4>Non-destructive corrections</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">ocr-review/+server.ts:132 · mig 042</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Edits write <code>text_validated</code>/<code>category_validated</code>; raw model output preserved as a training pair.</dd></div>
+        <div><dt>Instead of</dt><dd>Overwrite in place.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Keeps ground-truth-vs-correction dataset. (Coord edits <em>do</em> overwrite — asymmetric.)</dd></div>
+      </dl>
+    </article>
+    <article class="dec keep">
+      <div class="dec-head"><h4>Cloudflare <code>cli_only</code> fallback</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">ocr/+server.ts:90 (dynamic node: import)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Dynamic <code>node:child_process</code> import in try/catch; on failure return <code>422 {cli_only, cli_command}</code>.</dd></div>
+        <div><dt>Instead of</dt><dd>Assume a subprocess exists.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Honest degradation — prod trigger becomes a copy-paste command generator; OCR is fundamentally local-only in prod.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Two full-table scans per review load</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">ocr-review/+server.ts:49–60 · total always 0 :34</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Fetch every row's <code>status</code> and every <code>run_id</code> to count in JS; the paged query forgets <code>count:'exact'</code> so <code>total</code> is always 0.</dd></div>
+        <div><dt>Instead of</dt><dd>A grouped count query.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Three round-trips per load/filter, two unbounded; a latent dead <code>total</code>.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Duplicated admin-client + CAT_COLORS</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr &amp; ocr-review routes · BboxTool:57 vs Sidebar:45</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Service-key admin-lookup copy-pasted across routes; category color map duplicated across two Svelte components.</dd></div>
+        <div><dt>Instead of</dt><dd>Shared helper / shared constant.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Already drifted — the sidebar's map omits <code>legend_entry/legend_ref</code>, so those chips render with no color.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Derived reads &amp; the join</h2>
+  <div class="decks">
+    <article class="dec keep">
+      <div class="dec-head"><h4>One shared pixel space</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">BboxTool:6 · join_labels:10 · footprint pixel_polygon</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>OCR <code>global_*</code>, footprint polygons, and the review UI all live in source-image px with a single OL y-flip.</dd></div>
+        <div><dt>Instead of</dt><dd>Per-tool coordinate frames.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Seg, OCR, and UI join cleanly — the one place coordinates <em>are</em> unified.</dd></div>
+      </dl>
+    </article>
+    <article class="dec keep">
+      <div class="dec-head"><h4>Centroid + smallest-polygon join</h4><span class="badge b-keep">Keep</span></div>
+      <code class="anchor">join_labels.py:88 · level disambiguation :95</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Label centroid → smallest containing footprint; numeral overrides to building level.</dd></div>
+        <div><dt>Instead of</dt><dd>Nearest-polygon or IoU.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Resolves building-in-block cleanly; a mis-categorized name can attach to the wrong level silently.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Derived reads ignore <code>status</code></h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">legend-points:35/57 · join_labels:120</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Both consume all rows and read raw <code>text</code>.</dd></div>
+        <div><dt>Instead of</dt><dd>Filter to <code>validated</code>, prefer <code>text_validated</code>.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Rejected/pending labels project publicly; human corrections ignored. (Top risk 2.)</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4>Public route uses the service key</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">legend-points/+server.ts:19,23</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Read with <code>SUPABASE_SERVICE_KEY</code> though the route is public and the table has public-read RLS.</dd></div>
+        <div><dt>Instead of</dt><dd>Anon key.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Broader privilege than needed in a public GET handler.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <h2>Command surface</h2>
+  <div class="decks">
+    <article class="dec fix">
+      <div class="dec-head"><h4><code>compare</code> is a stub</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">ocr.py:1835 (prints "Not implemented")</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Registered subcommand that does nothing.</dd></div>
+        <div><dt>Instead of</dt><dd>Remove it.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Dead surface; delete.</dd></div>
+      </dl>
+    </article>
+    <article class="dec tune">
+      <div class="dec-head"><h4><code>clean</code> vs <code>dedup</code> overlap</h4><span class="badge b-tune">Tune</span></div>
+      <code class="anchor">ocr.py:1708 vs 1573</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>Two fuzzy-dedup commands; <code>clean</code>→<code>ocr_extractions</code> + fragment-join, <code>dedup</code>→<code>label_pins</code>, different conf defaults.</dd></div>
+        <div><dt>Instead of</dt><dd>One command with <code>--apply-target</code>.</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Confusing split; <code>run</code> is likewise a strict subset of <code>batch</code>.</dd></div>
+      </dl>
+    </article>
+    <article class="dec fix">
+      <div class="dec-head"><h4>Hard-coded admin UUID + date bug</h4><span class="badge b-fix">Fix</span></div>
+      <code class="anchor">ocr.py:1679 (owner fallback) · 1660 (%Y%H%M%S)</code>
+      <dl class="dd">
+        <div><dt>Chose</dt><dd>A real user id baked in as default pin owner; <code>dedup</code> run filename uses year+hour+min+sec, no month/day.</dd></div>
+        <div><dt>Instead of</dt><dd>Required arg; correct date format (<code>clean</code> has it right).</dd></div>
+        <div><dt>Trade-off</dt><dd class="tradeoff">Same-hour runs on different days collide; a stray UUID in source.</dd></div>
+      </dl>
+    </article>
+  </div>
+
+  <footer>
+    36 decisions audited across 11 source files · anchors at HEAD, branch <code>feat/ocr-footprint-join</code><br>
+    Verdicts: <span style="color:var(--keep)">keep</span> = sound for its constraint · <span style="color:var(--tune)">tune</span> = works, rough edge · <span style="color:var(--fix)">fix</span> = correctness / data-integrity risk<br>
+    Highest-leverage fixes: gate derived reads on <code>status</code> · unify the four coordinate conventions · feed the versioned prompt into the sequence path.
+  </footer>
+</div>
+
+</body>
+</html>
