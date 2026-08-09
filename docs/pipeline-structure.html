@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VMA OCR + Segmentation Pipeline</title>
+<style>
+  html { color-scheme: light dark; }
+  :root {
+    --paper:    #E4E6DF;
+    --surface:  #F2F3ED;
+    --surface-2:#D8DAD0;
+    --ink:      #1E2420;
+    --muted:    #545B52;
+    --line:     #8C9188;
+    --pre:      #6C5D9C;  /* color pre-pass */
+    --ocr:      #A65228;  /* labels branch */
+    --sam:      #2F6B57;  /* geometry branch */
+    --join:     #35538F;  /* convergence: join -> warp -> render */
+    --hairline: #C4C7BC;
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Menlo", "Cascadia Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:    #14171A;
+      --surface:  #1F252A;
+      --surface-2:#272E33;
+      --ink:      #E7E9E3;
+      --muted:    #A2A99E;
+      --line:     #737B72;
+      --pre:      #A99AD6;
+      --ocr:      #DA8A5B;
+      --sam:      #5FAD8E;
+      --join:     #82A2DA;
+      --hairline: #333A3F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:    #14171A;
+    --surface:  #1F252A;
+    --surface-2:#272E33;
+    --ink:      #E7E9E3;
+    --muted:    #A2A99E;
+    --line:     #737B72;
+    --pre:      #A99AD6;
+    --ocr:      #DA8A5B;
+    --sam:      #5FAD8E;
+    --join:     #82A2DA;
+    --hairline: #333A3F;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: clamp(28px, 5vw, 64px) clamp(20px, 4vw, 40px) 72px;
+  }
+
+  header { border-bottom: 1px solid var(--hairline); padding-bottom: 22px; margin-bottom: 30px; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(29px, 5vw, 44px);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 16px;
+  }
+  .thesis {
+    font-size: clamp(15px, 2.2vw, 18px);
+    max-width: 62ch;
+    color: var(--ink);
+    margin: 0;
+  }
+  .thesis b { color: var(--ocr); font-weight: 600; }
+  .thesis i { color: var(--sam); font-style: normal; font-weight: 600; }
+  .thesis u { color: var(--pre); text-decoration: none; font-weight: 600; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin: 26px 0 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .swatch { width: 20px; height: 0; border-top-width: 2.5px; border-top-style: solid; }
+  .sw-pre  { border-color: var(--pre); }
+  .sw-ocr  { border-color: var(--ocr); }
+  .sw-sam  { border-color: var(--sam); }
+  .sw-join { border-color: var(--join); }
+  .sw-dash { border-color: var(--muted); border-top-style: dashed; }
+
+  .figure-scroll { overflow-x: auto; margin: 8px -6px 0; padding: 6px; }
+  figure { margin: 0; }
+  svg { max-width: 100%; height: auto; display: block; margin: 0 auto; min-width: 620px; }
+  figcaption {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 14px;
+    text-align: center;
+    max-width: 66ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* diagram element styling via tokens */
+  .n-fill   { fill: var(--surface); }
+  .n-spine  { fill: var(--surface-2); }
+  .s-line { stroke: var(--line); }
+  .s-pre  { stroke: var(--pre); }
+  .s-ocr  { stroke: var(--ocr); }
+  .s-sam  { stroke: var(--sam); }
+  .s-join { stroke: var(--join); }
+  .stroke2 { stroke-width: 2; fill: none; }
+  .dashed { stroke-dasharray: 6 5; }
+  .t-name { font-family: var(--font-mono); font-size: 13px; font-weight: 600; fill: var(--ink); }
+  .t-sub  { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
+  .t-edge { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
+
+  .build { margin-top: 48px; }
+  .build h2 {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 18px;
+    font-weight: 600;
+  }
+  ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  ol.steps li {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 16px;
+    align-items: baseline;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left-width: 3px;
+    border-radius: 4px;
+  }
+  ol.steps li .rank {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--join);
+    line-height: 1;
+  }
+  ol.steps li .body .lead { font-weight: 600; }
+  ol.steps li .body .note { color: var(--muted); font-size: 14px; }
+  ol.steps li .body code { font-family: var(--font-mono); font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 3px; }
+  li.deferred { opacity: 0.72; border-left-color: var(--muted); border-left-style: dashed; }
+  li.shipnext { border-left-color: var(--join); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Vietnam Map Archive · system structure</p>
+    <h1>Coarse to fine, OCR-seeded, joined by level</h1>
+    <p class="thesis">A <u>color pre-pass</u> triages pixels for free. Then <b>OCR</b> reads the labels <em>and seeds the segmenter</em>: its points prompt <i>SAM2</i>, which segments coarse first (blocks, rivers) then fine (buildings) inside those masks. Labels rejoin geometry by matching OCR category to footprint level — then the existing Allmaps warp carries it all to geographic coordinates.</p>
+  </header>
+
+  <div class="legend">
+    <span><i class="swatch sw-pre"></i> color pre-pass</span>
+    <span><i class="swatch sw-ocr"></i> OCR / labels</span>
+    <span><i class="swatch sw-sam"></i> SAM2 / geometry</span>
+    <span><i class="swatch sw-join"></i> convergence · warp · render</span>
+    <span><i class="swatch sw-dash"></i> planned</span>
+  </div>
+
+  <div class="figure-scroll">
+  <figure>
+    <svg viewBox="0 0 760 900" role="img" aria-label="Pipeline: Run trigger feeds a color pre-pass (numpy) that produces tile-priority and water/veg masks. The pre-pass feeds both Gemini OCR and coarse segmentation. OCR reads labels and also seeds segmentation: seed points drive coarse seg (blocks, rivers) and prompt points plus labels drive fine seg (buildings). Coarse masks constrain fine seg. Fine seg emits polygons with a level; a planned join-by-level links OCR labels (by category) to those footprints via a footprint_id foreign key, then the Allmaps GcpTransformer warps pixels to geographic coordinates, served by the legend-points API and rendered by LegendPointsLayer on the explore page.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/>
+        </marker>
+      </defs>
+
+      <!-- ===== edges (under nodes) ===== -->
+      <!-- trigger -> pre-pass -->
+      <line class="stroke2 s-line" x1="347" y1="62" x2="347" y2="108" marker-end="url(#arrow)"/>
+      <!-- pre-pass -> OCR -->
+      <path class="stroke2 s-pre" d="M285,150 C235,176 200,196 190,242" marker-end="url(#arrow)"/>
+      <text class="t-edge" x="196" y="200" text-anchor="start">priority · skip blanks</text>
+      <!-- pre-pass -> coarse seg -->
+      <path class="stroke2 s-pre" d="M409,150 C470,176 505,196 512,242" marker-end="url(#arrow)"/>
+      <text class="t-edge" x="470" y="200" text-anchor="start">water / veg mask</text>
+      <!-- OCR -> coarse seg (seed points) -->
+      <line class="stroke2 s-ocr" x1="280" y1="262" x2="413" y2="262" marker-end="url(#arrow)"/>
+      <text class="t-edge" x="347" y="255" text-anchor="middle">seed points</text>
+      <!-- OCR -> fine seg (prompt + label) -->
+      <path class="stroke2 s-ocr" d="M272,290 C330,330 380,340 413,376" marker-end="url(#arrow)"/>
+      <text class="t-edge" x="322" y="352" text-anchor="middle">prompt + label</text>
+      <!-- coarse -> fine (masks constrain) -->
+      <line class="stroke2 s-sam" x1="520" y1="292" x2="520" y2="360" marker-end="url(#arrow)"/>
+      <text class="t-edge" x="528" y="330" text-anchor="start">masks constrain</text>
+      <!-- fine seg -> join -->
+      <path class="stroke2 s-sam" d="M450,410 C420,450 410,466 400,494" marker-end="url(#arrow)"/>
+      <text class="t-edge" x="452" y="455" text-anchor="start">polygons + level</text>
+      <!-- OCR -> join (dashed, planned) -->
+      <path class="stroke2 s-join dashed" d="M175,292 C175,400 235,452 288,496" marker-end="url(#arrow)"/>
+      <text class="t-edge" x="182" y="405" text-anchor="start">labels · category</text>
+      <!-- join -> warp -->
+      <line class="stroke2 s-join dashed" x1="347" y1="544" x2="347" y2="605" marker-end="url(#arrow)"/>
+      <text class="t-edge" x="357" y="578" text-anchor="start">footprint_id FK</text>
+      <!-- warp -> api -> render -->
+      <line class="stroke2 s-join" x1="347" y1="649" x2="347" y2="694" marker-end="url(#arrow)"/>
+      <line class="stroke2 s-join" x1="347" y1="736" x2="347" y2="783" marker-end="url(#arrow)"/>
+
+      <!-- ===== nodes ===== -->
+      <!-- trigger -->
+      <rect class="n-spine s-line stroke2" x="70" y="22" width="555" height="40" rx="6"/>
+      <text class="t-name" x="347" y="39" text-anchor="middle">Run pipeline</text>
+      <text class="t-sub"  x="347" y="53" text-anchor="middle">/contribute/digitalize · /contribute/review</text>
+
+      <!-- color pre-pass -->
+      <rect class="n-fill s-pre stroke2" x="222" y="108" width="250" height="44" rx="6"/>
+      <text class="t-name" x="347" y="127" text-anchor="middle">Color pre-pass</text>
+      <text class="t-sub"  x="347" y="141" text-anchor="middle">masks · tile priority · numpy</text>
+
+      <!-- OCR -->
+      <rect class="n-fill s-ocr stroke2" x="70" y="242" width="210" height="50" rx="6"/>
+      <text class="t-name" x="175" y="262" text-anchor="middle">Gemini OCR</text>
+      <text class="t-sub"  x="175" y="277" text-anchor="middle">labels + points · work/ocr</text>
+
+      <!-- coarse seg -->
+      <rect class="n-fill s-sam stroke2" x="415" y="242" width="210" height="50" rx="6"/>
+      <text class="t-name" x="520" y="262" text-anchor="middle">Coarse seg</text>
+      <text class="t-sub"  x="520" y="277" text-anchor="middle">blocks · rivers</text>
+
+      <!-- fine seg -->
+      <rect class="n-fill s-sam stroke2" x="415" y="360" width="210" height="50" rx="6"/>
+      <text class="t-name" x="520" y="380" text-anchor="middle">Fine seg</text>
+      <text class="t-sub"  x="520" y="395" text-anchor="middle">buildings · OCR-prompted</text>
+
+      <!-- join (planned) -->
+      <rect class="n-fill s-join stroke2 dashed" x="240" y="496" width="214" height="48" rx="6"/>
+      <text class="t-name" x="347" y="516" text-anchor="middle">join by level</text>
+      <text class="t-sub"  x="347" y="531" text-anchor="middle">category ↔ footprint level</text>
+
+      <!-- warp -->
+      <rect class="n-fill s-join stroke2" x="240" y="605" width="214" height="44" rx="6"/>
+      <text class="t-name" x="347" y="624" text-anchor="middle">GcpTransformer</text>
+      <text class="t-sub"  x="347" y="638" text-anchor="middle">px → geo (Allmaps)</text>
+
+      <!-- api -->
+      <rect class="n-fill s-join stroke2" x="240" y="694" width="214" height="42" rx="6"/>
+      <text class="t-name" x="347" y="712" text-anchor="middle">legend-points API</text>
+      <text class="t-sub"  x="347" y="726" text-anchor="middle">/api/maps/[id]/legend-points</text>
+
+      <!-- render -->
+      <rect class="n-fill s-join stroke2" x="240" y="783" width="214" height="44" rx="6"/>
+      <text class="t-name" x="347" y="802" text-anchor="middle">LegendPointsLayer</text>
+      <text class="t-sub"  x="347" y="816" text-anchor="middle">/explore</text>
+    </svg>
+    <figcaption>Solid = shipped · dashed = planned. The OCR→SAM2 arrows are the key change: OCR points become SAM2 prompts (MapSAM2 takes point/bbox prompts), so area features get their label at birth. Linear features (streets, rivers) whose label sits off the geometry fall to the dashed join-by-level instead.</figcaption>
+  </figure>
+  </div>
+
+  <section class="build">
+    <h2>Build order — laziest path that holds</h2>
+    <ol class="steps">
+      <li class="shipnext">
+        <span class="rank">1</span>
+        <span class="body"><span class="lead">Level-aware label ↔ footprint join + FK.</span>
+          <div class="note">Nullable <code>footprint_id</code> on <code>ocr_extractions</code> (mig 049). Smallest-containing polygon, disambiguated by OCR <code>category</code> ↔ footprint level (number→building, name→block/street). Ships on existing OCR + seg. Ray-cast PIP, ~50 lines + assert check.</div></span>
+      </li>
+      <li>
+        <span class="rank">2</span>
+        <span class="body"><span class="lead">Color pre-pass.</span>
+          <div class="note">numpy over the full image → auto-fill the Triage priority grid (currently manual) + a near-free water/veg mask feeding the coarse pass + blank-tile skip to cut API cost. Uses existing scipy, zero new dep.</div></span>
+      </li>
+      <li>
+        <span class="rank">3</span>
+        <span class="body"><span class="lead">Neighbor-window OCR batching.</span>
+          <div class="note">Tile + neighbors in one multi-image Gemini call — resolves cross-tile word splits, retires <code>stitch</code>/<code>dedup</code> (~407 lines). Trade: more tokens/call.</div></span>
+      </li>
+      <li>
+        <span class="rank">4</span>
+        <span class="body"><span class="lead">OCR points → SAM2 prompts (coarse→fine).</span>
+          <div class="note">Feed OCR centroids as MapSAM2 point prompts; run blocks/rivers first, buildings inside those masks. Area features get labels at birth — shrinks the join to linear-only. Bigger change; needs the seg pass reworked to accept prompts.</div></span>
+      </li>
+      <li>
+        <span class="rank">5</span>
+        <span class="body"><span class="lead">Eval harness.</span>
+          <div class="note">ICDAR-MapText CharACC + box IoU (OCR); IoU + COCO PQ vs held-out traces (seg). Gates the fine-tune; measures whether a gazetteer is worth it.</div></span>
+      </li>
+      <li class="deferred">
+        <span class="rank">6</span>
+        <span class="body"><span class="lead">Gazetteer link + hallucination guard. <span style="color:var(--muted)">— deferred</span></span>
+          <div class="note">Same join pass, folded in later once the eval harness can show the gain. Source decided empirically.</div></span>
+      </li>
+      <li class="deferred">
+        <span class="rank">7</span>
+        <span class="body"><span class="lead">Trace HITL exports → LoRA shot set. <span style="color:var(--muted)">— deferred</span></span>
+          <div class="note">10-shot floor × 2 styles (French-colonial, US-AMS). Needs the eval harness to prove it beats the U-Net baseline.</div></span>
+      </li>
+    </ol>
+  </section>
+</div>
+
+</body>
+</html>
