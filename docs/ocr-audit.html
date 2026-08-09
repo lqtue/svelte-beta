@@ -167,8 +167,8 @@
   <div class="ledger">
     <div class="tally t-keep"><div class="n">14</div><div class="lbl">Keep</div><div class="desc">sound choice for the constraint</div></div>
     <div class="tally t-tune"><div class="n">13</div><div class="lbl">Tune</div><div class="desc">works, has a rough edge worth filing off</div></div>
-    <div class="tally t-done"><div class="n">7</div><div class="lbl">Fixed</div><div class="desc">shipped on this branch</div></div>
-    <div class="tally t-fix"><div class="n">2</div><div class="lbl">Fix open</div><div class="desc">correctness / integrity risk still standing</div></div>
+    <div class="tally t-done"><div class="n">8</div><div class="lbl">Fixed</div><div class="desc">shipped on this branch</div></div>
+    <div class="tally t-fix"><div class="n">1</div><div class="lbl">Fix open</div><div class="desc">correctness / integrity risk still standing</div></div>
   </div>
 
   <h2>Results <span class="h2-note">— what's shipped, and the one measured experiment</span></h2>
@@ -254,7 +254,7 @@
 
   <h2>Top risks <span class="h2-note">— ranked by blast radius, fix these first</span></h2>
   <ol class="risks">
-    <li><div><div class="r-t">Four coordinate conventions, no single normalization point</div><div class="r-d">Schema says <code>0–1000</code> normalized; V1–V3 prompts say tile pixels; the retry-hint says pixels; <code>local_vision</code> returns raw image px; SCOUT uses float bboxes, extraction uses int. Which convention a row is in depends on <em>which prompt version ran</em> — not schema-enforceable. Silent geometry corruption.</div></div></li>
+    <li class="done"><div><div class="r-t">Four coordinate conventions, no single normalization point <span class="done-tag">✓ fixed · 51bc5f3</span></div><div class="r-d">Schema said <code>0–1000</code> but V1–V3 prompts said tile pixels and the retry-hint was space-agnostic, so a row's space depended on which prompt ran. All prompts + the retry-hint now state 0–1000, and a canonical contract is documented atop <code>prompt.py</code> (incl. that <code>local_vision</code>'s raw px is a separate space, never via <code>_to_global</code>). Residual: scout's float-vs-int type and sanitize's clamp-not-drop are documented, output-affecting, left for an eval-backed pass.</div></div></li>
     <li class="done"><div><div class="r-t"><code>status</code> never gates derived reads <span class="done-tag">✓ fixed · e5ab259</span></div><div class="r-d"><code>legend-points</code> and <code>join_labels</code> both read every row regardless of status → <b>rejected</b> and un-reviewed <b>pending</b> extractions still project onto the public map, and human <code>text_validated</code> corrections are ignored. Both now skip <code>status='rejected'</code> and prefer the validated text/category.</div></div></li>
     <li class="done"><div><div class="r-t">RLS UPDATE open to any authenticated user <span class="done-tag">✓ fixed · dd5db39</span></div><div class="r-d">Migration 042's UPDATE policy allowed any <code>authenticated</code> role, not just admins — the DB was weaker than the API's admin gate. Migration 051 restricts UPDATE to the <code>admin/mod</code> profiles check the rest of the review flow uses.</div></div></li>
     <li><div><div class="r-t">Cache can serve a result from a different sampling regime</div><div class="r-d">Cache key = SHA256(image+prompt+model+manual <code>SCHEMA_VERSION</code>). It omits temperature, <code>max_output_tokens</code>, and <code>system_instruction</code>. Extraction runs at <em>default</em> (nondeterministic) temperature, and <code>SCHEMA_VERSION</code> is a hand-bumped string already drifted from the real schema. Stale/mismatched hits served silently.</div></div></li>
@@ -735,9 +735,9 @@
   </div>
 
   <footer>
-    36 decisions audited across 11 source files · anchors at HEAD, branch <code>feat/ocr-footprint-join</code> · living report, 7 of 9 fixes shipped<br>
+    36 decisions audited across 11 source files · anchors at HEAD, branch <code>feat/ocr-footprint-join</code> · living report, 8 of 9 fixes shipped<br>
     Verdicts: <span style="color:var(--keep)">keep</span> = sound for its constraint · <span style="color:var(--tune)">tune</span> = works, rough edge · <span style="color:var(--fix)">fix</span> = correctness / data-integrity risk · <span style="color:var(--keep)">✓ fixed</span> = shipped<br>
-    Open fixes, by leverage: unify the four coordinate conventions · stop the malformed-retry image drop (and its stale schema hint).
+    Open fix: stop the malformed-retry image drop — the retry re-sends the prompt with no image, so the model re-emits JSON it can't see (needs a Gemini run to validate a fix).
   </footer>
 </div>
 
