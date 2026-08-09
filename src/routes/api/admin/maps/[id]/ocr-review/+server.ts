@@ -88,11 +88,15 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         throw error(400, 'Missing bbox coords');
     }
 
+    // The unique key is (map_id, run_id, tile_x, tile_y, text). Manual boxes
+    // usually have empty text, so keying tile_x/y off the drawn location keeps
+    // two blank boxes from colliding on (…,0,0,''). Two boxes at the exact same
+    // pixel with the same text still collapse — same-spot dup, acceptable.
     const row = {
         map_id: mapId,
         run_id,
-        tile_x: body.tile_x ?? 0,
-        tile_y: body.tile_y ?? 0,
+        tile_x: body.tile_x ?? Math.round(global_x),
+        tile_y: body.tile_y ?? Math.round(global_y),
         tile_w: body.tile_w ?? 0,
         tile_h: body.tile_h ?? 0,
         global_x, global_y, global_w, global_h,
