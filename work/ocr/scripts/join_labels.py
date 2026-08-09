@@ -86,17 +86,21 @@ def assign_footprints(
 
     out: dict[str, str] = {}
     for ext in extractions:
+        if ext.get("status") == "rejected":
+            continue  # never link a label a human threw out
         gx, gy = ext.get("global_x"), ext.get("global_y")
         if gx is None or gy is None:
             continue
         cx = gx + (ext.get("global_w") or 0) / 2.0
         cy = gy + (ext.get("global_h") or 0) / 2.0
 
-        text = (ext.get("text") or "").strip()
+        # Prefer the human-corrected text/category over raw model output.
+        text = (ext.get("text_validated") or ext.get("text") or "").strip()
+        category = ext.get("category_validated") or ext.get("category") or ""
         if text.isdigit():
             want = {"building"}
         else:
-            want = LEVEL_BY_CATEGORY.get(ext.get("category") or "", set())
+            want = LEVEL_BY_CATEGORY.get(category, set())
 
         containing = [(fid, ftype, area) for (fid, ftype, ring, area) in prepared
                       if point_in_ring(cx, cy, ring)]
@@ -153,6 +157,16 @@ def _self_check() -> None:
     assert got.get("n1") == "bldg", f"numeral → building, got {got.get('n1')}"
     assert got.get("p1") == "block", f"name → block, got {got.get('p1')}"
     assert "o1" not in got, "outside point must not link"
+
+    # Rejected labels never link; a corrected category routes by the fix.
+    rejected = {"id": "r1", "text": "12", "category": "other", "status": "rejected",
+                "global_x": 49, "global_y": 49, "global_w": 2, "global_h": 2}
+    fixed = {"id": "f1", "text": "Marché", "category": "building",
+             "category_validated": "place", "global_x": 49, "global_y": 49,
+             "global_w": 2, "global_h": 2}
+    got2 = assign_footprints([rejected, fixed], footprints)
+    assert "r1" not in got2, "rejected label must not link"
+    assert got2.get("f1") == "block", f"category_validated 'place' → block, got {got2.get('f1')}"
     print("[ok] join_labels self-check passed")
 
 

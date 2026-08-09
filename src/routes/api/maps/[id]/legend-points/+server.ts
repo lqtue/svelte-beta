@@ -30,21 +30,25 @@ export const GET: RequestHandler = async ({ params }) => {
   if (!(map as any)?.allmaps_id) return json({ points: [], reason: 'not georeferenced' });
 
   // Legend entries → number→name map + the legend box rect (shared tile bbox).
+  // Skip rows a human rejected; prefer their corrected text over the raw model
+  // output so HITL fixes actually reach the public map.
   const { data: entries } = await supabase
     .from('ocr_extractions')
-    .select('text, notes, tile_x, tile_y, tile_w, tile_h')
+    .select('text, text_validated, notes, tile_x, tile_y, tile_w, tile_h')
     .eq('map_id', mapId)
-    .eq('category', 'legend_entry');
+    .eq('category', 'legend_entry')
+    .neq('status', 'rejected');
 
   const nameByN = new Map<number, { name: string; vn: string | null; grid: string | null }>();
   let rect: { x: number; y: number; w: number; h: number } | null = null;
   for (const e of (entries ?? []) as any[]) {
-    const m = /^(\d+)\.\s*(.*)$/.exec(e.text ?? '');
+    const eText = e.text_validated ?? e.text;
+    const m = /^(\d+)\.\s*(.*)$/.exec(eText ?? '');
     const n = m ? parseInt(m[1], 10) : parseInt(/n=(\d+)/.exec(e.notes ?? '')?.[1] ?? '', 10);
     if (!Number.isFinite(n)) continue;
     const grid = /grid=([^;]+)/.exec(e.notes ?? '')?.[1]?.trim() ?? null;
     const vn = /vn=([^;]+)/.exec(e.notes ?? '')?.[1]?.trim() ?? null;
-    nameByN.set(n, { name: m ? m[2] : (e.text ?? ''), vn, grid });
+    nameByN.set(n, { name: m ? m[2] : (eText ?? ''), vn, grid });
     if (!rect && e.tile_w) rect = { x: e.tile_x, y: e.tile_y, w: e.tile_w, h: e.tile_h };
   }
   const maxN = nameByN.size ? Math.max(...nameByN.keys()) : 0;
@@ -54,9 +58,10 @@ export const GET: RequestHandler = async ({ params }) => {
   // digit + ≤maxN + outside-legend-box filters below isolate the real refs.
   const { data: refs } = await supabase
     .from('ocr_extractions')
-    .select('text, global_x, global_y, global_w, global_h')
+    .select('text, text_validated, global_x, global_y, global_w, global_h')
     .eq('map_id', mapId)
-    .in('category', ['legend_ref', 'other']);
+    .in('category', ['legend_ref', 'other'])
+    .neq('status', 'rejected');
 
   // Build the pixel→geo transformer from the stored annotation (mirror override
   // first, else the public Allmaps annotation).
@@ -78,7 +83,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
   const points: Array<{ n: number; name: string | null; vn: string | null; grid: string | null; lng: number; lat: number }> = [];
   for (const r of (refs ?? []) as any[]) {
-    const t = (r.text ?? '').trim();
+    const t = (r.text_validated ?? r.text ?? '').trim();
     if (!/^\d+$/.test(t)) continue;
     const n = parseInt(t, 10);
     if (n < 1 || n > maxN) continue; // only numerals that name a legend entry
