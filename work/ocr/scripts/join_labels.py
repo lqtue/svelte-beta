@@ -97,7 +97,9 @@ def assign_footprints(
         # Prefer the human-corrected text/category over raw model output.
         text = (ext.get("text_validated") or ext.get("text") or "").strip()
         category = ext.get("category_validated") or ext.get("category") or ""
-        if text.isdigit():
+        # Gemini often returns a bare parcel numeral with trailing punctuation
+        # ('12.'); strip it so the numeral still routes to the building level.
+        if text.rstrip(".,").isdigit():
             want = {"building"}
         else:
             want = LEVEL_BY_CATEGORY.get(category, set())

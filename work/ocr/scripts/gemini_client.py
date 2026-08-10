@@ -360,6 +360,12 @@ def extract_labels_sequence(
         "system_instruction": system_prompt,
         "response_mime_type": "application/json",
         "response_schema": seq_schema,
+        # Same truncation guard as extract_labels: a dense row-strip holds 100+
+        # labels and the default output cap cuts JSON mid-string ("unterminated
+        # string" malformed error). This is the default batch path, and the
+        # malformed retry inherits config_kwargs — without the cap it would
+        # truncate again on the retry too.
+        "max_output_tokens": 65536,
     }
 
     t_start = time.monotonic()

@@ -2194,7 +2194,7 @@ def _run_legend_pass(iiif_base: str, img_w: int, img_h: int, cartouche,
         print("[legend] no cartouche/ruled-box region found — skipped")  # no silent cap
         return
     x, y, w, h = region
-    crop = fetch_crop(iiif_base, x, y, w, h, size=2600, local_image=local_image)
+    crop = fetch_crop(iiif_base, x, y, w, h, size=2600, local_image=local_image, quality=quality)
     entries = extract_legend(crop, model=model)
     n = _write_legend_rows(map_id, run_id, region, entries, model)
     print(f"[legend] region={region} entries={len(entries)} upserted={n}")
