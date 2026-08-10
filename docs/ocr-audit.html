@@ -264,6 +264,17 @@
     <li><div><div class="r-t">Fire-and-forget spawn discards all output</div><div class="r-d">Trigger route spawns detached with <code>stdio:'ignore'</code> and returns 202. A crashed run is indistinguishable from a running one; operators learn of failure only from absent DB rows.</div></div></li>
   </ol>
 
+  <h2>Pre-merge review <span class="h2-note">— <code>main..feat/ocr-footprint-join</code>, 6 findings + 1 note</span></h2>
+  <ol class="risks">
+    <li class="done"><div><div class="r-t">Default batch path had no output cap <span class="done-tag">✓ fixed · 0603168</span></div><div class="r-d"><code>extract_labels_sequence</code> — the default <code>--row-sequence</code> path — omitted the <code>max_output_tokens=65536</code> guard that <code>extract_labels</code>/<code>extract_legend</code> already carried. A dense 100+ label row-strip truncated JSON mid-string ("unterminated string"), and the malformed retry inherits <code>config_kwargs</code> so it truncated again. Cap added.</div></div></li>
+    <li class="done"><div><div class="r-t">Legend crop dropped IIIF quality <span class="done-tag">✓ fixed · 0603168</span></div><div class="r-d"><code>_run_legend_pass</code> threaded <code>quality</code> into the overview fetch but the actual legend crop Gemini reads called <code>fetch_crop(...)</code> without it — defaulting to <code>default</code> quality on exactly the grayscale/high-contrast maps where quality was tuned. Now passed through.</div></div></li>
+    <li class="done"><div><div class="r-t">Numeral routing broke on trailing punctuation <span class="done-tag">✓ fixed · 0603168</span></div><div class="r-d"><code>join_labels</code> routed a bare parcel numeral to the building level via <code>text.isdigit()</code>, so <code>'12.'</code> failed the test and fell back to the empty <code>other</code> level set → linked to the smallest containing polygon of any type. Now <code>rstrip(".,")</code> before the test.</div></div></li>
+    <li><div><div class="r-t">Eval self-matches validated rows under <code>--run-id</code></div><div class="r-d"><code>eval.py</code> filters predictions by <code>run_id</code> only (no status exclude), so a run's HITL-validated rows land in <em>both</em> ground truth and predictions, self-matching at IoU 1.0. Left open by choice — the "correct" semantics are debatable (a validated row's raw <code>text</code> is a real prediction) and any change shifts the locked <code>EVAL-BASELINE.md</code> numbers. Decide before trusting the harness as a regression gate.</div></div></li>
+    <li><div><div class="r-t">Stray numerals plotted as legend refs</div><div class="r-d"><code>legend-points</code> projects any <code>other</code> numeral ≤ <code>maxN</code> lying outside the legend box as a numbered legend marker. House numbers, tram-line numbers, and date fragments read as <code>other</code> scatter false points across the public map. Filtering is a heuristic judgment on the legend-points feature — left for the feature owner.</div></div></li>
+    <li><div><div class="r-t">Legend-points toggle shows on maps with no legend data</div><div class="r-d"><code>/explore</code> gates the toggle on <code>!!activeOverlayMapId</code>, so it renders for every georeferenced overlay — contradicting the <code>LayerControlsPanel</code> doc comment ("only when the active overlay has legend data"). On a map with no legend rows the fetch returns empty and the control is a no-op. UX call, left open.</div></div></li>
+    <li><div><div class="r-t"><span class="done-tag" style="background:none;color:inherit;opacity:.7">note</span> mig 051 grants <code>mod</code>, API gates <code>admin</code> only</div><div class="r-d">Migration 051's UPDATE policy allows <code>admin</code>+<code>mod</code>, but the ocr-review API's <code>getAdminClient</code> gate checks <code>role === 'admin'</code> only — a <code>mod</code> cannot use the API despite the migration comment claiming parity with the review flow. Inconsistency, not a defect.</div></div></li>
+  </ol>
+
   <h2>Tiling &amp; region</h2>
   <div class="decks">
     <article class="dec keep">
@@ -735,9 +746,9 @@
   </div>
 
   <footer>
-    36 decisions audited across 11 source files · anchors at HEAD, branch <code>feat/ocr-footprint-join</code> · living report, 9 of 9 fixes shipped<br>
+    36 decisions audited across 11 source files · anchors at HEAD, branch <code>feat/ocr-footprint-join</code> · living report, 9 of 9 scoped fixes shipped + pre-merge review<br>
     Verdicts: <span style="color:var(--keep)">keep</span> = sound for its constraint · <span style="color:var(--tune)">tune</span> = works, rough edge · <span style="color:var(--fix)">fix</span> = correctness / data-integrity risk · <span style="color:var(--keep)">✓ fixed</span> = shipped<br>
-    All nine scoped fixes shipped. The malformed-retry image drop (<code>c58af82</code>) now re-sends the image on retry; validating that branch end-to-end still needs a live Gemini batch run.
+    Nine scoped fixes shipped. A pre-merge branch review (<code>main..feat/ocr-footprint-join</code>) found 6 more + 1 note: 3 mechanical bugs fixed (<code>0603168</code>), 3 left open as design calls (eval self-match vs the locked baseline, stray-numeral legend points, dead legend-points toggle). Validating the malformed-retry branch end-to-end still needs a live Gemini batch run.
   </footer>
 </div>
 
