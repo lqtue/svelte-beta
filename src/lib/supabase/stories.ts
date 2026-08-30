@@ -44,6 +44,16 @@ function rowToStory(row: any): Story {
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 
+export async function fetchStoryById(supabase: SupabaseClient, id: string): Promise<Story | null> {
+	const { data, error } = await supabase
+		.from('stories')
+		.select('*, story_points(*)')
+		.eq('id', id)
+		.single();
+	if (error || !data) { console.error('fetchStoryById:', error); return null; }
+	return rowToStory(data);
+}
+
 export async function fetchPublicStories(
 	supabase: SupabaseClient,
 	_mapId?: string

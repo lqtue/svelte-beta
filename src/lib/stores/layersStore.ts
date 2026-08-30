@@ -22,6 +22,23 @@ export type HistoricalRef = {
 };
 export type LayerRef = BasemapRef | HistoricalRef;
 
+/** Build a HistoricalRef from a catalogue row. `annotation_url` (R2 mirror) wins over the bare Allmaps id. */
+export function toHistoricalRef(map: {
+  id: string;
+  allmaps_id?: string | null;
+  annotation_url?: string | null;
+  name?: string | null;
+  thumbnail?: string | null;
+}): HistoricalRef {
+  return {
+    kind: 'historical',
+    mapId: map.id,
+    allmapsId: map.annotation_url ?? map.allmaps_id ?? '',
+    name: map.name ?? undefined,
+    thumbnail: map.thumbnail ?? undefined,
+  };
+}
+
 export interface OverlayLayer {
   /** Stable local id (for keyed iteration; survives reorder). */
   id: string;
