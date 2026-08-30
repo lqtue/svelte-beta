@@ -42,5 +42,7 @@ export default ts.config(
     // svelte-check already reports unused vars/props in components.
     rules: { '@typescript-eslint/no-unused-vars': 'off' },
   },
-  { ignores: ['.svelte-kit/', 'build/', 'node_modules/', 'work/', 'scripts/', 'worker/', 'static/'] }
+  {
+    ignores: ['.svelte-kit/', 'build/', 'node_modules/', 'work/', 'scripts/', 'worker/', 'static/'],
+  }
 );
