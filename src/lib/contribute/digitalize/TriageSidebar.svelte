@@ -10,6 +10,7 @@
   import { createEventDispatcher } from 'svelte';
   import CliCommandBlock from '$lib/contribute/shared/CliCommandBlock.svelte';
   import '$styles/layouts/tool-page.css';
+  import '$styles/components/tool-sidebar.css';
   import type { TileOverrides } from './tileParams';
   import { buildTileGrid } from './tileParams';
 
@@ -97,16 +98,16 @@
 
 <div class="triage-sidebar">
   <!-- Image info -->
-  <div class="ts-section">
-    <div class="ts-section-title">Image</div>
-    <div class="ts-row">
-      <span class="ts-label">Dimensions</span>
-      <span class="ts-value mono">{imgWidth} × {imgHeight} px</span>
+  <div class="tool-section">
+    <div class="tool-section-title">Image</div>
+    <div class="tool-row">
+      <span class="tool-label">Dimensions</span>
+      <span class="tool-value tool-mono">{imgWidth} × {imgHeight} px</span>
     </div>
     {#if iiifInfoUrl}
-      <div class="ts-row ts-url-row">
-        <span class="ts-label">IIIF</span>
-        <span class="ts-value mono ts-url" title={iiifInfoUrl}
+      <div class="tool-row ts-url-row">
+        <span class="tool-label">IIIF</span>
+        <span class="tool-value tool-mono ts-url" title={iiifInfoUrl}
           >{iiifInfoUrl.replace('/info.json', '').split('/').slice(-2).join('/')}</span
         >
       </div>
@@ -114,94 +115,96 @@
   </div>
 
   <!-- Neatline -->
-  <div class="ts-section">
-    <div class="ts-section-header">
-      <div class="ts-section-title">Neatline crop</div>
-      <button class="ts-ghost-btn" on:click={resetFullImage} disabled={!imgWidth}>Full image</button
+  <div class="tool-section">
+    <div class="tool-section-header">
+      <div class="tool-section-title">Neatline crop</div>
+      <button class="tool-ghost-btn" on:click={resetFullImage} disabled={!imgWidth}
+        >Full image</button
       >
     </div>
-    <div class="ts-coord-grid">
-      <label class="ts-coord-label">
+    <div class="tool-coord-grid">
+      <label class="tool-coord-label">
         <span>X</span>
         <input
           type="number"
           bind:value={nx}
           on:change={onNeatlineInput}
-          class="ts-num-input"
+          class="tool-num-input"
           min="0"
           max={imgWidth}
         />
       </label>
-      <label class="ts-coord-label">
+      <label class="tool-coord-label">
         <span>Y</span>
         <input
           type="number"
           bind:value={ny}
           on:change={onNeatlineInput}
-          class="ts-num-input"
+          class="tool-num-input"
           min="0"
           max={imgHeight}
         />
       </label>
-      <label class="ts-coord-label">
+      <label class="tool-coord-label">
         <span>W</span>
         <input
           type="number"
           bind:value={nw}
           on:change={onNeatlineInput}
-          class="ts-num-input"
+          class="tool-num-input"
           min="1"
           max={imgWidth}
         />
       </label>
-      <label class="ts-coord-label">
+      <label class="tool-coord-label">
         <span>H</span>
         <input
           type="number"
           bind:value={nh}
           on:change={onNeatlineInput}
-          class="ts-num-input"
+          class="tool-num-input"
           min="1"
           max={imgHeight}
         />
       </label>
     </div>
     {#if !neatlineValid}
-      <div class="ts-error">Neatline exceeds image bounds.</div>
+      <div class="tool-error">Neatline exceeds image bounds.</div>
     {/if}
-    <div class="ts-hint">
+    <div class="tool-hint">
       Drag the amber rectangle on the canvas to adjust, or type coords. From the HTML neatline tool:
       paste x,y,w,h above.
     </div>
   </div>
 
   <!-- Tile config -->
-  <div class="ts-section">
-    <div class="ts-section-header">
-      <div class="ts-section-title">
-        Tile config <span class="ts-hint-inline mono">({tileCount} tiles)</span>
+  <div class="tool-section">
+    <div class="tool-section-header">
+      <div class="tool-section-title">
+        Tile config <span class="tool-hint-inline tool-mono">({tileCount} tiles)</span>
       </div>
-      <button class="ts-ghost-btn" on:click={suggestTileParams} disabled={!neatline}>Suggest</button
+      <button class="tool-ghost-btn" on:click={suggestTileParams} disabled={!neatline}
+        >Suggest</button
       >
     </div>
-    <div class="ts-coord-grid">
-      <label class="ts-coord-label">
+    <div class="tool-coord-grid">
+      <label class="tool-coord-label">
         <span>Size</span>
         <input
           type="number"
           bind:value={tileSize}
-          class="ts-num-input"
+          class="tool-num-input"
           min="512"
           max="8192"
           step="100"
         />
       </label>
-      <label class="ts-coord-label">
+      <label class="tool-coord-label">
         <span>Overlap</span>
         <input
           type="number"
           bind:value={overlap}
-          class="ts-num-input"
+          class="tool-num-input"
           min="0"
           max="1200"
           step="50"
@@ -211,9 +214,9 @@
   </div>
 
   <!-- Tile priority legend -->
-  <div class="ts-section">
-    <div class="ts-section-title">
-      Tile priority <span class="ts-hint-inline">— click tiles on the map</span>
+  <div class="tool-section">
+    <div class="tool-section-title">
+      Tile priority <span class="tool-hint-inline">— click tiles on the map</span>
     </div>
     <div class="ts-priority-legend">
       <div class="ts-priority-row">
@@ -235,28 +238,35 @@
         <span class="ts-priority-detail">empty / border</span>
       </div>
     </div>
-    <div class="ts-hint">Click a tile once → Low-res · twice → Skip · three times → Normal</div>
+    <div class="tool-hint">Click a tile once → Low-res · twice → Skip · three times → Normal</div>
   </div>
 
   <!-- Run config -->
-  <div class="ts-section">
-    <div class="ts-section-title">Run</div>
-    <label class="ts-field">
-      <span class="ts-label">Run ID</span>
+  <div class="tool-section">
+    <div class="tool-section-title">Run</div>
+    <label class="tool-field">
+      <span class="tool-label">Run ID</span>
       <input
         type="text"
         bind:value={runId}
-        class="ts-text-input mono"
+        class="tool-text-input tool-mono"
         placeholder="auto-generated"
       />
     </label>
-    <label class="ts-field">
-      <span class="ts-label">Min confidence <strong>{minConfidence.toFixed(2)}</strong></span>
-      <input type="range" bind:value={minConfidence} min="0" max="1" step="0.05" class="ts-range" />
+    <label class="tool-field">
+      <span class="tool-label">Min confidence <strong>{minConfidence.toFixed(2)}</strong></span>
+      <input
+        type="range"
+        bind:value={minConfidence}
+        min="0"
+        max="1"
+        step="0.05"
+        class="tool-range"
+      />
     </label>
 
     {#if ocrError}
-      <div class="ts-error">{ocrError}</div>
+      <div class="tool-error">{ocrError}</div>
     {/if}
 
     {#if cliCommand}
@@ -264,30 +274,30 @@
     {/if}
 
     <button
-      class="ts-run-btn"
+      class="tool-run-btn"
       on:click={() => dispatch('runOcr')}
       disabled={ocrRunning || !neatlineValid || !imgWidth}
     >
       {#if ocrRunning}
-        <span class="ts-spinner"></span> Starting…
+        <span class="tool-spinner"></span> Starting…
       {:else}
         Run OCR
       {/if}
     </button>
-    <div class="ts-hint">Runs in the background — check terminal for progress.</div>
+    <div class="tool-hint">Runs in the background — check terminal for progress.</div>
   </div>
 
   <!-- Run history -->
   {#if Object.keys(runs).length > 0}
-    <div class="ts-section">
-      <div class="ts-section-title">Existing runs</div>
+    <div class="tool-section">
+      <div class="tool-section-title">Existing runs</div>
       {#each Object.entries(runs).reverse() as [rid, info]}
         <div class="ts-run-row">
           <div class="ts-run-meta">
             <code class="ts-run-id">{rid}</code>
             <span class="ts-run-n">{info.n} items</span>
           </div>
-          <button class="ts-ghost-btn" on:click={() => dispatch('loadRun', { runId: rid })}>
+          <button class="tool-ghost-btn" on:click={() => dispatch('loadRun', { runId: rid })}>
             Review →
           </button>
         </div>
@@ -297,6 +307,8 @@
 </div>
 
 <style>
+  /* Section / field / button primitives live in $styles/components/tool-sidebar.css
+     (`.tool-*`). Only the triage-specific pieces are declared here. */
   .triage-sidebar {
     display: flex;
     flex-direction: column;
@@ -306,53 +318,8 @@
     min-height: 0;
   }
 
-  .ts-section {
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--color-border, #e5e7eb);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .ts-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .ts-section-title {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-text, #111);
-    opacity: 0.55;
-  }
-
-  .ts-hint-inline {
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: 0;
-  }
-
-  .ts-row {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-  }
   .ts-url-row {
     align-items: flex-start;
-  }
-
-  .ts-label {
-    font-size: 0.72rem;
-    color: var(--color-text, #111);
-    opacity: 0.6;
-    flex-shrink: 0;
-  }
-
-  .ts-value {
-    font-size: 0.78rem;
   }
   .ts-url {
     font-size: 0.68rem;
@@ -361,64 +328,6 @@
     white-space: nowrap;
     max-width: 180px;
     opacity: 0.6;
-  }
-
-  .mono {
-    font-family: ui-monospace, monospace;
-  }
-
-  .ts-coord-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.35rem;
-  }
-
-  .ts-coord-label {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.72rem;
-  }
-
-  .ts-coord-label span {
-    width: 3.2rem;
-    text-align: right;
-    opacity: 0.5;
-  }
-
-  .ts-num-input {
-    flex: 1;
-    min-width: 0;
-    padding: 0.25rem 0.4rem;
-    font-size: 0.75rem;
-    font-family: ui-monospace, monospace;
-    border: 1px solid var(--color-border, #d1d5db);
-    border-radius: 3px;
-    background: var(--color-surface, #fff);
-  }
-
-  .ts-field {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .ts-field .ts-label {
-    min-width: 90px;
-  }
-
-  .ts-text-input {
-    flex: 1;
-    padding: 0.25rem 0.4rem;
-    font-size: 0.75rem;
-    border: 1px solid var(--color-border, #d1d5db);
-    border-radius: 3px;
-    background: var(--color-surface, #fff);
-  }
-
-  .ts-range {
-    flex: 1;
-    accent-color: var(--color-accent, #111);
   }
 
   .ts-priority-legend {
@@ -442,6 +351,8 @@
     flex-shrink: 0;
   }
 
+  /* Swatch colours mirror TriageTool's OpenLayers tile styles verbatim —
+     they are canvas parity, not theme, so they stay literal. */
   .ts-swatch--normal {
     background: transparent;
     border-color: rgba(245, 158, 11, 0.35);
@@ -456,7 +367,7 @@
   }
 
   .ts-priority-label {
-    font-weight: 600;
+    font-weight: var(--font-semibold);
     min-width: 56px;
   }
   .ts-priority-count {
@@ -467,56 +378,6 @@
   .ts-priority-detail {
     opacity: 0.5;
     font-size: 0.68rem;
-  }
-
-  .ts-ghost-btn {
-    font-size: 0.7rem;
-    padding: 0.2rem 0.5rem;
-    border: 1px solid var(--color-border, #d1d5db);
-    border-radius: 3px;
-    background: transparent;
-    cursor: pointer;
-    white-space: nowrap;
-    color: var(--color-text, #111);
-  }
-  .ts-ghost-btn:hover:not(:disabled) {
-    background: var(--color-surface-hover, #f9fafb);
-  }
-  .ts-ghost-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
-  .ts-run-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    width: 100%;
-    padding: 0.55rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    background: var(--color-text, #111);
-    color: var(--color-bg, #fff);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  .ts-run-btn:hover:not(:disabled) {
-    opacity: 0.85;
-  }
-  .ts-run-btn:disabled {
-    opacity: 0.45;
-    cursor: default;
-  }
-
-  .ts-spinner {
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
   }
 
   .ts-run-row {
@@ -539,20 +400,5 @@
   .ts-run-n {
     font-size: 0.7rem;
     opacity: 0.5;
-  }
-
-  .ts-error {
-    font-size: 0.72rem;
-    color: #dc2626;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 3px;
-    padding: 0.35rem 0.5rem;
-  }
-
-  .ts-hint {
-    font-size: 0.68rem;
-    opacity: 0.45;
-    line-height: 1.4;
   }
 </style>

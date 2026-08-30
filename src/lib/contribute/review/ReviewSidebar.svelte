@@ -23,6 +23,7 @@
     markReviewed: void;
   }>();
 
+  /** Class swatches — data, not theme: they identify a feature class on the canvas. */
   const CLASS_COLORS: Record<string, string> = {
     particulier: '#d2956e',
     communal: '#7cb87c',
@@ -50,11 +51,11 @@
   };
 
   function classColor(ft: string) {
-    return CLASS_COLORS[ft] ?? '#888';
+    return CLASS_COLORS[ft] ?? CLASS_COLORS.other;
   }
 </script>
 
-<aside class="sidebar">
+<aside class="review-sidebar">
   <div class="sidebar-header">
     <h2>Needs Review</h2>
     <span class="progress-pill">{reviewed} / {total} done</span>
@@ -79,45 +80,41 @@
   {:else}
     <ul class="fp-list">
       {#each footprints as fp (fp.id)}
-        <li
-          class="fp-item"
-          class:selected={fp.id === selectedId}
-          on:click={() => dispatch('select', { id: fp.id })}
-          on:keydown={(e) => e.key === 'Enter' && dispatch('select', { id: fp.id })}
-          role="button"
-          tabindex="0"
-        >
-          <span class="swatch" style="background:{classColor(fp.featureType)}"></span>
-          <span class="fp-meta">
+        <li class="fp-item" class:selected={fp.id === selectedId}>
+          <!-- The row itself is the select control, so it is a real button. -->
+          <button type="button" class="fp-main" on:click={() => dispatch('select', { id: fp.id })}>
+            <span class="swatch" style="background:{classColor(fp.featureType)}"></span>
             <span class="fp-class">{fp.featureType}</span>
-          </span>
+          </button>
+
           {#if fp.id === selectedId}
-            <select
-              class="type-select"
-              value={fp.featureType}
-              on:click|stopPropagation
-              on:change={(e) =>
-                dispatch('retype', { id: fp.id, featureType: e.currentTarget.value })}
-            >
-              {#each Object.entries(ALL_TYPE_LABELS) as [value, label]}
-                <option {value}>{label}</option>
-              {/each}
-            </select>
-            <div class="fp-actions">
-              <button
-                class="btn-approve"
-                disabled={approving === fp.id}
-                on:click|stopPropagation={() => dispatch('approve', { id: fp.id })}
+            <div class="fp-extra">
+              <select
+                class="type-select"
+                value={fp.featureType}
+                on:change={(e) =>
+                  dispatch('retype', { id: fp.id, featureType: e.currentTarget.value })}
               >
-                {approving === fp.id ? '…' : '✓ Approve'}
-              </button>
-              <button
-                class="btn-reject"
-                disabled={approving === fp.id}
-                on:click|stopPropagation={() => dispatch('reject', { id: fp.id })}
-              >
-                ✕ Reject
-              </button>
+                {#each Object.entries(ALL_TYPE_LABELS) as [value, label]}
+                  <option {value}>{label}</option>
+                {/each}
+              </select>
+              <div class="fp-actions">
+                <button
+                  class="btn-approve"
+                  disabled={approving === fp.id}
+                  on:click={() => dispatch('approve', { id: fp.id })}
+                >
+                  {approving === fp.id ? '…' : '✓ Approve'}
+                </button>
+                <button
+                  class="btn-reject"
+                  disabled={approving === fp.id}
+                  on:click={() => dispatch('reject', { id: fp.id })}
+                >
+                  ✕ Reject
+                </button>
+              </div>
             </div>
           {/if}
         </li>
@@ -127,20 +124,20 @@
 </aside>
 
 <style>
-  .sidebar {
+  .review-sidebar {
     width: 280px;
     flex-shrink: 0;
-    background: #1a1612;
-    border-left: 1px solid #2d2a26;
+    background: var(--color-white);
+    border-left: var(--border-thin);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    font-family: 'Be Vietnam Pro', sans-serif;
+    font-family: var(--font-family-base);
   }
 
   .sidebar-header {
     padding: 1rem;
-    border-bottom: 1px solid #2d2a26;
+    border-bottom: var(--border-thin);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -150,18 +147,18 @@
   h2 {
     margin: 0;
     font-size: 0.875rem;
-    font-weight: 700;
-    color: #e8e0d0;
+    font-weight: var(--font-bold);
+    color: var(--color-text);
     letter-spacing: 0.05em;
     text-transform: uppercase;
   }
 
   .progress-pill {
     font-size: 0.75rem;
-    font-weight: 600;
-    background: #2d2a26;
-    color: #9ca3af;
-    border-radius: 999px;
+    font-weight: var(--font-semibold);
+    background: var(--color-gray-100);
+    color: var(--color-gray-500);
+    border-radius: var(--radius-pill);
     padding: 0.15rem 0.6rem;
     white-space: nowrap;
   }
@@ -169,7 +166,7 @@
   .empty {
     padding: 2rem 1rem;
     text-align: center;
-    color: #6b7280;
+    color: var(--color-gray-500);
     font-size: 0.875rem;
   }
 
@@ -182,21 +179,29 @@
   }
 
   .fp-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.625rem;
-    padding: 0.625rem 1rem;
-    cursor: pointer;
-    border-bottom: 1px solid #2d2a26;
-    flex-wrap: wrap;
+    border-bottom: 1px solid var(--color-gray-300);
     transition: background 0.1s;
   }
 
   .fp-item:hover {
-    background: #231f1a;
+    background: var(--color-gray-100);
   }
   .fp-item.selected {
-    background: #2d2a26;
+    background: var(--tone-blue-wash);
+  }
+
+  .fp-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.625rem 1rem;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
   }
 
   .swatch {
@@ -205,20 +210,20 @@
     border-radius: 3px;
     flex-shrink: 0;
     margin-top: 3px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-  }
-
-  .fp-meta {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 15%, transparent);
   }
 
   .fp-class {
+    flex: 1;
     font-size: 0.8125rem;
-    font-weight: 600;
-    color: #d1c9be;
+    font-weight: var(--font-semibold);
+    color: var(--color-text);
+  }
+
+  .fp-extra {
+    display: flex;
+    flex-direction: column;
+    padding: 0 1rem 0.625rem;
   }
 
   .fp-actions {
@@ -233,7 +238,7 @@
     flex: 1;
     padding: 0.35rem 0;
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -248,28 +253,28 @@
   }
 
   .btn-approve {
-    background: #166534;
-    color: #bbf7d0;
+    background: var(--tone-green-ink);
+    color: var(--tone-green-pale);
   }
 
   .btn-approve:hover:not(:disabled) {
-    background: #15803d;
+    background: var(--color-success-600);
   }
 
   .btn-reject {
-    background: #7f1d1d;
-    color: #fecaca;
+    background: var(--tone-red-ink);
+    color: var(--tone-red-pale);
   }
 
   .btn-reject:hover:not(:disabled) {
-    background: #991b1b;
+    background: var(--color-error-600);
   }
 
   .type-select {
     width: 100%;
-    background: #2d2a26;
-    color: #d1c9be;
-    border: 1px solid #4b5563;
+    background: var(--color-white);
+    color: var(--color-text);
+    border: 1px solid var(--color-gray-300);
     border-radius: 4px;
     font-size: 0.75rem;
     font-family: inherit;
@@ -279,7 +284,7 @@
   }
 
   .type-select:focus {
-    outline: 1px solid #f97316;
+    outline: 1px solid var(--color-orange);
     outline-offset: -1px;
   }
 
@@ -293,10 +298,10 @@
     width: 100%;
     padding: 0.5rem;
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     font-family: inherit;
-    background: #166534;
-    color: #fff;
+    background: var(--tone-green-ink);
+    color: var(--color-white);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -306,11 +311,11 @@
     cursor: not-allowed;
   }
   .btn-mark-reviewed:hover:not(:disabled) {
-    background: #14532d;
+    background: var(--color-success-600);
   }
   .mark-reviewed-error {
     font-size: 0.72rem;
-    color: #ef4444;
+    color: var(--color-error-600);
     margin: 0;
   }
 </style>

@@ -350,7 +350,7 @@
 <style>
   .stage-error {
     font-size: 0.8rem;
-    color: #b91c1c;
+    color: var(--tone-red-ink);
     max-width: 34ch;
     text-align: center;
   }

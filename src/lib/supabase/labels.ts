@@ -160,7 +160,7 @@ interface MapJoinRow {
 
 // ── Review helpers ────────────────────────────────────────────────────────────
 
-// SamFootprint = FootprintSubmission; kept for backward compat with ReviewMode/ReviewCanvas/ReviewSidebar
+// SamFootprint = FootprintSubmission; kept for backward compat with ReviewMode/ReviewTool/ReviewSidebar
 export type SamFootprint = FootprintSubmission;
 
 export async function fetchSubmittedFootprints(

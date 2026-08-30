@@ -1,21 +1,40 @@
+<!--
+  /contribute/review — HITL review of SAM2 footprints.
+
+  Picker first (maps that have `submitted` / `needs_review` polygons), then
+  ReviewMode for the chosen map. `?map=<id>` opens that map straight away —
+  that's the link the Segmentation panel of /contribute/digitalize hands out.
+-->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   import { getSupabaseContext } from '$lib/supabase/context';
   import { fetchMapsWithSubmittedFootprints } from '$lib/supabase/labels';
   import ReviewMode from '$lib/contribute/review/ReviewMode.svelte';
 
   const { supabase } = getSupabaseContext();
 
-  let maps: Awaited<ReturnType<typeof fetchMapsWithSubmittedFootprints>> = [];
+  type ReviewMapRow = Awaited<ReturnType<typeof fetchMapsWithSubmittedFootprints>>[number];
+
+  let maps: ReviewMapRow[] = [];
   let loading = true;
   let loadError = '';
   let selectedMapId: string | null = null;
-  let selectedAllmapsId: string = '';
+  let selectedAllmapsId = '';
   let selectedIiifImage: string | null = null;
+
+  function open(map: ReviewMapRow) {
+    selectedMapId = map.id;
+    selectedAllmapsId = map.allmapsId;
+    selectedIiifImage = map.iiifImage;
+  }
 
   onMount(async () => {
     try {
       maps = await fetchMapsWithSubmittedFootprints(supabase);
+      const wanted = $page.url.searchParams.get('map');
+      const match = wanted ? maps.find((m) => m.id === wanted) : null;
+      if (match) open(match);
     } catch (e: any) {
       loadError = e.message;
     } finally {
@@ -35,10 +54,6 @@
 
 <svelte:head>
   <title>Review footprints — Vietnam Map Archive</title>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 {#if selectedMapId}
@@ -66,17 +81,10 @@
     {:else if maps.length === 0}
       <div class="state-msg">Queue's clear — no footprints waiting on review.</div>
     {:else}
-      <ul class="map-list">
+      <ul class="review-map-list">
         {#each maps as map}
           <li>
-            <button
-              class="map-card"
-              on:click={() => {
-                selectedMapId = map.id;
-                selectedAllmapsId = map.allmapsId;
-                selectedIiifImage = map.iiifImage;
-              }}
-            >
+            <button class="map-card" on:click={() => open(map)}>
               <span class="map-name">{map.name || map.id}</span>
               <span class="map-badge">{map.pendingCount} pending</span>
             </button>
@@ -95,7 +103,7 @@
     max-width: 680px;
     margin: 0 auto;
     padding: 2rem 1.5rem 4rem;
-    font-family: 'Be Vietnam Pro', sans-serif;
+    font-family: var(--font-family-base);
   }
 
   .page-header {
@@ -106,40 +114,40 @@
     display: inline-block;
     margin-bottom: 1rem;
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--color-gray-500);
     text-decoration: none;
   }
 
   .back-link:hover {
-    color: #111;
+    color: var(--color-text);
   }
 
   h1 {
-    font-family: 'Spectral', serif;
+    font-family: var(--font-family-display);
     font-size: 2rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     margin: 0 0 0.5rem;
   }
 
   p {
-    color: #4b5563;
+    color: var(--color-gray-500);
     margin: 0;
   }
 
   .state-msg {
     padding: 2rem;
     text-align: center;
-    color: #6b7280;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    color: var(--color-gray-500);
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-sm);
   }
 
   .state-msg.error {
-    color: #dc2626;
-    border-color: #fca5a5;
+    color: var(--color-error-600);
+    border-color: var(--color-error-600);
   }
 
-  .map-list {
+  .review-map-list {
     list-style: none;
     padding: 0;
     margin: 0 0 1rem;
@@ -154,9 +162,9 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.25rem;
-    background: #fff;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
+    background: var(--color-white);
+    border: 2px solid var(--color-gray-300);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     text-align: left;
     transition:
@@ -165,28 +173,28 @@
   }
 
   .map-card:hover {
-    border-color: #f97316;
-    box-shadow: 3px 3px 0 #f97316;
+    border-color: var(--color-orange);
+    box-shadow: 3px 3px 0 var(--color-orange);
   }
 
   .map-name {
-    font-weight: 600;
+    font-weight: var(--font-semibold);
     font-size: 0.9375rem;
   }
 
   .map-badge {
     font-size: 0.8125rem;
-    font-weight: 600;
-    background: #fff7ed;
-    color: #ea580c;
-    border: 1px solid #fed7aa;
-    border-radius: 999px;
+    font-weight: var(--font-semibold);
+    background: color-mix(in srgb, var(--color-orange) 14%, var(--color-white));
+    color: color-mix(in srgb, var(--color-orange) 60%, var(--color-text));
+    border: 1px solid color-mix(in srgb, var(--color-orange) 40%, var(--color-white));
+    border-radius: var(--radius-pill);
     padding: 0.2rem 0.65rem;
   }
 
   .hint {
     font-size: 0.8125rem;
-    color: #9ca3af;
+    color: var(--color-gray-400);
     text-align: center;
     margin-top: 1rem;
   }

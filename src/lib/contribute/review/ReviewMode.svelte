@@ -11,7 +11,8 @@
   import { advancePipelineStage } from '$lib/contribute/pipelineApi';
   import type { FeatureType } from '$lib/contribute/shared/types';
   import '$styles/layouts/tool-page.css';
-  import ReviewCanvas from './ReviewCanvas.svelte';
+  import ImageShell from '$lib/shell/ImageShell.svelte';
+  import ReviewTool from './ReviewTool.svelte';
   import ReviewSidebar from './ReviewSidebar.svelte';
 
   export let mapId: string;
@@ -122,14 +123,14 @@
 </script>
 
 {#if loading}
-  <div class="fullscreen-state">
+  <div class="tool-page fullscreen-state">
     <div class="spinner"></div>
     <span>Loading footprints…</span>
   </div>
 {:else if loadError}
-  <div class="fullscreen-state error">{loadError}</div>
+  <div class="tool-page fullscreen-state error">{loadError}</div>
 {:else}
-  <div class="review-layout">
+  <div class="tool-page review-layout">
     <header class="review-header">
       <button class="back-btn" on:click={() => dispatch('done')}>← Maps</button>
       <span class="header-title">
@@ -143,13 +144,16 @@
     </header>
 
     <div class="review-body">
-      <ReviewCanvas
-        {iiifInfoUrl}
-        {footprints}
-        {selectedId}
-        on:select={(e) => handleSelect(e.detail.id)}
-        on:edit={(e) => handleEdit(e.detail.id, e.detail.pixelPolygon)}
-      />
+      <div class="review-canvas">
+        <ImageShell {iiifInfoUrl}>
+          <ReviewTool
+            {footprints}
+            {selectedId}
+            on:select={(e) => handleSelect(e.detail.id)}
+            on:edit={(e) => handleEdit(e.detail.id, e.detail.pixelPolygon)}
+          />
+        </ImageShell>
+      </div>
       <ReviewSidebar
         {footprints}
         {selectedId}
@@ -169,31 +173,19 @@
 {/if}
 
 <style>
+  /* `.tool-page` (tool-page.css) owns the fixed shell — it insets by
+     --nav-height so the (app) NavBar stays visible. */
   .fullscreen-state {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    background: #111;
-    font-family: 'Be Vietnam Pro', sans-serif;
-    color: #d1c9be;
     font-size: 0.9rem;
+    opacity: 0.7;
   }
 
   .fullscreen-state.error {
-    color: #fca5a5;
-  }
-
-  .review-layout {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    background: #111;
-    font-family: 'Be Vietnam Pro', sans-serif;
+    color: var(--color-error-600);
+    opacity: 1;
   }
 
   .review-header {
@@ -201,8 +193,8 @@
     align-items: center;
     gap: 1rem;
     padding: 0.5rem 1rem;
-    background: #1a1612;
-    border-bottom: 1px solid #2d2a26;
+    background: var(--color-white);
+    border-bottom: var(--border-thin);
     height: 44px;
     flex-shrink: 0;
   }
@@ -210,7 +202,7 @@
   .back-btn {
     background: none;
     border: none;
-    color: #9ca3af;
+    color: var(--color-gray-500);
     font-size: 0.8125rem;
     cursor: pointer;
     font-family: inherit;
@@ -222,15 +214,15 @@
   }
 
   .back-btn:hover {
-    color: #e8e0d0;
-    background: #2d2a26;
+    color: var(--color-text);
+    background: var(--color-gray-100);
   }
 
   .header-title {
     flex: 1;
     font-size: 0.875rem;
-    font-weight: 600;
-    color: #e8e0d0;
+    font-weight: var(--font-semibold);
+    color: var(--color-text);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -238,27 +230,34 @@
 
   .map-chip {
     font-size: 0.75rem;
-    font-weight: 400;
-    color: #6b7280;
-    background: #2d2a26;
+    font-weight: var(--font-normal);
+    color: var(--color-gray-500);
+    background: var(--color-gray-100);
     border-radius: 4px;
     padding: 0.1rem 0.4rem;
-    font-family: monospace;
+    font-family: ui-monospace, monospace;
   }
 
   .progress-text {
     font-size: 0.8125rem;
-    color: #6b7280;
+    color: var(--color-gray-500);
   }
 
   .update-error {
     font-size: 0.8125rem;
-    color: #fca5a5;
+    color: var(--color-error-600);
   }
 
   .review-body {
     flex: 1;
     display: flex;
     overflow: hidden;
+  }
+
+  /* ImageShell is `position: absolute; inset: 0` — it needs a sized, positioned box. */
+  .review-canvas {
+    position: relative;
+    flex: 1;
+    min-width: 0;
   }
 </style>

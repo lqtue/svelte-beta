@@ -1,0 +1,187 @@
+/*
+  tool-sidebar.css — the small design system every contribute-tool sidebar shares.
+
+  Lifted verbatim (values unchanged) out of TriageSidebar's private `.ts-*`
+  block so TriageSidebar, SegSidebar, OcrSidebar and TraceSidebar can all reach
+  for the same section / field / button primitives instead of redeclaring them.
+
+  Import in a component's <script>:
+    import '$styles/components/tool-sidebar.css';
+
+  Depends on `$styles/layouts/tool-page.css` for the `spin` keyframe and the
+  `--tone-*` derived colours.
+*/
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+.tool-section {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tool-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tool-section-title {
+  font-size: 0.7rem;
+  font-weight: var(--font-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+  opacity: 0.55;
+}
+
+.tool-hint-inline {
+  font-weight: var(--font-normal);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── Rows and labels ─────────────────────────────────────────────────────── */
+.tool-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.tool-label {
+  font-size: 0.72rem;
+  color: var(--color-text);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.tool-value {
+  font-size: 0.78rem;
+}
+
+.tool-mono {
+  font-family: ui-monospace, monospace;
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────────── */
+.tool-coord-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+
+.tool-coord-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+}
+
+.tool-coord-label span {
+  width: 3.2rem;
+  text-align: right;
+  opacity: 0.5;
+}
+
+.tool-num-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.75rem;
+  font-family: ui-monospace, monospace;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-white);
+}
+
+.tool-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tool-field .tool-label {
+  min-width: 90px;
+}
+
+.tool-text-input {
+  flex: 1;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-white);
+}
+
+.tool-range {
+  flex: 1;
+  accent-color: var(--color-text);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.tool-ghost-btn {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+.tool-ghost-btn:hover:not(:disabled) {
+  background: var(--color-gray-100);
+}
+.tool-ghost-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tool-run-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.55rem;
+  font-size: 0.8rem;
+  font-weight: var(--font-semibold);
+  background: var(--color-text);
+  color: var(--color-bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tool-run-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+.tool-run-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tool-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--color-white) 40%, transparent);
+  border-top-color: var(--color-white);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* ── Messages ────────────────────────────────────────────────────────────── */
+.tool-error {
+  font-size: 0.72rem;
+  color: var(--tone-red-ink);
+  background: var(--tone-red-pale);
+  border: 1px solid color-mix(in srgb, var(--color-error-600) 35%, var(--color-white));
+  border-radius: 3px;
+  padding: 0.35rem 0.5rem;
+}
+
+.tool-hint {
+  font-size: 0.68rem;
+  opacity: 0.45;
+  line-height: 1.4;
+}

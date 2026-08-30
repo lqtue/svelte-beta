@@ -39,7 +39,7 @@
     other: '#abb2bf',
   };
   function featureColor(ft: FeatureType) {
-    return FEATURE_COLORS[ft] ?? '#abb2bf';
+    return FEATURE_COLORS[ft] ?? FEATURE_COLORS.other;
   }
   const FEATURE_TYPES = Object.keys(FEATURE_TYPE_LABELS) as FeatureType[];
 
@@ -357,18 +357,18 @@
     padding-right: 0.5rem;
   }
   .delete-action:hover {
-    color: #b91c1c;
-    background: #fee2e2;
+    color: var(--tone-red-ink);
+    background: var(--tone-red-pale);
   }
   .confirm-yes {
     opacity: 0.8;
-    color: #b91c1c;
-    background: #fee2e2;
+    color: var(--tone-red-ink);
+    background: var(--tone-red-pale);
   }
   .confirm-yes:hover {
     opacity: 1;
-    background: #fecaca;
-    color: #991b1b;
+    background: color-mix(in srgb, var(--color-error-600) 28%, var(--color-white));
+    color: color-mix(in srgb, var(--color-error-600) 70%, var(--color-text));
   }
   .confirm-no {
     opacity: 0.6;

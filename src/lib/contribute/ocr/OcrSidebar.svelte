@@ -1,13 +1,18 @@
 <!--
-  OcrSidebar.svelte — Sidebar for OCR review mode.
-  Shows a TraceSidebar-style table of OCR extractions from the DB.
-  Each row is editable inline; validate/reject writes back via the API.
+  OcrSidebar.svelte — the OCR review table.
+
+  Rows come from `ocrApi`; each is editable inline and auto-saves on blur.
+  The confidence/category filters live in OcrFilterBar and the run picker plus
+  write actions in OcrRunBar — this file owns the data, the filter/sort
+  pipeline, and the table itself.
 -->
 <script lang="ts">
-  import { OCR_CATEGORIES, CAT_COLORS, STATUS_COLORS } from './constants';
+  import { OCR_CATEGORIES, STATUS_COLORS } from './constants';
   import { createEventDispatcher, tick } from 'svelte';
   import '$styles/layouts/tool-page.css';
   import '$styles/components/shapes-table.css';
+  import OcrFilterBar from './OcrFilterBar.svelte';
+  import OcrRunBar from './OcrRunBar.svelte';
   import type { EditableOcrExtraction } from './types';
   import {
     fetchExtractions,
@@ -34,6 +39,7 @@
   let extractions: EditableOcrExtraction[] = [];
   let loading = false;
   let error = '';
+  let notice = '';
   let statusCounts: Record<string, number> = {};
   let availableRuns: string[] = [];
 
@@ -42,19 +48,6 @@
   export let filterRunId = '';
   let filterMinConf = 0;
   let filterCategories = new Set<string>(OCR_CATEGORIES);
-
-  function toggleCategory(cat: string) {
-    if (filterCategories.has(cat)) filterCategories.delete(cat);
-    else filterCategories.add(cat);
-    filterCategories = filterCategories;
-  }
-
-  function selectAllCategories() {
-    filterCategories = new Set(OCR_CATEGORIES);
-  }
-  function deselectAllCategories() {
-    filterCategories = new Set();
-  }
 
   type SortKey = 'text' | 'category' | 'confidence';
   let sort: { key: SortKey; asc: boolean } = { key: 'confidence', asc: false };
@@ -73,23 +66,17 @@
   }
 
   $: visible = (() => {
-    let list = extractions.filter((e) => {
-      // Status filter
+    const list = extractions.filter((e) => {
       if (filterStatus && e.status !== filterStatus) return false;
-      // Run filter
       if (filterRunId && e.run_id !== filterRunId) return false;
-      // Confidence filter
       if (e.confidence < filterMinConf) return false;
-      // Category filter
       if (!filterCategories.has(e.category)) return false;
-      // Search filter
       if (filterSearch.trim()) {
         const q = filterSearch.trim().toLowerCase();
         if (!e._editText.toLowerCase().includes(q) && !e._editCategory.includes(q)) return false;
       }
       return true;
     });
-
     return applySort(list, sort, sortValue);
   })();
 
@@ -200,7 +187,6 @@
 
   // Two-step inline confirm — no native confirm()/alert() dialogs.
   let revertArmed = false;
-  let notice = '';
 
   async function emergencyRevert() {
     if (!revertArmed) {
@@ -286,113 +272,19 @@
     >
   </div>
 
-  <!-- Advanced Filters -->
-  <div class="ocr-filters">
-    <div class="conf-filter">
-      <span class="filter-label">Conf ≥ {(filterMinConf * 100).toFixed(0)}%</span>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        bind:value={filterMinConf}
-        class="conf-slider"
-      />
-    </div>
-    <div class="cat-toggles">
-      <div class="cat-bulk-actions">
-        <button type="button" class="bulk-link" on:click={selectAllCategories}>All</button>
-        <span class="bulk-sep">·</span>
-        <button type="button" class="bulk-link" on:click={deselectAllCategories}>None</button>
-      </div>
-      {#each OCR_CATEGORIES as cat}
-        <button
-          type="button"
-          class="cat-chip"
-          class:active={filterCategories.has(cat)}
-          on:click={() => toggleCategory(cat)}
-          style="--cat-color: {CAT_COLORS[cat]}"
-        >
-          {cat}
-        </button>
-      {/each}
-    </div>
-  </div>
+  <OcrFilterBar bind:minConf={filterMinConf} bind:categories={filterCategories} />
 
-  <div class="run-filter-bar">
-    {#if availableRuns.length > 0}
-      <div class="dropdown-wrap run-select-wrap">
-        <select
-          class="cell-select run-select"
-          bind:value={filterRunId}
-          on:change={load}
-          aria-label="Select run"
-        >
-          <option value="">All runs</option>
-          {#each availableRuns as r}
-            <option value={r}>{r}</option>
-          {/each}
-        </select>
-        <svg
-          class="dropdown-chevron"
-          width="10"
-          height="10"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"><polyline points="4 6 8 10 12 6" /></svg
-        >
-      </div>
-    {:else}
-      <span class="run-placeholder">No runs</span>
-    {/if}
-    <button
-      class="save-btn"
-      on:click={saveAllEdits}
-      disabled={loading || dirtyCount === 0}
-      title="Save all pending text/category edits"
-    >
-      Save{dirtyCount > 0 ? ` (${dirtyCount})` : ''}
-    </button>
-    <div style="flex: 1"></div>
-    <button
-      class="icon-btn text-danger"
-      class:armed={revertArmed}
-      on:click={emergencyRevert}
-      title={revertArmed
-        ? 'Click again to revert everything validated in the last 15 min'
-        : 'Accidental batch? Revert everything from last 15 mins'}
-    >
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
-      </svg>
-    </button>
-    <button class="icon-btn" on:click={load} disabled={loading} title="Reload">
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
-      </svg>
-    </button>
-  </div>
+  <OcrRunBar
+    runs={availableRuns}
+    bind:runId={filterRunId}
+    {dirtyCount}
+    {loading}
+    {revertArmed}
+    on:change={load}
+    on:save={saveAllEdits}
+    on:revert={emergencyRevert}
+    on:reload={load}
+  />
 
   {#if revertArmed}
     <div class="ocr-notice">
@@ -565,104 +457,42 @@
 </div>
 
 <style>
-  .run-filter-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.4rem 0.75rem;
-    border-bottom: var(--border-thin);
-    background: var(--color-bg);
-    flex-shrink: 0;
-  }
-  .run-select-wrap {
-    flex: 1;
-    min-width: 0;
-  }
-  .run-select {
-    width: 100%;
-    font-family: monospace;
-    font-size: 0.68rem;
-  }
-  .run-placeholder {
-    font-size: 0.7rem;
-    opacity: 0.4;
-    flex: 1;
-  }
-  .save-btn {
-    font-family: var(--font-family-base);
-    font-size: 0.7rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0.28rem 0.55rem;
-    border: var(--border-thin, 2px solid #111);
-    border-radius: 4px;
-    background: var(--color-yellow, #ffd23f);
-    color: var(--color-text, #111);
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    box-shadow: 2px 2px 0 var(--color-border, #111);
-    transition: all 0.1s;
-  }
-  .save-btn:hover:not(:disabled) {
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--color-border, #111);
-  }
-  .save-btn:active:not(:disabled) {
-    transform: none;
-    box-shadow: none;
-  }
-  .save-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    filter: grayscale(1);
-    box-shadow: none;
-  }
-  .icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    background: var(--color-white);
-    cursor: pointer;
-    flex-shrink: 0;
-    color: var(--color-text);
-  }
-  .icon-btn:hover {
-    background: var(--color-gray-100);
-  }
   .ocr-error {
     padding: 0.4rem 0.75rem;
-    background: #fee2e2;
-    color: #991b1b;
+    background: var(--tone-red-pale);
+    color: var(--tone-red-ink);
+    font-size: 0.72rem;
+    border-bottom: var(--border-thin);
+    flex-shrink: 0;
+  }
+  .ocr-notice {
+    padding: 0.4rem 0.75rem;
+    background: var(--tone-amber-pale);
+    color: var(--tone-amber-ink);
     font-size: 0.72rem;
     border-bottom: var(--border-thin);
     flex-shrink: 0;
   }
   .shape-tr.status-validated td {
-    background: #f0fdf4;
+    background: var(--tone-green-wash);
   }
   .shape-tr.status-rejected td {
-    background: #fef2f2;
+    background: var(--tone-red-wash);
     opacity: 0.65;
   }
   .shape-tr.row-selected td {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid var(--color-blue);
     outline-offset: -1px;
-    background: #eff6ff !important;
+    background: var(--tone-blue-wash) !important;
   }
   .dot--dirty {
-    background: #f59e0b !important;
+    background: var(--color-orange) !important;
     border-style: dashed;
-    border-color: #92400e;
+    border-color: var(--tone-amber-ink);
   }
   .dot--saving {
     background: transparent !important;
-    border: 1.5px dashed #9ca3af;
+    border: 1.5px dashed var(--color-gray-400);
     animation: pulse 0.8s ease-in-out infinite;
   }
   @keyframes pulse {
@@ -692,7 +522,7 @@
   }
   .conf-badge {
     font-size: 0.68rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     font-variant-numeric: tabular-nums;
   }
   .saving-dot {
@@ -701,23 +531,21 @@
     opacity: 0.4;
     padding-right: 0.4rem;
   }
-  .validate-action:hover {
-    color: #166534;
-    background: #dcfce7;
+  .validate-action:hover,
+  .validate-action.active-validate {
+    color: var(--tone-green-ink);
+    background: var(--tone-green-pale);
   }
   .validate-action.active-validate {
     opacity: 1;
-    color: #166534;
-    background: #dcfce7;
   }
-  .reject-action:hover {
-    color: #b91c1c;
-    background: #fee2e2;
+  .reject-action:hover,
+  .reject-action.active-reject {
+    color: var(--tone-red-ink);
+    background: var(--tone-red-pale);
   }
   .reject-action.active-reject {
     opacity: 1;
-    color: #b91c1c;
-    background: #fee2e2;
   }
   .table-empty code {
     display: block;
@@ -730,100 +558,5 @@
     font-size: 0.8rem;
     color: var(--color-text);
     opacity: 0.6;
-  }
-  .ocr-filters {
-    padding: 0.6rem 0.75rem;
-    background: var(--color-white);
-    border-bottom: var(--border-thin);
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-  .conf-filter {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .filter-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: var(--color-text);
-    width: 64px;
-    flex-shrink: 0;
-  }
-  .conf-slider {
-    flex: 1;
-    height: 4px;
-    accent-color: var(--color-primary);
-  }
-  .cat-toggles {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    align-items: center;
-  }
-  .cat-bulk-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-right: 0.4rem;
-    padding-right: 0.4rem;
-    border-right: 1px solid var(--color-gray-200);
-    line-height: 1;
-  }
-  .bulk-link {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    cursor: pointer;
-    opacity: 0.6;
-  }
-  .bulk-link:hover {
-    opacity: 1;
-    text-decoration: underline;
-  }
-  .bulk-sep {
-    font-size: 0.65rem;
-    opacity: 0.3;
-  }
-  .cat-chip {
-    border: 1.5px solid var(--cat-color);
-    background: transparent;
-    color: var(--color-text);
-    font-size: 0.64rem;
-    font-weight: 600;
-    padding: 0.15rem 0.45rem;
-    border-radius: 1rem;
-    cursor: pointer;
-    transition: all 0.1s;
-    opacity: 0.45;
-  }
-  .cat-chip:hover {
-    opacity: 0.8;
-    transform: translateY(-1px);
-  }
-  .cat-chip.active {
-    opacity: 1;
-    background: var(--cat-color);
-    color: white;
-  }
-  .text-danger {
-    color: #dc2626 !important;
-  }
-  .ocr-notice {
-    padding: 0.4rem 0.75rem;
-    background: #fef3c7;
-    color: #92400e;
-    font-size: 0.72rem;
-    border-bottom: var(--border-thin);
-    flex-shrink: 0;
-  }
-  .icon-btn.armed {
-    background: #fee2e2;
-    border-color: #b91c1c;
-    color: #b91c1c;
   }
 </style>

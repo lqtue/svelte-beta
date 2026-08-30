@@ -6,6 +6,26 @@
     @import '$styles/layouts/tool-page.css';
 */
 
+/* ── Derived tones ───────────────────────────────────────────────────────────
+   The tool sidebars need pale status surfaces and readable ink on top of them.
+   tokens.css has no pale/dark ramp, so derive both ends from the base hue —
+   substitution stays lazy, so a theme that re-points the base token re-points
+   these too. */
+:root {
+  --tone-green-pale: color-mix(in srgb, var(--color-green) 18%, var(--color-white));
+  --tone-green-ink: color-mix(in srgb, var(--color-green) 55%, var(--color-text));
+  --tone-red-pale: color-mix(in srgb, var(--color-error-600) 15%, var(--color-white));
+  --tone-red-ink: color-mix(in srgb, var(--color-error-600) 55%, var(--color-text));
+  --tone-amber-pale: color-mix(in srgb, var(--color-yellow) 35%, var(--color-white));
+  --tone-amber-ink: color-mix(in srgb, var(--color-orange) 55%, var(--color-text));
+  --tone-blue-pale: color-mix(in srgb, var(--color-blue) 15%, var(--color-white));
+  --tone-blue-ink: color-mix(in srgb, var(--color-blue) 55%, var(--color-text));
+  /* Washes tint a whole table row, so they sit a step below `pale`. */
+  --tone-green-wash: color-mix(in srgb, var(--color-green) 8%, var(--color-white));
+  --tone-red-wash: color-mix(in srgb, var(--color-error-600) 7%, var(--color-white));
+  --tone-blue-wash: color-mix(in srgb, var(--color-blue) 9%, var(--color-white));
+}
+
 /* ── Page shell ──────────────────────────────────────────────────────────── */
 .tool-page {
   position: fixed;
