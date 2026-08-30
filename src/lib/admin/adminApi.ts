@@ -1,3 +1,4 @@
+import type { MapEditPayload } from './mapEditPayload';
 import type { Database } from '$lib/supabase/types';
 
 export type MapRow = Database['public']['Tables']['maps']['Row'];
@@ -28,39 +29,7 @@ const jsonInit = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export async function updateMap(
-  id: string,
-  data: Partial<{
-    name: string;
-    allmaps_id: string;
-    location: string;
-    year: number | null;
-    dc_description: string;
-    is_featured: boolean;
-    thumbnail: string;
-    map_type: string;
-    // provenance / source fields
-    source_type: string;
-    collection: string;
-    source_url: string;
-    original_title: string;
-    shelfmark: string;
-    creator: string;
-    year_label: string;
-    language: string;
-    rights: string;
-    physical_description: string;
-    dc_publisher: string;
-    dc_subject: string;
-    dc_coverage: string;
-    extra_metadata: Record<string, string>;
-    // contribution control
-    label_config: { legend: any[]; categories: string[] } | null;
-    priority: number;
-    is_public: boolean;
-    georef_done: boolean;
-  }>
-): Promise<MapRow> {
+export async function updateMap(id: string, data: Partial<MapEditPayload>): Promise<MapRow> {
   return apiFetch<MapRow>(`/api/admin/maps/${id}`, jsonInit('PATCH', data), 'Failed to update map');
 }
 
