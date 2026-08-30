@@ -5,7 +5,14 @@
 -->
 <script lang="ts">
   import { OCR_CATEGORIES } from '$lib/contribute/ocr/constants';
-  import type { OcrExtraction } from '$lib/contribute/ocr/types';
+  import type { EditableOcrExtraction } from '$lib/contribute/ocr/types';
+  import {
+    fetchExtractions,
+    patchExtraction,
+    batchSetStatus,
+    withEditState,
+    type OcrStatus,
+  } from '$lib/contribute/ocr/ocrApi';
   export let mapId: string;
   export let iiifImage: string | null | undefined = '';
 
@@ -33,7 +40,7 @@
   let reviewOpen = false;
   let reviewLoading = false;
   let reviewError = '';
-  let reviewExtractions: OcrExtraction[] = [];
+  let reviewExtractions: EditableOcrExtraction[] = [];
   let reviewStatusFilter: '' | 'pending' | 'validated' | 'rejected' = 'pending';
   let reviewRunFilter = '';
   let reviewStatusCounts: Record<string, number> = {};
@@ -116,22 +123,13 @@
     reviewLoading = true;
     reviewError = '';
     try {
-      const params = new URLSearchParams({ limit: '200' });
-      if (reviewRunFilter) params.set('run_id', reviewRunFilter);
-      if (reviewStatusFilter) params.set('status', reviewStatusFilter);
-      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review?${params}`);
-      if (!res.ok) {
-        reviewError = await res.text();
-        return;
-      }
-      const data = await res.json();
-      reviewExtractions = data.extractions.map((e: OcrExtraction) => ({
-        ...e,
-        _editText: e.text_validated ?? e.text,
-        _editCategory: e.category_validated ?? e.category,
-        _saving: false,
-      }));
-      reviewStatusCounts = data.statusCounts ?? {};
+      const page = await fetchExtractions(mapId, {
+        limit: 200,
+        runId: reviewRunFilter,
+        status: reviewStatusFilter,
+      });
+      reviewExtractions = withEditState(page.extractions);
+      reviewStatusCounts = page.statusCounts;
     } catch (e: any) {
       reviewError = e.message;
     } finally {
@@ -139,24 +137,17 @@
     }
   }
 
-  async function saveReview(ext: OcrExtraction, status: 'validated' | 'rejected' | 'pending') {
+  async function saveReview(ext: EditableOcrExtraction, status: OcrStatus) {
     ext._saving = true;
     reviewExtractions = reviewExtractions;
+    reviewError = '';
     try {
-      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: ext.id,
-          text: ext._editText,
-          category: ext._editCategory,
-          status,
-        }),
+      await patchExtraction(mapId, {
+        id: ext.id,
+        text: ext._editText,
+        category: ext._editCategory,
+        status,
       });
-      if (!res.ok) {
-        reviewError = await res.text();
-        return;
-      }
       ext.status = status;
       ext.validated_at = status === 'validated' ? new Date().toISOString() : null;
       reviewStatusCounts[status] = (reviewStatusCounts[status] ?? 0) + 1;
@@ -186,18 +177,9 @@
         reviewError = 'No pending confirmed-tier items to validate.';
         return;
       }
-      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, status: 'validated' }),
-      });
-      if (!res.ok) {
-        reviewError = await res.text();
-        return;
-      }
-      const d = await res.json();
+      const count = await batchSetStatus(mapId, ids, 'validated');
       await loadReview();
-      ocrMsg = `Batch validated ${d.count ?? ids.length} extractions.`;
+      ocrMsg = `Batch validated ${count} extractions.`;
     } catch (e: any) {
       reviewError = e.message;
     } finally {

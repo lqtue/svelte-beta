@@ -17,6 +17,7 @@
   import type Map from 'ol/Map';
 
   import { getSupabaseContext } from '$lib/supabase/context';
+  import { resolveMapRef } from '$lib/story/applyPoint';
   import { createGeoMapStores } from '$lib/shell/geoMapSetup';
   import {
     annotationSourceFor,
@@ -318,9 +319,7 @@
       mapStore.setView({ lng: point.coordinates[0], lat: point.coordinates[1], zoom: 17 });
     }
     if (point.overlayMapId) {
-      const found = mapList.find(
-        (m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId
-      );
+      const found = resolveMapRef(mapList, point.overlayMapId);
       if (found) addMapOverlay(found, { clear: true });
     }
   }
@@ -336,7 +335,7 @@
   // ── URL deeplinks ──────────────────────────────────────────────
   async function applyUrlParams(maps: MapListItem[]) {
     if (paramMapId) {
-      const found = maps.find((m) => m.id === paramMapId || m.allmaps_id === paramMapId);
+      const found = resolveMapRef(maps, paramMapId);
       if (found) {
         addMapOverlay(found);
         // Arriving on a shared ?map= link is an open too — and it's the one path

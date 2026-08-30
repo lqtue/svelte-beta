@@ -7,43 +7,31 @@
   import { OCR_CATEGORIES, CAT_COLORS, STATUS_COLORS } from './constants';
   import { createEventDispatcher, tick } from 'svelte';
   import '$styles/layouts/tool-page.css';
+  import '$styles/components/shapes-table.css';
+  import type { EditableOcrExtraction } from './types';
+  import {
+    fetchExtractions,
+    patchExtraction,
+    revertRecent,
+    withEditState,
+    type OcrStatus,
+  } from './ocrApi';
+  import {
+    toggleSort as nextSort,
+    sortIcon as iconFor,
+    applySort,
+  } from '$lib/contribute/shared/tableSort';
 
   const dispatch = createEventDispatcher<{
     zoomToExtraction: { globalX: number; globalY: number; globalW: number; globalH: number };
-    loaded: { extractions: Extraction[] };
-    filter: { extractions: Extraction[] };
+    loaded: { extractions: EditableOcrExtraction[] };
+    filter: { extractions: EditableOcrExtraction[] };
   }>();
 
   export let mapId: string;
   export let selectedId: string | null = null;
 
-  type Extraction = {
-    id: string;
-    run_id: string;
-    tile_x: number;
-    tile_y: number;
-    tile_w: number;
-    tile_h: number;
-    global_x: number;
-    global_y: number;
-    global_w: number;
-    global_h: number;
-    category: string;
-    text: string;
-    text_validated: string | null;
-    category_validated: string | null;
-    confidence: number;
-    rotation_deg: number | null;
-    notes: string | null;
-    status: 'pending' | 'validated' | 'rejected';
-    validated_at: string | null;
-    // local edit state
-    _editText: string;
-    _editCategory: string;
-    _saving: boolean;
-  };
-
-  let extractions: Extraction[] = [];
+  let extractions: EditableOcrExtraction[] = [];
   let loading = false;
   let error = '';
   let statusCounts: Record<string, number> = {};
@@ -69,18 +57,19 @@
   }
 
   type SortKey = 'text' | 'category' | 'confidence';
-  let sortKey: SortKey = 'confidence';
-  let sortAsc = false;
+  let sort: { key: SortKey; asc: boolean } = { key: 'confidence', asc: false };
 
   function toggleSort(key: SortKey) {
-    if (sortKey === key) sortAsc = !sortAsc;
-    else {
-      sortKey = key;
-      sortAsc = key !== 'confidence';
-    }
+    sort = nextSort(sort, key, (k) => k !== 'confidence');
   }
-  function sortIcon(key: SortKey) {
-    return sortKey !== key ? '' : sortAsc ? ' ↑' : ' ↓';
+  function sortIcon(key: SortKey): string {
+    return iconFor(sort, key);
+  }
+
+  function sortValue(e: EditableOcrExtraction, key: SortKey): string | number {
+    if (key === 'text') return e._editText;
+    if (key === 'category') return e._editCategory;
+    return e.confidence;
   }
 
   $: visible = (() => {
@@ -101,26 +90,7 @@
       return true;
     });
 
-    list.sort((a, b) => {
-      let va: string | number, vb: string | number;
-      if (sortKey === 'text') {
-        va = a._editText;
-        vb = b._editText;
-      } else if (sortKey === 'category') {
-        va = a._editCategory;
-        vb = b._editCategory;
-      } else {
-        va = a.confidence;
-        vb = b.confidence;
-      }
-      const cmp =
-        typeof va === 'number'
-          ? (va as number) - (vb as number)
-          : (va as string).localeCompare(vb as string);
-      return sortAsc ? cmp : -cmp;
-    });
-
-    return list;
+    return applySort(list, sort, sortValue);
   })();
 
   $: {
@@ -134,23 +104,17 @@
     try {
       // Default to All runs (filterRunId '') so every category shows at once;
       // the run dropdown still lets you narrow to one. 2000 covers big legends.
-      const params = new URLSearchParams({ limit: '2000' });
-      if (filterStatus) params.set('status', filterStatus);
-      if (filterRunId.trim()) params.set('run_id', filterRunId.trim());
-      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review?${params}`);
-      if (!res.ok) {
-        error = await res.text();
-        return;
-      }
-      const data = await res.json();
-      statusCounts = data.statusCounts ?? {};
-      if (data.runIds?.length) availableRuns = data.runIds;
-      extractions = (data.extractions ?? []).map((e: any) => ({
-        ...e,
-        _editText: e.text_validated ?? e.text,
-        _editCategory: e.category_validated ?? e.category,
-        _saving: false,
-      }));
+      const page = await fetchExtractions(mapId, {
+        limit: 2000,
+        status: filterStatus,
+        runId: filterRunId,
+      });
+      statusCounts = page.statusCounts;
+      if (page.runIds.length) availableRuns = page.runIds;
+      extractions = withEditState(page.extractions);
+      // Row element maps are keyed by extraction id — drop the stale keys.
+      inputEls = {};
+      rowEls = {};
       dispatch('loaded', { extractions });
     } catch (e: any) {
       error = e.message;
@@ -166,24 +130,17 @@
     load();
   }
 
-  async function save(ext: Extraction, status: 'validated' | 'rejected' | 'pending') {
+  async function save(ext: EditableOcrExtraction, status: OcrStatus) {
     ext._saving = true;
     extractions = extractions;
+    error = '';
     try {
-      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: ext.id,
-          text: ext._editText,
-          category: ext._editCategory,
-          status,
-        }),
+      await patchExtraction(mapId, {
+        id: ext.id,
+        text: ext._editText,
+        category: ext._editCategory,
+        status,
       });
-      if (!res.ok) {
-        error = await res.text();
-        return;
-      }
       const old = ext.status as string;
       ext.status = status;
       ext.validated_at = status === 'validated' ? new Date().toISOString() : null;
@@ -217,27 +174,20 @@
     for (const ext of dirty) await commitText(ext);
   }
 
-  async function commitText(ext: Extraction) {
+  async function commitText(ext: EditableOcrExtraction) {
     const textChanged = ext._editText !== (ext.text_validated ?? ext.text);
     const catChanged = ext._editCategory !== (ext.category_validated ?? ext.category);
     if (!textChanged && !catChanged) return;
     ext._saving = true;
     extractions = extractions;
+    error = '';
     try {
-      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: ext.id,
-          text: ext._editText,
-          category: ext._editCategory,
-          status: ext.status,
-        }),
+      await patchExtraction(mapId, {
+        id: ext.id,
+        text: ext._editText,
+        category: ext._editCategory,
+        status: ext.status,
       });
-      if (!res.ok) {
-        error = await res.text();
-        return;
-      }
       ext.text_validated = ext._editText;
       ext.category_validated = ext._editCategory;
     } catch (e: any) {
@@ -248,18 +198,23 @@
     }
   }
 
+  // Two-step inline confirm — no native confirm()/alert() dialogs.
+  let revertArmed = false;
+  let notice = '';
+
   async function emergencyRevert() {
-    if (!confirm('Revert all items validated in the last 15 minutes?')) return;
+    if (!revertArmed) {
+      revertArmed = true;
+      setTimeout(() => (revertArmed = false), 4000);
+      return;
+    }
+    revertArmed = false;
     loading = true;
+    error = '';
     try {
-      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review/revert-recent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ windowMins: 15 }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      alert(`Successfully reverted ${data.count} items.`);
+      const count = await revertRecent(mapId, 15);
+      notice = `Reverted ${count} item${count === 1 ? '' : 's'}.`;
+      setTimeout(() => (notice = ''), 4000);
       await load();
     } catch (e: any) {
       error = e.message;
@@ -404,8 +359,11 @@
     <div style="flex: 1"></div>
     <button
       class="icon-btn text-danger"
+      class:armed={revertArmed}
       on:click={emergencyRevert}
-      title="Accidental batch? Revert everything from last 15 mins"
+      title={revertArmed
+        ? 'Click again to revert everything validated in the last 15 min'
+        : 'Accidental batch? Revert everything from last 15 mins'}
     >
       <svg
         width="13"
@@ -435,6 +393,14 @@
       </svg>
     </button>
   </div>
+
+  {#if revertArmed}
+    <div class="ocr-notice">
+      Revert the last 15 minutes of validations? Click ⟲ again to confirm.
+    </div>
+  {:else if notice}
+    <div class="ocr-notice">{notice}</div>
+  {/if}
 
   {#if error}
     <div class="ocr-error">{error}</div>
@@ -599,66 +565,6 @@
 </div>
 
 <style>
-  .sidebar-content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-  .shapes-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    border-bottom: var(--border-thin);
-    background: var(--color-white);
-    flex-shrink: 0;
-  }
-  .shapes-search {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex: 1;
-    min-width: 0;
-    background: var(--color-bg);
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    padding: 0.3rem 0.5rem;
-  }
-  .shapes-search svg {
-    flex-shrink: 0;
-    opacity: 0.5;
-  }
-  .shapes-search-input {
-    border: none;
-    background: none;
-    outline: none;
-    font-family: var(--font-family-base);
-    font-size: 0.75rem;
-    width: 100%;
-    color: var(--color-text);
-  }
-  .filter-type-select {
-    font-family: var(--font-family-base);
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 0.3rem 0.4rem;
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    background: var(--color-bg);
-    color: var(--color-text);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .shapes-count {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--color-text);
-    opacity: 0.5;
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
   .run-filter-bar {
     display: flex;
     align-items: center;
@@ -713,7 +619,6 @@
     filter: grayscale(1);
     box-shadow: none;
   }
-
   .icon-btn {
     display: inline-flex;
     align-items: center;
@@ -738,51 +643,6 @@
     border-bottom: var(--border-thin);
     flex-shrink: 0;
   }
-  .shapes-table-wrap {
-    flex: 1;
-    overflow: auto;
-    min-height: 0;
-  }
-  .shapes-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--font-family-base);
-    font-size: 0.75rem;
-  }
-  .shapes-table thead {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--color-white);
-  }
-  .shapes-table th {
-    padding: 0.4rem;
-    text-align: left;
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--color-text);
-    opacity: 0.5;
-    border-bottom: var(--border-thick);
-    white-space: nowrap;
-    user-select: none;
-  }
-  .shapes-table th.sortable {
-    cursor: pointer;
-  }
-  .shapes-table th.sortable:hover {
-    opacity: 0.9;
-    color: var(--color-primary);
-  }
-  .shapes-table td {
-    padding: 0.2rem 0.4rem;
-    border-bottom: 1px solid var(--color-gray-200, #eee);
-    vertical-align: middle;
-  }
-  .shape-tr:hover td {
-    background: var(--color-gray-100);
-  }
   .shape-tr.status-validated td {
     background: #f0fdf4;
   }
@@ -794,18 +654,6 @@
     outline: 2px solid #3b82f6;
     outline-offset: -1px;
     background: #eff6ff !important;
-  }
-  .col-dot {
-    width: 20px;
-    text-align: center;
-    padding-left: 0.5rem;
-  }
-  .dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(0, 0, 0, 0.15);
   }
   .dot--dirty {
     background: #f59e0b !important;
@@ -842,50 +690,6 @@
     white-space: nowrap;
     padding-right: 0.5rem;
   }
-  .cell-input {
-    width: 100%;
-    border: none;
-    background: none;
-    outline: none;
-    font-family: var(--font-family-base);
-    font-size: 0.75rem;
-    color: var(--color-text);
-    padding: 0.2rem 0;
-  }
-  .cell-input:focus {
-    background: var(--color-yellow);
-    border-radius: 2px;
-    padding: 0.2rem 0.25rem;
-    margin: 0 -0.25rem;
-  }
-  .dropdown-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  .cell-select {
-    width: 100%;
-    border: 1px solid var(--color-gray-200, #ddd);
-    border-radius: 3px;
-    background: var(--color-bg);
-    font-family: var(--font-family-base);
-    font-size: 0.7rem;
-    color: var(--color-text);
-    cursor: pointer;
-    padding: 0.2rem 1.2rem 0.2rem 0.3rem;
-    -webkit-appearance: none;
-    appearance: none;
-  }
-  .cell-select:focus {
-    outline: 2px solid var(--color-blue);
-    outline-offset: -1px;
-  }
-  .dropdown-chevron {
-    position: absolute;
-    right: 0.3rem;
-    pointer-events: none;
-    opacity: 0.4;
-  }
   .conf-badge {
     font-size: 0.68rem;
     font-weight: 700;
@@ -896,25 +700,6 @@
     color: var(--color-text);
     opacity: 0.4;
     padding-right: 0.4rem;
-  }
-  .row-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border: none;
-    background: none;
-    cursor: pointer;
-    color: var(--color-text);
-    opacity: 0.3;
-    border-radius: var(--radius-sm);
-    transition: all 0.1s;
-    padding: 0;
-  }
-  .row-action:hover {
-    opacity: 1;
-    background: var(--color-gray-100);
   }
   .validate-action:hover {
     color: #166534;
@@ -933,10 +718,6 @@
     opacity: 1;
     color: #b91c1c;
     background: #fee2e2;
-  }
-  .table-empty {
-    padding: 2rem 1rem;
-    text-align: center;
   }
   .table-empty code {
     display: block;
@@ -1029,29 +810,20 @@
     background: var(--cat-color);
     color: white;
   }
-
   .text-danger {
     color: #dc2626 !important;
   }
-
-  .hint-bar {
-    padding: 0.5rem 1rem;
-    font-size: 0.7rem;
-    color: var(--color-text);
-    opacity: 0.5;
-    border-top: var(--border-thin);
-    background: var(--color-white);
+  .ocr-notice {
+    padding: 0.4rem 0.75rem;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.72rem;
+    border-bottom: var(--border-thin);
     flex-shrink: 0;
-    text-align: center;
   }
-  .hint-bar kbd {
-    display: inline-block;
-    padding: 0.1rem 0.35rem;
-    font-size: 0.65rem;
-    font-family: var(--font-family-base);
-    background: var(--color-bg);
-    border: var(--border-thin);
-    border-radius: 3px;
-    font-weight: 700;
+  .icon-btn.armed {
+    background: #fee2e2;
+    border-color: #b91c1c;
+    color: #b91c1c;
   }
 </style>

@@ -165,6 +165,11 @@ export async function fetchIIIFMetadata(manifestUrl: string): Promise<{
   date?: string;
   rights?: string;
   imageServiceUrl?: string;
+  shelfmark?: string;
+  language?: string;
+  physicalDescription?: string;
+  sourceUrl?: string;
+  attribution?: string;
 }> {
   return apiFetch(
     '/api/admin/maps/fetch-iiif-metadata',

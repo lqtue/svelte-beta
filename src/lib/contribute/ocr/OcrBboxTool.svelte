@@ -33,15 +33,8 @@
   import { click } from 'ol/events/condition';
   import { getImageShellStore } from '$lib/shell/imageContext';
   import type { OcrExtraction } from './types';
-  import { toOlRing, fromOlExtent } from '../digitalize/rectUtils';
-  import {
-    createHandleFeatures,
-    updateHandlePositions,
-    oppositeCorner,
-    rectFromHandleMove,
-    olPointToImage,
-    type HandleRole,
-  } from '../shared/bboxHandles';
+  import { toOlRing, fromOlExtent, type Rect } from '../shared/rectUtils';
+  import { createRectEditor, type RectEditor } from '../shared/bboxHandles';
 
   export let extractions: OcrExtraction[] = [];
   export let selectedId: string | null = null;
@@ -64,11 +57,9 @@
   const shellStore = getImageShellStore();
   let bboxSource: VectorSource | null = null;
   let bboxLayer: VectorLayer | null = null;
-  let handleSource: VectorSource | null = null;
-  let handleLayer: VectorLayer | null = null;
+  let rectEditor: RectEditor | null = null;
   let selectInteraction: Select | null = null;
   let bodyTranslate: Translate | null = null;
-  let handleTranslate: Translate | null = null;
   let drawInteraction: Draw | null = null;
   let activeId: string | null = null;
   let initialized = false;
@@ -168,20 +159,15 @@
   }
 
   // ── Sync corner handles for the selected extraction ───────────────────────
+  function rectOf(id: string): Rect | null {
+    const ext = extractions.find((e) => e.id === id);
+    if (!ext || !(ext.global_w > 0)) return null;
+    return { x: ext.global_x, y: ext.global_y, w: ext.global_w, h: ext.global_h };
+  }
+
   function syncHandles() {
-    if (!handleSource) return;
-    handleSource.clear();
-    if (!selectedId) return;
-    const ext = extractions.find((e) => e.id === selectedId);
-    if (!ext || !(ext.global_w > 0)) return;
-    const feats = createHandleFeatures(
-      selectedId,
-      ext.global_x,
-      ext.global_y,
-      ext.global_w,
-      ext.global_h
-    );
-    handleSource.addFeatures(feats);
+    if (!rectEditor) return;
+    rectEditor.show(selectedId, selectedId ? rectOf(selectedId) : null);
   }
 
   $: {
@@ -194,18 +180,35 @@
   $: {
     selectedId;
     extractions;
-    handleSource && syncHandles();
+    rectEditor && syncHandles();
   }
 
   // Toggle draw mode: disable select/translate, enable Draw interaction
   $: if (initialized) toggleDrawMode(drawMode);
 
   function toggleDrawMode(active: boolean) {
-    if (!selectInteraction || !bodyTranslate || !handleTranslate) return;
+    if (!selectInteraction || !bodyTranslate || !rectEditor) return;
     selectInteraction.setActive(!active);
     bodyTranslate.setActive(!active);
-    handleTranslate.setActive(!active);
+    rectEditor.setActive(!active);
     if (drawInteraction) drawInteraction.setActive(active);
+  }
+
+  /** Snaps the bbox polygon + its cached extraction to a resized rect. */
+  function snapBboxToRect(bboxId: string, rect: Rect) {
+    const ext = extractions.find((e) => e.id === bboxId);
+    const bboxFeat = bboxSource?.getFeatureById(bboxId);
+    if (!ext || !bboxFeat) return;
+    (bboxFeat.getGeometry() as Polygon).setCoordinates([toOlRing(rect.x, rect.y, rect.w, rect.h)]);
+    const updatedExt = {
+      ...ext,
+      global_x: rect.x,
+      global_y: rect.y,
+      global_w: rect.w,
+      global_h: rect.h,
+    };
+    bboxFeat.set('extraction', updatedExt);
+    bboxFeat.setStyle(makeStyle(updatedExt, true));
   }
 
   // ── Tool setup ────────────────────────────────────────────────────────────
@@ -220,15 +223,6 @@
     bboxSource = new VectorSource();
     bboxLayer = new VectorLayer({ source: bboxSource, zIndex: 8 });
     olMap.addLayer(bboxLayer);
-
-    // Handle layer (z9) — corner squares for the selected bbox
-    handleSource = new VectorSource();
-    handleLayer = new VectorLayer({
-      source: handleSource,
-      zIndex: 9,
-      style: (f: any) => handleStyleFn(f as Feature),
-    });
-    olMap.addLayer(handleLayer);
 
     // Click to select bbox
     selectInteraction = new Select({
@@ -262,75 +256,30 @@
           global_h: rect.h,
         });
         // Refresh handle positions to match new body position
-        if (handleSource && id === selectedId) {
-          const handles = handleSource.getFeatures();
-          updateHandlePositions(handles, rect.x, rect.y, rect.w, rect.h);
-        }
+        if (rectEditor && id === selectedId) rectEditor.move(rect);
       }
     });
     olMap.addInteraction(bodyTranslate);
 
-    // Handle translate — resize via corner handles
-    handleTranslate = new Translate({ layers: [handleLayer] });
-    handleTranslate.on('translatestart', (e: any) => {
-      const feat = e.features.getArray()[0];
-      if (feat) activeId = feat.get('bboxId');
+    // Corner-handle resize (z9) — added after bodyTranslate so a corner drag
+    // wins over a body drag (OL dispatches interactions last-added-first).
+    rectEditor = createRectEditor(olMap, {
+      zIndex: 9,
+      style: (f: any) => handleStyleFn(f as Feature),
+      getRect: rectOf,
+      onDragStart: (bboxId) => (activeId = bboxId),
+      onChange: (bboxId, rect) => {
+        activeId = null;
+        snapBboxToRect(bboxId, rect);
+        dispatch('move', {
+          id: bboxId,
+          global_x: rect.x,
+          global_y: rect.y,
+          global_w: rect.w,
+          global_h: rect.h,
+        });
+      },
     });
-    handleTranslate.on('translateend', (e: any) => {
-      activeId = null;
-      const feat = e.features.getArray()[0];
-      if (!feat) return;
-
-      const role = feat.get('handleRole') as HandleRole;
-      const bboxId = feat.get('bboxId') as string;
-      const ext = extractions.find((ex) => ex.id === bboxId);
-      if (!ext) return;
-
-      // New position of the dragged corner (convert from OL y-flip to image space)
-      const olCoord = (feat.getGeometry() as import('ol/geom/Point').default).getCoordinates();
-      const newPos = olPointToImage(olCoord);
-
-      // Anchor: the corner diagonally opposite, fixed during resize
-      const oppPos = oppositeCorner(role, ext.global_x, ext.global_y, ext.global_w, ext.global_h);
-      const newRect = rectFromHandleMove(role, newPos, oppPos);
-
-      // Snap bbox polygon to the new rect
-      const bboxFeat = bboxSource?.getFeatureById(bboxId);
-      if (bboxFeat) {
-        (bboxFeat.getGeometry() as Polygon).setCoordinates([
-          toOlRing(newRect.x, newRect.y, newRect.w, newRect.h),
-        ]);
-        const updatedExt = {
-          ...ext,
-          global_x: newRect.x,
-          global_y: newRect.y,
-          global_w: newRect.w,
-          global_h: newRect.h,
-        };
-        bboxFeat.set('extraction', updatedExt);
-        bboxFeat.setStyle(makeStyle(updatedExt, true));
-      }
-
-      // Refresh all 4 handles to match new rect (the other 3 didn't move visually)
-      if (handleSource) {
-        updateHandlePositions(
-          handleSource.getFeatures(),
-          newRect.x,
-          newRect.y,
-          newRect.w,
-          newRect.h
-        );
-      }
-
-      dispatch('move', {
-        id: bboxId,
-        global_x: newRect.x,
-        global_y: newRect.y,
-        global_w: newRect.w,
-        global_h: newRect.h,
-      });
-    });
-    olMap.addInteraction(handleTranslate);
 
     // Draw interaction for adding new bboxes (inactive until drawMode=true)
     const drawSource = new VectorSource();
@@ -354,12 +303,11 @@
 
   onDestroy(() => {
     const ctx = get(shellStore);
+    rectEditor?.destroy();
     if (ctx) {
       if (drawInteraction) ctx.map.removeInteraction(drawInteraction);
-      if (handleTranslate) ctx.map.removeInteraction(handleTranslate);
       if (bodyTranslate) ctx.map.removeInteraction(bodyTranslate);
       if (selectInteraction) ctx.map.removeInteraction(selectInteraction);
-      if (handleLayer) ctx.map.removeLayer(handleLayer);
       if (bboxLayer) ctx.map.removeLayer(bboxLayer);
     }
   });

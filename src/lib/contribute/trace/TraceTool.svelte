@@ -31,6 +31,7 @@
   import { getImageShellStore } from '$lib/shell/imageContext';
   import type { ImageShellContext } from '$lib/shell/imageContext';
   import type { PixelCoord } from '$lib/contribute/shared/types';
+  import { olCoordsToImage } from '$lib/contribute/shared/rectUtils';
 
   export let drawMode: 'trace' | 'select' = 'trace';
   export let geometryMode: 'Polygon' | 'LineString' = 'Polygon';
@@ -142,14 +143,11 @@
         const geom = evt.feature.getGeometry();
         let pixelCoords: PixelCoord[];
         if (geom instanceof Polygon) {
-          const ring = geom.getCoordinates()[0];
-          pixelCoords = ring.map(([x, y]: number[]) => [x, -y] as PixelCoord);
+          pixelCoords = olCoordsToImage(geom.getCoordinates()[0]);
           pixelCoords.pop(); // remove closing duplicate
         } else {
           // LineString (road, waterway)
-          pixelCoords = (geom as LineString)
-            .getCoordinates()
-            .map(([x, y]: number[]) => [x, -y] as PixelCoord);
+          pixelCoords = olCoordsToImage((geom as LineString).getCoordinates());
         }
         dispatch('drawPolygon', { pixelPolygon: pixelCoords });
       });
@@ -192,11 +190,10 @@
           const geom = feature.getGeometry();
           let pixelPolygon: PixelCoord[];
           if (geom instanceof Polygon) {
-            const ring = geom.getCoordinates()[0];
-            pixelPolygon = ring.map(([x, y]) => [x, -y] as PixelCoord);
+            pixelPolygon = olCoordsToImage(geom.getCoordinates()[0]);
             pixelPolygon.pop();
           } else if (geom instanceof LineString) {
-            pixelPolygon = geom.getCoordinates().map(([x, y]) => [x, -y] as PixelCoord);
+            pixelPolygon = olCoordsToImage(geom.getCoordinates());
           } else {
             return;
           }

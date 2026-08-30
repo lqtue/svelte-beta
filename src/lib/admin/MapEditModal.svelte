@@ -9,6 +9,7 @@
     setPrimaryIIIFSource,
     deleteIIIFSource,
     fetchIIIFMetadata,
+    lookupAllmapsId,
     mirrorToR2,
     type IIIFSourceRow,
     type MirrorR2Result,
@@ -52,10 +53,10 @@
   let language: string = map.language || '';
   let rights: string = map.rights || '';
   let physical_description: string = map.physical_description || '';
-  let dc_publisher: string = (map as any).dc_publisher || '';
-  let dc_subject: string = (map as any).dc_subject || '';
-  let dc_coverage: string = (map as any).dc_coverage || '';
-  let holding_institution: string = (map as any).holding_institution || '';
+  let dc_publisher: string = map.dc_publisher || '';
+  let dc_subject: string = map.dc_subject || '';
+  let dc_coverage: string = map.dc_coverage || '';
+  let holding_institution: string = map.holding_institution || '';
 
   // IIIF sources state
   let iiifSources: IIIFSourceRow[] = [];
@@ -70,18 +71,18 @@
   let fetchMetaError = '';
 
   // Catalog visibility / workflow flags
-  let priority: number = (map as any).priority ?? 0;
-  let is_public: boolean = (map as any).is_public ?? false;
-  let georef_done: boolean = (map as any).georef_done ?? false;
-  let legend_done: boolean = (map as any).legend_done ?? false;
-  let help_needed: boolean = (map as any).help_needed ?? false;
-  let status: string = (map as any).status ?? 'draft';
-  let ia_identifier: string = (map as any).ia_identifier ?? '';
+  let priority: number = map.priority ?? 0;
+  let is_public: boolean = map.is_public ?? false;
+  let georef_done: boolean = map.georef_done ?? false;
+  let legend_done: boolean = map.legend_done ?? false;
+  let help_needed: boolean = map.help_needed ?? false;
+  let status: string = map.status ?? 'draft';
+  let ia_identifier: string = map.ia_identifier ?? '';
   let labelLegendMode: 'simple' | 'list' = 'simple';
   let labelLegendText = '';
   let labelCategories = '';
   $: {
-    const cfg = (map as any).label_config ?? {};
+    const cfg = (map.label_config ?? {}) as { legend?: unknown; categories?: unknown };
     const legend: any[] = Array.isArray(cfg.legend) ? cfg.legend : [];
     if (legend.length > 0 && typeof legend[0] === 'object') {
       labelLegendMode = 'list';
@@ -128,16 +129,7 @@
     lookingUpAllmaps = true;
     lookupAllmapsStatus = '';
     try {
-      const res = await fetch('/api/admin/maps/lookup-allmaps-id', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ iiifImage: iiif }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
-      const { allmapsId, hasAnnotation } = await res.json();
+      const { allmapsId, hasAnnotation } = await lookupAllmapsId(iiif);
       allmaps_id = allmapsId;
       lookupAllmapsStatus = hasAnnotation
         ? `✓ Found georeferenced annotation. Click Save to persist.`
@@ -154,7 +146,7 @@
   let fetchManifestStatus = '';
   async function handleFetchManifestMeta() {
     const manifestUrl = (
-      (map as any).iiif_manifest ||
+      map.iiif_manifest ||
       iiifSources.find((s) => !!s.iiif_image)?.iiif_image ||
       ''
     ).trim();
@@ -165,13 +157,9 @@
     fetchingManifest = true;
     fetchManifestStatus = '';
     try {
-      const res = await fetch('/api/admin/maps/fetch-iiif-metadata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manifestUrl }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const meta = await res.json();
+      // The wrapper's return type only names the core five fields; this endpoint
+      // also returns shelfmark/language/physicalDescription/sourceUrl/attribution.
+      const meta = await fetchIIIFMetadata(manifestUrl);
       // Fill only empty fields — never overwrite existing curation
       const filled: string[] = [];
       const fill = (current: string, next: unknown, setter: (v: string) => void, label: string) => {
@@ -355,7 +343,7 @@
   // Prefer: iiif_manifest → non-R2 source iiif_image → fall back to the public annotation URL when
   // there's no override (i.e. allmaps_id alone resolves it).
   $: editorIiifUrl =
-    (map as any).iiif_manifest ||
+    map.iiif_manifest ||
     iiifSources.find((s) => s.source_type !== 'r2' && s.iiif_image)?.iiif_image ||
     (!annotation_url && allmaps_id ? annotationUrl : '');
 
@@ -818,11 +806,11 @@
               type="button"
               class="btn btn-outline btn-sm"
               on:click={handleFetchManifestMeta}
-              disabled={fetchingManifest || !(map as any).iiif_manifest}
+              disabled={fetchingManifest || !map.iiif_manifest}
             >
               {fetchingManifest ? 'Fetching…' : 'Fetch metadata from IIIF manifest'}
             </button>
-            {#if !(map as any).iiif_manifest}
+            {#if !map.iiif_manifest}
               <span
                 class="lookup-status"
                 style="margin-left: 0.5rem; color: var(--text-muted, #666);"

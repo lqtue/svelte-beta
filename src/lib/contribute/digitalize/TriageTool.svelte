@@ -32,15 +32,8 @@
   import type { ImageShellContext } from '$lib/shell/imageContext';
   import { buildTileGrid, tileKey } from './tileParams';
   import type { TileOverrides } from './tileParams';
-  import { toOlRing, fromOlExtent } from './rectUtils';
-  import {
-    createHandleFeatures,
-    updateHandlePositions,
-    oppositeCorner,
-    rectFromHandleMove,
-    olPointToImage,
-    type HandleRole,
-  } from '../shared/bboxHandles';
+  import { toOlRing, fromOlExtent, type Rect } from '../shared/rectUtils';
+  import { createRectEditor, type RectEditor } from '../shared/bboxHandles';
 
   export let imgWidth: number = 0;
   export let imgHeight: number = 0;
@@ -58,12 +51,10 @@
 
   let neatlineSource: VectorSource | null = null;
   let neatlineLayer: VectorLayer | null = null;
-  let handleSource: VectorSource | null = null;
-  let handleLayer: VectorLayer | null = null;
+  let rectEditor: RectEditor | null = null;
   let tileSource: VectorSource | null = null;
   let tileLayer: VectorLayer | null = null;
   let bodyTranslate: Translate | null = null;
-  let handleTranslate: Translate | null = null;
   let clickKey: EventsKey | null = null;
   let initialized = false;
 
@@ -112,11 +103,6 @@
     neatlineLayer = new VectorLayer({ source: neatlineSource, zIndex: 6, style: neatlineStyle });
     olMap.addLayer(neatlineLayer);
 
-    // Handle layer — zIndex 7 (corner squares, above neatline)
-    handleSource = new VectorSource();
-    handleLayer = new VectorLayer({ source: handleSource, zIndex: 7, style: handleStyle });
-    olMap.addLayer(handleLayer);
-
     // Tile grid layer — zIndex 3
     tileSource = new VectorSource();
     tileLayer = new VectorLayer({
@@ -138,23 +124,19 @@
     });
     olMap.addInteraction(bodyTranslate);
 
-    // ── Handle translate: resize via corner handles ──
-    handleTranslate = new Translate({ layers: [handleLayer] });
-    handleTranslate.on('translateend', (e: any) => {
-      const feat = e.features.getArray()[0];
-      if (!feat || !neatline) return;
-
-      const role = feat.get('handleRole') as HandleRole;
-      const olCoord = (feat.getGeometry() as import('ol/geom/Point').default).getCoordinates();
-      const newPos = olPointToImage(olCoord);
-      const oppPos = oppositeCorner(role, ...neatline);
-      const raw = rectFromHandleMove(role, newPos, oppPos);
-      const nl = clamp(raw.x, raw.y, raw.w, raw.h);
-
-      const neatlineFeat = neatlineSource!.getFeatureById('neatline');
-      if (neatlineFeat) applyNeatline(nl, neatlineFeat);
+    // ── Corner-handle resize (zIndex 7, above the neatline) ──
+    // Created after bodyTranslate so a corner drag wins over a body drag
+    // (OL dispatches interactions last-added-first).
+    rectEditor = createRectEditor(olMap, {
+      zIndex: 7,
+      style: handleStyle,
+      getRect: () => (neatline ? rectOf(neatline) : null),
+      clamp: (r) => rectOf(clamp(r.x, r.y, r.w, r.h)),
+      onChange: (_id, rect) => {
+        const neatlineFeat = neatlineSource!.getFeatureById('neatline');
+        if (neatlineFeat) applyNeatline([rect.x, rect.y, rect.w, rect.h], neatlineFeat);
+      },
     });
-    olMap.addInteraction(handleTranslate);
 
     // ── Tile click: cycle priority ──────────────────────────────────────────
     clickKey = olMap.on('singleclick', (event: any) => {
@@ -181,6 +163,10 @@
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function rectOf(nl: [number, number, number, number]): Rect {
+    return { x: nl[0], y: nl[1], w: nl[2], h: nl[3] };
+  }
 
   function clamp(x: number, y: number, w: number, h: number): [number, number, number, number] {
     const cx = Math.max(0, x);
@@ -211,14 +197,7 @@
   }
 
   function syncHandles(nl: [number, number, number, number]) {
-    if (!handleSource) return;
-    const existing = handleSource.getFeatures();
-    if (existing.length === 4) {
-      updateHandlePositions(existing, ...nl);
-    } else {
-      handleSource.clear();
-      handleSource.addFeatures(createHandleFeatures('neatline', ...nl));
-    }
+    rectEditor?.show('neatline', rectOf(nl));
   }
 
   function rebuildTileFeatures(nl: [number, number, number, number]) {
@@ -232,7 +211,7 @@
   }
 
   // ── Reactive: sync prop → OL ───────────────────────────────────────────────
-  $: if (neatline && initialized && neatlineSource && tileSource && handleSource) {
+  $: if (neatline && initialized && neatlineSource && tileSource && rectEditor) {
     void tileSize;
     void overlap;
     syncNeatlineGeom(neatline);
@@ -248,10 +227,9 @@
   onDestroy(() => {
     const ctx = get(shellStore);
     if (clickKey) unByKey(clickKey);
+    rectEditor?.destroy();
     if (ctx) {
-      if (handleTranslate) ctx.map.removeInteraction(handleTranslate);
       if (bodyTranslate) ctx.map.removeInteraction(bodyTranslate);
-      if (handleLayer) ctx.map.removeLayer(handleLayer);
       if (neatlineLayer) ctx.map.removeLayer(neatlineLayer);
       if (tileLayer) ctx.map.removeLayer(tileLayer);
     }

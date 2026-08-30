@@ -7,13 +7,17 @@
   import { getSupabaseContext } from '$lib/supabase/context';
   import { fetchSubmittedFootprints } from '$lib/supabase/labels';
   import type { SamFootprint } from '$lib/supabase/labels';
-  import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
+  import { resolveMapIiifInfoUrl } from '$lib/contribute/shared/iiifSource';
+  import { advancePipelineStage } from '$lib/contribute/pipelineApi';
   import type { FeatureType } from '$lib/contribute/shared/types';
+  import '$styles/layouts/tool-page.css';
   import ReviewCanvas from './ReviewCanvas.svelte';
   import ReviewSidebar from './ReviewSidebar.svelte';
 
   export let mapId: string;
   export let allmapsId: string = '';
+  /** Preferred over allmapsId when the map row carries it (R2 mirrors). */
+  export let iiifImage: string | null = null;
 
   const dispatch = createEventDispatcher<{ done: void }>();
   const { supabase } = getSupabaseContext();
@@ -23,6 +27,9 @@
   let loading = true;
   let loadError = '';
   let approving: string | null = null;
+  let updateError = '';
+  let markingReviewed = false;
+  let markReviewedError = '';
 
   // Track pending geometry/type edits before approve
   let pendingEdits: Record<string, { pixelPolygon?: [number, number][]; featureType?: string }> =
@@ -40,19 +47,7 @@
       footprints = await fetchSubmittedFootprints(supabase, mapId);
       initialTotal = footprints.length;
       selectedId = footprints[0]?.id ?? null;
-      // Resolve IIIF url from allmapsId annotation
-      if (allmapsId) {
-        try {
-          const res = await fetch(annotationUrlForSource(allmapsId));
-          if (res.ok) {
-            const annotation = await res.json();
-            const sourceId = annotation.items?.[0]?.target?.source?.id;
-            if (sourceId) iiifInfoUrl = `${sourceId}/info.json`;
-          }
-        } catch (e) {
-          console.warn('[ReviewMode] Could not resolve IIIF url:', e);
-        }
-      }
+      iiifInfoUrl = await resolveMapIiifInfoUrl({ iiifImage, allmapsId });
     } catch (e: any) {
       loadError = e.message;
     } finally {
@@ -80,8 +75,21 @@
     await updateStatus(id, 'rejected');
   }
 
+  async function markReviewed() {
+    markingReviewed = true;
+    markReviewedError = '';
+    try {
+      await advancePipelineStage(mapId, 'seg_reviewed');
+    } catch (e: any) {
+      markReviewedError = e.message;
+    } finally {
+      markingReviewed = false;
+    }
+  }
+
   async function updateStatus(id: string, status: 'submitted' | 'rejected') {
     approving = id;
+    updateError = '';
     try {
       const edits = pendingEdits[id];
       const body: Record<string, any> = { id, status };
@@ -95,7 +103,7 @@
       });
       if (!res.ok) {
         const { message } = await res.json().catch(() => ({ message: res.statusText }));
-        console.error('Review update failed:', message);
+        updateError = `Could not ${status === 'rejected' ? 'reject' : 'approve'}: ${message}`;
         return;
       }
       // Remove from list; advance selection; clear pending edit
@@ -128,6 +136,9 @@
         HITL Review
         <span class="map-chip">{mapId.slice(0, 8)}…</span>
       </span>
+      {#if updateError}
+        <span class="update-error">{updateError}</span>
+      {/if}
       <span class="progress-text">{reviewed} / {initialTotal} reviewed</span>
     </header>
 
@@ -145,11 +156,13 @@
         total={initialTotal}
         {reviewed}
         {approving}
-        {mapId}
+        {markingReviewed}
+        {markReviewedError}
         on:select={(e) => handleSelect(e.detail.id)}
         on:approve={(e) => handleApprove(e.detail.id)}
         on:reject={(e) => handleReject(e.detail.id)}
         on:retype={(e) => handleRetype(e.detail.id, e.detail.featureType)}
+        on:markReviewed={markReviewed}
       />
     </div>
   </div>
@@ -172,21 +185,6 @@
 
   .fullscreen-state.error {
     color: #fca5a5;
-  }
-
-  .spinner {
-    width: 28px;
-    height: 28px;
-    border: 3px solid #2d2a26;
-    border-top-color: #f97316;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
 
   .review-layout {
@@ -251,6 +249,11 @@
   .progress-text {
     font-size: 0.8125rem;
     color: #6b7280;
+  }
+
+  .update-error {
+    font-size: 0.8125rem;
+    color: #fca5a5;
   }
 
   .review-body {

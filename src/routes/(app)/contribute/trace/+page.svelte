@@ -17,20 +17,18 @@
     ● Edit    — Select + Modify existing footprints
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import ImageShell from '$lib/shell/ImageShell.svelte';
-  import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
   import TraceTool from '$lib/contribute/trace/TraceTool.svelte';
   import TraceSidebar from '$lib/contribute/trace/TraceSidebar.svelte';
-  import ToolPanelHeader from '$lib/contribute/shared/ToolPanelHeader.svelte';
+  import ToolSidebarShell from '$lib/contribute/shared/ToolSidebarShell.svelte';
+  import ToolMapPicker from '$lib/contribute/shared/ToolMapPicker.svelte';
   import EmptyPanel from '$lib/contribute/shared/EmptyPanel.svelte';
   import SidebarToggleButton from '$lib/contribute/shared/SidebarToggleButton.svelte';
   import '$styles/layouts/tool-page.css';
   import { getSupabaseContext } from '$lib/supabase/context';
-  import { resolveIiifInfoUrl } from '$lib/iiif/iiifImageInfo';
+  import { resolveMapIiifInfoUrl } from '$lib/contribute/shared/iiifSource';
   import {
-    fetchLabelMaps,
     fetchMapFootprints,
     createFootprint,
     updateFootprint,
@@ -44,9 +42,9 @@
   const userId = session?.user?.id ?? null;
 
   // ── Map selection state ────────────────────────────────────────────────────
-  let maps: LabelMapInfo[] = [];
   let currentMap: LabelMapInfo | null = null;
   let iiifInfoUrl: string | null = null;
+  let mapsError = '';
 
   // ── Trace data ─────────────────────────────────────────────────────────────
   let footprints: FootprintSubmission[] = [];
@@ -70,23 +68,14 @@
     return `Shape ${myFootprints.length + 1}`;
   }
 
-  // ── Load all traceable maps ────────────────────────────────────────────────
-  async function loadMaps() {
-    try {
-      maps = await fetchLabelMaps(supabase);
-    } catch (err) {
-      console.error('[TracePage] Failed to load maps:', err);
-    }
-  }
-
   // ── Select a map ──────────────────────────────────────────────────────────
   async function selectMap(m: LabelMapInfo) {
     if (currentMap?.id === m.id) return;
     currentMap = m;
     iiifInfoUrl = null;
     footprints = [];
-    const resolve = m.allmapsId ? resolveIiifInfoUrl(m.allmapsId) : Promise.resolve(null);
-    const [url] = await Promise.all([resolve, loadFootprints()]);
+    // resolveMapIiifInfoUrl prefers m.iiifImage, so R2-mirrored maps resolve too.
+    const [url] = await Promise.all([resolveMapIiifInfoUrl(m), loadFootprints()]);
     iiifInfoUrl = url;
   }
 
@@ -94,8 +83,8 @@
     if (!currentMap) return;
     try {
       footprints = await fetchMapFootprints(supabase, currentMap.id);
-    } catch (err) {
-      console.error('[TracePage] Failed to load footprints:', err);
+    } catch (err: any) {
+      mapsError = `Couldn't load shapes: ${err?.message ?? err}`;
       footprints = [];
     }
   }
@@ -175,8 +164,6 @@
       );
     }
   }
-
-  onMount(loadMaps);
 </script>
 
 <svelte:head>
@@ -192,8 +179,7 @@
   <ToolLayout bind:sidebarCollapsed bind:isMobile>
     <!-- Sidebar -->
     <svelte:fragment slot="sidebar">
-      <aside class="panel">
-        <ToolPanelHeader title="Trace" onCollapse={() => (sidebarCollapsed = true)} />
+      <ToolSidebarShell title="Trace" onCollapse={() => (sidebarCollapsed = true)}>
         {#if !currentMap}
           <EmptyPanel message="Select a map to start tracing." />
         {:else}
@@ -206,15 +192,14 @@
             on:updateFootprintMeta={handleUpdateFootprintMeta}
           />
         {/if}
-      </aside>
+      </ToolSidebarShell>
     </svelte:fragment>
 
     <!-- Floating map search (canvas, top-center) — maps only, no location tab -->
-    <MapSearchBar
-      maps={maps as any}
+    <ToolMapPicker
       selectedMapId={currentMap?.id ?? null}
-      mapsOnly={true}
-      on:selectMap={(e) => selectMap(e.detail.map as any)}
+      on:select={(e) => selectMap(e.detail.map)}
+      on:error={(e) => (mapsError = e.detail.message)}
     />
 
     <!-- Image stage -->
@@ -246,6 +231,9 @@
           <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
         </svg>
         <p>Pick a map to start tracing.</p>
+        {#if mapsError}
+          <p class="stage-error">{mapsError}</p>
+        {/if}
         <a href="/catalog" class="catalog-link">Browse the catalog →</a>
       </div>
     {:else}
@@ -257,11 +245,10 @@
 
     <!-- Mobile sidebar -->
     <svelte:fragment slot="mobile-sidebar">
-      <aside class="panel">
-        <ToolPanelHeader
-          title={currentMap?.name ?? 'Trace'}
-          onCollapse={() => (sidebarCollapsed = true)}
-        />
+      <ToolSidebarShell
+        title={currentMap?.name ?? 'Trace'}
+        onCollapse={() => (sidebarCollapsed = true)}
+      >
         {#if currentMap}
           <TraceSidebar
             {traceCategories}
@@ -274,7 +261,7 @@
         {:else}
           <EmptyPanel showIcon={false} />
         {/if}
-      </aside>
+      </ToolSidebarShell>
     </svelte:fragment>
   </ToolLayout>
 
@@ -359,3 +346,12 @@
     </footer>
   {/if}
 </div>
+
+<style>
+  .stage-error {
+    font-size: 0.8rem;
+    color: #b91c1c;
+    max-width: 34ch;
+    text-align: center;
+  }
+</style>

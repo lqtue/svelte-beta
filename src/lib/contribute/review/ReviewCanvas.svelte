@@ -25,6 +25,8 @@
   import 'ol/ol.css';
 
   import type { SamFootprint } from '$lib/supabase/labels';
+  import { toOlCoords, olCoordsToImage } from '$lib/contribute/shared/rectUtils';
+  import '$styles/layouts/tool-page.css';
 
   const dispatch = createEventDispatcher<{
     select: { id: string };
@@ -65,7 +67,7 @@
     if (!fpSource) return;
     fpSource.clear();
     for (const fp of footprints) {
-      const ring = fp.pixelPolygon.map(([x, y]) => [x, -y]);
+      const ring = toOlCoords(fp.pixelPolygon);
       const feature = new Feature({ geometry: new Polygon([ring]) });
       feature.setId(fp.id);
       fpSource.addFeature(feature);
@@ -161,7 +163,7 @@
         const geom = f.getGeometry() as Polygon;
         if (!geom) return;
         // Convert from OL coords [x, -y] back to IIIF pixel space [x, y]
-        const ring = geom.getCoordinates()[0].map(([x, y]) => [x, -y] as [number, number]);
+        const ring = olCoordsToImage(geom.getCoordinates()[0]);
         dispatch('edit', { id, pixelPolygon: ring });
       });
     });
@@ -238,21 +240,6 @@
   .empty-msg {
     font-size: 0.9rem;
     color: #6b7280;
-  }
-
-  .spinner {
-    width: 28px;
-    height: 28px;
-    border: 3px solid #2d2a26;
-    border-top-color: #f97316;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
 
   .legend {

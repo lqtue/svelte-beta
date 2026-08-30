@@ -25,3 +25,10 @@ export type OcrExtraction = {
   _editCategory?: string;
   _saving?: boolean;
 };
+
+/** An extraction whose client-side edit buffer has been seeded (see `withEditState`). */
+export type EditableOcrExtraction = OcrExtraction & {
+  _editText: string;
+  _editCategory: string;
+  _saving: boolean;
+};

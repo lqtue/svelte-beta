@@ -5,6 +5,12 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
   import '$styles/layouts/tool-page.css';
+  import '$styles/components/shapes-table.css';
+  import {
+    toggleSort as nextSort,
+    sortIcon as iconFor,
+    applySort,
+  } from '$lib/contribute/shared/tableSort';
   import type { FootprintSubmission, FeatureType } from '$lib/contribute/shared/types';
   import { FEATURE_TYPE_LABELS } from '$lib/contribute/shared/types';
 
@@ -40,22 +46,21 @@
   $: categoryOptions = traceCategories.map((cat) => ({ val: cat, label: cat }));
 
   type SortKey = 'name' | 'type' | 'category';
-  let sortKey: SortKey = 'name';
-  let sortAsc = true;
+  let sort: { key: SortKey; asc: boolean } = { key: 'name', asc: true };
   let filterType: FeatureType | '' = '';
   let filterSearch = '';
 
   function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      sortAsc = !sortAsc;
-    } else {
-      sortKey = key;
-      sortAsc = true;
-    }
+    sort = nextSort(sort, key);
   }
   function sortIcon(key: SortKey): string {
-    if (sortKey !== key) return '';
-    return sortAsc ? ' ↑' : ' ↓';
+    return iconFor(sort, key);
+  }
+
+  function sortValue(fp: FootprintSubmission, key: SortKey): string {
+    if (key === 'name') return fp.name ?? '';
+    if (key === 'type') return fp.featureType;
+    return fp.category ?? '';
   }
 
   $: visibleFootprints = (() => {
@@ -68,22 +73,7 @@
           (fp.name ?? '').toLowerCase().includes(q) || (fp.category ?? '').toLowerCase().includes(q)
       );
     }
-    list.sort((a, b) => {
-      let va: string, vb: string;
-      if (sortKey === 'name') {
-        va = a.name ?? '';
-        vb = b.name ?? '';
-      } else if (sortKey === 'type') {
-        va = a.featureType;
-        vb = b.featureType;
-      } else {
-        va = a.category ?? '';
-        vb = b.category ?? '';
-      }
-      const cmp = va.localeCompare(vb);
-      return sortAsc ? cmp : -cmp;
-    });
-    return list;
+    return applySort(list, sort, sortValue);
   })();
 
   let draftLabels: Record<string, string> = {};
@@ -349,123 +339,8 @@
 </div>
 
 <style>
-  .sidebar-content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-  .shapes-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    border-bottom: var(--border-thin);
-    background: var(--color-white);
-    flex-shrink: 0;
-  }
-  .shapes-search {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex: 1;
-    min-width: 0;
-    background: var(--color-bg);
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    padding: 0.3rem 0.5rem;
-  }
-  .shapes-search svg {
-    flex-shrink: 0;
-    opacity: 0.5;
-  }
-  .shapes-search-input {
-    border: none;
-    background: none;
-    outline: none;
-    font-family: var(--font-family-base);
-    font-size: 0.75rem;
-    width: 100%;
-    color: var(--color-text);
-  }
-  .filter-type-select {
-    font-family: var(--font-family-base);
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 0.3rem 0.4rem;
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    background: var(--color-bg);
-    color: var(--color-text);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .shapes-count {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--color-text);
-    opacity: 0.5;
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-  .shapes-table-wrap {
-    flex: 1;
-    overflow: auto;
-    min-height: 0;
-  }
-  .shapes-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--font-family-base);
-    font-size: 0.75rem;
-  }
-  .shapes-table thead {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--color-white);
-  }
-  .shapes-table th {
-    padding: 0.4rem;
-    text-align: left;
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--color-text);
-    opacity: 0.5;
-    border-bottom: var(--border-thick);
-    white-space: nowrap;
-    user-select: none;
-  }
-  .shapes-table th.sortable {
-    cursor: pointer;
-  }
-  .shapes-table th.sortable:hover {
-    opacity: 0.9;
-    color: var(--color-primary);
-  }
-  .shapes-table td {
-    padding: 0.2rem 0.4rem;
-    border-bottom: 1px solid var(--color-gray-200, #eee);
-    vertical-align: middle;
-  }
-  .shape-tr:hover td {
-    background: var(--color-gray-100);
-  }
-  .col-dot {
-    width: 20px;
-    text-align: center;
-    padding-left: 0.5rem;
-  }
-  .dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(0, 0, 0, 0.15);
-  }
+  /* Table chrome lives in $styles/components/shapes-table.css — only the
+     column widths and delete-confirm colours are trace-specific. */
   .col-name {
     min-width: 70px;
   }
@@ -480,69 +355,6 @@
     text-align: right;
     white-space: nowrap;
     padding-right: 0.5rem;
-  }
-  .cell-input {
-    width: 100%;
-    border: none;
-    background: none;
-    outline: none;
-    font-family: var(--font-family-base);
-    font-size: 0.75rem;
-    color: var(--color-text);
-    padding: 0.2rem 0;
-  }
-  .cell-input:focus {
-    background: var(--color-yellow);
-    border-radius: 2px;
-    padding: 0.2rem 0.25rem;
-    margin: 0 -0.25rem;
-  }
-  .dropdown-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  .cell-select {
-    width: 100%;
-    border: 1px solid var(--color-gray-200, #ddd);
-    border-radius: 3px;
-    background: var(--color-bg);
-    font-family: var(--font-family-base);
-    font-size: 0.7rem;
-    color: var(--color-text);
-    cursor: pointer;
-    padding: 0.2rem 1.2rem 0.2rem 0.3rem;
-    -webkit-appearance: none;
-    appearance: none;
-  }
-  .cell-select:focus {
-    outline: 2px solid var(--color-blue);
-    outline-offset: -1px;
-  }
-  .dropdown-chevron {
-    position: absolute;
-    right: 0.3rem;
-    pointer-events: none;
-    opacity: 0.4;
-  }
-  .row-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border: none;
-    background: none;
-    cursor: pointer;
-    color: var(--color-text);
-    opacity: 0.3;
-    border-radius: var(--radius-sm);
-    transition: all 0.1s;
-    padding: 0;
-  }
-  .row-action:hover {
-    opacity: 1;
-    background: var(--color-gray-100);
   }
   .delete-action:hover {
     color: #b91c1c;
@@ -564,29 +376,5 @@
   .confirm-no:hover {
     opacity: 1;
     background: var(--color-gray-100);
-  }
-  .table-empty {
-    padding: 2rem 1rem;
-    text-align: center;
-  }
-  .hint-bar {
-    padding: 0.5rem 1rem;
-    font-size: 0.7rem;
-    color: var(--color-text);
-    opacity: 0.5;
-    border-top: var(--border-thin);
-    background: var(--color-white);
-    flex-shrink: 0;
-    text-align: center;
-  }
-  .hint-bar kbd {
-    display: inline-block;
-    padding: 0.1rem 0.35rem;
-    font-size: 0.65rem;
-    font-family: var(--font-family-base);
-    background: var(--color-bg);
-    border: var(--border-thin);
-    border-radius: 3px;
-    font-weight: 700;
   }
 </style>

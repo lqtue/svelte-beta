@@ -8,6 +8,8 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import CliCommandBlock from '$lib/contribute/shared/CliCommandBlock.svelte';
+  import '$styles/layouts/tool-page.css';
   import type { TileOverrides } from './tileParams';
   import { buildTileGrid } from './tileParams';
 
@@ -31,14 +33,6 @@
   export let ocrError: string = '';
   export let cliCommand: string | null = null;
   export let runs: Record<string, { n: number; categories: Record<string, number> }> = {};
-
-  let copied = false;
-  async function copyCliCommand() {
-    if (!cliCommand) return;
-    await navigator.clipboard.writeText(cliCommand);
-    copied = true;
-    setTimeout(() => (copied = false), 2000);
-  }
 
   const dispatch = createEventDispatcher<{
     runOcr: void;
@@ -266,15 +260,7 @@
     {/if}
 
     {#if cliCommand}
-      <div class="ts-cli-block">
-        <div class="ts-cli-header">
-          <span class="ts-cli-label">Run this locally:</span>
-          <button class="ts-copy-btn" on:click={copyCliCommand}>
-            {copied ? '✓ Copied' : 'Copy'}
-          </button>
-        </div>
-        <code class="ts-cli-code">{cliCommand}</code>
-      </div>
+      <CliCommandBlock command={cliCommand} />
     {/if}
 
     <button
@@ -532,11 +518,6 @@
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
 
   .ts-run-row {
     display: flex;
@@ -573,45 +554,5 @@
     font-size: 0.68rem;
     opacity: 0.45;
     line-height: 1.4;
-  }
-
-  .ts-cli-block {
-    background: #f0f9ff;
-    border: 1px solid #bae6fd;
-    border-radius: 4px;
-    padding: 0.5rem 0.6rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  .ts-cli-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .ts-cli-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: #0369a1;
-  }
-  .ts-copy-btn {
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0.15rem 0.45rem;
-    border: 1px solid #0369a1;
-    border-radius: 3px;
-    background: transparent;
-    color: #0369a1;
-    cursor: pointer;
-  }
-  .ts-copy-btn:hover {
-    background: #e0f2fe;
-  }
-  .ts-cli-code {
-    font-family: ui-monospace, monospace;
-    font-size: 0.65rem;
-    color: #0c4a6e;
-    word-break: break-all;
-    line-height: 1.5;
   }
 </style>

@@ -155,7 +155,7 @@ export async function deleteFootprint(
 
 interface MapJoinRow {
 	map_id: string;
-	maps: { id: string; name: string | null; allmaps_id: string | null } | null;
+	maps: { id: string; name: string | null; allmaps_id: string | null; iiif_image: string | null } | null;
 }
 
 // ── Review helpers ────────────────────────────────────────────────────────────
@@ -180,21 +180,21 @@ export async function fetchSubmittedFootprints(
 
 export async function fetchMapsWithSubmittedFootprints(
 	supabase: SupabaseClient<Database>
-): Promise<{ id: string; name: string; allmapsId: string; pendingCount: number }[]> {
+): Promise<{ id: string; name: string; allmapsId: string; iiifImage: string | null; pendingCount: number }[]> {
 	const { data, error } = await supabase
 		.from('footprint_submissions')
-		.select('map_id, maps!inner(id, name, allmaps_id)')
+		.select('map_id, maps!inner(id, name, allmaps_id, iiif_image)')
 		.eq('status', 'submitted');
 
 	if (error) throw new Error(error.message);
 
-	const counts: Record<string, { id: string; name: string; allmapsId: string; count: number }> = {};
+	const counts: Record<string, { id: string; name: string; allmapsId: string; iiifImage: string | null; count: number }> = {};
 	for (const row of (data ?? []) as unknown as MapJoinRow[]) {
 		const mapRow = row.maps;
 		if (!mapRow) continue;
 		const mid = mapRow.id;
-		if (!counts[mid]) counts[mid] = { id: mid, name: mapRow.name ?? mid, allmapsId: mapRow.allmaps_id ?? '', count: 0 };
+		if (!counts[mid]) counts[mid] = { id: mid, name: mapRow.name ?? mid, allmapsId: mapRow.allmaps_id ?? '', iiifImage: mapRow.iiif_image ?? null, count: 0 };
 		counts[mid].count++;
 	}
-	return Object.values(counts).map(c => ({ id: c.id, name: c.name, allmapsId: c.allmapsId, pendingCount: c.count }));
+	return Object.values(counts).map(c => ({ id: c.id, name: c.name, allmapsId: c.allmapsId, iiifImage: c.iiifImage, pendingCount: c.count }));
 }

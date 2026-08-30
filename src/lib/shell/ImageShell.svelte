@@ -38,6 +38,7 @@
 
   import type { FootprintSubmission } from '$lib/contribute/shared/types';
   import { geometryKind } from '$lib/contribute/shared/types';
+  import { toOlCoords } from '$lib/contribute/shared/rectUtils';
   import { createImageShellContext } from './imageContext';
 
   // Create context store synchronously during init so child tools can subscribe.
@@ -108,7 +109,7 @@
     if (!footprintSource) return;
     footprintSource.clear();
     for (const fp of footprints) {
-      const coords = fp.pixelPolygon.map(([x, y]) => [x, -y]);
+      const coords = toOlCoords(fp.pixelPolygon);
       const geomKind = geometryKind(fp.featureType);
       let feature: Feature;
       if (geomKind === 'LineString') {

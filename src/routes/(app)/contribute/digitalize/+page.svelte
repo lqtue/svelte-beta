@@ -13,31 +13,35 @@
 -->
 <script lang="ts">
   import { OCR_CATEGORIES, CAT_COLORS } from '$lib/contribute/ocr/constants';
-  import { onMount, tick } from 'svelte';
+  import { tick } from 'svelte';
   import OlMap from 'ol/Map';
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
   import ImageShell from '$lib/shell/ImageShell.svelte';
-  import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
   import OcrSidebar from '$lib/contribute/ocr/OcrSidebar.svelte';
   import OcrBboxTool from '$lib/contribute/ocr/OcrBboxTool.svelte';
   import TriageSidebar from '$lib/contribute/digitalize/TriageSidebar.svelte';
   import TriageTool from '$lib/contribute/digitalize/TriageTool.svelte';
-  import ToolPanelHeader from '$lib/contribute/shared/ToolPanelHeader.svelte';
+  import ToolSidebarShell from '$lib/contribute/shared/ToolSidebarShell.svelte';
+  import ToolMapPicker from '$lib/contribute/shared/ToolMapPicker.svelte';
+  import CliCommandBlock from '$lib/contribute/shared/CliCommandBlock.svelte';
   import EmptyPanel from '$lib/contribute/shared/EmptyPanel.svelte';
   import SidebarToggleButton from '$lib/contribute/shared/SidebarToggleButton.svelte';
   import '$styles/layouts/tool-page.css';
   import type { OcrExtraction } from '$lib/contribute/ocr/types';
   import type { TileOverrides } from '$lib/contribute/digitalize/tileParams';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { resolveIiifInfoUrl } from '$lib/iiif/iiifImageInfo';
-  import { fetchLabelMaps } from '$lib/supabase/labels';
+  import { createManualBbox, patchExtraction, type OcrStatus } from '$lib/contribute/ocr/ocrApi';
+  import {
+    fetchPipelineStatus,
+    advancePipelineStage as patchPipelineStage,
+    type PipelineStatus,
+  } from '$lib/contribute/pipelineApi';
+  import { resolveMapIiifInfoUrl } from '$lib/contribute/shared/iiifSource';
+  import { toOlExtent } from '$lib/contribute/shared/rectUtils';
   import type { LabelMapInfo } from '$lib/supabase/labels';
 
-  const { supabase } = getSupabaseContext();
-
   // ── Shared ────────────────────────────────────────────────────────────────────
-  let maps: LabelMapInfo[] = [];
   let currentMap: LabelMapInfo | null = null;
+  let mapsError = '';
   let iiifInfoUrl: string | null = null;
   let imgWidth = 0;
   let imgHeight = 0;
@@ -51,17 +55,6 @@
   let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
 
   // ── Pipeline status ───────────────────────────────────────────────────────────
-  type PipelineStatus = {
-    map_id: string;
-    stage: string;
-    ocr_run_id?: string;
-    seg_run_id?: string;
-    ocr_started_at?: string;
-    ocr_finished_at?: string;
-    seg_started_at?: string;
-    seg_finished_at?: string;
-    reviewed_at?: string;
-  };
   let pipelineStatus: PipelineStatus | null = null;
   let pipelineLoading = false;
   let pipelineError = '';
@@ -78,9 +71,7 @@
     pipelineLoading = true;
     pipelineError = '';
     try {
-      const res = await fetch(`/api/admin/maps/${currentMap.id}/pipeline`);
-      if (!res.ok) throw new Error(res.statusText);
-      pipelineStatus = await res.json();
+      pipelineStatus = await fetchPipelineStatus(currentMap.id);
     } catch (e: any) {
       pipelineError = e.message;
     } finally {
@@ -91,13 +82,7 @@
   async function advancePipelineStage(stage: string) {
     if (!currentMap?.id) return;
     try {
-      const res = await fetch(`/api/admin/maps/${currentMap.id}/pipeline`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      pipelineStatus = await res.json();
+      pipelineStatus = await patchPipelineStage(currentMap.id, stage);
     } catch (e: any) {
       pipelineError = e.message;
     }
@@ -183,14 +168,6 @@
   $: displayExtractions = ocrExtractions;
 
   // ── Map loading ───────────────────────────────────────────────────────────────
-  async function loadMaps() {
-    try {
-      maps = await fetchLabelMaps(supabase);
-    } catch (err) {
-      console.error('[Digitalize] Failed to load maps:', err);
-    }
-  }
-
   async function selectMap(m: LabelMapInfo) {
     if (currentMap?.id === m.id) return;
     currentMap = m;
@@ -235,20 +212,9 @@
       /* ignore */
     }
 
-    await resolveIiifUrl();
+    iiifInfoUrl = await resolveMapIiifInfoUrl(currentMap);
     await checkExistingRuns();
     await loadPipelineStatus();
-  }
-
-  async function resolveIiifUrl() {
-    // Prefer iiif_image from the maps table — direct and reliable
-    if (currentMap?.iiifImage) {
-      iiifInfoUrl = `${currentMap.iiifImage}/info.json`;
-      return;
-    }
-    // Fallback: resolve from Allmaps annotation
-    if (!currentMap?.allmapsId) return;
-    iiifInfoUrl = await resolveIiifInfoUrl(currentMap.allmapsId);
   }
 
   async function checkExistingRuns() {
@@ -333,7 +299,7 @@
   ) {
     if (!map) return;
     const { globalX, globalY, globalW, globalH } = e.detail;
-    map.getView().fit([globalX, -(globalY + globalH), globalX + globalW, -globalY], {
+    map.getView().fit(toOlExtent(globalX, globalY, globalW, globalH), {
       padding: [100, 100, 100, 100],
       duration: 400,
     });
@@ -353,11 +319,11 @@
     ocrExtractions = ocrExtractions.map((ex) =>
       ex.id === id ? { ...ex, global_x, global_y, global_w, global_h } : ex
     );
-    await fetch(`/api/admin/maps/${currentMap.id}/ocr-review`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, global_x, global_y, global_w, global_h }),
-    });
+    try {
+      await patchExtraction(currentMap.id, { id, global_x, global_y, global_w, global_h });
+    } catch (e: any) {
+      ocrError = e.message;
+    }
   }
 
   async function handleDraw(
@@ -367,17 +333,24 @@
     drawMode = false;
     const { global_x, global_y, global_w, global_h } = e.detail;
     const activeRunId = ocrSidebar?.getRunId?.() ?? 'manual';
-    const res = await fetch(`/api/admin/maps/${currentMap.id}/ocr-review`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ run_id: activeRunId, global_x, global_y, global_w, global_h }),
-    });
-    if (!res.ok) return;
-    const { id } = await res.json();
+    let id: string;
+    try {
+      id = await createManualBbox(currentMap.id, {
+        run_id: activeRunId,
+        global_x,
+        global_y,
+        global_w,
+        global_h,
+      });
+    } catch (e: any) {
+      ocrError = e.message;
+      return;
+    }
+    // Mirror the server defaults for a manual row (see ocr-review POST).
     const newExt: OcrExtraction = {
       id,
-      tile_x: 0,
-      tile_y: 0,
+      tile_x: Math.round(global_x),
+      tile_y: Math.round(global_y),
       tile_w: 0,
       tile_h: 0,
       global_x,
@@ -409,27 +382,24 @@
     panelCategory = selectedExtraction.category_validated ?? selectedExtraction.category;
   }
 
-  async function panelSave(status: 'validated' | 'rejected' | 'pending') {
+  async function panelSave(status: OcrStatus) {
     if (!currentMap || !selectedExtractionId) return;
     panelSaving = true;
     try {
-      const res = await fetch(`/api/admin/maps/${currentMap.id}/ocr-review`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: selectedExtractionId,
-          text: panelText,
-          category: panelCategory,
-          status,
-        }),
+      await patchExtraction(currentMap.id, {
+        id: selectedExtractionId,
+        text: panelText,
+        category: panelCategory,
+        status,
       });
-      if (!res.ok) return;
       ocrExtractions = ocrExtractions.map((e) =>
         e.id === selectedExtractionId
           ? { ...e, text_validated: panelText, category_validated: panelCategory, status }
           : e
       );
       ocrSidebar?.load?.();
+    } catch (e: any) {
+      ocrError = e.message;
     } finally {
       panelSaving = false;
     }
@@ -438,8 +408,6 @@
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && drawMode) drawMode = false;
   }
-
-  onMount(loadMaps);
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -453,9 +421,7 @@
   <ToolLayout bind:sidebarCollapsed bind:isMobile>
     <!-- Sidebar (desktop) -->
     <svelte:fragment slot="sidebar">
-      <aside class="panel">
-        <ToolPanelHeader onCollapse={() => (sidebarCollapsed = true)} />
-
+      <ToolSidebarShell onCollapse={() => (sidebarCollapsed = true)}>
         {#if !currentMap}
           <EmptyPanel message="Pick a map to start." />
         {:else if phase === 'triage'}
@@ -555,16 +521,7 @@
                   </label>
                 </div>
               </div>
-              <div class="seg-command-block">
-                <div class="seg-command-label">Colab command</div>
-                <pre class="seg-command">{segColabCommand}</pre>
-                <button
-                  class="pill-btn"
-                  on:click={() => navigator.clipboard.writeText(segColabCommand)}
-                >
-                  Copy
-                </button>
-              </div>
+              <CliCommandBlock command={segColabCommand} label="Colab command" />
             {/if}
 
             {#if pipelineStatus?.seg_started_at || pipelineStatus?.seg_finished_at}
@@ -593,7 +550,7 @@
           </div>
         {/if}
 
-        <div class="panel-footer">
+        <svelte:fragment slot="footer">
           <div class="phase-tabs">
             <button
               class="phase-tab"
@@ -614,16 +571,15 @@
               }}>Segmentation</button
             >
           </div>
-        </div>
-      </aside>
+        </svelte:fragment>
+      </ToolSidebarShell>
     </svelte:fragment>
 
     <!-- Floating map picker -->
-    <MapSearchBar
-      maps={maps as any}
+    <ToolMapPicker
       selectedMapId={currentMap?.id ?? null}
-      mapsOnly={true}
-      on:selectMap={(e) => selectMap(e.detail.map as any)}
+      on:select={(e) => selectMap(e.detail.map)}
+      on:error={(e) => (mapsError = e.detail.message)}
     />
 
     <!-- Canvas stage -->
@@ -657,6 +613,10 @@
           />
         {/if}
       </ImageShell>
+
+      {#if phase !== 'triage' && ocrError}
+        <div class="ocr-error-toast">{ocrError}</div>
+      {/if}
 
       <!-- Bbox edit panel — floats above the bottom bar when a bbox is selected -->
       {#if phase === 'ocr' && selectedExtraction}
@@ -757,6 +717,9 @@
           <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" />
         </svg>
         <p>Select a map to begin digitalization.</p>
+        {#if mapsError}
+          <p class="stage-error">Couldn't load the map list: {mapsError}</p>
+        {/if}
         <a href="/catalog" class="catalog-link">Browse catalog →</a>
       </div>
     {:else}
@@ -768,8 +731,7 @@
 
     <!-- Mobile sidebar -->
     <svelte:fragment slot="mobile-sidebar">
-      <aside class="panel">
-        <ToolPanelHeader onCollapse={() => (sidebarCollapsed = true)} />
+      <ToolSidebarShell onCollapse={() => (sidebarCollapsed = true)}>
         {#if currentMap && phase === 'triage'}
           <TriageSidebar
             {imgWidth}
@@ -788,17 +750,35 @@
             on:runOcr={runOcr}
             on:loadRun={loadRun}
           />
-        {:else if currentMap}
+        {:else if currentMap && phase === 'ocr'}
           <OcrSidebar
+            bind:this={ocrSidebar}
             mapId={currentMap.id}
             selectedId={selectedExtractionId}
             on:loaded={handleLoaded}
+            on:filter={handleFilter}
+            on:zoomToExtraction={handleZoomToExtraction}
           />
+        {:else if currentMap}
+          <div class="seg-panel">
+            <div class="seg-status">
+              <span class="seg-stage-label">Stage</span>
+              <span class="seg-stage-badge stage-{pipelineStatus?.stage ?? 'idle'}">
+                {pipelineStatus?.stage ?? 'idle'}
+              </span>
+            </div>
+            {#if segColabCommand}
+              <CliCommandBlock command={segColabCommand} label="Colab command" />
+            {/if}
+            {#if pipelineError}
+              <p class="seg-error">{pipelineError}</p>
+            {/if}
+          </div>
         {:else}
           <EmptyPanel showIcon={false} />
         {/if}
 
-        <div class="panel-footer">
+        <svelte:fragment slot="footer">
           <div class="phase-tabs">
             <button
               class="phase-tab"
@@ -810,9 +790,17 @@
               class:active={phase === 'ocr'}
               on:click={() => (phase = 'ocr')}>OCR</button
             >
+            <button
+              class="phase-tab"
+              class:active={phase === 'segmentation'}
+              on:click={() => {
+                phase = 'segmentation';
+                loadPipelineStatus();
+              }}>Segmentation</button
+            >
           </div>
-        </div>
-      </aside>
+        </svelte:fragment>
+      </ToolSidebarShell>
     </svelte:fragment>
   </ToolLayout>
 
@@ -874,12 +862,13 @@
           <span>{isolationMode ? 'Focus On' : 'Focus'}</span>
         </button>
       {/if}
-      <div class="bar-divider"></div>
-      <SidebarToggleButton
-        collapsed={sidebarCollapsed}
-        compact={isMobile}
-        onClick={() => (sidebarCollapsed = !sidebarCollapsed)}
-      />
+      {#if !isMobile}
+        <div class="bar-divider"></div>
+        <SidebarToggleButton
+          collapsed={sidebarCollapsed}
+          onClick={() => (sidebarCollapsed = !sidebarCollapsed)}
+        />
+      {/if}
     </footer>
   {/if}
 </div>
@@ -892,15 +881,6 @@
     border-radius: 6px;
     padding: 2px;
     width: 100%;
-  }
-
-  .panel-footer {
-    padding: 0.75rem;
-    background: var(--color-white, #fff);
-    border-top: var(--border-thick, 2px solid #2b2520);
-    flex-shrink: 0;
-    display: flex;
-    justify-content: center;
   }
 
   .phase-tab {
@@ -982,28 +962,6 @@
     opacity: 0.6;
     margin: 0;
   }
-  .seg-command-block {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-  .seg-command-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    opacity: 0.55;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .seg-command {
-    font-size: 0.65rem;
-    background: var(--color-bg-2, #f3f0eb);
-    border: 1px solid var(--color-border-soft, #d9d0c5);
-    border-radius: 4px;
-    padding: 0.5rem;
-    white-space: pre-wrap;
-    word-break: break-all;
-    margin: 0;
-  }
   .seg-config {
     display: flex;
     flex-direction: column;
@@ -1081,9 +1039,29 @@
     color: #dc2626;
     margin: 0;
   }
+  .stage-error {
+    font-size: 0.8rem;
+    color: #b91c1c;
+    max-width: 34ch;
+    text-align: center;
+  }
   .seg-refresh {
     align-self: flex-start;
     font-size: 0.72rem;
+  }
+
+  .ocr-error-toast {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    z-index: 25;
+    max-width: 40ch;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    background: #fee2e2;
+    color: #991b1b;
+    font-size: 0.72rem;
+    border: 1px solid #b91c1c;
   }
 
   .bar-hint {

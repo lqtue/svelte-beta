@@ -11,35 +11,17 @@
   export let total = 0;
   export let reviewed = 0;
   export let approving: string | null = null; // id currently being saved
-  export let mapId: string | null = null;
+  /** Pipeline mutation state — owned by ReviewMode, mirrored here for the button. */
+  export let markingReviewed = false;
+  export let markReviewedError = '';
 
   const dispatch = createEventDispatcher<{
     select: { id: string };
     approve: { id: string };
     reject: { id: string };
     retype: { id: string; featureType: string };
+    markReviewed: void;
   }>();
-
-  let markingReviewed = false;
-  let markReviewedError = '';
-
-  async function markSegReviewed() {
-    if (!mapId) return;
-    markingReviewed = true;
-    markReviewedError = '';
-    try {
-      const res = await fetch(`/api/admin/maps/${mapId}/pipeline`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage: 'seg_reviewed' }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-    } catch (e: any) {
-      markReviewedError = e.message;
-    } finally {
-      markingReviewed = false;
-    }
-  }
 
   const CLASS_COLORS: Record<string, string> = {
     particulier: '#d2956e',
@@ -80,9 +62,13 @@
 
   {#if footprints.length === 0}
     <div class="empty">All done for this map.</div>
-    {#if mapId && total > 0}
+    {#if total > 0}
       <div class="mark-reviewed-block">
-        <button class="btn-mark-reviewed" disabled={markingReviewed} on:click={markSegReviewed}>
+        <button
+          class="btn-mark-reviewed"
+          disabled={markingReviewed}
+          on:click={() => dispatch('markReviewed')}
+        >
           {markingReviewed ? 'Saving…' : 'Mark seg reviewed'}
         </button>
         {#if markReviewedError}

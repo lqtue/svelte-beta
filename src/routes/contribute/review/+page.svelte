@@ -6,11 +6,12 @@
 
   const { supabase } = getSupabaseContext();
 
-  let maps: { id: string; name: string; allmapsId: string; pendingCount: number }[] = [];
+  let maps: Awaited<ReturnType<typeof fetchMapsWithSubmittedFootprints>> = [];
   let loading = true;
   let loadError = '';
   let selectedMapId: string | null = null;
   let selectedAllmapsId: string = '';
+  let selectedIiifImage: string | null = null;
 
   onMount(async () => {
     try {
@@ -25,6 +26,7 @@
   function handleDone() {
     selectedMapId = null;
     selectedAllmapsId = '';
+    selectedIiifImage = null;
     fetchMapsWithSubmittedFootprints(supabase).then((m) => {
       maps = m;
     });
@@ -40,7 +42,12 @@
 </svelte:head>
 
 {#if selectedMapId}
-  <ReviewMode mapId={selectedMapId} allmapsId={selectedAllmapsId} on:done={handleDone} />
+  <ReviewMode
+    mapId={selectedMapId}
+    allmapsId={selectedAllmapsId}
+    iiifImage={selectedIiifImage}
+    on:done={handleDone}
+  />
 {:else}
   <div class="page">
     <header class="page-header">
@@ -67,6 +74,7 @@
               on:click={() => {
                 selectedMapId = map.id;
                 selectedAllmapsId = map.allmapsId;
+                selectedIiifImage = map.iiifImage;
               }}
             >
               <span class="map-name">{map.name || map.id}</span>
