@@ -191,10 +191,5 @@ M0 ─→ M11🗑 + M2🗑 + M4🗑 + M6🗑 + M8🗑 (all deletes, one PR)
 ```
 Each arrow = PR. Gate: `npm run check` 0 err, warnings ↓, `npm run test` green.
 
-## Next steps (agreed 2026-08-30, ranked)
-1. Ship: CF preview click-through (/explore /catalog admin-edit /contribute/* /create /studio /trip) — eyeball tokenised colours + review tool dark→light; PR chore/cleanup → main
-2. Lock in: CI (lint+check+build on PR); eslint import/no-restricted-paths for layering (ui/core ↛ features, client ↛ server); seeded test project + auth for write-path smokes (OCR review, footprints, story publish)
-3. Data model: mig 052 — drop maps.is_public/is_featured (status only), drop story_points.quest/qr_payload; theme switcher: finish archival theme or delete vma-theme read
-4. Burn-down (when it hurts): API response shape {ok,data}; tokens.css grey ramp; 71 eslint warnings; OcrSidebar → OcrTable (needs OCR test data)
-5. Product: OCR↔SAM2 join pass (feat/ocr-footprint-join) — codebase now has ocrApi, pipelineApi, footprintTypes, resolveMapIiifInfoUrl
-Pick: 1 → 2 → 5.
+## Next steps
+Moved to `docs/ROADMAP.md` (single source). This file is history.

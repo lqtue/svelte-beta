@@ -1,6 +1,6 @@
 # Target architecture (agreed 2026-08-31)
 
-Source of truth for where we're heading. Current-state layout is in `system-guidelines.md`; the code layering rule is in `CLAUDE.md`. Tracker at the bottom.
+Design detail for Track B of `docs/ROADMAP.md` (the single tracker). Current-state layout is in `system-guidelines.md`; the code layering rule is in `CLAUDE.md`. Tracker at the bottom.
 
 ## Decisions
 

@@ -9,7 +9,8 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 - `docs/db-guidelines.md` — schema conventions; all migrations must follow these
 - `docs/system-guidelines.md` — layering rule, page structure, component patterns, route map, known debt
 - `docs/design-system.md` — tokens, the CSS file map, page template
-- `docs/architecture-target.md` — agreed target architecture + step tracker (jobs table, workers, SSR, moderation)
+- `docs/ROADMAP.md` — **the one tracker**: ship/harden · architecture steps · OCR↔SAM2 product · burn-down
+- `docs/architecture-target.md` — target architecture design (Track B detail)
 - `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker, holding-institution model
 - `docs/cleanup-2026-08.md` — what the August 2026 cleanup changed, and the open follow-ups
