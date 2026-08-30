@@ -12,6 +12,8 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "playwright test",
+    "test:write": "playwright test -c playwright.write.config.ts",
+    "db:test": "supabase start -x vector -x logflare && node --env-file=.env.test scripts/seed-test-db.mjs",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write ."
   },

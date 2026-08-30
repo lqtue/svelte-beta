@@ -11,7 +11,7 @@ Layout now `core → data → map → features → routes`, `ui` primitives, `se
 - [ ] A2 PR `chore/cleanup` → `main`
 - [x] A3 CI: `npm run lint && npm run check && npm run build` on PR (none exists)
 - [x] A4 eslint `import/no-restricted-paths` encoding the layering rule (ui/core ↛ features; client ↛ server)
-- [ ] A5 Seeded test project + auth → write-path smokes (OCR review, footprints, story publish)
+- [x] A5 Local Supabase stack + seeded staff user → 4 write-path smokes (`npm run test:write`). Found and fixed a real bug: mig 021's `populate_footprint_map_id` trigger outlived the `task_id` column 038 dropped, so **every** footprint insert failed — mig 052 drops it.
 
 ## Track B — Architecture (`docs/architecture-target.md`, decisions locked)
 - [ ] B1 `pipeline_jobs` + `worker_keys` mig; python `vma-worker` poller; `/api/…/ocr` enqueues; delete `cli_only`. Local box first.

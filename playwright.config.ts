@@ -4,6 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
 // projects when a browser-specific bug actually shows up.
 export default defineConfig({
   testDir: 'tests',
+  // write.spec.ts has its own config: it needs a local Supabase and a seeded user.
+  testIgnore: 'write.spec.ts',
   timeout: 30_000,
   fullyParallel: true,
   reporter: process.env.CI ? 'list' : [['list'], ['html', { open: 'never' }]],
