@@ -13,7 +13,6 @@
 
   const dispatch = createEventDispatcher<{
     mapClick: { lon: number; lat: number };
-    mapReady: { map: Map };
   }>();
 
   export let enabled = false;
@@ -35,7 +34,6 @@
       if (!$map || olMap) return;
       olMap = $map;
       olMap.on('click', handleClick);
-      dispatch('mapReady', { map: olMap });
     });
   });
 

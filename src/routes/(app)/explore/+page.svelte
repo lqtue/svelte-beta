@@ -43,11 +43,11 @@
   import {
     matchMapsAtPoint,
     unresolvedAllmapsIds,
-    fetchMultipleBounds,
     SAIGON_CENTER,
     SAIGON_DEFAULT_ZOOM,
     type ResolvedMap,
   } from '$lib/explore/spatialLookup';
+  import { fetchMultipleBounds } from '$lib/geo/mapBounds';
 
   type Bbox = [number, number, number, number];
   type Mode = 'location' | 'all';
@@ -61,7 +61,6 @@
   let shellMap: Map | null = null;
   let sidebarCollapsed = false;
   let isMobile = false;
-  let isCompact = false;
   let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
 
   // ── Explore-specific state ─────────────────────────────────────
@@ -225,14 +224,8 @@
       mapStore.setView({ lng: pos[0], lat: pos[1], zoom: 15 });
       return;
     }
-    const dx = (pos[0] - userPosition[0]) * 111000 * Math.cos((pos[1] * Math.PI) / 180);
-    const dy = (pos[1] - userPosition[1]) * 111000;
-    if (Math.hypot(dx, dy) > 250) {
-      userPosition = pos;
-      // Don't snap on subsequent updates — user may have panned away.
-    } else {
-      userPosition = pos;
-    }
+    // Don't snap on subsequent updates — user may have panned away.
+    userPosition = pos;
   }
   function handleGpsError(e: CustomEvent<{ message: string }>) {
     gpsError = e.detail.message;
@@ -416,13 +409,11 @@
     {mapStore}
     {layerStore}
     tabOrder={['browse', 'layers', 'controls']}
-    showDual={true}
     {dualPaneActive}
     bind:mapList
     bind:shellMap
     bind:sidebarCollapsed
     bind:isMobile
-    bind:isCompact
     bind:openDrawer
   >
     <svelte:fragment slot="sidebar">
@@ -538,7 +529,6 @@
     {mapStore}
     {layerStore}
     {isMobile}
-    {openDrawer}
     on:close={() => (tourOpen = false)}
     on:setDrawer={(e) => (openDrawer = e.detail.drawer)}
   />

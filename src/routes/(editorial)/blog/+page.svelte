@@ -31,10 +31,6 @@
     name="description"
     content="Monthly digests, research notes, and announcements from the Vietnam Map Archive."
   />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <div class="page blog-page" class:mounted>

@@ -94,21 +94,3 @@
   color: var(--color-white);
   box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.2);
 }
-
-.chip-icon {
-  font-size: 1.1em;
-  line-height: 1;
-}
-
-/* Layout helpers */
-.button-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
-
-.button-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}

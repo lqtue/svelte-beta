@@ -11,40 +11,17 @@ import type { Database } from '$lib/supabase/types';
 
 interface StoryLibrary {
   stories: Story[];
-  /** @deprecated Use `stories` */
-  hunts: Story[];
 }
 
 const STORY_LIBRARY_KEY = 'vma-story-library-v1';
 const STORY_PLAYER_KEY = 'vma-story-player-v1';
 
-function withHunts(lib: StoryLibrary): StoryLibrary {
-  return { ...lib, hunts: lib.stories };
-}
-
 export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, userId?: string) {
-  const _store = createPersistedStore<StoryLibrary>({
+  const store = createPersistedStore<StoryLibrary>({
     key: STORY_LIBRARY_KEY,
-    defaultValue: { stories: [], hunts: [] },
+    defaultValue: { stories: [] },
     debounceMs: 300,
   });
-
-  const store = {
-    subscribe: _store.subscribe,
-    set(val: Partial<StoryLibrary> & { stories: Story[] }) {
-      _store.set(withHunts(val as StoryLibrary));
-    },
-    update(
-      fn: (lib: StoryLibrary) => Partial<StoryLibrary> & { stories?: Story[]; hunts?: Story[] }
-    ) {
-      _store.update((lib) => {
-        const result = fn(lib);
-        const stories = result.stories ?? result.hunts ?? lib.stories;
-        return { stories, hunts: stories };
-      });
-    },
-    reset: _store.reset,
-  };
 
   function createStory(title = 'New Story', description = ''): string {
     const id = crypto.randomUUID();
@@ -55,7 +32,6 @@ export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, us
       description,
       mode: 'guided',
       points: [],
-      stops: [],
       createdAt: now,
       updatedAt: now,
       isPublic: false,
@@ -102,7 +78,7 @@ export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, us
           challenge: { type: 'reach', triggerRadius: 10 },
         };
         const newPoints = [...s.points, point];
-        return { ...s, points: newPoints, stops: newPoints, updatedAt: Date.now() };
+        return { ...s, points: newPoints, updatedAt: Date.now() };
       }),
     }));
     return pointId;
@@ -113,7 +89,7 @@ export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, us
       stories: lib.stories.map((s) => {
         if (s.id !== storyId) return s;
         const newPoints = s.points.map((p) => (p.id === pointId ? { ...p, ...updates } : p));
-        return { ...s, points: newPoints, stops: newPoints, updatedAt: Date.now() };
+        return { ...s, points: newPoints, updatedAt: Date.now() };
       }),
     }));
   }
@@ -124,7 +100,7 @@ export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, us
         if (s.id !== storyId) return s;
         const filtered = s.points.filter((p) => p.id !== pointId);
         const reordered = filtered.map((p, i) => ({ ...p, order: i }));
-        return { ...s, points: reordered, stops: reordered, updatedAt: Date.now() };
+        return { ...s, points: reordered, updatedAt: Date.now() };
       }),
     }));
   }
@@ -137,7 +113,7 @@ export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, us
         const [moved] = points.splice(fromIndex, 1);
         points.splice(toIndex, 0, moved);
         const reordered = points.map((p, i) => ({ ...p, order: i }));
-        return { ...s, points: reordered, stops: reordered, updatedAt: Date.now() };
+        return { ...s, points: reordered, updatedAt: Date.now() };
       }),
     }));
   }
@@ -156,15 +132,6 @@ export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, us
     removePoint,
     reorderPoints,
     loadFromSupabase: async () => {},
-    // Legacy aliases
-    createHunt: createStory,
-    updateHunt: updateStory,
-    deleteHunt: deleteStory,
-    getHunt: getStory,
-    addStop: addPoint,
-    updateStop: updatePoint,
-    removeStop: removePoint,
-    reorderStops: reorderPoints,
   };
 }
 
@@ -190,11 +157,8 @@ export function createStoryPlayerStore(_supabase?: SupabaseClient<Database>, _us
       }
       const progress: StoryProgress = {
         storyId,
-        huntId: storyId,
         currentPointIndex: 0,
-        currentStopIndex: 0,
         completedPoints: [],
-        completedStops: [],
         startedAt: Date.now(),
       };
       return {
@@ -214,9 +178,7 @@ export function createStoryPlayerStore(_supabase?: SupabaseClient<Database>, _us
       const updated: StoryProgress = {
         ...progress,
         completedPoints,
-        completedStops: completedPoints,
         currentPointIndex: nextIndex,
-        currentStopIndex: nextIndex,
         completedAt: isFinished ? Date.now() : undefined,
       };
       return { ...state, progress: { ...state.progress, [storyId]: updated } };
@@ -248,10 +210,6 @@ export function createStoryPlayerStore(_supabase?: SupabaseClient<Database>, _us
     stopStory,
     resetProgress,
     loadFromSupabase: async () => {},
-    // Legacy aliases
-    startHunt: startStory,
-    completeStop: completePoint,
-    stopHunt: stopStory,
   };
 }
 

@@ -119,7 +119,6 @@ export function applyClipMask(
   layer: WarpedMapLayer,
   map: Map,
   mode: ViewModeClip,
-  sideRatio: number,
   lensRadius: number
 ): void {
   const canvas = layer.canvas;
@@ -138,4 +137,3 @@ export function applyClipMask(
       canvas.style.clipPath = '';
   }
 }
-// ── Metadata fetching ────────────────────────────────────────────

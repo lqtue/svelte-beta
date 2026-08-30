@@ -212,10 +212,7 @@
   outline: none;
   background: var(--sb-card-bg);
 }
-.sb-input.is-pill {
-  border-radius: var(--sb-radius-pill);
-  padding: 0.5rem 0.75rem;
-}
+
 .sb-coords {
   display: inline-block;
   font-family: ui-monospace, SFMono-Regular, monospace;

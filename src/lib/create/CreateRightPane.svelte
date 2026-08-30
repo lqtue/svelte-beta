@@ -34,7 +34,6 @@
   export let selectedPoint: StoryPoint | null = null;
   export let selectedPointIndex = 0;
   export let movingPoint = false;
-  export let topLayerMapId: string | null = null;
   export let pinnedLayerName: string | null = null;
 
   $: pointCardTitle = selectedPoint
@@ -108,10 +107,7 @@
     {#if selectedPoint}
       <PointInspector
         point={selectedPoint}
-        index={selectedPointIndex}
         {movingPoint}
-        {topLayerName}
-        {topLayerMapId}
         {pinnedLayerName}
         on:updatePoint
         on:removePoint

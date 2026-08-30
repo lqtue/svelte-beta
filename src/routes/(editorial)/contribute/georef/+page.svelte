@@ -71,10 +71,6 @@
     name="description"
     content="Pin a historical map to real-world coordinates in the Allmaps Editor. No specialist software — just a browser."
   />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <div class="page" class:mounted>

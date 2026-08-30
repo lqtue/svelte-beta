@@ -70,8 +70,6 @@
   let shellMap: import('ol/Map').default | null = null;
   let sidebarCollapsed = false;
   let rightSidebarCollapsed = false;
-  let isMobile = false;
-  let isCompact = false;
 
   // Studio-specific state
   let drawingMode: DrawingMode | null = null;
@@ -699,15 +697,12 @@
       {supabase}
       {mapStore}
       {layerStore}
-      showDual={false}
       rightSidebarWidth={380}
       bind:mapList
       bind:selectedMap
       bind:shellMap
       bind:sidebarCollapsed
       bind:rightSidebarCollapsed
-      bind:isMobile
-      bind:isCompact
       on:searchnavigate={handleSearchNavigate}
     >
       <svelte:fragment slot="sidebar">
@@ -742,7 +737,6 @@
           on:delete={handleAnnotationDelete}
           on:zoomTo={handleAnnotationZoomTo}
           on:setDrawingMode={handleSetDrawingMode}
-          on:zoomToMap={handleZoomToMap}
           on:clear={handleAnnotationClear}
           on:exportGeoJSON={handleAnnotationExport}
           on:importFile={handleAnnotationImport}
@@ -815,38 +809,6 @@
 {/if}
 
 <style>
-  .studio-mode {
-    position: fixed;
-    inset: var(--nav-height) 0 0 0;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--color-bg);
-    background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
-    background-size: 32px 32px;
-    overflow: hidden;
-  }
-
-  .btn-icon-edit {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-sm);
-    border: var(--border-thin);
-    background: var(--color-white);
-    color: var(--color-text);
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 2px 2px 0px var(--color-border);
-  }
-
-  .btn-icon-edit:hover {
-    color: var(--color-blue);
-    background: #dbeafe;
-    transform: translate(-1px, -1px);
-  }
-
   /* Floating bbox-picker bar (top center of map) */
   .bbox-picker-bar {
     position: absolute;

@@ -1,5 +1,4 @@
 import { createPersistedStore } from '$lib/utils/persistence/createPersistedStore';
-import { randomId } from '$lib/utils/id';
 import type { AnnotationSet } from '$lib/map/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as annotationsApi from '$lib/supabase/annotations';
@@ -104,10 +103,6 @@ export function createAnnotationProjectStore(supabase?: SupabaseClient, userId?:
     return Promise.resolve(true);
   }
 
-  function getProject(projects: AnnotationSet[], id: string): AnnotationSet | undefined {
-    return projects.find((p) => p.id === id);
-  }
-
   return {
     subscribe: store.subscribe,
     set: store.set,
@@ -117,7 +112,6 @@ export function createAnnotationProjectStore(supabase?: SupabaseClient, userId?:
     updateProject,
     deleteProject,
     saveFeatures,
-    getProject,
     loadFromSupabase,
   };
 }

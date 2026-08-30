@@ -44,7 +44,7 @@ export const posts: BlogPost[] = [
 
 <h2>Why this post exists</h2>
 <p>VMA is a small project run on volunteer time. The pace of feature work means it's easy to add things and never look back. But complexity compounds — every new feature that lands on a confused model multiplies the confusion. Spending a week to rip out three half-baked abstractions and replace them with one good one is rarely the loudest commit, but it's often the most useful. The next person to touch the viewer — possibly future-me, possibly a new contributor — will hopefully look at <code>layersStore</code>, understand it in two minutes, and add their feature without breaking anything else.</p>
-<p>If you want to try it: open <a href="/view" target="_blank">/view</a>, click any map in the catalog to load it, click "+" on another to stack them, drag layers to reorder, and switch between Stacked / Lens / Side-by-side from the panel header. On a phone, the two drawers sit at the bottom and behave like the rest of mobile internet. That's it. That's the whole interface.</p>
+<p>If you want to try it: open <a href="/explore" target="_blank">/explore</a>, click any map in the catalog to load it, click "+" on another to stack them, drag layers to reorder, and switch between Stacked / Lens / Side-by-side from the panel header. On a phone, the two drawers sit at the bottom and behave like the rest of mobile internet. That's it. That's the whole interface.</p>
 		`,
   },
   {

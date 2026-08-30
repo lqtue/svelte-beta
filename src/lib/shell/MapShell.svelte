@@ -31,7 +31,7 @@
 
   import { BASEMAP_DEFS } from '$lib/map/constants';
   import type { MapStore } from '$lib/stores/mapStore';
-  import { getOlCenter, fromOlCoordinate } from '$lib/stores/mapStore';
+  import { getOlCenter } from '$lib/stores/mapStore';
   import type { LayerStore } from '$lib/stores/layerStore';
   import { initUrlSync } from '$lib/stores/urlStore';
   import { setShellContext } from './context';
@@ -69,14 +69,6 @@
     mapStore,
     layerStore,
   });
-
-  // ── Basemap switching ────────────────────────────────────────────
-
-  function applyBasemap(key: string) {
-    basemapLayers.forEach((layer, k) => {
-      layer.setVisible(k === key);
-    });
-  }
 
   // ── OL View ↔ mapStore sync ──────────────────────────────────────
 

@@ -3,21 +3,17 @@
 
   Props:
     title     — current mode/page name (e.g. "OCR Review", "Trace Mode")
-    backHref  — link target (default /contribute)
-    backLabel — text next to the chevron (default "Contribute")
     onCollapse — handler for the collapse chevron button. If omitted, the button is hidden.
 -->
 <script lang="ts">
   import '$styles/layouts/tool-page.css';
 
   export let title: string = '';
-  export let backHref: string = '/contribute';
-  export let backLabel: string = 'Contribute';
   export let onCollapse: (() => void) | null = null;
 </script>
 
 <div class="panel-header">
-  <a href={backHref} class="home-link" aria-label={`Back to ${backLabel}`}>
+  <a href="/contribute" class="home-link" aria-label="Back to Contribute">
     <svg
       width="16"
       height="16"
@@ -30,7 +26,7 @@
     >
       <path d="M12.5 15L7.5 10L12.5 5" />
     </svg>
-    {backLabel}
+    Contribute
   </a>
   {#if title}
     <div class="panel-mode-label">{title}</div>

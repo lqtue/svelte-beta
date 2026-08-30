@@ -10,9 +10,7 @@ const STORAGE_KEY = 'vma-bounds-cache-v2';
 
 function loadPersistedCache(): void {
   try {
-    const raw =
-      (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY)) ||
-      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('vma-bounds-cache-v1'));
+    const raw = typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw) as Record<string, [number, number, number, number] | null>;
     for (const [k, v] of Object.entries(parsed)) boundsCache.set(k, v);

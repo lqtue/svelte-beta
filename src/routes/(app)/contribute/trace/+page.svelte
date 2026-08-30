@@ -61,7 +61,6 @@
   // ── Layout ─────────────────────────────────────────────────────────────────
   let sidebarCollapsed = false;
   let isMobile = false;
-  let isCompact = false;
 
   // ── Derived ────────────────────────────────────────────────────────────────
   $: myFootprints = userId ? footprints.filter((f) => f.userId === userId) : [];
@@ -177,18 +176,6 @@
     }
   }
 
-  // Zoom to footprint: we relay footprintId via a store so TraceTool can do it
-  // without a direct ref — via ImageShell context. We use a simple event bus approach:
-  // set a reactive variable that TraceSidebar triggers from its zoomToFootprint dispatch.
-  let zoomTargetId: string | null = null;
-  function handleZoomToFootprint(event: CustomEvent<{ footprintId: string }>) {
-    // TraceTool doesn't expose zoomToFootprint directly (no bind:this needed).
-    // ImageShell exposes footprintSource via context; we rely on TraceTool's
-    // OL interactions to handle this — emit to a custom event bus store instead.
-    // For now: dispatch a custom window event that TraceTool listens to.
-    window.dispatchEvent(new CustomEvent('trace:zoom', { detail: event.detail }));
-  }
-
   onMount(loadMaps);
 </script>
 
@@ -198,15 +185,11 @@
     name="description"
     content="Trace building footprints and road networks on historical maps."
   />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <!-- ── Page shell ─────────────────────────────────────────────────────────────── -->
 <div class="tool-page">
-  <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
+  <ToolLayout bind:sidebarCollapsed bind:isMobile>
     <!-- Sidebar -->
     <svelte:fragment slot="sidebar">
       <aside class="panel">
@@ -221,7 +204,6 @@
             {newFootprintId}
             on:removeFootprint={handleRemoveFootprint}
             on:updateFootprintMeta={handleUpdateFootprintMeta}
-            on:zoomToFootprint={handleZoomToFootprint}
           />
         {/if}
       </aside>
@@ -237,7 +219,7 @@
 
     <!-- Image stage -->
     {#if currentMap && iiifInfoUrl}
-      <ImageShell {iiifInfoUrl} {footprints} myUserId={userId}>
+      <ImageShell {iiifInfoUrl} {footprints}>
         <TraceTool
           {drawMode}
           {geometryMode}
@@ -288,7 +270,6 @@
             {newFootprintId}
             on:removeFootprint={handleRemoveFootprint}
             on:updateFootprintMeta={handleUpdateFootprintMeta}
-            on:zoomToFootprint={handleZoomToFootprint}
           />
         {:else}
           <EmptyPanel showIcon={false} />

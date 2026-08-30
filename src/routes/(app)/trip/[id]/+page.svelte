@@ -141,7 +141,7 @@
         ...state,
         progress: {
           ...state.progress,
-          [sid]: { ...p, completedPoints: completed, completedStops: completed },
+          [sid]: { ...p, completedPoints: completed },
         },
       };
     });
@@ -167,7 +167,6 @@
           [story!.id]: {
             ...p,
             currentPointIndex: nextIndex,
-            currentStopIndex: nextIndex,
             completedAt: isFinished ? (p.completedAt ?? Date.now()) : p.completedAt,
           },
         },
@@ -177,7 +176,7 @@
 
   function handleDone() {
     if (story) storyPlayer.stopStory();
-    goto('/view');
+    goto('/explore');
   }
   function handleShare() {
     /* no-op — TripComplete handles the share dialog */
@@ -301,7 +300,6 @@
             : undefined,
         isPublic: (data as any).is_public,
         points,
-        stops: points,
         createdAt: new Date((data as any).created_at).getTime(),
         updatedAt: new Date((data as any).updated_at).getTime(),
       };
@@ -368,7 +366,9 @@
     <div class="state">
       <h2>Trip unavailable</h2>
       <p>{error ?? 'This story could not be loaded.'}</p>
-      <button type="button" class="back-btn" on:click={() => goto('/view')}>← Back to maps</button>
+      <button type="button" class="back-btn" on:click={() => goto('/explore')}
+        >← Back to maps</button
+      >
     </div>
   {:else}
     <MapShell {mapStore} {layerStore} disableUrlSync={true}>

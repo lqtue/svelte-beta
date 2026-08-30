@@ -1,16 +1,6 @@
 // Legend items: simple string ("Building") or transcription object ({val: "1", label: "Abattoir Municipal"})
 export type LegendItem = string | { val: string; label: string };
 
-export interface LabelPin {
-  id: string;
-  mapId: string;
-  userId: string;
-  label: string;
-  pixelX: number;
-  pixelY: number;
-  data?: { vietnameseName?: string; notes?: string; [key: string]: any };
-}
-
 // [x, y] pairs in IIIF pixel space (y+ = down, matching IIIF convention)
 export type PixelCoord = [number, number];
 
@@ -40,9 +30,6 @@ export const FEATURE_TYPE_LABELS: Record<FeatureType, string> = {
 export function geometryKind(ft: FeatureType): 'Polygon' | 'LineString' {
   return ft === 'road' || ft === 'waterway' ? 'LineString' : 'Polygon';
 }
-
-// Canonical SAM color-class categories (from the 1882/1898 Saigon cadastral legend).
-export type SamCategory = 'particulier' | 'communal' | 'militaire' | 'local_svc' | 'non_affect';
 
 export interface FootprintSubmission {
   id: string;

@@ -2,30 +2,7 @@
 
 export type MapSourceType = 'ia' | 'bnf' | 'efeo' | 'gallica' | 'rumsey' | 'self' | 'other';
 
-/** A single IIIF image source for a map (map can have many). */
-export interface MapIIIFSource {
-  id: string;
-  map_id: string;
-  label?: string; // e.g. "BnF Gallica", "Internet Archive"
-  source_type?: MapSourceType;
-  iiif_manifest?: string;
-  iiif_image: string; // image service base URL
-  is_primary: boolean;
-  sort_order: number;
-  created_at: string;
-}
-
-/** Payload for adding a IIIF source to a map. */
-export interface MapIIIFSourcePayload {
-  label?: string;
-  source_type?: MapSourceType;
-  iiif_manifest?: string;
-  iiif_image: string;
-  is_primary?: boolean;
-  sort_order?: number;
-}
 export type MapStatus = 'draft' | 'public' | 'featured';
-export type MapType = 'cadastral' | 'topographic' | 'city_plan' | 'panorama' | 'other';
 
 /** Full map record as stored in the database. */
 export interface MapRecord {
@@ -57,7 +34,7 @@ export interface MapRecord {
   annotation_url?: string; // Optional override URL to W3C annotation JSON (set by mirror-r2 → Supabase Storage)
 
   // Classification
-  map_type?: MapType | string;
+  map_type?: string;
   bbox?: [number, number, number, number]; // [west, south, east, north]
 
   // Flexible custom metadata (schema-free JSONB)
@@ -125,62 +102,4 @@ export interface IIIFManifestMeta {
   thumbnail?: string;
   imageServiceUrl?: string; // IIIF image service base URL
   manifestVersion: 2 | 3;
-}
-
-/** Payload for creating a map via own-scan ingest (upload to IA). */
-export interface MapIngestOwnScan {
-  name: string;
-  year?: number;
-  location?: string;
-  map_type?: string;
-  collection?: string;
-  dc_description?: string;
-  // ia_identifier and iiif_image filled after upload
-}
-
-/** Payload for adding an external IIIF map (BnF, EFEO, etc.). */
-export interface MapIngestExternal {
-  name: string;
-  source_type: MapSourceType;
-  iiif_manifest: string; // manifest URL to fetch metadata from
-  source_url?: string;
-  collection?: string;
-  location?: string;
-  // metadata fields filled from manifest
-  original_title?: string;
-  creator?: string;
-  year?: number;
-  year_label?: string;
-  language?: string;
-  rights?: string;
-  thumbnail?: string;
-  iiif_image?: string;
-  map_type?: string;
-  dc_description?: string;
-}
-
-/** Admin-editable fields for an existing map. */
-export interface MapEditPayload {
-  name?: string;
-  location?: string;
-  original_title?: string;
-  creator?: string;
-  year?: number;
-  year_label?: string;
-  language?: string;
-  rights?: string;
-  dc_description?: string;
-  thumbnail?: string;
-  is_featured?: boolean;
-  source_type?: MapSourceType;
-  source_url?: string;
-  collection?: string;
-  map_type?: string;
-  bbox?: [number, number, number, number];
-  status?: MapStatus;
-  allmaps_id?: string;
-  annotation_url?: string;
-  iiif_manifest?: string;
-  iiif_image?: string;
-  extra_metadata?: Record<string, string>;
 }

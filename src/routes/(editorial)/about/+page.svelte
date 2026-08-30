@@ -291,10 +291,6 @@
     name="description"
     content="Vietnam Map Archive is rebuilding Saigon's urban history as a time-layered, georeferenced digital city — starting with 1880–1930 French colonial Saigon."
   />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <div class="page about-page" class:mounted>

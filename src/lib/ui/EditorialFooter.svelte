@@ -9,7 +9,7 @@
       <a href="/catalog">Catalog</a>
       <a href="/explore">Map viewer</a>
       <a href="/create">Story Builder</a>
-      <a href="/annotate">Annotate</a>
+      <a href="/studio">Annotate</a>
       <a href="/contribute">Contribute</a>
       <a href="/about">About</a>
       <a href="/blog">Blog</a>

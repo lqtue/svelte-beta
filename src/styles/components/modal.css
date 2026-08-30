@@ -58,9 +58,6 @@
   overflow: hidden;
   font-family: var(--sb-font-base, 'Outfit', sans-serif);
 }
-.mo-dialog.is-wide {
-  max-width: 640px;
-}
 .mo-dialog.is-narrow {
   max-width: 340px;
 }
@@ -106,10 +103,6 @@
   border-top: var(--sb-border, 1.5px solid #111);
   background: var(--sb-head-bg, #fafaf7);
 }
-.mo-dialog-foot.is-split {
-  justify-content: space-between;
-}
-
 /* ── Field (label + control) ──────────────────────────────────── */
 .mo-field {
   display: flex;
@@ -243,14 +236,4 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.mo-results-empty {
-  padding: 0.7rem;
-  font-size: 0.78rem;
-  color: var(--sb-text-muted, #888);
-  background: var(--sb-bg, #fafaf7);
-  border: var(--sb-border-soft, 1px dashed #d9d4c0);
-  border-radius: var(--sb-radius-sm, 6px);
-  text-align: center;
 }

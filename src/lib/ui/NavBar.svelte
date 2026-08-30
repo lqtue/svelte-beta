@@ -41,12 +41,8 @@
 
   $: path = $page.url.pathname;
   $: activeCatalog =
-    path.startsWith('/catalog') ||
-    path.startsWith('/view') ||
-    path.startsWith('/explore') ||
-    path.startsWith('/image');
-  $: activeTools =
-    path.startsWith('/create') || path.startsWith('/studio') || path.startsWith('/annotate');
+    path.startsWith('/catalog') || path.startsWith('/explore') || path.startsWith('/image');
+  $: activeTools = path.startsWith('/create') || path.startsWith('/studio');
   $: activeContribute = path.startsWith('/contribute');
   $: activeAbout = path.startsWith('/about');
   $: activeBlog = path.startsWith('/blog');
@@ -78,7 +74,7 @@
 
     <NavDropdown label="Tools" active={activeTools}>
       <a href="/create" class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
-      <a href="/annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
+      <a href="/studio" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
     </NavDropdown>
 
     <NavDropdown label="Contribute" active={activeContribute}>
@@ -149,7 +145,7 @@
 
       <p class="drawer-section-label">Tools</p>
       <a href="/create" class="drawer-link" on:click={closeDrawer}>Story Builder</a>
-      <a href="/annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
+      <a href="/studio" class="drawer-link" on:click={closeDrawer}>Annotate</a>
 
       <p class="drawer-section-label">Contribute</p>
       <a href="/contribute/digitalize" class="drawer-link" on:click={closeDrawer}
@@ -195,11 +191,6 @@
   }
 
   /* ── Auth controls ── */
-  .lang-btn {
-    background: var(--color-blue);
-    color: white;
-    border: none;
-  }
   .signin-link {
     text-decoration: none;
     background: var(--color-white);

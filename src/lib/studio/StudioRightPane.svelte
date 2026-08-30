@@ -22,7 +22,6 @@
     zoomTo: { id: string };
     setDrawingMode: { mode: DrawingMode | null };
     toggleCollapse: void;
-    zoomToMap: { map: MapListItem };
     clear: void;
     exportGeoJSON: void;
     importFile: { file: File };
@@ -43,7 +42,6 @@
   type Mode = 'annotate' | 'animate';
   let mode: Mode = 'annotate';
 
-  let geoJsonInputEl: HTMLInputElement | null = null;
   let notice: string | null = null;
   let noticeType: 'info' | 'error' | 'success' = 'info';
 
@@ -259,7 +257,6 @@
             type="file"
             accept="application/geo+json,.geojson,.json"
             on:change={handleFileChange}
-            bind:this={geoJsonInputEl}
           />
         </label>
         <button

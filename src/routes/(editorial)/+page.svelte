@@ -160,10 +160,6 @@
     name="description"
     content="A volunteer-built archive of Saigon's historical maps — georeferenced, traced, and released as open data under CC-BY."
   />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&family=Be+Vietnam+Pro:wght@400;600;800&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <div class="page home-page" class:mounted>
@@ -286,7 +282,7 @@
               </span>
               <span class="mlc-arrow">→</span>
             </a>
-            <a href="/annotate" class="micro-link-card">
+            <a href="/studio" class="micro-link-card">
               <span class="mlc-icon">✏️</span>
               <span class="mlc-body">
                 <span class="mlc-title">Annotate</span>

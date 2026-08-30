@@ -30,10 +30,6 @@
 <svelte:head>
   <title>{post.title} — Vietnam Map Archive</title>
   <meta name="description" content={post.excerpt} />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <div class="page blog-post-page" class:mounted>

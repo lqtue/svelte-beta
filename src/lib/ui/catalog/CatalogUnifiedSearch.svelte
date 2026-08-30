@@ -238,11 +238,6 @@
     font-weight: 700;
     cursor: pointer;
   }
-  .v2-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1rem;
-  }
   .v2-selects {
     display: flex;
     flex-wrap: wrap;

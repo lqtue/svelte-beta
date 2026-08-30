@@ -176,11 +176,6 @@ function create() {
     isOverlay(mapId: string): boolean {
       return get(inner).overlays.some((o) => o.ref.mapId === mapId);
     },
-
-    isBase(mapId: string): boolean {
-      const b = get(inner).base;
-      return b.kind === 'historical' && b.mapId === mapId;
-    },
   };
 }
 

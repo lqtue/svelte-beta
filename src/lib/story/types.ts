@@ -30,8 +30,6 @@ export interface Story {
   description: string;
   mode: StoryMode;
   points: StoryPoint[];
-  /** @deprecated Use `points` — kept for backward compat */
-  stops: StoryPoint[];
   region?: { center: [number, number]; zoom: number };
   createdAt: number;
   updatedAt: number;
@@ -44,12 +42,6 @@ export interface StoryProgress {
   storyId: string;
   currentPointIndex: number;
   completedPoints: string[];
-  /** @deprecated Use `currentPointIndex` */
-  currentStopIndex: number;
-  /** @deprecated Use `completedPoints` */
-  completedStops: string[];
-  /** @deprecated Use `storyId` */
-  huntId: string;
   startedAt: number;
   completedAt?: number;
 }
@@ -61,9 +53,3 @@ export interface StoryPlayerState {
 
 // Legacy compat — keep for transition period
 export type StopInteraction = 'proximity' | 'qr' | 'camera';
-
-// Aliases for backward compatibility with hunt-era code
-export type TreasureHunt = Story;
-export type HuntStop = StoryPoint;
-export type HuntProgress = StoryProgress;
-export type HuntPlayerState = StoryPlayerState;

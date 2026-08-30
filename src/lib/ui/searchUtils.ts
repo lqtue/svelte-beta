@@ -1,6 +1,7 @@
 // Shared search utilities: coordinate parsing, covering map detection, bounds helpers
 
 import type { MapListItem } from '$lib/map/types';
+import { haversineDistance } from '$lib/geo/geo';
 
 /**
  * Parse a coordinate string into lat/lng.
@@ -40,23 +41,6 @@ export function parseCoordinates(input: string): { lat: number; lng: number } | 
 }
 
 /**
- * Calculates distance between two geographic points using Haversine formula.
- */
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-/**
  * Distance from a point to the nearest edge of a bounding box (km).
  * Returns 0 if the point is inside.
  */
@@ -65,7 +49,7 @@ function distanceToBox(lng: number, lat: number, bounds: [number, number, number
   if (lng >= minLon && lng <= maxLon && lat >= minLat && lat <= maxLat) return 0;
   const closestLon = Math.max(minLon, Math.min(lng, maxLon));
   const closestLat = Math.max(minLat, Math.min(lat, maxLat));
-  return haversineDistance(lat, lng, closestLat, closestLon);
+  return haversineDistance([lng, lat], [closestLon, closestLat]) / 1000;
 }
 
 /**

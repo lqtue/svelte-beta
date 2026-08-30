@@ -46,7 +46,6 @@
   // ── Layout ────────────────────────────────────────────────────────────────────
   let sidebarCollapsed = false;
   let isMobile = false;
-  let isCompact = false;
 
   // ── Phase ─────────────────────────────────────────────────────────────────────
   let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
@@ -448,14 +447,10 @@
   <title
     >{currentMap ? `${currentMap.name} — OCR & Triage` : 'OCR & Triage'} — Vietnam Map Archive</title
   >
-  <link
-    href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <div class="tool-page">
-  <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
+  <ToolLayout bind:sidebarCollapsed bind:isMobile>
     <!-- Sidebar (desktop) -->
     <svelte:fragment slot="sidebar">
       <aside class="panel">

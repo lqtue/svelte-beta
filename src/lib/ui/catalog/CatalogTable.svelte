@@ -406,15 +406,6 @@
     background: #f1ede0;
     display: block;
   }
-  .ct .title-col a {
-    font-weight: 700;
-    color: #111;
-    text-decoration: none;
-    font-size: 1rem;
-  }
-  .ct .title-col a:hover {
-    text-decoration: underline;
-  }
   .ct .title-col .sub {
     font-size: 0.8rem;
     color: #666;
@@ -515,7 +506,6 @@
     text-decoration: underline;
   }
   @media (max-width: 800px) {
-    .ct .map_type-col,
     .ct th:nth-child(5),
     .ct td:nth-child(5) {
       display: none;

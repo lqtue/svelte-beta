@@ -33,10 +33,6 @@
     name="description"
     content="Every historical map in the archive — georeferenced, searchable, free to download."
   />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Outfit:wght@400;600;800&family=Be+Vietnam+Pro:wght@400;600;800&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <div class="page catalog-page" class:mounted>

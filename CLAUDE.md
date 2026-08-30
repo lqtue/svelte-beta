@@ -71,9 +71,9 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 
 ### Global stores (`src/lib/stores/`)
 
-- **layersStore** *(new — single source of truth for what the map renders)* — `{ base: LayerRef, overlays: OverlayLayer[] }` where `base` is either `{ kind: 'basemap', key }` (`'g-streets' | 'g-satellite' | 'none'`) or `{ kind: 'historical', mapId, allmapsId, name?, thumbnail? }`. `overlays` is top-of-stack-first; each item has its own `opacity`, `visible`, and stable local `id`. Max 10 overlays. Persists to `localStorage` as `vma-layers-v1`. API: `setBase`, `addOverlay`, `removeOverlay`, `removeOverlayByMapId`, `setOpacity`, `setVisible`, `reorderOverlay`, `clearOverlays`, `isOverlay`, `isBase`.
+- **layersStore** *(new — single source of truth for what the map renders)* — `{ base: LayerRef, overlays: OverlayLayer[] }` where `base` is either `{ kind: 'basemap', key }` (`'g-streets' | 'g-satellite' | 'none'`) or `{ kind: 'historical', mapId, allmapsId, name?, thumbnail? }`. `overlays` is top-of-stack-first; each item has its own `opacity`, `visible`, and stable local `id`. Max 10 overlays. Persists to `localStorage` as `vma-layers-v1`. API: `setBase`, `addOverlay`, `removeOverlay`, `removeOverlayByMapId`, `setOpacity`, `setVisible`, `reorderOverlay`, `clearOverlays`, `isOverlay`.
 - **mapStore** — `{ lng, lat, zoom, rotation, activeMapId, activeAllmapsId }`. Default: Saigon (106.70098, 10.77653) zoom 14. `activeMapId` is `maps.id` UUID and is now a **one-way mirror** of `layersStore.overlays[0]` (kept for legacy callers: URL hash, story playback, share). `activeAllmapsId` holds the annotation source string — either a bare Allmaps image ID or a full annotation URL; the runtime `annotationUrlForSource()` accepts both.
-- **layerStore** — per-shell view settings: `{ basemap, viewMode, sideRatio, lensRadius, customBaseUrl }`. View modes: `'overlay' | 'spy' | 'dual'` (UI labels: Stacked / Lens / Side-by-side). `layersStore` owns base + per-layer opacity; the legacy `overlayOpacity` / `overlayVisible` fields were removed Aug 2026. `sideRatio` is read but has no setter — pinned at 0.5 until a drag handle ships.
+- **layerStore** — per-shell view settings: `{ basemap, viewMode, lensRadius, customBaseUrl }`. View modes: `'overlay' | 'spy' | 'dual'` (UI labels: Stacked / Lens / Side-by-side). `layersStore` owns base + per-layer opacity; the legacy `overlayOpacity` / `overlayVisible` fields were removed Aug 2026.
 - **urlStore** — bidirectional URL hash ↔ stores sync. Hash: `#@lat,lng,zoomz,rotationr&map=id&base=key`.
 
 State persisted to localStorage as `vma-viewer-state-v1` (debounced 500ms).
@@ -135,14 +135,14 @@ Pipeline-stage display (idle → ocr_queued → ocr_done → reviewed → seg_qu
 
 Two directories — singular for UI state, plural for data:
 - **`src/lib/maps/`** (plural) — data layer for the `maps` table. **Canonical home for shared types.**
-  - `types.ts` — `MapRecord`, `MapListItem`, `MapIIIFSource`, `MapSourceType`, `MapStatus`, `IIIFManifestMeta`, `MapEditPayload`, etc.
+  - `types.ts` — `MapRecord`, `MapListItem`, `MapSourceType`, `MapStatus`, `IIIFManifestMeta`, etc.
   - `service.ts` — `fetchMaps`, `fetchFeaturedMaps`, `fetchGeoreferencedMaps`, `fetchMapById`, `fetchMapsByLocation`.
   - `iiifManifest.ts` — `parseIIIFManifest(raw)`, `fetchIIIFManifest(url)`; handles IIIF v2 + v3.
   - Admin client functions live in `src/lib/admin/adminApi.ts` (map CRUD, image upload, IIIF source mgmt, R2 mirror). A duplicate `src/lib/maps/adminApi.ts` was deleted Aug 2026.
 - **`src/lib/map/`** (singular) — UI-side state for map display.
   - `annotationState.ts`, `annotationHistory.ts`, `annotationContext.ts`, `olAnnotations.ts` — annotation stores + OL utilities.
   - `constants.ts` — `BASEMAP_DEFS` etc.
-  - `types.ts` — UI-only types (`ViewMode`, `DrawingMode`, `AnnotationSummary`, `SearchResult`, `PersistedViewState`, `StoryScene`, `AnnotationSet`). Also re-exports `MapListItem` from `$lib/maps/types` so the ~22 existing UI imports keep working.
+  - `types.ts` — UI-only types (`ViewMode`, `DrawingMode`, `AnnotationSummary`, `SearchResult`, `AnnotationSet`). Also re-exports `MapListItem` from `$lib/maps/types` so the ~22 existing UI imports keep working.
 
 `MapListItem.bbox` is the DB column (`maps.bbox`); `MapListItem.bounds` is a runtime enrichment added by `useMapList.ts` once per-map bounds are resolved. They hold the same `[minLon, minLat, maxLon, maxLat]` shape.
 

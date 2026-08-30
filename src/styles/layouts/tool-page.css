@@ -217,3 +217,48 @@
 .sidebar-toggle {
   margin-left: auto;
 }
+
+/* ── Sidebar helpers (moved from the retired components/label.css) ───────── */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-300) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-gray-300);
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-400);
+}
+
+.empty-state {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.hint-bar {
+  padding: 0.5rem 1rem;
+  font-size: 0.72rem;
+  color: var(--color-text);
+  opacity: 0.6;
+  border-top: var(--border-thin);
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+.hint-bar kbd {
+  font-family: monospace;
+  font-size: 0.68rem;
+  background: var(--color-gray-100);
+  padding: 0.05rem 0.3rem;
+  border-radius: 2px;
+  border: var(--border-thin);
+}

@@ -1,4 +1,5 @@
-.create-mode {
+.create-mode,
+.studio-mode {
   position: fixed;
   inset: var(--nav-height) 0 0 0;
   display: flex;
@@ -217,78 +218,4 @@
   color: #b91c1c;
   background: #fee2e2;
   transform: translate(-1px, -1px);
-}
-
-/* Dialogs */
-.dialog-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dialog-card {
-  background: var(--color-white);
-  padding: 2rem;
-  border-radius: var(--radius-lg);
-  border: var(--border-thick);
-  box-shadow: var(--shadow-solid);
-  max-width: 400px;
-  text-align: center;
-}
-
-.dialog-card h3 {
-  margin-top: 0;
-  font-family: var(--font-family-display);
-  font-weight: 800;
-  color: var(--color-text);
-}
-
-.dialog-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin-top: 1.5rem;
-}
-
-.btn-primary {
-  padding: 0.6rem 1.2rem;
-  border: var(--border-thick);
-  border-radius: var(--radius-pill);
-  background: var(--color-blue);
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 2px 2px 0px var(--color-border);
-  transition: transform 0.1s;
-}
-
-.btn-primary:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 4px 4px 0px var(--color-border);
-}
-
-.btn-secondary {
-  padding: 0.6rem 1.2rem;
-  border: var(--border-thick);
-  border-radius: var(--radius-pill);
-  background: var(--color-white);
-  color: var(--color-text);
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 2px 2px 0px var(--color-border);
-  transition: transform 0.1s;
-}
-
-.btn-secondary:hover {
-  transform: translate(-2px, -2px);
-  background: var(--color-yellow);
-  box-shadow: 4px 4px 0px var(--color-border);
 }

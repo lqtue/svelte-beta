@@ -18,8 +18,6 @@ export interface LayerStoreValue {
   basemap: string;
   /** View comparison mode */
   viewMode: ViewMode;
-  /** ponytail: fixed at 0.5 — no drag handle ships yet. Add setSideRatio when one does. */
-  sideRatio: number;
   /** Spy-glass lens radius in px */
   lensRadius: number;
   /** Custom XYZ tile URL template (when basemap === 'g-custom') */
@@ -59,7 +57,6 @@ function saveCustomBaseUrl(url: string | null): void {
 const DEFAULTS: LayerStoreValue = {
   basemap: 'g-streets',
   viewMode: 'overlay',
-  sideRatio: 0.5,
   lensRadius: 150,
   customBaseUrl: null,
 };

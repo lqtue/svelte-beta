@@ -83,10 +83,6 @@
     dragStartSnap = snap;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }
-  function onGripPointerMove(e: PointerEvent) {
-    if (!dragging) return;
-    // Live update isn't critical — we just decide on release.
-  }
   function onGripPointerUp(e: PointerEvent) {
     if (!dragging) return;
     dragging = false;
@@ -159,7 +155,6 @@
   <header
     class="sheet-head"
     on:pointerdown={onGripPointerDown}
-    on:pointermove={onGripPointerMove}
     on:pointerup={onGripPointerUp}
     on:click={(e) => {
       // Don't toggle when the click came from a header button.
@@ -593,16 +588,6 @@
     color: #fff;
     flex: 1.4;
   }
-  .action-done {
-    flex: 1.4;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #15803d;
-    font-weight: 800;
-    font-size: 0.9rem;
-  }
-
   .itinerary {
     margin-top: 0.5rem;
   }

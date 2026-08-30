@@ -146,9 +146,9 @@
   function refreshClips() {
     if (!olMap) return;
     const ls = get(layerStore);
-    if (baseWarped) applyClipMask(baseWarped, olMap, ls.viewMode, ls.sideRatio, ls.lensRadius);
+    if (baseWarped) applyClipMask(baseWarped, olMap, ls.viewMode, ls.lensRadius);
     for (const { layer } of overlayInstances.values()) {
-      applyClipMask(layer, olMap, ls.viewMode, ls.sideRatio, ls.lensRadius);
+      applyClipMask(layer, olMap, ls.viewMode, ls.lensRadius);
     }
   }
 

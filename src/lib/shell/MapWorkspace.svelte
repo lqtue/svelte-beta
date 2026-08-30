@@ -35,8 +35,6 @@
   import type { createMapStore } from '$lib/stores/mapStore';
   import type { createLayerStore } from '$lib/stores/layerStore';
   import { createMapList } from '$lib/shell/useMapList';
-  import { boundsCenter, boundsZoom } from '$lib/ui/searchUtils';
-  import { fetchAnnotationBounds } from '$lib/geo/mapBounds';
   import { setShellContext } from '$lib/shell/context';
 
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
@@ -50,16 +48,6 @@
   export let supabase: SupabaseClient | null = null;
   /** When true, MapShell is wrapped in a half-width pane and the `dual-pane` slot is rendered alongside. */
   export let dualPaneActive: boolean = false;
-
-  /* Legacy props accepted for backwards compat with Create/Annotate modes — no longer wired. */
-  export let showDual: boolean = false;
-  showDual;
-  export let showAddAsPointInSearch: boolean = false;
-  showAddAsPointInSearch;
-  export let searchMapsOnly: boolean = false;
-  searchMapsOnly;
-  export let toolbarEl: HTMLDivElement | undefined = undefined;
-  toolbarEl;
 
   // ── Stores (caller-owned: route page creates via createGeoMapStores() and passes in) ──
 
@@ -127,26 +115,6 @@
         });
     }
   });
-
-  // ── Overlay status (kept for MapModeOverlays props; LayerRenderer no longer emits load events) ──
-
-  let overlayLoading = false;
-  let overlayError: string | null = null;
-
-  // ── Event handlers ───────────────────────────────────────────────
-
-  async function handleZoomToActiveMap() {
-    if (!selectedMap) return;
-    let bounds = selectedMap.bounds ?? null;
-    if (!bounds && selectedMap.allmaps_id) {
-      bounds = await fetchAnnotationBounds(selectedMap.allmaps_id);
-    }
-    if (bounds) {
-      const center = boundsCenter(bounds);
-      const zoom = boundsZoom(bounds);
-      mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
-    }
-  }
 </script>
 
 <ToolLayout
@@ -191,11 +159,7 @@
   <MapModeOverlays
     {viewMode}
     {lensRadius}
-    loading={overlayLoading}
-    error={overlayError}
     on:lensresize={(e) => layerStore.setLensRadius(e.detail.value)}
-    on:zoomtomap={handleZoomToActiveMap}
-    on:dismisserror={() => (overlayError = null)}
   />
 
   <!-- Floating controls (bottom-right) -->

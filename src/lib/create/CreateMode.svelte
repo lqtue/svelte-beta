@@ -9,14 +9,12 @@
   localStorage so reloads land back in the editor.
 
   Mobile: editor is desktop-only. Mobile users see the library and tapping a
-  story opens it in /view?story=<id> for playback. A banner explains the limit.
+  story opens it in /explore?story=<id> for playback. A banner explains the limit.
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import '$styles/layouts/create-mode.css';
-  import { fromLonLat } from 'ol/proj';
   import { goto } from '$app/navigation';
-  import type Map from 'ol/Map';
 
   import type { MapListItem, SearchResult } from '$lib/map/types';
   import type { Story, StoryPoint } from '$lib/story/types';
@@ -54,11 +52,9 @@
   // workspace doesn't mount until the user opens a story).
   let mapList: MapListItem[] = [];
   let selectedMap: MapListItem | null = null;
-  let shellMap: Map | null = null;
   let sidebarCollapsed = false;
   let rightSidebarCollapsed = false;
   let isMobile = false;
-  let isCompact = false;
 
   // Editor state
   let currentStory: Story | null = null;
@@ -131,7 +127,6 @@
       description,
       mode: 'guided',
       points: [],
-      stops: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isPublic: false,
@@ -258,7 +253,6 @@
       challenge: p.challenge,
       overlayMapId,
     }));
-    story.stops = story.points;
     // Persist directly to the library (we're on the library screen — don't
     // hijack the user into the editor).
     storyLibrary.update((lib) => ({ stories: [...lib.stories, story] }));
@@ -300,7 +294,6 @@
       currentStory = {
         ...currentStory,
         points: [...currentStory.points, point],
-        stops: [...currentStory.points, point],
         updatedAt: Date.now(),
       };
       // Stay in placing mode so the user can drop multiple points in a row.
@@ -310,10 +303,6 @@
     }
   }
 
-  function handleMapReady(event: CustomEvent<{ map: Map }>) {
-    shellMap = event.detail.map;
-  }
-
   // Story / point handlers
   function handleUpdatePoint(
     event: CustomEvent<{ pointId: string; updates: Partial<StoryPoint> }>
@@ -321,7 +310,7 @@
     if (!currentStory) return;
     const { pointId, updates } = event.detail;
     const pts = currentStory.points.map((p) => (p.id === pointId ? { ...p, ...updates } : p));
-    currentStory = { ...currentStory, points: pts, stops: pts, updatedAt: Date.now() };
+    currentStory = { ...currentStory, points: pts, updatedAt: Date.now() };
   }
 
   function handleRemovePoint(event: CustomEvent<{ pointId: string }>) {
@@ -329,7 +318,7 @@
     const pts = currentStory.points
       .filter((p) => p.id !== event.detail.pointId)
       .map((p, i) => ({ ...p, order: i }));
-    currentStory = { ...currentStory, points: pts, stops: pts, updatedAt: Date.now() };
+    currentStory = { ...currentStory, points: pts, updatedAt: Date.now() };
     if (selectedPointId === event.detail.pointId) selectedPointId = null;
   }
 
@@ -352,7 +341,7 @@
     const [moved] = pts.splice(from, 1);
     pts.splice(to, 0, moved);
     const reordered = pts.map((p, i) => ({ ...p, order: i }));
-    currentStory = { ...currentStory, points: reordered, stops: reordered, updatedAt: Date.now() };
+    currentStory = { ...currentStory, points: reordered, updatedAt: Date.now() };
   }
 
   function handleTogglePlacing() {
@@ -398,11 +387,8 @@
     if (!currentStory || currentStory.points.length === 0) return;
     previewProgress = {
       storyId: currentStory.id,
-      huntId: currentStory.id,
       currentPointIndex: 0,
-      currentStopIndex: 0,
       completedPoints: [],
-      completedStops: [],
       startedAt: Date.now(),
     };
     previewMode = true;
@@ -436,7 +422,7 @@
   function handlePreviewNavigate(event: CustomEvent<{ index: number; point: StoryPoint }>) {
     const { index, point } = event.detail;
     if (!previewProgress) return;
-    previewProgress = { ...previewProgress, currentPointIndex: index, currentStopIndex: index };
+    previewProgress = { ...previewProgress, currentPointIndex: index };
     if (point.coordinates) {
       mapStore.setView({ lng: point.coordinates[0], lat: point.coordinates[1], zoom: 17 });
     }
@@ -451,12 +437,10 @@
     previewProgress = {
       ...previewProgress,
       completedPoints: Array.from(done),
-      completedStops: Array.from(done),
       currentPointIndex: Math.min(
         previewProgress.currentPointIndex + 1,
         currentStory.points.length
       ),
-      currentStopIndex: Math.min(previewProgress.currentStopIndex + 1, currentStory.points.length),
     };
   }
 
@@ -474,9 +458,9 @@
   }
 
   function handleSelectStory(story: Story) {
-    // Mobile: open in /view for playback, since editor is desktop-only.
+    // Mobile: open in /explore for playback, since editor is desktop-only.
     if (isMobile) {
-      goto(`/view?story=${story.id}`);
+      goto(`/explore?story=${story.id}`);
       return;
     }
     currentStory = story;
@@ -599,7 +583,7 @@
   function handleUndo() {
     if (!currentStory || !currentStory.points.length) return;
     const pts = currentStory.points.slice(0, -1).map((p, i) => ({ ...p, order: i }));
-    currentStory = { ...currentStory, points: pts, stops: pts, updatedAt: Date.now() };
+    currentStory = { ...currentStory, points: pts, updatedAt: Date.now() };
   }
 
   onMount(() => {
@@ -787,6 +771,14 @@
                 {story.description || 'No description'}
               </div>
               <div slot="actions">
+                {#if story.points.length}
+                  <a
+                    class="sb-btn is-sm"
+                    href="/trip/{story.id}"
+                    title="Walk this story on mobile"
+                    on:click|stopPropagation>Walk</a
+                  >
+                {/if}
                 {#if !isMobile}
                   <button
                     type="button"
@@ -855,16 +847,12 @@
       {supabase}
       {mapStore}
       {layerStore}
-      showDual={false}
-      showAddAsPointInSearch={true}
       rightSidebarWidth={380}
       bind:mapList
       bind:selectedMap
-      bind:shellMap
       bind:sidebarCollapsed
       bind:rightSidebarCollapsed
       bind:isMobile
-      bind:isCompact
       on:searchnavigate={handleSearchNavigate}
     >
       <svelte:fragment slot="sidebar">
@@ -893,7 +881,6 @@
           {selectedPoint}
           {selectedPointIndex}
           {movingPoint}
-          {topLayerMapId}
           {pinnedLayerName}
           on:backToLibrary={handleBackToLibrary}
           on:togglePublish={handleTogglePublish}
@@ -952,11 +939,7 @@
       </svelte:fragment>
 
       <svelte:fragment slot="map-children">
-        <MapClickCapture
-          enabled={placingPoint || movingPoint}
-          on:mapClick={handleMapClick}
-          on:mapReady={handleMapReady}
-        />
+        <MapClickCapture enabled={placingPoint || movingPoint} on:mapClick={handleMapClick} />
         {#if currentStory}
           <StoryMarkers
             points={currentStory.points}

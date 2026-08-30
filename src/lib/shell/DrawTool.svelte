@@ -230,13 +230,11 @@
     if (!geometry) return;
     if (geometry.getType() === 'Point') {
       const coords = (geometry as Point).getCoordinates() as [number, number];
-      map
-        .getView()
-        .animate({
-          center: coords,
-          zoom: Math.max(map.getView().getZoom() ?? 16, 17),
-          duration: 350,
-        });
+      map.getView().animate({
+        center: coords,
+        zoom: Math.max(map.getView().getZoom() ?? 16, 17),
+        duration: 350,
+      });
     } else {
       map
         .getView()
@@ -408,13 +406,11 @@
     if (!geometry) return;
     if (geometry.getType() === 'Point') {
       const coords = (geometry as Point).getCoordinates() as [number, number];
-      map
-        .getView()
-        .animate({
-          center: coords,
-          zoom: Math.max(map.getView().getZoom() ?? 12, 16),
-          duration: 400,
-        });
+      map.getView().animate({
+        center: coords,
+        zoom: Math.max(map.getView().getZoom() ?? 12, 16),
+        duration: 400,
+      });
     } else {
       map
         .getView()

@@ -1,6 +1,6 @@
 <!--
   StoryPlayback.svelte — Floating preview/playback card anchored at the bottom
-  of the map. Used by /view (real playback) and /create (preview mode).
+  of the map. Used by /explore (real playback) and /create (preview mode).
   Styled with sidebar.css tokens so it matches the right-pane editor.
 -->
 <script lang="ts">
@@ -68,6 +68,9 @@
     >
     <div class="pb-title">
       <h3>{story.title}</h3>
+      <a class="sb-btn is-sm is-ghost" href="/trip/{story.id}" title="Walk this story on mobile"
+        >Walk</a
+      >
     </div>
     <div class="pb-progress" title="{completedIds.size} / {totalPoints} visited">
       <div class="pb-progress-bar">

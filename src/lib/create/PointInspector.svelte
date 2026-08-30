@@ -18,12 +18,7 @@
   }>();
 
   export let point: StoryPoint;
-  export let index: number = 0;
   export let movingPoint = false;
-  /** Kept for back-compat with parent prop passing; pinnedLayerName is now
-   *  resolved per-point from layersStore + the pin-options below. */
-  export let topLayerName: string | null = null;
-  export let topLayerMapId: string | null = null;
   export let pinnedLayerName: string | null = null;
 
   // Pin options come from every active historical overlay in layersStore

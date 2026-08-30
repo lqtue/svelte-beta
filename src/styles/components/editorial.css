@@ -153,17 +153,6 @@
 .chip-yellow {
   background: var(--color-white);
 }
-.chip-orange {
-  background: var(--color-orange);
-}
-.chip-purple {
-  background: var(--color-purple);
-  color: white;
-}
-.chip-red {
-  background: var(--color-primary);
-  color: white;
-}
 
 /* ----------------------------------------
    SECTION CARD — white card with thick border + shadow

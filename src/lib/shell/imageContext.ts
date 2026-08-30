@@ -3,7 +3,7 @@
  *
  * Pattern: ImageShell calls createImageShellContext() synchronously during
  * component init, which sets a writable store into Svelte context. Child tool
- * components (PinTool, TraceTool) call getImageShellStore() during their own
+ * components (TraceTool, bbox tools) call getImageShellStore() during their own
  * init to get the same store. The store starts null; ImageShell populates it
  * in onMount once OL objects exist. Tools react reactively to the store.
  */
@@ -13,15 +13,12 @@ import type { Writable } from 'svelte/store';
 import type OlMap from 'ol/Map';
 import type VectorSource from 'ol/source/Vector';
 import type VectorLayer from 'ol/layer/Vector';
-import type VectorImageLayer from 'ol/layer/VectorImage';
 
 export interface ImageShellContext {
   map: OlMap;
-  pinSource: VectorSource;
   footprintSource: VectorSource;
   /** Temporary source for in-progress drawing — cleared after each shape is committed. */
   drawSource: VectorSource;
-  pinLayer: VectorImageLayer;
   footprintLayer: VectorLayer;
 }
 

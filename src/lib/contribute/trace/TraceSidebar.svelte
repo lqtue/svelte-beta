@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
-  import '$styles/components/label.css';
+  import '$styles/layouts/tool-page.css';
   import type { FootprintSubmission, FeatureType } from '$lib/contribute/shared/types';
   import { FEATURE_TYPE_LABELS } from '$lib/contribute/shared/types';
 
@@ -16,7 +16,6 @@
       featureType?: FeatureType;
       category?: string | null;
     };
-    zoomToFootprint: { footprintId: string };
   }>();
 
   export let traceCategories: string[] = [];
@@ -192,12 +191,7 @@
       </thead>
       <tbody>
         {#each visibleFootprints as fp (fp.id)}
-          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-          <tr
-            class="shape-tr"
-            on:dblclick={() => dispatch('zoomToFootprint', { footprintId: fp.id })}
-            title="Double-click to zoom"
-          >
+          <tr class="shape-tr">
             <td class="col-dot"
               ><span class="dot" style="background:{featureColor(fp.featureType)}"></span></td
             >
@@ -309,25 +303,6 @@
                   >
                 </button>
               {:else}
-                <button
-                  type="button"
-                  class="row-action zoom-action"
-                  on:click={() => dispatch('zoomToFootprint', { footprintId: fp.id })}
-                  aria-label="Zoom to shape"
-                  title="Zoom"
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    ><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" /></svg
-                  >
-                </button>
                 <button
                   type="button"
                   class="row-action delete-action"

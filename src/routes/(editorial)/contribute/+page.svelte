@@ -3,7 +3,7 @@
   import { getSupabaseContext } from '$lib/supabase/context';
   import PageHero from '$lib/ui/PageHero.svelte';
 
-  const { session } = getSupabaseContext();
+  const { session, supabase } = getSupabaseContext();
 
   let mounted = false;
   let role = 'user';
@@ -11,7 +11,6 @@
   onMount(async () => {
     mounted = true;
     if (!session?.user?.id) return;
-    const { supabase } = getSupabaseContext();
     const { data } = await supabase
       .from('profiles')
       .select('role')
@@ -26,10 +25,6 @@
   <meta
     name="description"
     content="Trace buildings, georeference maps, and review AI output. Anyone with an account can contribute to the Vietnam Map Archive."
-  />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap"
-    rel="stylesheet"
   />
 </svelte:head>
 

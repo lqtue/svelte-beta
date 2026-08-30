@@ -420,9 +420,6 @@
   .ts-field .ts-label {
     min-width: 90px;
   }
-  .ts-field .ts-num-input {
-    width: 70px;
-  }
 
   .ts-text-input {
     flex: 1;
@@ -436,31 +433,6 @@
   .ts-range {
     flex: 1;
     accent-color: var(--color-accent, #111);
-  }
-
-  .ts-stats-row {
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  .ts-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .ts-stat-val {
-    font-size: 0.85rem;
-    font-weight: 700;
-    font-family: ui-monospace, monospace;
-    line-height: 1.1;
-  }
-
-  .ts-stat-key {
-    font-size: 0.62rem;
-    opacity: 0.5;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
   .ts-priority-legend {

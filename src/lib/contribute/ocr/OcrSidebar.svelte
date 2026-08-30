@@ -6,7 +6,7 @@
 <script lang="ts">
   import { OCR_CATEGORIES, CAT_COLORS, STATUS_COLORS } from './constants';
   import { createEventDispatcher, tick } from 'svelte';
-  import '$styles/components/label.css';
+  import '$styles/layouts/tool-page.css';
 
   const dispatch = createEventDispatcher<{
     zoomToExtraction: { globalX: number; globalY: number; globalW: number; globalH: number };
@@ -54,11 +54,6 @@
   export let filterRunId = '';
   let filterMinConf = 0;
   let filterCategories = new Set<string>(OCR_CATEGORIES);
-
-  let lastBatchIds: string[] = [];
-  let showUndo = false;
-  let undoTimer: any;
-  let recentRevertCount: number | null = null;
 
   function toggleCategory(cat: string) {
     if (filterCategories.has(cat)) filterCategories.delete(cat);
@@ -253,29 +248,6 @@
     }
   }
 
-  async function undoBatch() {
-    if (!lastBatchIds.length) return;
-    loading = true;
-    showUndo = false;
-    try {
-      const res = await fetch(`/api/admin/maps/${mapId}/ocr-review`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: lastBatchIds, status: 'pending' }),
-      });
-      if (!res.ok) {
-        error = await res.text();
-        return;
-      }
-      lastBatchIds = [];
-      await load();
-    } catch (e: any) {
-      error = e.message;
-    } finally {
-      loading = false;
-    }
-  }
-
   async function emergencyRevert() {
     if (!confirm('Revert all items validated in the last 15 minutes?')) return;
     loading = true;
@@ -420,11 +392,6 @@
       </div>
     {:else}
       <span class="run-placeholder">No runs</span>
-    {/if}
-    {#if showUndo}
-      <button class="undo-btn" on:click={undoBatch} title="Undo last batch validation">
-        Undo ({lastBatchIds.length})
-      </button>
     {/if}
     <button
       class="save-btn"
@@ -1061,33 +1028,6 @@
     opacity: 1;
     background: var(--cat-color);
     color: white;
-  }
-
-  .undo-btn {
-    background: var(--color-bg);
-    border: 1.5px solid var(--color-primary);
-    color: var(--color-primary);
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0 0.5rem;
-    border-radius: 4px;
-    height: 1.6rem;
-    cursor: pointer;
-    margin-left: 0.4rem;
-    animation: fade-in 0.2s;
-  }
-  .undo-btn:hover {
-    background: var(--color-white);
-  }
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateX(-5px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
   }
 
   .text-danger {

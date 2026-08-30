@@ -23,16 +23,6 @@ async function getAdminClient(locals: App.Locals) {
   return adminSupabase;
 }
 
-/** GET — list all maps (raw DB rows) */
-export const GET: RequestHandler = async ({ locals }) => {
-  const adminSupabase = await getAdminClient(locals);
-
-  const { data, error: dbError } = await adminSupabase.from('maps').select('*').order('name');
-
-  if (dbError) throw error(500, dbError.message);
-  return json(data);
-};
-
 /** POST — create a new map */
 export const POST: RequestHandler = async ({ locals, request }) => {
   const adminSupabase = await getAdminClient(locals);
@@ -85,7 +75,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const insertData: Record<string, any> = {
     name,
     allmaps_id: resolvedAllmapsId,

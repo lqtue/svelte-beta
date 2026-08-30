@@ -1,9 +1,19 @@
 import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 import type { Database } from '$lib/supabase/types';
 
+/** Retired route paths → their replacements (301, query string preserved). */
+const LEGACY_REDIRECTS: Record<string, string> = {
+  '/view': '/explore',
+  '/annotate': '/studio',
+  '/contribute/label': '/contribute/digitalize',
+};
+
 export const handle: Handle = async ({ event, resolve }) => {
+  const target = LEGACY_REDIRECTS[event.url.pathname];
+  if (target) throw redirect(301, target + event.url.search);
+
   /**
    * Track whether the response has been resolved to prevent
    * Supabase from setting cookies after the response is sent.

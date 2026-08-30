@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LabelPin, FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/contribute/shared/types';
+import type { FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/contribute/shared/types';
 
 // ── Label Maps ────────────────────────────────────────────────────────────────
 
@@ -36,31 +36,6 @@ export async function fetchLabelMaps(supabase: SupabaseClient): Promise<LabelMap
 			};
 		});
 }
-
-// ── Label Pins ────────────────────────────────────────────────────────────────
-
-interface DbLabelPin {
-	id: string;
-	map_id: string;
-	user_id: string;
-	label: string;
-	pixel_x: number;
-	pixel_y: number;
-	data: Record<string, any> | null;
-}
-
-function toLabelPin(row: DbLabelPin): LabelPin {
-	return {
-		id: row.id,
-		mapId: row.map_id,
-		userId: row.user_id,
-		label: row.label,
-		pixelX: row.pixel_x,
-		pixelY: row.pixel_y,
-		data: row.data ?? undefined
-	};
-}
-
 
 // ── Footprint Submissions ─────────────────────────────────────────────────────
 

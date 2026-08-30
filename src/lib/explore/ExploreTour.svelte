@@ -38,7 +38,6 @@
   export let mapStore: Readable<{ lng: number; lat: number; zoom: number }>;
   export let layerStore: Readable<{ basemap: string; viewMode: string }>;
   export let isMobile = false;
-  export let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
 
   const dispatch = createEventDispatcher<{
     close: void;

@@ -9,7 +9,6 @@
  * Client-side filtering for MVP. Cheap until the catalogue grows past a few
  * hundred entries; swap for a PostGIS RPC later without changing callers.
  */
-import { fetchMultipleBounds } from '$lib/geo/mapBounds';
 import type { MapListItem } from '$lib/maps/types';
 
 export type Bbox = [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
@@ -20,11 +19,6 @@ export type Bbox = [number, number, number, number]; // [minLon, minLat, maxLon,
 // border, etc.) and `/explore` treats them all equally.
 export const SAIGON_CENTER: [number, number] = [106.70098, 10.77653];
 export const SAIGON_DEFAULT_ZOOM = 15;
-
-export type CoverageState =
-  | 'rich' // 2+ overlays cover this point
-  | 'sparse' // exactly 1 overlay covers this point
-  | 'empty'; // no overlay covers this point
 
 // Extends MapListItem with a resolved bbox/bounds tuple — same shape either
 // way, so downstream code only ever reads `effectiveBbox`.
@@ -105,5 +99,3 @@ export function unresolvedAllmapsIds(mapList: MapListItem[], includeDrafts = fal
     )
     .map((m) => m.allmaps_id!);
 }
-
-export { fetchMultipleBounds };

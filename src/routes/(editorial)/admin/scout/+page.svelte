@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
-  import '$styles/components/editorial.css';
 
   // ── session / role guard ────────────────────────────────────────────────
   const { supabase, session } = getSupabaseContext();

@@ -6,7 +6,7 @@
  */
 
 import { writable, derived, get, type Readable } from 'svelte/store';
-import { fromLonLat, toLonLat } from 'ol/proj';
+import { fromLonLat } from 'ol/proj';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -84,10 +84,4 @@ export function createMapStore(initial?: Partial<MapStoreValue>): MapStore {
 export function getOlCenter(store: MapStore): [number, number] {
   const $s = get(store);
   return fromLonLat([$s.lng, $s.lat]) as [number, number];
-}
-
-/** Convert an OL EPSG:3857 coordinate back to lng/lat */
-export function fromOlCoordinate(coord: [number, number]): { lng: number; lat: number } {
-  const [lng, lat] = toLonLat(coord);
-  return { lng, lat };
 }

@@ -762,8 +762,7 @@
     border-color: var(--color-border);
   }
 
-  .result-item.active-map .result-title,
-  .result-item.active-map .result-type {
+  .result-item.active-map .result-title {
     color: white;
   }
 

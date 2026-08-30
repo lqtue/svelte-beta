@@ -70,10 +70,6 @@
   function classColor(ft: string) {
     return CLASS_COLORS[ft] ?? '#888';
   }
-
-  function fmtIou(v: number | null) {
-    return v != null ? (v * 100).toFixed(0) + '%' : '–';
-  }
 </script>
 
 <aside class="sidebar">
@@ -237,11 +233,6 @@
     font-size: 0.8125rem;
     font-weight: 600;
     color: #d1c9be;
-  }
-
-  .fp-iou {
-    font-size: 0.75rem;
-    color: #6b7280;
   }
 
   .fp-actions {

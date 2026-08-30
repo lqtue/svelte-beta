@@ -3,19 +3,17 @@
 
   Extracted from LabelCanvas.svelte. Provides:
   - OL Map with IIIF tile source (pixel space, no geographic projection)
-  - Three vector layers: pinLayer (z10), footprintLayer (z5), drawLayer (z4)
-  - syncPins / syncFootprints reactive to prop changes
+  - Two vector layers: footprintLayer (z5), drawLayer (z4)
+  - syncFootprints reactive to prop changes
   - loadIIIFImage() called whenever iiifInfoUrl changes
   - Context exposed via setImageShellContext() for child tools
 
-  Tools (PinTool, TraceTool) are composed as children via slot and access
+  Tools (TraceTool, bbox tools) are composed as children via slot and access
   map/sources through getImageShellContext().
 
   Props:
     iiifInfoUrl   — IIIF info.json URL to load (pass null to show empty state)
-    pins          — LabelPin[] rendered on pinLayer
     footprints    — FootprintSubmission[] rendered on footprintLayer
-    myUserId      — current user id (for ownership-gated interactions in tools)
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
@@ -26,22 +24,19 @@
   import IIIFInfo from 'ol/format/IIIFInfo';
   import VectorSource from 'ol/source/Vector';
   import VectorLayer from 'ol/layer/Vector';
-  import VectorImageLayer from 'ol/layer/VectorImage';
   import Feature from 'ol/Feature';
-  import Point from 'ol/geom/Point';
   import Polygon from 'ol/geom/Polygon';
   import LineString from 'ol/geom/LineString';
   import Style from 'ol/style/Style';
   import Fill from 'ol/style/Fill';
   import Stroke from 'ol/style/Stroke';
-  import CircleStyle from 'ol/style/Circle';
   import Text from 'ol/style/Text';
   import { Zoom } from 'ol/control';
   import { defaults as defaultControls } from 'ol/control/defaults';
   import { defaults as defaultInteractions } from 'ol/interaction/defaults';
   import 'ol/ol.css';
 
-  import type { LabelPin, FootprintSubmission } from '$lib/contribute/shared/types';
+  import type { FootprintSubmission } from '$lib/contribute/shared/types';
   import { geometryKind } from '$lib/contribute/shared/types';
   import { createImageShellContext } from './imageContext';
 
@@ -49,19 +44,15 @@
   const shellStore = createImageShellContext();
 
   export let iiifInfoUrl: string | null = null;
-  export let pins: LabelPin[] = [];
   export let footprints: FootprintSubmission[] = [];
-  export let myUserId: string | null = null;
   export let imgWidth = 0;
   export let imgHeight = 0;
 
   let mapContainer: HTMLDivElement;
   export let map: OlMap | null = null;
-  let pinSource: VectorSource | null = null;
   let footprintSource: VectorSource | null = null;
   let drawSource: VectorSource | null = null;
   let fpLayer: VectorLayer | null = null;
-  let pinLayer: VectorImageLayer | null = null;
   let tileLayer: TileLayer | null = null;
   let loadingImage = false;
   let loadError = '';
@@ -92,26 +83,6 @@
   }
 
   // ── Style functions ────────────────────────────────────────────────────────
-  function createPinStyle(feature: any): Style {
-    const label = feature.get('label') || '';
-    const color = getLabelColor(label);
-    return new Style({
-      image: new CircleStyle({
-        radius: 10,
-        fill: new Fill({ color }),
-        stroke: new Stroke({ color: '#fff', width: 2.5 }),
-      }),
-      text: new Text({
-        text: label,
-        offsetY: -20,
-        font: 'bold 11px "Be Vietnam Pro", sans-serif',
-        fill: new Fill({ color: '#2b2520' }),
-        stroke: new Stroke({ color: '#fff', width: 3.5 }),
-        textAlign: 'center',
-      }),
-    });
-  }
-
   function createFootprintStyle(feature: any): Style {
     const label = feature.get('label') || '';
     const geomType = feature.getGeometry()?.getType();
@@ -133,20 +104,6 @@
   }
 
   // ── Sync props → OL features ──────────────────────────────────────────────
-  function syncPins() {
-    if (!pinSource) return;
-    pinSource.clear();
-    for (const pin of pins) {
-      const feature = new Feature({
-        geometry: new Point([pin.pixelX, -pin.pixelY]),
-        label: pin.label,
-        pinId: pin.id,
-      });
-      feature.setId(pin.id);
-      pinSource.addFeature(feature);
-    }
-  }
-
   function syncFootprints() {
     if (!footprintSource) return;
     footprintSource.clear();
@@ -180,7 +137,6 @@
     }
   }
 
-  $: (pins, pinSource && syncPins());
   $: (footprints, footprintSource && syncFootprints());
   $: if (iiifInfoUrl && map) loadIIIFImage(iiifInfoUrl);
 
@@ -220,13 +176,6 @@
 
   // ── Mount ─────────────────────────────────────────────────────────────────
   onMount(() => {
-    pinSource = new VectorSource();
-    pinLayer = new VectorImageLayer({
-      source: pinSource,
-      zIndex: 10,
-      style: createPinStyle,
-    });
-
     footprintSource = new VectorSource();
     fpLayer = new VectorLayer({
       source: footprintSource,
@@ -243,7 +192,7 @@
 
     map = new OlMap({
       target: mapContainer,
-      layers: [drawLayer, fpLayer, pinLayer],
+      layers: [drawLayer, fpLayer],
       view: new View({ center: [0, 0], zoom: 1, showFullExtent: true }),
       interactions: defaultInteractions({ doubleClickZoom: false }),
       controls: defaultControls({ attribution: false, rotate: false, zoom: false }).extend([
@@ -253,14 +202,11 @@
 
     shellStore.set({
       map,
-      pinSource,
       footprintSource,
       drawSource,
-      pinLayer,
       footprintLayer: fpLayer,
     });
 
-    syncPins();
     syncFootprints();
     if (iiifInfoUrl) loadIIIFImage(iiifInfoUrl);
   });

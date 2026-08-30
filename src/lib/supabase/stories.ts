@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Story, StoryPoint, StoryProgress } from '$lib/story/types';
+import type { Story, StoryPoint } from '$lib/story/types';
 
 // ─── Row → Type mappers ──────────────────────────────────────────────────────
 
@@ -36,22 +36,8 @@ function rowToStory(row: any): Story {
 		region: row.region && Object.keys(row.region).length ? row.region : undefined,
 		isPublic: row.is_public,
 		points,
-		stops: points, // legacy alias
 		createdAt: new Date(row.created_at).getTime(),
 		updatedAt: new Date(row.updated_at).getTime(),
-	};
-}
-
-function rowToProgress(row: any): StoryProgress {
-	return {
-		storyId: row.story_id,
-		huntId: row.story_id, // legacy alias
-		currentPointIndex: row.current_point_index,
-		currentStopIndex: row.current_point_index, // legacy alias
-		completedPoints: row.completed_points ?? [],
-		completedStops: row.completed_points ?? [], // legacy alias
-		startedAt: new Date(row.started_at).getTime(),
-		completedAt: row.completed_at ? new Date(row.completed_at).getTime() : undefined,
 	};
 }
 
@@ -71,60 +57,6 @@ export async function fetchPublicStories(
 	if (error) { console.error('fetchPublicStories:', error); return []; }
 	return (data ?? []).map(rowToStory);
 }
-
-export async function createStory(
-	supabase: SupabaseClient,
-	userId: string,
-	data: { title: string; description?: string; mode?: 'guided' | 'adventure' }
-): Promise<Story | null> {
-	const { data: row, error } = await supabase
-		.from('stories')
-		.insert({
-			user_id: userId,
-			title: data.title,
-			description: data.description ?? null,
-			mode: data.mode ?? 'guided',
-		})
-		.select('*, story_points(*)')
-		.single();
-
-	if (error) { console.error('createStory:', error); return null; }
-	return rowToStory(row);
-}
-
-export async function updateStory(
-	supabase: SupabaseClient,
-	storyId: string,
-	data: Partial<Pick<Story, 'title' | 'description' | 'isPublic' | 'region'>>
-): Promise<boolean> {
-	const patch: Record<string, unknown> = {};
-	if (data.title !== undefined)       patch.title       = data.title;
-	if (data.description !== undefined) patch.description = data.description;
-	if (data.isPublic !== undefined)    patch.is_public   = data.isPublic;
-	if (data.region !== undefined)      patch.region      = data.region ?? {};
-
-	const { error } = await supabase
-		.from('stories')
-		.update(patch)
-		.eq('id', storyId);
-
-	if (error) { console.error('updateStory:', error); return false; }
-	return true;
-}
-
-export async function deleteStory(
-	supabase: SupabaseClient,
-	storyId: string
-): Promise<boolean> {
-	const { error } = await supabase
-		.from('stories')
-		.delete()
-		.eq('id', storyId);
-
-	if (error) { console.error('deleteStory:', error); return false; }
-	return true;
-}
-
 
 /**
  * Push the full local draft (story row + every point) to Supabase, then return.

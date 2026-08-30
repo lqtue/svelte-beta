@@ -23,7 +23,6 @@
       bbox?: [number, number, number, number];
     };
     changeViewMode: { mode: ViewMode };
-    toggleGps: void;
   }>();
 
   export let mapList: MapListItem[] = [];
@@ -74,7 +73,6 @@
       {allowDual}
       on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)}
       on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
-      on:toggleGps={() => dispatch('toggleGps')}
     />
   </SidebarCard>
 

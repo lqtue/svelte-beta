@@ -1,10 +1,3 @@
-export interface TileParams {
-  tileSize: number;
-  overlap: number;
-  renderSize: number;
-  tileCount: number;
-}
-
 /** Enumerate tile (x,y,w,h) rects covering a neatline region. */
 export function buildTileGrid(
   nx: number,

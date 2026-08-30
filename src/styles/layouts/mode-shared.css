@@ -144,23 +144,7 @@
   }
 }
 
-/* Overlay Loading */
-.overlay-loading {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-md);
-  padding: 1rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  box-shadow: var(--shadow-solid);
-  z-index: 60;
-}
+/* Loading spinner (ImageShell, Studio library) */
 
 .loading-spinner {
   width: 24px;
@@ -175,53 +159,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-.loading-zoom-btn {
-  background: var(--color-blue);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-pill);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* Overlay Error */
-.overlay-error {
-  position: absolute;
-  top: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--color-primary);
-  color: white;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-pill);
-  border: var(--border-thick);
-  box-shadow: var(--shadow-solid);
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  z-index: 70;
-  font-weight: 600;
-}
-
-.overlay-error-close {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-}
-
-/* Mobile Sidebar */
-.mobile-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 90;
-  backdrop-filter: blur(4px);
 }
 
 .mobile-sidebar {
