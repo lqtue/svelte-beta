@@ -2,7 +2,7 @@
   StudioMode.svelte — /studio plugin on MapWorkspace.
 
   Desktop two-sidebar layout (mirrors /create):
-    • Left sidebar  — Layers · Controls · Browse (CreateSidebar, reused)
+    • Left sidebar  — Layers · Controls · Browse (MapViewerSidebar, shared)
     • Right sidebar — Project header · Annotations · Inspector (StudioRightPane)
 
   Mobile is intentionally unsupported here — the library view still works on
@@ -19,16 +19,14 @@
   import { createAnnotationStateStore } from '$lib/map/annotationState';
   import { setAnnotationContext } from '$lib/map/annotationContext';
   import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchAnnotationBounds } from '$lib/geo/mapBounds';
-  import { boundsCenter, boundsZoom } from '$lib/ui/searchUtils';
-  import { layersStore } from '$lib/stores/layersStore';
+  import { createMapPickHandlers } from '$lib/story/mapPickHandlers';
   import { createAnnotationProjectStore } from './stores/annotationProjectStore';
-  import { timelineStore, type Keyframe } from './animation/timelineStore';
+  import { createTimelineStore } from './animation/timelineStore';
   import { playTimeline, applyKeyframeInstant, type PlaybackHandle } from './animation/playback';
 
   import MapWorkspace from '$lib/shell/MapWorkspace.svelte';
   import DrawTool from '$lib/shell/DrawTool.svelte';
-  import CreateSidebar from '$lib/create/CreateSidebar.svelte';
+  import MapViewerSidebar from '$lib/ui/catalog/MapViewerSidebar.svelte';
   import StudioRightPane from './StudioRightPane.svelte';
   import StudioOverpassDialog from './StudioOverpassDialog.svelte';
   import BboxSelector from './BboxSelector.svelte';
@@ -41,10 +39,8 @@
     type Bbox4,
     type OverpassPreset,
   } from './overpass';
-  import NameDialog from '$lib/ui/NameDialog.svelte';
-  import PageHero from '$lib/ui/PageHero.svelte';
-  import CatalogGrid from '$lib/ui/catalog/CatalogGrid.svelte';
-  import CatalogCard from '$lib/ui/catalog/CatalogCard.svelte';
+  import AuthGate from '$lib/ui/AuthGate.svelte';
+  import LibraryGrid from '$lib/ui/LibraryGrid.svelte';
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id;
@@ -56,6 +52,7 @@
 
   const { mapStore, layerStore } = createGeoMapStores();
   const projectStore = createAnnotationProjectStore(supabase, userId);
+  const timelineStore = createTimelineStore();
 
   // Derived from annotation context (single source of truth)
   $: annotations = $annotationState.list;
@@ -74,7 +71,7 @@
   // Studio-specific state
   let drawingMode: DrawingMode | null = null;
   let drawToolRef: DrawTool;
-  let rightPaneRef: StudioRightPane;
+  let notice: { text: string; tone: 'info' | 'error' | 'success' } | null = null;
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
   // Library/Editor view state
@@ -83,12 +80,6 @@
   let currentProject: AnnotationSet | null = null;
   let isSaving = false;
   let saveSuccess = false;
-
-  // Name dialog state
-  let nameDialogOpen = false;
-  let nameDialogValue = '';
-  let nameDialogHeading = 'New Project';
-  let nameDialogEditId: string | null = null;
 
   // Overpass dialog state
   let overpassOpen = false;
@@ -106,69 +97,11 @@
     drawToolRef?.zoomToSearchResult(event.detail.result);
   }
 
-  async function handleZoomToMap(event: CustomEvent<{ map: MapListItem }>) {
-    const { map } = event.detail;
-    let bounds = map.bounds ?? map.bbox ?? null;
-    if (!bounds) bounds = await fetchAnnotationBounds(map.annotation_url ?? map.allmaps_id ?? '');
-    if (bounds) {
-      const center = boundsCenter(bounds);
-      const zoom = boundsZoom(bounds);
-      mapStore.setView({ lng: center.lng, lat: center.lat, zoom });
-      if (shellMap) {
-        const { fromLonLat: proj } = await import('ol/proj');
-        shellMap.getView().animate({
-          center: proj([center.lng, center.lat]),
-          zoom,
-          duration: 400,
-        });
-      }
-    }
-  }
-
-  function handleZoomToOverlay(e: CustomEvent<{ mapId: string }>) {
-    const m = mapList.find((x) => x.id === e.detail.mapId);
-    if (m) handleZoomToMap(new CustomEvent('zoomToMap', { detail: { map: m } }));
-  }
-
-  /** Catalog row click = swap top overlay to this map (same as /view + /create). */
-  async function handlePickMap(event: CustomEvent<any>) {
-    const item = event.detail;
-    if (!item?.id) return;
-    let map = mapList.find((m) => m.id === item.id) ?? null;
-    if (!map) map = { ...item } as MapListItem;
-    const allmapsId = map.annotation_url ?? map.allmaps_id;
-    if (allmapsId) {
-      layersStore.clearOverlays();
-      layersStore.addOverlay({
-        kind: 'historical',
-        mapId: map.id,
-        allmapsId,
-        name: map.name,
-        thumbnail: map.thumbnail,
-      });
-    }
-    let bounds = map.bounds ?? map.bbox ?? null;
-    if (!bounds) {
-      const src = map.annotation_url ?? map.allmaps_id;
-      if (src) bounds = await fetchAnnotationBounds(src);
-    }
-    if (bounds) {
-      const center = boundsCenter(bounds);
-      mapStore.setView({ lng: center.lng, lat: center.lat, zoom: boundsZoom(bounds) });
-    }
-  }
-
-  function handlePickLocation(
-    event: CustomEvent<{ lat: number; lng: number; bbox?: [number, number, number, number] }>
-  ) {
-    const { lat, lng, bbox } = event.detail;
-    if (bbox) {
-      const c = boundsCenter(bbox);
-      mapStore.setView({ lng: c.lng, lat: c.lat, zoom: boundsZoom(bbox) });
-    } else {
-      mapStore.setView({ lng, lat, zoom: 15 });
-    }
-  }
+  const { handlePickMap, handleZoomToOverlay, handlePickLocation } = createMapPickHandlers({
+    mapStore,
+    mapList: () => mapList,
+    shellMap: () => shellMap,
+  });
 
   // ── Annotation event handlers (delegate to DrawTool) ────────────────
 
@@ -177,46 +110,25 @@
     if (!drawingMode) drawToolRef?.deactivateDrawing();
   }
 
-  function handleAnnotationRename(event: CustomEvent<{ id: string; label: string }>) {
-    drawToolRef?.updateAnnotationLabel(event.detail.id, event.detail.label);
-  }
-  function handleAnnotationUpdateDetails(event: CustomEvent<{ id: string; details: string }>) {
-    drawToolRef?.updateAnnotationDetails(event.detail.id, event.detail.details);
-  }
-  function handleAnnotationChangeColor(event: CustomEvent<{ id: string; color: string }>) {
-    drawToolRef?.updateAnnotationColor(event.detail.id, event.detail.color);
-  }
-  function handleAnnotationToggleVisibility(event: CustomEvent<{ id: string }>) {
-    drawToolRef?.toggleAnnotationVisibility(event.detail.id);
-  }
-  function handleAnnotationSelect(event: CustomEvent<{ id: string | null }>) {
-    annotationState.setSelected(event.detail.id);
-  }
-  function handleAnnotationDelete(event: CustomEvent<{ id: string }>) {
-    drawToolRef?.deleteAnnotation(event.detail.id);
-  }
-  function handleAnnotationZoomTo(event: CustomEvent<{ id: string }>) {
-    drawToolRef?.zoomToAnnotation(event.detail.id);
-  }
   function handleAnnotationClear() {
     drawToolRef?.clearAnnotations();
-    rightPaneRef?.setNotice('All annotations cleared.', 'info');
+    notice = { text: 'All annotations cleared.', tone: 'info' };
   }
   function handleAnnotationExport() {
     drawToolRef?.exportAnnotationsAsGeoJSON();
-    rightPaneRef?.setNotice('GeoJSON downloaded.', 'success');
+    notice = { text: 'GeoJSON downloaded.', tone: 'success' };
   }
   async function handleAnnotationImport(event: CustomEvent<{ file: File }>) {
     try {
       const text = await event.detail.file.text();
       const count = await drawToolRef?.importGeoJsonText(text);
-      rightPaneRef?.setNotice(
-        `Imported ${count ?? 0} feature${(count ?? 0) !== 1 ? 's' : ''}.`,
-        'success'
-      );
+      notice = {
+        text: `Imported ${count ?? 0} feature${(count ?? 0) !== 1 ? 's' : ''}.`,
+        tone: 'success',
+      };
     } catch (e) {
       console.error('GeoJSON import failed', e);
-      rightPaneRef?.setNotice('Failed to import GeoJSON file.', 'error');
+      notice = { text: 'Failed to import GeoJSON file.', tone: 'error' };
     }
   }
 
@@ -301,10 +213,10 @@
   async function addOverpassResult() {
     if (!overpassPreview) return;
     const count = await drawToolRef?.importGeoJsonText(JSON.stringify(overpassPreview));
-    rightPaneRef?.setNotice(
-      `Added ${count ?? 0} OSM feature${(count ?? 0) !== 1 ? 's' : ''}.`,
-      'success'
-    );
+    notice = {
+      text: `Added ${count ?? 0} OSM feature${(count ?? 0) !== 1 ? 's' : ''}.`,
+      tone: 'success',
+    };
     overpassPreview = null;
     overpassOpen = false;
   }
@@ -346,23 +258,6 @@
 
   let playbackHandle: PlaybackHandle | null = null;
 
-  function handleAddKeyframe() {
-    timelineStore.addFromCurrent(mapStore);
-  }
-  function handleRemoveKeyframe(e: CustomEvent<{ id: string }>) {
-    timelineStore.remove(e.detail.id);
-  }
-  function handleReorderKeyframe(e: CustomEvent<{ id: string; delta: 1 | -1 }>) {
-    timelineStore.reorder(e.detail.id, e.detail.delta);
-  }
-  function handleUpdateKeyframe(
-    e: CustomEvent<{
-      id: string;
-      patch: Partial<Pick<Keyframe, 'label' | 'duration_ms' | 'hold_ms' | 'overlay_transition'>>;
-    }>
-  ) {
-    timelineStore.update(e.detail.id, e.detail.patch);
-  }
   function handleClearTimeline() {
     playbackHandle?.stop();
     playbackHandle = null;
@@ -403,13 +298,6 @@
 
   // ── Library handlers ──────────────────────────────────────────
 
-  function handleOpenNewProject() {
-    nameDialogEditId = null;
-    nameDialogValue = '';
-    nameDialogHeading = 'New Project';
-    nameDialogOpen = true;
-  }
-
   function handleSelectProject(project: AnnotationSet) {
     currentProject = project;
     if (project.features?.features?.length) {
@@ -425,31 +313,20 @@
     activeView = 'editor';
   }
 
-  function handleEditProjectName(project: AnnotationSet) {
-    nameDialogEditId = project.id;
-    nameDialogValue = project.title;
-    nameDialogHeading = 'Rename Project';
-    nameDialogOpen = true;
+  function handleLibraryCreate(event: CustomEvent<{ title: string }>) {
+    const mapId = $mapStore.activeMapId || '';
+    const id = projectStore.createProject(event.detail.title, mapId);
+    setTimeout(() => {
+      const newProject = $projectStore.projects.find((p) => p.id === id);
+      if (newProject) {
+        currentProject = newProject;
+        activeView = 'editor';
+      }
+    }, 50);
   }
 
-  function handleNameDialogSubmit(event: CustomEvent<{ title: string; description?: string }>) {
-    const { title } = event.detail;
-    nameDialogOpen = false;
-
-    if (nameDialogEditId) {
-      projectStore.updateProject(nameDialogEditId, { title });
-    } else {
-      const mapId = $mapStore.activeMapId || '';
-      const id = projectStore.createProject(title, mapId);
-      setTimeout(() => {
-        const projects = $projectStore.projects;
-        const newProject = projects.find((p) => p.id === id);
-        if (newProject) {
-          currentProject = newProject;
-          activeView = 'editor';
-        }
-      }, 50);
-    }
+  function handleLibraryRename(event: CustomEvent<{ item: AnnotationSet; title: string }>) {
+    projectStore.updateProject(event.detail.item.id, { title: event.detail.title });
   }
 
   function handleBackToLibrary() {
@@ -506,189 +383,41 @@
 
 <!-- Auth Gate: require login -->
 {#if !session}
-  <div class="auth-gate">
-    <div class="auth-gate-card">
-      <svg
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#d4af37"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0110 0v4" />
-      </svg>
-      <h2 class="auth-gate-title">Sign in to Studio</h2>
-      <p class="auth-gate-text">
-        Sign in with your Google account to create and manage annotation projects.
-      </p>
-      <button
-        type="button"
-        class="auth-gate-btn google"
-        on:click={async () => {
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: `${window.location.origin}/auth/callback` },
-          });
-          if (error) console.error('Google sign-in failed:', error.message);
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24">
-          <path
-            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-            fill="#4285F4"
-          />
-          <path
-            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            fill="#34A853"
-          />
-          <path
-            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-            fill="#FBBC05"
-          />
-          <path
-            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-            fill="#EA4335"
-          />
-        </svg>
-        Continue with Google
-      </button>
-    </div>
-  </div>
+  <AuthGate
+    {supabase}
+    title="Sign in to Studio"
+    body="Sign in with your Google account to create and manage annotation projects."
+  />
 
   <!-- Project Library View -->
 {:else if activeView === 'library'}
-  <div class="page">
-    <PageHero eyebrow="Tools" sub="Create annotation projects on historical maps">
-      <svelte:fragment slot="title">My <span class="text-highlight">Studio.</span></svelte:fragment>
-      <div slot="actions">
-        <button type="button" class="action-btn primary-btn" on:click={handleOpenNewProject}>
-          + New Project
-        </button>
-      </div>
-    </PageHero>
+  <LibraryGrid
+    items={myProjects}
+    loading={projectsLoading}
+    noun="Project"
+    sub="Create annotation projects on historical maps"
+    thumbIcon="📝"
+    createLabel="+ New Project"
+    emptyCtaLabel="Create Project"
+    emptyTitle="Create your first project"
+    emptyText="Draw points, lines, and polygons on historical maps, then save and share your annotations."
+    on:select={(e) => handleSelectProject(e.detail.item)}
+    on:create={handleLibraryCreate}
+    on:rename={handleLibraryRename}
+    on:remove={(e) => projectStore.deleteProject(e.detail.item.id)}
+  >
+    <svelte:fragment slot="title">My <span class="text-highlight">Studio.</span></svelte:fragment>
 
-    <main class="editorial-main">
-      {#if projectsLoading}
-        <div class="library-loading">
-          <div class="loading-spinner"></div>
-          <span>Loading projects...</span>
-        </div>
-      {:else if myProjects.length === 0}
-        <div class="library-empty">
-          <svg
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#d4af37"
-            stroke-width="1.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <path d="M12 18v-6M9 15h6" />
-          </svg>
-          <h2 class="empty-title">Create your first project</h2>
-          <p class="empty-text">
-            Draw points, lines, and polygons on historical maps, then save and share your
-            annotations.
-          </p>
-          <button type="button" class="library-create-btn large" on:click={handleOpenNewProject}>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Create Project
-          </button>
-        </div>
-      {:else}
-        <CatalogGrid>
-          {#each myProjects as project (project.id)}
-            <CatalogCard title={project.title} on:click={() => handleSelectProject(project)}>
-              <div slot="thumb" class="story-thumb-placeholder">
-                <span class="story-icon">📝</span>
-              </div>
-              <div slot="meta" class="meta">
-                <span class="meta-tag"
-                  >{featureCount(project)} feature{featureCount(project) !== 1 ? 's' : ''}</span
-                >
-                <span class="meta-tag date"
-                  >{new Date(project.updatedAt).toLocaleDateString('en-GB')}</span
-                >
-              </div>
-              <div slot="description" class="description">
-                {project.mapId ? `Map: ${project.mapId.slice(0, 8)}...` : 'No map selected'}
-              </div>
-              <div slot="actions">
-                <button
-                  type="button"
-                  class="btn-icon-edit"
-                  title="Rename project"
-                  on:click|stopPropagation={() => handleEditProjectName(project)}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  >
-                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  class="btn-icon-delete"
-                  title="Delete project"
-                  on:click|stopPropagation={() => {
-                    if (confirm(`Delete "${project.title}"?`))
-                      projectStore.deleteProject(project.id);
-                  }}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                    <path d="M10 11v6M14 11v6" />
-                  </svg>
-                </button>
-              </div>
-            </CatalogCard>
-          {/each}
-        </CatalogGrid>
-      {/if}
-    </main>
-  </div>
+    <svelte:fragment slot="meta" let:item>
+      <span class="meta-tag">{featureCount(item)} feature{featureCount(item) !== 1 ? 's' : ''}</span
+      >
+      <span class="meta-tag date">{new Date(item.updatedAt).toLocaleDateString('en-GB')}</span>
+    </svelte:fragment>
 
-  <NameDialog
-    open={nameDialogOpen}
-    bind:value={nameDialogValue}
-    heading={nameDialogHeading}
-    on:submit={handleNameDialogSubmit}
-    on:close={() => (nameDialogOpen = false)}
-  />
+    <svelte:fragment slot="description" let:item>
+      {item.mapId ? `Map: ${item.mapId.slice(0, 8)}...` : 'No map selected'}
+    </svelte:fragment>
+  </LibraryGrid>
 
   <!-- Editor View — desktop two-sidebar layout -->
 {:else}
@@ -706,7 +435,7 @@
       on:searchnavigate={handleSearchNavigate}
     >
       <svelte:fragment slot="sidebar">
-        <CreateSidebar
+        <MapViewerSidebar
           {mapList}
           {selectedMap}
           allowDual={false}
@@ -721,7 +450,6 @@
 
       <svelte:fragment slot="right-sidebar">
         <StudioRightPane
-          bind:this={rightPaneRef}
           project={currentProject}
           {annotations}
           {selectedAnnotationId}
@@ -729,13 +457,16 @@
           {drawingMode}
           {isSaving}
           {saveSuccess}
-          on:rename={handleAnnotationRename}
-          on:changeColor={handleAnnotationChangeColor}
-          on:updateDetails={handleAnnotationUpdateDetails}
-          on:toggleVisibility={handleAnnotationToggleVisibility}
-          on:select={handleAnnotationSelect}
-          on:delete={handleAnnotationDelete}
-          on:zoomTo={handleAnnotationZoomTo}
+          {notice}
+          {timelineStore}
+          on:rename={(e) => drawToolRef?.updateAnnotationLabel(e.detail.id, e.detail.label)}
+          on:changeColor={(e) => drawToolRef?.updateAnnotationColor(e.detail.id, e.detail.color)}
+          on:updateDetails={(e) =>
+            drawToolRef?.updateAnnotationDetails(e.detail.id, e.detail.details)}
+          on:toggleVisibility={(e) => drawToolRef?.toggleAnnotationVisibility(e.detail.id)}
+          on:select={(e) => annotationState.setSelected(e.detail.id)}
+          on:delete={(e) => drawToolRef?.deleteAnnotation(e.detail.id)}
+          on:zoomTo={(e) => drawToolRef?.zoomToAnnotation(e.detail.id)}
           on:setDrawingMode={handleSetDrawingMode}
           on:clear={handleAnnotationClear}
           on:exportGeoJSON={handleAnnotationExport}
@@ -745,10 +476,10 @@
           on:renameProject={handleRenameProject}
           on:backToLibrary={handleBackToLibrary}
           on:toggleCollapse={() => (rightSidebarCollapsed = true)}
-          on:addKeyframe={handleAddKeyframe}
-          on:removeKeyframe={handleRemoveKeyframe}
-          on:reorderKeyframe={handleReorderKeyframe}
-          on:updateKeyframe={handleUpdateKeyframe}
+          on:addKeyframe={() => timelineStore.addFromCurrent(mapStore)}
+          on:removeKeyframe={(e) => timelineStore.remove(e.detail.id)}
+          on:reorderKeyframe={(e) => timelineStore.reorder(e.detail.id, e.detail.delta)}
+          on:updateKeyframe={(e) => timelineStore.update(e.detail.id, e.detail.patch)}
           on:clearTimeline={handleClearTimeline}
           on:jumpToKeyframe={handleJumpToKeyframe}
           on:play={handlePlayTimeline}

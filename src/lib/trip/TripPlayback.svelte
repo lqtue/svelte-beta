@@ -14,6 +14,12 @@
   import type { Story, StoryPoint, StoryProgress } from '$lib/story/types';
   import { haversineDistance } from '$lib/geo/geo';
   import { bearingDeg, compassLabel } from '$lib/geo/bearing';
+  import {
+    checkAnswer,
+    createAnswerGate,
+    derivePlaybackState,
+    type AnswerStatus,
+  } from '$lib/story/playbackState';
   import TripComplete from './TripComplete.svelte';
 
   const dispatch = createEventDispatcher<{
@@ -31,12 +37,8 @@
   export let walkedMeters = 0;
   export let canSaveProgress = false;
 
-  $: currentIndex = progress?.currentPointIndex ?? 0;
-  $: completedIds = new Set(progress?.completedPoints ?? []);
-  $: currentPoint = currentIndex < story.points.length ? story.points[currentIndex] : null;
-  $: isFinished = currentIndex >= story.points.length;
-  $: total = story.points.length;
-  $: progressFraction = total > 0 ? completedIds.size / total : 0;
+  $: playback = derivePlaybackState(story, progress);
+  $: ({ currentIndex, completedIds, currentPoint, isFinished, total, progressFraction } = playback);
   $: startedAt = progress?.startedAt ?? Date.now();
   $: elapsedMinutes = Math.max(1, Math.round((Date.now() - startedAt) / 60_000));
 
@@ -96,14 +98,13 @@
   }
 
   // ── Per-point challenge state ─────────────────────────────────────
+  const answerGate = createAnswerGate();
   let answerDraft = '';
   // 'idle' before submit; 'wrong' on miss; 'right' after a correct submission
   // — stays for as long as the user is still on this stop (so the green
   // "Correct!" banner persists until they tap Next).
-  let answerStatus: 'idle' | 'wrong' | 'right' = 'idle';
-  let lastPointId: string | null = null;
-  $: if (currentPoint && currentPoint.id !== lastPointId) {
-    lastPointId = currentPoint.id;
+  let answerStatus: AnswerStatus = 'idle';
+  $: if (answerGate.changed(currentPoint)) {
     answerDraft = '';
     answerStatus = 'idle';
     // New stop → bump back to mid so the user sees the card.
@@ -119,9 +120,7 @@
 
   function submitAnswer() {
     if (!currentPoint || currentPoint.challenge?.type !== 'question') return;
-    const expected = (currentPoint.challenge.answer ?? '').trim().toLowerCase();
-    const got = answerDraft.trim().toLowerCase();
-    if (!expected || got === expected) {
+    if (checkAnswer(currentPoint.challenge, answerDraft)) {
       answerStatus = 'right';
       markVisited(); // marks completed without advancing — user taps Next
     } else {
@@ -161,8 +160,15 @@
       if ((e.target as HTMLElement).closest('button')) return;
       toggleSnap();
     }}
+    on:keydown={(e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      if ((e.target as HTMLElement).closest('button')) return;
+      e.preventDefault();
+      toggleSnap();
+    }}
     role="button"
     tabindex="0"
+    aria-label="Expand or collapse the trip player"
   >
     <div class="grip" aria-hidden="true"></div>
 

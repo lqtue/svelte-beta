@@ -1,6 +1,6 @@
 /*
   sidebar.css — design system for map-tool sidebars (left and right).
-  Used by /view (ViewSidebar), /create (CreateSidebar, CreateRightPane),
+  Used by /view (ViewSidebar), /create (MapViewerSidebar, CreateRightPane),
   and the panels they compose (LayerStackPanel, LayerControlsPanel,
   CatalogSidebarPanel, StoryHeaderPanel, StoryPointsPanel, PointInspector).
 

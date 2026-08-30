@@ -78,7 +78,11 @@ export interface TimelineStore extends Readable<TimelineState> {
   setCurrentIndex(i: number | null): void;
 }
 
-function create(): TimelineStore {
+/**
+ * One timeline per editor session — created by StudioMode and passed down to
+ * the panels, so leaving and re-entering the editor starts from a clean slate.
+ */
+export function createTimelineStore(): TimelineStore {
   const inner = writable<TimelineState>({ frames: [], currentIndex: null, isPlaying: false });
   const { subscribe, update } = inner;
 
@@ -141,5 +145,3 @@ function create(): TimelineStore {
     },
   };
 }
-
-export const timelineStore = create();

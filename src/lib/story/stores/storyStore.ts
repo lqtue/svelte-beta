@@ -185,6 +185,51 @@ export function createStoryPlayerStore(_supabase?: SupabaseClient<Database>, _us
     });
   }
 
+  /**
+   * Mark a point visited WITHOUT advancing — the player controls Next.
+   * No-op when the story has no progress yet, or the point is already done.
+   */
+  function markVisited(storyId: string, pointId: string) {
+    store.update((state) => {
+      const p = state.progress[storyId];
+      if (!p || p.completedPoints.includes(pointId)) return state;
+      return {
+        ...state,
+        progress: {
+          ...state.progress,
+          [storyId]: { ...p, completedPoints: [...p.completedPoints, pointId] },
+        },
+      };
+    });
+  }
+
+  /**
+   * Step the cursor one stop forward or back, clamped to [0, totalPoints].
+   * Stamps `completedAt` the first time the cursor leaves the final stop.
+   */
+  function advance(storyId: string, direction: 'next' | 'prev', totalPoints: number) {
+    store.update((state) => {
+      const p = state.progress[storyId];
+      if (!p) return state;
+      const nextIndex =
+        direction === 'next'
+          ? Math.min(p.currentPointIndex + 1, totalPoints)
+          : Math.max(p.currentPointIndex - 1, 0);
+      const finished = nextIndex >= totalPoints;
+      return {
+        ...state,
+        progress: {
+          ...state.progress,
+          [storyId]: {
+            ...p,
+            currentPointIndex: nextIndex,
+            completedAt: finished ? (p.completedAt ?? Date.now()) : p.completedAt,
+          },
+        },
+      };
+    });
+  }
+
   function stopStory() {
     store.update((state) => ({ ...state, activeStoryId: null }));
   }
@@ -207,6 +252,8 @@ export function createStoryPlayerStore(_supabase?: SupabaseClient<Database>, _us
     reset: store.reset,
     startStory,
     completePoint,
+    markVisited,
+    advance,
     stopStory,
     resetProgress,
     loadFromSupabase: async () => {},

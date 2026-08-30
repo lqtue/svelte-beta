@@ -6,6 +6,12 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { Story, StoryPoint, StoryProgress } from '$lib/story/types';
+  import {
+    checkAnswer,
+    createAnswerGate,
+    derivePlaybackState,
+    type AnswerStatus,
+  } from '$lib/story/playbackState';
 
   const dispatch = createEventDispatcher<{
     navigatePoint: { index: number; point: StoryPoint };
@@ -17,12 +23,9 @@
   export let story: Story;
   export let progress: StoryProgress | null = null;
 
-  $: currentIndex = progress?.currentPointIndex ?? 0;
-  $: completedIds = new Set(progress?.completedPoints ?? []);
-  $: currentPoint = currentIndex < story.points.length ? story.points[currentIndex] : null;
-  $: isFinished = currentIndex >= story.points.length;
-  $: totalPoints = story.points.length;
-  $: progressFraction = totalPoints > 0 ? completedIds.size / totalPoints : 0;
+  $: playback = derivePlaybackState(story, progress);
+  $: ({ currentIndex, completedIds, currentPoint, isFinished, progressFraction } = playback);
+  $: totalPoints = playback.total;
 
   function goToPoint(index: number) {
     if (index < 0 || index >= story.points.length) return;
@@ -35,20 +38,17 @@
   }
 
   // Per-point challenge state. Resets when the active point changes.
+  const answerGate = createAnswerGate();
   let answerDraft = '';
-  let answerStatus: 'idle' | 'wrong' | 'right' = 'idle';
-  let lastPointId: string | null = null;
-  $: if (currentPoint && currentPoint.id !== lastPointId) {
-    lastPointId = currentPoint.id;
+  let answerStatus: AnswerStatus = 'idle';
+  $: if (answerGate.changed(currentPoint)) {
     answerDraft = '';
     answerStatus = 'idle';
   }
 
   function submitAnswer() {
     if (!currentPoint || currentPoint.challenge?.type !== 'question') return;
-    const expected = (currentPoint.challenge.answer ?? '').trim().toLowerCase();
-    const got = answerDraft.trim().toLowerCase();
-    if (!expected || got === expected) {
+    if (checkAnswer(currentPoint.challenge, answerDraft)) {
       answerStatus = 'right';
       handleComplete();
     } else {

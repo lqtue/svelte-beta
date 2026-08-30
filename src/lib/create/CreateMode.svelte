@@ -2,7 +2,7 @@
   CreateMode.svelte — /create plugin on MapWorkspace.
 
   Desktop authoring:
-    • Left sidebar  — Layers · Controls · Browse (reused from /view)
+    • Left sidebar  — Layers · Controls · Browse (MapViewerSidebar, shared)
     • Right sidebar — Story info · Points · Point editor (CreateRightPane)
   Edits to currentStory auto-persist to storyLibrary on every change
   (see persistDraft below), and the last-open story id is remembered in
@@ -23,23 +23,21 @@
   import { syncStoryToSupabase } from '$lib/supabase/stories';
   import { createStoryLibraryStore } from '$lib/story/stores/storyStore';
   import { fetchGeoreferencedMaps } from '$lib/maps/service';
-  import { fetchAnnotationBounds } from '$lib/geo/mapBounds';
-  import { boundsCenter, boundsZoom } from '$lib/ui/searchUtils';
   import { layersStore } from '$lib/stores/layersStore';
+  import { applyPointOverlay, applyStoryPoint, resolveMapRef } from '$lib/story/applyPoint';
+  import { createMapPickHandlers } from '$lib/story/mapPickHandlers';
 
   import MapWorkspace from '$lib/shell/MapWorkspace.svelte';
   import MapClickCapture from './MapClickCapture.svelte';
-  import CreateSidebar from './CreateSidebar.svelte';
+  import MapViewerSidebar from '$lib/ui/catalog/MapViewerSidebar.svelte';
   import CreateRightPane from './CreateRightPane.svelte';
   import StoryMarkers from '$lib/story/StoryMarkers.svelte';
   import StoryPlayback from '$lib/story/StoryPlayback.svelte';
   import LayerStackPanel from '$lib/ui/catalog/LayerStackPanel.svelte';
   import LayerControlsPanel from '$lib/ui/catalog/LayerControlsPanel.svelte';
   import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
-  import NameDialog from '$lib/ui/NameDialog.svelte';
-  import PageHero from '$lib/ui/PageHero.svelte';
-  import CatalogGrid from '$lib/ui/catalog/CatalogGrid.svelte';
-  import CatalogCard from '$lib/ui/catalog/CatalogCard.svelte';
+  import AuthGate from '$lib/ui/AuthGate.svelte';
+  import LibraryGrid from '$lib/ui/LibraryGrid.svelte';
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id;
@@ -55,6 +53,11 @@
   let sidebarCollapsed = false;
   let rightSidebarCollapsed = false;
   let isMobile = false;
+
+  const { handlePickMap, handleZoomToOverlay, handlePickLocation } = createMapPickHandlers({
+    mapStore,
+    mapList: () => mapList,
+  });
 
   // Editor state
   let currentStory: Story | null = null;
@@ -75,13 +78,6 @@
   let previewMode = false;
   let previewProgress: import('$lib/story/types').StoryProgress | null = null;
 
-  // Name dialog
-  let nameDialogOpen = false;
-  let nameDialogValue = '';
-  let nameDialogDescriptionValue = '';
-  let nameDialogHeading = 'New Story';
-  let nameDialogEditId: string | null = null;
-
   // Reactive: top historical overlay drives new-point pinning + inspector display.
   $: topOverlay = $layersStore.overlays[0]?.ref ?? null;
   $: topLayerMapId = topOverlay?.mapId ?? null;
@@ -91,13 +87,9 @@
   $: selectedPointIndex = selectedPoint
     ? currentStory!.points.findIndex((p) => p.id === selectedPoint!.id)
     : -1;
-  $: pinnedLayerName = (() => {
-    if (!selectedPoint?.overlayMapId) return null;
-    const m = mapList.find(
-      (x) => x.id === selectedPoint!.overlayMapId || x.allmaps_id === selectedPoint!.overlayMapId
-    );
-    return m?.name ?? selectedPoint!.overlayMapId;
-  })();
+  $: pinnedLayerName = selectedPoint?.overlayMapId
+    ? (resolveMapRef(mapList, selectedPoint.overlayMapId)?.name ?? selectedPoint.overlayMapId)
+    : null;
 
   $: myStories = $storyLibrary.stories.filter((s) => s.authorId === userId);
 
@@ -392,41 +384,14 @@
       startedAt: Date.now(),
     };
     previewMode = true;
-
-    const first = currentStory.points[0];
-    if (first.coordinates) {
-      mapStore.setView({ lng: first.coordinates[0], lat: first.coordinates[1], zoom: 17 });
-    }
-    applyPointOverlay(first);
-  }
-
-  function applyPointOverlay(point: StoryPoint) {
-    if (!point.overlayMapId) return;
-    const found = mapList.find(
-      (m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId
-    );
-    const allmapsId = found?.annotation_url ?? found?.allmaps_id;
-    const mapId = found?.id ?? point.overlayMapId;
-    if (allmapsId) {
-      layersStore.clearOverlays();
-      layersStore.addOverlay({
-        kind: 'historical',
-        mapId,
-        allmapsId,
-        name: found?.name,
-        thumbnail: found?.thumbnail,
-      });
-    }
+    applyStoryPoint(currentStory.points[0], mapList, mapStore);
   }
 
   function handlePreviewNavigate(event: CustomEvent<{ index: number; point: StoryPoint }>) {
     const { index, point } = event.detail;
     if (!previewProgress) return;
     previewProgress = { ...previewProgress, currentPointIndex: index };
-    if (point.coordinates) {
-      mapStore.setView({ lng: point.coordinates[0], lat: point.coordinates[1], zoom: 17 });
-    }
-    applyPointOverlay(point);
+    applyStoryPoint(point, mapList, mapStore);
   }
 
   function handlePreviewComplete(event: CustomEvent<{ storyId: string; pointId: string }>) {
@@ -468,7 +433,7 @@
     // Pre-apply any pinned historical overlay from the first point so the
     // editor shows the same scene as preview/playback.
     const first = story.points.find((p) => p.overlayMapId);
-    if (first) applyPointOverlay(first);
+    if (first) applyPointOverlay(first, mapList);
     // Centre on the first point with coords, if any.
     const p0 = story.points[0];
     if (p0?.coordinates) {
@@ -476,39 +441,23 @@
     }
   }
 
-  function handleCreateNewStory() {
-    if (isMobile) return; // Should not be reachable — button is hidden on mobile.
-    nameDialogEditId = null;
-    nameDialogValue = '';
-    nameDialogDescriptionValue = '';
-    nameDialogHeading = 'New Story';
-    nameDialogOpen = true;
-  }
-
-  function handleEditStoryName(story: Story) {
-    nameDialogEditId = story.id;
-    nameDialogValue = story.title;
-    nameDialogDescriptionValue = story.description || '';
-    nameDialogHeading = 'Rename Story';
-    nameDialogOpen = true;
-  }
-
-  function handleNameDialogSubmit(event: CustomEvent<{ title: string; description?: string }>) {
+  function handleLibraryCreate(event: CustomEvent<{ title: string; description?: string }>) {
     const { title, description } = event.detail;
-    nameDialogOpen = false;
+    const id = storyLibrary.createStory(title, description || '');
+    setTimeout(() => {
+      const story = $storyLibrary.stories.find((s) => s.id === id);
+      if (story) {
+        currentStory = story;
+        activeView = 'editor';
+      }
+    }, 50);
+  }
 
-    if (nameDialogEditId) {
-      storyLibrary.updateStory(nameDialogEditId, { title, description });
-    } else {
-      const id = storyLibrary.createStory(title, description || '');
-      setTimeout(() => {
-        const story = $storyLibrary.stories.find((s) => s.id === id);
-        if (story) {
-          currentStory = story;
-          activeView = 'editor';
-        }
-      }, 50);
-    }
+  function handleLibraryRename(
+    event: CustomEvent<{ item: Story; title: string; description?: string }>
+  ) {
+    const { item, title, description } = event.detail;
+    storyLibrary.updateStory(item.id, { title, description });
   }
 
   function handleSearchNavigate(event: CustomEvent<{ result: SearchResult }>) {
@@ -517,67 +466,6 @@
       lat: parseFloat(event.detail.result.lat),
       zoom: 16,
     });
-  }
-
-  function handlePickLocation(
-    event: CustomEvent<{ lat: number; lng: number; bbox?: [number, number, number, number] }>
-  ) {
-    const { lat, lng, bbox } = event.detail;
-    if (bbox) {
-      mapStore.setView({
-        ...boundsCenter(bbox),
-        zoom: boundsZoom(bbox),
-        lng: boundsCenter(bbox).lng,
-        lat: boundsCenter(bbox).lat,
-      });
-    } else {
-      mapStore.setView({ lng, lat, zoom: 15 });
-    }
-  }
-
-  /** Catalog row click = swap top overlay to this map (same as /view). */
-  async function handlePickMap(event: CustomEvent<any>) {
-    const item = event.detail;
-    if (!item?.id) return;
-    let map = mapList.find((m) => m.id === item.id) ?? null;
-    if (!map) map = { ...item } as MapListItem;
-    const allmapsId = map.annotation_url ?? map.allmaps_id;
-
-    if (allmapsId) {
-      layersStore.clearOverlays();
-      layersStore.addOverlay({
-        kind: 'historical',
-        mapId: map.id,
-        allmapsId,
-        name: map.name,
-        thumbnail: map.thumbnail,
-      });
-    }
-
-    let bounds = map.bounds ?? map.bbox ?? null;
-    if (!bounds) {
-      const src = map.annotation_url ?? map.allmaps_id;
-      if (src) bounds = await fetchAnnotationBounds(src);
-    }
-    if (bounds) {
-      const center = boundsCenter(bounds);
-      mapStore.setView({ lng: center.lng, lat: center.lat, zoom: boundsZoom(bounds) });
-    }
-  }
-
-  async function handleZoomToMap(event: CustomEvent<{ map: MapListItem }>) {
-    const { map } = event.detail;
-    let bounds = map.bounds ?? map.bbox ?? null;
-    if (!bounds) bounds = await fetchAnnotationBounds(map.annotation_url ?? map.allmaps_id ?? '');
-    if (bounds) {
-      const c = boundsCenter(bounds);
-      mapStore.setView({ lng: c.lng, lat: c.lat, zoom: boundsZoom(bounds) });
-    }
-  }
-
-  function handleZoomToOverlay(e: CustomEvent<{ mapId: string }>) {
-    const m = mapList.find((x) => x.id === e.detail.mapId);
-    if (m) handleZoomToMap(new CustomEvent('zoomToMap', { detail: { map: m } }));
   }
 
   function handleUndo() {
@@ -626,219 +514,70 @@
   });
 </script>
 
-<!-- Auth Gate -->
 {#if !session}
-  <div class="auth-gate">
-    <div class="auth-gate-card">
-      <svg
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#d4af37"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0110 0v4" />
-      </svg>
-      <h2 class="auth-gate-title">Sign in to build a story</h2>
-      <p class="auth-gate-text">
-        Stories are saved to your account so you can come back and edit them.
-      </p>
-      <button
-        type="button"
-        class="auth-gate-btn google"
-        on:click={async () => {
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: `${window.location.origin}/auth/callback` },
-          });
-          if (error) console.error('Google sign-in failed:', error.message);
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24">
-          <path
-            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-            fill="#4285F4"
-          />
-          <path
-            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            fill="#34A853"
-          />
-          <path
-            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-            fill="#FBBC05"
-          />
-          <path
-            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-            fill="#EA4335"
-          />
-        </svg>
-        Continue with Google
-      </button>
-    </div>
-  </div>
+  <AuthGate
+    {supabase}
+    title="Sign in to build a story"
+    body="Stories are saved to your account so you can come back and edit them."
+  />
 
   <!-- Library View (desktop + mobile) -->
 {:else if activeView === 'library'}
-  <div class="page">
-    <PageHero eyebrow="Tools" sub="Walk readers through a place, one historical layer at a time.">
-      <svelte:fragment slot="title"
-        >Your <span class="text-highlight">stories.</span></svelte:fragment
-      >
-      <div slot="actions">
-        {#if !isMobile}
-          <button type="button" class="action-btn primary-btn" on:click={handleCreateNewStory}
-            >+ New story</button
-          >
-        {/if}
-      </div>
-    </PageHero>
+  <LibraryGrid
+    items={myStories}
+    loading={storiesLoading}
+    noun="Story"
+    sub="Walk readers through a place, one historical layer at a time."
+    thumbIcon="📖"
+    createLabel="+ New story"
+    emptyCtaLabel="New story"
+    emptyTitle={isMobile ? 'No stories yet.' : 'Start your first story.'}
+    emptyText={isMobile
+      ? 'Open the site on a laptop to author a guided tour or scrollytelling walk.'
+      : 'Drop points on a historical map, write a line or two for each, optionally add a challenge, and share.'}
+    showCreate={!isMobile}
+    showItemActions={!isMobile}
+    descriptionOf={(s) => s.description || ''}
+    on:select={(e) => handleSelectStory(e.detail.item)}
+    on:create={handleLibraryCreate}
+    on:rename={handleLibraryRename}
+    on:remove={(e) => storyLibrary.deleteStory(e.detail.item.id)}
+  >
+    <svelte:fragment slot="title">Your <span class="text-highlight">stories.</span></svelte:fragment
+    >
 
-    {#if isMobile}
-      <div class="mobile-banner">
-        <strong>Editing is desktop-only.</strong>
-        Tap a story here to play it. To author or edit one, open VMA on a laptop.
-      </div>
-    {/if}
-
-    <main class="editorial-main">
-      {#if storiesLoading}
-        <div class="library-loading">
-          <div class="loading-spinner"></div>
-          <span>Loading your stories…</span>
+    <svelte:fragment slot="banner">
+      {#if isMobile}
+        <div class="mobile-banner">
+          <strong>Editing is desktop-only.</strong>
+          Tap a story here to play it. To author or edit one, open VMA on a laptop.
         </div>
-      {:else if myStories.length === 0}
-        <div class="library-empty">
-          <svg
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#d4af37"
-            stroke-width="1.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <path d="M12 18v-6M9 15h6" />
-          </svg>
-          <h2 class="empty-title">{isMobile ? 'No stories yet.' : 'Start your first story.'}</h2>
-          <p class="empty-text">
-            {isMobile
-              ? 'Open the site on a laptop to author a guided tour or scrollytelling walk.'
-              : 'Drop points on a historical map, write a line or two for each, optionally add a challenge, and share.'}
-          </p>
-          {#if !isMobile}
-            <button type="button" class="library-create-btn large" on:click={handleCreateNewStory}>
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              New story
-            </button>
-          {/if}
-        </div>
-      {:else}
-        <CatalogGrid>
-          {#each myStories as story (story.id)}
-            <CatalogCard title={story.title} on:click={() => handleSelectStory(story)}>
-              <div slot="thumb" class="story-thumb-placeholder">
-                <span class="story-icon">📖</span>
-              </div>
-              <div slot="meta" class="meta">
-                <span class="meta-tag"
-                  >{story.points.length} point{story.points.length !== 1 ? 's' : ''}</span
-                >
-                <span class="meta-tag date"
-                  >{new Date(story.updatedAt).toLocaleDateString('en-GB')}</span
-                >
-                <span class="meta-tag publish-status" class:published={story.isPublic}>
-                  {story.isPublic ? 'Public' : 'Private'}
-                </span>
-              </div>
-              <div slot="description" class="description">
-                {story.description || 'No description'}
-              </div>
-              <div slot="actions">
-                {#if story.points.length}
-                  <a
-                    class="sb-btn is-sm"
-                    href="/trip/{story.id}"
-                    title="Walk this story on mobile"
-                    on:click|stopPropagation>Walk</a
-                  >
-                {/if}
-                {#if !isMobile}
-                  <button
-                    type="button"
-                    class="btn-icon-edit"
-                    title="Rename story"
-                    on:click|stopPropagation={() => handleEditStoryName(story)}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                    >
-                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-icon-delete"
-                    title="Delete story"
-                    on:click|stopPropagation={() => {
-                      if (confirm(`Delete "${story.title}"?`)) storyLibrary.deleteStory(story.id);
-                    }}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                    >
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                      <path d="M10 11v6M14 11v6" />
-                    </svg>
-                  </button>
-                {/if}
-              </div>
-            </CatalogCard>
-          {/each}
-        </CatalogGrid>
       {/if}
-    </main>
-  </div>
+    </svelte:fragment>
 
-  <NameDialog
-    open={nameDialogOpen}
-    bind:value={nameDialogValue}
-    showDescription={true}
-    bind:descriptionValue={nameDialogDescriptionValue}
-    heading={nameDialogHeading}
-    on:submit={handleNameDialogSubmit}
-    on:close={() => (nameDialogOpen = false)}
-  />
+    <svelte:fragment slot="meta" let:item>
+      <span class="meta-tag">{item.points.length} point{item.points.length !== 1 ? 's' : ''}</span>
+      <span class="meta-tag date">{new Date(item.updatedAt).toLocaleDateString('en-GB')}</span>
+      <span class="meta-tag publish-status" class:published={item.isPublic}>
+        {item.isPublic ? 'Public' : 'Private'}
+      </span>
+    </svelte:fragment>
+
+    <svelte:fragment slot="description" let:item>
+      {item.description || 'No description'}
+    </svelte:fragment>
+
+    <svelte:fragment slot="item-actions" let:item>
+      {#if item.points.length}
+        <a
+          class="sb-btn is-sm"
+          href="/trip/{item.id}"
+          title="Walk this story on mobile"
+          on:click|stopPropagation>Walk</a
+        >
+      {/if}
+    </svelte:fragment>
+  </LibraryGrid>
 
   <!-- Editor View (desktop primary; mobile shows playback only via library redirect) -->
 {:else}
@@ -856,7 +595,7 @@
       on:searchnavigate={handleSearchNavigate}
     >
       <svelte:fragment slot="sidebar">
-        <CreateSidebar
+        <MapViewerSidebar
           {mapList}
           {selectedMap}
           allowDual={false}

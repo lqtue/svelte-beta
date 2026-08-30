@@ -10,7 +10,9 @@
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem, AnnotationSummary, DrawingMode, AnnotationSet } from '$lib/map/types';
   import SidebarCard from '$lib/ui/catalog/SidebarCard.svelte';
+  import InlineRename from '$lib/ui/InlineRename.svelte';
   import StudioAnimationPanel from './StudioAnimationPanel.svelte';
+  import type { TimelineStore } from './animation/timelineStore';
 
   const dispatch = createEventDispatcher<{
     rename: { id: string; label: string };
@@ -38,58 +40,18 @@
   export let drawingMode: DrawingMode | null = null;
   export let isSaving = false;
   export let saveSuccess = false;
+  /** Transient status line above the annotation list, owned by StudioMode. */
+  export let notice: { text: string; tone: 'info' | 'error' | 'success' } | null = null;
+  export let timelineStore: TimelineStore;
 
   type Mode = 'annotate' | 'animate';
   let mode: Mode = 'annotate';
-
-  let notice: string | null = null;
-  let noticeType: 'info' | 'error' | 'success' = 'info';
-
-  // Title rename (dblclick → input)
-  let editingTitle = false;
-  let titleDraft = '';
-  let titleInputEl: HTMLInputElement | null = null;
-
-  export function setNotice(message: string | null, tone: 'info' | 'error' | 'success' = 'info') {
-    notice = message;
-    noticeType = tone;
-  }
 
   $: selected = annotations.find((a) => a.id === selectedAnnotationId) ?? null;
   $: selectedIndex = selected ? annotations.findIndex((a) => a.id === selected!.id) : -1;
   $: inspectorTitle = selected
     ? `${selectedIndex + 1}. ${selected.label || 'Untitled'}`
     : 'Inspector';
-
-  function startEditTitle() {
-    if (!project) return;
-    titleDraft = project.title;
-    editingTitle = true;
-    requestAnimationFrame(() => {
-      titleInputEl?.focus();
-      titleInputEl?.select();
-    });
-  }
-  function commitEditTitle() {
-    if (!editingTitle) return;
-    const next = titleDraft.trim();
-    editingTitle = false;
-    if (next && project && next !== project.title) {
-      dispatch('renameProject', { title: next });
-    }
-  }
-  function cancelEditTitle() {
-    editingTitle = false;
-  }
-  function onTitleKey(e: KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitEditTitle();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelEditTitle();
-    }
-  }
 
   function pickDrawMode(m: DrawingMode) {
     dispatch('setDrawingMode', { mode: drawingMode === m ? null : m });
@@ -191,29 +153,13 @@
 
   <!-- Compact project header (one strip, both modes) -->
   <div class="sh-compact">
-    {#if editingTitle}
-      <input
-        class="sh-title-input"
-        bind:this={titleInputEl}
-        bind:value={titleDraft}
-        on:blur={commitEditTitle}
-        on:keydown={onTitleKey}
-        placeholder="Project title"
-      />
-    {:else}
-      <h2
-        class="sh-title"
-        title="Double-click to rename"
-        on:dblclick={startEditTitle}
-        role="button"
-        tabindex="0"
-        on:keydown={(e) => {
-          if (e.key === 'Enter' || e.key === 'F2') startEditTitle();
-        }}
-      >
-        {project?.title ?? 'Untitled project'}
-      </h2>
-    {/if}
+    <InlineRename
+      compact
+      value={project?.title ?? ''}
+      fallback="Untitled project"
+      placeholder="Project title"
+      on:rename={(e) => dispatch('renameProject', { title: e.detail.title })}
+    />
     {#if selectedMap}
       <span class="sh-map" title={selectedMap.name}>
         {selectedMap.name}{#if selectedMap.year}<span class="sh-year">
@@ -302,10 +248,10 @@
       {#if notice}
         <p
           class="notice"
-          class:errored={noticeType === 'error'}
-          class:success={noticeType === 'success'}
+          class:errored={notice.tone === 'error'}
+          class:success={notice.tone === 'success'}
         >
-          {notice}
+          {notice.text}
         </p>
       {/if}
 
@@ -427,6 +373,7 @@
     </SidebarCard>
   {:else}
     <StudioAnimationPanel
+      {timelineStore}
       on:addKeyframe
       on:removeKeyframe
       on:reorderKeyframe
@@ -488,45 +435,6 @@
     padding: 0.4rem 0.7rem;
     border-bottom: var(--sb-border);
     min-height: 36px;
-  }
-  .sh-title {
-    margin: 0;
-    flex: 0 1 auto;
-    font-family: var(--sb-font-display);
-    font-size: 0.9rem;
-    font-weight: 800;
-    color: var(--sb-text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 50%;
-    cursor: text;
-    user-select: none;
-    padding: 2px 4px;
-    margin: -2px -4px;
-    border-radius: var(--sb-radius-sm);
-  }
-  .sh-title:hover {
-    background: var(--sb-accent-yellow, #fff3a3);
-  }
-  .sh-title:focus {
-    outline: 2px solid var(--sb-accent);
-    outline-offset: -1px;
-  }
-  .sh-title-input {
-    flex: 1;
-    padding: 0.2rem 0.35rem;
-    font-family: var(--sb-font-display);
-    font-size: 0.9rem;
-    font-weight: 800;
-    color: var(--sb-text);
-    background: var(--sb-card-bg);
-    border: var(--sb-border);
-    border-radius: var(--sb-radius-sm);
-  }
-  .sh-title-input:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--sb-accent);
   }
   .sh-map {
     flex: 1;

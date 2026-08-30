@@ -108,6 +108,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="overpass-title"
+    tabindex="-1"
     on:keydown={onKey}
   >
     <header class="head">

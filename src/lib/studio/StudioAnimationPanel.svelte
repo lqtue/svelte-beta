@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
-  import { timelineStore } from './animation/timelineStore';
+  import type { TimelineStore } from './animation/timelineStore';
 
   const dispatch = createEventDispatcher<{
     addKeyframe: void;
@@ -27,6 +27,8 @@
     clearTimeline: void;
     jumpToKeyframe: { id: string };
   }>();
+
+  export let timelineStore: TimelineStore;
 
   $: state = $timelineStore;
   $: hasFrames = state.frames.length > 0;
