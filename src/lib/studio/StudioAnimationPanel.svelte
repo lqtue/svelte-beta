@@ -266,7 +266,7 @@
     grid-area: thumb;
     width: 56px;
     height: 56px;
-    background: var(--sb-bg, #f6f4ef);
+    background: var(--sb-bg);
     background-size: cover;
     background-position: center;
     border: var(--sb-border);
@@ -310,7 +310,7 @@
   .kf-label:focus {
     outline: none;
     border-color: var(--sb-accent);
-    background: #fff;
+    background: var(--color-white);
   }
 
   .kf-desc {
@@ -344,7 +344,7 @@
     font-weight: 600;
     text-transform: none;
     letter-spacing: 0;
-    background: #fff;
+    background: var(--color-white);
     border: var(--sb-border);
     border-radius: var(--sb-radius-sm);
   }
@@ -360,7 +360,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    background: var(--sb-bg, #f6f4ef);
+    background: var(--sb-bg);
     color: var(--sb-text);
     border: var(--sb-border);
     border-radius: var(--sb-radius-sm);
@@ -370,11 +370,11 @@
       color 0.12s;
   }
   .kf-transition:hover {
-    background: var(--sb-accent-yellow, #fff3a3);
+    background: var(--sb-accent-yellow);
   }
   .kf-transition.is-fade {
-    background: var(--sb-text, #111);
-    color: var(--sb-card-bg, #fff);
+    background: var(--sb-text);
+    color: var(--sb-card-bg);
   }
 
   .kf-actions {

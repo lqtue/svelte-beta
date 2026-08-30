@@ -16,12 +16,10 @@ function rowToPoint(row: StoryPointRow): StoryPoint {
 		title: row.title,
 		description: row.description ?? '',
 		hint: row.hint ?? undefined,
-		quest: row.quest ?? undefined,
 		coordinates: [row.lon, row.lat],
 		triggerRadius: row.trigger_radius,
 		interaction: row.interaction as StoryPoint['interaction'],
 		challenge: (row.challenge as unknown as StoryPoint['challenge']) ?? { type: 'none' },
-		qrPayload: row.qr_payload ?? undefined,
 		overlayMapId: row.overlay_map_id ?? undefined,
 		camera:
 			row.camera && Object.keys(row.camera).length
@@ -116,13 +114,11 @@ export async function syncStoryToSupabase(
 			title: p.title || `Point ${i + 1}`,
 			description: p.description || null,
 			hint: p.hint || null,
-			quest: p.quest || null,
 			lon: p.coordinates[0],
 			lat: p.coordinates[1],
 			trigger_radius: p.triggerRadius ?? 10,
 			interaction: p.interaction ?? 'proximity',
 			challenge: (p.challenge ?? { type: 'none' }) as unknown as Json,
-			qr_payload: p.qrPayload || null,
 			// Schema FKs to maps(id); a legacy allmaps_id (16-hex) would violate the FK.
 			overlay_map_id: p.overlayMapId && UUID_RE.test(p.overlayMapId) ? p.overlayMapId : null,
 			camera: (p.camera ?? {}) as unknown as Json

@@ -168,7 +168,7 @@
     background: var(--sb-card-bg);
     border: var(--sb-border);
     border-radius: var(--sb-radius);
-    box-shadow: 4px 4px 0 #111;
+    box-shadow: var(--shadow-solid-sm);
     z-index: 100;
     pointer-events: auto;
     color: var(--sb-text);
@@ -216,7 +216,7 @@
     width: 60px;
     height: 6px;
     background: var(--sb-bg);
-    border: 1px solid #111;
+    border: 1px solid var(--color-border);
     border-radius: var(--sb-radius-pill);
     overflow: hidden;
   }
@@ -250,8 +250,8 @@
     align-items: center;
     justify-content: center;
     background: var(--sb-accent);
-    color: #fff;
-    border: 1.5px solid #111;
+    color: var(--color-white);
+    border: var(--sb-border);
     border-radius: 50%;
     font-family: var(--sb-font-display);
     font-size: 0.75rem;

@@ -14,12 +14,10 @@ export interface StoryPoint {
   title: string;
   description: string;
   hint?: string;
-  quest?: string;
   coordinates: [number, number]; // [lon, lat] EPSG:4326
   triggerRadius: number; // meters, default 10
   interaction: StopInteraction;
   challenge: PointChallenge;
-  qrPayload?: string;
   overlayMapId?: string; // maps.id UUID (new) or maps.allmaps_id (legacy) — callers resolve via mapList lookup
   camera?: { center: [number, number]; zoom: number; rotation?: number };
 }
@@ -51,5 +49,5 @@ export interface StoryPlayerState {
   progress: Record<string, StoryProgress>;
 }
 
-// Legacy compat — keep for transition period
-export type StopInteraction = 'proximity' | 'qr' | 'camera';
+// Only proximity stops exist; the 'qr'/'camera' variants were never reachable.
+export type StopInteraction = 'proximity';

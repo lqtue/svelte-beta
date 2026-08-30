@@ -195,7 +195,7 @@
     align-items: center;
     justify-content: center;
     background: var(--sb-accent);
-    color: #fff;
+    color: var(--color-white);
     border-radius: 50%;
     font-size: 0.72rem;
     font-weight: 800;

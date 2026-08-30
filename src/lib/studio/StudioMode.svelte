@@ -10,8 +10,9 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { toLonLat } from 'ol/proj';
   import '$styles/layouts/create-mode.css';
+  import '$styles/components/auth-gate.css';
+  import '$styles/components/library.css';
 
   import type { MapListItem, SearchResult, AnnotationSet, DrawingMode } from '$lib/map/types';
   import { createGeoMapStores } from '$lib/shell/geoMapSetup';
@@ -28,17 +29,11 @@
   import DrawTool from '$lib/shell/DrawTool.svelte';
   import MapViewerSidebar from '$lib/ui/catalog/MapViewerSidebar.svelte';
   import StudioRightPane from './StudioRightPane.svelte';
-  import StudioOverpassDialog from './StudioOverpassDialog.svelte';
+  import StudioOverpassController from './StudioOverpassController.svelte';
   import BboxSelector from './BboxSelector.svelte';
   import OverpassPreviewLayer from './OverpassPreviewLayer.svelte';
   import type { FeatureCollection } from 'geojson';
-  import {
-    buildQuery,
-    fetchOverpass,
-    overpassToGeoJson,
-    type Bbox4,
-    type OverpassPreset,
-  } from './overpass';
+  import type { Bbox4 } from './overpass';
   import AuthGate from '$lib/ui/AuthGate.svelte';
   import LibraryGrid from '$lib/ui/LibraryGrid.svelte';
 
@@ -81,17 +76,12 @@
   let isSaving = false;
   let saveSuccess = false;
 
-  // Overpass dialog state
-  let overpassOpen = false;
-  let overpassBbox: Bbox4 | null = null;
-  let overpassFetching = false;
-  let overpassError: string | null = null;
-  // Bbox-on-map picker state
+  // Overpass import — the flow lives in StudioOverpassController; these three
+  // are shared with the two map layers it drives.
+  let overpassController: StudioOverpassController;
   let bboxPickerActive = false;
   let pickerBbox: Bbox4 | null = null;
-  // OSM preview state (between fetch and Add)
   let overpassPreview: FeatureCollection | null = null;
-  $: overpassResultCount = overpassPreview?.features.length ?? null;
 
   function handleSearchNavigate(event: CustomEvent<{ result: SearchResult }>) {
     drawToolRef?.zoomToSearchResult(event.detail.result);
@@ -130,99 +120,6 @@
       console.error('GeoJSON import failed', e);
       notice = { text: 'Failed to import GeoJSON file.', tone: 'error' };
     }
-  }
-
-  function currentViewportBbox(): Bbox4 | null {
-    if (!shellMap) return null;
-    const view = shellMap.getView();
-    const extent = view.calculateExtent(shellMap.getSize() ?? undefined);
-    // OL extent is EPSG:3857; convert to lon/lat for Overpass.
-    const [w, s] = toLonLat([extent[0], extent[1]]);
-    const [e, n] = toLonLat([extent[2], extent[3]]);
-    return [w, s, e, n];
-  }
-
-  function openOverpassDialog() {
-    overpassError = null;
-    if (!overpassBbox) overpassBbox = currentViewportBbox();
-    overpassOpen = true;
-  }
-
-  function startBboxPicker() {
-    pickerBbox = overpassBbox ?? currentViewportBbox();
-    bboxPickerActive = true;
-    overpassOpen = false;
-  }
-
-  function confirmBboxPicker() {
-    if (pickerBbox) overpassBbox = pickerBbox;
-    bboxPickerActive = false;
-    overpassOpen = true;
-  }
-
-  function cancelBboxPicker() {
-    bboxPickerActive = false;
-    overpassOpen = true;
-  }
-
-  function useViewportBbox() {
-    overpassBbox = currentViewportBbox();
-  }
-
-  async function handlePickBboxFromSearch(event: CustomEvent<{ bbox: Bbox4; label: string }>) {
-    const { bbox } = event.detail;
-    overpassBbox = bbox;
-    // Pan/zoom so the chosen area is on-screen — useful before tweaking via Draw on map.
-    if (shellMap) {
-      const { fromLonLat } = await import('ol/proj');
-      const [w, s] = fromLonLat([bbox[0], bbox[1]]);
-      const [e, n] = fromLonLat([bbox[2], bbox[3]]);
-      shellMap.getView().fit([w, s, e, n], { duration: 400, padding: [40, 40, 40, 40] });
-    }
-  }
-
-  async function runOverpassImport(
-    event: CustomEvent<{ preset: OverpassPreset; customQuery: string }>
-  ) {
-    if (!overpassBbox) return;
-    overpassFetching = true;
-    overpassError = null;
-    try {
-      const query = buildQuery({
-        preset: event.detail.preset,
-        customQuery: event.detail.customQuery,
-        bbox: overpassBbox,
-      });
-      const data = await fetchOverpass(query);
-      const geojson = overpassToGeoJson(data);
-      if (geojson.features.length === 0) {
-        overpassError = 'No features returned for this area + query.';
-        overpassFetching = false;
-        return;
-      }
-      // Show as a preview on the map; the Add button commits.
-      overpassPreview = geojson;
-    } catch (e) {
-      console.error('Overpass import failed', e);
-      overpassError = e instanceof Error ? e.message : String(e);
-    } finally {
-      overpassFetching = false;
-    }
-  }
-
-  async function addOverpassResult() {
-    if (!overpassPreview) return;
-    const count = await drawToolRef?.importGeoJsonText(JSON.stringify(overpassPreview));
-    notice = {
-      text: `Added ${count ?? 0} OSM feature${(count ?? 0) !== 1 ? 's' : ''}.`,
-      tone: 'success',
-    };
-    overpassPreview = null;
-    overpassOpen = false;
-  }
-
-  function discardOverpassResult() {
-    overpassPreview = null;
   }
 
   async function handleSave() {
@@ -471,7 +368,7 @@
           on:clear={handleAnnotationClear}
           on:exportGeoJSON={handleAnnotationExport}
           on:importFile={handleAnnotationImport}
-          on:importOSM={openOverpassDialog}
+          on:importOSM={() => overpassController?.openDialog()}
           on:save={handleSave}
           on:renameProject={handleRenameProject}
           on:backToLibrary={handleBackToLibrary}
@@ -494,78 +391,14 @@
       </svelte:fragment>
     </MapWorkspace>
 
-    {#if bboxPickerActive}
-      <div class="bbox-picker-bar">
-        <span class="bbox-picker-label"
-          >Drag the rectangle corners to resize · drag inside to move</span
-        >
-        <code class="bbox-picker-coords">
-          {pickerBbox
-            ? `${pickerBbox[1].toFixed(4)}, ${pickerBbox[0].toFixed(4)} → ${pickerBbox[3].toFixed(4)}, ${pickerBbox[2].toFixed(4)}`
-            : '—'}
-        </code>
-        <button type="button" class="sb-btn is-sm" on:click={cancelBboxPicker}>Cancel</button>
-        <button
-          type="button"
-          class="sb-btn is-sm is-primary"
-          on:click={confirmBboxPicker}
-          disabled={!pickerBbox}
-        >
-          Use this bbox
-        </button>
-      </div>
-    {/if}
+    <StudioOverpassController
+      bind:this={overpassController}
+      {shellMap}
+      importGeoJson={(text) => drawToolRef?.importGeoJsonText(text)}
+      bind:pickerActive={bboxPickerActive}
+      bind:pickerBbox
+      bind:preview={overpassPreview}
+      on:notice={(e) => (notice = e.detail)}
+    />
   </div>
-
-  <StudioOverpassDialog
-    open={overpassOpen}
-    bbox={overpassBbox}
-    isFetching={overpassFetching}
-    error={overpassError}
-    resultCount={overpassResultCount}
-    on:close={() => {
-      if (!overpassFetching) {
-        overpassOpen = false;
-        overpassPreview = null;
-      }
-    }}
-    on:pickOnMap={startBboxPicker}
-    on:useViewport={useViewportBbox}
-    on:pickBbox={handlePickBboxFromSearch}
-    on:previewLocation={(e) => (overpassPreview = e.detail.features)}
-    on:submit={runOverpassImport}
-    on:addResult={addOverpassResult}
-    on:discardResult={discardOverpassResult}
-  />
 {/if}
-
-<style>
-  /* Floating bbox-picker bar (top center of map) */
-  .bbox-picker-bar {
-    position: absolute;
-    top: calc(var(--nav-height) + 0.75rem);
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.55rem 0.75rem;
-    background: var(--color-white, #fff);
-    border: var(--border-thick, 2px solid #111);
-    border-radius: 10px;
-    box-shadow: 4px 4px 0 #111;
-    z-index: 150;
-    font-size: 0.85rem;
-    max-width: calc(100vw - 2rem);
-  }
-  .bbox-picker-label {
-    font-weight: 600;
-  }
-  .bbox-picker-coords {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.78rem;
-    padding: 0.2rem 0.4rem;
-    background: var(--color-bg, #f6f4ef);
-    border-radius: 4px;
-  }
-</style>

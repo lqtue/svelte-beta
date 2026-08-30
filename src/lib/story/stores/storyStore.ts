@@ -4,6 +4,7 @@
 import { createPersistedStore } from '$lib/utils/persistence/createPersistedStore';
 import { randomId } from '$lib/utils/id';
 import type { Story, StoryPoint, StoryProgress, StoryPlayerState } from '../types';
+import * as pointOps from '../pointOps';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/supabase/types';
 
@@ -24,21 +25,9 @@ export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, us
   });
 
   function createStory(title = 'New Story', description = ''): string {
-    const id = crypto.randomUUID();
-    const now = Date.now();
-    const story: Story = {
-      id,
-      title,
-      description,
-      mode: 'guided',
-      points: [],
-      createdAt: now,
-      updatedAt: now,
-      isPublic: false,
-      authorId: userId ?? '',
-    };
+    const story = pointOps.createStoryDraft(userId ?? '', title, description);
     store.update((lib) => ({ stories: [...lib.stories, story] }));
-    return id;
+    return story.id;
   }
 
   function updateStory(
@@ -62,60 +51,31 @@ export function createStoryLibraryStore(_supabase?: SupabaseClient<Database>, us
     return stories.find((s) => s.id === id);
   }
 
+  /** Apply a pure point operation to one story in the library. */
+  function editStory(storyId: string, fn: (story: Story) => Story) {
+    store.update((lib) => ({
+      stories: lib.stories.map((s) => (s.id === storyId ? fn(s) : s)),
+    }));
+  }
+
   function addPoint(storyId: string, coordinates: [number, number]): string {
     const pointId = randomId('point');
-    store.update((lib) => ({
-      stories: lib.stories.map((s) => {
-        if (s.id !== storyId) return s;
-        const point: StoryPoint = {
-          id: pointId,
-          order: s.points.length,
-          title: `Point ${s.points.length + 1}`,
-          description: '',
-          coordinates,
-          triggerRadius: 10,
-          interaction: 'proximity',
-          challenge: { type: 'reach', triggerRadius: 10 },
-        };
-        const newPoints = [...s.points, point];
-        return { ...s, points: newPoints, updatedAt: Date.now() };
-      }),
-    }));
+    editStory(storyId, (s) =>
+      pointOps.addPoint(s, pointOps.createPoint(s.points.length, coordinates, { id: pointId }))
+    );
     return pointId;
   }
 
   function updatePoint(storyId: string, pointId: string, updates: Partial<StoryPoint>) {
-    store.update((lib) => ({
-      stories: lib.stories.map((s) => {
-        if (s.id !== storyId) return s;
-        const newPoints = s.points.map((p) => (p.id === pointId ? { ...p, ...updates } : p));
-        return { ...s, points: newPoints, updatedAt: Date.now() };
-      }),
-    }));
+    editStory(storyId, (s) => pointOps.updatePoint(s, pointId, updates));
   }
 
   function removePoint(storyId: string, pointId: string) {
-    store.update((lib) => ({
-      stories: lib.stories.map((s) => {
-        if (s.id !== storyId) return s;
-        const filtered = s.points.filter((p) => p.id !== pointId);
-        const reordered = filtered.map((p, i) => ({ ...p, order: i }));
-        return { ...s, points: reordered, updatedAt: Date.now() };
-      }),
-    }));
+    editStory(storyId, (s) => pointOps.removePoint(s, pointId));
   }
 
   function reorderPoints(storyId: string, fromIndex: number, toIndex: number) {
-    store.update((lib) => ({
-      stories: lib.stories.map((s) => {
-        if (s.id !== storyId) return s;
-        const points = [...s.points];
-        const [moved] = points.splice(fromIndex, 1);
-        points.splice(toIndex, 0, moved);
-        const reordered = points.map((p, i) => ({ ...p, order: i }));
-        return { ...s, points: reordered, updatedAt: Date.now() };
-      }),
-    }));
+    editStory(storyId, (s) => pointOps.reorderPoints(s, fromIndex, toIndex));
   }
 
   return {

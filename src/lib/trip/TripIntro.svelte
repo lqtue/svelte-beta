@@ -75,13 +75,13 @@
   .intro-sheet {
     width: 100%;
     max-width: 560px;
-    background: var(--sb-card-bg, #fdfaf3);
-    border-top: 2px solid #111;
+    background: var(--sb-card-bg);
+    border-top: var(--border-thin);
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -6px 0 #11111118;
     padding: 0.5rem 1.1rem calc(env(safe-area-inset-bottom) + 1.25rem);
-    color: var(--sb-text, #111);
-    font-family: var(--sb-font-base, 'Be Vietnam Pro', system-ui, sans-serif);
+    color: var(--sb-text);
+    font-family: var(--sb-font-base);
     max-height: 85vh;
     overflow-y: auto;
   }
@@ -93,16 +93,16 @@
     border-radius: 99px;
   }
   .intro-eyebrow {
-    font-family: var(--sb-font-display, 'Spectral', serif);
+    font-family: var(--sb-font-display);
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--sb-accent, #ea580c);
+    color: var(--sb-accent);
   }
   h1 {
     margin: 0.25rem 0 0.7rem;
-    font-family: var(--sb-font-display, 'Spectral', serif);
+    font-family: var(--sb-font-display);
     font-size: 1.65rem;
     line-height: 1.15;
     font-weight: 800;
@@ -118,8 +118,8 @@
     align-items: center;
     gap: 0.25rem;
     padding: 0.3rem 0.65rem;
-    background: #fff;
-    border: 1.5px solid #111;
+    background: var(--color-white);
+    border: var(--sb-border);
     border-radius: 999px;
     font-size: 0.78rem;
     font-weight: 600;
@@ -134,14 +134,14 @@
     margin: 0 0 0.85rem;
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #1a1a1a;
+    color: var(--color-text);
   }
   .tips {
     margin: 0 0 1rem;
     padding-left: 1.1rem;
     font-size: 0.85rem;
     line-height: 1.5;
-    color: #444;
+    color: var(--sb-text-meta);
   }
   .tips li {
     margin-bottom: 0.25rem;
@@ -155,27 +155,27 @@
     width: 100%;
     padding: 0.95rem 1rem;
     border-radius: 14px;
-    border: 2px solid #111;
+    border: var(--border-thin);
     font-size: 1rem;
     font-weight: 800;
     font-family: inherit;
     cursor: pointer;
-    box-shadow: 3px 3px 0 #111;
+    box-shadow: 3px 3px 0 var(--color-border);
     transition:
       transform 0.06s ease,
       box-shadow 0.06s ease;
   }
   .cta:active {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 #111;
+    box-shadow: 1px 1px 0 var(--color-border);
   }
   .cta.is-primary {
-    background: var(--sb-accent, #ea580c);
-    color: #fff;
+    background: var(--sb-accent);
+    color: var(--color-white);
   }
   .cta.is-ghost {
-    background: #fff;
-    color: #111;
-    box-shadow: 2px 2px 0 #111;
+    background: var(--color-white);
+    color: var(--color-text);
+    box-shadow: var(--shadow-solid-xs);
   }
 </style>

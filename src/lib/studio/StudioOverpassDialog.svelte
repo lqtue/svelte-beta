@@ -235,10 +235,10 @@
     max-height: 86vh;
     display: flex;
     flex-direction: column;
-    background: var(--sb-bg, #fff);
-    border: var(--sb-border, 2px solid #111);
+    background: var(--sb-bg);
+    border: var(--sb-border);
     border-radius: var(--sb-radius-lg, 12px);
-    box-shadow: 6px 6px 0 #111;
+    box-shadow: var(--shadow-solid);
     z-index: 201;
     overflow: hidden;
   }
@@ -247,8 +247,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.7rem 0.9rem;
-    border-bottom: var(--sb-border, 2px solid #111);
-    background: var(--sb-card-bg, #fff);
+    border-bottom: var(--sb-border);
+    background: var(--sb-card-bg);
   }
   .head h3 {
     margin: 0;
@@ -288,14 +288,14 @@
     padding: 0.45rem 0.55rem;
     font-family: inherit;
     font-size: 0.85rem;
-    background: var(--sb-card-bg, #fff);
-    border: var(--sb-border, 2px solid #111);
+    background: var(--sb-card-bg);
+    border: var(--sb-border);
     border-radius: var(--sb-radius-sm, 6px);
-    color: var(--sb-text, #111);
+    color: var(--sb-text);
   }
   .field input[type='search']:focus {
     outline: none;
-    box-shadow: 0 0 0 2px var(--sb-accent, #d4af37);
+    box-shadow: 0 0 0 2px var(--sb-accent);
   }
   .field select,
   .field textarea {
@@ -304,10 +304,10 @@
     padding: 0.45rem 0.55rem;
     font-family: inherit;
     font-size: 0.85rem;
-    background: var(--sb-card-bg, #fff);
-    border: var(--sb-border, 2px solid #111);
+    background: var(--sb-card-bg);
+    border: var(--sb-border);
     border-radius: var(--sb-radius-sm, 6px);
-    color: var(--sb-text, #111);
+    color: var(--sb-text);
   }
   .field textarea {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -316,15 +316,15 @@
   .field select:focus,
   .field textarea:focus {
     outline: none;
-    box-shadow: 0 0 0 2px var(--sb-accent, #d4af37);
+    box-shadow: 0 0 0 2px var(--sb-accent);
   }
   .bbox {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
     padding: 0.55rem 0.65rem;
-    background: var(--sb-card-bg, #f6f4ef);
-    border: var(--sb-border, 2px solid #111);
+    background: var(--sb-card-bg);
+    border: var(--sb-border);
     border-radius: var(--sb-radius-sm, 6px);
   }
   .bbox code {
@@ -339,9 +339,9 @@
   .error {
     margin: 0;
     padding: 0.55rem 0.7rem;
-    background: #fee2e2;
-    color: #b91c1c;
-    border: 1.5px solid #b91c1c;
+    background: var(--sb-danger-bg);
+    color: var(--sb-danger);
+    border: 1.5px solid var(--sb-danger);
     border-radius: var(--sb-radius-sm, 6px);
     font-size: 0.8rem;
   }
@@ -351,13 +351,13 @@
     align-items: center;
     justify-content: flex-end;
     padding: 0.7rem 0.9rem;
-    border-top: var(--sb-border, 2px solid #111);
-    background: var(--sb-card-bg, #fff);
+    border-top: var(--sb-border);
+    background: var(--sb-card-bg);
   }
   .result-summary {
     flex: 1;
     font-size: 0.82rem;
-    color: var(--sb-text, #111);
+    color: var(--sb-text);
   }
   .result-summary strong {
     font-family: var(--sb-font-display, inherit);

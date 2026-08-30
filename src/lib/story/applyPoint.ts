@@ -13,7 +13,7 @@ import { toHistoricalRef, layersStore } from '$lib/stores/layersStore';
 
 export type LayersStore = typeof layersStore;
 
-/** Zoom every story playback frames a point at. */
+/** Zoom a story playback frames a point at when the point pins no camera. */
 export const STORY_POINT_ZOOM = 17;
 
 /**
@@ -46,7 +46,10 @@ export function applyPointOverlay(
   layers.addOverlay(ref);
 }
 
-/** Frame the camera on a point and apply its pinned overlay. */
+/**
+ * Frame the camera on a point and apply its pinned overlay. A point that
+ * carries its own `camera.zoom` wins over the default story zoom.
+ */
 export function applyStoryPoint(
   point: StoryPoint,
   mapList: MapListItem[],
@@ -57,7 +60,7 @@ export function applyStoryPoint(
     mapStore.setView({
       lng: point.coordinates[0],
       lat: point.coordinates[1],
-      zoom: STORY_POINT_ZOOM,
+      zoom: point.camera?.zoom ?? STORY_POINT_ZOOM,
     });
   }
   applyPointOverlay(point, mapList, layers);

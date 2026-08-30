@@ -82,7 +82,7 @@
 <style>
   .complete {
     padding: 0.4rem 0.2rem 0.6rem;
-    color: var(--sb-text, #111);
+    color: var(--sb-text);
   }
   .emoji {
     font-size: 2.4rem;
@@ -90,13 +90,13 @@
   }
   h2 {
     margin: 0.4rem 0 0.15rem;
-    font-family: var(--sb-font-display, 'Spectral', serif);
+    font-family: var(--sb-font-display);
     font-size: 1.45rem;
     font-weight: 800;
   }
   .subtitle {
     margin: 0 0 1rem;
-    color: #555;
+    color: var(--sb-text-meta);
     font-size: 0.92rem;
   }
 
@@ -112,13 +112,13 @@
     align-items: center;
     gap: 0.1rem;
     padding: 0.75rem 0.25rem;
-    background: #fff;
-    border: 2px solid #111;
+    background: var(--color-white);
+    border: var(--border-thin);
     border-radius: 12px;
-    box-shadow: 2px 2px 0 #111;
+    box-shadow: var(--shadow-solid-xs);
   }
   .stat .value {
-    font-family: var(--sb-font-display, 'Spectral', serif);
+    font-family: var(--sb-font-display);
     font-size: 1.2rem;
     font-weight: 800;
     line-height: 1;
@@ -127,7 +127,7 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #555;
+    color: var(--sb-text-meta);
   }
 
   .save-row {
@@ -139,23 +139,23 @@
     padding: 0.7rem 0.85rem;
     margin-bottom: 0.85rem;
     background: #fef3c7;
-    border: 2px solid #111;
+    border: var(--border-thin);
     border-radius: 12px;
-    box-shadow: 2px 2px 0 #111;
+    box-shadow: var(--shadow-solid-xs);
     cursor: pointer;
     font-family: inherit;
-    color: #111;
+    color: var(--color-text);
   }
   .save-icon {
     font-size: 1.3rem;
   }
   .save-row small {
-    color: #555;
+    color: var(--sb-text-meta);
     font-size: 0.78rem;
   }
   .save-row:active {
     transform: translate(2px, 2px);
-    box-shadow: 0 0 0 #111;
+    box-shadow: 0 0 0 var(--color-border);
   }
 
   .actions {
@@ -166,23 +166,23 @@
     flex: 1;
     padding: 0.85rem 0.8rem;
     border-radius: 12px;
-    border: 2px solid #111;
+    border: var(--border-thin);
     font-family: inherit;
     font-size: 0.95rem;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 3px 3px 0 #111;
+    box-shadow: 3px 3px 0 var(--color-border);
   }
   .btn.is-primary {
-    background: var(--sb-accent, #ea580c);
-    color: #fff;
+    background: var(--sb-accent);
+    color: var(--color-white);
   }
   .btn.is-ghost {
-    background: #fff;
-    color: #111;
+    background: var(--color-white);
+    color: var(--color-text);
   }
   .btn:active {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 #111;
+    box-shadow: 1px 1px 0 var(--color-border);
   }
 </style>

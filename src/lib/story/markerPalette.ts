@@ -14,13 +14,16 @@ export interface MarkerPalette {
   font: string;
 }
 
+// Last-resort literals, used only during SSR / before the stylesheet lands.
+// They mirror --sb-accent, --sb-accent-warm, --color-border and --color-white;
+// `done` green has no token of its own (see --marker-done above).
 const FALLBACK: MarkerPalette = {
   pending: '#2563eb',
   current: '#f59e0b',
   done: '#16a34a',
-  border: '#111',
-  label: '#fff',
-  font: "'Space Grotesk', sans-serif",
+  border: '#111111',
+  label: '#ffffff',
+  font: "'Space Grotesk', system-ui, sans-serif",
 };
 
 function cssVar(name: string, fallback: string): string {
@@ -31,8 +34,10 @@ function cssVar(name: string, fallback: string): string {
 
 export function markerPalette(): MarkerPalette {
   return {
-    pending: cssVar('--marker-pending', FALLBACK.pending),
-    current: cssVar('--marker-current', FALLBACK.current),
+    // `--marker-*` lets a theme override the markers on their own; without one
+    // they track the sidebar accents, which is where the literals came from.
+    pending: cssVar('--marker-pending', cssVar('--sb-accent', FALLBACK.pending)),
+    current: cssVar('--marker-current', cssVar('--sb-accent-warm', FALLBACK.current)),
     done: cssVar('--marker-done', FALLBACK.done),
     border: cssVar('--color-border', FALLBACK.border),
     label: cssVar('--color-white', FALLBACK.label),

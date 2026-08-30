@@ -128,8 +128,8 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    background: var(--sb-bg, #fafaf7);
-    border-left: 1.5px solid #111;
+    background: var(--sb-bg);
+    border-left: var(--sb-border);
     overflow: hidden;
   }
 </style>
