@@ -11,8 +11,8 @@
   import '$styles/components/library.css';
   import PageHero from './PageHero.svelte';
   import NameDialog from './NameDialog.svelte';
-  import CatalogGrid from '$lib/features/catalog/CatalogGrid.svelte';
-  import CatalogCard from '$lib/features/catalog/CatalogCard.svelte';
+  import CatalogGrid from '$lib/ui/CatalogGrid.svelte';
+  import CatalogCard from '$lib/ui/CatalogCard.svelte';
 
   const dispatch = createEventDispatcher<{
     select: { item: T };

@@ -1,4 +1,4 @@
-import type { MapEditPayload } from '$lib/features/admin/mapEditPayload';
+import type { MapEditPayload } from '$lib/data/admin/mapEditPayload';
 import type { Database } from '$lib/data/supabase/types';
 
 export type MapRow = Database['public']['Tables']['maps']['Row'];

@@ -13,7 +13,7 @@
   import MapEditSourceTab from './MapEditSourceTab.svelte';
   import MapEditHostingTab from './MapEditHostingTab.svelte';
   import MapEditPipelineTab from './MapEditPipelineTab.svelte';
-  import { toMapEditPayload, labelConfigToForm } from './mapEditPayload';
+  import { toMapEditPayload, labelConfigToForm } from '$lib/data/admin/mapEditPayload';
 
   export let map: MapRow;
 
