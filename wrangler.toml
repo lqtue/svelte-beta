@@ -1,0 +1,5 @@
+# Cloudflare Pages project for the SvelteKit app (the R2 tile worker has its own in worker/).
+name = "vmabeta"
+pagesBuildOutputDir = ".svelte-kit/cloudflare"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]

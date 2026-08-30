@@ -248,7 +248,7 @@ export const posts: BlogPost[] = [
 <h2>First test results</h2>
 <p>The plot pass ran successfully on a 1,200 × 1,200 px crop of the 1882 map interior. 91 city-block polygons were retained after deduplication, classified as: 46 <em>particulier</em> (private), 24 <em>non affectées</em> (unassigned domain), 14 <em>communal</em>, 7 <em>local service</em> (flagged for review — these are cross-hatched and SAM fragments them). The preview below shows the processed tiles with polygons colour-coded by class.</p>
 <figure>
-  <img src="/images/blog/vectorize-preview-plot.png" alt="SAM plot-pass output on 1882 Saigon cadastral map — city blocks colour-coded by property class" style="width:100%;border:1px solid #ccc;border-radius:4px;" />
+  <img src="/images/blog/vectorize-preview-plot.jpg" alt="SAM plot-pass output on 1882 Saigon cadastral map — city blocks colour-coded by property class" style="width:100%;border:1px solid #ccc;border-radius:4px;" />
   <figcaption style="font-size:0.85em;color:#666;margin-top:0.5em;">Plot-pass output on a 1,200 × 1,200 px crop of the 1882 Saigon cadastral map. Salmon = <em>particulières</em> (private), green = communal, cream = unassigned domain. Each coloured shape is a single city block captured as one polygon at 8× downscale. The building-pass run (finer scale) will fill in individual footprints within each block.</figcaption>
 </figure>
 
