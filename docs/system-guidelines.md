@@ -48,7 +48,7 @@ src/lib/
 │             explore/ catalog/ stories/{shared,editor,play} studio/
 │             contribute/{ocr,digitalize,trace,review,shared} admin/
 └─ ui/        generic primitives only — no domain imports
-              NavBar EditorialFooter PageHero MapCard SearchPanel AuthGate …
+              NavBar EditorialFooter PageHero MapCard LocationSearch AuthGate …
 ```
 
 **Consequences to respect:**

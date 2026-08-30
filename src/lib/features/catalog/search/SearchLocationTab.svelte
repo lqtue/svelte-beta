@@ -9,7 +9,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import type { SearchResult } from '$lib/map/types';
   import type { MapListItem } from '$lib/data/maps/types';
-  import { parseCoordinates, findNearbyMaps, coordinateResult } from './searchUtils';
+  import { parseCoordinates, findNearbyMaps, coordinateResult } from '$lib/ui/searchUtils';
 
   const dispatch = createEventDispatcher<{
     close: void;

@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  import SearchPanel from '$lib/ui/SearchPanel.svelte';
+  import SearchPanel from './SearchPanel.svelte';
   import type { MapListItem } from '$lib/data/maps/types';
 
   const dispatch = createEventDispatcher<{

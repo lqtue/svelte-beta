@@ -31,7 +31,7 @@
   import { getImageShellStore } from '$lib/map/shell/imageContext';
   import type { ImageShellContext } from '$lib/map/shell/imageContext';
   import type { PixelCoord } from '$lib/data/maps/footprintTypes';
-  import { olCoordsToImage } from '$lib/features/contribute/shared/rectUtils';
+  import { olCoordsToImage } from '$lib/core/geo/rectUtils';
 
   export let drawMode: 'trace' | 'select' = 'trace';
   export let geometryMode: 'Polygon' | 'LineString' = 'Polygon';

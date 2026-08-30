@@ -87,7 +87,7 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `sidebar.css` | `global.css` + `SidebarCard` | sidebar card frame |
 | `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome |
 | `catalog.css` | `CatalogGrid`, `CatalogCard`, `/catalog` | map card grid |
-| `search-panel.css` | `SearchPanel` + its two tabs | unified search overlay |
+| `search-panel.css` | `features/catalog/search/SearchPanel` + its two tabs | unified search overlay |
 | `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the shared contribute data table |
 | `tool-sidebar.css` | `TriageSidebar`, `SegSidebar` | tool sidebar form controls |
 | `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate |

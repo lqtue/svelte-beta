@@ -13,7 +13,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
+  import MapSearchBar from '$lib/features/catalog/search/MapSearchBar.svelte';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { fetchLabelMaps } from '$lib/data/supabase/footprints';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';

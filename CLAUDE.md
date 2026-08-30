@@ -50,7 +50,7 @@ Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabas
 
 **Svelte syntax — legacy, NOT runes.** Use `$:`, `export let`, `createEventDispatcher`, `$store`. Do not use `$state`, `$derived`, `$effect`.
 
-**Layering rule (enforced by review, not by tooling):**
+**Layering rule (enforced by `@typescript-eslint/no-restricted-imports` in `eslint.config.js`; type-only imports are exempt):**
 
 > `core → data → map → features → routes`; `ui` is leaf primitives with zero domain imports; `server` is `$lib/server` only.
 
@@ -65,7 +65,7 @@ src/lib/
 │             facets.ts transformer.ts allmaps.ts ocrReview.ts
 ├─ map/       the OpenLayers runtime, one home  shell/ stores/ annotations/ types.ts constants.ts
 ├─ features/  one dir per product surface       explore/ catalog/ stories/ studio/ contribute/ admin/
-└─ ui/        generic primitives only           NavBar EditorialFooter PageHero MapCard SearchPanel …
+└─ ui/        generic primitives only           NavBar EditorialFooter PageHero MapCard LocationSearch …
 ```
 
 `$lib/server/*` is import-guarded by SvelteKit — a client-side import of the service key is a build error, not a code-review catch.
@@ -98,7 +98,7 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 
 **Exception — `ImageShell.svelte`** (same dir): IIIF-canvas counterpart to MapShell for pixel-coordinate work. Creates an OL map with a static image extent, exposes via `getImageShellStore()` (`imageContext.ts`), binds `imgWidth`/`imgHeight`. Used by `/contribute/digitalize`, `/contribute/trace`, `/contribute/review` and by `NeatlineEditor` — none of them use MapShell or the global stores.
 
-**IIIF canvas coords:** OL uses `ol_y = -image_y` (y-flip). Tool components store bboxes image-space (y-down) and flip when creating OL geometries. `src/lib/features/contribute/shared/rectUtils.ts` owns the flip helpers; `bboxHandles.ts` builds the shared handle features and `createRectEditor` used by both `OcrBboxTool` and `TriageTool`. Polygon/line tools (`TraceTool`, `ReviewTool`) flip inline.
+**IIIF canvas coords:** OL uses `ol_y = -image_y` (y-flip). Tool components store bboxes image-space (y-down) and flip when creating OL geometries. `src/lib/core/geo/rectUtils.ts` owns the flip helpers (in `core` because `ImageShell` needs them too); `bboxHandles.ts` builds the shared handle features and `createRectEditor` used by both `OcrBboxTool` and `TriageTool`. Polygon/line tools (`TraceTool`, `ReviewTool`) flip inline.
 
 ### Map stores (`src/lib/map/stores/`)
 
@@ -150,7 +150,7 @@ In dual mode, OL attribution + scale live on the **secondary** pane (right on de
 
 ### Contribute tools
 
-**Shared (`src/lib/features/contribute/shared/`):** `ToolSidebarShell.svelte` + `ToolMapPicker.svelte` (the sidebar frame and map selector all three tools use), `ToolPanelHeader.svelte`, `EmptyPanel.svelte`, `SidebarToggleButton.svelte`, `CliCommandBlock.svelte` (copy-paste CLI block), `bboxHandles.ts`, `rectUtils.ts`, `tableSort.ts` (`createTableSort<T>`), `iiifSource.ts` (`resolveMapIiifInfoUrl`). Data clients: `src/lib/features/contribute/ocr/ocrApi.ts` and `src/lib/features/contribute/pipelineApi.ts`. Category/colour/status constants have one home: `src/lib/features/contribute/ocr/constants.ts`. Footprint geometry types live in `src/lib/data/maps/footprintTypes.ts`.
+**Shared (`src/lib/features/contribute/shared/`):** `ToolSidebarShell.svelte` + `ToolMapPicker.svelte` (the sidebar frame and map selector all three tools use), `ToolPanelHeader.svelte`, `EmptyPanel.svelte`, `SidebarToggleButton.svelte`, `CliCommandBlock.svelte` (copy-paste CLI block), `bboxHandles.ts` (flip helpers live in `$lib/core/geo/rectUtils.ts`), `tableSort.ts` (`createTableSort<T>`), `iiifSource.ts` (`resolveMapIiifInfoUrl`). Data clients: `src/lib/features/contribute/ocr/ocrApi.ts` and `src/lib/features/contribute/pipelineApi.ts`. Category/colour/status constants have one home: `src/lib/features/contribute/ocr/constants.ts`. Footprint geometry types live in `src/lib/data/maps/footprintTypes.ts`.
 
 **Digitalize (`/contribute/digitalize`)** — two-phase HITL on a single `ImageShell`, tabs via `PhaseTabs.svelte`:
 

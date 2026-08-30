@@ -18,8 +18,8 @@ import VectorLayer from 'ol/layer/Vector';
 import Translate from 'ol/interaction/Translate';
 import type OlMap from 'ol/Map';
 import type { StyleLike } from 'ol/style/Style';
-import type { Rect } from './rectUtils';
-import { olPointToImage } from './rectUtils';
+import type { Rect } from '$lib/core/geo/rectUtils';
+import { olPointToImage } from '$lib/core/geo/rectUtils';
 
 export type HandleRole = 'nw' | 'ne' | 'sw' | 'se';
 

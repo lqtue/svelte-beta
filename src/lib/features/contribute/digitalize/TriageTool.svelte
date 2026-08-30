@@ -32,7 +32,7 @@
   import type { ImageShellContext } from '$lib/map/shell/imageContext';
   import { buildTileGrid, tileKey } from './tileParams';
   import type { TileOverrides } from './tileParams';
-  import { toOlRing, fromOlExtent, type Rect } from '../shared/rectUtils';
+  import { toOlRing, fromOlExtent, type Rect } from '$lib/core/geo/rectUtils';
   import { createRectEditor, type RectEditor } from '../shared/bboxHandles';
 
   export let imgWidth: number = 0;

@@ -9,8 +9,8 @@ Layout now `core → data → map → features → routes`, `ui` primitives, `se
 ## Track A — Ship + harden (do first, ~2 days)
 - [ ] A1 CF preview click-through: /explore /catalog(admin edit) /contribute/{digitalize,trace,review} /create /studio /trip — eyeball token colour shifts, review tool dark→light
 - [ ] A2 PR `chore/cleanup` → `main`
-- [ ] A3 CI: `npm run lint && npm run check && npm run build` on PR (none exists)
-- [ ] A4 eslint `import/no-restricted-paths` encoding the layering rule (ui/core ↛ features; client ↛ server)
+- [x] A3 CI: `npm run lint && npm run check && npm run build` on PR (none exists)
+- [x] A4 eslint `import/no-restricted-paths` encoding the layering rule (ui/core ↛ features; client ↛ server)
 - [ ] A5 Seeded test project + auth → write-path smokes (OCR review, footprints, story publish)
 
 ## Track B — Architecture (`docs/architecture-target.md`, decisions locked)

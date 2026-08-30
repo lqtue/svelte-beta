@@ -39,7 +39,7 @@
 
   import type { FootprintSubmission } from '$lib/data/maps/footprintTypes';
   import { geometryKind } from '$lib/data/maps/footprintTypes';
-  import { toOlCoords } from '$lib/features/contribute/shared/rectUtils';
+  import { toOlCoords } from '$lib/core/geo/rectUtils';
   import { createImageShellContext } from './imageContext';
 
   // Create context store synchronously during init so child tools can subscribe.

@@ -28,7 +28,7 @@
   import { getImageShellStore } from '$lib/map/shell/imageContext';
   import type { ImageShellContext } from '$lib/map/shell/imageContext';
   import type { SamFootprint } from '$lib/data/supabase/footprints';
-  import { toOlCoords, olCoordsToImage } from '$lib/features/contribute/shared/rectUtils';
+  import { toOlCoords, olCoordsToImage } from '$lib/core/geo/rectUtils';
 
   export let footprints: SamFootprint[] = [];
   export let selectedId: string | null = null;

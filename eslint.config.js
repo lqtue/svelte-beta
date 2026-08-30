@@ -42,6 +42,34 @@ export default ts.config(
     // svelte-check already reports unused vars/props in components.
     rules: { '@typescript-eslint/no-unused-vars': 'off' },
   },
+  // A4: the layering rule, enforced. core -> data -> map -> features -> routes;
+  // `ui` is leaf primitives; `$lib/server` is guarded by SvelteKit itself at build time.
+  // Deep relative imports across layers don't exist in this tree (all cross-dir imports use $lib/*),
+  // so matching on the alias is enough.
+  ...[
+    ['src/lib/core/**', ['data', 'map', 'features', 'ui', 'server']],
+    ['src/lib/data/**', ['map', 'features', 'ui', 'server']],
+    ['src/lib/map/**', ['features', 'server']],
+    ['src/lib/features/**', ['server']],
+    ['src/lib/ui/**', ['data', 'map', 'features', 'server']],
+    ['src/lib/server/**', ['map', 'features', 'ui']],
+  ].map(([files, forbidden]) => ({
+    files: [files],
+    rules: {
+      // ts-eslint's variant so type-only imports are allowed: they erase at build,
+      // so they carry no runtime coupling — only real dependencies are the rule's business.
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: forbidden.map((dir) => ({
+            group: [`$lib/${dir}`, `$lib/${dir}/*`],
+            message: `Layering rule (CLAUDE.md): ${files.split('/')[2]} may not import $lib/${dir}.`,
+            allowTypeImports: true,
+          })),
+        },
+      ],
+    },
+  })),
   {
     ignores: ['.svelte-kit/', 'build/', 'node_modules/', 'work/', 'scripts/', 'worker/', 'static/'],
   }

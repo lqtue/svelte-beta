@@ -33,7 +33,7 @@
   import { click } from 'ol/events/condition';
   import { getImageShellStore } from '$lib/map/shell/imageContext';
   import type { OcrExtraction } from './types';
-  import { toOlRing, fromOlExtent, type Rect } from '../shared/rectUtils';
+  import { toOlRing, fromOlExtent, type Rect } from '$lib/core/geo/rectUtils';
   import { createRectEditor, type RectEditor } from '../shared/bboxHandles';
 
   export let extractions: OcrExtraction[] = [];
