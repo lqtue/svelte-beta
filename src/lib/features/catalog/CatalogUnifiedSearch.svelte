@@ -13,10 +13,6 @@
   import CatalogDetailDrawer from '$lib/features/catalog/CatalogDetailDrawer.svelte';
   import { createEventDispatcher, onMount } from 'svelte';
   import { createCatalogSearch } from '$lib/features/catalog/catalogSearch';
-  import { getSupabaseContext } from '$lib/data/supabase/context';
-  import { fetchMapRow } from '$lib/data/maps/service';
-  import MapEditModal from '$lib/features/admin/MapEditModal.svelte';
-  import type { MapRow } from '$lib/data/admin/adminApi';
 
   export let searchQuery: string = '';
   export let role: 'user' | 'mod' | 'admin' = 'user';
@@ -31,7 +27,7 @@
   /** Show "+ overlay" and "B base" toggles on each row (only enabled in /view sidebar). */
   export let showLayerActions: boolean = false;
 
-  const dispatch = createEventDispatcher<{ pick: any }>();
+  const dispatch = createEventDispatcher<{ pick: any; edit: any }>();
 
   const search = createCatalogSearch({ requireGeoref });
   const {
@@ -58,26 +54,9 @@
 
   let openedItem: any | null = null;
 
-  // ── Admin edit (staff only, non-pick mode) ─────────────────────────────
-  // The detail-drawer item is the search-result shape (a subset of columns),
-  // but MapEditModal writes back many flags (is_public, status, priority,
-  // label_config…). Load the FULL row first so saving can't clobber fields
-  // the search result didn't carry.
-  const { supabase } = getSupabaseContext();
-  let editingMap: MapRow | null = null;
-  let editError = '';
-
-  async function openEditor(item: any) {
-    editError = '';
-    const row = await fetchMapRow(supabase, item.id);
-    if (!row) {
-      editError = 'Could not load this map for editing.';
-      return;
-    }
-    editingMap = row as MapRow;
-  }
-  function afterEdit() {
-    editingMap = null;
+  // ── Admin edit: the page owns MapEditModal (catalog UI must not import admin) ──
+  /** Re-run the current query (call after an admin edit lands). */
+  export function refresh() {
     openedItem = null;
     search.refresh();
   }
@@ -181,17 +160,8 @@
     item={openedItem}
     {role}
     on:close={() => (openedItem = null)}
-    on:edit={(e) => openEditor(e.detail)}
+    on:edit={(e) => dispatch('edit', e.detail)}
   />
-  {#if editError}<div class="edit-error" role="alert">{editError}</div>{/if}
-  {#if editingMap}
-    <MapEditModal
-      map={editingMap}
-      on:saved={afterEdit}
-      on:deleted={afterEdit}
-      on:close={() => (editingMap = null)}
-    />
-  {/if}
 {/if}
 
 <style>
@@ -275,21 +245,6 @@
     cursor: pointer;
   }
 
-  .edit-error {
-    position: fixed;
-    bottom: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 60;
-    padding: 0.6rem 1rem;
-    background: var(--sb-error-bg);
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    box-shadow: 3px 3px 0 var(--color-border);
-    font-family: var(--font-family-base);
-    font-weight: var(--font-bold);
-    font-size: 0.85rem;
-  }
   .state-panel {
     text-align: center;
     padding: 3rem 1rem;

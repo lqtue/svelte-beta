@@ -49,7 +49,7 @@
   } from '$lib/features/contribute/pipelineApi';
   import { resolveMapIiifInfoUrl } from '$lib/features/contribute/shared/iiifSource';
   import { toOlExtent } from '$lib/features/contribute/shared/rectUtils';
-  import type { LabelMapInfo } from '$lib/data/supabase/labels';
+  import type { LabelMapInfo } from '$lib/data/supabase/footprints';
 
   // ── Shared ────────────────────────────────────────────────────────────────────
   let currentMap: LabelMapInfo | null = null;

@@ -34,13 +34,13 @@
     updateFootprint,
     updateFootprintMeta,
     deleteFootprint,
-  } from '$lib/data/supabase/labels';
-  import type { LabelMapInfo } from '$lib/data/supabase/labels';
+  } from '$lib/data/supabase/footprints';
+  import type { LabelMapInfo } from '$lib/data/supabase/footprints';
   import type {
     FootprintSubmission,
     PixelCoord,
     FeatureType,
-  } from '$lib/features/contribute/shared/types';
+  } from '$lib/data/maps/footprintTypes';
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id ?? null;

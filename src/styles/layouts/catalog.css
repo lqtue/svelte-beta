@@ -231,3 +231,13 @@
     gap: 1.5rem;
   }
 }
+
+/* Admin edit error (catalog page, MapEditModal load failure) */
+.edit-error {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-thin);
+  background: var(--color-white);
+  color: var(--color-error-600);
+  font-size: var(--text-sm);
+}

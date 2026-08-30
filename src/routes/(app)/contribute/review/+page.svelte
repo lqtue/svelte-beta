@@ -9,7 +9,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { getSupabaseContext } from '$lib/data/supabase/context';
-  import { fetchMapsWithSubmittedFootprints } from '$lib/data/supabase/labels';
+  import { fetchMapsWithSubmittedFootprints } from '$lib/data/supabase/footprints';
   import ReviewMode from '$lib/features/contribute/review/ReviewMode.svelte';
 
   const { supabase } = getSupabaseContext();

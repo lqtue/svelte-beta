@@ -11,8 +11,8 @@
     sortIcon as iconFor,
     applySort,
   } from '$lib/features/contribute/shared/tableSort';
-  import type { FootprintSubmission, FeatureType } from '$lib/features/contribute/shared/types';
-  import { FEATURE_TYPE_LABELS } from '$lib/features/contribute/shared/types';
+  import type { FootprintSubmission, FeatureType } from '$lib/data/maps/footprintTypes';
+  import { FEATURE_TYPE_LABELS } from '$lib/data/maps/footprintTypes';
 
   const dispatch = createEventDispatcher<{
     removeFootprint: { footprintId: string };

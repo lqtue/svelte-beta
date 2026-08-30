@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './types';
-import type { FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/features/contribute/shared/types';
+import type { FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/data/maps/footprintTypes';
 
 type Json = Database['public']['Tables']['footprint_submissions']['Row']['pixel_polygon'];
 type FootprintUpdate = Database['public']['Tables']['footprint_submissions']['Update'];

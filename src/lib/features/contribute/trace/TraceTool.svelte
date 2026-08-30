@@ -30,7 +30,7 @@
   import { click as clickCondition } from 'ol/events/condition';
   import { getImageShellStore } from '$lib/map/shell/imageContext';
   import type { ImageShellContext } from '$lib/map/shell/imageContext';
-  import type { PixelCoord } from '$lib/features/contribute/shared/types';
+  import type { PixelCoord } from '$lib/data/maps/footprintTypes';
   import { olCoordsToImage } from '$lib/features/contribute/shared/rectUtils';
 
   export let drawMode: 'trace' | 'select' = 'trace';

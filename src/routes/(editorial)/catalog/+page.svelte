@@ -4,6 +4,9 @@
   import { fetchUserRole } from '$lib/data/supabase/role';
   import PageHero from '$lib/ui/PageHero.svelte';
   import CatalogUnifiedSearch from '$lib/features/catalog/CatalogUnifiedSearch.svelte';
+  import MapEditModal from '$lib/features/admin/MapEditModal.svelte';
+  import { fetchMapRow } from '$lib/data/maps/service';
+  import type { MapRow } from '$lib/data/admin/adminApi';
   import '$styles/layouts/catalog.css';
 
   const { supabase, session } = getSupabaseContext();
@@ -11,6 +14,25 @@
   let mounted = false;
   let role: 'user' | 'mod' | 'admin' = 'user';
   let searchQuery: string = '';
+
+  // Admin edit. The drawer item is the search-result shape (subset of columns);
+  // load the full row first so saving can't clobber fields it didn't carry.
+  let searchRef: CatalogUnifiedSearch;
+  let editingMap: MapRow | null = null;
+  let editError = '';
+  async function openEditor(item: { id: string }) {
+    editError = '';
+    const row = await fetchMapRow(supabase, item.id);
+    if (!row) {
+      editError = 'Could not load this map for editing.';
+      return;
+    }
+    editingMap = row as MapRow;
+  }
+  function afterEdit() {
+    editingMap = null;
+    searchRef?.refresh();
+  }
 
   const CONTRIBUTE_EMAIL = 'vietnammaproject@gmail.com';
   const contributeHref = `mailto:${CONTRIBUTE_EMAIL}?subject=${encodeURIComponent('VMA — map submission')}&body=${encodeURIComponent("Hi VMA,\n\nI'd like to submit a map to the archive.\n\n• Title:\n• Year / period:\n• Location (city / region):\n• Source (URL, institution, or attachment):\n• Anything else we should know:\n\nThanks!")}`;
@@ -63,7 +85,21 @@
       />
     </div>
 
-    <CatalogUnifiedSearch bind:searchQuery {role} />
+    <CatalogUnifiedSearch
+      bind:this={searchRef}
+      bind:searchQuery
+      {role}
+      on:edit={(e) => openEditor(e.detail)}
+    />
+    {#if editError}<div class="edit-error" role="alert">{editError}</div>{/if}
+    {#if editingMap}
+      <MapEditModal
+        map={editingMap}
+        on:saved={afterEdit}
+        on:deleted={afterEdit}
+        on:close={() => (editingMap = null)}
+      />
+    {/if}
   </main>
 </div>
 

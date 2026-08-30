@@ -5,11 +5,11 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import { getSupabaseContext } from '$lib/data/supabase/context';
-  import { fetchSubmittedFootprints } from '$lib/data/supabase/labels';
-  import type { SamFootprint } from '$lib/data/supabase/labels';
+  import { fetchSubmittedFootprints } from '$lib/data/supabase/footprints';
+  import type { SamFootprint } from '$lib/data/supabase/footprints';
   import { resolveMapIiifInfoUrl } from '$lib/features/contribute/shared/iiifSource';
   import { advancePipelineStage } from '$lib/features/contribute/pipelineApi';
-  import type { FeatureType } from '$lib/features/contribute/shared/types';
+  import type { FeatureType } from '$lib/data/maps/footprintTypes';
   import '$styles/layouts/tool-page.css';
   import ImageShell from '$lib/map/shell/ImageShell.svelte';
   import ReviewTool from './ReviewTool.svelte';

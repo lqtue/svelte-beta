@@ -15,8 +15,8 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
   import { getSupabaseContext } from '$lib/data/supabase/context';
-  import { fetchLabelMaps } from '$lib/data/supabase/labels';
-  import type { LabelMapInfo } from '$lib/data/supabase/labels';
+  import { fetchLabelMaps } from '$lib/data/supabase/footprints';
+  import type { LabelMapInfo } from '$lib/data/supabase/footprints';
   import type { MapListItem } from '$lib/data/maps/types';
 
   /** Currently selected map id, for the search bar's active state. */

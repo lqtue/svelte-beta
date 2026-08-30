@@ -37,8 +37,8 @@
   import { defaults as defaultInteractions } from 'ol/interaction/defaults';
   import 'ol/ol.css';
 
-  import type { FootprintSubmission } from '$lib/features/contribute/shared/types';
-  import { geometryKind } from '$lib/features/contribute/shared/types';
+  import type { FootprintSubmission } from '$lib/data/maps/footprintTypes';
+  import { geometryKind } from '$lib/data/maps/footprintTypes';
   import { toOlCoords } from '$lib/features/contribute/shared/rectUtils';
   import { createImageShellContext } from './imageContext';
 

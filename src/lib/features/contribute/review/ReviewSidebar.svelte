@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { SamFootprint } from '$lib/data/supabase/labels';
+  import type { SamFootprint } from '$lib/data/supabase/footprints';
 
   export let footprints: SamFootprint[] = [];
   export let selectedId: string | null = null;
