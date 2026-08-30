@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
+  import { fetchUserRole } from '$lib/supabase/role';
 
   // ── session / role guard ────────────────────────────────────────────────
   const { supabase, session } = getSupabaseContext();
@@ -13,12 +14,7 @@
       roleChecked = true;
       return;
     }
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-    role = ((data as { role?: typeof role } | null)?.role ?? 'user') as typeof role;
+    role = (await fetchUserRole(supabase, session.user.id)) ?? 'user';
     roleChecked = true;
     if (role === 'admin' || role === 'mod') loadCandidates();
   }

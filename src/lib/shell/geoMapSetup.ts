@@ -1,13 +1,25 @@
 /**
- * geoMapSetup.ts — the store pair every geo-map mode (/view, /create, /annotate,
- * /studio, /explore, /trip) instantiates.
+ * geoMapSetup.ts — the store pair every geo-map mode (/explore, /studio,
+ * /create, /trip) instantiates.
  */
+import { onDestroy } from 'svelte';
 import { createMapStore } from '$lib/stores/mapStore';
 import { createLayerStore } from '$lib/stores/layerStore';
+import { topOverlay } from '$lib/stores/layersStore';
 
+/**
+ * Call during component init: the returned stores are per-instance, and the
+ * layersStore → mapStore mirror below is torn down with the component.
+ */
 export function createGeoMapStores() {
-  return {
-    mapStore: createMapStore(),
-    layerStore: createLayerStore(),
-  };
+  const mapStore = createMapStore();
+  const layerStore = createLayerStore();
+  // One-way mirror, layersStore.overlays[0] → mapStore.activeMapId. The stack is
+  // the source of truth; activeMapId is what the legacy readers (URL `&map=`
+  // hash, MapWorkspace.selectedMap, story playback) still look at.
+  const unmirror = topOverlay.subscribe((ref) =>
+    mapStore.setActiveMap(ref?.mapId ?? null, ref?.allmapsId ?? null)
+  );
+  onDestroy(unmirror);
+  return { mapStore, layerStore };
 }

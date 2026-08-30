@@ -18,10 +18,17 @@
 
   import { getSupabaseContext } from '$lib/supabase/context';
   import { createGeoMapStores } from '$lib/shell/geoMapSetup';
-  import { fetchAnnotationBounds } from '$lib/geo/mapBounds';
+  import {
+    annotationSourceFor,
+    fetchMultipleBounds,
+    resolveBounds,
+    type Bbox,
+  } from '$lib/geo/mapBounds';
   import { boundsCenter, boundsZoom } from '$lib/ui/searchUtils';
-  import { layersStore } from '$lib/stores/layersStore';
+  import { layersStore, toHistoricalRef } from '$lib/stores/layersStore';
   import { fetchPublicStories } from '$lib/supabase/stories';
+  import { recordMapOpen } from '$lib/supabase/mapOpens';
+  import { fetchUserRole } from '$lib/supabase/role';
   import { createStoryPlayerStore } from '$lib/story/stores/storyStore';
   import type { Story, StoryPoint } from '$lib/story/types';
 
@@ -41,15 +48,14 @@
   import ExploreTour, { shouldShowTour } from '$lib/explore/ExploreTour.svelte';
   import type { MapListItem } from '$lib/map/types';
   import {
+    bboxContainsPoint,
     matchMapsAtPoint,
-    unresolvedAllmapsIds,
+    unresolvedBoundsSources,
     SAIGON_CENTER,
     SAIGON_DEFAULT_ZOOM,
     type ResolvedMap,
   } from '$lib/explore/spatialLookup';
-  import { fetchMultipleBounds } from '$lib/geo/mapBounds';
 
-  type Bbox = [number, number, number, number];
   type Mode = 'location' | 'all';
 
   const { supabase, session } = getSupabaseContext();
@@ -121,7 +127,7 @@
   // pending for a map we haven't tried", NOT "every map produced a bbox".
   let attemptedBounds = new Set<string>();
   function pendingBoundsIds(): string[] {
-    return unresolvedAllmapsIds(mapList, canSeeDrafts).filter((id) => !attemptedBounds.has(id));
+    return unresolvedBoundsSources(mapList, canSeeDrafts).filter((id) => !attemptedBounds.has(id));
   }
 
   // Coverage match runs whenever the user moves OR new bounds land. Pure
@@ -149,8 +155,8 @@
     for (const id of need) attemptedBounds.add(id);
     const resolved = await fetchMultipleBounds(need, 12);
     mapList = mapList.map((m) => {
-      if (!m.allmaps_id) return m;
-      const b = resolved.get(m.allmaps_id);
+      const src = annotationSourceFor(m);
+      const b = src ? resolved.get(src) : undefined;
       return b ? { ...m, bounds: b } : m;
     });
     // Clears once every needed map has been attempted, even if some yielded no
@@ -160,25 +166,12 @@
 
   // ── Helpers ────────────────────────────────────────────────────
   function addMapOverlay(map: MapListItem, { clear = false } = {}): boolean {
-    const allmapsId = map.annotation_url ?? map.allmaps_id;
-    if (!allmapsId) return false;
+    const ref = toHistoricalRef(map);
+    if (!ref.allmapsId) return false;
     if (clear) layersStore.clearOverlays();
     if (layersStore.isOverlay(map.id)) return false;
-    layersStore.addOverlay({
-      kind: 'historical',
-      mapId: map.id,
-      allmapsId,
-      name: map.name,
-      thumbnail: map.thumbnail,
-    });
+    layersStore.addOverlay(ref);
     return true;
-  }
-
-  async function resolveMapBounds(map: MapListItem): Promise<Bbox | null> {
-    if (map.bounds) return map.bounds;
-    if (map.bbox) return map.bbox;
-    const src = map.annotation_url ?? map.allmaps_id;
-    return src ? await fetchAnnotationBounds(src) : null;
   }
 
   function setViewFromBounds(bounds: Bbox) {
@@ -186,17 +179,12 @@
     mapStore.setView({ lng: c.lng, lat: c.lat, zoom: boundsZoom(bounds) });
   }
 
-  // Skip the zoom if the map already covers the current viewport centre —
-  // avoids yanking the camera when the user adds something they're on.
-  function viewportIsInside(bounds: Bbox): boolean {
-    const v = $mapStore;
-    return v.lng >= bounds[0] && v.lng <= bounds[2] && v.lat >= bounds[1] && v.lat <= bounds[3];
-  }
-
   async function zoomToMap(map: MapListItem, { force = false } = {}) {
-    const bounds = await resolveMapBounds(map);
+    const bounds = await resolveBounds(map);
     if (!bounds) return;
-    if (!force && viewportIsInside(bounds)) return;
+    // Skip the zoom if the map already covers the current viewport centre —
+    // avoids yanking the camera when the user adds something they're on.
+    if (!force && bboxContainsPoint(bounds, $mapStore.lng, $mapStore.lat)) return;
     setViewFromBounds(bounds);
   }
 
@@ -288,23 +276,12 @@
     pushState(url, {});
   }
 
-  // Tally one row per map open (migration 049). This is the only way to learn
-  // which maps get looked at: Cloudflare Web Analytics reports requestPath and
-  // has no query-string dimension, so the ?map= above is invisible to it.
-  //
   // Staff opens are skipped. label_pins and footprint_submissions are both 100%
   // admin rows, which makes them useless as interest signals — cataloguing work
   // would drown out the handful of real visitors here too.
-  function recordMapOpen(mapId: string) {
+  function tallyMapOpen(mapId: string) {
     if (role !== 'user') return;
-    // ponytail: fire-and-forget. A dropped tally must never interrupt opening a
-    // map, so nothing awaits this and failures only warn.
-    void supabase
-      .from('map_opens')
-      .insert({ map_id: mapId })
-      .then(({ error }) => {
-        if (error) console.warn('[explore] map_opens insert failed:', error.message);
-      });
+    recordMapOpen(supabase, mapId);
   }
 
   // ── Catalog / sidebar event handlers ───────────────────────────
@@ -322,7 +299,7 @@
     const map = mapList.find((m) => m.id === item.id) ?? (item as MapListItem);
     addMapOverlay(map);
     syncMapParam(map.id);
-    recordMapOpen(map.id);
+    tallyMapOpen(map.id);
     await zoomToMap(map);
   }
   function handleRemoveOverlay(e: CustomEvent<{ mapId: string }>) {
@@ -364,7 +341,7 @@
         addMapOverlay(found);
         // Arriving on a shared ?map= link is an open too — and it's the one path
         // where the visitor never touches the browse panel.
-        recordMapOpen(found.id);
+        tallyMapOpen(found.id);
         await zoomToMap(found, { force: true });
       }
     }
@@ -379,14 +356,7 @@
 
   onMount(async () => {
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
-    if (session?.user?.id) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-      role = ((data as any)?.role as 'user' | 'mod' | 'admin') ?? 'user';
-    }
+    role = (await fetchUserRole(supabase, session?.user?.id)) ?? 'user';
     try {
       stories = await fetchPublicStories(supabase);
     } catch (err) {

@@ -19,7 +19,7 @@
   import { writable, get } from 'svelte/store';
   import OlMap from 'ol/Map';
   import View from 'ol/View';
-  import BaseLayer from 'ol/layer/Base';
+  import type BaseLayer from 'ol/layer/Base';
   import TileLayer from 'ol/layer/Tile';
   import XYZ from 'ol/source/XYZ';
   import { Attribution, Rotate, ScaleLine, Zoom } from 'ol/control';
@@ -29,7 +29,7 @@
   import { fromLonLat, toLonLat } from 'ol/proj';
   import 'ol/ol.css';
 
-  import { BASEMAP_DEFS } from '$lib/map/constants';
+  import { createBasemapLayers } from './basemapLayers';
   import type { MapStore } from '$lib/stores/mapStore';
   import { getOlCenter } from '$lib/stores/mapStore';
   import type { LayerStore } from '$lib/stores/layerStore';
@@ -106,10 +106,7 @@
 
   onMount(() => {
     // 1. Create basemap layers
-    for (const def of BASEMAP_DEFS) {
-      const layer = def.layer();
-      basemapLayers.set(def.key, layer as unknown as BaseLayer);
-    }
+    basemapLayers = createBasemapLayers();
 
     // 2. Build controls
     const controls = defaultControls({

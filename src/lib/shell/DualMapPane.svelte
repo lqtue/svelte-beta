@@ -7,10 +7,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import OlMap from 'ol/Map';
-  import BaseLayer from 'ol/layer/Base';
+  import type BaseLayer from 'ol/layer/Base';
   import { defaults as defaultControls } from 'ol/control/defaults';
   import { Attribution, ScaleLine } from 'ol/control';
-  import { BASEMAP_DEFS } from '$lib/map/constants';
+  import { createBasemapLayers } from './basemapLayers';
   import {
     createWarpedLayer,
     destroyWarpedLayer,
@@ -87,10 +87,7 @@
 
   onMount(() => {
     // Create basemap layers
-    for (const def of BASEMAP_DEFS) {
-      const layer = def.layer();
-      basemapLayers.set(def.key, layer as unknown as BaseLayer);
-    }
+    basemapLayers = createBasemapLayers();
 
     // Create secondary map sharing the primary's View
     secondaryMap = new OlMap({

@@ -10,7 +10,7 @@ import { writable, type Readable, type Writable } from 'svelte/store';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MapListItem } from '$lib/map/types';
 import { fetchMaps } from '$lib/maps/service';
-import { fetchMultipleBounds } from '$lib/geo/mapBounds';
+import { annotationSourceFor, fetchMultipleBounds } from '$lib/geo/mapBounds';
 
 export interface MapListController {
   /** Current list of maps. Reactive. */
@@ -27,13 +27,16 @@ export function createMapList(): MapListController {
   async function loadMaps(supabase: SupabaseClient): Promise<MapListItem[]> {
     const maps = await fetchMaps(supabase);
     store.set(maps);
-    // Background: fetch and merge bounds for georeferenced maps
-    const allmapsIds = maps.filter((m) => m.allmaps_id).map((m) => m.allmaps_id!);
-    if (allmapsIds.length > 0) {
-      fetchMultipleBounds(allmapsIds).then((boundsMap) => {
+    // Background: fetch and merge bounds for georeferenced maps. Keyed by the
+    // annotation source, not allmaps_id — R2-mirrored maps carry the bounds
+    // under their annotation_url and were previously skipped entirely.
+    const sources = maps.map(annotationSourceFor).filter((s): s is string => !!s);
+    if (sources.length > 0) {
+      fetchMultipleBounds(sources).then((boundsMap) => {
         store.update((cur) =>
           cur.map((m) => {
-            const b = m.allmaps_id ? boundsMap.get(m.allmaps_id) : undefined;
+            const src = annotationSourceFor(m);
+            const b = src ? boundsMap.get(src) : undefined;
             return b ? { ...m, bounds: b } : m;
           })
         );

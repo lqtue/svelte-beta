@@ -1,24 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from './types';
 import type { AnnotationSet } from '$lib/map/types';
 
-interface DbAnnotationSet {
-	id: string;
-	title: string;
-	map_id: string;
-	user_id: string;
-	features: object;
-	is_public: boolean;
-	created_at: string;
-	updated_at: string;
-}
+type DbAnnotationSet = Database['public']['Tables']['annotation_sets']['Row'];
+type AnnotationSetInsert = Database['public']['Tables']['annotation_sets']['Insert'];
+type AnnotationSetUpdate = Database['public']['Tables']['annotation_sets']['Update'];
 
 function toAnnotationSet(row: DbAnnotationSet): AnnotationSet {
 	return {
 		id: row.id,
 		title: row.title,
-		mapId: row.map_id,
-		authorId: row.user_id,
-		features: row.features as AnnotationSet['features'],
+		mapId: row.map_id ?? '',
+		authorId: row.user_id ?? '',
+		features: row.features as unknown as AnnotationSet['features'],
 		isPublic: row.is_public,
 		createdAt: new Date(row.created_at).getTime(),
 		updatedAt: new Date(row.updated_at).getTime()
@@ -26,7 +20,7 @@ function toAnnotationSet(row: DbAnnotationSet): AnnotationSet {
 }
 
 export async function fetchUserAnnotationSets(
-	supabase: SupabaseClient,
+	supabase: SupabaseClient<Database>,
 	userId: string
 ): Promise<AnnotationSet[]> {
 	const { data, error } = await supabase
@@ -40,12 +34,12 @@ export async function fetchUserAnnotationSets(
 		return [];
 	}
 
-	return (data as unknown as DbAnnotationSet[]).map(toAnnotationSet);
+	return (data as DbAnnotationSet[]).map(toAnnotationSet);
 }
 
 
 export async function createAnnotationSet(
-	supabase: SupabaseClient,
+	supabase: SupabaseClient<Database>,
 	params: {
 		title: string;
 		mapId: string;
@@ -62,7 +56,7 @@ export async function createAnnotationSet(
 			user_id: params.userId,
 			features: params.features,
 			is_public: params.isPublic
-		} as never)
+		} as AnnotationSetInsert)
 		.select('id')
 		.single();
 
@@ -71,11 +65,11 @@ export async function createAnnotationSet(
 		return null;
 	}
 
-	return (data as unknown as { id: string }).id;
+	return (data as { id: string }).id;
 }
 
 export async function updateAnnotationSet(
-	supabase: SupabaseClient,
+	supabase: SupabaseClient<Database>,
 	id: string,
 	updates: Partial<{
 		title: string;
@@ -85,7 +79,7 @@ export async function updateAnnotationSet(
 ): Promise<boolean> {
 	const { error } = await supabase
 		.from('annotation_sets')
-		.update({ ...updates, updated_at: new Date().toISOString() } as never)
+		.update({ ...updates, updated_at: new Date().toISOString() } as AnnotationSetUpdate)
 		.eq('id', id);
 
 	if (error) {
@@ -96,7 +90,7 @@ export async function updateAnnotationSet(
 }
 
 export async function deleteAnnotationSet(
-	supabase: SupabaseClient,
+	supabase: SupabaseClient<Database>,
 	id: string
 ): Promise<boolean> {
 	const { error } = await supabase

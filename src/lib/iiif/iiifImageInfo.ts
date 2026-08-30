@@ -1,6 +1,6 @@
 // ---- IIIF image info resolver ----
 
-import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
+import { annotationUrlForSource } from './annotationUrl';
 
 /**
  * Resolve just the IIIF info.json URL from an Allmaps annotation ID.

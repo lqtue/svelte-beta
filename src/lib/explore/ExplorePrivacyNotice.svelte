@@ -15,6 +15,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { browser } from '$app/environment';
+  import { readText, writeText } from '$lib/utils/persistence/storage';
 
   const STORAGE_KEY = 'vma-explore-welcome-ack-v1';
   type Choice = 'location' | 'all';
@@ -25,25 +26,21 @@
 
   onMount(() => {
     if (!browser) return;
-    try {
-      const prev = localStorage.getItem(STORAGE_KEY) as Choice | null;
-      if (prev === 'location') {
-        dispatch('allow');
-        return;
-      }
-      if (prev === 'all') {
-        dispatch('skip');
-        return;
-      }
-    } catch {}
+    const prev = readText(STORAGE_KEY) as Choice | null;
+    if (prev === 'location') {
+      dispatch('allow');
+      return;
+    }
+    if (prev === 'all') {
+      dispatch('skip');
+      return;
+    }
     visible = true;
   });
 
   function persist(choice: Choice) {
     if (!browser || !dontShowAgain) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, choice);
-    } catch {}
+    writeText(STORAGE_KEY, choice);
   }
 
   function chooseLocation() {

@@ -3,8 +3,8 @@
  * central stores to any child component.
  *
  * Usage:
- *   // Parent (Studio.svelte) — sets context during init
- *   setShellContext({ map, mapStore, layerStore, annotations });
+ *   // Parent (MapShell / MapWorkspace) — sets context during init
+ *   setShellContext({ map, mapStore, layerStore });
  *
  *   // Child — reads context
  *   const { map, mapStore, layerStore } = getShellContext();
@@ -15,8 +15,6 @@ import type { Writable } from 'svelte/store';
 import type Map from 'ol/Map';
 import type { MapStore } from '$lib/stores/mapStore';
 import type { LayerStore } from '$lib/stores/layerStore';
-import type { AnnotationHistoryStore } from '$lib/map/annotationHistory';
-import type { AnnotationStateStore } from '$lib/map/annotationState';
 
 const SHELL_CTX = Symbol('shell-context');
 
@@ -25,12 +23,11 @@ export interface ShellContextValue {
   map: Writable<Map | null>;
   mapStore: MapStore;
   layerStore: LayerStore;
-  /** Optional — only modes with annotation editing populate this */
-  annotations?: {
-    history: AnnotationHistoryStore;
-    state: AnnotationStateStore;
-  };
 }
+
+// Annotation editing state is NOT here: /studio owns it and passes it through
+// `getAnnotationContext()` ($lib/map/annotationContext), which keeps the
+// generic shell free of a feature-specific dependency.
 
 export function setShellContext(value: ShellContextValue): void {
   setContext(SHELL_CTX, value);

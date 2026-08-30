@@ -1,48 +1,74 @@
 // Utility for fetching and calculating geographic bounds from Allmaps annotations
-import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
+import { annotationUrlForSource } from '$lib/iiif/annotationUrl';
+import { debounce } from '$lib/utils/debounce';
+import { readJson, writeJson } from '$lib/utils/persistence/storage';
+
+export type Bbox = [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
 
 // In-memory + localStorage cache. Persists across reloads AND across sessions
 // so repeat /explore visits do zero network for the same catalogue. Allmaps
 // annotations are immutable for a given image id, so cache invalidation is
 // not a concern; we only ever cache success (bbox) or null (no GCPs / 404).
-const boundsCache: Map<string, [number, number, number, number] | null> = new Map();
+const boundsCache: Map<string, Bbox | null> = new Map();
 const STORAGE_KEY = 'vma-bounds-cache-v2';
 
-function loadPersistedCache(): void {
-  try {
-    const raw = typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw) as Record<string, [number, number, number, number] | null>;
-    for (const [k, v] of Object.entries(parsed)) boundsCache.set(k, v);
-  } catch {}
-}
+// Debounced — fetchMultipleBounds calls this many times in quick succession.
+const persistCache = debounce(() => {
+  writeJson(STORAGE_KEY, Object.fromEntries(boundsCache));
+}, 250);
 
-function persistCache(): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    const obj: Record<string, [number, number, number, number] | null> = {};
-    for (const [k, v] of boundsCache) obj[k] = v;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
-  } catch {}
-}
-
-// Debounce localStorage writes — fetchMultipleBounds will call this many
-// times in quick succession.
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
-function schedulePersist() {
-  if (persistTimer) return;
-  persistTimer = setTimeout(() => {
-    persistTimer = null;
-    persistCache();
-  }, 250);
-}
-
-function saveToSessionCache(id: string, value: [number, number, number, number] | null): void {
+function saveToSessionCache(id: string, value: Bbox | null): void {
   boundsCache.set(id, value);
-  schedulePersist();
+  persistCache();
 }
 
-loadPersistedCache();
+for (const [k, v] of Object.entries(readJson<Record<string, Bbox | null>>(STORAGE_KEY, {}))) {
+  boundsCache.set(k, v);
+}
+
+/** A `[minLon, minLat, maxLon, maxLat]` tuple with real, ordered numbers. */
+export function looksValidBbox(bbox: unknown): bbox is Bbox {
+  return (
+    Array.isArray(bbox) &&
+    bbox.length === 4 &&
+    bbox.every((n) => typeof n === 'number' && Number.isFinite(n)) &&
+    bbox[0] < bbox[2] &&
+    bbox[1] < bbox[3]
+  );
+}
+
+/**
+ * The annotation source for a catalogue row: the R2/Supabase mirror URL
+ * (`annotation_url`) wins over the bare Allmaps image id. Also the cache key
+ * every bounds lookup uses — resolving the two inconsistently gave mirrored
+ * maps two cache entries.
+ */
+export function annotationSourceFor(map: {
+  allmaps_id?: string | null;
+  annotation_url?: string | null;
+}): string | null {
+  return map.annotation_url ?? map.allmaps_id ?? null;
+}
+
+/**
+ * The full bounds ladder: `bounds` (runtime enrichment) → `bbox` (DB column)
+ * → the map's annotation (`annotation_url`, else `allmaps_id`).
+ *
+ * The single resolver for "where is this map?". Callers that skipped a rung
+ * silently failed to zoom for whole classes of map (R2 mirrors had no
+ * `allmaps_id`; most of the catalogue has no `bbox` backfilled).
+ */
+export async function resolveBounds(map: {
+  bounds?: unknown;
+  bbox?: unknown;
+  allmaps_id?: string | null;
+  annotation_url?: string | null;
+}): Promise<Bbox | null> {
+  if (looksValidBbox(map.bounds)) return map.bounds;
+  if (looksValidBbox(map.bbox)) return map.bbox;
+  const source = annotationSourceFor(map);
+  return source ? await fetchAnnotationBounds(source) : null;
+}
 
 interface GroundControlPoint {
   world: [number, number];
@@ -54,9 +80,7 @@ interface GroundControlPoint {
  * @param mapId - The Allmaps annotation ID
  * @returns Bounds as [minLon, minLat, maxLon, maxLat] or null if unavailable
  */
-export async function fetchAnnotationBounds(
-  mapId: string
-): Promise<[number, number, number, number] | null> {
+export async function fetchAnnotationBounds(mapId: string): Promise<Bbox | null> {
   // Check cache first
   if (boundsCache.has(mapId)) {
     return boundsCache.get(mapId) ?? null;
@@ -85,7 +109,7 @@ export async function fetchAnnotationBounds(
     const lons = gcps.map((p) => p.world[0]);
     const lats = gcps.map((p) => p.world[1]);
 
-    const bounds: [number, number, number, number] = [
+    const bounds: Bbox = [
       Math.min(...lons),
       Math.min(...lats),
       Math.max(...lons),
@@ -200,13 +224,13 @@ function extractGCPs(annotation: unknown): GroundControlPoint[] {
 /**
  * Fetches bounds for multiple maps with concurrency control
  * @param mapIds - Array of map IDs to fetch
- * @param concurrency - Maximum concurrent requests (default: 5)
+ * @param concurrency - Maximum concurrent requests
  */
 export async function fetchMultipleBounds(
   mapIds: string[],
   concurrency: number = 12
-): Promise<Map<string, [number, number, number, number] | null>> {
-  const results = new Map<string, [number, number, number, number] | null>();
+): Promise<Map<string, Bbox | null>> {
+  const results = new Map<string, Bbox | null>();
 
   // Drain via a sliding window of N workers — keeps `concurrency`
   // requests in flight at all times instead of waiting for the slowest

@@ -11,6 +11,7 @@
 import { writable, derived, get, type Readable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { randomId } from '$lib/utils/id';
+import { readJson, writeJson } from '$lib/utils/persistence/storage';
 
 export type BasemapRef = { kind: 'basemap'; key: string };
 export type HistoricalRef = {
@@ -59,36 +60,28 @@ const MAX_OVERLAYS = 10;
 
 function load(): LayersState {
   if (!browser) return { base: DEFAULT_BASE, overlays: [] };
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { base: DEFAULT_BASE, overlays: [] };
-    const parsed = JSON.parse(raw);
-    const base: LayerRef =
-      parsed.base?.kind === 'historical' || parsed.base?.kind === 'basemap'
-        ? parsed.base
-        : DEFAULT_BASE;
-    const overlays: OverlayLayer[] = Array.isArray(parsed.overlays)
-      ? parsed.overlays
-          .filter((o: any) => o?.ref?.kind === 'historical' && o.ref.mapId && o.ref.allmapsId)
-          .slice(0, MAX_OVERLAYS)
-          .map((o: any) => ({
-            id: String(o.id ?? makeId()),
-            ref: o.ref,
-            opacity: clamp01(typeof o.opacity === 'number' ? o.opacity : 1),
-            visible: o.visible !== false,
-          }))
-      : [];
-    return { base, overlays };
-  } catch {
-    return { base: DEFAULT_BASE, overlays: [] };
-  }
+  const parsed = readJson<Partial<LayersState> | null>(STORAGE_KEY, null);
+  if (!parsed) return { base: DEFAULT_BASE, overlays: [] };
+  const base: LayerRef =
+    parsed.base?.kind === 'historical' || parsed.base?.kind === 'basemap'
+      ? parsed.base
+      : DEFAULT_BASE;
+  const overlays: OverlayLayer[] = Array.isArray(parsed.overlays)
+    ? parsed.overlays
+        .filter((o: any) => o?.ref?.kind === 'historical' && o.ref.mapId && o.ref.allmapsId)
+        .slice(0, MAX_OVERLAYS)
+        .map((o: any) => ({
+          id: String(o.id ?? makeId()),
+          ref: o.ref,
+          opacity: clamp01(typeof o.opacity === 'number' ? o.opacity : 1),
+          visible: o.visible !== false,
+        }))
+    : [];
+  return { base, overlays };
 }
 
 function persist(s: LayersState) {
-  if (!browser) return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-  } catch {}
+  if (browser) writeJson(STORAGE_KEY, s);
 }
 
 export function clamp01(n: number): number {
@@ -199,7 +192,9 @@ function create() {
 export const layersStore = create();
 export const MAX_OVERLAY_LAYERS = MAX_OVERLAYS;
 
-// ── Derived: top overlay (for legacy mapStore.activeMapId bridge) ──
+// ── Derived: top overlay ──
+// `createGeoMapStores()` mirrors this into the per-instance mapStore's
+// activeMapId/activeAllmapsId, which the URL hash + story playback read.
 export const topOverlay: Readable<HistoricalRef | null> = derived(
   layersStore,
   ($l) => $l.overlays[0]?.ref ?? null

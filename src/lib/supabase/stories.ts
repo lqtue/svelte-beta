@@ -1,9 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Story, StoryPoint } from '$lib/story/types';
+import type { Database } from './types';
+import type { Story, StoryMode, StoryPoint } from '$lib/story/types';
+
+type Json = Database['public']['Tables']['stories']['Row']['region'];
+type StoryRow = Database['public']['Tables']['stories']['Row'];
+type StoryPointRow = Database['public']['Tables']['story_points']['Row'];
+type StoryWithPoints = StoryRow & { story_points?: StoryPointRow[] };
 
 // ─── Row → Type mappers ──────────────────────────────────────────────────────
 
-function rowToPoint(row: any): StoryPoint {
+function rowToPoint(row: StoryPointRow): StoryPoint {
 	return {
 		id: row.id,
 		order: row.sort_order,
@@ -13,27 +19,33 @@ function rowToPoint(row: any): StoryPoint {
 		quest: row.quest ?? undefined,
 		coordinates: [row.lon, row.lat],
 		triggerRadius: row.trigger_radius,
-		interaction: row.interaction,
-		challenge: row.challenge ?? { type: 'none' },
+		interaction: row.interaction as StoryPoint['interaction'],
+		challenge: (row.challenge as unknown as StoryPoint['challenge']) ?? { type: 'none' },
 		qrPayload: row.qr_payload ?? undefined,
 		overlayMapId: row.overlay_map_id ?? undefined,
-		camera: row.camera && Object.keys(row.camera).length ? row.camera : undefined,
+		camera:
+			row.camera && Object.keys(row.camera).length
+				? (row.camera as unknown as StoryPoint['camera'])
+				: undefined,
 	};
 }
 
-function rowToStory(row: any): Story {
+function rowToStory(row: StoryWithPoints): Story {
 	const points: StoryPoint[] = (row.story_points ?? [])
 		.slice()
-		.sort((a: any, b: any) => a.sort_order - b.sort_order)
+		.sort((a, b) => a.sort_order - b.sort_order)
 		.map(rowToPoint);
 
 	return {
 		id: row.id,
-		authorId: row.user_id,
+		authorId: row.user_id ?? '',
 		title: row.title,
 		description: row.description ?? '',
-		mode: row.mode,
-		region: row.region && Object.keys(row.region).length ? row.region : undefined,
+		mode: row.mode as StoryMode,
+		region:
+			row.region && Object.keys(row.region).length
+				? (row.region as unknown as Story['region'])
+				: undefined,
 		isPublic: row.is_public,
 		points,
 		createdAt: new Date(row.created_at).getTime(),
@@ -44,20 +56,17 @@ function rowToStory(row: any): Story {
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 
-export async function fetchStoryById(supabase: SupabaseClient, id: string): Promise<Story | null> {
+export async function fetchStoryById(supabase: SupabaseClient<Database>, id: string): Promise<Story | null> {
 	const { data, error } = await supabase
 		.from('stories')
 		.select('*, story_points(*)')
 		.eq('id', id)
 		.single();
 	if (error || !data) { console.error('fetchStoryById:', error); return null; }
-	return rowToStory(data);
+	return rowToStory(data as StoryWithPoints);
 }
 
-export async function fetchPublicStories(
-	supabase: SupabaseClient,
-	_mapId?: string
-): Promise<Story[]> {
+export async function fetchPublicStories(supabase: SupabaseClient<Database>): Promise<Story[]> {
 	const { data, error } = await supabase
 		.from('stories')
 		.select('*, story_points(*)')
@@ -65,7 +74,7 @@ export async function fetchPublicStories(
 		.order('updated_at', { ascending: false });
 
 	if (error) { console.error('fetchPublicStories:', error); return []; }
-	return (data ?? []).map(rowToStory);
+	return ((data ?? []) as StoryWithPoints[]).map(rowToStory);
 }
 
 /**
@@ -79,7 +88,7 @@ export async function fetchPublicStories(
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function syncStoryToSupabase(
-	supabase: SupabaseClient,
+	supabase: SupabaseClient<Database>,
 	story: Story,
 	userId: string
 ): Promise<boolean> {
@@ -89,7 +98,7 @@ export async function syncStoryToSupabase(
 		title: story.title,
 		description: story.description || null,
 		mode: story.mode ?? 'guided',
-		region: story.region ?? {},
+		region: (story.region ?? {}) as unknown as Json,
 		is_public: story.isPublic
 	});
 	if (storyErr) { console.error('syncStoryToSupabase (story):', storyErr); return false; }
@@ -112,11 +121,11 @@ export async function syncStoryToSupabase(
 			lat: p.coordinates[1],
 			trigger_radius: p.triggerRadius ?? 10,
 			interaction: p.interaction ?? 'proximity',
-			challenge: p.challenge ?? { type: 'none' },
+			challenge: (p.challenge ?? { type: 'none' }) as unknown as Json,
 			qr_payload: p.qrPayload || null,
 			// Schema FKs to maps(id); a legacy allmaps_id (16-hex) would violate the FK.
 			overlay_map_id: p.overlayMapId && UUID_RE.test(p.overlayMapId) ? p.overlayMapId : null,
-			camera: p.camera ?? {}
+			camera: (p.camera ?? {}) as unknown as Json
 		}));
 		const { error: insErr } = await supabase.from('story_points').insert(rows);
 		if (insErr) { console.error('syncStoryToSupabase (insert points):', insErr); return false; }

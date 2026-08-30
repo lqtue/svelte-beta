@@ -6,6 +6,7 @@
  */
 
 import { WarpedMapLayer } from '@allmaps/openlayers';
+import { annotationUrlForSource } from '$lib/iiif/annotationUrl';
 import type Map from 'ol/Map';
 
 // ── Create / destroy ─────────────────────────────────────────────
@@ -47,22 +48,8 @@ export function destroyWarpedLayer(layer: WarpedMapLayer): void {
 
 // ── Load overlay ─────────────────────────────────────────────────
 
-/**
- * Builds the Allmaps annotation URL for a given source.
- *
- * - Bare hex IDs → `https://annotations.allmaps.org/images/{id}`
- * - Full URLs passed through as-is
- */
-export function annotationUrlForSource(source: string): string {
-  const trimmed = source.trim();
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol === 'http:' || url.protocol === 'https:') return trimmed;
-  } catch {
-    // not a URL — treat as Allmaps image ID
-  }
-  return `https://annotations.allmaps.org/images/${trimmed}`;
-}
+// Re-exported from its new home in $lib/iiif so existing importers keep working.
+export { annotationUrlForSource } from '$lib/iiif/annotationUrl';
 
 /**
  * Loads an overlay into a WarpedMapLayer using `addGeoreferenceAnnotationByUrl`.

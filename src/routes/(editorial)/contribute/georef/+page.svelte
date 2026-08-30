@@ -2,64 +2,19 @@
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
   import PageHero from '$lib/ui/PageHero.svelte';
-  import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+  import { allmapsEditorUrl, fetchGeorefQueue, type GeorefMapItem } from '$lib/maps/georef';
 
   const { supabase } = getSupabaseContext();
 
-  interface MapItem {
-    id: string;
-    name: string;
-    allmaps_id: string | null;
-    iiif_image: string | null;
-    iiif_manifest: string | null;
-    georef_done: boolean;
-    year: number | null;
-  }
-
-  let maps: MapItem[] = [];
+  let maps: GeorefMapItem[] = [];
   let loading = true;
-  let loadError = '';
   let mounted = false;
 
   onMount(async () => {
     mounted = true;
-    try {
-      const { data, error } = await supabase
-        .from('maps')
-        .select('id, name, allmaps_id, iiif_image, iiif_manifest, georef_done, year')
-        .eq('is_public', false)
-        .order('priority', { ascending: false })
-        .order('name');
-      if (error) throw error;
-      maps = (data ?? []) as MapItem[];
-    } catch (e: any) {
-      loadError = e.message;
-    } finally {
-      loading = false;
-    }
+    maps = await fetchGeorefQueue(supabase);
+    loading = false;
   });
-
-  function withInfoJson(url: string): string {
-    return /\.json($|\?)/.test(url) ? url : `${url.replace(/\/$/, '')}/info.json`;
-  }
-
-  function allmapsEditorUrl(map: MapItem): string {
-    if (map.iiif_manifest) {
-      return `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(map.iiif_manifest)}`;
-    }
-    if (map.iiif_image) {
-      return `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(withInfoJson(map.iiif_image))}`;
-    }
-    if (map.allmaps_id) {
-      return `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(annotationStorageUrl(map.allmaps_id))}`;
-    }
-    return `https://editor.allmaps.org/`;
-  }
-
-  function annotationStorageUrl(allmapsId: string): string {
-    if (allmapsId.startsWith('http')) return allmapsId;
-    return `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/annotations/${allmapsId}.json`;
-  }
 
   $: pending = maps.filter((m) => !m.georef_done);
   $: done = maps.filter((m) => m.georef_done);
@@ -112,8 +67,6 @@
         <div class="loading-spinner"></div>
         <span>Loading maps…</span>
       </section>
-    {:else if loadError}
-      <section class="state-card error">{loadError}</section>
     {:else}
       <section class="section-card">
         <h2 class="section-label">
@@ -310,12 +263,6 @@
     border-radius: var(--radius-md);
     color: var(--color-text);
     opacity: 0.6;
-  }
-
-  .state-card.error {
-    color: var(--color-primary);
-    border-color: var(--color-primary);
-    opacity: 1;
   }
 
   .loading-spinner {

@@ -1,21 +1,21 @@
 <!--
-  CreateSidebar.svelte — left sidebar for /create.
-  Mirrors ViewSidebar exactly: Layers · Controls · Browse.
-  All story / point authoring lives in the right pane (CreateRightPane).
+  MapViewerSidebar.svelte — the Layers · Controls · Browse left sidebar shared
+  by the two-sidebar map editors (/create, /studio). Mirrors ViewSidebar.
+  Tool-specific authoring lives in each mode's right pane.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem, ViewMode } from '$lib/map/types';
-  import LayerStackPanel from '$lib/ui/catalog/LayerStackPanel.svelte';
-  import LayerControlsPanel from '$lib/ui/catalog/LayerControlsPanel.svelte';
-  import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
-  import SidebarCard from '$lib/ui/catalog/SidebarCard.svelte';
+  import LayerStackPanel from './LayerStackPanel.svelte';
+  import LayerControlsPanel from './LayerControlsPanel.svelte';
+  import CatalogSidebarPanel from './CatalogSidebarPanel.svelte';
+  import SidebarCard from './SidebarCard.svelte';
   import '$styles/layouts/tool-page.css';
 
   const dispatch = createEventDispatcher<{
     toggleCollapse: void;
     zoomToOverlay: { mapId: string };
-    pickMap: any;
+    pickMap: MapListItem;
     pickLocation: {
       lat: number;
       lng: number;

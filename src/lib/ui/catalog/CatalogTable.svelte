@@ -13,25 +13,15 @@
   /** Show the "+ overlay" toggle (only on /view sidebar). */
   export let showLayerActions: boolean = false;
 
-  import { layersStore, MAX_OVERLAY_LAYERS, type HistoricalRef } from '$lib/stores/layersStore';
+  import { layersStore, MAX_OVERLAY_LAYERS, toHistoricalRef } from '$lib/stores/layersStore';
+  import { statusOf } from '$lib/catalog/catalogSearch';
   $: layersState = $layersStore;
   $: overlayMapIds = new Set(layersState.overlays.map((o) => o.ref.mapId));
 
-  function toHistoricalRef(item: any): HistoricalRef | null {
-    const allmapsId = item.annotation_url ?? item.allmaps_id;
-    if (!item?.id || !allmapsId) return null;
-    return {
-      kind: 'historical',
-      mapId: item.id,
-      allmapsId,
-      name: item.name,
-      thumbnail: item.thumbnail,
-    };
-  }
-
   function toggleOverlay(item: any) {
+    if (!item?.id) return;
     const ref = toHistoricalRef(item);
-    if (!ref) return;
+    if (!ref.allmapsId) return;
     if (overlayMapIds.has(ref.mapId)) layersStore.removeOverlayByMapId(ref.mapId);
     else if (layersState.overlays.length < MAX_OVERLAY_LAYERS) layersStore.addOverlay(ref);
   }
@@ -73,10 +63,8 @@
     return String(a).localeCompare(String(b), undefined, { numeric: true });
   }
 
-  function statusOf(item: any): string {
-    if (item._table === 'scout') return 'Scout';
-    return item.georef_done ? 'Map' : 'Image';
-  }
+  // Display casing for the shared status rule; sort/group keys read this.
+  const STATUS_LABEL = { scout: 'Scout', map: 'Map', image: 'Image' } as const;
 
   function keyOf(item: any, k: SortKey | GroupKey): any {
     if (k === 'name') return item.name;
@@ -84,7 +72,7 @@
     if (k === 'location') return item.location;
     if (k === 'map_type') return item.map_type;
     if (k === 'collection') return item.collection;
-    if (k === 'status') return statusOf(item);
+    if (k === 'status') return STATUS_LABEL[statusOf(item)];
     return null;
   }
 

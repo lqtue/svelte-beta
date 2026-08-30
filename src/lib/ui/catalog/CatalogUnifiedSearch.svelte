@@ -14,6 +14,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { createCatalogSearch } from '$lib/catalog/catalogSearch';
   import { getSupabaseContext } from '$lib/supabase/context';
+  import { fetchMapRow } from '$lib/maps/service';
   import MapEditModal from '$lib/admin/MapEditModal.svelte';
   import type { MapRow } from '$lib/admin/adminApi';
 
@@ -68,12 +69,12 @@
 
   async function openEditor(item: any) {
     editError = '';
-    const { data, error } = await supabase.from('maps').select('*').eq('id', item.id).single();
-    if (error) {
-      editError = error.message;
+    const row = await fetchMapRow(supabase, item.id);
+    if (!row) {
+      editError = 'Could not load this map for editing.';
       return;
     }
-    editingMap = data as MapRow;
+    editingMap = row as MapRow;
   }
   function afterEdit() {
     editingMap = null;

@@ -4,28 +4,28 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/supabase/types';
-import type { MapListItem, MapRecord, MapStatus } from './types';
+import type { MapListItem, MapSourceType, MapStatus } from './types';
 
-type DbRow = Database['public']['Tables']['maps']['Row'];
+export type DbRow = Database['public']['Tables']['maps']['Row'];
 
 function toMapListItem(row: DbRow): MapListItem {
   return {
     id: row.id,
     allmaps_id: row.allmaps_id ?? undefined,
-    annotation_url: (row as unknown as MapRecord).annotation_url ?? undefined,
+    annotation_url: row.annotation_url ?? undefined,
     name: row.name,
-    location: (row as unknown as MapRecord).location ?? undefined,
-    map_type: (row as unknown as MapRecord).map_type ?? undefined,
-    dc_description: (row as unknown as MapRecord).dc_description ?? undefined,
+    location: row.location ?? undefined,
+    map_type: row.map_type ?? undefined,
+    dc_description: row.dc_description ?? undefined,
     thumbnail: row.thumbnail ?? undefined,
     isFeatured: row.is_featured ?? false,
     year: row.year ?? undefined,
-    year_label: (row as unknown as MapRecord).year_label ?? undefined,
-    collection: (row as unknown as MapRecord).collection ?? undefined,
-    source_type: (row as unknown as MapRecord).source_type ?? undefined,
-    status: ((row as unknown as MapRecord).status ?? 'draft') as MapStatus,
-    bbox: (row as unknown as MapRecord).bbox as [number, number, number, number] | undefined,
-    iiif_image: (row as unknown as MapRecord).iiif_image ?? undefined,
+    year_label: row.year_label ?? undefined,
+    collection: row.collection ?? undefined,
+    source_type: (row.source_type ?? undefined) as MapSourceType | undefined,
+    status: (row.status ?? 'draft') as MapStatus,
+    bbox: (row.bbox ?? undefined) as [number, number, number, number] | undefined,
+    iiif_image: row.iiif_image ?? undefined,
   };
 }
 
@@ -72,4 +72,20 @@ export async function fetchGeoreferencedMaps(
     return [];
   }
   return (data as unknown as DbRow[]).map(toMapListItem);
+}
+
+/**
+ * One full `maps` row by id. Used where the list-item projection isn't enough
+ * (the admin editor writes back columns the search result never carried).
+ */
+export async function fetchMapRow(
+  supabase: SupabaseClient<Database>,
+  id: string
+): Promise<DbRow | null> {
+  const { data, error } = await supabase.from('maps').select('*').eq('id', id).single();
+  if (error || !data) {
+    console.error('fetchMapRow:', error);
+    return null;
+  }
+  return data as DbRow;
 }

@@ -16,6 +16,7 @@
   import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
   import '$styles/layouts/tool-page.css';
   import { getSupabaseContext } from '$lib/supabase/context';
+  import { fetchUserRole } from '$lib/supabase/role';
   import { fetchMaps } from '$lib/maps/service';
   import type { MapListItem } from '$lib/maps/types';
 
@@ -67,14 +68,7 @@
       const match = maps.find((m) => m.id === paramId);
       if (match) selectMap(match);
     }
-    if (session?.user?.id) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-      catalogRole = ((data as any)?.role as 'user' | 'mod' | 'admin') ?? 'user';
-    }
+    catalogRole = (await fetchUserRole(supabase, session?.user?.id)) ?? 'user';
   });
 </script>
 

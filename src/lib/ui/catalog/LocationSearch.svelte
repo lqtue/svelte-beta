@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { debounce } from '$lib/utils/debounce';
 
   export let query: string = '';
   /** Hide the list (parent controls visibility, e.g. when collapsed). */
@@ -23,7 +24,6 @@
   let results: any[] = [];
   let loading = false;
   let abortCtrl: AbortController | null = null;
-  let debounce: any = null;
   let lastQuery = '';
 
   $: if (query !== lastQuery) {
@@ -31,10 +31,7 @@
     scheduleSearch();
   }
 
-  function scheduleSearch() {
-    if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(runSearch, 300);
-  }
+  const scheduleSearch = debounce(runSearch, 300);
 
   async function runSearch() {
     const q = query.trim();

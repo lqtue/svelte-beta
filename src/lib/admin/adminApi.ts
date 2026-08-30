@@ -2,6 +2,32 @@ import type { Database } from '$lib/supabase/types';
 
 export type MapRow = Database['public']['Tables']['maps']['Row'];
 
+/**
+ * Every admin endpoint answers a failure the same way — a JSON body with a
+ * `message`, or nothing parseable at all. This turns that into a thrown Error
+ * so callers only handle the happy path.
+ *
+ * `T = void` for endpoints whose body we ignore.
+ */
+async function apiFetch<T>(
+  url: string,
+  init?: RequestInit,
+  fallbackMsg = 'Request failed'
+): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || fallbackMsg);
+  }
+  return (await res.json().catch(() => undefined)) as T;
+}
+
+const jsonInit = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
 export async function updateMap(
   id: string,
   data: Partial<{
@@ -35,26 +61,11 @@ export async function updateMap(
     georef_done: boolean;
   }>
 ): Promise<MapRow> {
-  const res = await fetch(`/api/admin/maps/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to update map' }));
-    throw new Error(err.message || 'Failed to update map');
-  }
-  return res.json();
+  return apiFetch<MapRow>(`/api/admin/maps/${id}`, jsonInit('PATCH', data), 'Failed to update map');
 }
 
 export async function deleteMap(id: string): Promise<void> {
-  const res = await fetch(`/api/admin/maps/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to delete map' }));
-    throw new Error(err.message || 'Failed to delete map');
-  }
+  await apiFetch<void>(`/api/admin/maps/${id}`, { method: 'DELETE' }, 'Failed to delete map');
 }
 
 export async function uploadMapImage(
@@ -69,15 +80,11 @@ export async function uploadMapImage(
   const formData = new FormData();
   formData.append('image', file);
 
-  const res = await fetch(`/api/admin/maps/${id}/image`, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to upload image' }));
-    throw new Error(err.message || 'Failed to upload image');
-  }
-  return res.json();
+  return apiFetch(
+    `/api/admin/maps/${id}/image`,
+    { method: 'POST', body: formData },
+    'Failed to upload image'
+  );
 }
 
 // ---- IIIF Sources ----
@@ -95,9 +102,11 @@ export interface IIIFSourceRow {
 }
 
 export async function fetchIIIFSources(mapId: string): Promise<IIIFSourceRow[]> {
-  const res = await fetch(`/api/admin/maps/${mapId}/iiif-sources`);
-  if (!res.ok) throw new Error('Failed to fetch IIIF sources');
-  return res.json();
+  return apiFetch<IIIFSourceRow[]>(
+    `/api/admin/maps/${mapId}/iiif-sources`,
+    undefined,
+    'Failed to fetch IIIF sources'
+  );
 }
 
 export async function addIIIFSource(
@@ -110,34 +119,27 @@ export async function addIIIFSource(
     is_primary?: boolean;
   }
 ): Promise<void> {
-  const res = await fetch(`/api/admin/maps/${mapId}/iiif-sources`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to add IIIF source' }));
-    throw new Error(err.message || 'Failed to add IIIF source');
-  }
+  await apiFetch<void>(
+    `/api/admin/maps/${mapId}/iiif-sources`,
+    jsonInit('POST', data),
+    'Failed to add IIIF source'
+  );
 }
 
 export async function setPrimaryIIIFSource(mapId: string, sourceId: string): Promise<void> {
-  const res = await fetch(`/api/admin/maps/${mapId}/iiif-sources/${sourceId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ is_primary: true }),
-  });
-  if (!res.ok) throw new Error('Failed to set primary source');
+  await apiFetch<void>(
+    `/api/admin/maps/${mapId}/iiif-sources/${sourceId}`,
+    jsonInit('PATCH', { is_primary: true }),
+    'Failed to set primary source'
+  );
 }
 
 export async function deleteIIIFSource(mapId: string, sourceId: string): Promise<void> {
-  const res = await fetch(`/api/admin/maps/${mapId}/iiif-sources/${sourceId}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to delete IIIF source' }));
-    throw new Error(err.message || 'Failed to delete IIIF source');
-  }
+  await apiFetch<void>(
+    `/api/admin/maps/${mapId}/iiif-sources/${sourceId}`,
+    { method: 'DELETE' },
+    'Failed to delete IIIF source'
+  );
 }
 
 export interface MirrorR2Result {
@@ -150,12 +152,11 @@ export interface MirrorR2Result {
 }
 
 export async function mirrorToR2(mapId: string): Promise<MirrorR2Result> {
-  const res = await fetch(`/api/admin/maps/${mapId}/mirror-r2`, { method: 'POST' });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Failed to mirror to R2' }));
-    throw new Error(err.message || 'Failed to mirror to R2');
-  }
-  return res.json();
+  return apiFetch<MirrorR2Result>(
+    `/api/admin/maps/${mapId}/mirror-r2`,
+    { method: 'POST' },
+    'Failed to mirror to R2'
+  );
 }
 
 export async function fetchIIIFMetadata(manifestUrl: string): Promise<{
@@ -165,11 +166,23 @@ export async function fetchIIIFMetadata(manifestUrl: string): Promise<{
   rights?: string;
   imageServiceUrl?: string;
 }> {
-  const res = await fetch('/api/admin/maps/fetch-iiif-metadata', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ manifestUrl }),
-  });
-  if (!res.ok) throw new Error('Failed to fetch IIIF metadata');
-  return res.json();
+  return apiFetch(
+    '/api/admin/maps/fetch-iiif-metadata',
+    jsonInit('POST', { manifestUrl }),
+    'Failed to fetch IIIF metadata'
+  );
+}
+
+/**
+ * Derives the Allmaps image ID for a IIIF image service URL and probes
+ * annotations.allmaps.org to see whether a georeference already exists.
+ */
+export async function lookupAllmapsId(
+  iiifImage: string
+): Promise<{ allmapsId: string; hasAnnotation: boolean }> {
+  return apiFetch(
+    '/api/admin/maps/lookup-allmaps-id',
+    jsonInit('POST', { iiifImage }),
+    'Failed to look up Allmaps ID'
+  );
 }

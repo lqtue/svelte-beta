@@ -17,9 +17,9 @@
 
 import { get } from 'svelte/store';
 import { replaceState, pushState } from '$app/navigation';
-import { page } from '$app/stores';
 import type { MapStore, MapStoreValue } from './mapStore';
 import type { LayerStore, LayerStoreValue } from './layerStore';
+import { debounce } from '$lib/utils/debounce';
 
 // ── Precision helpers ────────────────────────────────────────────────
 
@@ -142,8 +142,6 @@ export function initUrlSync(options: UrlSyncOptions): () => void {
   const { mapStore, layerStore, debounceMs = 300, replaceOnMove = true } = options;
 
   let suppressStoreToUrl = false;
-  let suppressUrlToStore = false;
-  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   // ── URL → Stores (on init + popstate) ────────────────────────────
 
@@ -184,8 +182,6 @@ export function initUrlSync(options: UrlSyncOptions): () => void {
   function writeHashFromStores() {
     if (suppressStoreToUrl) return;
 
-    suppressUrlToStore = true;
-
     const mapVal = get(mapStore);
     const layerVal = get(layerStore);
     const hash = '#' + stateToHash(mapVal, layerVal);
@@ -200,14 +196,13 @@ export function initUrlSync(options: UrlSyncOptions): () => void {
         pushState(url, {});
       }
     }
-
-    suppressUrlToStore = false;
   }
+
+  const debouncedWrite = debounce(writeHashFromStores, debounceMs);
 
   function scheduleWrite() {
     if (suppressStoreToUrl) return;
-    if (debounceTimer !== undefined) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(writeHashFromStores, debounceMs);
+    debouncedWrite();
   }
 
   // ── Subscribe to stores ──────────────────────────────────────────
@@ -227,7 +222,7 @@ export function initUrlSync(options: UrlSyncOptions): () => void {
   return () => {
     unsubMap();
     unsubLayer();
-    if (debounceTimer !== undefined) clearTimeout(debounceTimer);
+    debouncedWrite.cancel();
     if (typeof window !== 'undefined') {
       window.removeEventListener('popstate', onPopState);
     }

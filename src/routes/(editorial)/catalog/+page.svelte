@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
+  import { fetchUserRole } from '$lib/supabase/role';
   import PageHero from '$lib/ui/PageHero.svelte';
   import CatalogUnifiedSearch from '$lib/ui/catalog/CatalogUnifiedSearch.svelte';
   import '$styles/layouts/catalog.css';
@@ -16,14 +17,7 @@
 
   onMount(async () => {
     mounted = true;
-    if (session?.user?.id) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-      role = ((data as any)?.role as 'user' | 'mod' | 'admin') ?? 'user';
-    }
+    role = (await fetchUserRole(supabase, session?.user?.id)) ?? 'user';
   });
 </script>
 

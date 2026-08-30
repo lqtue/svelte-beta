@@ -16,6 +16,7 @@
   import SidebarCard from '$lib/ui/catalog/SidebarCard.svelte';
   import ExploreBrowsePanel from './ExploreBrowsePanel.svelte';
   import type { ResolvedMap } from './spatialLookup';
+  import { readJson, writeJson } from '$lib/utils/persistence/storage';
 
   const dispatch = createEventDispatcher<{
     toggleCollapse: void;
@@ -51,25 +52,18 @@
 
   onMount(() => {
     if (!browser) return;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (
-        Array.isArray(parsed) &&
-        parsed.length === 3 &&
-        parsed.every((n) => typeof n === 'number')
-      ) {
-        ratios = parsed as [number, number, number];
-      }
-    } catch {}
+    const parsed = readJson<unknown>(STORAGE_KEY, null);
+    if (
+      Array.isArray(parsed) &&
+      parsed.length === 3 &&
+      parsed.every((n) => typeof n === 'number')
+    ) {
+      ratios = parsed as [number, number, number];
+    }
   });
 
   function persist() {
-    if (!browser) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(ratios));
-    } catch {}
+    if (browser) writeJson(STORAGE_KEY, ratios);
   }
 
   let containerEl: HTMLElement | null = null;

@@ -2,7 +2,7 @@
  * Layer visibility store — controls which basemap is active
  * and overlay display settings.
  *
- * Basemap keys match BASEMAP_DEFS in viewer/constants.ts:
+ * Basemap keys match BASEMAP_DEFS in $lib/map/constants.ts:
  *   'g-streets' | 'g-satellite'
  *
  * The MapShell component subscribes here and toggles OL layer visibility.
@@ -10,6 +10,7 @@
 
 import { writable, type Readable } from 'svelte/store';
 import type { ViewMode } from '$lib/map/types';
+import { readText, writeText } from '$lib/utils/persistence/storage';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -33,25 +34,6 @@ export interface LayerStore extends Readable<LayerStoreValue> {
 
 const CUSTOM_URL_KEY = 'vma-custom-base-url';
 
-function loadCustomBaseUrl(): string | null {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    return localStorage.getItem(CUSTOM_URL_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function saveCustomBaseUrl(url: string | null): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    if (url) localStorage.setItem(CUSTOM_URL_KEY, url);
-    else localStorage.removeItem(CUSTOM_URL_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
 // ── Defaults ─────────────────────────────────────────────────────────
 
 const DEFAULTS: LayerStoreValue = {
@@ -66,7 +48,7 @@ const DEFAULTS: LayerStoreValue = {
 export function createLayerStore(initial?: Partial<LayerStoreValue>): LayerStore {
   const { subscribe, update } = writable<LayerStoreValue>({
     ...DEFAULTS,
-    customBaseUrl: loadCustomBaseUrl(),
+    customBaseUrl: readText(CUSTOM_URL_KEY),
     ...initial,
   });
 
@@ -87,7 +69,7 @@ export function createLayerStore(initial?: Partial<LayerStoreValue>): LayerStore
 
     setCustomBaseUrl(url: string | null) {
       const v = url && url.trim() ? url.trim() : null;
-      saveCustomBaseUrl(v);
+      writeText(CUSTOM_URL_KEY, v);
       update((s) => ({ ...s, customBaseUrl: v }));
     },
   };

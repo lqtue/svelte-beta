@@ -10,8 +10,9 @@
  * hundred entries; swap for a PostGIS RPC later without changing callers.
  */
 import type { MapListItem } from '$lib/maps/types';
+import { annotationSourceFor, looksValidBbox, type Bbox } from '$lib/geo/mapBounds';
 
-export type Bbox = [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
+export type { Bbox };
 
 // VMA's editorial home base. Used as a fallback view when the user picks
 // "Show all maps" or denies location — but coverage is NOT limited to
@@ -26,22 +27,12 @@ export interface ResolvedMap extends MapListItem {
   effectiveBbox: Bbox;
 }
 
-function bboxContainsPoint(bbox: Bbox, lon: number, lat: number): boolean {
+export function bboxContainsPoint(bbox: Bbox, lon: number, lat: number): boolean {
   return lon >= bbox[0] && lon <= bbox[2] && lat >= bbox[1] && lat <= bbox[3];
 }
 
 function bboxArea(bbox: Bbox): number {
   return Math.max(0, bbox[2] - bbox[0]) * Math.max(0, bbox[3] - bbox[1]);
-}
-
-function looksValid(bbox: unknown): bbox is Bbox {
-  return (
-    Array.isArray(bbox) &&
-    bbox.length === 4 &&
-    bbox.every((n) => typeof n === 'number' && Number.isFinite(n)) &&
-    bbox[0] < bbox[2] &&
-    bbox[1] < bbox[3]
-  );
 }
 
 /**
@@ -65,9 +56,9 @@ export function matchMapsAtPoint(
   );
   const candidates: ResolvedMap[] = [];
   for (const m of visible) {
-    const candidate = looksValid(m.bbox)
+    const candidate = looksValidBbox(m.bbox)
       ? (m.bbox as Bbox)
-      : looksValid(m.bounds)
+      : looksValidBbox(m.bounds)
         ? (m.bounds as Bbox)
         : null;
     if (!candidate) continue;
@@ -84,18 +75,18 @@ export function matchMapsAtPoint(
 }
 
 /**
- * Returns the list of allmaps_ids that haven't had bounds resolved yet.
- * Caller passes these to fetchMultipleBounds to fill the gaps; the next
- * call to matchMapsAtPoint will pick them up automatically.
+ * Returns the annotation sources (see `annotationSourceFor`) of the maps that
+ * haven't had bounds resolved yet. Caller passes these to fetchMultipleBounds
+ * to fill the gaps; the next call to matchMapsAtPoint picks them up.
  */
-export function unresolvedAllmapsIds(mapList: MapListItem[], includeDrafts = false): string[] {
+export function unresolvedBoundsSources(mapList: MapListItem[], includeDrafts = false): string[] {
   return mapList
     .filter(
       (m) =>
         (includeDrafts || m.status === 'public' || m.status === 'featured') &&
-        !looksValid(m.bbox) &&
-        !looksValid(m.bounds) &&
-        !!m.allmaps_id
+        !looksValidBbox(m.bbox) &&
+        !looksValidBbox(m.bounds)
     )
-    .map((m) => m.allmaps_id!);
+    .map(annotationSourceFor)
+    .filter((src): src is string => !!src);
 }

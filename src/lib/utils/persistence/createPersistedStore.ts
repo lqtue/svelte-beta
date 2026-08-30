@@ -3,6 +3,7 @@
  */
 
 import { writable, type Writable } from 'svelte/store';
+import { debounce } from '$lib/utils/debounce';
 
 export interface PersistedStoreOptions<T> {
   key: string;
@@ -20,22 +21,6 @@ export interface PersistedStore<T> extends Writable<T> {
  */
 function isBrowser(): boolean {
   return typeof window !== 'undefined';
-}
-
-/**
- * Creates a debounced function
- */
-function debounce<T>(fn: (value: T) => void, ms: number): (value: T) => void {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  return (value: T) => {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
-    }
-    timeoutId = setTimeout(() => {
-      fn(value);
-      timeoutId = undefined;
-    }, ms);
-  };
 }
 
 /**

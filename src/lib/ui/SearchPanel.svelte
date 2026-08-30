@@ -10,7 +10,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { SearchResult, MapListItem } from '$lib/map/types';
   import { parseCoordinates, findNearbyMaps } from './searchUtils';
-  import { layersStore, MAX_OVERLAY_LAYERS } from '$lib/stores/layersStore';
+  import { layersStore, MAX_OVERLAY_LAYERS, toHistoricalRef } from '$lib/stores/layersStore';
 
   $: compareIds = $layersStore.overlays.map((o) => o.ref.mapId);
   $: compareFull = compareIds.length >= MAX_OVERLAY_LAYERS;
@@ -21,15 +21,9 @@
       layersStore.removeOverlayByMapId(map.id);
       return;
     }
-    const allmapsId = (map as any).annotation_url ?? map.allmaps_id;
-    if (!allmapsId) return;
-    layersStore.addOverlay({
-      kind: 'historical',
-      mapId: map.id,
-      allmapsId,
-      name: map.name,
-      thumbnail: (map as any).thumbnail,
-    });
+    const ref = toHistoricalRef(map);
+    if (!ref.allmapsId) return;
+    layersStore.addOverlay(ref);
   }
 
   const dispatch = createEventDispatcher<{

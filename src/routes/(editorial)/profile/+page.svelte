@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
+  import { fetchUserRole } from '$lib/supabase/role';
   import PageHero from '$lib/ui/PageHero.svelte';
   import type { PageData } from './$types';
   import '$styles/pages/profile.css';
@@ -44,12 +45,7 @@
     isVietnamese = document.cookie.includes('googtrans=/en/vi');
     try {
       // 1. Get role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (profile) role = (profile as any).role;
+      role = (await fetchUserRole(supabase, user.id)) ?? role;
 
       // 2. Get counts
       const [pinsRes, tracesRes] = await Promise.all([

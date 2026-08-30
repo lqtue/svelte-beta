@@ -15,6 +15,7 @@
  */
 import { writable, derived, get, type Readable, type Writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { debounce } from '$lib/utils/debounce';
 
 export interface PeriodDef {
   key: string;
@@ -140,7 +141,6 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
 
   const cache = new Map<string, { maps: Row[]; scout: Row[]; periods: PeriodDef[] }>();
   let inflight: AbortController | null = null;
-  let debounce: ReturnType<typeof setTimeout> | null = null;
   let started = false;
 
   const cacheKey = (q: string, scout: boolean) => `${q.trim().toLowerCase()}|${scout ? 1 : 0}`;
@@ -188,10 +188,7 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
     }
   }
 
-  function scheduleFetch() {
-    if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(doFetch, DEBOUNCE_MS);
-  }
+  const scheduleFetch = debounce(doFetch, DEBOUNCE_MS);
 
   function start() {
     if (started || !browser) return;
