@@ -15,6 +15,7 @@
   This replaces the old OL Modify + getModifiedRect() approach.
 -->
 <script lang="ts">
+  import { CAT_COLORS } from './constants';
   import { onDestroy, createEventDispatcher } from 'svelte';
   import { get } from 'svelte/store';
   import VectorSource from 'ol/source/Vector';
@@ -54,12 +55,6 @@
     draw: { global_x: number; global_y: number; global_w: number; global_h: number };
   }>();
 
-  const CAT_COLORS: Record<string, string> = {
-    street: '#ef4444', hydrology: '#3b82f6', place: '#60a5fa',
-    building: '#22c55e', institution: '#f97316', legend: '#a855f7',
-    legend_entry: '#a855f7', legend_ref: '#eab308',
-    title: '#06b6d4', other: '#9ca3af',
-  };
   const STATUS_DASH: Record<string, number[]> = {
     pending: [5, 4], validated: [], rejected: [2, 2],
   };

@@ -4,6 +4,7 @@
   Each row is editable inline; validate/reject writes back via the API.
 -->
 <script lang="ts">
+  import { OCR_CATEGORIES, CAT_COLORS, STATUS_COLORS } from './constants';
   import { createEventDispatcher, tick } from 'svelte';
   import '$styles/components/label.css';
 
@@ -16,8 +17,6 @@
   export let mapId: string;
   export let selectedId: string | null = null;
 
-  const OCR_CATEGORIES = ['street','hydrology','place','building','institution','legend','legend_entry','legend_ref','title','other'] as const;
-  type OcrCategory = typeof OCR_CATEGORIES[number];
 
   type Extraction = {
     id: string;
@@ -37,21 +36,6 @@
     _saving: boolean;
   };
 
-  const STATUS_COLORS: Record<string, string> = {
-    pending:   '#ca8a04',
-    validated: '#16a34a',
-    rejected:  '#dc2626',
-  };
-  const CAT_COLORS: Record<string, string> = {
-    street:      '#ef4444',
-    hydrology:   '#3b82f6',
-    place:       '#60a5fa',
-    building:    '#22c55e',
-    institution: '#f97316',
-    legend:      '#a855f7',
-    title:       '#06b6d4',
-    other:       '#9ca3af',
-  };
 
   let extractions: Extraction[] = [];
   let loading = false;
@@ -61,7 +45,7 @@
 
   let filterStatus: '' | 'pending' | 'validated' | 'rejected' = '';
   let filterSearch = '';
-  let filterRunId = '';
+  export let filterRunId = '';
   let filterMinConf = 0;
   let filterCategories = new Set<string>(OCR_CATEGORIES);
 
@@ -164,9 +148,9 @@
         body: JSON.stringify({ id: ext.id, text: ext._editText, category: ext._editCategory, status }),
       });
       if (!res.ok) { error = await res.text(); return; }
+      const old = ext.status as string;
       ext.status = status;
       ext.validated_at = status === 'validated' ? new Date().toISOString() : null;
-      const old = ext.status as string;
       statusCounts[status] = (statusCounts[status] ?? 0) + 1;
       statusCounts[old] = Math.max(0, (statusCounts[old] ?? 1) - 1);
       if (filterStatus && filterStatus !== status) {

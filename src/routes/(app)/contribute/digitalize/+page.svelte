@@ -12,6 +12,7 @@
   Tile priority cycle: click once → low-res (amber) · again → skip (gray) · again → normal.
 -->
 <script lang="ts">
+  import { OCR_CATEGORIES, CAT_COLORS } from '$lib/contribute/ocr/constants';
   import { onMount, tick } from 'svelte';
   import OlMap from 'ol/Map';
   import ToolLayout from '$lib/shell/ToolLayout.svelte';
@@ -34,12 +35,6 @@
 
   const { supabase } = getSupabaseContext();
 
-  const OCR_CATEGORIES = ['street','hydrology','place','building','institution','legend','title','other'] as const;
-  const CAT_COLORS: Record<string, string> = {
-    street: '#ef4444', hydrology: '#3b82f6', place: '#60a5fa',
-    building: '#22c55e', institution: '#f97316', legend: '#a855f7',
-    title: '#06b6d4', other: '#9ca3af',
-  };
 
   // ── Shared ────────────────────────────────────────────────────────────────────
   let maps: LabelMapInfo[] = [];
@@ -201,6 +196,8 @@
     selectedExtractionId = null;
     existingRuns = {};
     ocrError = '';
+    runId = '';
+    prevGridKey = ''; // new map: the grid-key watcher must not wipe the restored tileOverrides
     pipelineStatus = null;
     pipelineError = '';
 
@@ -292,7 +289,7 @@
 
   function loadRun(e: CustomEvent<{ runId: string }>) {
     phase = 'ocr';
-    tick().then(() => ocrSidebar?.load?.());
+    tick().then(() => { if (ocrSidebar) ocrSidebar.filterRunId = e.detail.runId; ocrSidebar?.load?.(); });
   }
 
   // ── OCR review handlers (verbatim from the legacy /contribute/label) ────────────────────
@@ -571,7 +568,7 @@
               type="text"
               bind:value={panelText}
               placeholder="Label text…"
-              on:keydown={(e) => { if (e.key === 'Enter') panelSave(selectedExtraction?.status === 'validated' ? 'validated' : 'validated'); }}
+              on:keydown={(e) => { if (e.key === 'Enter') panelSave('validated'); }}
             />
             <select class="bbox-panel-cat" bind:value={panelCategory}>
               {#each OCR_CATEGORIES as cat}

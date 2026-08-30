@@ -36,7 +36,7 @@ export function createAnnotationProjectStore(
 	loadFromSupabase();
 
 	function createProject(title: string, mapId: string): string {
-		const id = randomId('proj');
+		const id = crypto.randomUUID();
 		const now = Date.now();
 		const emptyFeatures: FeatureCollection = { type: 'FeatureCollection', features: [] };
 		const project: AnnotationSet = {

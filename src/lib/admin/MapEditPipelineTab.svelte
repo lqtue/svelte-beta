@@ -4,6 +4,8 @@
   Label Studio config back to the parent so they flow into the save payload.
 -->
 <script lang="ts">
+  import { OCR_CATEGORIES } from '$lib/contribute/ocr/constants';
+  import type { OcrExtraction } from '$lib/contribute/ocr/types';
   export let mapId: string;
   export let iiifImage: string | null | undefined = '';
 
@@ -14,18 +16,7 @@
   export let labelLegendText: string = '';
   export let labelCategories: string = '';
 
-  type OcrExtraction = {
-    id: string; run_id: string; tile_x: number; tile_y: number;
-    global_x: number; global_y: number; global_w: number; global_h: number;
-    category: string; text: string; text_validated: string | null;
-    category_validated: string | null; confidence: number;
-    rotation_deg: number | null; notes: string | null;
-    status: 'pending' | 'validated' | 'rejected'; validated_at: string | null;
-    model: string | null; prompt: string | null;
-    _editText?: string; _editCategory?: string; _saving?: boolean;
-  };
 
-  const OCR_CATEGORIES = ['street','hydrology','place','building','institution','legend','title','other'];
 
   let ocrRunning = false;
   let ocrApplying = false;

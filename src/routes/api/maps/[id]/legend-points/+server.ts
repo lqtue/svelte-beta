@@ -24,9 +24,11 @@ export const GET: RequestHandler = async ({ params }) => {
 
   const { data: map } = await supabase
     .from('maps')
-    .select('allmaps_id, annotation_url')
+    .select('allmaps_id, annotation_url, status')
     .eq('id', mapId)
     .single();
+  // Public route on the service-role client: never serve draft maps.
+  if (!map || !['public', 'featured'].includes((map as any).status)) return json({ points: [], reason: 'not public' });
   if (!(map as any)?.allmaps_id) return json({ points: [], reason: 'not georeferenced' });
 
   // Legend entries → number→name map + the legend box rect (shared tile bbox).

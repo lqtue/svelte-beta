@@ -36,9 +36,10 @@ interface AnnotationData {
   iiifBaseUrl: string; // IIIF image service base URL (for region crop requests)
 }
 
-const annotationCache = new Map<string, AnnotationData>();
+type AnnotationCache = Map<string, AnnotationData>;
 
-async function getAnnotationData(allmapsId: string): Promise<AnnotationData | null> {
+// Cache is per-request: module scope is shared across concurrent requests in a CF isolate.
+async function getAnnotationData(allmapsId: string, annotationCache: AnnotationCache): Promise<AnnotationData | null> {
   const annotationUrl = `https://annotations.allmaps.org/maps/${allmapsId}`;
   if (annotationCache.has(annotationUrl)) return annotationCache.get(annotationUrl)!;
 
@@ -73,6 +74,7 @@ const CATEGORY_IDS: Record<string, number> = {
 };
 
 export const GET: RequestHandler = async ({ url }) => {
+  const annotationCache: AnnotationCache = new Map();
   const mapId = url.searchParams.get('map_id');
   const status = url.searchParams.get('status') || 'submitted';
   const format = url.searchParams.get('format') || 'geojson';
@@ -104,7 +106,7 @@ export const GET: RequestHandler = async ({ url }) => {
       const resolvedAllmapsId = (row.maps as any)?.allmaps_id ?? null;
       if (!resolvedAllmapsId) continue;
 
-      const annData = await getAnnotationData(resolvedAllmapsId);
+      const annData = await getAnnotationData(resolvedAllmapsId, annotationCache);
       const pixelRing: [number, number][] = row.pixel_polygon;
       let coordinates: [number, number][];
 
@@ -139,7 +141,6 @@ export const GET: RequestHandler = async ({ url }) => {
       });
     }
 
-    annotationCache.clear();
     return new Response(JSON.stringify({ type: 'FeatureCollection', features }, null, 2), {
       headers: {
         'Content-Type': 'application/geo+json',
@@ -158,7 +159,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const resolvedAllmapsId = (row.maps as any)?.allmaps_id ?? null;
     if (!resolvedAllmapsId) continue;
 
-    const annData = await getAnnotationData(resolvedAllmapsId);
+    const annData = await getAnnotationData(resolvedAllmapsId, annotationCache);
     if (!annData) continue; // can't build crop URL without IIIF base
 
     const pixelRing: [number, number][] = row.pixel_polygon;
@@ -235,8 +236,6 @@ export const GET: RequestHandler = async ({ url }) => {
 
     annId++;
   }
-
-  annotationCache.clear();
 
   return json({
     info: {

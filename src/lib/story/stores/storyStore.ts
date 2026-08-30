@@ -48,7 +48,7 @@ export function createStoryLibraryStore(
 	};
 
 	function createStory(title = 'New Story', description = ''): string {
-		const id = randomId('story');
+		const id = crypto.randomUUID();
 		const now = Date.now();
 		const story: Story = {
 			id,

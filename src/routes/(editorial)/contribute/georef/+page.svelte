@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
   import PageHero from '$lib/ui/PageHero.svelte';
+  import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
   const { supabase } = getSupabaseContext();
 
@@ -57,7 +58,7 @@
 
   function annotationStorageUrl(allmapsId: string): string {
     if (allmapsId.startsWith('http')) return allmapsId;
-    return `https://trioykjhhwrruwjsklfo.supabase.co/storage/v1/object/public/annotations/${allmapsId}.json`;
+    return `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/annotations/${allmapsId}.json`;
   }
 
   $: pending = maps.filter(m => !m.georef_done);
