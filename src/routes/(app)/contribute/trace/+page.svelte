@@ -36,11 +36,7 @@
     deleteFootprint,
   } from '$lib/data/supabase/footprints';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';
-  import type {
-    FootprintSubmission,
-    PixelCoord,
-    FeatureType,
-  } from '$lib/data/maps/footprintTypes';
+  import type { FootprintSubmission, PixelCoord, FeatureType } from '$lib/data/maps/footprintTypes';
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id ?? null;
