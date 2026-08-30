@@ -1,6 +1,6 @@
 # VMA Design System
 
-The visual language for Vietnam Map Archive. Applied to all public pages: Home, About, Blog, Knowledge Graph, Timeline, Sources, Contribute, and any new routes.
+The visual language for Vietnam Map Archive. Applies to every public page and to the chrome of the map tools.
 
 ---
 
@@ -9,128 +9,117 @@ The visual language for Vietnam Map Archive. Applied to all public pages: Home, 
 **Neo-brutalist editorial.** Bold borders, offset shadows, flat fills — applied with editorial restraint. Not a playful toy, not a generic SaaS dashboard. A serious archive made legible and memorable.
 
 Two registers coexist:
-- **Editorial** (About, Blog, KG, Timeline, Sources) — clean, left-aligned, information-dense, readable at pace
-- **Playful map browser** (homepage map grid, viewer) — can use hover animations, favorites, map thumbnails
 
-All new public pages default to the **editorial** register.
+- **Editorial** (`/`, `/about`, `/blog`, `/contribute`, `/login`, `/profile`, `/admin/*`) — clean, left-aligned, information-dense.
+- **Tool** (`/explore`, `/studio`, `/create`, `/trip/[id]`, `/image`, `/contribute/*`) — full-bleed map under the nav, sidebar chrome, compact controls.
+
+New public pages default to the **editorial** register.
+
+**There is one theme.** `tokens.css` has no `[data-theme]` block; no component reads `data-theme`; there is no `ThemeToggle` component. The `vma-theme` boot script in `src/app.html` is vestigial — nothing writes the key. Do not write CSS that assumes a second theme.
 
 ---
 
 ## Tokens
 
-Defined in `src/styles/tokens.css`. Never hardcode colors, shadows, or radii — always use variables.
+Defined in `src/styles/tokens.css`, imported first by `src/styles/global.css`. **Never hardcode a colour, border, shadow or radius in a component `<style>` block.**
 
-### Colors
+### Colours
 
-| Variable | Default | Role |
+| Variable | Value | Role |
 |---|---|---|
 | `--color-bg` | `#faf6f0` | Page background (warm off-white) |
 | `--color-white` | `#ffffff` | Card and element backgrounds |
-| `--color-text` | `#111111` | Primary text; also used as footer background |
+| `--color-text` | `#111111` | Primary text; also the footer background |
 | `--color-border` | `#111111` | All borders and shadows |
-| `--color-primary` | `#ff4d4d` | CTAs, links, active states |
-| `--color-yellow` | `#ffd23f` | Hero backgrounds, highlights, hover states |
-| `--color-blue` | `#4d94ff` | Info, announcements, research category |
-| `--color-green` | `#00cc99` | Done/complete states, foundation phase |
-| `--color-orange` | `#ff8c42` | Community/in-progress states |
-| `--color-purple` | `#9d4edd` | Phase 3, future, announcements |
+| `--color-primary` | `#ff4d4d` | CTAs, links, active states, errors |
+| `--color-yellow` | `#ffd23f` | Hero backgrounds, highlights, hover fills |
+| `--color-blue` | `#4d94ff` | Info, in-progress, research |
+| `--color-green` | `#00cc99` | Done / complete |
+| `--color-orange` | `#ff8c42` | Community / building now |
+| `--color-purple` | `#9d4edd` | Future / announcement |
+| `--color-text-on-yellow` | `#111111` | Text on a yellow surface |
 
-**Semantic uses:**
-- Yellow hero → homepage, about, blog, any new landing section
-- Green → "done", "foundation", "complete"
-- Blue → "in progress", "research", "phase 2"
-- Orange → "community", "building now", "phase 1 community work"
-- Purple → "phase 3", "future", "announcement"
-- Red/primary → CTA buttons, links, error states
+Legacy aliases also exist and are still referenced: `--color-primary-600/700`, `--color-gray-50/100/300/400/500/900`, `--color-success-600`, `--color-warning-600`, `--color-error-600`.
 
 ### Typography
 
 | Variable | Value | Use |
 |---|---|---|
-| `--font-family-display` | Space Grotesk | All headings, nav, badges, labels, buttons |
-| `--font-family-base` | Outfit / Be Vietnam Pro | Body text, descriptions, captions |
+| `--font-family-display` | `'Space Grotesk', system-ui, sans-serif` | Headings, nav, badges, labels, buttons |
+| `--font-family-base` | `'Outfit', 'Be Vietnam Pro', system-ui, sans-serif` | Body text, descriptions, captions |
 
-**Weight guide:**
-- `800` (extrabold) — page titles, section headings, button text, badge text
-- `700` (bold) — nav links, sub-headings, strong body labels
-- `600` (semibold) — supporting text, stat labels
-- `500` (medium) — body copy, descriptions, captions
-- `400` (normal) — long-form reading (blog articles)
+Sizes: `--text-xs` `.75rem` · `--text-sm` `.875rem` · `--text-base` `1rem` · `--text-lg` `1.125rem` · `--text-xl` `1.25rem` · `--text-2xl` `1.5rem` · `--text-3xl` `2rem`.
+Weights: `--font-normal` 400 · `--font-medium` 500 · `--font-semibold` 600 · `--font-bold` 700 · `--font-extrabold` 800.
 
-**Scale:**
-- Hero title: `clamp(2.5rem, 6vw, 4rem)` — always use clamp for fluid type
-- Section title: `1.75rem`
-- Card title: `1.25–1.5rem`
-- Body: `1rem` (desktop), `0.875rem` (mobile)
-- Small/label: `0.75–0.875rem`
+Use `800` for page and section titles, `700` for nav and sub-headings, `500` for body copy, `400` for long-form blog reading. Hero titles use `clamp(2.5rem, 6vw, 4rem)` — always fluid.
 
-**Google Fonts import** (add to `<svelte:head>` on each page):
-```html
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet" />
+**The Google Fonts link lives once in `src/app.html`.** Do not add a `<link>` to a page or component; the per-page copies were removed in Aug 2026.
+
+### Borders, shadows, radii, spacing
+
+| Variable | Value | Use |
+|---|---|---|
+| `--border-thick` | `3px solid var(--color-border)` | Cards, nav, hero, structural elements |
+| `--border-thin` | `2px solid var(--color-border)` | Inline labels, progress tracks, dividers |
+| `--shadow-solid` | `6px 6px 0 var(--color-border)` | Feature cards, primary CTAs |
+| `--shadow-solid-sm` | `4px 4px 0` | Smaller cards, badges, secondary buttons |
+| `--shadow-solid-xs` | `2px 2px 0` | Chips, dense controls |
+| `--shadow-solid-hover` | `10px 10px 0` | Hover lift only — never on a static element |
+| `--radius-sm / md / lg / pill` | `8px / 16px / 24px / 999px` | Tags · cards, inputs · feature cards · buttons, chips |
+
+Aliases `--shadow-sm/md/lg` map onto the solid set. Spacing scale: `--space-1…16` (`0.25rem` → `4rem`). Layout: `--nav-height: 56px` — tool pages inset from the top by this. Breakpoints: `--bp-tablet 768px`, `--bp-desktop 1024px` (the tool shells use a hard `900px` mobile cut-off).
+
+---
+
+## CSS files
+
+All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `global.css` imports `tokens.css` plus the five always-on component sheets; everything else is imported by the component or route that needs it, so a page only pays for what it uses.
+
+| File | Loaded by | Scope |
+|---|---|---|
+| `tokens.css` | `global.css` | every custom property |
+| `global.css` | root layout | entry point |
+| **components/** | | shared widgets |
+| `buttons.css` | `global.css` | `.action-btn`, `.pill-btn` and variants |
+| `nav-buttons.css` | `global.css` | nav-bar button chrome |
+| `editorial.css` | `global.css` | hero, section-card, chips, footer, nav |
+| `modal.css` | `global.css` | generic modal scaffolding |
+| `sidebar.css` | `global.css` + `SidebarCard` | sidebar card frame |
+| `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome |
+| `catalog.css` | `CatalogGrid`, `CatalogCard`, `/catalog` | map card grid |
+| `search-panel.css` | `SearchPanel` + its two tabs | unified search overlay |
+| `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the shared contribute data table |
+| `tool-sidebar.css` | `TriageSidebar`, `SegSidebar` | tool sidebar form controls |
+| `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate |
+| `library.css` | `LibraryGrid`, `StudioMode`, `CreateMode` | project/story library grid |
+| **layouts/** | | page shells |
+| `tool-page.css` | every IIIF-canvas tool + `/image` | tool page frame, panels, toolbars |
+| `mode-shared.css` | `ToolLayout`, `ImageShell`, `MapModeOverlays`, `/explore` | map-mode chrome + the z-index scale |
+| `catalog.css` | `/catalog` | catalog page layout |
+| `home.css` | `/` | home page layout |
+| `create-mode.css` | `CreateMode`, `StudioMode` | story/annotation editor layout |
+| **pages/** | | one per editorial page |
+| `about.css`, `blog.css`, `blog-post.css`, `profile.css`, `admin-scout.css`, `admin-bulk.css` | their route (`admin-bulk.css` also by `GeorefSyncPanel`) | page-specific |
+
+`layouts/admin.css` and `components/label.css` were deleted in Aug 2026 — the three surviving `label.css` classes moved into `tool-page.css`. Do not reintroduce either name.
+
+**Import form:**
+
+```svelte
+<script lang="ts">
+  import '$styles/layouts/tool-page.css';
+</script>
 ```
-
-### Borders & Shadows
-
-The offset box-shadow is the signature of the design system. It creates depth without gradients.
-
-| Variable | Value | Use |
-|---|---|---|
-| `--border-thick` | `3px solid #111` | Cards, nav, hero, all structural elements |
-| `--border-thin` | `2px solid #111` | Inline labels, progress tracks, subtle dividers |
-| `--shadow-solid` | `6px 6px 0px #111` | Feature cards, primary CTAs |
-| `--shadow-solid-sm` | `4px 4px 0px #111` | Smaller cards, badges, secondary buttons |
-| `--shadow-solid-hover` | `10px 10px 0px #111` | Hover state on cards that lift |
-
-**Rule:** Every card has `border: var(--border-thick)`. The shadow size determines visual weight — `shadow-solid` for primary content, `shadow-solid-sm` for secondary.
-
-### Radii
-
-| Variable | Value | Use |
-|---|---|---|
-| `--radius-sm` | `8px` | Small inline elements, tags |
-| `--radius-md` | `16px` | Medium cards, inputs |
-| `--radius-lg` | `24px` | Large feature cards |
-| `--radius-pill` | `999px` | Buttons, chips, nav links |
 
 ---
 
 ## Components
 
-All shared components are in `src/styles/components/editorial.css`, auto-imported via `global.css`. Use these class names in any new page without redefining the CSS.
+The shared editorial classes live in `src/styles/components/editorial.css` and are global. Use them without redefining the CSS.
 
-### Top Nav
+`.top-nav` `.nav-logo` `.nav-links` `.nav-link` `.nav-auth` · `.editorial-hero` `.hero-inner` `.label-chip` `.text-highlight` · `.editorial-main` `.section-card` `.section-card-header` `.section-title` `.section-title-sm` `.section-desc` `.icon-blob` · `.badge-chip` with `.chip-blue` / `.chip-green` / `.chip-yellow` · `.action-btn` `.pill-btn` · `.editorial-footer`.
 
-```html
-<nav class="top-nav">
-  <a href="/" class="nav-logo">VMA</a>
-  <div class="nav-links">
-    <a href="/" class="nav-link">Home</a>
-    <a href="/about" class="nav-link">About</a>
-    <a href="/blog" class="nav-link">Blog</a>
-    <!-- add more links here -->
-    <a href="/current-page" class="nav-link active">Current</a>
-  </div>
-  <ThemeToggle />
-  <!-- optional: nav-auth for sign in/out -->
-</nav>
-```
-
-- Logo always has `margin-right: auto` (pushes links to the right)
-- Only one link has `class="nav-link active"` at a time
-- Nav links hide on mobile (≤600px) — if the page needs mobile nav, add a hamburger
-
-### Label Chip (hero eyebrow)
-
-Small white pill above the hero title. Sets context before the headline.
-
-```html
-<div class="label-chip">About the Project</div>
-<div class="label-chip">✨ Make old maps fun again.</div>
-```
-
-### Hero (editorial)
-
-Left-aligned, yellow background. The standard opening for any editorial page.
+### Hero
 
 ```html
 <header class="editorial-hero">
@@ -140,247 +129,126 @@ Left-aligned, yellow background. The standard opening for any editorial page.
       Bold headline<br />
       <span class="text-highlight">highlighted word.</span>
     </h1>
-    <p class="hero-sub">
-      Supporting paragraph. Max ~500px wide. White semi-transparent box.
-    </p>
-    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-      <span class="badge-chip chip-green">Fact one</span>
-      <span class="badge-chip chip-blue">Fact two</span>
-    </div>
+    <p class="hero-sub">Supporting paragraph. Max ~500px wide.</p>
+    <span class="badge-chip chip-green">Fact one</span>
+    <span class="badge-chip chip-blue">Fact two</span>
   </div>
 </header>
 ```
 
-**`.text-highlight`** — white fill + black stroke + offset shadow. Use on one or two words in the hero title only, never in body text.
+`.text-highlight` (white fill, black stroke, offset shadow) belongs on one or two words of a hero title — never in body text. Only `.chip-blue`, `.chip-green` and `.chip-yellow` exist; the orange/purple/red chip classes were removed.
 
-### Badge Chips
-
-Color-filled status pills. Used in hero areas and stat sections.
-
-```html
-<span class="badge-chip chip-green">Done</span>
-<span class="badge-chip chip-blue">In progress</span>
-<span class="badge-chip chip-yellow">Open data</span>
-<span class="badge-chip chip-purple">Phase 3</span>
-<span class="badge-chip chip-orange">Community</span>
-```
-
-### Section Card
-
-The primary container for sections within `editorial-main`. Always `border-thick` + `shadow-solid`.
+### Section card
 
 ```html
 <div class="section-card">
   <div class="section-card-header">
     <div class="icon-blob color-blue">📊</div>
     <div>
-      <h2 class="section-title-sm">Section Heading</h2>
-      <p class="section-desc">One or two sentences describing what's in this section.</p>
+      <h2 class="section-title-sm">Section heading</h2>
+      <p class="section-desc">One or two sentences.</p>
     </div>
   </div>
-  <!-- section content -->
+  <!-- content -->
 </div>
 ```
 
-For sections without an icon header, just use `<h2 class="section-title">` directly.
+`.icon-blob` modifiers: `.color-green`, `.color-blue`, `.color-orange`, `.color-yellow`, `.color-purple`.
 
-### Icon Blob
+### Buttons
 
-Decorative container for section emoji/icons. Organic blob shape via asymmetric border-radius.
-
-```html
-<div class="icon-blob color-yellow">✦</div>
-<div class="icon-blob color-blue">📊</div>
-<div class="icon-blob color-green">✅</div>
-```
-
-Available modifiers: `.color-green`, `.color-blue`, `.color-orange`, `.color-yellow`, `.color-purple`
-
-### Action Buttons
-
-Primary CTAs. Pill shape, thick border, offset shadow.
-
-```html
-<a href="/contribute" class="action-btn primary-btn">Start contributing</a>
-<a href="/about" class="action-btn secondary-btn">Learn more</a>
-<button class="action-btn secondary-btn" on:click={handler}>Do something</button>
-```
-
-- `.primary-btn` — red background, white text (highest emphasis)
-- `.secondary-btn` — white background, dark text (secondary)
-- Hover lifts with `translate(-3px, -3px)` + larger shadow
-
-### Pill Buttons
-
-Smaller utility buttons — auth, language toggles, small actions.
-
-```html
-<button class="pill-btn" on:click={handleSignOut}>Sign Out</button>
-<button class="pill-btn" style="background:var(--color-blue);color:white">VN</button>
-```
-
-### Editorial Main
-
-Constrains page content and stacks sections with consistent spacing.
-
-```html
-<main class="editorial-main">
-  <section><!-- section 1 --></section>
-  <section><!-- section 2 --></section>
-</main>
-```
-
-Max-width: `1100px`, padding: `4rem 1.5rem`, gap between sections: `3.5rem`.
-
-### Footer
-
-Dark footer, identical across all editorial pages.
-
-```html
-<footer class="editorial-footer">
-  <div class="footer-inner">
-    <div class="footer-links">
-      <a href="/">Home</a>
-      <a href="/about">About</a>
-      <a href="/blog">Blog</a>
-      <a href="/contribute">Contribute</a>
-    </div>
-    <p>Built openly with <a href="https://allmaps.org" target="_blank">Allmaps</a>, ...</p>
-    <p><a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a></p>
-  </div>
-</footer>
-```
+`.action-btn.primary-btn` (red, white text) and `.action-btn.secondary-btn` (white, dark text) for CTAs — both lift on hover with `translate(-3px,-3px)` plus the larger shadow. `.pill-btn` for small utility actions (sign out, toggles).
 
 ---
 
-## Page Template
+## Page template
 
-Every new editorial page follows this skeleton:
+Nav and footer come once from `src/routes/(editorial)/+layout.svelte`. A new editorial page renders only its own body:
 
 ```svelte
 <script lang="ts">
   import { onMount } from 'svelte';
-  import ThemeToggle from '$lib/ui/ThemeToggle.svelte';
+  import '$styles/pages/my-page.css';
 
   let mounted = false;
-  onMount(() => { mounted = true; });
+  onMount(() => {
+    mounted = true;
+  });
 </script>
 
 <svelte:head>
   <title>Page Title — Vietnam Map Archive</title>
-  <meta name="description" content="..." />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet" />
+  <meta name="description" content="…" />
 </svelte:head>
 
-<div class="page" class:mounted>
-  <nav class="top-nav">
-    <a href="/" class="nav-logo">VMA</a>
-    <div class="nav-links">
-      <a href="/" class="nav-link">Home</a>
-      <a href="/about" class="nav-link">About</a>
-      <a href="/blog" class="nav-link">Blog</a>
-      <a href="/this-page" class="nav-link active">This Page</a>
-    </div>
-    <ThemeToggle />
-  </nav>
-
+<div class="page my-page" class:mounted>
   <header class="editorial-hero">
     <div class="hero-inner">
       <div class="label-chip">Section label</div>
-      <h1 class="hero-title">
-        Page headline<br />
-        <span class="text-highlight">key phrase.</span>
-      </h1>
-      <p class="hero-sub">Supporting sentence. One or two lines.</p>
+      <h1 class="hero-title">Page headline<br /><span class="text-highlight">key phrase.</span></h1>
+      <p class="hero-sub">Supporting sentence.</p>
     </div>
   </header>
 
   <main class="editorial-main">
-    <!-- sections go here -->
+    <!-- .section-card blocks -->
   </main>
-
-  <footer class="editorial-footer">
-    <div class="footer-inner">
-      <div class="footer-links">
-        <a href="/">Home</a>
-        <a href="/about">About</a>
-        <a href="/blog">Blog</a>
-        <a href="/contribute">Contribute</a>
-      </div>
-      <p>Built openly with <a href="https://allmaps.org" target="_blank">Allmaps</a>,
-         <a href="https://openlayers.org" target="_blank">OpenLayers</a>, &amp;
-         <a href="https://svelte.dev" target="_blank">SvelteKit</a>.</p>
-      <p><a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a></p>
-    </div>
-  </footer>
 </div>
 
 <style>
-  :global(body) {
-    margin: 0;
-    background-color: var(--color-bg);
-    color: var(--color-text);
-    font-family: var(--font-family-base);
-  }
   .page {
     min-height: 100vh;
     opacity: 0;
     transition: opacity 0.4s ease;
   }
-  .page.mounted { opacity: 1; }
-  /* page-specific styles below */
+  .page.mounted {
+    opacity: 1;
+  }
 </style>
 ```
 
----
-
-## Themes
-
-### Default (Neo-Brutalist)
-Black `#111` borders, offset box shadows, bright fills. Bold and high-contrast.
-
-### Archival (`data-theme="archival"`)
-Muted earth tones, soft drop shadows, thinner borders. Refined, museum-like.
-Activated by the ThemeToggle component. All tokens remap automatically via `[data-theme="archival"]` in `tokens.css`. No custom CSS needed per component to support it.
+`.editorial-main` constrains to `1100px` with `4rem 1.5rem` padding and a `3.5rem` gap between sections.
 
 ---
 
 ## Rules
 
 **Always**
-- Use `var(--color-*)` — never hardcode hex in component CSS
-- Use `border: var(--border-thick)` on all cards and structural containers
-- Use `font-family: var(--font-family-display)` for headings and labels
-- Use `font-family: var(--font-family-base)` for body and descriptions
-- Left-align editorial hero content (not centered)
-- Add `class:mounted` with `opacity: 0 → 1` fade-in on the root `.page` element
-- Add `aria-expanded` on any toggle/disclosure element
-- Make collapsible regions use `{#if}` (Svelte), not CSS `display:none`, for accessibility
+
+- Use `var(--color-*)`, `var(--border-*)`, `var(--shadow-*)`, `var(--radius-*)` — a hex literal in a component `<style>` block is a bug. (The two legitimate exceptions are OpenLayers JS style objects, which cannot read CSS variables, and brand SVG fills.)
+- `border: var(--border-thick)` on every card and structural container.
+- `--font-family-display` for headings and labels; `--font-family-base` for body.
+- Left-align editorial hero content.
+- Add `class:mounted` with the `opacity: 0 → 1` fade-in on the root `.page`.
+- `aria-expanded` on any toggle or disclosure; collapsible regions use `{#if}`, not `display: none`.
 
 **Never**
-- Apply `transform: rotate()` on editorial pages (hero, about, blog, kg, timeline)
-- Use emoji in `<h1>` or `<h2>` headings — emoji go inside `.icon-blob` containers or inline in body copy only
-- Hardcode font sizes — use `clamp()` for headlines, token variables for body
-- Add archival theme overrides unless the element behaves badly in archival mode
-- Create a new page without adding it to the nav footer links
-- Use `.shadow-solid-hover` on static elements — it's for hover states only
+
+- `transform: rotate()` on an editorial page.
+- Emoji in `<h1>`/`<h2>` — they go inside `.icon-blob` or inline in body copy.
+- Hardcoded font sizes — `clamp()` for headlines, tokens for everything else.
+- A per-page Google Fonts `<link>` — it is in `app.html`.
+- `--shadow-solid-hover` on a static element; it is a hover state.
+- A new page without nav + footer links.
 
 **Adding a new public page**
-1. Copy the page template above
-2. Add the route to `nav-links` in all existing pages (Home, About, Blog) and to the footer
-3. Update `MEMORY.md` Route Structure table
-4. Use `editorial-main` and `section-card` for content — don't invent new layout patterns unless genuinely needed
+
+1. Copy the template above into `src/routes/(editorial)/<page>/+page.svelte`.
+2. Add its stylesheet at `src/styles/pages/<page>.css` and import it in the page.
+3. Add the link to `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
+4. Add a row to the route map in `docs/system-guidelines.md` §2.
+5. Build content from `.editorial-main` + `.section-card`; don't invent new layout patterns.
 
 ---
 
-## Color × State Reference
+## Colour × state reference
 
-| State | Color | Example use |
+| State | Token | Example |
 |---|---|---|
-| Complete / done | `--color-green` | Layer L1 progress, milestone checks |
-| Active / building | `--color-blue` | Layer L4 "building now", phase 2 |
-| Community / people | `--color-orange` | Cartographer tier, community cards |
-| Future / phase 3 | `--color-purple` | L2/L3 cards, phase 3 roadmap |
-| Hero / highlight | `--color-yellow` | Hero backgrounds, hover fills |
-| Danger / CTA | `--color-primary` | Primary buttons, error messages |
-| Neutral | `--color-text` / `--color-bg` | Body, cards, footer |
+| Complete / done | `--color-green` | finished pipeline stage, milestone check |
+| Active / in progress | `--color-blue` | current phase, research chips |
+| Community / people | `--color-orange` | contributor cards, low-res tile priority |
+| Future | `--color-purple` | roadmap items |
+| Hero / highlight | `--color-yellow` | hero background, hover fill |
+| CTA / danger | `--color-primary` | primary buttons, error messages |
+| Neutral | `--color-text` / `--color-bg` | body, cards, footer |

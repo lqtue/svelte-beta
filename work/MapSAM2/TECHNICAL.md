@@ -2,6 +2,8 @@
 
 How SAM2 fine-tuning works, what MapSAM2 does on top of it, how VMA's data feeds in, and where the improvement opportunities are.
 
+> **Path note:** file names such as `sam_lora_image_encoder.py`, `func_2d/*.py`, `yolo.py`, `train_2d.py` and `train_3d.py` refer to the **upstream MapSAM2 repository**, cloned separately (on Colab, passed as `--mapsam2-dir`). They are not files in this repo — VMA's own MapSAM2 code is just `inference_tiles_as_video.py`, `masks_to_polygons.py`, `evaluate.py` and the training notebook.
+
 ---
 
 ## 1. SAM2 Architecture — What We're Building On
@@ -254,9 +256,9 @@ eIoU = mean([IoU(pred > t, gt) for t in [0.1, 0.3, 0.5, 0.7, 0.9]])
 ### 5b. Prompt at inference time
 **Current:** Training uses GT-derived bboxes. At inference, you need to supply a bbox somehow — either manually, via YOLO detection, or via SAM2's automatic mask generator.
 
-**Improvement:** The `yolo.py` in MapSAM2 integrates YOLO for automatic bbox proposal. For historical maps, a simple tile-based scan (like VMA's current `vectorize.py`) could generate candidate bboxes, which SAM2 then refines into precise polygon boundaries.
+**Improvement:** The `yolo.py` in MapSAM2 integrates YOLO for automatic bbox proposal. For historical maps, candidate bboxes can come from a tile-based scan or, as VMA now does, from the OCR pass — `inference_tiles_as_video.py --mode prompted --ocr-run-id <run>` seeds SAM2 from `ocr_extractions` bboxes. SAM2 then refines them into precise polygon boundaries. (The older `scripts/vectorize.py` colour-profile scan has been deleted.)
 
-**Effort:** Low — the YOLO integration already exists. The question is training a YOLO detector on VMA data, or using the grid-scan approach from `vectorize.py`.
+**Effort:** Low — the YOLO integration already exists, and the Gemini/OCR seed path is already shipped. The open question is only whether a trained YOLO detector would beat the OCR seeds.
 
 ### 5c. Fixed 1024×1024 input
 **Current:** SAM2 requires exactly 1024×1024 input. IIIF crops are resized to this regardless of original aspect ratio, potentially distorting elongated buildings or roads.
@@ -291,7 +293,7 @@ eIoU = mean([IoU(pred > t, gt) for t in [0.1, 0.3, 0.5, 0.7, 0.9]])
 
 **Improvement:** After inference, map predicted mask pixels back through the IIIF → geo coordinate transform using `GcpTransformer` from `@allmaps/transform` (already used in the export API). Then store the result as a new `footprint_submission` with `status=needs_review` for volunteer validation.
 
-**Effort:** Medium — requires post-processing step and a pipeline that writes back to Supabase. VMA's `vectorize.py` already does this; MapSAM2 inference output could feed the same pipeline.
+**Effort:** Medium — requires a post-processing step and a pipeline that writes back to Supabase. **This shipped:** `inference_tiles_as_video.py --write-supabase` writes `footprint_submissions` (pixel space) and advances `map_pipeline_status`; the pixel → WGS84 transform happens downstream in the export API.
 
 ---
 

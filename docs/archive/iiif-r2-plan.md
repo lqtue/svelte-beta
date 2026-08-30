@@ -1,5 +1,7 @@
 # IIIF Self-Hosting Plan — Cloudflare R2 + Static Tiles
 
+> **Archived.** This plan shipped; the live reference is `docs/admin-tooling.md` §R2 / IIIF worker. The host below (`iiif.vmaproject.org`) was never used — production is `iiif.maparchive.vn`.
+
 **Goal:** Eliminate dependency on Internet Archive and BnF Gallica IIIF servers going down.
 **Approach:** Pre-tile each map once with vips, store tile trees in Cloudflare R2, serve via a minimal Worker.
 **Cost:** ~$0–1/month. **Time:** ~1 day of work.

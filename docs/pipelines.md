@@ -2,12 +2,18 @@
 
 CLI-driven pipelines that live outside the SvelteKit app. Each section is the canonical reference — CLAUDE.md only links here.
 
+Two companion artifacts live beside the OCR code: `work/ocr/ocr-system-map.excalidraw` (drag onto excalidraw.com) and `work/ocr/pipeline-structure.html` (open in a browser).
+
+Measured quality gate + the one recorded negative result: **`work/ocr/EVAL-BASELINE.md`**. Read it before changing anything in the core loop.
+
 ## OCR (`work/ocr/`)
 
-Gemini Flash vision pipeline that extracts toponyms, street names, and institutional labels from IIIF map tiles. Uses `google-genai` with structured JSON output. Runs in the repo-root `.venv/`.
+Gemini Flash vision pipeline that extracts toponyms, street names, and institutional labels from IIIF map tiles. Uses `google-genai` with structured JSON output.
+
+**There is no repo-root `.venv`.** The only venv in the tree is `work/ocr/.venv` (see *Local passes* below for how it is created); it also serves the Gemini passes once `google-genai` is installed into it.
 
 ```bash
-source .venv/bin/activate
+source work/ocr/.venv/bin/activate
 
 # Single tile
 python work/ocr/scripts/ocr.py run \
@@ -18,8 +24,8 @@ python work/ocr/scripts/ocr.py run \
 # Full-map macro scan (scout pass, no crop)
 python work/ocr/scripts/ocr.py scout --map-id <uuid> --iiif-base <url> --run-id <name>
 
-# Batch over all tiles
-python work/ocr/scripts/ocr.py batch --map-id <uuid> --iiif-base <url> --scout --run-id <name>
+# Batch over all tiles (row-sequence is ON by default)
+python work/ocr/scripts/ocr.py batch --map-id <uuid> --iiif-base <url> --scout --run-id <name> [--db]
 
 # Fuzzy dedup + spatial fragment join → ocr_extractions
 python work/ocr/scripts/ocr.py clean \
@@ -27,13 +33,15 @@ python work/ocr/scripts/ocr.py clean \
   --map-id <uuid> --run-id <clean-run-id> --min-confidence 0.1 [--apply]
 ```
 
-Subcommands: `run`, `scout`, `stitch`, `batch`, `clean`, `dedup`, `preview`, `list-models`.
+Subcommands (11): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `preview`, `list-models`, `detect-layout`, `numerals`, `legend`.
+
+Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max-row-frames 4`), `--adaptive`, `--target-calls N`, `--smart-grid`, `--skip-sparse`, `--auto-priority`, `--tile-overrides '{"x_y_w_h":"skip|low_res"}'`, `--crop x,y,w,h`, `--prior-run <dir>`, `--legend`, `--db`.
 
 ### Local passes (no API — run on the M-series for free)
 
 Two subcommands offload the geometry/digit parts of map OCR to local tools, keeping Gemini for semantic text (place names, legend descriptions). Both live in `work/ocr/scripts/local_vision.py`.
 
-They need only `numpy`, `scipy`, `Pillow`, `pytesseract` + the `tesseract` binary (`brew install tesseract`) — **not** `google-genai`. They run in `work/ocr/.venv` (created with `--system-site-packages` to reuse brew numpy/scipy/PIL, since Homebrew Python is PEP-668 externally-managed):
+They need only `numpy`, `scipy`, `Pillow`, `pytesseract` + the `tesseract` binary (`brew install tesseract`) — **not** `google-genai`. The venv is created with `--system-site-packages` to reuse brew numpy/scipy/PIL, since Homebrew Python is PEP-668 externally-managed:
 
 ```bash
 python3 -m venv --system-site-packages work/ocr/.venv
@@ -48,24 +56,37 @@ work/ocr/.venv/bin/python work/ocr/scripts/ocr.py numerals \
   --map-id <uuid> --run-id <name> [--db]   # → runs/<name>/numerals.json; --db writes category='legend_ref'
 ```
 
-- `detect-layout` finds **bordered** boxes only; borderless legends fall back to a manual region or the whole-image legend pass. The regions feed the (Gemini) structured legend pass.
+- `detect-layout` finds **bordered** boxes only; borderless legends fall back to a manual region or the whole-image legend pass. The regions feed the (Gemini) structured `legend` pass.
 - `numerals` writes `category='legend_ref'` rows — a later join `legend_ref.text == legend_entry.number` links each map numeral to its legend entry (pure SQL, no model).
-- Both accept `--local-image <path>` to skip IIIF entirely. Self-check: `work/ocr/.venv/bin/python work/ocr/scripts/local_vision.py`.
+- `legend` (Gemini) reads a numbered legend region into `{n, name, grid}` rows: `--region x,y,w,h` required; `--bilingual`, `--consensus N` (cross-check across N models and flag disagreements), `--db` → `category='legend_entry'`.
+- All three accept `--local-image <path>` to skip IIIF entirely. Self-check: `work/ocr/.venv/bin/python work/ocr/scripts/local_vision.py`.
 - **Known limit:** Tesseract single-digit recall is mediocre (rotated glyphs missed). Upgrade path if recall is too low — swap `spot_numerals()` for a PaddleOCR detector in a Python 3.11 venv, keeping the same `[{text, bbox, confidence}]` shape.
 
-Design notes:
+### Label ↔ footprint join
+
+```bash
+python work/ocr/scripts/join_labels.py <map-id>       # link
+python work/ocr/scripts/join_labels.py --self-check   # PIP + nesting assertions, no DB
+```
+
+Point-in-polygon assignment of each `ocr_extractions` row to the `footprint_submissions` polygon it names, writing `ocr_extractions.footprint_id` (migration `050_ocr_footprint_link.sql`, `ON DELETE SET NULL`). Level-aware: a bare numeral routes to a `building`, a name routes to the enclosing block; ties break to the **smallest** containing polygon. Rejected extractions never link; `category_validated` (the human fix) wins over `category`.
+
+### Design notes
+
 - Gemini bboxes are **0–1000 normalized space**; render with `img_dim / 1000`.
 - `ocr_extractions.global_x/y/w/h` already store full-image pixel coords.
-- Model: `gemini-2.0-flash-preview` (Paid tier 1). Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation).
+- Model: `DEFAULT_MODEL = "gemini-3-flash-preview"` (`work/ocr/scripts/gemini_client.py`), overridable per-subcommand with `--model`. Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation). `ocr.py list-models` enumerates what the key can actually reach.
 - Outputs versioned at `work/ocr/outputs/<map_id>/runs/<run_id>/` with `run_config.json` for reproducibility.
-- Prompts `v1`–`v8` in `work/ocr/scripts/prompt.py`. **Default is `v8`** (high-recall, no confidence floor). V6 introduced a 0.5 confidence floor that crushed recall; v8 reverts it.
+- Prompts `v1`–`v8` + scout in `work/ocr/scripts/prompt.py`. **`DEFAULT_PROMPT = "v8"`** (high-recall, no confidence floor). V6 introduced a 0.5 confidence floor that crushed recall; v8 reverts it.
 - `clean` writes to `ocr_extractions` (correct target for the digitalize review UI); legacy `dedup` writes to `label_pins`.
 
-Scripts: `ocr.py` (CLI), `gemini_client.py` (key rotation + retries), `iiif_tiles.py` (crop fetch, IA fallback, IIIF v2/v3 detection), `supabase_client.py` (direct REST), `prompt.py`.
+Scripts: `ocr.py` (CLI), `gemini_client.py` (key rotation + retries), `iiif_tiles.py` (crop fetch, IA fallback, IIIF v2/v3 detection), `supabase_client.py` (direct REST), `prompt.py`, `local_vision.py`, `join_labels.py`, `eval.py` + `eval_metrics.py`, `cache.py`.
 
 ## MapSAM2 inference (`work/MapSAM2/`)
 
-SAM2/MapSAM2 segmentation: IIIF tiles → masks → polygons → `footprint_submissions`. Colab (GPU) or local M1 (base SAM2 only). Uses `.venv-m1/`. See `work/MapSAM2/CLAUDE.md` for training/LoRA details.
+SAM2/MapSAM2 segmentation: IIIF tiles → masks → polygons → `footprint_submissions`. Colab (GPU) or local M1 (base SAM2 only).
+
+No venv is checked in or currently set up for this pipeline — create one per your platform and install the SAM2 deps. Training/LoRA details, the paper reading and the improvement backlog are in **`work/MapSAM2/TECHNICAL.md`**; Colab config is in `work/MapSAM2/VMA_SETUP.md`.
 
 ```bash
 # Local test (base SAM2, small region)
@@ -82,10 +103,10 @@ python work/MapSAM2/inference_tiles_as_video.py \
   --out-json footprints.json --write-supabase
 
 # Evaluate (SODUCO F1=0.59 baseline)
-python work/MapSAM2/evaluate.py --predictions footprints.json --map-id <uuid>
+python work/MapSAM2/evaluate.py --predictions footprints.json --map-id <uuid> [--iou-thresholds 0.5,0.75]
 ```
 
-Key flags: `--mode automatic|prompted`, `--lora`, `--text-mask` (erase OCR bbox regions), `--watershed` (Meyer post-processing), `--region x,y,w,h`.
+Key flags: `--mode automatic|prompted`, `--lora`, `--encoder vit_s`, `--mapsam2-dir` (path to the **upstream** MapSAM2 clone), `--text-mask` (erase OCR bbox regions), `--watershed` (Meyer post-processing), `--region x,y,w,h`, `--device cpu|cuda|mps`.
 
 Modes: `automatic` = SAM2AutomaticMaskGenerator grid-scan; `prompted` = SAM2ImagePredictor with OCR bbox seeds (requires `--ocr-run-id`; best with LoRA).
 
@@ -107,11 +128,86 @@ The gate for any core-pipeline change: baseline, refactor, compare. Scores a run
 # OCR: a run's raw extractions vs human-validated rows (box IoU + char-acc)
 python work/ocr/scripts/eval.py ocr --map-id <uuid> --run-id <run> [--iou 0.5]
 
-# Seg: sam-auto footprints vs verified/consensus footprints (polygon IoU)
-python work/ocr/scripts/eval.py seg --map-id <uuid> [--iou 0.5]
+# Seg: predicted footprints vs verified/consensus footprints (polygon IoU)
+python work/ocr/scripts/eval.py seg --map-id <uuid> \
+  [--pred-status submitted] [--gt-status verified,consensus] [--iou 0.5]
 
 # Offline, no DB — score two JSON files directly
 python work/ocr/scripts/eval.py ocr --pred-file p.json --gt-file g.json
 ```
 
 Reports precision / recall / F1 / mean IoU (+ char-acc for OCR). Reads only, never writes. Distinct from `work/MapSAM2/evaluate.py`, which scores a `predictions.json` against a map rather than against DB ground truth.
+
+**Recorded numbers and the one rejected experiment live in `work/ocr/EVAL-BASELINE.md`** — baseline recall/char-acc/mean-IoU on map `0e02b9d9…`, why `precision` on a partial ground-truth set is not trustworthy, and why neighbour-window batching was built, measured (−16 pts recall) and reverted. Row-sequence stays the default.
+
+---
+
+# Design rationale
+
+Why the two pipelines are shaped the way they are, and what the intended end state is. Merged here from two now-deleted notes — `work/PIPELINE_INTEGRATION.md` (MapSAM2 paper reading, Xia et al. 2025, arXiv:2510.27547) and `work/ocr/TECHNICAL.md`; recover the originals from git history if needed. Historical — parts have shipped, parts have not; the *Status* lines say which.
+
+## Tiles-as-video
+
+The MapSAM2 paper's unifying insight: treat a set of static tiles from one map as a **video**, so SAM2's memory attention shares context across tiles instead of segmenting each in isolation. The paper measures memory attention alone at **+14.3% IoU on vineyards, +16.1% on railways**.
+
+**Status: shipped in shape, not in mechanism.** `inference_tiles_as_video.py` is the VMA entry point and tiles the region sequentially, but still runs SAM2's default FIFO memory. The paper's **self-sorting memory bank** (MedSAM-2, Zhu et al. 2024) is the open change:
+
+- admit candidate embedding `E_t` if IoU confidence `c_t` > threshold;
+- keep the top-`K` most **dissimilar**, `D_i = Σ_{j≠i}(1 − sim(E_i, E_j))`, `M_t = TopK(D_i)`;
+- for the next tile `F_{t+1}`, resample the top-`k` most **similar**, `p_{i,t} ∝ sim(F_{t+1}, E_i)`.
+
+Highest single-change EV in the backlog, and the most complex.
+
+## Gemini as the prompt source
+
+The paper uses a fine-tuned YOLO to produce instance-level bbox prompts, and shows prompt quality is worth **+12.8% F1** (holding the segmenter fixed, varying only YOLO's training size). VMA substitutes Gemini:
+
+- open-vocabulary, no training, several categories in one call;
+- returns the **text** as well as the box — one call, two signals, so OCR and prompt generation are the same pass;
+- on a corpus of ~46 annotated Saigon footprints, a 10-shot YOLO is the weaker option.
+
+**Status: shipped.** `--mode prompted --ocr-run-id <run>` seeds SAM2 from `ocr_extractions` bboxes. `--text-mask` erases those regions from the image so label ink is not segmented as building.
+
+The reverse direction closes the loop: once polygons exist, `join_labels.py` assigns each label to the polygon it names (migration 050). Bidirectional — labels prompt the segmenter, footprints then claim the labels.
+
+## Ordering the sequence
+
+Spatial ordering on the Gemini side is the cheap analogue of the paper's self-sorting memory: order tiles so dense urban-core frames come first and sparse edge tiles inherit accumulated context.
+
+**Status: partially shipped, and one variant measured and rejected.** `batch --row-sequence` (default on, `--max-row-frames 4`) sends each row-strip as one sequence call to `extract_labels_sequence()`. A denser ordering was never implemented. The adjacent idea — reading each tile together with its four grid neighbours — *was* built, measured and reverted; see EVAL-BASELINE.md for the numbers and the two root causes (bad `frame_idx` attribution; centroid ownership leaking inside the 300px overlap band).
+
+## Coarse → fine
+
+`scout` reads the whole map at low resolution to find the neatline and the dense regions; `batch` then tiles only the content area (`--smart-grid`, `--crop`, `--auto-priority`, `--skip-sparse`) at full resolution. Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
+
+## Coordinate contract
+
+Everything downstream of Gemini is **pixel space on the full source image**, which is also SAM2's input space and `footprint_submissions.pixel_polygon`'s space. Gemini returns 0–1000 normalized boxes per tile; `_to_global()` converts to full-image px; `ocr_extractions.global_x/y/w/h` stores that. Georeferencing to WGS84 happens later, via the Allmaps transform, not in the pipeline.
+
+Note for anyone porting Google's spatial-understanding patterns: their notebook uses `[y_min, x_min, y_max, x_max]`; VMA's prompts document `bbox_px: [x, y, width, height]`. Calibrate before mixing the two.
+
+## Prompt design decisions
+
+1. **System prompt establishes map identity first** — priors for "French colonial Saigon 1882" are far stronger than for "historical map" generically.
+2. **bbox within the tile** — coordinates relative to the submitted crop, directly compositable with SAM2 footprints (both pixel space).
+3. **`rotation_deg`** — street labels on French cadastral maps follow the road axis; capturing the angle allows correct placement in the label overlay.
+4. **`confidence`** — thresholds before human review. Surface everything ≥0.4 to HITL; auto-accept ≥0.85.
+5. **`notes`** — deliberately free-form for model observations ("ink bleed", "partially occluded", "possibly Vietnamese transliteration").
+
+The shipped category taxonomy is whatever `work/ocr/scripts/prompt.py` and the review UI's `OCR_CATEGORIES` agree on — including the pipeline-generated `legend_ref` and `legend_entry`. Do not treat any doc as the schema; read `prompt.py`.
+
+## Known issues / risks
+
+- **Hallucination on blank areas** — Gemini may invent text on featureless margin regions. Mitigate with confidence thresholding and a sanity check (extractions should be empty for blank tiles). `--skip-sparse` / `--auto-priority` avoid sending those tiles at all.
+- **IIIF server rate limits** — archive.org throttles at ~10 req/s. The fetcher caches to `.tile_cache/` to avoid re-fetching.
+- **Model IDs change** — Flash preview IDs get replaced or renamed. Run `ocr.py list-models` on first use of a new key.
+- **French + quốc ngữ mix** — early French colonial maps use early Romanized Vietnamese transliterations. The model handles these but accuracy is lower.
+- **Edge labels cut off** — a label straddling a tile boundary is read as two fragments; `clean` rejoins them spatially, and sequence mode assembles some of them in-model.
+
+## Cost
+
+Flash-tier vision is cheap enough that resolution, not budget, is the binding constraint: a full pass over one large map is cents, not dollars. Per-run token counts are recorded in each run's `run_config.json` — use those rather than any figure written down here, since both pricing and the default model change.
+
+## POC acceptance criteria (historical)
+
+The bar the POC was held to, before `eval.py` and EVAL-BASELINE.md replaced eyeballing: ≥80% of visible toponyms on a manually checked tile matched by an extraction; ≤10% of extractions hallucinated; extracted bbox overlapping the real text region by ≥50%. Superseded — use the eval harness.

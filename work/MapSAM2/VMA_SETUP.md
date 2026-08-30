@@ -1,6 +1,8 @@
 # VMA × MapSAM2 — Setup Guide
 
-## Database Snapshot (2026-04-04)
+## Database Snapshot
+
+> **Snapshot taken 2026-04-04 — counts are stale.** Re-query `footprint_submissions` for the current totals before training; the map ID below is still correct.
 
 **Supabase URL:** `https://trioykjhhwrruwjsklfo.supabase.co`
 
@@ -8,9 +10,9 @@
 
 | Map Name | Map ID | Footprints | Status |
 |----------|--------|-----------|--------|
-| Plan Cadastral de la ville de Saigon, Cochinchine Française (1882) | `3d065384-bb09-4b8c-b46b-bf006d0c3ba3` | 46 | submitted |
+| Plan Cadastral de la ville de Saigon, Cochinchine Française (1882) | `0e02b9d9-9d40-4cca-8e41-8c8373d54d3b` | 46 (as of 2026-04-04) | submitted |
 
-**Total: 46 building footprints ready for fine-tuning**
+**Total at the time of the snapshot: 46 building footprints.**
 
 ---
 
@@ -27,7 +29,7 @@ SUPABASE_ANON_KEY = '...'  # already set in notebook
 
 # ── Training data ─────────────────────────────────────────────────────────────
 MAP_ID = '0e02b9d9-9d40-4cca-8e41-8c8373d54d3b'
-STATUS = 'submitted'    # Use the 46 available footprints
+STATUS = 'submitted'    # All submitted footprints for that map
 
 # ── Training ─────────────────────────────────────────────────────────────────
 TRAIN_SPLIT  = 0.8
@@ -56,7 +58,7 @@ USE_DRIVE   = False  # Set to True to cache across Colab sessions
 ### 1. Upload Notebook to Google Colab
 
 1. Go to [https://colab.research.google.com](https://colab.research.google.com)
-2. Upload `work/MapSAM2_new/vma_mapsam2_training.ipynb`
+2. Upload `work/MapSAM2/vma_mapsam2_training.ipynb`
 3. Change runtime to **GPU** (Runtime → Change runtime type → GPU → T4)
 
 > **No local server needed.** The notebook queries Supabase directly using
@@ -66,7 +68,7 @@ USE_DRIVE   = False  # Set to True to cache across Colab sessions
 ### 2. Run All Cells
 
 The notebook will:
-- Cell 4: Fetch 46 footprints directly from Supabase + build COCO dataset
+- Cell 4: Fetch the map's footprints directly from Supabase + build COCO dataset
 - Cell 5: Download IIIF crops and render binary masks
 - Cell 6: Fine-tune SAM2 with LoRA (20 epochs)
 - Cell 7–8: Evaluate and visualize results
@@ -76,7 +78,7 @@ The notebook will:
 
 ## Expected Output
 
-**Training should complete in ~2–5 minutes (T4 GPU, 46 samples, 20 epochs)**
+**Training should complete in ~2–5 minutes (T4 GPU, ~46 samples, 20 epochs)**
 
 Metrics to watch:
 - **Loss**: aim for < 0.2
@@ -106,8 +108,7 @@ Metrics to watch:
 
 After training:
 1. Download the best checkpoint from Colab (Cell 9)
-2. Run inference on new maps using `train_2d.py -test` flag
-3. Convert predicted masks back to WGS84 using Allmaps georef data
-4. Submit as `status=needs_review` footprints for volunteer review
+2. Run inference on new maps with VMA's entry point, `work/MapSAM2/inference_tiles_as_video.py` (`--lora --checkpoint <ckpt> --mapsam2-dir /content/MapSAM2`). Upstream's `train_2d.py -test` is not the VMA path.
+3. Write results with `--write-supabase` — polygons land in `footprint_submissions` in pixel space for volunteer review in `/contribute/review`; the pixel → WGS84 transform happens downstream in the export API
 
 See `TECHNICAL.md` for architecture details.

@@ -4,31 +4,27 @@ Admin controls live inline in `/catalog` (gated by `role === 'admin' | 'mod'`). 
 
 ## Catalog admin mode
 
-Toggle "Edit Meta" on `/catalog` to layer admin extras on the public grid: completeness progress bar, `map_type`/`source_type` chips, Edit button → `MapEditModal`. Sort can switch to "Completeness (asc)" to surface incomplete maps first.
+**`/catalog`** renders `src/lib/features/catalog/CatalogUnifiedSearch.svelte` unconditionally — there is no `?v=` switch and no legacy view. It hits `/api/search` once per `q` / `include=scout` change; facet chips filter and re-tally client-side so chip toggles are instant.
 
-**`/catalog`** — defaults to `CatalogUnifiedSearch.svelte` (the former `?v=2`). Hits `/api/search` once per `q` / `include=scout` change; facet chips filter and re-tally client-side so chip toggles are instant. Components: `src/lib/ui/FacetRail.svelte` (multi-select chip groups, "all-but-this-dimension" tallies) and `src/lib/ui/SearchResultCard.svelte` (unified card for curated + scout, yellow border + inline Approve/Reject for admins). Append `?v=1` to fall back to the legacy view, which still owns favorites filtering and the admin sheet editor — those will move into v2 eventually.
+- `src/lib/ui/FacetRail.svelte` — multi-select chip groups with "all-but-this-dimension" tallies; two-way binds the selection.
+- `src/lib/features/catalog/CatalogTable.svelte` — the result rows (curated + scout). `src/lib/ui/CatalogGrid.svelte` / `CatalogCard.svelte` are the card-grid counterparts.
+- `src/lib/features/catalog/CatalogDetailDrawer.svelte` — row detail. Staff (`role === 'admin' | 'mod'`) get an **✎ Edit** action on curated rows only; it dispatches `edit` up through `CatalogUnifiedSearch`.
+- Staff also get an **Include scout queue** toggle in the toolbar. Non-staff never see scout rows — `/api/search` drops `include=scout` server-side.
+
+**The catalog page owns the modal, not the search component.** `src/routes/(editorial)/catalog/+page.svelte` listens for `on:edit`, loads the row via `fetchMapRow`, and renders `MapEditModal`; on save it calls the component's exported `refresh()`.
 
 ## MapEditModal
 
-Four tabs (GCPs conditional on self-hosted maps).
+`src/lib/features/admin/MapEditModal.svelte` — **four tabs, all unconditional**: About · Source · Hosting & Georef · Pipeline (`activeTab: 'about' | 'source' | 'hosting' | 'pipeline'`). There is no GCPs tab; `NeatlineEditor.svelte` renders inside the Hosting & Georef branch.
 
-| Tab | Content |
-|-----|---------|
-| **Metadata** | Identity (display name, location, map_type, year, source_type, featured) · Dublin Core (8 CORE + 5 SUPP fields with `dc:*` tags + ●/○ completeness dots; tab header shows `n/8 core`) · Custom Fields (`extra_metadata` JSONB) |
-| **Hosting** | Image sources list (primary indicator), Mirror to R2, Georeference (Allmaps ID + Fetch from Allmaps button + editor link), Image upload to IA, Holding institution input |
-| **Pipeline** | Visibility/priority toggles, Label Studio config, OCR pipeline controls |
-| **GCPs** | NeatlineEditor (self-hosted only) |
+| Tab | Component | Content |
+|-----|-----------|---------|
+| **About** | `MapEditAboutTab.svelte` | name, original_title, year, year_label, creator, dc_publisher, location, map_type, dc_coverage, dc_subject, dc_description, physical_description, language, custom `extra_metadata` pairs |
+| **Source** | `MapEditSourceTab.svelte` | source_type, holding_institution, collection, shelfmark, ia_identifier, source_url, rights |
+| **Hosting & Georef** | `MapEditHostingTab.svelte` | IIIF source list (primary indicator), Mirror to R2, Allmaps ID + annotation_url + Fetch-from-Allmaps + Editor link, IA image upload, `NeatlineEditor` |
+| **Pipeline** | `MapEditPipelineTab.svelte` | georef_done / legend_done flags, legend mode + text, label categories, OCR pipeline controls |
 
-- DC fields flowing through admin PATCH: `original_title`, `creator`, `dc_publisher`, `year_label`, `shelfmark`, `source_url`, `rights`, `dc_description`, `dc_subject`, `dc_coverage`, `language`, `physical_description`, `collection`. Adding new ones requires both a binding in `MapEditModal.svelte` and a passthrough in `src/routes/api/admin/maps/[id]/+server.ts` (it silently drops unknown fields).
-- `source_type` on `maps` and `map_iiif_sources`: `ia | bnf | efeo | gallica | rumsey | self | other` (mig 027). Check `maps_status_check`-style constraints before inserting unknown values; a future migration may add `r2`.
-- Primary source indicator: green left-border + "★ PRIMARY" badge (`.source-row--primary`).
-- Orphan R2 detection: yellow warning when `maps.iiif_image` contains `maparchive.vn` but no matching `map_iiif_sources` row.
-- Editor link uses `editorIiifUrl` (priority: `iiif_manifest` → non-R2 source → fallback annotation URL). Bare image-service URLs get `/info.json` appended before passing to `editor.allmaps.org/?url=`.
-- After mirror-r2 (mig 047 onwards), the Supabase Storage annotation URL lands in `annotation_url`; `allmaps_id` stays as the bare 16-char image ID. The Editor link uses `editorIiifUrl` (manifest / non-R2 source / fallback annotation URL when no override is set).
-
-**Fetch metadata from IIIF manifest** (Hosting tab): POSTs to `/api/admin/maps/fetch-iiif-metadata` and fills empty Metadata-tab fields (title, creator, date, shelfmark, rights, language, source URL, holding_institution from manifest attribution). Never overwrites existing curation.
-
-**Fetch from Allmaps** (Hosting tab): POSTs to `/api/admin/maps/lookup-allmaps-id` with `{ iiifImage }`, derives the Allmaps image ID via `@allmaps/id` (first 16 chars of SHA-1 of the canonical IIIF service URL), and probes `annotations.allmaps.org/images/<id>`. Used after placing GCPs in Allmaps Editor.
+Supporting modules in `src/lib/features/admin/`: `NeatlineEditor.svelte`, `neatlineDatum.ts`, `neatlineViewport.ts`, `GeorefSyncPanel.svelte`, `ScoutCard.svelte`. The admin API client is `src/lib/data/admin/adminApi.ts`; the PATCH body is assembled in `src/lib/data/admin/mapEditPayload.ts`.
 
 ## Bulk upload (`/admin/bulk`)
 
@@ -50,6 +46,28 @@ Self-hosted IIIF tile serving via Cloudflare R2 + Worker at `https://iiif.maparc
 
 Deploy: `cd worker && npx wrangler deploy --env production`. A bare `wrangler deploy` updates only the default env (orphan worker on `workers.dev`) and does NOT update the production route.
 
+### Why pre-tiled
+
+Historical scans never change, so tiling once means zero compute at request time and no dependency on Internet Archive or Gallica staying up. `vips dzsave` takes any JPEG/PNG/TIFF directly — no pyramidal TIFF step. R2 egress is free, so tile serving costs storage only (~$0.15/mo at 20 maps × ~500 MB; ~$1.50/mo at 200).
+
+### Layout and config
+
+- Bucket `vma-tiles`, binding `TILES` (`worker/wrangler.toml`). Keys under `tiles/{mapId}/…`, `info.json` at `tiles/{mapId}/info.json`.
+- Production route `iiif.maparchive.vn/iiif/*` on zone `maparchive.vn`. (Older notes say `iiif.vmaproject.org` — that host was never live; a stale comment survives at `scripts/tile_map.sh:11`.)
+- Tiles are served `Cache-Control: immutable`; `info.json` is served `max-age=0` because the worker patches it per-request.
+- `Access-Control-Allow-Origin: *` is required on **both** `info.json` and tile responses — Allmaps will not load the overlay without it.
+- Source scans stay in Supabase Storage as the re-tiling input; they are never served directly (egress).
+
+### Prerequisites and gotchas
+
+- `vips --version` and `rclone listremotes` (must show `r2:`) — `wrangler` cannot upload a directory, so `tile_map.sh` uses rclone.
+- Tile size 256 is standard; 512 cuts request count on very large maps but enlarges the first tile. `Q=85` is the right quality band for archival scans (limited palette).
+- BnF Gallica: download the highest-res JPEG from the viewer, not via the manifest (slow). IA: `https://archive.org/download/{identifier}/{file}.jpg`.
+- Running mirror-r2 *before* the tiles are uploaded points `maps.iiif_image` at R2 while the objects are missing — the worker then falls back to the origin proxy and can 500. Tile first, or expect a gap.
+- Keep the pre-mirror URL in `extra_metadata.iiif_image_original` as a fallback reference.
+
+Full historical plan (phases, worker source draft, cost table): `docs/archive/iiif-r2-plan.md`.
+
 ## Scout & ingest (`/admin/scout`)
 
 External-source discovery + curate + bulk-ingest pipeline. Surfaces candidates from Gallica, Humazur, David Rumsey, Library of Congress as a reviewable grid. Admin approves rows → bulk-ingest as `draft` `maps` rows with full DC + `holding_institution`.
@@ -65,7 +83,6 @@ External-source discovery + curate + bulk-ingest pipeline. Surfaces candidates f
 | `scripts/categorize_scout_results.mjs` | Scores + categorizes candidates. Outputs `scripts/scout_review.csv`. |
 | `scripts/load_scout_to_db.mjs` | Loads merged scout JSON into `scout_candidates`. Fixes Humazur manifest URLs (must use `iiif/{item_id}/manifest`, NOT media_id). Derives Gallica thumbnails from ARK pattern. |
 | `scripts/backfill_humazur_thumbs.mjs` | Backfills Humazur thumbnails (Omeka stores them on the media object, not the item — needs `/api/media/{id}`). Throttled 150ms/req. |
-| `scripts/ingest_scout_approved.mjs` | CSV-driven legacy ingest. Reads `action=y` rows from `scout_review.csv`, fetches each manifest, inserts. |
 
 ### Source patterns (for adding new sources)
 
@@ -124,3 +141,5 @@ open https://<host>/admin/scout
 
 - `scripts/backfill_map_metadata.mjs` — fetches Allmaps annotations → populates `maps.iiif_image`, `thumbnail`, `source_type`, `collection`; inserts `map_iiif_sources` rows. `--dry-run`, `--map-id <uuid>` supported.
 - `scripts/aws/ec2-setup.sh` — bootstrap g4dn.xlarge GPU instance for SAM2.
+- `scripts/backfill_allmaps_ids.mjs` — backfills `maps.allmaps_id` from existing IIIF sources.
+- `scripts/sync_allmaps_georef.mjs` — syncs georeference state from Allmaps; the UI counterpart is `src/lib/features/admin/GeorefSyncPanel.svelte`.
