@@ -1,27 +1,16 @@
 import { json, error } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
+import { requireRole } from '$lib/server/auth';
+import { adminClient } from '$lib/server/supabaseAdmin';
+import { assertUuid, dbError } from '$lib/server/http';
 import type { Database } from '$lib/supabase/types';
-
-async function getAdminClient(locals: App.Locals) {
-  const { session, user } = await locals.safeGetSession();
-  if (!session || !user) throw error(401, 'Unauthorized');
-
-  const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-  if (profile?.role !== 'admin') throw error(403, 'Forbidden');
-  return supabase;
-}
 
 /** PATCH — update a source (e.g. set is_primary, change label) */
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
-  const supabase = await getAdminClient(locals);
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
+  const sourceId = assertUuid(params.sourceId, 'source id');
+  const supabase = adminClient();
   const body = await request.json();
 
   const updateData: Database['public']['Tables']['map_iiif_sources']['Update'] = {};
@@ -39,48 +28,49 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     const { error: clearErr } = await supabase
       .from('map_iiif_sources')
       .update({ is_primary: false })
-      .eq('map_id', params.id)
+      .eq('map_id', mapId)
       .eq('is_primary', true)
-      .neq('id', params.sourceId);
-    if (clearErr) throw error(500, clearErr.message);
+      .neq('id', sourceId);
+    if (clearErr) dbError(clearErr, 'Could not demote the existing primary source');
   }
 
-  const { data, error: dbError } = await supabase
+  const { data, error: err } = await supabase
     .from('map_iiif_sources')
     .update(updateData)
-    .eq('id', params.sourceId)
-    .eq('map_id', params.id)
+    .eq('id', sourceId)
+    .eq('map_id', mapId)
     .select()
     .single();
 
-  if (dbError) throw error(500, dbError.message);
+  if (err) dbError(err, 'Could not update IIIF source');
   return json(data);
 };
 
 /** DELETE — remove a source (cannot delete the only primary) */
 export const DELETE: RequestHandler = async ({ locals, params }) => {
-  const supabase = await getAdminClient(locals);
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
+  const sourceId = assertUuid(params.sourceId, 'source id');
+  const supabase = adminClient();
 
   // Guard: don't delete the primary if it's the only source
   const { data: sources } = await supabase
     .from('map_iiif_sources')
     .select('id, is_primary')
-    .eq('map_id', params.id);
+    .eq('map_id', mapId);
 
-  const target = (sources as Array<{ id: string; is_primary: boolean }> | null)?.find(
-    (s) => s.id === params.sourceId
-  );
+  const target = sources?.find((s) => s.id === sourceId);
 
   if (target?.is_primary && (sources?.length ?? 0) <= 1) {
     throw error(400, 'Cannot delete the only IIIF source for a map');
   }
 
-  const { error: dbError } = await supabase
+  const { error: err } = await supabase
     .from('map_iiif_sources')
     .delete()
-    .eq('id', params.sourceId)
-    .eq('map_id', params.id);
+    .eq('id', sourceId)
+    .eq('map_id', mapId);
 
-  if (dbError) throw error(500, dbError.message);
+  if (err) dbError(err, 'Could not delete IIIF source');
   return json({ success: true });
 };

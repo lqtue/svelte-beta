@@ -7,12 +7,12 @@
 // BEFORE the facet filters themselves are applied — so each chip shows how
 // many results you'd get if you toggled it on.
 
-import { json, error } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import type { Database } from '$lib/supabase/types';
+import { getRole } from '$lib/server/auth';
+import { adminClient } from '$lib/server/supabaseAdmin';
+import { dbError } from '$lib/server/http';
+import { tally } from '$lib/server/facets';
 
 // No pagination UI on the catalog/sidebar yet, so the page slice must be able
 // to hold the whole archive. Raw queries keep their own 2000-row safety ceiling.
@@ -28,24 +28,6 @@ const PERIODS: { key: string; label: string; from: number; to: number }[] = [
   { key: 'reunification', label: 'Reunification+ (1976–)', from: 1976, to: 9999 },
 ];
 
-async function getRole(locals: App.Locals): Promise<'admin' | 'mod' | 'user' | null> {
-  try {
-    const { session, user } = await locals.safeGetSession();
-    if (!session || !user) return null;
-    const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    const role = (profile as { role?: string } | null)?.role ?? 'user';
-    if (role === 'admin' || role === 'mod') return role;
-    return 'user';
-  } catch {
-    return null;
-  }
-}
-
 function csvParam(v: string | null): string[] {
   return v
     ? v
@@ -53,17 +35,6 @@ function csvParam(v: string | null): string[] {
         .map((s) => s.trim())
         .filter(Boolean)
     : [];
-}
-
-function tally(rows: Record<string, unknown>[] | null, key: string): Record<string, number> {
-  const m: Record<string, number> = {};
-  for (const r of rows || []) {
-    const v = r?.[key];
-    if (v === null || v === undefined || v === '') continue;
-    const s = String(v);
-    m[s] = (m[s] ?? 0) + 1;
-  }
-  return m;
 }
 
 function periodOf(year: number | null | undefined): string | null {
@@ -74,7 +45,7 @@ function periodOf(year: number | null | undefined): string | null {
 
 export const GET: RequestHandler = async ({ locals, url }) => {
   const role = await getRole(locals);
-  const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  const supabase = adminClient();
 
   const q = (url.searchParams.get('q') || '').trim();
   const institution = csvParam(url.searchParams.get('institution'));
@@ -112,7 +83,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     if (q) qMaps = qMaps.textSearch('search_vector', q, { config: 'simple', type: 'plain' });
     qMaps = qMaps.limit(2000); // safety ceiling
     const { data, error: err } = await qMaps;
-    if (err) throw error(500, `maps: ${err.message}`);
+    if (err) dbError(err, 'Map search failed');
     mapsRows = (data as Record<string, unknown>[]) || [];
   }
 
@@ -128,7 +99,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     if (q) qScout = qScout.textSearch('search_vector', q, { config: 'simple', type: 'plain' });
     qScout = qScout.limit(2000);
     const { data, error: err } = await qScout;
-    if (err) throw error(500, `scout: ${err.message}`);
+    if (err) dbError(err, 'Scout search failed');
     scoutRows = (data as Record<string, unknown>[]) || [];
   }
 

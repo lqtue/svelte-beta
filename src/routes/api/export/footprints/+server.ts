@@ -24,9 +24,10 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createClient } from '@supabase/supabase-js';
-import { GcpTransformer } from '@allmaps/transform';
-import { parseAnnotation } from '@allmaps/annotation';
+import type { GcpTransformer } from '@allmaps/transform';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { allmapsAnnotationUrl, getTransformer } from '$lib/server/transformer';
+import { dbError } from '$lib/server/http';
 
 interface AnnotationData {
   transformer: GcpTransformer;
@@ -40,27 +41,20 @@ async function getAnnotationData(
   allmapsId: string,
   annotationCache: AnnotationCache
 ): Promise<AnnotationData | null> {
-  const annotationUrl = `https://annotations.allmaps.org/maps/${allmapsId}`;
-  if (annotationCache.has(annotationUrl)) return annotationCache.get(annotationUrl)!;
+  const key = allmapsAnnotationUrl(allmapsId);
+  const cached = annotationCache.get(key);
+  if (cached) return cached;
 
-  try {
-    const res = await fetch(annotationUrl);
-    if (!res.ok) return null;
-    const annotation = await res.json();
-    const maps = parseAnnotation(annotation);
-    if (!maps.length) return null;
+  const resolved = await getTransformer(allmapsId);
+  // Without the IIIF base URL we cannot build crop requests, so treat it as a miss.
+  if (!resolved?.iiifBaseUrl) return null;
 
-    const transformer = GcpTransformer.fromGeoreferencedMap(maps[0] as any);
-    // IIIF image service base URL lives at items[0].target.source.id in the annotation
-    const iiifBaseUrl = annotation.items?.[0]?.target?.source?.id as string | undefined;
-    if (!iiifBaseUrl) return null;
-
-    const data: AnnotationData = { transformer, iiifBaseUrl };
-    annotationCache.set(annotationUrl, data);
-    return data;
-  } catch {
-    return null;
-  }
+  const data: AnnotationData = {
+    transformer: resolved.transformer,
+    iiifBaseUrl: resolved.iiifBaseUrl,
+  };
+  annotationCache.set(key, data);
+  return data;
 }
 
 const CATEGORY_IDS: Record<string, number> = {
@@ -85,6 +79,8 @@ export const GET: RequestHandler = async ({ url }) => {
     throw error(400, 'map_id is required for coco format');
   }
 
+  // Deliberately the anon key, not $lib/server/supabaseAdmin: this endpoint is
+  // public and unauthenticated, so it must stay behind RLS.
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
   let fpQuery = supabase
@@ -94,8 +90,8 @@ export const GET: RequestHandler = async ({ url }) => {
 
   if (mapId) fpQuery = fpQuery.eq('map_id', mapId);
 
-  const { data: rows, error: dbError } = await fpQuery;
-  if (dbError) throw error(500, dbError.message);
+  const { data: rows, error: err } = await fpQuery;
+  if (err) dbError(err, 'Could not load footprints');
 
   // ── GeoJSON ──────────────────────────────────────────────────────────────
 

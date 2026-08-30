@@ -12,15 +12,13 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createClient } from '@supabase/supabase-js';
-import { GcpTransformer } from '@allmaps/transform';
-import { parseAnnotation } from '@allmaps/annotation';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
+import { adminClient } from '$lib/server/supabaseAdmin';
+import { assertUuid } from '$lib/server/http';
+import { getTransformer } from '$lib/server/transformer';
 
 export const GET: RequestHandler = async ({ params }) => {
-  const mapId = params.id;
-  const supabase = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  const mapId = assertUuid(params.id, 'map id');
+  const supabase = adminClient();
 
   const { data: map } = await supabase
     .from('maps')
@@ -28,9 +26,9 @@ export const GET: RequestHandler = async ({ params }) => {
     .eq('id', mapId)
     .single();
   // Public route on the service-role client: never serve draft maps.
-  if (!map || !['public', 'featured'].includes((map as any).status))
+  if (!map || !['public', 'featured'].includes(map.status ?? ''))
     return json({ points: [], reason: 'not public' });
-  if (!(map as any)?.allmaps_id) return json({ points: [], reason: 'not georeferenced' });
+  if (!map.allmaps_id) return json({ points: [], reason: 'not georeferenced' });
 
   // Legend entries → number→name map + the legend box rect (shared tile bbox).
   // Skip rows a human rejected; prefer their corrected text over the raw model
@@ -44,7 +42,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
   const nameByN = new Map<number, { name: string; vn: string | null; grid: string | null }>();
   let rect: { x: number; y: number; w: number; h: number } | null = null;
-  for (const e of (entries ?? []) as any[]) {
+  for (const e of entries ?? []) {
     const eText = e.text_validated ?? e.text;
     const m = /^(\d+)\.\s*(.*)$/.exec(eText ?? '');
     const n = m ? parseInt(m[1], 10) : parseInt(/n=(\d+)/.exec(e.notes ?? '')?.[1] ?? '', 10);
@@ -68,20 +66,9 @@ export const GET: RequestHandler = async ({ params }) => {
 
   // Build the pixel→geo transformer from the stored annotation (mirror override
   // first, else the public Allmaps annotation).
-  const annUrl =
-    (map as any).annotation_url ||
-    `https://annotations.allmaps.org/maps/${(map as any).allmaps_id}`;
-  let transformer: GcpTransformer | null = null;
-  try {
-    const res = await fetch(annUrl);
-    if (res.ok) {
-      const maps = parseAnnotation(await res.json());
-      if (maps.length) transformer = GcpTransformer.fromGeoreferencedMap(maps[0] as any);
-    }
-  } catch {
-    /* fall through to empty */
-  }
-  if (!transformer) return json({ points: [], reason: 'no annotation' });
+  const resolved = await getTransformer(map.allmaps_id, map.annotation_url);
+  if (!resolved) return json({ points: [], reason: 'no annotation' });
+  const { transformer } = resolved;
 
   const inRect = (x: number, y: number) =>
     rect !== null && x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
@@ -94,11 +81,12 @@ export const GET: RequestHandler = async ({ params }) => {
     lng: number;
     lat: number;
   }> = [];
-  for (const r of (refs ?? []) as any[]) {
+  for (const r of refs ?? []) {
     const t = (r.text_validated ?? r.text ?? '').trim();
     if (!/^\d+$/.test(t)) continue;
     const n = parseInt(t, 10);
     if (n < 1 || n > maxN) continue; // only numerals that name a legend entry
+    if (r.global_x == null || r.global_y == null) continue;
     const cx = r.global_x + (r.global_w || 0) / 2;
     const cy = r.global_y + (r.global_h || 0) / 2;
     if (inRect(cx, cy)) continue; // drop legend-internal column numbers

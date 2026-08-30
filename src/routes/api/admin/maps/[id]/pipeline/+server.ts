@@ -4,10 +4,10 @@
  */
 
 import { json, error } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
+import { requireRole } from '$lib/server/auth';
+import { adminClient } from '$lib/server/supabaseAdmin';
+import { assertUuid, dbError } from '$lib/server/http';
 
 const VALID_STAGES = [
   'idle',
@@ -20,39 +20,24 @@ const VALID_STAGES = [
   'exported',
 ] as const;
 
-async function getAdminClient(locals: App.Locals) {
-  const { session, user } = await locals.safeGetSession();
-  if (!session || !user) throw error(401, 'Unauthorized');
-
-  const adminSupabase = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-  const { data: profile } = await (adminSupabase as any)
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if ((profile as any)?.role !== 'admin') throw error(403, 'Forbidden');
-
-  return adminSupabase;
-}
-
 export const GET: RequestHandler = async ({ locals, params }) => {
-  const adminSupabase = await getAdminClient(locals);
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
 
-  const { data, error: err } = await (adminSupabase as any)
+  const { data, error: err } = await adminClient()
     .from('map_pipeline_status')
     .select('*')
-    .eq('map_id', params.id)
+    .eq('map_id', mapId)
     .maybeSingle();
 
-  if (err) throw error(500, err.message);
+  if (err) dbError(err, 'Could not read pipeline status');
 
-  return json(data ?? { map_id: params.id, stage: 'idle' });
+  return json(data ?? { map_id: mapId, stage: 'idle' });
 };
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
-  const adminSupabase = await getAdminClient(locals);
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
 
   const body = await request.json().catch(() => ({}));
   const stage = body.stage as string;
@@ -64,13 +49,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   const extra: Record<string, string> = {};
   if (stage === 'reviewed') extra.reviewed_at = new Date().toISOString();
 
-  const { data, error: err } = await (adminSupabase as any)
+  const { data, error: err } = await adminClient()
     .from('map_pipeline_status')
-    .upsert({ map_id: params.id, stage, ...extra }, { onConflict: 'map_id' })
+    .upsert({ map_id: mapId, stage, ...extra }, { onConflict: 'map_id' })
     .select()
     .single();
 
-  if (err) throw error(500, err.message);
+  if (err) dbError(err, 'Could not update pipeline status');
 
   return json(data);
 };

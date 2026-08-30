@@ -1,26 +1,9 @@
 import { json, error } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
-import type { Database } from '$lib/supabase/types';
-
-async function getAdminClient(locals: App.Locals) {
-  const { session, user } = await locals.safeGetSession();
-  if (!session || !user) throw error(401, 'Unauthorized');
-
-  const adminSupabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-  const { data: profile } = await adminSupabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (profile?.role !== 'admin') throw error(403, 'Forbidden');
-
-  return adminSupabase;
-}
+import { requireRole } from '$lib/server/auth';
+import { adminClient } from '$lib/server/supabaseAdmin';
+import { assertUuid } from '$lib/server/http';
+import { uploadJson } from '$lib/server/storage';
 
 interface GCP {
   resourceCoords: [number, number];
@@ -33,8 +16,8 @@ interface GCP {
  * Order: NW, NE, SE, SW
  */
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
-  const adminSupabase = await getAdminClient(locals);
-  const mapId = params.id;
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
 
   const body = await request.json();
   const gcps: GCP[] = body.gcps;
@@ -44,7 +27,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   }
 
   // Fetch map to get allmaps_id (must be a URL for self-hosted)
-  const { data: map } = await adminSupabase
+  const { data: map } = await adminClient()
     .from('maps')
     .select('allmaps_id')
     .eq('id', mapId)
@@ -114,7 +97,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     };
   }
 
-  // Extract Supabase Storage path from URL.
+  // Extract Supabase Storage bucket + path from the URL.
   // Strip query params first, then parse:
   // https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
   const cleanUrl = annotationUrl.split('?')[0];
@@ -126,31 +109,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   const storagePath = cleanUrl.slice(markerIdx + storageMarker.length);
   const bucketEnd = storagePath.indexOf('/');
   if (bucketEnd === -1) throw error(400, 'Cannot parse bucket from storage path');
-  const bucket = storagePath.slice(0, bucketEnd);
-  const filePath = storagePath.slice(bucketEnd + 1);
 
-  const annotationJson = JSON.stringify(annotation, null, 2);
-
-  // Use the Storage REST API directly — more reliable than the JS client
-  // for text/JSON payloads in server environments.
-  // POST with x-upsert:true creates or overwrites the file.
-  const storageUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`;
-  const uploadRes = await fetch(storageUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-      'Content-Type': 'application/json',
-      'x-upsert': 'true',
-      'Cache-Control': 'no-cache',
-    },
-    body: annotationJson,
-  });
-
-  if (!uploadRes.ok) {
-    const errText = await uploadRes.text().catch(() => String(uploadRes.status));
-    console.error('Storage upload failed:', uploadRes.status, errText);
-    throw error(500, `Storage upload failed (${uploadRes.status}): ${errText}`);
-  }
+  await uploadJson(storagePath.slice(0, bucketEnd), storagePath.slice(bucketEnd + 1), annotation);
 
   return json({ success: true });
 };

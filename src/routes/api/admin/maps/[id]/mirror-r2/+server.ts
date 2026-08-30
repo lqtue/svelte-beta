@@ -1,27 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
-import type { Database } from '$lib/supabase/types';
+import { requireRole } from '$lib/server/auth';
+import { adminClient } from '$lib/server/supabaseAdmin';
+import { assertUuid, dbError } from '$lib/server/http';
+import { uploadJson } from '$lib/server/storage';
 
 const R2_BASE = 'https://iiif.maparchive.vn/iiif';
 const ANNOTATIONS_BUCKET = 'annotations';
-
-async function getAdminClient(locals: App.Locals) {
-  const { session, user } = await locals.safeGetSession();
-  if (!session || !user) throw error(401, 'Unauthorized');
-
-  const adminSupabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  const { data: profile } = await adminSupabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-  if ((profile as any)?.role !== 'admin') throw error(403, 'Forbidden');
-
-  return adminSupabase;
-}
 
 /**
  * Walks an Allmaps annotation (single Annotation or AnnotationCollection)
@@ -67,10 +52,11 @@ function rewriteSourceUrl(annotation: any, oldUrl: string, newUrl: string): any 
  * 6. Returns tile CLI command and old source URL for the tiling script.
  */
 export const POST: RequestHandler = async ({ locals, params }) => {
-  const adminSupabase = await getAdminClient(locals);
-  const mapId = params.id;
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
+  const supabase = adminClient();
 
-  const { data: map } = await adminSupabase
+  const { data: map } = await supabase
     .from('maps')
     .select('id, name, allmaps_id, annotation_url, iiif_image')
     .eq('id', mapId)
@@ -103,30 +89,11 @@ export const POST: RequestHandler = async ({ locals, params }) => {
     : annotation;
 
   // Store updated annotation in Supabase Storage
-  const storagePath = `${mapId}.json`;
-  const storageUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/${ANNOTATIONS_BUCKET}/${storagePath}`;
-  const uploadRes = await fetch(storageUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-      'Content-Type': 'application/json',
-      'x-upsert': 'true',
-      'Cache-Control': 'no-cache',
-    },
-    body: JSON.stringify(updated, null, 2),
-  });
-
-  if (!uploadRes.ok) {
-    const errText = await uploadRes.text().catch(() => String(uploadRes.status));
-    throw error(500, `Storage upload failed (${uploadRes.status}): ${errText}`);
-  }
-
-  const storageEmailUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${ANNOTATIONS_BUCKET}/${storagePath}`;
-  const publicAnnotationUrl = storageEmailUrl.split('?')[0]; // Clean URL
+  const publicAnnotationUrl = await uploadJson(ANNOTATIONS_BUCKET, `${mapId}.json`, updated);
 
   // Update maps row. Keep allmaps_id intact (it's the bare image ID); the
   // self-hosted annotation URL lives in annotation_url as the runtime override.
-  await adminSupabase
+  await supabase
     .from('maps')
     .update({
       iiif_image: newIiifBase,
@@ -137,34 +104,32 @@ export const POST: RequestHandler = async ({ locals, params }) => {
     .eq('id', mapId);
 
   // Upsert R2 source in map_iiif_sources and set as primary.
-  const { data: existingSources } = await (adminSupabase as any)
+  const { data: existingSources } = await supabase
     .from('map_iiif_sources')
-    .select('id, iiif_image')
+    .select('id, iiif_image, sort_order')
     .eq('map_id', mapId);
 
-  const r2Source = (existingSources ?? []).find((s: any) =>
-    s.iiif_image?.includes('maparchive.vn')
-  );
+  const r2Source = (existingSources ?? []).find((s) => s.iiif_image?.includes('maparchive.vn'));
 
   // Demote any existing primary before setting R2 as primary (partial unique index enforces one primary per map).
-  await (adminSupabase as any)
+  await supabase
     .from('map_iiif_sources')
     .update({ is_primary: false })
     .eq('map_id', mapId)
     .eq('is_primary', true);
 
   if (r2Source) {
-    const { error: upErr } = await (adminSupabase as any)
+    const { error: upErr } = await supabase
       .from('map_iiif_sources')
       .update({ iiif_image: newIiifBase, is_primary: true })
       .eq('id', r2Source.id);
-    if (upErr) throw error(500, `IIIF source update failed: ${upErr.message}`);
+    if (upErr) dbError(upErr, 'IIIF source update failed');
   } else {
     const maxOrder = (existingSources ?? []).reduce(
-      (max: number, s: any) => Math.max(max, (s as any).sort_order ?? 0),
+      (max, s) => Math.max(max, s.sort_order ?? 0),
       0
     );
-    const { error: insErr } = await (adminSupabase as any).from('map_iiif_sources').insert({
+    const { error: insErr } = await supabase.from('map_iiif_sources').insert({
       map_id: mapId,
       label: 'Cloudflare R2',
       source_type: 'r2',
@@ -172,7 +137,7 @@ export const POST: RequestHandler = async ({ locals, params }) => {
       is_primary: true,
       sort_order: maxOrder + 1,
     });
-    if (insErr) throw error(500, `IIIF source insert failed: ${insErr.message}`);
+    if (insErr) dbError(insErr, 'IIIF source insert failed');
   }
 
   // Use the non-R2 source as the proxy source to avoid loops.

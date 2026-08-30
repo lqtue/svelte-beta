@@ -11,31 +11,14 @@
  */
 
 import { json, error } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
-
-async function getAdminClient(locals: App.Locals) {
-  const { session, user } = await locals.safeGetSession();
-  if (!session || !user) throw error(401, 'Unauthorized');
-
-  const adminSupabase = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-  const { data: profile } = await (adminSupabase as any)
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if ((profile as any)?.role !== 'admin') throw error(403, 'Forbidden');
-
-  return adminSupabase;
-}
+import { requireRole } from '$lib/server/auth';
+import { adminClient } from '$lib/server/supabaseAdmin';
+import { assertUuid, dbError } from '$lib/server/http';
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {
-  const adminSupabase = await getAdminClient(locals);
-  const mapId = params.id;
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
 
   const body = await request.json().catch(() => ({}));
   const runId: string = body.run_id ?? new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
@@ -53,14 +36,14 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
       : undefined;
 
   // Verify map exists and has an IIIF image
-  const { data: map } = await (adminSupabase as any)
+  const { data: map } = await adminClient()
     .from('maps')
     .select('id, name, iiif_image')
     .eq('id', mapId)
     .single();
 
   if (!map) throw error(404, 'Map not found');
-  if (!(map as any).iiif_image) throw error(400, 'Map has no iiif_image — cannot run OCR');
+  if (!map.iiif_image) throw error(400, 'Map has no iiif_image — cannot run OCR');
 
   // Build the CLI args list (used for both spawn and CLI-command fallback)
   const cliArgs = [
@@ -100,7 +83,9 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   try {
     ({ spawn: spawnFn } = await import('node:child_process'));
   } catch {
-    // Production: return the exact CLI command so the user can run it locally
+    // Production: return the exact CLI command so the user can run it locally.
+    // NOTE: this is the one route that signals failure in the body rather than
+    // by throwing — the admin UI branches on `cli_only`. Keep the shape.
     const cliCommand = `source .venv/bin/activate && python work/ocr/scripts/ocr.py ${cliArgs.join(' ')}`;
     return json(
       {
@@ -133,23 +118,23 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
 /** GET — return existing OCR extractions count for this map */
 export const GET: RequestHandler = async ({ locals, params, url }) => {
-  const adminSupabase = await getAdminClient(locals);
-  const mapId = params.id;
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
   const runId = url.searchParams.get('run_id');
 
-  let query = (adminSupabase as any)
+  let query = adminClient()
     .from('ocr_extractions')
     .select('run_id, category, confidence', { count: 'exact' })
     .eq('map_id', mapId);
 
   if (runId) query = query.eq('run_id', runId);
 
-  const { data, count, error: dbError } = await query;
-  if (dbError) throw error(500, dbError.message);
+  const { data, count, error: err } = await query;
+  if (err) dbError(err, 'Could not read OCR extractions');
 
   // Summarise by run_id
   const runs: Record<string, { n: number; categories: Record<string, number> }> = {};
-  for (const row of (data ?? []) as any[]) {
+  for (const row of data ?? []) {
     if (!runs[row.run_id]) runs[row.run_id] = { n: 0, categories: {} };
     runs[row.run_id].n++;
     runs[row.run_id].categories[row.category] =
