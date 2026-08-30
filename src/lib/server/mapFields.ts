@@ -10,7 +10,7 @@
  * deliberately absent: a client must never be able to write them.
  */
 
-import type { Database } from '$lib/supabase/types';
+import type { Database } from '$lib/data/supabase/types';
 
 type MapWrite = Database['public']['Tables']['maps']['Update'];
 

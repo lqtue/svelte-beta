@@ -4,7 +4,7 @@ import { requireRole } from '$lib/server/auth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { dbError } from '$lib/server/http';
 import { pickMapFields } from '$lib/server/mapFields';
-import { deriveAllmapsId } from '$lib/iiif/allmapsId';
+import { deriveAllmapsId } from '$lib/core/iiif/allmapsId';
 
 /** POST — create a new map */
 export const POST: RequestHandler = async ({ locals, request }) => {

@@ -5,8 +5,8 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import type { MapListItem } from '$lib/map/types';
-  import { layersStore, MAX_OVERLAY_LAYERS, toHistoricalRef } from '$lib/stores/layersStore';
+  import type { MapListItem } from '$lib/data/maps/types';
+  import { layersStore, MAX_OVERLAY_LAYERS, toHistoricalRef } from '$lib/map/stores/layersStore';
 
   const dispatch = createEventDispatcher<{
     selectMap: { map: MapListItem };

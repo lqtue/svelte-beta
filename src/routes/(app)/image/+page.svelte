@@ -11,14 +11,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import ToolLayout from '$lib/shell/ToolLayout.svelte';
-  import ImageShell from '$lib/shell/ImageShell.svelte';
-  import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
+  import ToolLayout from '$lib/map/shell/ToolLayout.svelte';
+  import ImageShell from '$lib/map/shell/ImageShell.svelte';
+  import CatalogSidebarPanel from '$lib/features/catalog/CatalogSidebarPanel.svelte';
   import '$styles/layouts/tool-page.css';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchUserRole } from '$lib/supabase/role';
-  import { fetchMaps } from '$lib/maps/service';
-  import type { MapListItem } from '$lib/maps/types';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { fetchUserRole } from '$lib/data/supabase/role';
+  import { fetchMaps } from '$lib/data/maps/service';
+  import type { MapListItem } from '$lib/data/maps/types';
 
   const { supabase, session } = getSupabaseContext();
 

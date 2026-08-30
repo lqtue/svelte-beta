@@ -8,7 +8,8 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { SearchResult, MapListItem } from '$lib/map/types';
+  import type { SearchResult } from '$lib/map/types';
+  import type { MapListItem } from '$lib/data/maps/types';
   import SearchMapsTab from './SearchMapsTab.svelte';
   import SearchLocationTab from './SearchLocationTab.svelte';
   import '$styles/components/search-panel.css';

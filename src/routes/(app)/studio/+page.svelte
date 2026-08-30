@@ -1,5 +1,5 @@
 <script lang="ts">
-  import StudioMode from '$lib/studio/StudioMode.svelte';
+  import StudioMode from '$lib/features/studio/StudioMode.svelte';
 </script>
 
 <svelte:head>

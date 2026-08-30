@@ -1,5 +1,5 @@
 <script lang="ts">
-  import CreateMode from '$lib/create/CreateMode.svelte';
+  import CreateMode from '$lib/features/stories/editor/CreateMode.svelte';
 </script>
 
 <svelte:head>

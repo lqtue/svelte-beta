@@ -3,9 +3,9 @@
   import favicon from '$lib/assets/favicon.svg';
   import { invalidate } from '$app/navigation';
   import { onMount } from 'svelte';
-  import { createSupabaseBrowserClient } from '$lib/supabase/client';
-  import { setSupabaseContext } from '$lib/supabase/context';
-  import { registerServiceWorker } from '$lib/utils/pwa';
+  import { createSupabaseBrowserClient } from '$lib/data/supabase/client';
+  import { setSupabaseContext } from '$lib/data/supabase/context';
+  import { registerServiceWorker } from '$lib/core/utils/pwa';
 
   export let data;
 

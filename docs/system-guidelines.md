@@ -38,7 +38,7 @@ Shell structure: fullscreen, no NavBar, no footer.
 **Two sub-types:**
 
 #### Geo-map modes (`/view`, `/create`, `/annotate`)
-Use `GeoMapShell` (`src/lib/shell/GeoMapShell.svelte`) as the outer layout. It provides:
+Use `GeoMapShell` (`src/lib/map/shell/GeoMapShell.svelte`) as the outer layout. It provides:
 - `workspace` + `map-stage` grid with `with-sidebar` / `compact` breakpoints
 - Responsive detection (`isMobile`, `isCompact`) — bind these from the parent
 - Sidebar collapse/toggle + "show panel" button
@@ -263,10 +263,10 @@ All API routes live under `src/routes/api/`. All mutating routes require authent
 - Never call the service-key client from a component. It must stay in `+server.ts` files.
 
 ### TypeScript types
-- `src/lib/supabase/types.ts` is generated — do not hand-edit. Regenerate with:
+- `src/lib/data/supabase/types.ts` is generated — do not hand-edit. Regenerate with:
   ```bash
   npx supabase gen types typescript --project-id trioykjhhwrruwjsklfo \
-    | tail -n +2 > src/lib/supabase/types.ts
+    | tail -n +2 > src/lib/data/supabase/types.ts
   ```
   (The `tail -n +2` strips the `npm warn` line that prefixes the output.)
 - When accessing columns added since the last type regeneration, cast via `(supabase as any).from(...)` and add a `// TODO: regenerate types` comment.
@@ -370,7 +370,7 @@ The contribute hub (`/contribute`) shows review and catalog cards only to `mod` 
 
 ## 11. MapWorkspace plugin contract
 
-`src/lib/shell/MapWorkspace.svelte` is the unified base for every geo-map mode. ViewMode, CreateMode, and AnnotateMode all build on it; new geo-map experiences (LabelMode, RouteMode, etc.) MUST use it rather than mounting `MapShell` directly.
+`src/lib/map/shell/MapWorkspace.svelte` is the unified base for every geo-map mode. ViewMode, CreateMode, and AnnotateMode all build on it; new geo-map experiences (LabelMode, RouteMode, etc.) MUST use it rather than mounting `MapShell` directly.
 
 ### What MapWorkspace owns
 - `ToolLayout` chrome (responsive workspace, sidebar resize, mobile drawer)

@@ -32,7 +32,7 @@ The app has 16 routes with copy-pasted nav/footer, three separate catalog/admin 
 `GeoMapShell.svelte` is already a pure layout component — zero map-specific logic. Rename to `ToolLayout.svelte` and share across BOTH viewers.
 
 **Provides:** sidebar + map/image stage + floating controls + mobile drawer + responsive breakpoints.
-**File:** `src/lib/shell/ToolLayout.svelte` (rename from `src/lib/shell/GeoMapShell.svelte`)
+**File:** `src/lib/map/shell/ToolLayout.svelte` (rename from `src/lib/map/shell/GeoMapShell.svelte`)
 **Slots:** `sidebar`, `default` (main content), `floating`, `mobile-sidebar`
 
 ```
@@ -58,8 +58,8 @@ Extracted from `LabelCanvas.svelte` lines 467-537. Provides:
 - Y-axis negation (IIIF y+ down, OL y+ up) handled consistently
 - Context exposed via `setImageShellContext()` for child tools
 
-**File:** `src/lib/shell/ImageShell.svelte`
-**Context:** `src/lib/shell/imageContext.ts`
+**File:** `src/lib/map/shell/ImageShell.svelte`
+**Context:** `src/lib/map/shell/imageContext.ts`
 
 ```
 ImageShell (base IIIF viewer)
@@ -178,13 +178,13 @@ src/routes/
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `ToolLayout.svelte` | `src/lib/shell/` | RENAME from GeoMapShell — shared responsive layout for all tool pages |
-| `ImageShell.svelte` | `src/lib/shell/` | IIIF OL viewer base (extracted from LabelCanvas) |
-| `imageContext.ts` | `src/lib/shell/` | Context for ImageShell (map, sources, layers) |
-| `PinTool.svelte` | `src/lib/contribute/pin/` | Pin draw interaction + PinSidebar |
-| `PinSidebar.svelte` | `src/lib/contribute/pin/` | Legend selection, placed pins list |
-| `TraceTool.svelte` | `src/lib/contribute/trace/` | Polygon/line draw + TraceSidebar |
-| `TraceSidebar.svelte` | `src/lib/contribute/trace/` | Shapes table, type/category filters |
+| `ToolLayout.svelte` | `src/lib/map/shell/` | RENAME from GeoMapShell — shared responsive layout for all tool pages |
+| `ImageShell.svelte` | `src/lib/map/shell/` | IIIF OL viewer base (extracted from LabelCanvas) |
+| `imageContext.ts` | `src/lib/map/shell/` | Context for ImageShell (map, sources, layers) |
+| `PinTool.svelte` | `src/lib/features/contribute/pin/` | Pin draw interaction + PinSidebar |
+| `PinSidebar.svelte` | `src/lib/features/contribute/pin/` | Legend selection, placed pins list |
+| `TraceTool.svelte` | `src/lib/features/contribute/trace/` | Polygon/line draw + TraceSidebar |
+| `TraceSidebar.svelte` | `src/lib/features/contribute/trace/` | Shapes table, type/category filters |
 | `EditorialFooter.svelte` | `src/lib/ui/` | Single source of truth footer |
 | `PageHero.svelte` | `src/lib/ui/` | Standardized hero (eyebrow, title, highlight, badges) |
 | `NavDropdown.svelte` | `src/lib/ui/` | Reusable dropdown panel for NavBar |
@@ -339,8 +339,8 @@ onMount(async () => {
 
 ### Existing modals to import
 
-- `MapEditModal` from `src/lib/admin/` — full admin editing (6 tabs)
-- `MapUploadModal` from `src/lib/admin/` — IA image upload + map creation
+- `MapEditModal` from `src/lib/features/admin/` — full admin editing (6 tabs)
+- `MapUploadModal` from `src/lib/features/admin/` — IA image upload + map creation
 
 ---
 
@@ -350,7 +350,7 @@ onMount(async () => {
 
 | Step | What | Files |
 |------|------|-------|
-| 1.0 | Rename `GeoMapShell` -> `ToolLayout`, update all imports | `src/lib/shell/`, ViewMode, CreateMode, AnnotateMode |
+| 1.0 | Rename `GeoMapShell` -> `ToolLayout`, update all imports | `src/lib/map/shell/`, ViewMode, CreateMode, AnnotateMode |
 | 1.1 | Fix `--color-gray-400` + add `--nav-height` | `tokens.css` |
 | 1.2 | Create `EditorialFooter.svelte` | `src/lib/ui/EditorialFooter.svelte` |
 | 1.3 | Create `PageHero.svelte` | `src/lib/ui/PageHero.svelte` |
@@ -367,8 +367,8 @@ onMount(async () => {
 
 | Step | What | Files |
 |------|------|-------|
-| 2.1 | Create `ImageShell.svelte` + `imageContext.ts` | `src/lib/shell/` |
-| 2.2 | Add `iiif_image` to `MapListItem` type | `src/lib/maps/types.ts` |
+| 2.1 | Create `ImageShell.svelte` + `imageContext.ts` | `src/lib/map/shell/` |
+| 2.2 | Add `iiif_image` to `MapListItem` type | `src/lib/data/maps/types.ts` |
 | 2.3 | Create `/image` page (read-only IIIF viewer) | `src/routes/(app)/image/` |
 | 2.4 | Update catalog card hrefs (georef -> /view, image -> /image) | catalog page |
 
@@ -376,8 +376,8 @@ onMount(async () => {
 
 | Step | What | Files |
 |------|------|-------|
-| 3.1 | Create `PinTool.svelte` + `PinSidebar.svelte` | `src/lib/contribute/pin/` |
-| 3.2 | Create `TraceTool.svelte` + `TraceSidebar.svelte` | `src/lib/contribute/trace/` |
+| 3.1 | Create `PinTool.svelte` + `PinSidebar.svelte` | `src/lib/features/contribute/pin/` |
+| 3.2 | Create `TraceTool.svelte` + `TraceSidebar.svelte` | `src/lib/features/contribute/trace/` |
 | 3.3 | Rewrite `/contribute/label` to use ImageShell + PinTool | route page |
 | 3.4 | Create `/contribute/trace` using ImageShell + TraceTool | new route page |
 | 3.5 | Add SearchPanel to both label and trace pages | both route pages |
@@ -398,7 +398,7 @@ onMount(async () => {
 
 | Step | What | Files |
 |------|------|-------|
-| 5.1 | Extract draw tools from StudioMap into pluggable DrawTool | `src/lib/shell/DrawTool.svelte` |
+| 5.1 | Extract draw tools from StudioMap into pluggable DrawTool | `src/lib/map/shell/DrawTool.svelte` |
 | 5.2 | Rewrite AnnotateMode to use MapShell + DrawTool | `AnnotateMode.svelte` |
 | 5.3 | Delete StudioMap | cleanup |
 

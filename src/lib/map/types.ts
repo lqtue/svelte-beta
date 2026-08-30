@@ -1,8 +1,6 @@
 import type { FeatureCollection, GeoJsonObject } from 'geojson';
 
-// Canonical map types live in $lib/maps/. This module re-exports MapListItem
-// for the many UI-side consumers and adds UI-only types (ViewMode, etc).
-export type { MapListItem } from '$lib/maps/types';
+// UI-only map types. Canonical map data types live in $lib/data/maps/types.
 
 export type ViewMode = 'overlay' | 'spy' | 'dual';
 export type DrawingMode = 'point' | 'line' | 'polygon';

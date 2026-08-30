@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireRole } from '$lib/server/auth';
 import { lookupAllmapsId } from '$lib/server/allmaps';
-import { fetchIIIFManifest } from '$lib/maps/iiifManifest';
+import { fetchIIIFManifest } from '$lib/data/maps/iiifManifest';
 
 /** POST — fetch and parse a IIIF manifest, return normalised metadata + Allmaps check */
 export const POST: RequestHandler = async ({ locals, request }) => {

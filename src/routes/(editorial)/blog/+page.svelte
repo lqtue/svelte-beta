@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { posts, CATEGORY_LABELS, CATEGORY_COLORS } from '$lib/blog/posts';
+  import { posts, CATEGORY_LABELS, CATEGORY_COLORS } from '$lib/data/blog/posts';
   import PageHero from '$lib/ui/PageHero.svelte';
   import { onMount } from 'svelte';
   import '$styles/pages/blog.css';

@@ -57,12 +57,12 @@ maps.georef_done = true → map becomes available in Label Studio
 ```
 
 **Code:**
-- `src/lib/admin/adminApi.ts` — `uploadImageToIA()`, `createMap()`
+- `src/lib/data/admin/adminApi.ts` — `uploadImageToIA()`, `createMap()`
 - `src/routes/api/admin/maps/` — map CRUD
 - `src/routes/api/admin/maps/[id]/image/` — IA upload
 - `src/routes/api/admin/maps/[id]/annotation/` — annotation CRUD
 - `src/routes/api/admin/pipeline/annotate/` — builds Allmaps annotation from IIIF + corners (generic utility)
-- `src/lib/iiif/iiifImageInfo.ts` → `buildAnnotation()`, `fetchIiifInfoWithRetry()`
+- `src/lib/core/iiif/iiifImageInfo.ts` → `buildAnnotation()`, `fetchIiifInfoWithRetry()`
 
 ---
 
@@ -159,7 +159,7 @@ publication_blocks  id, publication_id, position, block_type, map_id?, story_id?
 
 **Future routes:** `/research`, `/research/[slug]`, `/research/new`
 
-The static blog (`/blog`, `src/lib/blog/posts.ts`) stays until a CRM is built.
+The static blog (`/blog`, `src/lib/data/blog/posts.ts`) stays until a CRM is built.
 
 ---
 
@@ -180,7 +180,7 @@ The static blog (`/blog`, `src/lib/blog/posts.ts`) stays until a CRM is built.
 
 ## Data layer
 
-### Supabase service modules (`src/lib/supabase/`)
+### Supabase service modules (`src/lib/data/supabase/`)
 
 | Module | Tables | Key exports |
 |--------|--------|-------------|
@@ -204,10 +204,10 @@ The static blog (`/blog`, `src/lib/blog/posts.ts`) stays until a CRM is built.
 | `map_help_requests` | Requests for community assistance on a map | `open → resolved` |
 
 ### Type files
-- `src/lib/supabase/types.ts` — raw DB schema (auto-generated, do not hand-edit)
+- `src/lib/data/supabase/types.ts` — raw DB schema (auto-generated, do not hand-edit)
 - `src/lib/viewer/types.ts` — `AnnotationSummary`, `AnnotationSet`, `PersistedViewState`
-- `src/lib/maps/types.ts` — `MapRecord`, `MapListItem`, `MapIIIFSource`
-- `src/lib/contribute/label/types.ts` — `LabelPin`, `FootprintSubmission`, `FeatureType`, `LegendItem`
+- `src/lib/data/maps/types.ts` — `MapRecord`, `MapListItem`, `MapIIIFSource`
+- `src/lib/features/contribute/label/types.ts` — `LabelPin`, `FootprintSubmission`, `FeatureType`, `LegendItem`
 
 ---
 
@@ -216,6 +216,6 @@ The static blog (`/blog`, `src/lib/blog/posts.ts`) stays until a CRM is built.
 | Item | Fix |
 |------|-----|
 | `supabase/maps.ts` shim still uses `allmaps_id` as identity | Remove after home page migrates to `maps/service.ts` |
-| `src/lib/studio/StudioMap.svelte` is a single-file dir | Move into `src/lib/annotate/` |
+| `src/lib/features/studio/StudioMap.svelte` is a single-file dir | Move into `src/lib/annotate/` |
 | `src/lib/viewer/` + `src/lib/map/` overlap | Merge `viewer/types` + `viewer/constants` into `map/` |
 | Home page `+page.svelte` is 1400+ lines with inline CSS | Extract to `src/styles/layouts/home.css`; refactor to `section-card` layout |

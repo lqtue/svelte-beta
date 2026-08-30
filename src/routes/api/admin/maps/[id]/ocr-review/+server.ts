@@ -4,7 +4,7 @@ import { requireRole } from '$lib/server/auth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { assertUuid, dbError } from '$lib/server/http';
 import { bulkSetStatus, isOcrReviewStatus, validationStamp } from '$lib/server/ocrReview';
-import type { Database } from '$lib/supabase/types';
+import type { Database } from '$lib/data/supabase/types';
 
 /** GET /api/admin/maps/[id]/ocr-review
  *  Query params: run_id (optional), status (optional), limit (default 200), offset (default 0)

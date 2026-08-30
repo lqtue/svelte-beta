@@ -1,13 +1,14 @@
 <!--
   SearchLocationTab.svelte — the "Location" tab of SearchPanel.
   Nominatim place search + coordinate shortcut + nearby historical maps.
-  Deliberately NOT merged with $lib/ui/catalog/LocationSearch.svelte: that one
+  Deliberately NOT merged with $lib/ui/LocationSearch.svelte: that one
   debounces at 300ms, uses different Nominatim params and swallows errors.
   Styles live in $styles/components/search-panel.css (imported by SearchPanel).
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import type { SearchResult, MapListItem } from '$lib/map/types';
+  import type { SearchResult } from '$lib/map/types';
+  import type { MapListItem } from '$lib/data/maps/types';
   import { parseCoordinates, findNearbyMaps, coordinateResult } from './searchUtils';
 
   const dispatch = createEventDispatcher<{

@@ -8,29 +8,32 @@
   OCR Review   — validate / reject / redraw OCR bboxes (OcrBboxTool + OcrSidebar).
   Segmentation — pipeline stage readout + the MapSAM2 command to run in Colab.
 
-  This file is layout: state lives in `$lib/contribute/digitalize/*` and
-  `$lib/contribute/ocr/ocrReviewController.ts`.
+  This file is layout: state lives in `$lib/features/contribute/digitalize/*` and
+  `$lib/features/contribute/ocr/ocrReviewController.ts`.
 -->
 <script lang="ts">
   import { tick } from 'svelte';
   import OlMap from 'ol/Map';
-  import ToolLayout from '$lib/shell/ToolLayout.svelte';
-  import ImageShell from '$lib/shell/ImageShell.svelte';
-  import OcrSidebar from '$lib/contribute/ocr/OcrSidebar.svelte';
-  import OcrBboxTool from '$lib/contribute/ocr/OcrBboxTool.svelte';
-  import BboxPanel from '$lib/contribute/ocr/BboxPanel.svelte';
-  import TriageTool from '$lib/contribute/digitalize/TriageTool.svelte';
-  import DigitalizeSidebar from '$lib/contribute/digitalize/DigitalizeSidebar.svelte';
-  import ToolMapPicker from '$lib/contribute/shared/ToolMapPicker.svelte';
-  import DigitalizeBottomBar from '$lib/contribute/digitalize/DigitalizeBottomBar.svelte';
+  import ToolLayout from '$lib/map/shell/ToolLayout.svelte';
+  import ImageShell from '$lib/map/shell/ImageShell.svelte';
+  import OcrSidebar from '$lib/features/contribute/ocr/OcrSidebar.svelte';
+  import OcrBboxTool from '$lib/features/contribute/ocr/OcrBboxTool.svelte';
+  import BboxPanel from '$lib/features/contribute/ocr/BboxPanel.svelte';
+  import TriageTool from '$lib/features/contribute/digitalize/TriageTool.svelte';
+  import DigitalizeSidebar from '$lib/features/contribute/digitalize/DigitalizeSidebar.svelte';
+  import ToolMapPicker from '$lib/features/contribute/shared/ToolMapPicker.svelte';
+  import DigitalizeBottomBar from '$lib/features/contribute/digitalize/DigitalizeBottomBar.svelte';
   import '$styles/layouts/tool-page.css';
-  import { createOcrReview } from '$lib/contribute/ocr/ocrReviewController';
+  import { createOcrReview } from '$lib/features/contribute/ocr/ocrReviewController';
   import {
     fetchOcrRuns,
     startOcrBatch,
     type OcrRunSummary,
-  } from '$lib/contribute/digitalize/ocrRunApi';
-  import { DEFAULT_SEG_CONFIG, type SegConfig } from '$lib/contribute/digitalize/segCommand';
+  } from '$lib/features/contribute/digitalize/ocrRunApi';
+  import {
+    DEFAULT_SEG_CONFIG,
+    type SegConfig,
+  } from '$lib/features/contribute/digitalize/segCommand';
   import {
     defaultTriageState,
     loadSegConfig,
@@ -38,15 +41,15 @@
     saveSegConfig,
     saveTriageState,
     type TriageState,
-  } from '$lib/contribute/digitalize/triagePrefs';
+  } from '$lib/features/contribute/digitalize/triagePrefs';
   import {
     fetchPipelineStatus,
     advancePipelineStage,
     type PipelineStatus,
-  } from '$lib/contribute/pipelineApi';
-  import { resolveMapIiifInfoUrl } from '$lib/contribute/shared/iiifSource';
-  import { toOlExtent } from '$lib/contribute/shared/rectUtils';
-  import type { LabelMapInfo } from '$lib/supabase/labels';
+  } from '$lib/features/contribute/pipelineApi';
+  import { resolveMapIiifInfoUrl } from '$lib/features/contribute/shared/iiifSource';
+  import { toOlExtent } from '$lib/features/contribute/shared/rectUtils';
+  import type { LabelMapInfo } from '$lib/data/supabase/labels';
 
   // ── Shared ────────────────────────────────────────────────────────────────────
   let currentMap: LabelMapInfo | null = null;

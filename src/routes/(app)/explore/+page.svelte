@@ -15,35 +15,39 @@
   import { page } from '$app/stores';
   import type Map from 'ol/Map';
 
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { resolveMapRef } from '$lib/story/applyPoint';
-  import { createGeoMapStores } from '$lib/shell/geoMapSetup';
-  import type { Bbox } from '$lib/geo/mapBounds';
-  import { layersStore } from '$lib/stores/layersStore';
-  import { fetchPublicStories } from '$lib/supabase/stories';
-  import { fetchUserRole } from '$lib/supabase/role';
-  import { createStoryPlayerStore } from '$lib/story/stores/storyStore';
-  import type { Story, StoryPoint } from '$lib/story/types';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { resolveMapRef } from '$lib/features/stories/shared/applyPoint';
+  import { createGeoMapStores } from '$lib/map/shell/geoMapSetup';
+  import type { Bbox } from '$lib/core/geo/mapBounds';
+  import { layersStore } from '$lib/map/stores/layersStore';
+  import { fetchPublicStories } from '$lib/data/supabase/stories';
+  import { fetchUserRole } from '$lib/data/supabase/role';
+  import { createStoryPlayerStore } from '$lib/features/stories/shared/stores/storyStore';
+  import type { Story, StoryPoint } from '$lib/features/stories/shared/types';
 
-  import MapWorkspace from '$lib/shell/MapWorkspace.svelte';
-  import DualMapPane from '$lib/shell/DualMapPane.svelte';
-  import GpsTracker from '$lib/shell/GpsTracker.svelte';
-  import StoryMarkers from '$lib/story/StoryMarkers.svelte';
-  import LegendPointsLayer from '$lib/explore/LegendPointsLayer.svelte';
-  import StoryPlayback from '$lib/story/StoryPlayback.svelte';
-  import LayerStackPanel from '$lib/ui/catalog/LayerStackPanel.svelte';
-  import LayerControlsPanel from '$lib/ui/catalog/LayerControlsPanel.svelte';
+  import MapWorkspace from '$lib/map/shell/MapWorkspace.svelte';
+  import DualMapPane from '$lib/map/shell/DualMapPane.svelte';
+  import GpsTracker from '$lib/map/shell/GpsTracker.svelte';
+  import StoryMarkers from '$lib/features/stories/shared/StoryMarkers.svelte';
+  import LegendPointsLayer from '$lib/features/explore/LegendPointsLayer.svelte';
+  import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
+  import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
+  import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
 
-  import ExploreSidebar from '$lib/explore/ExploreSidebar.svelte';
-  import ExploreBrowsePanel from '$lib/explore/ExploreBrowsePanel.svelte';
-  import ExplorePrivacyNotice from '$lib/explore/ExplorePrivacyNotice.svelte';
-  import ExploreSheet from '$lib/explore/ExploreSheet.svelte';
-  import ExploreTour, { shouldShowTour } from '$lib/explore/ExploreTour.svelte';
-  import type { MapListItem } from '$lib/map/types';
-  import { SAIGON_CENTER, SAIGON_DEFAULT_ZOOM, type ResolvedMap } from '$lib/explore/spatialLookup';
-  import { createExploreCoverage } from '$lib/explore/useExploreCoverage';
-  import { createExploreZoom } from '$lib/explore/exploreZoom';
-  import { createExploreUrl, applyExploreUrlParams } from '$lib/explore/exploreUrl';
+  import ExploreSidebar from '$lib/features/explore/ExploreSidebar.svelte';
+  import ExploreBrowsePanel from '$lib/features/explore/ExploreBrowsePanel.svelte';
+  import ExplorePrivacyNotice from '$lib/features/explore/ExplorePrivacyNotice.svelte';
+  import ExploreSheet from '$lib/features/explore/ExploreSheet.svelte';
+  import ExploreTour, { shouldShowTour } from '$lib/features/explore/ExploreTour.svelte';
+  import type { MapListItem } from '$lib/data/maps/types';
+  import {
+    SAIGON_CENTER,
+    SAIGON_DEFAULT_ZOOM,
+    type ResolvedMap,
+  } from '$lib/features/explore/spatialLookup';
+  import { createExploreCoverage } from '$lib/features/explore/useExploreCoverage';
+  import { createExploreZoom } from '$lib/features/explore/exploreZoom';
+  import { createExploreUrl, applyExploreUrlParams } from '$lib/features/explore/exploreUrl';
   import '$styles/layouts/mode-shared.css';
 
   type Mode = 'location' | 'all';

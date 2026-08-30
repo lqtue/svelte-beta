@@ -8,9 +8,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchMapsWithSubmittedFootprints } from '$lib/supabase/labels';
-  import ReviewMode from '$lib/contribute/review/ReviewMode.svelte';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { fetchMapsWithSubmittedFootprints } from '$lib/data/supabase/labels';
+  import ReviewMode from '$lib/features/contribute/review/ReviewMode.svelte';
 
   const { supabase } = getSupabaseContext();
 

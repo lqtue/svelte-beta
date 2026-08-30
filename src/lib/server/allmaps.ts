@@ -5,7 +5,7 @@
  * own copy of "hash the IIIF image URL, probe /images/<id>".
  */
 
-import { deriveAllmapsId } from '$lib/iiif/allmapsId';
+import { deriveAllmapsId } from '$lib/core/iiif/allmapsId';
 
 const ANNOTATION_SERVER = 'https://annotations.allmaps.org';
 const PROBE_TIMEOUT_MS = 8000;

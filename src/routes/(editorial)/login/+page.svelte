@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getSupabaseContext } from '$lib/supabase/context';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
   import { goto } from '$app/navigation';
 
   const { supabase, session } = getSupabaseContext();

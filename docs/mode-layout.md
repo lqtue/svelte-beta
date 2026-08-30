@@ -80,7 +80,7 @@ Canonical layout implemented in `/view` mode. All modes should follow this struc
 
 ## Shared Components (from `$lib/`)
 
-### MapShell (`$lib/shell/MapShell.svelte`)
+### MapShell (`$lib/map/shell/MapShell.svelte`)
 - Creates and owns the single OL Map instance
 - Manages basemap tile layers
 - Exposes `map`, `mapStore`, `layerStore` via Svelte context (`getShellContext()`)
@@ -88,7 +88,7 @@ Canonical layout implemented in `/view` mode. All modes should follow this struc
 - URL hash sync (can be disabled via `disableUrlSync` prop)
 - Slot renders inside `.shell-overlay` (pointer-events:none, children auto)
 
-### HistoricalOverlay (`$lib/shell/HistoricalOverlay.svelte`)
+### HistoricalOverlay (`$lib/map/shell/HistoricalOverlay.svelte`)
 - Headless, goes inside MapShell slot
 - Reacts to `mapStore.activeMapId`
 - Hides canvas immediately on map switch (prevents ghosting)
@@ -102,7 +102,7 @@ Canonical layout implemented in `/view` mode. All modes should follow this struc
 - Events: `close`, `navigate`, `selectMap`, `addToAnnotations`
 - Position overridden via parent `.search-anchor :global(.search-panel)` CSS
 
-### Stores (`$lib/stores/`)
+### Stores (`$lib/map/stores/`)
 - `mapStore` — `lng`, `lat`, `zoom`, `rotation`, `activeMapId`
 - `layerStore` — `basemap`, `overlayOpacity`, `overlayVisible`, `viewMode`, `sideRatio`, `lensRadius`
 - `urlStore` — bidirectional URL hash ↔ stores sync

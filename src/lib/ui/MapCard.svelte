@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { MapListItem } from '$lib/map/types';
+  import type { MapListItem } from '$lib/data/maps/types';
   export let map: MapListItem;
   /** Full href for the card link. Caller builds it (home page adds &city=, catalog doesn't). */
   export let href: string;

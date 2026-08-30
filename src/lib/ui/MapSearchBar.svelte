@@ -6,7 +6,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import SearchPanel from '$lib/ui/SearchPanel.svelte';
-  import type { MapListItem } from '$lib/map/types';
+  import type { MapListItem } from '$lib/data/maps/types';
 
   const dispatch = createEventDispatcher<{
     navigate: { result: import('$lib/map/types').SearchResult };

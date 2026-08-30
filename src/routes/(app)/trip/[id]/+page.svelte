@@ -17,25 +17,29 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
 
-  import type { Story } from '$lib/story/types';
-  import type { MapListItem } from '$lib/map/types';
+  import type { Story } from '$lib/features/stories/shared/types';
+  import type { MapListItem } from '$lib/data/maps/types';
 
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { createStoryPlayerStore } from '$lib/story/stores/storyStore';
-  import { createGeoMapStores } from '$lib/shell/geoMapSetup';
-  import { fetchMaps } from '$lib/maps/service';
-  import { fetchStoryById } from '$lib/supabase/stories';
-  import { haversineDistance } from '$lib/geo/geo';
-  import { applyPointOverlay, applyStoryPoint } from '$lib/story/applyPoint';
-  import { derivePlaybackState } from '$lib/story/playbackState';
-  import { createWalkTracker, isWithinTrigger, requestGeolocation } from '$lib/trip/tripTracking';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { createStoryPlayerStore } from '$lib/features/stories/shared/stores/storyStore';
+  import { createGeoMapStores } from '$lib/map/shell/geoMapSetup';
+  import { fetchMaps } from '$lib/data/maps/service';
+  import { fetchStoryById } from '$lib/data/supabase/stories';
+  import { haversineDistance } from '$lib/core/geo/geo';
+  import { applyPointOverlay, applyStoryPoint } from '$lib/features/stories/shared/applyPoint';
+  import { derivePlaybackState } from '$lib/features/stories/shared/playbackState';
+  import {
+    createWalkTracker,
+    isWithinTrigger,
+    requestGeolocation,
+  } from '$lib/features/stories/play/tripTracking';
 
-  import MapShell from '$lib/shell/MapShell.svelte';
-  import LayerRenderer from '$lib/shell/LayerRenderer.svelte';
-  import GpsTracker from '$lib/shell/GpsTracker.svelte';
-  import TripIntro from '$lib/trip/TripIntro.svelte';
-  import TripPlayback from '$lib/trip/TripPlayback.svelte';
-  import StoryMarkers from '$lib/story/StoryMarkers.svelte';
+  import MapShell from '$lib/map/shell/MapShell.svelte';
+  import LayerRenderer from '$lib/map/shell/LayerRenderer.svelte';
+  import GpsTracker from '$lib/map/shell/GpsTracker.svelte';
+  import TripIntro from '$lib/features/stories/play/TripIntro.svelte';
+  import TripPlayback from '$lib/features/stories/play/TripPlayback.svelte';
+  import StoryMarkers from '$lib/features/stories/shared/StoryMarkers.svelte';
 
   const ctx = getSupabaseContext();
   const supabase = ctx.supabase;

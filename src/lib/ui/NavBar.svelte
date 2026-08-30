@@ -15,7 +15,7 @@
   import { onMount } from 'svelte';
 
   import NavDropdown from './NavDropdown.svelte';
-  import { getSupabaseContext } from '$lib/supabase/context';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
   import { page } from '$app/stores';
 
   const { session } = getSupabaseContext();

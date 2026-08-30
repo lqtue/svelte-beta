@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchUserRole } from '$lib/supabase/role';
-  import ScoutCard, { type ScoutCandidate } from '$lib/admin/ScoutCard.svelte';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { fetchUserRole } from '$lib/data/supabase/role';
+  import ScoutCard, { type ScoutCandidate } from '$lib/features/admin/ScoutCard.svelte';
   import '$styles/pages/admin-scout.css';
 
   // ── session / role guard ────────────────────────────────────────────────

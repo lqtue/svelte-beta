@@ -17,7 +17,7 @@ id uuid primary key default gen_random_uuid()
 
 `maps.allmaps_id` is a **service credential** — the Allmaps API key for this map's annotation. It is only used when calling Allmaps endpoints (building annotation URLs, loading warped tile layers). It is never a join key or URL parameter.
 
-Current debt: `mapStore.activeMapId`, URL hash `&map=`, and `src/lib/supabase/maps.ts` shim still use `allmaps_id` as identity. This will be resolved when the home page and shell are migrated to `maps/service.ts`.
+Current debt: `mapStore.activeMapId`, URL hash `&map=`, and `src/lib/data/supabase/maps.ts` shim still use `allmaps_id` as identity. This will be resolved when the home page and shell are migrated to `maps/service.ts`.
 
 ### Foreign keys
 All FK columns reference the PK (`id uuid`). Text pseudo-FKs are not permitted.

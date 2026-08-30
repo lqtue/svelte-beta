@@ -4,7 +4,7 @@
   rest of the app.
 -->
 <script lang="ts">
-  import '$styles/layouts/auth-gate.css';
+  import '$styles/components/auth-gate.css';
   import type { SupabaseClient } from '@supabase/supabase-js';
 
   export let supabase: SupabaseClient;

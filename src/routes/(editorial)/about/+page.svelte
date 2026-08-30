@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import PageHero from '$lib/ui/PageHero.svelte';
   import '$styles/pages/about.css';
-  import { layers, phases, users } from '$lib/about/content';
+  import { layers, phases, users } from '$lib/data/about/content';
   let mounted = false;
 
   onMount(() => {

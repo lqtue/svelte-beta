@@ -8,11 +8,11 @@
 -->
 <script lang="ts" generics="T extends { id: string; title: string }">
   import { createEventDispatcher } from 'svelte';
-  import '$styles/layouts/library.css';
+  import '$styles/components/library.css';
   import PageHero from './PageHero.svelte';
   import NameDialog from './NameDialog.svelte';
-  import CatalogGrid from './catalog/CatalogGrid.svelte';
-  import CatalogCard from './catalog/CatalogCard.svelte';
+  import CatalogGrid from '$lib/features/catalog/CatalogGrid.svelte';
+  import CatalogCard from '$lib/features/catalog/CatalogCard.svelte';
 
   const dispatch = createEventDispatcher<{
     select: { item: T };

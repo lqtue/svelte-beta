@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { requireRole } from '$lib/server/auth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { assertUuid, dbError } from '$lib/server/http';
-import type { Database } from '$lib/supabase/types';
+import type { Database } from '$lib/data/supabase/types';
 
 /** PATCH — update a source (e.g. set is_primary, change label) */
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {

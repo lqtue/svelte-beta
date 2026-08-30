@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchUserRole } from '$lib/supabase/role';
-  import GeorefSyncPanel from '$lib/admin/GeorefSyncPanel.svelte';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { fetchUserRole } from '$lib/data/supabase/role';
+  import GeorefSyncPanel from '$lib/features/admin/GeorefSyncPanel.svelte';
   import '$styles/pages/admin-bulk.css';
 
   // ── session / role guard ────────────────────────────────────────────────

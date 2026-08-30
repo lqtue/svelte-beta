@@ -1,7 +1,8 @@
 // Shared search utilities: coordinate parsing, covering map detection, bounds helpers
 
-import type { MapListItem, SearchResult } from '$lib/map/types';
-import { haversineDistance } from '$lib/geo/geo';
+import type { SearchResult } from '$lib/map/types';
+import type { MapListItem } from '$lib/data/maps/types';
+import { haversineDistance } from '$lib/core/geo/geo';
 
 /**
  * Parse a coordinate string into lat/lng.

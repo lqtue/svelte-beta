@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getSupabaseContext } from '$lib/supabase/context';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
   import PageHero from '$lib/ui/PageHero.svelte';
-  import { allmapsEditorUrl, fetchGeorefQueue, type GeorefMapItem } from '$lib/maps/georef';
+  import { allmapsEditorUrl, fetchGeorefQueue, type GeorefMapItem } from '$lib/data/maps/georef';
 
   const { supabase } = getSupabaseContext();
 

@@ -17,26 +17,30 @@
     ● Edit    — Select + Modify existing footprints
 -->
 <script lang="ts">
-  import ToolLayout from '$lib/shell/ToolLayout.svelte';
-  import ImageShell from '$lib/shell/ImageShell.svelte';
-  import TraceTool from '$lib/contribute/trace/TraceTool.svelte';
-  import TraceSidebar from '$lib/contribute/trace/TraceSidebar.svelte';
-  import ToolSidebarShell from '$lib/contribute/shared/ToolSidebarShell.svelte';
-  import ToolMapPicker from '$lib/contribute/shared/ToolMapPicker.svelte';
-  import EmptyPanel from '$lib/contribute/shared/EmptyPanel.svelte';
-  import SidebarToggleButton from '$lib/contribute/shared/SidebarToggleButton.svelte';
+  import ToolLayout from '$lib/map/shell/ToolLayout.svelte';
+  import ImageShell from '$lib/map/shell/ImageShell.svelte';
+  import TraceTool from '$lib/features/contribute/trace/TraceTool.svelte';
+  import TraceSidebar from '$lib/features/contribute/trace/TraceSidebar.svelte';
+  import ToolSidebarShell from '$lib/features/contribute/shared/ToolSidebarShell.svelte';
+  import ToolMapPicker from '$lib/features/contribute/shared/ToolMapPicker.svelte';
+  import EmptyPanel from '$lib/features/contribute/shared/EmptyPanel.svelte';
+  import SidebarToggleButton from '$lib/features/contribute/shared/SidebarToggleButton.svelte';
   import '$styles/layouts/tool-page.css';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { resolveMapIiifInfoUrl } from '$lib/contribute/shared/iiifSource';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { resolveMapIiifInfoUrl } from '$lib/features/contribute/shared/iiifSource';
   import {
     fetchMapFootprints,
     createFootprint,
     updateFootprint,
     updateFootprintMeta,
     deleteFootprint,
-  } from '$lib/supabase/labels';
-  import type { LabelMapInfo } from '$lib/supabase/labels';
-  import type { FootprintSubmission, PixelCoord, FeatureType } from '$lib/contribute/shared/types';
+  } from '$lib/data/supabase/labels';
+  import type { LabelMapInfo } from '$lib/data/supabase/labels';
+  import type {
+    FootprintSubmission,
+    PixelCoord,
+    FeatureType,
+  } from '$lib/features/contribute/shared/types';
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id ?? null;

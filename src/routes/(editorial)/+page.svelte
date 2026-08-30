@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { MapListItem } from '$lib/map/types';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { fetchMaps, fetchFeaturedMaps } from '$lib/maps/service';
-  import { annotationUrlForSource } from '$lib/shell/warpedOverlay';
-  import { fetchFavorites, addFavorite, removeFavorite } from '$lib/supabase/favorites';
+  import type { MapListItem } from '$lib/data/maps/types';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { fetchMaps, fetchFeaturedMaps } from '$lib/data/maps/service';
+  import { annotationUrlForSource } from '$lib/map/shell/warpedOverlay';
+  import { fetchFavorites, addFavorite, removeFavorite } from '$lib/data/supabase/favorites';
   import MapCard from '$lib/ui/MapCard.svelte';
   import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
   import '$styles/layouts/home.css';

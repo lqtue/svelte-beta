@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { redirect, type Handle } from '@sveltejs/kit';
-import type { Database } from '$lib/supabase/types';
+import type { Database } from '$lib/data/supabase/types';
 
 /** Retired route paths → their replacements (301, query string preserved). */
 const LEGACY_REDIRECTS: Record<string, string> = {

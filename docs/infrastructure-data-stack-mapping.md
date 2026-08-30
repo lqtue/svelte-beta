@@ -77,7 +77,7 @@ _"Getting the physical into the machine"_
 | IA S3 credentials | `IA_S3_ACCESS_KEY`, `IA_S3_SECRET_KEY` env vars | `.env` (server-side) |
 | 3-location redundancy | Internet Archive (3 nodes) | IIIF CDN |
 | Supabase Storage | Allmaps annotation JSON | `annotations/` bucket |
-| IIIF wrapper | `iiifImageInfo.ts` — fetches annotation → extracts IIIF service URL | `src/lib/iiif/` |
+| IIIF wrapper | `iiifImageInfo.ts` — fetches annotation → extracts IIIF service URL | `src/lib/core/iiif/` |
 | DB tracking | `pipeline_sheets.ia_status`, `ia_identifier`, `ia_iiif_base` | migration 012 |
 
 **Gaps:**
@@ -102,7 +102,7 @@ _"Giving bits a place on Earth"_
 | GCP fitting | Affine (polynomial order 1) — `fitAffine()`, Cramer's rule 3×3 solver | `src/lib/georefUtils.ts` |
 | Corner propagation | `propagateCorners()` — Δlon/Δlat extrapolation from seed sheet | `georefUtils.ts` |
 | Allmaps annotation build | `buildAnnotation()`, `buildCornerAnnotation()` — W3C Web Annotation JSON | `pipelineUtils.ts`, `georefUtils.ts` |
-| Manual georef UI | Neatline editor + GCP placement | `src/lib/admin/NeatlineEditor.svelte` |
+| Manual georef UI | Neatline editor + GCP placement | `src/lib/features/admin/NeatlineEditor.svelte` |
 | Community georef | `/contribute/georef` + `georef_submissions` table | migration 002 |
 | DB tracking | `pipeline_sheets.georef_status`, `is_seed`, `georef_source_id` | migration 012 |
 | Annotation storage | `pipeline/{series}/{sheet_number}.json` in Supabase Storage | — |
@@ -155,17 +155,17 @@ _"What the machine does with the knowledge"_
 | Component | Implementation | File(s) |
 |-----------|---------------|---------|
 | L7014 pipeline (5 stages) | Admin API: index → seeds → IA upload → annotate → propagate | `src/routes/api/admin/pipeline/` |
-| Map viewer (OL) | WarpedMapLayer, overlay/spy/dual modes, neatline clipping | `src/lib/shell/`, `src/lib/studio/StudioMap.svelte` |
+| Map viewer (OL) | WarpedMapLayer, overlay/spy/dual modes, neatline clipping | `src/lib/map/shell/`, `src/lib/features/studio/StudioMap.svelte` |
 | Map viewer (MapLibre) | Lightweight embed | `src/lib/Map.svelte` |
 | Annotation drawing | Point/line/polygon, undo/redo, style per feature | `src/lib/annotate/`, `src/lib/map/` |
-| Story creation | Multi-point stories with challenge types | `src/lib/create/` |
-| Story playback | GPS proximity, QR, camera challenges | `src/lib/view/`, `src/lib/story/` |
-| Label studio | Consensus labeling on map regions | `src/lib/contribute/label/` |
+| Story creation | Multi-point stories with challenge types | `src/lib/features/stories/editor/` |
+| Story playback | GPS proximity, QR, camera challenges | `src/lib/view/`, `src/lib/features/stories/shared/` |
+| Label studio | Consensus labeling on map regions | `src/lib/features/contribute/label/` |
 | Georef contribution | Community submission portal | `/contribute/georef` |
-| URL sync | Bidirectional URL hash ↔ stores | `src/lib/stores/urlStore.ts` |
+| URL sync | Bidirectional URL hash ↔ stores | `src/lib/map/stores/urlStore.ts` |
 | Search | Nominatim location search + map search | `src/lib/ui/MapSearchBar.svelte` |
-| Admin dashboard | Pipeline monitoring, map upload, bulk datum fix | `src/lib/admin/AdminDashboard.svelte` |
-| Auth | Supabase SSR OAuth (Google), RLS policies | `src/hooks.server.ts`, `src/lib/supabase/` |
+| Admin dashboard | Pipeline monitoring, map upload, bulk datum fix | `src/lib/features/admin/AdminDashboard.svelte` |
+| Auth | Supabase SSR OAuth (Google), RLS policies | `src/hooks.server.ts`, `src/lib/data/supabase/` |
 | State persistence | localStorage `vma-viewer-state-v1`, 500ms debounce | `src/lib/core/persistence/` |
 
 **Gaps:**

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { CATEGORY_LABELS, CATEGORY_COLORS, posts } from '$lib/blog/posts';
+  import { CATEGORY_LABELS, CATEGORY_COLORS, posts } from '$lib/data/blog/posts';
   import { onMount } from 'svelte';
   import '$styles/pages/blog-post.css';
 
