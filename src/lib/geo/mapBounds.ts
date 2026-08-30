@@ -9,45 +9,46 @@ const boundsCache: Map<string, [number, number, number, number] | null> = new Ma
 const STORAGE_KEY = 'vma-bounds-cache-v2';
 
 function loadPersistedCache(): void {
-	try {
-		const raw = (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY))
-			|| (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('vma-bounds-cache-v1'));
-		if (!raw) return;
-		const parsed = JSON.parse(raw) as Record<string, [number, number, number, number] | null>;
-		for (const [k, v] of Object.entries(parsed)) boundsCache.set(k, v);
-	} catch {}
+  try {
+    const raw =
+      (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY)) ||
+      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('vma-bounds-cache-v1'));
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Record<string, [number, number, number, number] | null>;
+    for (const [k, v] of Object.entries(parsed)) boundsCache.set(k, v);
+  } catch {}
 }
 
 function persistCache(): void {
-	try {
-		if (typeof localStorage === 'undefined') return;
-		const obj: Record<string, [number, number, number, number] | null> = {};
-		for (const [k, v] of boundsCache) obj[k] = v;
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
-	} catch {}
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const obj: Record<string, [number, number, number, number] | null> = {};
+    for (const [k, v] of boundsCache) obj[k] = v;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+  } catch {}
 }
 
 // Debounce localStorage writes — fetchMultipleBounds will call this many
 // times in quick succession.
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 function schedulePersist() {
-	if (persistTimer) return;
-	persistTimer = setTimeout(() => {
-		persistTimer = null;
-		persistCache();
-	}, 250);
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    persistCache();
+  }, 250);
 }
 
 function saveToSessionCache(id: string, value: [number, number, number, number] | null): void {
-	boundsCache.set(id, value);
-	schedulePersist();
+  boundsCache.set(id, value);
+  schedulePersist();
 }
 
 loadPersistedCache();
 
 interface GroundControlPoint {
-	world: [number, number];
-	// Other fields exist but we only need world coordinates
+  world: [number, number];
+  // Other fields exist but we only need world coordinates
 }
 
 /**
@@ -56,53 +57,53 @@ interface GroundControlPoint {
  * @returns Bounds as [minLon, minLat, maxLon, maxLat] or null if unavailable
  */
 export async function fetchAnnotationBounds(
-	mapId: string
+  mapId: string
 ): Promise<[number, number, number, number] | null> {
-	// Check cache first
-	if (boundsCache.has(mapId)) {
-		return boundsCache.get(mapId) ?? null;
-	}
+  // Check cache first
+  if (boundsCache.has(mapId)) {
+    return boundsCache.get(mapId) ?? null;
+  }
 
-	try {
-		const response = await fetch(annotationUrlForSource(mapId));
-		if (!response.ok) {
-			// 404 is expected for un-georeferenced maps — cache null silently.
-			boundsCache.set(mapId, null);
-			saveToSessionCache(mapId, null);
-			return null;
-		}
+  try {
+    const response = await fetch(annotationUrlForSource(mapId));
+    if (!response.ok) {
+      // 404 is expected for un-georeferenced maps — cache null silently.
+      boundsCache.set(mapId, null);
+      saveToSessionCache(mapId, null);
+      return null;
+    }
 
-		const annotation = await response.json();
+    const annotation = await response.json();
 
-		// Extract ground control points
-		const gcps = extractGCPs(annotation);
-		if (!gcps || gcps.length === 0) {
-			// Some maps may not have GCPs - this is expected, cache null silently
-			boundsCache.set(mapId, null);
-			return null;
-		}
+    // Extract ground control points
+    const gcps = extractGCPs(annotation);
+    if (!gcps || gcps.length === 0) {
+      // Some maps may not have GCPs - this is expected, cache null silently
+      boundsCache.set(mapId, null);
+      return null;
+    }
 
-		// Calculate bounding box from GCPs
-		const lons = gcps.map((p) => p.world[0]);
-		const lats = gcps.map((p) => p.world[1]);
+    // Calculate bounding box from GCPs
+    const lons = gcps.map((p) => p.world[0]);
+    const lats = gcps.map((p) => p.world[1]);
 
-		const bounds: [number, number, number, number] = [
-			Math.min(...lons),
-			Math.min(...lats),
-			Math.max(...lons),
-			Math.max(...lats)
-		];
+    const bounds: [number, number, number, number] = [
+      Math.min(...lons),
+      Math.min(...lats),
+      Math.max(...lons),
+      Math.max(...lats),
+    ];
 
-		// Cache and return
-		boundsCache.set(mapId, bounds);
-		saveToSessionCache(mapId, bounds);
-		return bounds;
-	} catch (error) {
-		console.error(`Error fetching bounds for ${mapId}:`, error);
-		boundsCache.set(mapId, null);
-		saveToSessionCache(mapId, null);
-		return null;
-	}
+    // Cache and return
+    boundsCache.set(mapId, bounds);
+    saveToSessionCache(mapId, bounds);
+    return bounds;
+  } catch (error) {
+    console.error(`Error fetching bounds for ${mapId}:`, error);
+    boundsCache.set(mapId, null);
+    saveToSessionCache(mapId, null);
+    return null;
+  }
 }
 
 /**
@@ -110,91 +111,92 @@ export async function fetchAnnotationBounds(
  * Allmaps annotation structure can vary, this handles common formats
  */
 function extractGCPs(annotation: unknown): GroundControlPoint[] {
-	if (!annotation || typeof annotation !== 'object') {
-		return [];
-	}
+  if (!annotation || typeof annotation !== 'object') {
+    return [];
+  }
 
-	let ann = annotation as Record<string, unknown>;
+  let ann = annotation as Record<string, unknown>;
 
-	// Allmaps API returns an AnnotationPage with items array
-	// Unwrap to the first Annotation item
-	if (ann.items && Array.isArray(ann.items) && ann.items.length > 0) {
-		ann = ann.items[0] as Record<string, unknown>;
-	}
+  // Allmaps API returns an AnnotationPage with items array
+  // Unwrap to the first Annotation item
+  if (ann.items && Array.isArray(ann.items) && ann.items.length > 0) {
+    ann = ann.items[0] as Record<string, unknown>;
+  }
 
-	// Try to find resourceCoords (Georeference Annotation format)
-	if (ann.body && typeof ann.body === 'object') {
-		const body = ann.body as Record<string, unknown>;
+  // Try to find resourceCoords (Georeference Annotation format)
+  if (ann.body && typeof ann.body === 'object') {
+    const body = ann.body as Record<string, unknown>;
 
-		// Look for geometry in body
-		if (body.features && Array.isArray(body.features)) {
-			const gcps: GroundControlPoint[] = [];
-			for (const feature of body.features) {
-				if (
-					feature &&
-					typeof feature === 'object' &&
-					'geometry' in feature &&
-					feature.geometry &&
-					typeof feature.geometry === 'object'
-				) {
-					const geom = feature.geometry as Record<string, unknown>;
-					if (geom.coordinates && Array.isArray(geom.coordinates)) {
-						// Coordinates in [lon, lat] format
-						const coords = geom.coordinates as number[];
-						if (coords.length >= 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
-							gcps.push({
-								world: [coords[0], coords[1]]
-							});
-						}
-					}
-				}
-			}
-			if (gcps.length > 0) {
-				return gcps;
-			}
-		}
+    // Look for geometry in body
+    if (body.features && Array.isArray(body.features)) {
+      const gcps: GroundControlPoint[] = [];
+      for (const feature of body.features) {
+        if (
+          feature &&
+          typeof feature === 'object' &&
+          'geometry' in feature &&
+          feature.geometry &&
+          typeof feature.geometry === 'object'
+        ) {
+          const geom = feature.geometry as Record<string, unknown>;
+          if (geom.coordinates && Array.isArray(geom.coordinates)) {
+            // Coordinates in [lon, lat] format
+            const coords = geom.coordinates as number[];
+            if (
+              coords.length >= 2 &&
+              typeof coords[0] === 'number' &&
+              typeof coords[1] === 'number'
+            ) {
+              gcps.push({
+                world: [coords[0], coords[1]],
+              });
+            }
+          }
+        }
+      }
+      if (gcps.length > 0) {
+        return gcps;
+      }
+    }
 
-		// Alternative: look for transformation or gcps array
-		if (body.transformation && typeof body.transformation === 'object') {
-			const transformation = body.transformation as Record<string, unknown>;
-			if (transformation.gcps && Array.isArray(transformation.gcps)) {
-				return transformation.gcps
-					.filter(
-						(gcp): gcp is Record<string, unknown> =>
-							gcp !== null && typeof gcp === 'object'
-					)
-					.filter((gcp) => {
-						const world = gcp.world as unknown;
-						return Array.isArray(world) && world.length >= 2;
-					})
-					.map((gcp) => {
-						const world = gcp.world as number[];
-						return {
-							world: [world[0], world[1]]
-						};
-					});
-			}
-		}
-	}
+    // Alternative: look for transformation or gcps array
+    if (body.transformation && typeof body.transformation === 'object') {
+      const transformation = body.transformation as Record<string, unknown>;
+      if (transformation.gcps && Array.isArray(transformation.gcps)) {
+        return transformation.gcps
+          .filter((gcp): gcp is Record<string, unknown> => gcp !== null && typeof gcp === 'object')
+          .filter((gcp) => {
+            const world = gcp.world as unknown;
+            return Array.isArray(world) && world.length >= 2;
+          })
+          .map((gcp) => {
+            const world = gcp.world as number[];
+            return {
+              world: [world[0], world[1]],
+            };
+          });
+      }
+    }
+  }
 
-	// Fallback: try to find any coordinate-like structure
-	// This is a last resort for unexpected formats
-	if (ann.gcps && Array.isArray(ann.gcps)) {
-		return ann.gcps
-			.filter((gcp): gcp is Record<string, unknown> => gcp !== null && typeof gcp === 'object')
-			.filter((gcp) => {
-				const world = gcp.world as unknown;
-				return Array.isArray(world) && world.length >= 2;
-			})
-			.map((gcp) => {
-				const world = gcp.world as number[];
-				return {
-					world: [world[0], world[1]]
-				};
-			});
-	}
+  // Fallback: try to find any coordinate-like structure
+  // This is a last resort for unexpected formats
+  if (ann.gcps && Array.isArray(ann.gcps)) {
+    return ann.gcps
+      .filter((gcp): gcp is Record<string, unknown> => gcp !== null && typeof gcp === 'object')
+      .filter((gcp) => {
+        const world = gcp.world as unknown;
+        return Array.isArray(world) && world.length >= 2;
+      })
+      .map((gcp) => {
+        const world = gcp.world as number[];
+        return {
+          world: [world[0], world[1]],
+        };
+      });
+  }
 
-	return [];
+  return [];
 }
 
 /**
@@ -203,26 +205,25 @@ function extractGCPs(annotation: unknown): GroundControlPoint[] {
  * @param concurrency - Maximum concurrent requests (default: 5)
  */
 export async function fetchMultipleBounds(
-	mapIds: string[],
-	concurrency: number = 12
+  mapIds: string[],
+  concurrency: number = 12
 ): Promise<Map<string, [number, number, number, number] | null>> {
-	const results = new Map<string, [number, number, number, number] | null>();
+  const results = new Map<string, [number, number, number, number] | null>();
 
-	// Drain via a sliding window of N workers — keeps `concurrency`
-	// requests in flight at all times instead of waiting for the slowest
-	// of each batch (the old code paused the whole batch on its tail
-	// latency, costing ~3-5× wall time on slow maps).
-	let cursor = 0;
-	async function worker() {
-		while (cursor < mapIds.length) {
-			const i = cursor++;
-			const id = mapIds[i];
-			const bounds = await fetchAnnotationBounds(id);
-			results.set(id, bounds);
-		}
-	}
-	await Promise.all(Array.from({ length: Math.min(concurrency, mapIds.length) }, worker));
+  // Drain via a sliding window of N workers — keeps `concurrency`
+  // requests in flight at all times instead of waiting for the slowest
+  // of each batch (the old code paused the whole batch on its tail
+  // latency, costing ~3-5× wall time on slow maps).
+  let cursor = 0;
+  async function worker() {
+    while (cursor < mapIds.length) {
+      const i = cursor++;
+      const id = mapIds[i];
+      const bounds = await fetchAnnotationBounds(id);
+      results.set(id, bounds);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, mapIds.length) }, worker));
 
-	return results;
+  return results;
 }
-

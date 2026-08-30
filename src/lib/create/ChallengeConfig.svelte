@@ -13,9 +13,9 @@
   export let challenge: PointChallenge = { type: 'none' };
 
   const TYPES: { type: PointChallengeType; label: string }[] = [
-    { type: 'none',     label: 'None' },
+    { type: 'none', label: 'None' },
     { type: 'question', label: 'Question' },
-    { type: 'reach',    label: 'Reach' },
+    { type: 'reach', label: 'Reach' },
   ];
 
   function handleTypeChange(type: PointChallengeType) {
@@ -37,9 +37,12 @@
 <div class="cc">
   <div class="sb-pill-row">
     {#each TYPES as t}
-      <button type="button" class="sb-pill"
+      <button
+        type="button"
+        class="sb-pill"
         class:is-on={challenge.type === t.type}
-        on:click={() => handleTypeChange(t.type)}>{t.label}</button>
+        on:click={() => handleTypeChange(t.type)}>{t.label}</button
+      >
     {/each}
   </div>
 
@@ -47,7 +50,8 @@
     <label class="cc-field">
       <span class="sb-section-label">Question</span>
       <input
-        type="text" class="sb-input"
+        type="text"
+        class="sb-input"
         value={challenge.question ?? ''}
         placeholder="What is this building?"
         on:input={(e) => handleFieldChange('question', (e.target as HTMLInputElement).value)}
@@ -56,7 +60,8 @@
     <label class="cc-field">
       <span class="sb-section-label">Answer</span>
       <input
-        type="text" class="sb-input"
+        type="text"
+        class="sb-input"
         value={challenge.answer ?? ''}
         placeholder="Expected answer"
         on:input={(e) => handleFieldChange('answer', (e.target as HTMLInputElement).value)}
@@ -68,16 +73,27 @@
     <label class="cc-field">
       <span class="sb-section-label">Trigger radius (meters)</span>
       <input
-        type="number" class="sb-input"
+        type="number"
+        class="sb-input"
         value={challenge.triggerRadius ?? 15}
-        min="5" max="200"
-        on:input={(e) => handleFieldChange('triggerRadius', Number((e.target as HTMLInputElement).value) || 15)}
+        min="5"
+        max="200"
+        on:input={(e) =>
+          handleFieldChange('triggerRadius', Number((e.target as HTMLInputElement).value) || 15)}
       />
     </label>
   {/if}
 </div>
 
 <style>
-  .cc { display: flex; flex-direction: column; gap: 0.4rem; }
-  .cc-field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .cc {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .cc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
 </style>

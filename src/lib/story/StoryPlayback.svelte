@@ -59,13 +59,20 @@
 
 <div class="pb">
   <header class="pb-head">
-    <button type="button" class="sb-btn is-icon is-ghost"
-      on:click={() => dispatch('close')} aria-label="Close preview" title="Close">×</button>
+    <button
+      type="button"
+      class="sb-btn is-icon is-ghost"
+      on:click={() => dispatch('close')}
+      aria-label="Close preview"
+      title="Close">×</button
+    >
     <div class="pb-title">
       <h3>{story.title}</h3>
     </div>
     <div class="pb-progress" title="{completedIds.size} / {totalPoints} visited">
-      <div class="pb-progress-bar"><div class="pb-progress-fill" style="width: {progressFraction * 100}%"></div></div>
+      <div class="pb-progress-bar">
+        <div class="pb-progress-fill" style="width: {progressFraction * 100}%"></div>
+      </div>
       <span class="pb-progress-text">{completedIds.size} / {totalPoints}</span>
     </div>
   </header>
@@ -74,13 +81,18 @@
     <div class="pb-body">
       <h4>Story complete</h4>
       <p>You visited all {totalPoints} points in this story.</p>
-      <button type="button" class="sb-btn is-on is-block"
-        on:click={() => dispatch('finish', { storyId: story.id })}>Finish</button>
+      <button
+        type="button"
+        class="sb-btn is-on is-block"
+        on:click={() => dispatch('finish', { storyId: story.id })}>Finish</button
+      >
     </div>
   {:else if currentPoint}
     <div class="pb-body">
       <div class="pb-point-head">
-        <span class="pb-num" class:is-done={completedIds.has(currentPoint.id)}>{currentIndex + 1}</span>
+        <span class="pb-num" class:is-done={completedIds.has(currentPoint.id)}
+          >{currentIndex + 1}</span
+        >
         <h4>{currentPoint.title || `Point ${currentIndex + 1}`}</h4>
       </div>
       {#if currentPoint.description}
@@ -111,23 +123,33 @@
       {:else if currentPoint.challenge?.type === 'reach' && !completedIds.has(currentPoint.id)}
         <div class="pb-challenge">
           <span class="pb-challenge-label">Reach</span>
-          <p class="pb-question">Walk within <strong>{currentPoint.challenge.triggerRadius ?? 15} m</strong> of this point. Tap <em>Mark visited</em> to simulate arrival in preview.</p>
+          <p class="pb-question">
+            Walk within <strong>{currentPoint.challenge.triggerRadius ?? 15} m</strong> of this
+            point. Tap <em>Mark visited</em> to simulate arrival in preview.
+          </p>
         </div>
       {/if}
 
       <div class="pb-actions">
-        <button type="button" class="sb-btn is-sm"
+        <button
+          type="button"
+          class="sb-btn is-sm"
           disabled={currentIndex <= 0}
-          on:click={() => goToPoint(currentIndex - 1)}>← Prev</button>
+          on:click={() => goToPoint(currentIndex - 1)}>← Prev</button
+        >
         {#if !completedIds.has(currentPoint.id)}
-          <button type="button" class="sb-btn is-sm is-primary pb-cta"
-            on:click={handleComplete}>Mark visited</button>
+          <button type="button" class="sb-btn is-sm is-primary pb-cta" on:click={handleComplete}
+            >Mark visited</button
+          >
         {:else}
           <span class="pb-done">✓ Visited</span>
         {/if}
-        <button type="button" class="sb-btn is-sm"
+        <button
+          type="button"
+          class="sb-btn is-sm"
           disabled={currentIndex >= totalPoints - 1}
-          on:click={() => goToPoint(currentIndex + 1)}>Next →</button>
+          on:click={() => goToPoint(currentIndex + 1)}>Next →</button
+        >
       </div>
     </div>
   {/if}
@@ -151,97 +173,178 @@
     overflow: hidden;
   }
   @media (max-width: 900px) {
-    .pb { bottom: calc(env(safe-area-inset-bottom) + 6.5rem); }
+    .pb {
+      bottom: calc(env(safe-area-inset-bottom) + 6.5rem);
+    }
   }
 
   .pb-head {
-    display: flex; align-items: center; gap: 0.55rem;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
     padding: 0.55rem 0.7rem;
     background: var(--sb-head-bg);
     border-bottom: var(--sb-border);
   }
-  .pb-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.4rem; }
+  .pb-title {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
   .pb-title h3 {
     margin: 0;
     font-family: var(--sb-font-display);
-    font-size: 0.85rem; font-weight: 800;
+    font-size: 0.85rem;
+    font-weight: 800;
     color: var(--sb-text);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .pb-progress { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+  .pb-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
   .pb-progress-bar {
-    width: 60px; height: 6px;
+    width: 60px;
+    height: 6px;
     background: var(--sb-bg);
-    border: 1px solid #111; border-radius: var(--sb-radius-pill);
+    border: 1px solid #111;
+    border-radius: var(--sb-radius-pill);
     overflow: hidden;
   }
-  .pb-progress-fill { height: 100%; background: var(--sb-accent); transition: width 0.25s ease; }
+  .pb-progress-fill {
+    height: 100%;
+    background: var(--sb-accent);
+    transition: width 0.25s ease;
+  }
   .pb-progress-text {
     font-family: ui-monospace, SFMono-Regular, monospace;
-    font-size: 0.7rem; color: var(--sb-text-meta);
+    font-size: 0.7rem;
+    color: var(--sb-text-meta);
   }
 
   .pb-body {
     padding: 0.7rem 0.8rem 0.8rem;
-    display: flex; flex-direction: column; gap: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
   }
-  .pb-point-head { display: flex; align-items: center; gap: 0.55rem; }
+  .pb-point-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
   .pb-num {
     flex-shrink: 0;
-    width: 24px; height: 24px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: var(--sb-accent); color: #fff;
-    border: 1.5px solid #111; border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--sb-accent);
+    color: #fff;
+    border: 1.5px solid #111;
+    border-radius: 50%;
     font-family: var(--sb-font-display);
-    font-size: 0.75rem; font-weight: 800;
+    font-size: 0.75rem;
+    font-weight: 800;
   }
-  .pb-num.is-done { background: var(--sb-success); }
+  .pb-num.is-done {
+    background: var(--sb-success);
+  }
   .pb-point-head h4 {
     margin: 0;
     font-family: var(--sb-font-display);
-    font-size: 0.95rem; font-weight: 800;
+    font-size: 0.95rem;
+    font-weight: 800;
     color: var(--sb-text);
-    overflow: hidden; text-overflow: ellipsis;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .pb-desc { margin: 0; font-size: 0.84rem; line-height: 1.45; color: var(--sb-text); }
+  .pb-desc {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    color: var(--sb-text);
+  }
   .pb-hint {
     margin: 0;
     padding: 0.4rem 0.55rem;
-    font-size: 0.78rem; color: var(--sb-text-meta);
+    font-size: 0.78rem;
+    color: var(--sb-text-meta);
     background: var(--sb-accent-yellow);
-    border: var(--sb-border-soft); border-radius: var(--sb-radius-sm);
+    border: var(--sb-border-soft);
+    border-radius: var(--sb-radius-sm);
   }
 
   .pb-challenge {
-    display: flex; flex-direction: column; gap: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
     padding: 0.55rem 0.65rem;
     background: var(--sb-bg);
-    border: var(--sb-border); border-radius: var(--sb-radius-sm);
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
   }
   .pb-challenge-label {
     font-family: var(--sb-font-display);
-    font-size: 0.62rem; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     color: var(--sb-accent);
   }
-  .pb-question { margin: 0; font-size: 0.84rem; line-height: 1.4; color: var(--sb-text); }
-  .pb-answer-row { display: flex; gap: 0.4rem; }
-  .pb-answer-row .sb-input { flex: 1; }
-  .pb-answer-wrong { margin: 0; font-size: 0.74rem; color: var(--sb-danger); font-weight: 700; }
-  .pb-actions { display: flex; gap: 0.4rem; align-items: center; padding-top: 0.1rem; }
-  .pb-cta { flex: 1; }
+  .pb-question {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.4;
+    color: var(--sb-text);
+  }
+  .pb-answer-row {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .pb-answer-row .sb-input {
+    flex: 1;
+  }
+  .pb-answer-wrong {
+    margin: 0;
+    font-size: 0.74rem;
+    color: var(--sb-danger);
+    font-weight: 700;
+  }
+  .pb-actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    padding-top: 0.1rem;
+  }
+  .pb-cta {
+    flex: 1;
+  }
   .pb-done {
     flex: 1;
     text-align: center;
-    font-size: 0.78rem; font-weight: 700;
+    font-size: 0.78rem;
+    font-weight: 700;
     color: var(--sb-success);
   }
 
   .pb-body h4 {
     margin: 0;
     font-family: var(--sb-font-display);
-    font-size: 1rem; font-weight: 800;
+    font-size: 1rem;
+    font-weight: 800;
     color: var(--sb-text);
   }
-  .pb-body p { margin: 0; font-size: 0.85rem; color: var(--sb-text); }
+  .pb-body p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--sb-text);
+  }
 </style>

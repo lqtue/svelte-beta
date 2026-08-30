@@ -22,9 +22,9 @@ export const SAIGON_CENTER: [number, number] = [106.70098, 10.77653];
 export const SAIGON_DEFAULT_ZOOM = 15;
 
 export type CoverageState =
-  | 'rich'    // 2+ overlays cover this point
-  | 'sparse'  // exactly 1 overlay covers this point
-  | 'empty';  // no overlay covers this point
+  | 'rich' // 2+ overlays cover this point
+  | 'sparse' // exactly 1 overlay covers this point
+  | 'empty'; // no overlay covers this point
 
 // Extends MapListItem with a resolved bbox/bounds tuple — same shape either
 // way, so downstream code only ever reads `effectiveBbox`.
@@ -62,16 +62,20 @@ export function matchMapsAtPoint(
   mapList: MapListItem[],
   lon: number,
   lat: number,
-  includeDrafts = false,
+  includeDrafts = false
 ): ResolvedMap[] {
   const visible = mapList.filter(
     (m) =>
       (includeDrafts || m.status === 'public' || m.status === 'featured') &&
-      (!!m.allmaps_id || !!m.annotation_url),
+      (!!m.allmaps_id || !!m.annotation_url)
   );
   const candidates: ResolvedMap[] = [];
   for (const m of visible) {
-    const candidate = looksValid(m.bbox) ? (m.bbox as Bbox) : looksValid(m.bounds) ? (m.bounds as Bbox) : null;
+    const candidate = looksValid(m.bbox)
+      ? (m.bbox as Bbox)
+      : looksValid(m.bounds)
+        ? (m.bounds as Bbox)
+        : null;
     if (!candidate) continue;
     if (!bboxContainsPoint(candidate, lon, lat)) continue;
     candidates.push({ ...m, effectiveBbox: candidate });
@@ -97,10 +101,9 @@ export function unresolvedAllmapsIds(mapList: MapListItem[], includeDrafts = fal
         (includeDrafts || m.status === 'public' || m.status === 'featured') &&
         !looksValid(m.bbox) &&
         !looksValid(m.bounds) &&
-        !!m.allmaps_id,
+        !!m.allmaps_id
     )
     .map((m) => m.allmaps_id!);
 }
 
 export { fetchMultipleBounds };
-

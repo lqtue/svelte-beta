@@ -8,12 +8,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type {
-    MapListItem,
-    AnnotationSummary,
-    DrawingMode,
-    AnnotationSet,
-  } from '$lib/map/types';
+  import type { MapListItem, AnnotationSummary, DrawingMode, AnnotationSet } from '$lib/map/types';
   import SidebarCard from '$lib/ui/catalog/SidebarCard.svelte';
   import StudioAnimationPanel from './StudioAnimationPanel.svelte';
 
@@ -57,10 +52,7 @@
   let titleDraft = '';
   let titleInputEl: HTMLInputElement | null = null;
 
-  export function setNotice(
-    message: string | null,
-    tone: 'info' | 'error' | 'success' = 'info',
-  ) {
+  export function setNotice(message: string | null, tone: 'info' | 'error' | 'success' = 'info') {
     notice = message;
     noticeType = tone;
   }
@@ -75,7 +67,10 @@
     if (!project) return;
     titleDraft = project.title;
     editingTitle = true;
-    requestAnimationFrame(() => { titleInputEl?.focus(); titleInputEl?.select(); });
+    requestAnimationFrame(() => {
+      titleInputEl?.focus();
+      titleInputEl?.select();
+    });
   }
   function commitEditTitle() {
     if (!editingTitle) return;
@@ -85,10 +80,17 @@
       dispatch('renameProject', { title: next });
     }
   }
-  function cancelEditTitle() { editingTitle = false; }
+  function cancelEditTitle() {
+    editingTitle = false;
+  }
   function onTitleKey(e: KeyboardEvent) {
-    if (e.key === 'Enter') { e.preventDefault(); commitEditTitle(); }
-    else if (e.key === 'Escape') { e.preventDefault(); cancelEditTitle(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitEditTitle();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEditTitle();
+    }
   }
 
   function pickDrawMode(m: DrawingMode) {
@@ -109,18 +111,26 @@
 
   function typeBadge(type: string): string {
     switch (type) {
-      case 'Point': return 'Pt';
-      case 'LineString': return 'Ln';
-      case 'Polygon': return 'Pg';
-      default: return '??';
+      case 'Point':
+        return 'Pt';
+      case 'LineString':
+        return 'Ln';
+      case 'Polygon':
+        return 'Pg';
+      default:
+        return '??';
     }
   }
   function typeClass(type: string): string {
     switch (type) {
-      case 'Point': return 'type-point';
-      case 'LineString': return 'type-line';
-      case 'Polygon': return 'type-polygon';
-      default: return '';
+      case 'Point':
+        return 'type-point';
+      case 'LineString':
+        return 'type-line';
+      case 'Polygon':
+        return 'type-polygon';
+      default:
+        return '';
     }
   }
 
@@ -133,23 +143,50 @@
 <aside class="right-panel">
   <!-- Top bar with mode toggle -->
   <div class="sb-bar">
-    <button type="button" class="sb-btn is-sm is-ghost"
+    <button
+      type="button"
+      class="sb-btn is-sm is-ghost"
       on:click={() => dispatch('backToLibrary')}
-      aria-label="Back to library" title="Back to my projects">← Library</button>
+      aria-label="Back to library"
+      title="Back to my projects">← Library</button
+    >
 
     <div class="mode-toggle" role="tablist" aria-label="Editor mode">
-      <button type="button" class="mt-btn" class:is-on={mode === 'annotate'}
-        role="tab" aria-selected={mode === 'annotate'}
-        on:click={() => (mode = 'annotate')}>Annotate</button>
-      <button type="button" class="mt-btn" class:is-on={mode === 'animate'}
-        role="tab" aria-selected={mode === 'animate'}
-        on:click={() => (mode = 'animate')}>Animate</button>
+      <button
+        type="button"
+        class="mt-btn"
+        class:is-on={mode === 'annotate'}
+        role="tab"
+        aria-selected={mode === 'annotate'}
+        on:click={() => (mode = 'annotate')}>Annotate</button
+      >
+      <button
+        type="button"
+        class="mt-btn"
+        class:is-on={mode === 'animate'}
+        role="tab"
+        aria-selected={mode === 'animate'}
+        on:click={() => (mode = 'animate')}>Animate</button
+      >
     </div>
 
-    <button type="button" class="sb-btn is-icon is-ghost"
-      on:click={() => dispatch('toggleCollapse')} aria-label="Collapse panel" title="Hide editor">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M9 3h10a2 2 0 012 2v14a2 2 0 01-2 2H9"/><path d="M5 8l4 4-4 4"/>
+    <button
+      type="button"
+      class="sb-btn is-icon is-ghost"
+      on:click={() => dispatch('toggleCollapse')}
+      aria-label="Collapse panel"
+      title="Hide editor"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      >
+        <path d="M9 3h10a2 2 0 012 2v14a2 2 0 01-2 2H9" /><path d="M5 8l4 4-4 4" />
       </svg>
     </button>
   </div>
@@ -166,22 +203,36 @@
         placeholder="Project title"
       />
     {:else}
-      <h2 class="sh-title" title="Double-click to rename"
+      <h2
+        class="sh-title"
+        title="Double-click to rename"
         on:dblclick={startEditTitle}
-        role="button" tabindex="0"
-        on:keydown={(e) => { if (e.key === 'Enter' || e.key === 'F2') startEditTitle(); }}
-      >{project?.title ?? 'Untitled project'}</h2>
+        role="button"
+        tabindex="0"
+        on:keydown={(e) => {
+          if (e.key === 'Enter' || e.key === 'F2') startEditTitle();
+        }}
+      >
+        {project?.title ?? 'Untitled project'}
+      </h2>
     {/if}
     {#if selectedMap}
       <span class="sh-map" title={selectedMap.name}>
-        {selectedMap.name}{#if selectedMap.year}<span class="sh-year"> · {selectedMap.year}</span>{/if}
+        {selectedMap.name}{#if selectedMap.year}<span class="sh-year">
+            · {selectedMap.year}</span
+          >{/if}
       </span>
     {/if}
     <span class="sh-autosave" class:saved={saveSuccess} class:saving={isSaving}>
       {saveSuccess ? '✓' : isSaving ? '…' : '•'}
     </span>
-    <button type="button" class="sb-btn is-sm" class:is-success={saveSuccess}
-      on:click={() => dispatch('save')} disabled={isSaving || saveSuccess}>
+    <button
+      type="button"
+      class="sb-btn is-sm"
+      class:is-success={saveSuccess}
+      on:click={() => dispatch('save')}
+      disabled={isSaving || saveSuccess}
+    >
       {saveSuccess ? 'Saved' : isSaving ? '…' : 'Save'}
     </button>
   </div>
@@ -190,41 +241,73 @@
   {#if mode === 'annotate'}
     <SidebarCard title="Annotations" grow={2} padded={false}>
       <svelte:fragment slot="head-actions">
-        <button type="button" class="sb-btn is-sm is-ghost"
-          on:click={() => dispatch('clear')} disabled={!annotations.length}>Clear</button>
-        <button type="button" class="sb-btn is-sm is-ghost"
-          on:click={() => dispatch('exportGeoJSON')} disabled={!annotations.length}>Export</button>
+        <button
+          type="button"
+          class="sb-btn is-sm is-ghost"
+          on:click={() => dispatch('clear')}
+          disabled={!annotations.length}>Clear</button
+        >
+        <button
+          type="button"
+          class="sb-btn is-sm is-ghost"
+          on:click={() => dispatch('exportGeoJSON')}
+          disabled={!annotations.length}>Export</button
+        >
         <label class="sb-btn is-sm is-ghost upload">
           Import
-          <input type="file" accept="application/geo+json,.geojson,.json"
-            on:change={handleFileChange} bind:this={geoJsonInputEl} />
+          <input
+            type="file"
+            accept="application/geo+json,.geojson,.json"
+            on:change={handleFileChange}
+            bind:this={geoJsonInputEl}
+          />
         </label>
-        <button type="button" class="sb-btn is-sm is-ghost"
-          on:click={() => dispatch('importOSM')} title="Import features from OpenStreetMap via Overpass">
+        <button
+          type="button"
+          class="sb-btn is-sm is-ghost"
+          on:click={() => dispatch('importOSM')}
+          title="Import features from OpenStreetMap via Overpass"
+        >
           From OSM
         </button>
       </svelte:fragment>
 
       <div class="draw-controls">
-        <button type="button" class="sb-btn is-block" class:is-on={drawingMode === 'point'}
-          on:click={() => pickDrawMode('point')}>
+        <button
+          type="button"
+          class="sb-btn is-block"
+          class:is-on={drawingMode === 'point'}
+          on:click={() => pickDrawMode('point')}
+        >
           <span class="dot dot-point" aria-hidden="true"></span>
           {drawingMode === 'point' ? 'Placing…' : 'Point'}
         </button>
-        <button type="button" class="sb-btn is-block" class:is-on={drawingMode === 'line'}
-          on:click={() => pickDrawMode('line')}>
+        <button
+          type="button"
+          class="sb-btn is-block"
+          class:is-on={drawingMode === 'line'}
+          on:click={() => pickDrawMode('line')}
+        >
           <span class="dot dot-line" aria-hidden="true"></span>
           {drawingMode === 'line' ? 'Drawing…' : 'Line'}
         </button>
-        <button type="button" class="sb-btn is-block" class:is-on={drawingMode === 'polygon'}
-          on:click={() => pickDrawMode('polygon')}>
+        <button
+          type="button"
+          class="sb-btn is-block"
+          class:is-on={drawingMode === 'polygon'}
+          on:click={() => pickDrawMode('polygon')}
+        >
           <span class="dot dot-polygon" aria-hidden="true"></span>
           {drawingMode === 'polygon' ? 'Drawing…' : 'Polygon'}
         </button>
       </div>
 
       {#if notice}
-        <p class="notice" class:errored={noticeType === 'error'} class:success={noticeType === 'success'}>
+        <p
+          class="notice"
+          class:errored={noticeType === 'error'}
+          class:success={noticeType === 'success'}
+        >
           {notice}
         </p>
       {/if}
@@ -232,18 +315,30 @@
       <div class="ann-list">
         {#if annotations.length}
           {#each annotations as a, i (a.id)}
-            <div class="row" class:selected={a.id === selectedAnnotationId}
+            <div
+              class="row"
+              class:selected={a.id === selectedAnnotationId}
               on:click={() => selectAnnotation(a.id)}
-              on:keydown={(e) => { if (e.key === 'Enter') selectAnnotation(a.id); }}
-              role="button" tabindex="0">
+              on:keydown={(e) => {
+                if (e.key === 'Enter') selectAnnotation(a.id);
+              }}
+              role="button"
+              tabindex="0"
+            >
               <span class="row-idx">{i + 1}</span>
               <span class="type-badge {typeClass(a.type)}">{typeBadge(a.type)}</span>
               <span class="row-label">{a.label || 'Untitled'}</span>
               <div class="row-actions">
-                <button type="button" class="sb-btn is-sm is-ghost"
-                  on:click|stopPropagation={() => dispatch('zoomTo', { id: a.id })}>Zoom</button>
-                <button type="button" class="sb-btn is-sm is-danger"
-                  on:click|stopPropagation={() => dispatch('delete', { id: a.id })}>×</button>
+                <button
+                  type="button"
+                  class="sb-btn is-sm is-ghost"
+                  on:click|stopPropagation={() => dispatch('zoomTo', { id: a.id })}>Zoom</button
+                >
+                <button
+                  type="button"
+                  class="sb-btn is-sm is-danger"
+                  on:click|stopPropagation={() => dispatch('delete', { id: a.id })}>×</button
+                >
               </div>
             </div>
           {/each}
@@ -251,7 +346,9 @@
           <div class="empty">
             <p><strong>Draw on the map:</strong></p>
             <ul>
-              <li>Click <strong>Point</strong>, <strong>Line</strong>, or <strong>Polygon</strong></li>
+              <li>
+                Click <strong>Point</strong>, <strong>Line</strong>, or <strong>Polygon</strong>
+              </li>
               <li>Then click on the map to draw</li>
               <li>Or <strong>Import</strong> a GeoJSON file</li>
             </ul>
@@ -263,8 +360,11 @@
     <SidebarCard title={inspectorTitle} grow={3}>
       <svelte:fragment slot="head-actions">
         {#if selected}
-          <button type="button" class="sb-btn is-sm is-ghost"
-            on:click={() => dispatch('select', { id: null })}>Close</button>
+          <button
+            type="button"
+            class="sb-btn is-sm is-ghost"
+            on:click={() => dispatch('select', { id: null })}>Close</button
+          >
         {/if}
       </svelte:fragment>
 
@@ -276,10 +376,11 @@
               type="text"
               value={selected.label}
               placeholder="Annotation name"
-              on:input={(e) => dispatch('rename', {
-                id: selected!.id,
-                label: (e.target as HTMLInputElement).value,
-              })}
+              on:input={(e) =>
+                dispatch('rename', {
+                  id: selected!.id,
+                  label: (e.target as HTMLInputElement).value,
+                })}
             />
           </label>
 
@@ -289,11 +390,11 @@
               rows="4"
               value={selected.details ?? ''}
               placeholder="Optional notes"
-              on:input={(e) => dispatch('updateDetails', {
-                id: selected!.id,
-                details: (e.target as HTMLTextAreaElement).value,
-              })}
-            ></textarea>
+              on:input={(e) =>
+                dispatch('updateDetails', {
+                  id: selected!.id,
+                  details: (e.target as HTMLTextAreaElement).value,
+                })}></textarea>
           </label>
 
           <div class="color-row">
@@ -301,17 +402,24 @@
             <input
               type="color"
               value={selected.color}
-              on:input={(e) => dispatch('changeColor', {
-                id: selected!.id,
-                color: (e.target as HTMLInputElement).value,
-              })}
+              on:input={(e) =>
+                dispatch('changeColor', {
+                  id: selected!.id,
+                  color: (e.target as HTMLInputElement).value,
+                })}
             />
-            <button type="button" class="sb-btn is-sm is-ghost"
-              on:click={() => dispatch('toggleVisibility', { id: selected!.id })}>
+            <button
+              type="button"
+              class="sb-btn is-sm is-ghost"
+              on:click={() => dispatch('toggleVisibility', { id: selected!.id })}
+            >
               {selected.hidden ? 'Show' : 'Hide'}
             </button>
-            <button type="button" class="sb-btn is-sm is-ghost"
-              on:click={() => dispatch('zoomTo', { id: selected!.id })}>Zoom</button>
+            <button
+              type="button"
+              class="sb-btn is-sm is-ghost"
+              on:click={() => dispatch('zoomTo', { id: selected!.id })}>Zoom</button
+            >
           </div>
         </div>
       {:else}
@@ -336,7 +444,8 @@
 
 <style>
   .right-panel {
-    display: flex; flex-direction: column;
+    display: flex;
+    flex-direction: column;
     height: 100%;
     overflow: hidden;
   }
@@ -355,19 +464,30 @@
     background: transparent;
     color: var(--sb-text);
     font-family: var(--sb-font-display);
-    font-size: 0.72rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     padding: 0.25rem 0.7rem;
     cursor: pointer;
     transition: background 0.1s;
   }
-  .mt-btn + .mt-btn { border-left: var(--sb-border); }
-  .mt-btn:hover { background: var(--sb-accent-yellow, #fff3a3); }
-  .mt-btn.is-on { background: var(--sb-text, #111); color: var(--sb-card-bg, #fff); }
+  .mt-btn + .mt-btn {
+    border-left: var(--sb-border);
+  }
+  .mt-btn:hover {
+    background: var(--sb-accent-yellow, #fff3a3);
+  }
+  .mt-btn.is-on {
+    background: var(--sb-text, #111);
+    color: var(--sb-card-bg, #fff);
+  }
 
   /* Compact 1-line project header */
   .sh-compact {
-    display: flex; align-items: center; gap: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 0.4rem 0.7rem;
     border-bottom: var(--sb-border);
     min-height: 36px;
@@ -376,41 +496,69 @@
     margin: 0;
     flex: 0 1 auto;
     font-family: var(--sb-font-display);
-    font-size: 0.9rem; font-weight: 800;
+    font-size: 0.9rem;
+    font-weight: 800;
     color: var(--sb-text);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     max-width: 50%;
-    cursor: text; user-select: none;
-    padding: 2px 4px; margin: -2px -4px;
+    cursor: text;
+    user-select: none;
+    padding: 2px 4px;
+    margin: -2px -4px;
     border-radius: var(--sb-radius-sm);
   }
-  .sh-title:hover { background: var(--sb-accent-yellow, #fff3a3); }
-  .sh-title:focus { outline: 2px solid var(--sb-accent); outline-offset: -1px; }
+  .sh-title:hover {
+    background: var(--sb-accent-yellow, #fff3a3);
+  }
+  .sh-title:focus {
+    outline: 2px solid var(--sb-accent);
+    outline-offset: -1px;
+  }
   .sh-title-input {
     flex: 1;
     padding: 0.2rem 0.35rem;
     font-family: var(--sb-font-display);
-    font-size: 0.9rem; font-weight: 800;
+    font-size: 0.9rem;
+    font-weight: 800;
     color: var(--sb-text);
     background: var(--sb-card-bg);
-    border: var(--sb-border); border-radius: var(--sb-radius-sm);
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
   }
-  .sh-title-input:focus { outline: none; box-shadow: 0 0 0 2px var(--sb-accent); }
+  .sh-title-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--sb-accent);
+  }
   .sh-map {
-    flex: 1; min-width: 0;
-    font-size: 0.74rem; font-weight: 600;
-    color: var(--sb-text); opacity: 0.7;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--sb-text);
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .sh-year { font-variant-numeric: tabular-nums; }
+  .sh-year {
+    font-variant-numeric: tabular-nums;
+  }
   .sh-autosave {
     width: 1.2em;
     font-size: 0.8rem;
     text-align: center;
-    color: var(--sb-text); opacity: 0.5;
+    color: var(--sb-text);
+    opacity: 0.5;
   }
-  .sh-autosave.saved { color: #166534; opacity: 1; }
-  .sh-autosave.saving { opacity: 0.8; }
+  .sh-autosave.saved {
+    color: #166534;
+    opacity: 1;
+  }
+  .sh-autosave.saving {
+    opacity: 0.8;
+  }
 
   /* Draw controls */
   .draw-controls {
@@ -421,100 +569,193 @@
     border-bottom: var(--sb-border);
   }
   .draw-controls :global(.sb-btn) {
-    display: inline-flex; align-items: center; justify-content: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     gap: 0.4rem;
   }
   .dot {
     display: inline-block;
-    width: 10px; height: 10px;
+    width: 10px;
+    height: 10px;
     border: 1.5px solid currentColor;
     flex-shrink: 0;
   }
-  .dot-point { border-radius: 50%; background: currentColor; }
-  .dot-line { width: 14px; height: 2px; background: currentColor; border: none; }
-  .dot-polygon { background: transparent; }
+  .dot-point {
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .dot-line {
+    width: 14px;
+    height: 2px;
+    background: currentColor;
+    border: none;
+  }
+  .dot-polygon {
+    background: transparent;
+  }
 
   .notice {
-    padding: 0.5rem 0.7rem; margin: 0;
+    padding: 0.5rem 0.7rem;
+    margin: 0;
     font-size: 0.78rem;
     background: var(--sb-card-bg);
     border-bottom: var(--sb-border);
   }
-  .notice.success { background: #dcfce7; color: #166534; }
-  .notice.errored { background: #fee2e2; color: #b91c1c; }
+  .notice.success {
+    background: #dcfce7;
+    color: #166534;
+  }
+  .notice.errored {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
 
   /* Annotation list */
   .ann-list {
-    flex: 1; overflow-y: auto;
-    display: flex; flex-direction: column; gap: 0.4rem;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
     padding: 0.6rem 0.7rem;
   }
   .row {
-    display: flex; align-items: center; gap: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 0.45rem 0.55rem;
     background: var(--sb-card-bg);
     border: var(--sb-border);
     border-radius: var(--sb-radius-sm);
-    cursor: pointer; transition: all 0.1s;
+    cursor: pointer;
+    transition: all 0.1s;
   }
-  .row:hover { transform: translate(-1px, -1px); }
-  .row.selected { box-shadow: 0 0 0 2px var(--sb-accent); }
+  .row:hover {
+    transform: translate(-1px, -1px);
+  }
+  .row.selected {
+    box-shadow: 0 0 0 2px var(--sb-accent);
+  }
   .row-idx {
     font-family: var(--sb-font-display);
-    font-size: 0.7rem; font-weight: 700; opacity: 0.6;
-    min-width: 1.2em; text-align: right;
+    font-size: 0.7rem;
+    font-weight: 700;
+    opacity: 0.6;
+    min-width: 1.2em;
+    text-align: right;
   }
-  .row-label { flex: 1; font-size: 0.85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row-actions { display: flex; gap: 0.25rem; }
+  .row-label {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row-actions {
+    display: flex;
+    gap: 0.25rem;
+  }
 
   .type-badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; border-radius: 50%;
-    font-size: 0.6rem; font-weight: 800;
-    color: white; border: var(--sb-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: white;
+    border: var(--sb-border);
     flex-shrink: 0;
   }
-  .type-point { background: #d4af37; }
-  .type-line { background: #5b8a72; }
-  .type-polygon { background: #7b6b9e; }
+  .type-point {
+    background: #d4af37;
+  }
+  .type-line {
+    background: #5b8a72;
+  }
+  .type-polygon {
+    background: #7b6b9e;
+  }
 
   /* Inspector */
-  .insp { display: flex; flex-direction: column; gap: 0.7rem; }
-  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .insp {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
   .field-label {
     font-family: var(--sb-font-display);
-    font-size: 0.66rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--sb-text); opacity: 0.7;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--sb-text);
+    opacity: 0.7;
   }
-  .field input[type="text"], .field textarea {
-    width: 100%; box-sizing: border-box;
+  .field input[type='text'],
+  .field textarea {
+    width: 100%;
+    box-sizing: border-box;
     padding: 0.4rem 0.5rem;
-    font-family: inherit; font-size: 0.85rem;
+    font-family: inherit;
+    font-size: 0.85rem;
     background: var(--sb-card-bg);
-    border: var(--sb-border); border-radius: var(--sb-radius-sm);
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
     color: var(--sb-text);
   }
-  .field input[type="text"]:focus, .field textarea:focus {
-    outline: none; box-shadow: 0 0 0 2px var(--sb-accent);
+  .field input[type='text']:focus,
+  .field textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--sb-accent);
   }
-  .field textarea { resize: vertical; min-height: 60px; }
-  .color-row { display: flex; align-items: center; gap: 0.5rem; }
-  .color-row input[type="color"] {
-    width: 40px; height: 30px; padding: 0;
-    border: var(--sb-border); border-radius: var(--sb-radius-sm);
-    cursor: pointer; overflow: hidden;
+  .field textarea {
+    resize: vertical;
+    min-height: 60px;
+  }
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .color-row input[type='color'] {
+    width: 40px;
+    height: 30px;
+    padding: 0;
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
+    cursor: pointer;
+    overflow: hidden;
   }
 
   .empty {
     padding: 1rem 0.7rem;
     font-size: 0.85rem;
-    color: var(--sb-text); opacity: 0.7;
+    color: var(--sb-text);
+    opacity: 0.7;
     line-height: 1.5;
   }
-  .empty ul { padding-left: 1.2rem; margin: 0.4rem 0 0; }
-  .empty li { margin-bottom: 0.3rem; }
+  .empty ul {
+    padding-left: 1.2rem;
+    margin: 0.4rem 0 0;
+  }
+  .empty li {
+    margin-bottom: 0.3rem;
+  }
 
-  .upload { cursor: pointer; }
-  .upload input { display: none; }
+  .upload {
+    cursor: pointer;
+  }
+  .upload input {
+    display: none;
+  }
 </style>

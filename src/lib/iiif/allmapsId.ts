@@ -5,7 +5,7 @@ import { generateId } from '@allmaps/id';
  * Strips an optional trailing `/info.json` and any trailing slashes.
  */
 function canonicalIiifUrl(url: string): string {
-	return url.replace(/\/(info\.json)?$/, '').replace(/\/+$/, '');
+  return url.replace(/\/(info\.json)?$/, '').replace(/\/+$/, '');
 }
 
 /**
@@ -13,5 +13,5 @@ function canonicalIiifUrl(url: string): string {
  * Wraps `@allmaps/id` so every call site shares one canonicalization step.
  */
 export async function deriveAllmapsId(iiifImage: string): Promise<string> {
-	return generateId(canonicalIiifUrl(iiifImage));
+  return generateId(canonicalIiifUrl(iiifImage));
 }

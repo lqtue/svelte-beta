@@ -15,34 +15,34 @@ import { join, dirname, resolve, relative } from 'node:path';
 const root = '.svelte-kit/output/client/_app/immutable';
 
 function walk(dir) {
-    return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
-        e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)],
-    );
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]
+  );
 }
 
 if (!existsSync(root)) {
-    console.error(`check-bundle: ${root} missing — did vite build run?`);
-    process.exit(1);
+  console.error(`check-bundle: ${root} missing — did vite build run?`);
+  process.exit(1);
 }
 
 const files = walk(root).filter((f) => f.endsWith('.js'));
 const missing = [];
 
 for (const file of files) {
-    const src = readFileSync(file, 'utf8');
-    // static `from"./x.js"` / `import"./x.js"` and dynamic `import("./x.js")`
-    for (const m of src.matchAll(/(?:from|import)\s*\(?\s*["'](\.[^"']+\.js)["']/g)) {
-        const target = resolve(dirname(file), m[1]);
-        if (!existsSync(target)) {
-            missing.push(`${relative(root, file)} -> ${m[1]}`);
-        }
+  const src = readFileSync(file, 'utf8');
+  // static `from"./x.js"` / `import"./x.js"` and dynamic `import("./x.js")`
+  for (const m of src.matchAll(/(?:from|import)\s*\(?\s*["'](\.[^"']+\.js)["']/g)) {
+    const target = resolve(dirname(file), m[1]);
+    if (!existsSync(target)) {
+      missing.push(`${relative(root, file)} -> ${m[1]}`);
     }
+  }
 }
 
 if (missing.length) {
-    console.error(`check-bundle: ${missing.length} unresolved import(s) in client bundle:`);
-    for (const m of [...new Set(missing)].slice(0, 30)) console.error(`  ${m}`);
-    process.exit(1);
+  console.error(`check-bundle: ${missing.length} unresolved import(s) in client bundle:`);
+  for (const m of [...new Set(missing)].slice(0, 30)) console.error(`  ${m}`);
+  process.exit(1);
 }
 
 console.log(`check-bundle: ${files.length} client chunks, all imports resolve`);

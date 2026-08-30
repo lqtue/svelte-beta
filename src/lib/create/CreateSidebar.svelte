@@ -16,7 +16,12 @@
     toggleCollapse: void;
     zoomToOverlay: { mapId: string };
     pickMap: any;
-    pickLocation: { lat: number; lng: number; label: string; bbox?: [number, number, number, number] };
+    pickLocation: {
+      lat: number;
+      lng: number;
+      label: string;
+      bbox?: [number, number, number, number];
+    };
     changeViewMode: { mode: ViewMode };
     toggleGps: void;
   }>();
@@ -33,10 +38,23 @@
 <aside class="panel">
   <div class="sb-bar">
     <span class="sb-bar-title">Map viewer</span>
-    <button type="button" class="sb-btn is-icon is-ghost"
-      on:click={() => dispatch('toggleCollapse')} aria-label="Collapse panel" title="Hide panel">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10"/><path d="M19 8l-4 4 4 4"/>
+    <button
+      type="button"
+      class="sb-btn is-icon is-ghost"
+      on:click={() => dispatch('toggleCollapse')}
+      aria-label="Collapse panel"
+      title="Hide panel"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      >
+        <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10" /><path d="M19 8l-4 4 4 4" />
       </svg>
     </button>
   </div>

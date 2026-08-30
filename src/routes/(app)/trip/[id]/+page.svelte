@@ -73,7 +73,10 @@
     : 0;
   // Walking pace 4 km/h + 4 min standing at each stop, rounded to nearest 5.
   $: estimatedMinutes = story
-    ? Math.max(5, Math.round((routeMeters / 1000 / 4) * 60 + story.points.length * 4) / 5 * 5 | 0)
+    ? Math.max(
+        5,
+        ((Math.round((routeMeters / 1000 / 4) * 60 + story.points.length * 4) / 5) * 5) | 0
+      )
     : 0;
 
   // ── GPS handlers ──────────────────────────────────────────────────
@@ -99,9 +102,11 @@
         : (currentPoint.triggerRadius ?? 15);
     if (haversineDistance(pos, currentPoint.coordinates) <= radius) {
       // Mark visited only — user explicitly taps Next to advance.
-      handleMarkVisited(new CustomEvent('markVisited', {
-        detail: { storyId: story.id, pointId: currentPoint.id },
-      }));
+      handleMarkVisited(
+        new CustomEvent('markVisited', {
+          detail: { storyId: story.id, pointId: currentPoint.id },
+        })
+      );
     }
   }
 
@@ -174,7 +179,9 @@
     if (story) storyPlayer.stopStory();
     goto('/view');
   }
-  function handleShare() { /* no-op — TripComplete handles the share dialog */ }
+  function handleShare() {
+    /* no-op — TripComplete handles the share dialog */
+  }
   function handleSave() {
     // Tourist opts in to keep their progress. Send them to login with a
     // return-to back to this trip.
@@ -206,10 +213,12 @@
     // clear ("Walk around Saigon needs your location to guide you").
     const perm = await requestGeolocation();
     if (perm === 'denied') {
-      gpsError = 'Location permission was denied. You can re-enable it in your browser settings, or continue without it.';
+      gpsError =
+        'Location permission was denied. You can re-enable it in your browser settings, or continue without it.';
       gpsActive = false;
     } else if (perm === 'unavailable') {
-      gpsError = 'This device cannot share its location. The trip will work, but auto check-in is off.';
+      gpsError =
+        'This device cannot share its location. The trip will work, but auto check-in is off.';
       gpsActive = false;
     }
     storyPlayer.startStory(story.id);
@@ -343,7 +352,10 @@
 
 <svelte:head>
   <title>{story?.title ?? 'Trip'} — Vietnam Map Archive</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+  />
 </svelte:head>
 
 <div class="trip">
@@ -398,7 +410,10 @@
         type="button"
         class="gps-toggle"
         class:is-on={gpsActive}
-        on:click={() => { gpsActive = !gpsActive; gpsError = null; }}
+        on:click={() => {
+          gpsActive = !gpsActive;
+          gpsError = null;
+        }}
         aria-label={gpsActive ? 'Pause location tracking' : 'Resume location tracking'}
         title={gpsActive ? 'Tracking on' : 'Tracking off'}
       >
@@ -437,7 +452,11 @@
     font-family: var(--sb-font-display, 'Spectral', serif);
     font-size: 1.4rem;
   }
-  .state p { margin: 0; font-size: 0.95rem; color: var(--sb-text-meta, #555); }
+  .state p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--sb-text-meta, #555);
+  }
 
   .spinner {
     width: 28px;
@@ -447,7 +466,11 @@
     border-top-color: var(--sb-accent, #ea580c);
     animation: spin 0.8s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .back-btn {
     margin-top: 0.5rem;
@@ -459,7 +482,10 @@
     font-weight: 700;
     cursor: pointer;
   }
-  .back-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #111; }
+  .back-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #111;
+  }
 
   .gps-toggle {
     position: absolute;
@@ -478,8 +504,14 @@
     cursor: pointer;
     z-index: 110;
   }
-  .gps-toggle.is-on { background: var(--sb-accent, #ea580c); color: #fff; }
-  .gps-toggle:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #111; }
+  .gps-toggle.is-on {
+    background: var(--sb-accent, #ea580c);
+    color: #fff;
+  }
+  .gps-toggle:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #111;
+  }
 
   .gps-error {
     position: absolute;

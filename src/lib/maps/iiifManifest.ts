@@ -32,9 +32,10 @@ function v2MetadataValue(manifest: Record<string, unknown>, labelKey: string): s
   const metadata = manifest['metadata'] as Array<{ label: unknown; value: unknown }> | undefined;
   if (!metadata) return undefined;
   for (const entry of metadata) {
-    const labelStr = typeof entry.label === 'string'
-      ? entry.label
-      : (Object.values((entry.label as Record<string, string[]>) ?? {})[0]?.[0] ?? '');
+    const labelStr =
+      typeof entry.label === 'string'
+        ? entry.label
+        : (Object.values((entry.label as Record<string, string[]>) ?? {})[0]?.[0] ?? '');
     if (labelStr.toLowerCase().includes(labelKey.toLowerCase())) {
       if (typeof entry.value === 'string') return entry.value || undefined;
       // BnF v2 array-of-objects: [{"@value": "..."}]
@@ -64,7 +65,8 @@ function extractImageServiceFromV3(manifest: Record<string, unknown>): string | 
     const anno = annoPageItems?.[0] as Record<string, unknown> | undefined;
     const annoBody = anno?.['body'] as Record<string, unknown> | undefined;
     const service = annoBody?.['service'] as ArrRec | Record<string, unknown> | undefined;
-    if (Array.isArray(service)) return (service[0]?.['id'] ?? service[0]?.['@id']) as string | undefined;
+    if (Array.isArray(service))
+      return (service[0]?.['id'] ?? service[0]?.['@id']) as string | undefined;
     return (service?.['id'] ?? service?.['@id']) as string | undefined;
   } catch {
     return undefined;
@@ -88,7 +90,8 @@ function extractImageServiceFromV2(manifest: Record<string, unknown>): string | 
 
 function extractThumbnail(manifest: Record<string, unknown>, version: 2 | 3): string | undefined {
   if (version === 3) {
-    const thumb = manifest['thumbnail'] as Array<Record<string, unknown>> | Record<string, unknown> | undefined;
+    const thumb = manifest['thumbnail'] as
+      Array<Record<string, unknown>> | Record<string, unknown> | undefined;
     if (Array.isArray(thumb)) return thumb[0]?.['id'] as string | undefined;
     return thumb?.['id'] as string | undefined;
   }
@@ -110,19 +113,22 @@ function parseIIIFManifest(manifest: Record<string, unknown>): IIIFManifestMeta 
     return {
       manifestVersion: 3,
       title: v3Label(manifest['label']),
-      creator: v3MetadataValue(manifest, 'creator')
-        ?? v3MetadataValue(manifest, 'author')
-        ?? v3MetadataValue(manifest, 'cartographer'),
-      date: v3MetadataValue(manifest, 'date')
-        ?? v3MetadataValue(manifest, 'year')
-        ?? v3MetadataValue(manifest, 'created'),
+      creator:
+        v3MetadataValue(manifest, 'creator') ??
+        v3MetadataValue(manifest, 'author') ??
+        v3MetadataValue(manifest, 'cartographer'),
+      date:
+        v3MetadataValue(manifest, 'date') ??
+        v3MetadataValue(manifest, 'year') ??
+        v3MetadataValue(manifest, 'created'),
       language: (() => {
         const langs = manifest['language'] as string[] | string | undefined;
         return Array.isArray(langs) ? langs[0] : langs;
       })(),
-      rights: (manifest['rights'] as string | undefined)
-        ?? v3MetadataValue(manifest, 'rights')
-        ?? v3MetadataValue(manifest, 'license'),
+      rights:
+        (manifest['rights'] as string | undefined) ??
+        v3MetadataValue(manifest, 'rights') ??
+        v3MetadataValue(manifest, 'license'),
       thumbnail: extractThumbnail(manifest, 3),
       imageServiceUrl: extractImageServiceFromV3(manifest),
     };
@@ -145,30 +151,35 @@ function parseIIIFManifest(manifest: Record<string, unknown>): IIIFManifestMeta 
 
   // Physical format — first array value that looks like dimensions (not "image/jpeg" or count)
   const formatRaw = v2MetadataValue(manifest, 'format');
-  const physicalDescription = formatRaw && !formatRaw.startsWith('image/') && !formatRaw.startsWith('Nombre')
-    ? formatRaw
-    : undefined;
+  const physicalDescription =
+    formatRaw && !formatRaw.startsWith('image/') && !formatRaw.startsWith('Nombre')
+      ? formatRaw
+      : undefined;
 
   // Canonical source URL from manifest.related
   const related = manifest['related'] as string | string[] | undefined;
-  const sourceUrl = typeof related === 'string' ? related : Array.isArray(related) ? related[0] : undefined;
+  const sourceUrl =
+    typeof related === 'string' ? related : Array.isArray(related) ? related[0] : undefined;
 
   return {
     manifestVersion: 2,
     title: title || undefined,
     shelfmark: shelfmark || undefined,
-    creator: v2MetadataValue(manifest, 'creator')
-      ?? v2MetadataValue(manifest, 'author')
-      ?? v2MetadataValue(manifest, 'cartographer'),
-    date: v2MetadataValue(manifest, 'date')
-      ?? v2MetadataValue(manifest, 'year')
-      ?? v2MetadataValue(manifest, 'created'),
+    creator:
+      v2MetadataValue(manifest, 'creator') ??
+      v2MetadataValue(manifest, 'author') ??
+      v2MetadataValue(manifest, 'cartographer'),
+    date:
+      v2MetadataValue(manifest, 'date') ??
+      v2MetadataValue(manifest, 'year') ??
+      v2MetadataValue(manifest, 'created'),
     language: v2MetadataValue(manifest, 'language'),
-    rights: (manifest['license'] as string | undefined)
-      ?? v2MetadataValue(manifest, 'rights')
-      ?? v2MetadataValue(manifest, 'license'),
-    attribution: (manifest['attribution'] as string | undefined)
-      ?? v2MetadataValue(manifest, 'repository'),
+    rights:
+      (manifest['license'] as string | undefined) ??
+      v2MetadataValue(manifest, 'rights') ??
+      v2MetadataValue(manifest, 'license'),
+    attribution:
+      (manifest['attribution'] as string | undefined) ?? v2MetadataValue(manifest, 'repository'),
     sourceUrl,
     physicalDescription,
     thumbnail: extractThumbnail(manifest, 2),

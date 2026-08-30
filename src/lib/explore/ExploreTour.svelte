@@ -13,11 +13,17 @@
 
   export function shouldShowTour(): boolean {
     if (!browser) return false;
-    try { return localStorage.getItem(STORAGE_KEY) !== 'true'; } catch { return false; }
+    try {
+      return localStorage.getItem(STORAGE_KEY) !== 'true';
+    } catch {
+      return false;
+    }
   }
   export function markTourAcked() {
     if (!browser) return;
-    try { localStorage.setItem(STORAGE_KEY, 'true'); } catch {}
+    try {
+      localStorage.setItem(STORAGE_KEY, 'true');
+    } catch {}
   }
 </script>
 
@@ -85,7 +91,7 @@
       body: 'Drag a row left or right to fade the overlay, or tap its name to zoom to it.',
       detect: () => {
         const opacityChanged = $layersStore.overlays.some(
-          (o) => Math.abs((baseOpacities.get(o.id) ?? 1) - o.opacity) > 0.05,
+          (o) => Math.abs((baseOpacities.get(o.id) ?? 1) - o.opacity) > 0.05
         );
         if (opacityChanged) return true;
         const $m = $mapStore;
@@ -144,7 +150,10 @@
     advanceTimer = window.setTimeout(() => {
       advanceTimer = null;
       if (!driverObj) return;
-      if (currentStep >= TOUR_STEPS.length - 1) { finish(); return; }
+      if (currentStep >= TOUR_STEPS.length - 1) {
+        finish();
+        return;
+      }
       // Capture baseline for the next step BEFORE moveNext, so any
       // subscriber-triggered detect during driver's render uses fresh
       // numbers instead of the previous step's.
@@ -194,14 +203,22 @@
     // Tour shown once per device — finishing it (completed or dismissed)
     // counts as ack. Returning users go straight to the map.
     markTourAcked();
-    if (advanceTimer) { window.clearTimeout(advanceTimer); advanceTimer = null; }
+    if (advanceTimer) {
+      window.clearTimeout(advanceTimer);
+      advanceTimer = null;
+    }
     if (driverObj) {
-      try { driverObj.destroy(); } catch {}
+      try {
+        driverObj.destroy();
+      } catch {}
     }
     driverObj = null;
-    unsubLayers?.(); unsubLayers = null;
-    unsubMap?.(); unsubMap = null;
-    unsubLayer?.(); unsubLayer = null;
+    unsubLayers?.();
+    unsubLayers = null;
+    unsubMap?.();
+    unsubMap = null;
+    unsubLayer?.();
+    unsubLayer = null;
     dispatch('close');
   }
 
@@ -248,7 +265,9 @@
     background: var(--sb-accent-warm) !important;
     color: var(--color-white) !important;
   }
-  :global(.driver-popover-close-btn) { color: var(--sb-text) !important; }
+  :global(.driver-popover-close-btn) {
+    color: var(--sb-text) !important;
+  }
   :global(.driver-active-element) {
     box-shadow: 0 0 0 4px var(--sb-accent-warm) !important;
   }

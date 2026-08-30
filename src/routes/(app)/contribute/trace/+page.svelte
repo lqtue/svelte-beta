@@ -65,9 +65,7 @@
 
   // ── Derived ────────────────────────────────────────────────────────────────
   $: myFootprints = userId ? footprints.filter((f) => f.userId === userId) : [];
-  $: traceCategories = currentMap?.categories?.length
-    ? currentMap.categories
-    : [];
+  $: traceCategories = currentMap?.categories?.length ? currentMap.categories : [];
 
   function getNextShapeName(): string {
     return `Shape ${myFootprints.length + 1}`;
@@ -128,7 +126,9 @@
       };
       footprints = [...footprints, newFp];
       newFootprintId = id;
-      setTimeout(() => { newFootprintId = null; }, 150);
+      setTimeout(() => {
+        newFootprintId = null;
+      }, 150);
     }
   }
 
@@ -138,9 +138,7 @@
     const { footprintId, pixelPolygon } = event.detail;
     const ok = await updateFootprint(supabase, footprintId, pixelPolygon);
     if (ok) {
-      footprints = footprints.map((f) =>
-        f.id === footprintId ? { ...f, pixelPolygon } : f
-      );
+      footprints = footprints.map((f) => (f.id === footprintId ? { ...f, pixelPolygon } : f));
     }
   }
 
@@ -152,7 +150,12 @@
   }
 
   async function handleUpdateFootprintMeta(
-    event: CustomEvent<{ footprintId: string; name?: string; featureType?: FeatureType; category?: string | null }>
+    event: CustomEvent<{
+      footprintId: string;
+      name?: string;
+      featureType?: FeatureType;
+      category?: string | null;
+    }>
   ) {
     const { footprintId, name, featureType: ft, category } = event.detail;
     const ok = await updateFootprintMeta(supabase, footprintId, {
@@ -191,8 +194,14 @@
 
 <svelte:head>
   <title>{currentMap ? `${currentMap.name} — Trace` : 'Trace Maps'} — Vietnam Map Archive</title>
-  <meta name="description" content="Trace building footprints and road networks on historical maps." />
-  <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta
+    name="description"
+    content="Trace building footprints and road networks on historical maps."
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
 </svelte:head>
 
 <!-- ── Page shell ─────────────────────────────────────────────────────────────── -->
@@ -228,11 +237,7 @@
 
     <!-- Image stage -->
     {#if currentMap && iiifInfoUrl}
-      <ImageShell
-        {iiifInfoUrl}
-        {footprints}
-        myUserId={userId}
-      >
+      <ImageShell {iiifInfoUrl} {footprints} myUserId={userId}>
         <TraceTool
           {drawMode}
           {geometryMode}
@@ -245,8 +250,18 @@
       </ImageShell>
     {:else if !currentMap}
       <div class="empty-stage">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.25">
-          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          opacity="0.25"
+        >
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
         </svg>
         <p>Pick a map to start tracing.</p>
         <a href="/catalog" class="catalog-link">Browse the catalog →</a>
@@ -261,7 +276,10 @@
     <!-- Mobile sidebar -->
     <svelte:fragment slot="mobile-sidebar">
       <aside class="panel">
-        <ToolPanelHeader title={currentMap?.name ?? 'Trace'} onCollapse={() => (sidebarCollapsed = true)} />
+        <ToolPanelHeader
+          title={currentMap?.name ?? 'Trace'}
+          onCollapse={() => (sidebarCollapsed = true)}
+        />
         {#if currentMap}
           <TraceSidebar
             {traceCategories}
@@ -289,8 +307,17 @@
         on:click={() => (traceTool = 'polygon')}
         title="Polygon — for buildings and closed shapes"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
         </svg>
         <span>Polygon</span>
       </button>
@@ -302,8 +329,17 @@
         on:click={() => (traceTool = 'line')}
         title="Line — for roads and waterways"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="4 19 8 10 14 14 20 5"/>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="4 19 8 10 14 14 20 5" />
         </svg>
         <span>Line</span>
       </button>
@@ -315,8 +351,17 @@
         on:click={() => (traceTool = 'edit')}
         title="Select and edit a shape"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
         </svg>
         <span>Edit</span>
       </button>

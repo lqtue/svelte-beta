@@ -27,7 +27,9 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
 async function probeAnnotation(allmapsId) {
   try {
-    const res = await fetch(`https://annotations.allmaps.org/images/${allmapsId}`, { method: 'HEAD' });
+    const res = await fetch(`https://annotations.allmaps.org/images/${allmapsId}`, {
+      method: 'HEAD',
+    });
     return res.ok;
   } catch {
     return false;
@@ -35,7 +37,8 @@ async function probeAnnotation(allmapsId) {
 }
 
 async function main() {
-  let q = sb.from('maps')
+  let q = sb
+    .from('maps')
     .select('id, name, iiif_image, allmaps_id, annotation_url')
     .is('allmaps_id', null)
     .not('iiif_image', 'is', null);
@@ -60,15 +63,25 @@ async function main() {
       continue;
     }
     const hasAnnotation = await probeAnnotation(derivedId);
-    const note = hasAnnotation ? 'annotation server has it' : 'NOT yet on Allmaps annotation server';
-    console.log(`  ${r.name}\n    iiif_image: ${canonical}\n    derived:    ${derivedId}  (${note})`);
+    const note = hasAnnotation
+      ? 'annotation server has it'
+      : 'NOT yet on Allmaps annotation server';
+    console.log(
+      `  ${r.name}\n    iiif_image: ${canonical}\n    derived:    ${derivedId}  (${note})`
+    );
 
     if (apply) {
-      const { error: updErr } = await sb.from('maps').update({ allmaps_id: derivedId }).eq('id', r.id);
+      const { error: updErr } = await sb
+        .from('maps')
+        .update({ allmaps_id: derivedId })
+        .eq('id', r.id);
       if (updErr) console.log(`    ⚠ write failed: ${updErr.message}`);
       else console.log('    ✓ allmaps_id written');
     }
   }
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

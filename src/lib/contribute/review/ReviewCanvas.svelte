@@ -49,12 +49,12 @@
   // Styles
   const styleDefault = new Style({
     stroke: new Stroke({ color: '#f97316', width: 1.5 }),
-    fill:   new Fill({ color: 'rgba(249,115,22,0.12)' }),
+    fill: new Fill({ color: 'rgba(249,115,22,0.12)' }),
   });
 
   const styleSelected = new Style({
     stroke: new Stroke({ color: '#eab308', width: 2.5 }),
-    fill:   new Fill({ color: 'rgba(234,179,8,0.22)' }),
+    fill: new Fill({ color: 'rgba(234,179,8,0.22)' }),
   });
 
   function getStyle(feature: any): Style {
@@ -86,7 +86,10 @@
     });
   }
 
-  $: if (fpSource) { syncFootprints(); fpSource.changed(); }
+  $: if (fpSource) {
+    syncFootprints();
+    fpSource.changed();
+  }
   $: focusSelected(selectedId);
   $: syncModifyTarget(selectedId);
 
@@ -134,8 +137,9 @@
       target: mapContainer,
       layers: [fpLayer],
       view: new View({ center: [0, 0], zoom: 1, showFullExtent: true }),
-      controls: defaultControls({ attribution: false, rotate: false, zoom: false })
-        .extend([new Zoom()]),
+      controls: defaultControls({ attribution: false, rotate: false, zoom: false }).extend([
+        new Zoom(),
+      ]),
     });
 
     // Modify interaction — only edits the selected polygon
@@ -184,7 +188,10 @@
   <div bind:this={mapContainer} class="canvas-map"></div>
 
   {#if loadingImage}
-    <div class="overlay"><div class="spinner"></div><span>Loading IIIF image…</span></div>
+    <div class="overlay">
+      <div class="spinner"></div>
+      <span>Loading IIIF image…</span>
+    </div>
   {:else if loadError}
     <div class="overlay error"><span>⚠ {loadError}</span></div>
   {:else if !iiifInfoUrl}
@@ -205,7 +212,10 @@
     background: #111;
   }
 
-  .canvas-map { width: 100%; height: 100%; }
+  .canvas-map {
+    width: 100%;
+    height: 100%;
+  }
 
   .overlay {
     position: absolute;
@@ -215,15 +225,20 @@
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    background: rgba(17,17,17,0.75);
+    background: rgba(17, 17, 17, 0.75);
     z-index: 20;
-    font-family: "Be Vietnam Pro", sans-serif;
+    font-family: 'Be Vietnam Pro', sans-serif;
     color: #d1c9be;
   }
 
-  .overlay.error { color: #fca5a5; }
+  .overlay.error {
+    color: #fca5a5;
+  }
 
-  .empty-msg { font-size: 0.9rem; color: #6b7280; }
+  .empty-msg {
+    font-size: 0.9rem;
+    color: #6b7280;
+  }
 
   .spinner {
     width: 28px;
@@ -234,7 +249,11 @@
     animation: spin 0.7s linear infinite;
   }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .legend {
     position: absolute;
@@ -244,11 +263,11 @@
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    background: rgba(26,22,18,0.85);
+    background: rgba(26, 22, 18, 0.85);
     border: 1px solid #2d2a26;
     border-radius: 6px;
     padding: 0.3rem 0.75rem;
-    font-family: "Be Vietnam Pro", sans-serif;
+    font-family: 'Be Vietnam Pro', sans-serif;
     font-size: 0.75rem;
     color: #9ca3af;
     pointer-events: none;
@@ -263,7 +282,13 @@
     flex-shrink: 0;
   }
 
-  .dot.orange { background: #f97316; }
-  .dot.yellow { background: #eab308; }
-  .dot.green  { background: #22c55e; }
+  .dot.orange {
+    background: #f97316;
+  }
+  .dot.yellow {
+    background: #eab308;
+  }
+  .dot.green {
+    background: #22c55e;
+  }
 </style>

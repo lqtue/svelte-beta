@@ -108,7 +108,10 @@
       const ext = f.getGeometry()!.getExtent();
       f.setGeometry(fromExtent(ext)); // re-normalize to a clean rect
       const next = readFeatureBbox();
-      if (next) { bbox = next; dispatch('change', { bbox: next }); }
+      if (next) {
+        bbox = next;
+        dispatch('change', { bbox: next });
+      }
     });
     map.addInteraction(modify);
 
@@ -116,7 +119,10 @@
     translate = new Translate({ layers: [layer] });
     translate.on('translateend', () => {
       const next = readFeatureBbox();
-      if (next) { bbox = next; dispatch('change', { bbox: next }); }
+      if (next) {
+        bbox = next;
+        dispatch('change', { bbox: next });
+      }
     });
     map.addInteraction(translate);
   }
@@ -126,8 +132,11 @@
     if (modify && map) map.removeInteraction(modify);
     if (translate && map) map.removeInteraction(translate);
     if (layer && map) map.removeLayer(layer);
-    modify = null; translate = null;
-    feature = null; source = null; layer = null;
+    modify = null;
+    translate = null;
+    feature = null;
+    source = null;
+    layer = null;
   }
 
   // React to enable/disable + bbox prop changes.
@@ -147,5 +156,7 @@
     lastBboxKey = key;
   }
 
-  onDestroy(() => { unmountInteractions(); });
+  onDestroy(() => {
+    unmountInteractions();
+  });
 </script>

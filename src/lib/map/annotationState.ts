@@ -22,7 +22,7 @@ function ensureSelectedId(list: AnnotationSummary[], selectedId: string | null) 
 export function createAnnotationStateStore(): AnnotationStateStore {
   const { subscribe, update, set } = writable<AnnotationStateValue>({
     list: [],
-    selectedId: null
+    selectedId: null,
   });
 
   return {
@@ -30,33 +30,33 @@ export function createAnnotationStateStore(): AnnotationStateStore {
     setList(values: AnnotationSummary[]) {
       update((state) => ({
         list: values,
-        selectedId: ensureSelectedId(values, state.selectedId)
+        selectedId: ensureSelectedId(values, state.selectedId),
       }));
     },
     setSelected(id: string | null) {
       update((state) => ({
         ...state,
-        selectedId: id
+        selectedId: id,
       }));
     },
     clearSelection() {
       update((state) => ({
         ...state,
-        selectedId: null
+        selectedId: null,
       }));
     },
     clearSelectionIfMatches(id: string) {
       if (!id) return;
       update((state) => ({
         ...state,
-        selectedId: state.selectedId === id ? null : state.selectedId
+        selectedId: state.selectedId === id ? null : state.selectedId,
       }));
     },
     reset() {
       set({
         list: [],
-        selectedId: null
+        selectedId: null,
       });
-    }
+    },
   };
 }

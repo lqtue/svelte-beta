@@ -12,36 +12,36 @@
   story opens it in /view?story=<id> for playback. A banner explains the limit.
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import "$styles/layouts/create-mode.css";
-  import { fromLonLat } from "ol/proj";
-  import { goto } from "$app/navigation";
-  import type Map from "ol/Map";
+  import { onMount, onDestroy } from 'svelte';
+  import '$styles/layouts/create-mode.css';
+  import { fromLonLat } from 'ol/proj';
+  import { goto } from '$app/navigation';
+  import type Map from 'ol/Map';
 
-  import type { MapListItem, SearchResult } from "$lib/map/types";
-  import type { Story, StoryPoint } from "$lib/story/types";
-  import { createGeoMapStores } from "$lib/shell/geoMapSetup";
-  import { getSupabaseContext } from "$lib/supabase/context";
-  import { syncStoryToSupabase } from "$lib/supabase/stories";
-  import { createStoryLibraryStore } from "$lib/story/stores/storyStore";
-  import { fetchGeoreferencedMaps } from "$lib/maps/service";
-  import { fetchAnnotationBounds } from "$lib/geo/mapBounds";
-  import { boundsCenter, boundsZoom } from "$lib/ui/searchUtils";
-  import { layersStore } from "$lib/stores/layersStore";
+  import type { MapListItem, SearchResult } from '$lib/map/types';
+  import type { Story, StoryPoint } from '$lib/story/types';
+  import { createGeoMapStores } from '$lib/shell/geoMapSetup';
+  import { getSupabaseContext } from '$lib/supabase/context';
+  import { syncStoryToSupabase } from '$lib/supabase/stories';
+  import { createStoryLibraryStore } from '$lib/story/stores/storyStore';
+  import { fetchGeoreferencedMaps } from '$lib/maps/service';
+  import { fetchAnnotationBounds } from '$lib/geo/mapBounds';
+  import { boundsCenter, boundsZoom } from '$lib/ui/searchUtils';
+  import { layersStore } from '$lib/stores/layersStore';
 
-  import MapWorkspace from "$lib/shell/MapWorkspace.svelte";
-  import MapClickCapture from "./MapClickCapture.svelte";
-  import CreateSidebar from "./CreateSidebar.svelte";
-  import CreateRightPane from "./CreateRightPane.svelte";
-  import StoryMarkers from "$lib/story/StoryMarkers.svelte";
-  import StoryPlayback from "$lib/story/StoryPlayback.svelte";
-  import LayerStackPanel from "$lib/ui/catalog/LayerStackPanel.svelte";
-  import LayerControlsPanel from "$lib/ui/catalog/LayerControlsPanel.svelte";
-  import CatalogSidebarPanel from "$lib/ui/catalog/CatalogSidebarPanel.svelte";
-  import NameDialog from "$lib/ui/NameDialog.svelte";
-  import PageHero from "$lib/ui/PageHero.svelte";
-  import CatalogGrid from "$lib/ui/catalog/CatalogGrid.svelte";
-  import CatalogCard from "$lib/ui/catalog/CatalogCard.svelte";
+  import MapWorkspace from '$lib/shell/MapWorkspace.svelte';
+  import MapClickCapture from './MapClickCapture.svelte';
+  import CreateSidebar from './CreateSidebar.svelte';
+  import CreateRightPane from './CreateRightPane.svelte';
+  import StoryMarkers from '$lib/story/StoryMarkers.svelte';
+  import StoryPlayback from '$lib/story/StoryPlayback.svelte';
+  import LayerStackPanel from '$lib/ui/catalog/LayerStackPanel.svelte';
+  import LayerControlsPanel from '$lib/ui/catalog/LayerControlsPanel.svelte';
+  import CatalogSidebarPanel from '$lib/ui/catalog/CatalogSidebarPanel.svelte';
+  import NameDialog from '$lib/ui/NameDialog.svelte';
+  import PageHero from '$lib/ui/PageHero.svelte';
+  import CatalogGrid from '$lib/ui/catalog/CatalogGrid.svelte';
+  import CatalogCard from '$lib/ui/catalog/CatalogCard.svelte';
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id;
@@ -69,7 +69,7 @@
   let publishSuccess = false;
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
-  let activeView: "library" | "editor" = "library";
+  let activeView: 'library' | 'editor' = 'library';
   let storiesLoading = true;
 
   // /create always lands on the library (welcome screen); the user picks
@@ -77,13 +77,13 @@
 
   // Preview
   let previewMode = false;
-  let previewProgress: import("$lib/story/types").StoryProgress | null = null;
+  let previewProgress: import('$lib/story/types').StoryProgress | null = null;
 
   // Name dialog
   let nameDialogOpen = false;
-  let nameDialogValue = "";
-  let nameDialogDescriptionValue = "";
-  let nameDialogHeading = "New Story";
+  let nameDialogValue = '';
+  let nameDialogDescriptionValue = '';
+  let nameDialogHeading = 'New Story';
   let nameDialogEditId: string | null = null;
 
   // Reactive: top historical overlay drives new-point pinning + inspector display.
@@ -98,7 +98,7 @@
   $: pinnedLayerName = (() => {
     if (!selectedPoint?.overlayMapId) return null;
     const m = mapList.find(
-      (x) => x.id === selectedPoint!.overlayMapId || x.allmaps_id === selectedPoint!.overlayMapId,
+      (x) => x.id === selectedPoint!.overlayMapId || x.allmaps_id === selectedPoint!.overlayMapId
     );
     return m?.name ?? selectedPoint!.overlayMapId;
   })();
@@ -124,13 +124,16 @@
     });
   }
 
-  function createNewStory(title = "Untitled Story", description = ""): Story {
+  function createNewStory(title = 'Untitled Story', description = ''): Story {
     return {
       id: crypto.randomUUID(),
-      title, description,
-      mode: "guided",
-      points: [], stops: [],
-      createdAt: Date.now(), updatedAt: Date.now(),
+      title,
+      description,
+      mode: 'guided',
+      points: [],
+      stops: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       isPublic: false,
       authorId: userId!,
     };
@@ -140,40 +143,56 @@
   // (none / question / reach) and the first georeferenced map covering Saigon
   // pinned as the historical overlay for every point.
   type SamplePoint = {
-    title: string; description: string; lon: number; lat: number;
-    challenge: import("$lib/story/types").PointChallenge;
+    title: string;
+    description: string;
+    lon: number;
+    lat: number;
+    challenge: import('$lib/story/types').PointChallenge;
   };
   const SAIGON_CENTER: [number, number] = [106.6988, 10.7787];
   const SAIGON_SAMPLE_POINTS: SamplePoint[] = [
     {
-      title: "Notre-Dame Cathedral",
-      description: "Neo-Romanesque cathedral built 1877–1880 with bricks shipped from Marseille.",
-      lon: 106.69906, lat: 10.77983,
-      challenge: { type: "none" },
+      title: 'Notre-Dame Cathedral',
+      description: 'Neo-Romanesque cathedral built 1877–1880 with bricks shipped from Marseille.',
+      lon: 106.69906,
+      lat: 10.77983,
+      challenge: { type: 'none' },
     },
     {
-      title: "Central Post Office",
-      description: "Opened 1891 in the French Indochina style next to the cathedral.",
-      lon: 106.69963, lat: 10.77996,
-      challenge: { type: "question", question: "Which famous engineer's firm is often credited with this building?", answer: "Eiffel" },
+      title: 'Central Post Office',
+      description: 'Opened 1891 in the French Indochina style next to the cathedral.',
+      lon: 106.69963,
+      lat: 10.77996,
+      challenge: {
+        type: 'question',
+        question: "Which famous engineer's firm is often credited with this building?",
+        answer: 'Eiffel',
+      },
     },
     {
-      title: "Independence Palace",
-      description: "Rebuilt 1962–1966 on the site of the former Norodom Palace.",
-      lon: 106.69530, lat: 10.77700,
-      challenge: { type: "question", question: "In which year did this site mark the end of the war?", answer: "1975" },
+      title: 'Independence Palace',
+      description: 'Rebuilt 1962–1966 on the site of the former Norodom Palace.',
+      lon: 106.6953,
+      lat: 10.777,
+      challenge: {
+        type: 'question',
+        question: 'In which year did this site mark the end of the war?',
+        answer: '1975',
+      },
     },
     {
-      title: "Saigon Opera House",
-      description: "Beaux-Arts theatre opened 1900 on the former Rue Catinat.",
-      lon: 106.70370, lat: 10.77650,
-      challenge: { type: "reach", triggerRadius: 30 },
+      title: 'Saigon Opera House',
+      description: 'Beaux-Arts theatre opened 1900 on the former Rue Catinat.',
+      lon: 106.7037,
+      lat: 10.7765,
+      challenge: { type: 'reach', triggerRadius: 30 },
     },
     {
-      title: "Bến Thành Market",
-      description: "Iconic four-gate covered market relocated here in 1914.",
-      lon: 106.69830, lat: 10.77260,
-      challenge: { type: "reach", triggerRadius: 25 },
+      title: 'Bến Thành Market',
+      description: 'Iconic four-gate covered market relocated here in 1914.',
+      lon: 106.6983,
+      lat: 10.7726,
+      challenge: { type: 'reach', triggerRadius: 25 },
     },
   ];
 
@@ -187,9 +206,9 @@
     };
     // Prefer a georeferenced map whose bbox covers central Saigon.
     return (
-      mapList.find((m) => (m.allmaps_id || m.annotation_url) && containsSaigon(m))
-      ?? mapList.find((m) => m.allmaps_id || m.annotation_url)
-      ?? null
+      mapList.find((m) => (m.allmaps_id || m.annotation_url) && containsSaigon(m)) ??
+      mapList.find((m) => m.allmaps_id || m.annotation_url) ??
+      null
     );
   }
 
@@ -198,19 +217,21 @@
   // (new challenges, new layer pick, etc.) reach existing users on next visit.
   // Any prior copy of the example (matched by title) is removed first so the
   // user gets the up-to-date version exactly once.
-  const SAIGON_SEED_KEY = "vma-create-saigon-seeded-v2";
-  const SAIGON_SEED_TITLE = "Walk around central Saigon";
+  const SAIGON_SEED_KEY = 'vma-create-saigon-seeded-v2';
+  const SAIGON_SEED_TITLE = 'Walk around central Saigon';
   let saigonSeeded = false;
   $: if (
-    !saigonSeeded
-    && userId
-    && !storiesLoading
-    && mapList.length > 0
-    && typeof window !== "undefined"
-    && !localStorage.getItem(SAIGON_SEED_KEY)
+    !saigonSeeded &&
+    userId &&
+    !storiesLoading &&
+    mapList.length > 0 &&
+    typeof window !== 'undefined' &&
+    !localStorage.getItem(SAIGON_SEED_KEY)
   ) {
     saigonSeeded = true;
-    try { localStorage.setItem(SAIGON_SEED_KEY, "1"); } catch {}
+    try {
+      localStorage.setItem(SAIGON_SEED_KEY, '1');
+    } catch {}
     // Remove any stale copy from a prior seed version, then seed fresh.
     storyLibrary.update((lib) => ({
       stories: lib.stories.filter((s) => s.title !== SAIGON_SEED_TITLE),
@@ -224,7 +245,7 @@
 
     const story = createNewStory(
       SAIGON_SEED_TITLE,
-      "Five landmarks of colonial-era District 1 — try Question and Reach challenges as you go."
+      'Five landmarks of colonial-era District 1 — try Question and Reach challenges as you go.'
     );
     story.points = SAIGON_SAMPLE_POINTS.map((p, i) => ({
       id: crypto.randomUUID(),
@@ -232,8 +253,8 @@
       title: p.title,
       description: p.description,
       coordinates: [p.lon, p.lat],
-      triggerRadius: p.challenge.type === "reach" ? (p.challenge.triggerRadius ?? 15) : 15,
-      interaction: "proximity",
+      triggerRadius: p.challenge.type === 'reach' ? (p.challenge.triggerRadius ?? 15) : 15,
+      interaction: 'proximity',
       challenge: p.challenge,
       overlayMapId,
     }));
@@ -249,11 +270,11 @@
       id: crypto.randomUUID(),
       order,
       title: `Point ${order + 1}`,
-      description: "",
+      description: '',
       coordinates: [lon, lat],
       triggerRadius: 15,
-      interaction: "proximity",
-      challenge: { type: "none" },
+      interaction: 'proximity',
+      challenge: { type: 'none' },
       // Pin to current top historical overlay so playback re-shows it.
       overlayMapId: topLayerMapId ?? undefined,
     };
@@ -265,9 +286,11 @@
     const { lon, lat } = event.detail;
 
     if (movingPoint && selectedPointId) {
-      handleUpdatePoint(new CustomEvent("updatePoint", {
-        detail: { pointId: selectedPointId, updates: { coordinates: [lon, lat] } },
-      }));
+      handleUpdatePoint(
+        new CustomEvent('updatePoint', {
+          detail: { pointId: selectedPointId, updates: { coordinates: [lon, lat] } },
+        })
+      );
       movingPoint = false;
       return;
     }
@@ -292,10 +315,12 @@
   }
 
   // Story / point handlers
-  function handleUpdatePoint(event: CustomEvent<{ pointId: string; updates: Partial<StoryPoint> }>) {
+  function handleUpdatePoint(
+    event: CustomEvent<{ pointId: string; updates: Partial<StoryPoint> }>
+  ) {
     if (!currentStory) return;
     const { pointId, updates } = event.detail;
-    const pts = currentStory.points.map((p) => p.id === pointId ? { ...p, ...updates } : p);
+    const pts = currentStory.points.map((p) => (p.id === pointId ? { ...p, ...updates } : p));
     currentStory = { ...currentStory, points: pts, stops: pts, updatedAt: Date.now() };
   }
 
@@ -351,17 +376,25 @@
     // localStorage-only until first publish.
     const next: Story = { ...currentStory, isPublic: !currentStory.isPublic };
     const ok = await syncStoryToSupabase(supabase, next, userId);
-    if (!ok) { isPublishing = false; return; }
+    if (!ok) {
+      isPublishing = false;
+      return;
+    }
 
     currentStory = next;
     isPublishing = false;
     publishSuccess = true;
-    setTimeout(() => { publishSuccess = false; }, 2000);
+    setTimeout(() => {
+      publishSuccess = false;
+    }, 2000);
   }
 
   function handlePreview() {
     // Toggle: clicking Preview while previewing exits the preview.
-    if (previewMode) { handlePreviewClose(); return; }
+    if (previewMode) {
+      handlePreviewClose();
+      return;
+    }
     if (!currentStory || currentStory.points.length === 0) return;
     previewProgress = {
       storyId: currentStory.id,
@@ -383,12 +416,20 @@
 
   function applyPointOverlay(point: StoryPoint) {
     if (!point.overlayMapId) return;
-    const found = mapList.find((m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId);
+    const found = mapList.find(
+      (m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId
+    );
     const allmapsId = found?.annotation_url ?? found?.allmaps_id;
     const mapId = found?.id ?? point.overlayMapId;
     if (allmapsId) {
       layersStore.clearOverlays();
-      layersStore.addOverlay({ kind: 'historical', mapId, allmapsId, name: found?.name, thumbnail: found?.thumbnail });
+      layersStore.addOverlay({
+        kind: 'historical',
+        mapId,
+        allmapsId,
+        name: found?.name,
+        thumbnail: found?.thumbnail,
+      });
     }
   }
 
@@ -411,19 +452,25 @@
       ...previewProgress,
       completedPoints: Array.from(done),
       completedStops: Array.from(done),
-      currentPointIndex: Math.min(previewProgress.currentPointIndex + 1, currentStory.points.length),
+      currentPointIndex: Math.min(
+        previewProgress.currentPointIndex + 1,
+        currentStory.points.length
+      ),
       currentStopIndex: Math.min(previewProgress.currentStopIndex + 1, currentStory.points.length),
     };
   }
 
-  function handlePreviewClose() { previewMode = false; previewProgress = null; }
+  function handlePreviewClose() {
+    previewMode = false;
+    previewProgress = null;
+  }
 
   function handleBackToLibrary() {
     currentStory = null;
     selectedPointId = null;
     placingPoint = false;
     movingPoint = false;
-    activeView = "library";
+    activeView = 'library';
   }
 
   function handleSelectStory(story: Story) {
@@ -433,7 +480,7 @@
       return;
     }
     currentStory = story;
-    activeView = "editor";
+    activeView = 'editor';
     // Pre-apply any pinned historical overlay from the first point so the
     // editor shows the same scene as preview/playback.
     const first = story.points.find((p) => p.overlayMapId);
@@ -448,17 +495,17 @@
   function handleCreateNewStory() {
     if (isMobile) return; // Should not be reachable — button is hidden on mobile.
     nameDialogEditId = null;
-    nameDialogValue = "";
-    nameDialogDescriptionValue = "";
-    nameDialogHeading = "New Story";
+    nameDialogValue = '';
+    nameDialogDescriptionValue = '';
+    nameDialogHeading = 'New Story';
     nameDialogOpen = true;
   }
 
   function handleEditStoryName(story: Story) {
     nameDialogEditId = story.id;
     nameDialogValue = story.title;
-    nameDialogDescriptionValue = story.description || "";
-    nameDialogHeading = "Rename Story";
+    nameDialogDescriptionValue = story.description || '';
+    nameDialogHeading = 'Rename Story';
     nameDialogOpen = true;
   }
 
@@ -469,10 +516,13 @@
     if (nameDialogEditId) {
       storyLibrary.updateStory(nameDialogEditId, { title, description });
     } else {
-      const id = storyLibrary.createStory(title, description || "");
+      const id = storyLibrary.createStory(title, description || '');
       setTimeout(() => {
         const story = $storyLibrary.stories.find((s) => s.id === id);
-        if (story) { currentStory = story; activeView = "editor"; }
+        if (story) {
+          currentStory = story;
+          activeView = 'editor';
+        }
       }, 50);
     }
   }
@@ -485,10 +535,17 @@
     });
   }
 
-  function handlePickLocation(event: CustomEvent<{ lat: number; lng: number; bbox?: [number, number, number, number] }>) {
+  function handlePickLocation(
+    event: CustomEvent<{ lat: number; lng: number; bbox?: [number, number, number, number] }>
+  ) {
     const { lat, lng, bbox } = event.detail;
     if (bbox) {
-      mapStore.setView({ ...boundsCenter(bbox), zoom: boundsZoom(bbox), lng: boundsCenter(bbox).lng, lat: boundsCenter(bbox).lat });
+      mapStore.setView({
+        ...boundsCenter(bbox),
+        zoom: boundsZoom(bbox),
+        lng: boundsCenter(bbox).lng,
+        lat: boundsCenter(bbox).lat,
+      });
     } else {
       mapStore.setView({ lng, lat, zoom: 15 });
     }
@@ -505,8 +562,11 @@
     if (allmapsId) {
       layersStore.clearOverlays();
       layersStore.addOverlay({
-        kind: 'historical', mapId: map.id, allmapsId,
-        name: map.name, thumbnail: map.thumbnail,
+        kind: 'historical',
+        mapId: map.id,
+        allmapsId,
+        name: map.name,
+        thumbnail: map.thumbnail,
       });
     }
 
@@ -546,34 +606,39 @@
     // /create doesn't support side-by-side — snap back if state is stale from /view.
     if ($layerStore.viewMode === 'dual') layerStore.setViewMode('overlay');
 
-    storyLibrary.loadFromSupabase().finally(() => { storiesLoading = false; });
+    storyLibrary.loadFromSupabase().finally(() => {
+      storiesLoading = false;
+    });
     // Pre-fetch the catalog so the Saigon seed (running on the library page,
     // before MapWorkspace mounts) can pick a real historical layer.
     if (mapList.length === 0) {
-      fetchGeoreferencedMaps(supabase).then((maps) => {
-        if (mapList.length === 0) mapList = maps;
-      }).catch(() => {});
+      fetchGeoreferencedMaps(supabase)
+        .then((maps) => {
+          if (mapList.length === 0) mapList = maps;
+        })
+        .catch(() => {});
     }
 
     keydownHandler = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || ["INPUT", "TEXTAREA"].includes(target.tagName))) return;
+      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName)))
+        return;
       const meta = event.metaKey || event.ctrlKey;
-      if (meta && event.key.toLowerCase() === "z" && !event.shiftKey) {
+      if (meta && event.key.toLowerCase() === 'z' && !event.shiftKey) {
         event.preventDefault();
         handleUndo();
-      } else if (event.key === "Escape") {
+      } else if (event.key === 'Escape') {
         if (selectedPointId) selectedPointId = null;
         else if (placingPoint) placingPoint = false;
         else if (movingPoint) movingPoint = false;
       }
     };
-    window.addEventListener("keydown", keydownHandler);
+    window.addEventListener('keydown', keydownHandler);
   });
 
   onDestroy(() => {
-    if (keydownHandler) window.removeEventListener("keydown", keydownHandler);
+    if (keydownHandler) window.removeEventListener('keydown', keydownHandler);
   });
 </script>
 
@@ -581,38 +646,69 @@
 {#if !session}
   <div class="auth-gate">
     <div class="auth-gate-card">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d4af37"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
         <path d="M7 11V7a5 5 0 0110 0v4" />
       </svg>
       <h2 class="auth-gate-title">Sign in to build a story</h2>
-      <p class="auth-gate-text">Stories are saved to your account so you can come back and edit them.</p>
-      <button type="button" class="auth-gate-btn google" on:click={async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
-        });
-        if (error) console.error("Google sign-in failed:", error.message);
-      }}>
+      <p class="auth-gate-text">
+        Stories are saved to your account so you can come back and edit them.
+      </p>
+      <button
+        type="button"
+        class="auth-gate-btn google"
+        on:click={async () => {
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: `${window.location.origin}/auth/callback` },
+          });
+          if (error) console.error('Google sign-in failed:', error.message);
+        }}
+      >
         <svg width="18" height="18" viewBox="0 0 24 24">
-          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+          <path
+            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+            fill="#4285F4"
+          />
+          <path
+            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            fill="#34A853"
+          />
+          <path
+            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+            fill="#FBBC05"
+          />
+          <path
+            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+            fill="#EA4335"
+          />
         </svg>
         Continue with Google
       </button>
     </div>
   </div>
 
-<!-- Library View (desktop + mobile) -->
-{:else if activeView === "library"}
+  <!-- Library View (desktop + mobile) -->
+{:else if activeView === 'library'}
   <div class="page">
     <PageHero eyebrow="Tools" sub="Walk readers through a place, one historical layer at a time.">
-      <svelte:fragment slot="title">Your <span class="text-highlight">stories.</span></svelte:fragment>
+      <svelte:fragment slot="title"
+        >Your <span class="text-highlight">stories.</span></svelte:fragment
+      >
       <div slot="actions">
         {#if !isMobile}
-          <button type="button" class="action-btn primary-btn" on:click={handleCreateNewStory}>+ New story</button>
+          <button type="button" class="action-btn primary-btn" on:click={handleCreateNewStory}
+            >+ New story</button
+          >
         {/if}
       </div>
     </PageHero>
@@ -632,7 +728,16 @@
         </div>
       {:else if myStories.length === 0}
         <div class="library-empty">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#d4af37"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <path d="M12 18v-6M9 15h6" />
@@ -645,7 +750,15 @@
           </p>
           {#if !isMobile}
             <button type="button" class="library-create-btn large" on:click={handleCreateNewStory}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
                 <path d="M12 5v14M5 12h14" />
               </svg>
               New story
@@ -660,25 +773,57 @@
                 <span class="story-icon">📖</span>
               </div>
               <div slot="meta" class="meta">
-                <span class="meta-tag">{story.points.length} point{story.points.length !== 1 ? "s" : ""}</span>
-                <span class="meta-tag date">{new Date(story.updatedAt).toLocaleDateString("en-GB")}</span>
+                <span class="meta-tag"
+                  >{story.points.length} point{story.points.length !== 1 ? 's' : ''}</span
+                >
+                <span class="meta-tag date"
+                  >{new Date(story.updatedAt).toLocaleDateString('en-GB')}</span
+                >
                 <span class="meta-tag publish-status" class:published={story.isPublic}>
-                  {story.isPublic ? "Public" : "Private"}
+                  {story.isPublic ? 'Public' : 'Private'}
                 </span>
               </div>
-              <div slot="description" class="description">{story.description || "No description"}</div>
+              <div slot="description" class="description">
+                {story.description || 'No description'}
+              </div>
               <div slot="actions">
                 {#if !isMobile}
-                  <button type="button" class="btn-icon-edit" title="Rename story" on:click|stopPropagation={() => handleEditStoryName(story)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <button
+                    type="button"
+                    class="btn-icon-edit"
+                    title="Rename story"
+                    on:click|stopPropagation={() => handleEditStoryName(story)}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    >
                       <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                       <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                     </svg>
                   </button>
-                  <button type="button" class="btn-icon-delete" title="Delete story" on:click|stopPropagation={() => {
-                    if (confirm(`Delete "${story.title}"?`)) storyLibrary.deleteStory(story.id);
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <button
+                    type="button"
+                    class="btn-icon-delete"
+                    title="Delete story"
+                    on:click|stopPropagation={() => {
+                      if (confirm(`Delete "${story.title}"?`)) storyLibrary.deleteStory(story.id);
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    >
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
                       <path d="M10 11v6M14 11v6" />
@@ -703,7 +848,7 @@
     on:close={() => (nameDialogOpen = false)}
   />
 
-<!-- Editor View (desktop primary; mobile shows playback only via library redirect) -->
+  <!-- Editor View (desktop primary; mobile shows playback only via library redirect) -->
 {:else}
   <div class="create-mode" class:mobile={isMobile}>
     <MapWorkspace
@@ -815,7 +960,9 @@
         {#if currentStory}
           <StoryMarkers
             points={currentStory.points}
-            currentIndex={previewMode ? (previewProgress?.currentPointIndex ?? 0) : selectedPointIndex}
+            currentIndex={previewMode
+              ? (previewProgress?.currentPointIndex ?? 0)
+              : selectedPointIndex}
           />
         {/if}
         {#if previewMode && currentStory}
@@ -829,7 +976,6 @@
           />
         {/if}
       </svelte:fragment>
-
     </MapWorkspace>
   </div>
 {/if}
@@ -846,12 +992,18 @@
     color: #111;
     line-height: 1.4;
   }
-  .mobile-banner strong { display: block; margin-bottom: 0.2rem; font-weight: 800; }
+  .mobile-banner strong {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-weight: 800;
+  }
 
   /* Match mobile drawer wrapper used by /view */
   .mobile-pane {
-    display: flex; flex-direction: column;
-    height: 100%; min-height: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
   }
 </style>

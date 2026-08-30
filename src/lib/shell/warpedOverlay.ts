@@ -14,32 +14,35 @@ import type Map from 'ol/Map';
  * Creates a WarpedMapLayer with the required OL polyfills
  * and attaches it to the map via setMap().
  */
-export function createWarpedLayer(map: Map, opts: { zIndex?: number; name?: string } = {}): WarpedMapLayer {
-	const layer = new WarpedMapLayer();
-	layer.setZIndex(opts.zIndex ?? 10);
-	layer.setProperties({ name: opts.name ?? 'allmaps-overlay' });
+export function createWarpedLayer(
+  map: Map,
+  opts: { zIndex?: number; name?: string } = {}
+): WarpedMapLayer {
+  const layer = new WarpedMapLayer();
+  layer.setZIndex(opts.zIndex ?? 10);
+  layer.setProperties({ name: opts.name ?? 'allmaps-overlay' });
 
-	// Polyfills required by some OL versions
-	const compat = layer as unknown as {
-		getDeclutter?: () => boolean;
-		renderDeferred?: (...args: unknown[]) => boolean;
-	};
-	if (!compat.getDeclutter) compat.getDeclutter = () => false;
-	if (!compat.renderDeferred) compat.renderDeferred = () => false;
+  // Polyfills required by some OL versions
+  const compat = layer as unknown as {
+    getDeclutter?: () => boolean;
+    renderDeferred?: (...args: unknown[]) => boolean;
+  };
+  if (!compat.getDeclutter) compat.getDeclutter = () => false;
+  if (!compat.renderDeferred) compat.renderDeferred = () => false;
 
-	// Must use setMap(), not the layers array
-	const cast = layer as unknown as { setMap?: (m: unknown) => void };
-	cast.setMap?.(map as unknown);
+  // Must use setMap(), not the layers array
+  const cast = layer as unknown as { setMap?: (m: unknown) => void };
+  cast.setMap?.(map as unknown);
 
-	return layer;
+  return layer;
 }
 
 /**
  * Detaches a WarpedMapLayer from the map.
  */
 export function destroyWarpedLayer(layer: WarpedMapLayer): void {
-	const cast = layer as unknown as { setMap?: (m: unknown) => void };
-	cast.setMap?.(null);
+  const cast = layer as unknown as { setMap?: (m: unknown) => void };
+  cast.setMap?.(null);
 }
 
 // ── Load overlay ─────────────────────────────────────────────────
@@ -51,14 +54,14 @@ export function destroyWarpedLayer(layer: WarpedMapLayer): void {
  * - Full URLs passed through as-is
  */
 export function annotationUrlForSource(source: string): string {
-	const trimmed = source.trim();
-	try {
-		const url = new URL(trimmed);
-		if (url.protocol === 'http:' || url.protocol === 'https:') return trimmed;
-	} catch {
-		// not a URL — treat as Allmaps image ID
-	}
-	return `https://annotations.allmaps.org/images/${trimmed}`;
+  const trimmed = source.trim();
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return trimmed;
+  } catch {
+    // not a URL — treat as Allmaps image ID
+  }
+  return `https://annotations.allmaps.org/images/${trimmed}`;
 }
 
 /**
@@ -68,22 +71,22 @@ export function annotationUrlForSource(source: string): string {
  * Calls `map.render()` after load to force a repaint (critical).
  */
 export async function loadOverlayByUrl(
-	layer: WarpedMapLayer,
-	map: Map,
-	source: string,
-	opacity = 0.8
+  layer: WarpedMapLayer,
+  map: Map,
+  source: string,
+  opacity = 0.8
 ): Promise<void> {
-	// Clear any previous overlay
-	layer.clear();
+  // Clear any previous overlay
+  layer.clear();
 
-	const url = annotationUrlForSource(source);
-	await layer.addGeoreferenceAnnotationByUrl(url);
+  const url = annotationUrlForSource(source);
+  await layer.addGeoreferenceAnnotationByUrl(url);
 
-	// Apply opacity directly on the layer (same as TripTracker)
-	(layer as any).setOpacity(opacity);
+  // Apply opacity directly on the layer (same as TripTracker)
+  (layer as any).setOpacity(opacity);
 
-	// Force repaint — without this the tiles won't appear
-	map.render();
+  // Force repaint — without this the tiles won't appear
+  map.render();
 }
 
 // ── Opacity ──────────────────────────────────────────────────────
@@ -92,18 +95,14 @@ export async function loadOverlayByUrl(
  * Sets opacity directly on the WarpedMapLayer.
  * Uses layer.setOpacity() which is the approach that works in TripTracker.
  */
-export function setOverlayOpacity(
-	layer: WarpedMapLayer,
-	map: Map,
-	opacity: number
-): void {
-	(layer as any).setOpacity(opacity);
-	map.render();
+export function setOverlayOpacity(layer: WarpedMapLayer, map: Map, opacity: number): void {
+  (layer as any).setOpacity(opacity);
+  map.render();
 }
 
 export function clearOverlay(layer: WarpedMapLayer, map?: Map): void {
-	layer.clear();
-	map?.render();
+  layer.clear();
+  map?.render();
 }
 
 // ── View mode clip mask ──────────────────────────────────────────
@@ -117,27 +116,26 @@ export type ViewModeClip = 'overlay' | 'spy' | 'dual';
  * This is the exact same logic from StudioMap.updateClipMask().
  */
 export function applyClipMask(
-	layer: WarpedMapLayer,
-	map: Map,
-	mode: ViewModeClip,
-	sideRatio: number,
-	lensRadius: number
+  layer: WarpedMapLayer,
+  map: Map,
+  mode: ViewModeClip,
+  sideRatio: number,
+  lensRadius: number
 ): void {
-	const canvas = layer.canvas;
-	if (!canvas) return;
+  const canvas = layer.canvas;
+  if (!canvas) return;
 
-	const size = map.getSize();
-	if (!size) return;
-	const [w, h] = size;
+  const size = map.getSize();
+  if (!size) return;
+  const [w, h] = size;
 
-	switch (mode) {
-		case 'spy': {
-			canvas.style.clipPath = `circle(${lensRadius}px at ${w / 2}px ${h / 2}px)`;
-			break;
-		}
-		default:
-			canvas.style.clipPath = '';
-	}
+  switch (mode) {
+    case 'spy': {
+      canvas.style.clipPath = `circle(${lensRadius}px at ${w / 2}px ${h / 2}px)`;
+      break;
+    }
+    default:
+      canvas.style.clipPath = '';
+  }
 }
 // ── Metadata fetching ────────────────────────────────────────────
-

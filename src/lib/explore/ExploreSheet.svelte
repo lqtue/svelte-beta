@@ -22,8 +22,8 @@
 <div class="card">
   <strong class="title">No archival map of this exact spot — yet.</strong>
   <p class="hint">
-    VMA's archive doesn't yet hold a map covering your point. Browse the full
-    archive for maps elsewhere, or suggest a source we should add.
+    VMA's archive doesn't yet hold a map covering your point. Browse the full archive for maps
+    elsewhere, or suggest a source we should add.
   </p>
   <div class="actions">
     <a class="btn primary" href={scoutHref}>Suggest a map here</a>
@@ -49,7 +49,12 @@
     z-index: 90;
   }
   @media (min-width: 900px) {
-    .card { left: auto; right: 1rem; top: 1rem; transform: none; }
+    .card {
+      left: auto;
+      right: 1rem;
+      top: 1rem;
+      transform: none;
+    }
   }
 
   .title {
@@ -60,9 +65,18 @@
     font-weight: var(--font-extrabold);
     line-height: 1.25;
   }
-  .hint { margin: 0 0 0.55rem; font-size: 0.86rem; line-height: 1.4; color: var(--sb-text-meta); }
+  .hint {
+    margin: 0 0 0.55rem;
+    font-size: 0.86rem;
+    line-height: 1.4;
+    color: var(--sb-text-meta);
+  }
 
-  .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
   .btn {
     flex: 1;
     padding: 0.55rem 0.7rem;
@@ -77,7 +91,15 @@
     box-shadow: var(--shadow-solid-xs);
     color: var(--sb-text);
   }
-  .btn.primary { background: var(--sb-accent-warm); color: var(--color-white); }
-  .btn.ghost { background: var(--sb-card-bg); }
-  .btn:active { transform: translate(2px, 2px); box-shadow: none; }
+  .btn.primary {
+    background: var(--sb-accent-warm);
+    color: var(--color-white);
+  }
+  .btn.ghost {
+    background: var(--sb-card-bg);
+  }
+  .btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
 </style>

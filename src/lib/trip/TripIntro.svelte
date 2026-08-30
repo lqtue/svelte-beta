@@ -64,7 +64,12 @@
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 60%, rgba(0,0,0,0.32) 100%);
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.18) 60%,
+      rgba(0, 0, 0, 0.32) 100%
+    );
     pointer-events: auto;
   }
   .intro-sheet {
@@ -81,7 +86,8 @@
     overflow-y: auto;
   }
   .drag-grip {
-    width: 38px; height: 4px;
+    width: 38px;
+    height: 4px;
     margin: 0.4rem auto 0.6rem;
     background: #11111133;
     border-radius: 99px;
@@ -118,8 +124,12 @@
     font-size: 0.78rem;
     font-weight: 600;
   }
-  .chip strong { font-weight: 800; }
-  .chip-walk { background: #fde68a; }
+  .chip strong {
+    font-weight: 800;
+  }
+  .chip-walk {
+    background: #fde68a;
+  }
   .desc {
     margin: 0 0 0.85rem;
     font-size: 0.95rem;
@@ -133,7 +143,9 @@
     line-height: 1.5;
     color: #444;
   }
-  .tips li { margin-bottom: 0.25rem; }
+  .tips li {
+    margin-bottom: 0.25rem;
+  }
   .cta-row {
     display: flex;
     flex-direction: column;
@@ -149,9 +161,21 @@
     font-family: inherit;
     cursor: pointer;
     box-shadow: 3px 3px 0 #111;
-    transition: transform 0.06s ease, box-shadow 0.06s ease;
+    transition:
+      transform 0.06s ease,
+      box-shadow 0.06s ease;
   }
-  .cta:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #111; }
-  .cta.is-primary { background: var(--sb-accent, #ea580c); color: #fff; }
-  .cta.is-ghost   { background: #fff; color: #111; box-shadow: 2px 2px 0 #111; }
+  .cta:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #111;
+  }
+  .cta.is-primary {
+    background: var(--sb-accent, #ea580c);
+    color: #fff;
+  }
+  .cta.is-ghost {
+    background: #fff;
+    color: #111;
+    box-shadow: 2px 2px 0 #111;
+  }
 </style>

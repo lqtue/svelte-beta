@@ -14,7 +14,11 @@ export interface FeatureSnapshot {
 export type HistoryEntry =
   | { kind: 'annotation-add'; snapshot: FeatureSnapshot }
   | { kind: 'annotation-delete'; snapshot: FeatureSnapshot }
-  | { kind: 'annotation-update'; id: string; changes: Array<{ field: AnnotationField; before: unknown; after: unknown }> }
+  | {
+      kind: 'annotation-update';
+      id: string;
+      changes: Array<{ field: AnnotationField; before: unknown; after: unknown }>;
+    }
   | { kind: 'annotation-geometry'; before: FeatureSnapshot; after: FeatureSnapshot }
   | { kind: 'annotation-clear'; snapshots: FeatureSnapshot[] }
   | { kind: 'annotation-bulk-add'; snapshots: FeatureSnapshot[] };
@@ -41,7 +45,7 @@ const DEFAULT_LIMIT = 100;
 export function createAnnotationHistoryStore(limit = DEFAULT_LIMIT): AnnotationHistoryStore {
   const { subscribe, update, set } = writable<AnnotationHistoryState>({
     history: [],
-    future: []
+    future: [],
   });
 
   return {
@@ -52,7 +56,7 @@ export function createAnnotationHistoryStore(limit = DEFAULT_LIMIT): AnnotationH
         const history = [...state.history.slice(-limit + 1), entry];
         return {
           history,
-          future: []
+          future: [],
         };
       });
     },
@@ -63,7 +67,7 @@ export function createAnnotationHistoryStore(limit = DEFAULT_LIMIT): AnnotationH
         undone = state.history[state.history.length - 1];
         return {
           history: state.history.slice(0, -1),
-          future: [...state.future, undone]
+          future: [...state.future, undone],
         };
       });
       return undone;
@@ -75,7 +79,7 @@ export function createAnnotationHistoryStore(limit = DEFAULT_LIMIT): AnnotationH
         restored = state.future[state.future.length - 1];
         return {
           history: [...state.history, restored],
-          future: state.future.slice(0, -1)
+          future: state.future.slice(0, -1),
         };
       });
       return restored;
@@ -83,28 +87,34 @@ export function createAnnotationHistoryStore(limit = DEFAULT_LIMIT): AnnotationH
     reset() {
       set({
         history: [],
-        future: []
+        future: [],
       });
-    }
+    },
   };
 }
 
-export function captureFeatureSnapshot(feature: Feature<Geometry>, options: SnapshotOptions = {}): FeatureSnapshot {
+export function captureFeatureSnapshot(
+  feature: Feature<Geometry>,
+  options: SnapshotOptions = {}
+): FeatureSnapshot {
   const { geoJson = new GeoJSON() } = options;
   const id = String(feature.getId());
   const geojson = geoJson.writeFeatureObject(feature, {
     featureProjection: 'EPSG:3857',
-    dataProjection: 'EPSG:4326'
+    dataProjection: 'EPSG:4326',
   }) as GeoJsonFeature<GeoJsonGeometry>;
   geojson.id = id;
   return { id, feature: geojson };
 }
 
-export function restoreFeatureFromSnapshot(snapshot: FeatureSnapshot, options: SnapshotOptions = {}): Feature<Geometry> {
+export function restoreFeatureFromSnapshot(
+  snapshot: FeatureSnapshot,
+  options: SnapshotOptions = {}
+): Feature<Geometry> {
   const { geoJson = new GeoJSON() } = options;
   const restored = geoJson.readFeature(snapshot.feature, {
     dataProjection: 'EPSG:4326',
-    featureProjection: 'EPSG:3857'
+    featureProjection: 'EPSG:3857',
   }) as Feature<Geometry>;
   restored.setId(snapshot.id);
   return restored;

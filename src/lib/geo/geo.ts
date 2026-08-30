@@ -9,9 +9,6 @@ export function haversineDistance(a: [number, number], b: [number, number]): num
   const dLon = toRad(b[0] - a[0]);
   const lat1 = toRad(a[1]);
   const lat2 = toRad(b[1]);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * EARTH_RADIUS * Math.asin(Math.sqrt(h));
 }
-

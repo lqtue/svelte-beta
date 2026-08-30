@@ -8,8 +8,10 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const sb = createClient(env.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
 const apply = process.argv.includes('--apply');
@@ -45,7 +47,9 @@ function standardizeYearLabel(m) {
   return m.year_label;
 }
 
-const { data: maps } = await sb.from('maps').select('id, name, year, year_label, location, map_type, collection');
+const { data: maps } = await sb
+  .from('maps')
+  .select('id, name, year, year_label, location, map_type, collection');
 const changes = [];
 for (const m of maps) {
   const upd = {};
@@ -73,14 +77,22 @@ for (const f of ['location', 'map_type', 'year_label']) {
   const t = dim(f);
   if (!Object.keys(t).length) continue;
   console.log(`${f}:`);
-  for (const [k, v] of Object.entries(t).sort((a, b) => b[1] - a[1])) console.log(`  ${String(v).padStart(3)}  ${k}`);
+  for (const [k, v] of Object.entries(t).sort((a, b) => b[1] - a[1]))
+    console.log(`  ${String(v).padStart(3)}  ${k}`);
 }
 
-if (!apply) { console.log('\nDRY-RUN — pass --apply to write.'); process.exit(0); }
+if (!apply) {
+  console.log('\nDRY-RUN — pass --apply to write.');
+  process.exit(0);
+}
 
-let ok = 0, fail = 0;
+let ok = 0,
+  fail = 0;
 for (const { m, upd } of changes) {
   const { error } = await sb.from('maps').update(upd).eq('id', m.id);
-  if (error) { console.error(`  ✗ ${m.id}: ${error.message}`); fail++; } else ok++;
+  if (error) {
+    console.error(`  ✗ ${m.id}: ${error.message}`);
+    fail++;
+  } else ok++;
 }
 console.log(`\nApplied: ${ok} ok, ${fail} failed.`);

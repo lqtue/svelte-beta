@@ -5,27 +5,27 @@
   Has its own basemap layers and optional WarpedMapLayer overlay.
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import OlMap from "ol/Map";
-  import BaseLayer from "ol/layer/Base";
-  import { defaults as defaultControls } from "ol/control/defaults";
-  import { Attribution, ScaleLine } from "ol/control";
-  import { BASEMAP_DEFS } from "$lib/map/constants";
+  import { onMount, onDestroy } from 'svelte';
+  import OlMap from 'ol/Map';
+  import BaseLayer from 'ol/layer/Base';
+  import { defaults as defaultControls } from 'ol/control/defaults';
+  import { Attribution, ScaleLine } from 'ol/control';
+  import { BASEMAP_DEFS } from '$lib/map/constants';
   import {
     createWarpedLayer,
     destroyWarpedLayer,
     loadOverlayByUrl,
     setOverlayOpacity,
     clearOverlay,
-  } from "./warpedOverlay";
-  import type { WarpedMapLayer } from "@allmaps/openlayers";
+  } from './warpedOverlay';
+  import type { WarpedMapLayer } from '@allmaps/openlayers';
 
   export let primaryMap: OlMap;
-  export let basemap: string = "g-streets";
+  export let basemap: string = 'g-streets';
   export let showOverlay: boolean = true;
   export let overlayOpacity: number = 0.8;
   /** maps.allmaps_id — the Allmaps service credential needed for tile loading. */
-  export let activeAllmapsId: string = "";
+  export let activeAllmapsId: string = '';
   /** Bindable — exposes the created OL Map to the parent */
   export let map: OlMap | null = null;
 
@@ -53,7 +53,7 @@
   $: if (warpedLayer) {
     const canvas = warpedLayer.canvas;
     if (canvas) {
-      canvas.style.display = showOverlay ? "" : "none";
+      canvas.style.display = showOverlay ? '' : 'none';
     }
   }
 
@@ -78,10 +78,10 @@
     try {
       await loadOverlayByUrl(warpedLayer, secondaryMap, id, overlayOpacity);
       const canvas = warpedLayer.canvas;
-      if (canvas) canvas.style.display = showOverlay ? "" : "none";
+      if (canvas) canvas.style.display = showOverlay ? '' : 'none';
       secondaryMap.render();
     } catch (err) {
-      console.warn("[DualMapPane] Failed to load overlay:", err);
+      console.warn('[DualMapPane] Failed to load overlay:', err);
     }
   }
 

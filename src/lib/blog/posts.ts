@@ -1,21 +1,21 @@
 export interface BlogPost {
-	slug: string;
-	title: string;
-	date: string;
-	category: 'update' | 'research' | 'community' | 'announcement';
-	excerpt: string;
-	content: string; // HTML
+  slug: string;
+  title: string;
+  date: string;
+  category: 'update' | 'research' | 'community' | 'announcement';
+  excerpt: string;
+  content: string; // HTML
 }
 
 export const posts: BlogPost[] = [
-	{
-		slug: 'layer-stack-2026-05',
-		title: 'Rebuilding /view Around a Single Concept: the Layer Stack',
-		date: '2026-05-24',
-		category: 'update',
-		excerpt:
-			'A short post on a long refactor. The map viewer had grown three overlapping mental models — active map, base map, compare set — each with their own UI surface, each leaking into the others. We collapsed them into one Photoshop-style layer stack with a single store, then redesigned mobile around two labeled bottom drawers.',
-		content: `
+  {
+    slug: 'layer-stack-2026-05',
+    title: 'Rebuilding /view Around a Single Concept: the Layer Stack',
+    date: '2026-05-24',
+    category: 'update',
+    excerpt:
+      'A short post on a long refactor. The map viewer had grown three overlapping mental models — active map, base map, compare set — each with their own UI surface, each leaking into the others. We collapsed them into one Photoshop-style layer stack with a single store, then redesigned mobile around two labeled bottom drawers.',
+    content: `
 <p>If you opened <code>/view</code> a week ago and tried to put one historical map under another and a third on top to compare, you would have used three different buttons in three different places, talking to three different stores, rendered by three different components. It worked, but only if you already understood the model. New users didn't. Even we kept tripping on it.</p>
 <p>This post is about the cleanup: what was wrong, what we replaced it with, and the mobile UX that fell out of doing the work properly.</p>
 
@@ -45,16 +45,16 @@ export const posts: BlogPost[] = [
 <h2>Why this post exists</h2>
 <p>VMA is a small project run on volunteer time. The pace of feature work means it's easy to add things and never look back. But complexity compounds — every new feature that lands on a confused model multiplies the confusion. Spending a week to rip out three half-baked abstractions and replace them with one good one is rarely the loudest commit, but it's often the most useful. The next person to touch the viewer — possibly future-me, possibly a new contributor — will hopefully look at <code>layersStore</code>, understand it in two minutes, and add their feature without breaking anything else.</p>
 <p>If you want to try it: open <a href="/view" target="_blank">/view</a>, click any map in the catalog to load it, click "+" on another to stack them, drag layers to reorder, and switch between Stacked / Lens / Side-by-side from the panel header. On a phone, the two drawers sit at the bottom and behave like the rest of mobile internet. That's it. That's the whole interface.</p>
-		`
-	},
-	{
-		slug: 'scout-pipeline-2026-05',
-		title: 'Scouting 3,373 Maps: Building a Discovery Pipeline for Vietnam Cartography',
-		date: '2026-05-16',
-		category: 'update',
-		excerpt:
-			'We built a multi-source discovery pipeline that pulls Vietnam-related map records from BnF Gallica, Humazur, David Rumsey, and the Library of Congress into a single reviewable grid. 3,373 candidates surfaced — 758 high-confidence — now curatable from /admin/scout with thumbnails, scoring, and one-click bulk-ingest into the catalog.',
-		content: `
+		`,
+  },
+  {
+    slug: 'scout-pipeline-2026-05',
+    title: 'Scouting 3,373 Maps: Building a Discovery Pipeline for Vietnam Cartography',
+    date: '2026-05-16',
+    category: 'update',
+    excerpt:
+      'We built a multi-source discovery pipeline that pulls Vietnam-related map records from BnF Gallica, Humazur, David Rumsey, and the Library of Congress into a single reviewable grid. 3,373 candidates surfaced — 758 high-confidence — now curatable from /admin/scout with thumbnails, scoring, and one-click bulk-ingest into the catalog.',
+    content: `
 <p>Until this week, adding maps to VMA was a one-by-one job: paste a IIIF manifest URL into the admin form, click "Fetch from Allmaps," fill in the gaps, save. That works fine for the maps we already know about. It doesn't work for the ones we don't — and the colonial Vietnam corpus is scattered across at least a dozen institutions worldwide, most of which have public catalogs but no obvious entry point.</p>
 <p>So we built a scout. <strong>3,373 candidate maps</strong> are now sitting in a reviewable queue at <code>/admin/scout</code>, pulled from four institutions in one pass, scored for relevance, and ready to bulk-ingest with thumbnails and full Dublin Core metadata.</p>
 
@@ -100,16 +100,16 @@ export const posts: BlogPost[] = [
 <li><strong>Extend to Vietnamese-language and regional sources.</strong> The biggest gap right now is anything held inside Vietnam. EFEO's collection, the Institut d'Asie Orientale at Lyon, and any digitized holdings from Hanoi or Ho Chi Minh City archives would push the corpus toward 5,000+ unique candidates.</li>
 </ol>
 <p>If you've been waiting for a way to help VMA without doing pixel-level work, scout review is exactly that — fast, judgment-based, and visible in its impact. Drop us a note and we'll get you admin access to <code>/admin/scout</code>.</p>
-		`
-	},
-	{
-		slug: 'tonkin-topographic-series-2026-05',
-		title: 'New Collection: 63 Tonkin Topographic Sheets (1903–1927)',
-		date: '2026-05-14',
-		category: 'announcement',
-		excerpt:
-			'A batch of 63 colonial-era topographic sheets covering the Red River delta — Hà Nội, Hải Phòng, Nam Định, Thanh Hóa, and surrounding provinces — has been tiled to R2 and added to the catalog. All from the Service Géographique de l\'Indochine, surveyed between 1903 and 1927.',
-		content: `
+		`,
+  },
+  {
+    slug: 'tonkin-topographic-series-2026-05',
+    title: 'New Collection: 63 Tonkin Topographic Sheets (1903–1927)',
+    date: '2026-05-14',
+    category: 'announcement',
+    excerpt:
+      "A batch of 63 colonial-era topographic sheets covering the Red River delta — Hà Nội, Hải Phòng, Nam Định, Thanh Hóa, and surrounding provinces — has been tiled to R2 and added to the catalog. All from the Service Géographique de l'Indochine, surveyed between 1903 and 1927.",
+    content: `
 <p>We've added <strong>63 new sheets</strong> to the catalog from the Service Géographique de l'Indochine — the French colonial mapping bureau that produced the most systematic topographic survey of northern Vietnam before WWII. The collection covers the Red River delta and surrounding provinces, with most sheets surveyed between 1903 and 1927 at roughly 1:100,000 scale.</p>
 
 <h2>What's in the batch</h2>
@@ -123,16 +123,16 @@ export const posts: BlogPost[] = [
 <h2>What's next for these sheets</h2>
 <p>None of the new maps are georeferenced yet — they're in <code>draft</code> status until the corners are placed. The sheets are gridded enough that GCP propagation should work well: once we manually georeference one or two anchors per band, the rest can inherit corners arithmetically the same way the L7014 series did. After that, the OCR pipeline can scout the sheets for place names, and the toponym layer for northern Vietnam starts to materialize.</p>
 <p>If you can read the older romanization confidently and want to help validate place-name extractions, this is exactly the kind of contributor work we're set up to support. <a href="/catalog">Browse the catalog</a> to see the new sheets.</p>
-		`
-	},
-	{
-		slug: 'mid-april-2026-platform-notes',
-		title: 'Platform Notes: Universal IIIF, Gemini OCR, and the MapShell Refactor',
-		date: '2026-04-18',
-		category: 'update',
-		excerpt:
-			"Self-hosted tiles on R2 for better performance, a Gemini-powered OCR pipeline for toponym discovery, and a core architecture refactor around MapShell. April's updates focus on scaling our data foundation and unifying the user experience.",
-		content: `
+		`,
+  },
+  {
+    slug: 'mid-april-2026-platform-notes',
+    title: 'Platform Notes: Universal IIIF, Gemini OCR, and the MapShell Refactor',
+    date: '2026-04-18',
+    category: 'update',
+    excerpt:
+      "Self-hosted tiles on R2 for better performance, a Gemini-powered OCR pipeline for toponym discovery, and a core architecture refactor around MapShell. April's updates focus on scaling our data foundation and unifying the user experience.",
+    content: `
 <p>Stability in a research archive comes from two places: the reliability of the data sources and the clarity of the interface. This week's updates address both, moving us away from reliance on institutional IIIF servers and toward a unified architecture that can support our next phase of growth.</p>
 
 <h2>Universal IIIF: Solving the "Paris Latency" Problem</h2>
@@ -150,16 +150,16 @@ export const posts: BlogPost[] = [
 <h2>Route Groups and Editorial Polish</h2>
 <p>Finally, we've reorganized the application's URL structure using SvelteKit route groups. This separates our <code>(editorial)</code> pages (like this blog, the about page, and the catalog) from the full-screen <code>(app)</code> tools. This separation allows us to apply distinct layout strategies—like the clean, typography-focused look of the editorial site vs. the dense, data-rich interface of the contribution tools—without cluttering the code with conditional logic.</p>
 <p>The roadmap for the rest of April is clear: batch processing the remaining colonial maps through the R2 mirror and scaling up the OCR extraction to build our first comprehensive street-name index.</p>
-`
-	},
-	{
-		slug: 'platform-notes-april-2026',
-		title: 'Platform Notes: Retiring a Pipeline and Rebuilding the Data Foundation',
-		date: '2026-04-10',
-		category: 'update',
-		excerpt:
-			'The L7014 pipeline is done and its code is gone. In its place: a modular maps data layer with proper source provenance, multi-IIIF support, and metadata backfilled for all 37 maps in the collection. What we built, why we built it that way, and what it reveals about running a research archive as software.',
-		content: `
+`,
+  },
+  {
+    slug: 'platform-notes-april-2026',
+    title: 'Platform Notes: Retiring a Pipeline and Rebuilding the Data Foundation',
+    date: '2026-04-10',
+    category: 'update',
+    excerpt:
+      'The L7014 pipeline is done and its code is gone. In its place: a modular maps data layer with proper source provenance, multi-IIIF support, and metadata backfilled for all 37 maps in the collection. What we built, why we built it that way, and what it reveals about running a research archive as software.',
+    content: `
 <p>Most software projects accumulate features. Research archives accumulate debt. The distinction matters: features add capability; debt is the difference between what the code says and what the project actually needs. This month we settled a significant account.</p>
 
 <h2>Retiring the L7014 pipeline</h2>
@@ -194,16 +194,16 @@ export const posts: BlogPost[] = [
 
 <h2>What's next</h2>
 <p>The maps data layer is the foundation for the catalog redesign — filter by city, by type, by collection, by coverage area. That's the next front-end milestone. In parallel: the <code>supabase/types.ts</code> generated types need regenerating to reflect the new schema, and the admin map-editing UI needs updating to surface the new fields. We're also mid-way through attributing the 17 IA maps to their original institutions — if you know where the 1863 "Plan du port de Saigon" or the 1882 "Saigon &amp; Surroundings" were first scanned, tell us.</p>
-		`
-	},
-	{
-		slug: 'buildings-as-ground-control',
-		title: 'Buildings as Ground Control: A New Method for Vectorizing Colonial Maps',
-		date: '2026-03-13',
-		category: 'research',
-		excerpt:
-			'The 1882 and 1898 Saigon maps share hundreds of the same buildings. We use those stable structures as automatic ground control points — letting maps georeference each other, and producing a 1880–1900 building dataset as a byproduct.',
-		content: `
+		`,
+  },
+  {
+    slug: 'buildings-as-ground-control',
+    title: 'Buildings as Ground Control: A New Method for Vectorizing Colonial Maps',
+    date: '2026-03-13',
+    category: 'research',
+    excerpt:
+      'The 1882 and 1898 Saigon maps share hundreds of the same buildings. We use those stable structures as automatic ground control points — letting maps georeference each other, and producing a 1880–1900 building dataset as a byproduct.',
+    content: `
 <p>The two most important maps we have of colonial Saigon — an 1882 cadastral survey and its 1898 revision — have never been compared as spatial data. They've been studied individually, scanned, and put online. But no one has asked: which buildings appear in both? Which ones were built or demolished in those sixteen years? And can that shared knowledge help us georeference the maps themselves?</p>
 <p>The answer to the last question turns out to be yes — and it changes how we think about the whole problem of historical map vectorization.</p>
 
@@ -255,16 +255,16 @@ export const posts: BlogPost[] = [
 <h2>Where this stands</h2>
 <p>The 1882 map is georeferenced and on Internet Archive. The plot pass is validated. The building pass is next, followed by the full-map run, then the 1898 preparation (Pixelmator seam correction on the BnF Gallica composite scan). Once both maps are vectorized, the vector-to-vector matching step — Hu moment descriptors, mutual-best-match, RANSAC — produces the change classification and auto-georefs the 1898 map simultaneously.</p>
 <p>The full pipeline code is in the VMA repository. If you're working on historical city reconstruction — Hanoi, Phnom Penh, Manila, any city with a colonial-era cadastral survey — this architecture is designed to be forked.</p>
-		`
-	},
-	{
-		slug: 'march-2026-update',
-		title: 'March 2026 Update: Maps, Methods, and What\'s Next',
-		date: '2026-03-10',
-		category: 'update',
-		excerpt:
-			'Featured in Saigoneer. Automated 500+ L7014 maps. Now planning the knowledge graph, 3D pipeline, and community tier system. Here\'s where things stand.',
-		content: `
+		`,
+  },
+  {
+    slug: 'march-2026-update',
+    title: "March 2026 Update: Maps, Methods, and What's Next",
+    date: '2026-03-10',
+    category: 'update',
+    excerpt:
+      "Featured in Saigoneer. Automated 500+ L7014 maps. Now planning the knowledge graph, 3D pipeline, and community tier system. Here's where things stand.",
+    content: `
 <p>This is the first monthly digest. The rule: two paragraphs, no slide decks, no meetings requested. What shipped, what didn't, what's next.</p>
 
 <h2>What shipped</h2>
@@ -277,16 +277,16 @@ export const posts: BlogPost[] = [
 <h2>What's next</h2>
 <p><strong>Phase 1</strong> focus: ingest 30–50 colonial maps from BnF Gallica/EFEO, vectorize map features into geometry, build the community tracing UI with Photo Hunter + Cartographer tiers, launch the first photogrammetry missions for 5 landmark buildings (Notre Dame, City Hall, Central Post Office, Opera House, Ben Thanh Market). First public footprint dataset target: 1900 Saigon core.</p>
 <p>We're actively looking for: a part-time French-reading researcher to work with ANOM/BnF archival sources, OSM mappers interested in historical Saigon tracing, and Blender artists for landmark 3D modelling. If that's you — or if you know a funder with a confirmed fit (French Institute, EFEO, Wikimedia, Asia Foundation) — say hello.</p>
-		`
-	},
-	{
-		slug: 'dissecting-space-six-layer-methodology',
-		title: 'Dissecting Space: The Six-Layer Method Behind the Archive',
-		date: '2026-03-05',
-		category: 'research',
-		excerpt:
-			'How we treat a historical city as a data stack — translating the modern world\'s six-layer spatial model into a framework that works with 19th-century maps, panoramic paintings, and archival photos.',
-		content: `
+		`,
+  },
+  {
+    slug: 'dissecting-space-six-layer-methodology',
+    title: 'Dissecting Space: The Six-Layer Method Behind the Archive',
+    date: '2026-03-05',
+    category: 'research',
+    excerpt:
+      "How we treat a historical city as a data stack — translating the modern world's six-layer spatial model into a framework that works with 19th-century maps, panoramic paintings, and archival photos.",
+    content: `
 <p>Every city is simultaneously a physical object, a set of economic relationships, a carrier of memory, and a political argument. Reconstructing one from archival sources requires separating these layers and building them in the right order. This post explains how we do that for 1880–1930 Saigon.</p>
 
 <h2>The six-layer model</h2>
@@ -318,16 +318,16 @@ export const posts: BlogPost[] = [
 <h2>What we've learned so far</h2>
 <p>The propagation algorithm works: one manual georeference → 10 automated neighbors, error rate under 1% validated against independent seeds. The Morlighem pipeline is proven on Dutch and Belgian maps (>84% building detection, >99% valid CityJSON) and we expect it to adapt, with colour calibration work, to French colonial Saigon's symbology. The 1882 and 1898 panoramas are a more significant calibration source than we initially understood — they reduce height uncertainty from roughly ±3m to approximately ±1.5m for the 1900 core.</p>
 <p>The methodology is public. The pipeline is open. If you're working on historical city reconstruction for another Southeast Asian city — or anywhere with a colonial-era map archive — this framework is forkable. That's the point.</p>
-		`
-	},
-	{
-		slug: 'how-the-georef-pipeline-works',
-		title: 'How We Automate Georeferencing of 500 Historical Maps',
-		date: '2026-02-01',
-		category: 'research',
-		excerpt:
-			'A plain-language explanation of the GCP propagation algorithm that turns a 500-sheet military map series into an automatically georeferenced archive.',
-		content: `
+		`,
+  },
+  {
+    slug: 'how-the-georef-pipeline-works',
+    title: 'How We Automate Georeferencing of 500 Historical Maps',
+    date: '2026-02-01',
+    category: 'research',
+    excerpt:
+      'A plain-language explanation of the GCP propagation algorithm that turns a 500-sheet military map series into an automatically georeferenced archive.',
+    content: `
 <p>Georeferencing a historical map means answering: where on Earth does this pixel sit? For a single map, you place control points by hand — match corners and landmarks to known coordinates — and a polynomial transform handles the rest. For 500 maps in a uniform series, doing this by hand would take months. We don't do it by hand.</p>
 
 <h2>The key insight</h2>
@@ -341,16 +341,16 @@ export const posts: BlogPost[] = [
 <h2>The output</h2>
 <p>Every georeferenced sheet is stored as a W3C Web Annotation (Georeference Annotation) JSON file in Supabase Storage, compatible with the Allmaps viewer. 500+ sheets processed. Error rate under 1% on propagated annotations validated against manually-georeferenced seeds. The series is complete.</p>
 <p>The method generalizes: any uniform map series with known sheet dimensions can be processed the same way. Hanoi. Phnom Penh. Manila. Whoever runs this first for their city's archive owns the result permanently.</p>
-		`
-	},
-	{
-		slug: 'saigoneer-feature',
-		title: 'We\'re in Saigoneer — and What It Means',
-		date: '2026-01-15',
-		category: 'announcement',
-		excerpt:
-			'Saigoneer covered us in January 2026. Here\'s the project vision in plain language — recovering the body and soul of a city lost to wartime imagery.',
-		content: `
+		`,
+  },
+  {
+    slug: 'saigoneer-feature',
+    title: "We're in Saigoneer — and What It Means",
+    date: '2026-01-15',
+    category: 'announcement',
+    excerpt:
+      "Saigoneer covered us in January 2026. Here's the project vision in plain language — recovering the body and soul of a city lost to wartime imagery.",
+    content: `
 <p>Vietnam Map Archive was featured in Saigoneer on January 15, 2026. If you're reading this because of that article: welcome. Here's the short version of what we're doing and why.</p>
 
 <h2>The problem</h2>
@@ -363,24 +363,24 @@ export const posts: BlogPost[] = [
 <h2>How to help</h2>
 <p>Right now, the most useful thing is to <strong>find historical photos</strong> of Saigon buildings and tag them to locations. No technical skill required. If you recognize a street, a building, a neighborhood from your family's history — that knowledge is irreplaceable and we need it. The Photo Hunter tier is designed for exactly this: zero barrier, mobile-friendly, immediately meaningful.</p>
 <p>If you're a researcher, a GIS mapper, a Blender artist, or a foundation program officer — there's a specific role for you. The strategy and roadmap documents are public. Read them and reach out.</p>
-		`
-	}
+		`,
+  },
 ];
 
 export function getPost(slug: string): BlogPost | undefined {
-	return posts.find((p) => p.slug === slug);
+  return posts.find((p) => p.slug === slug);
 }
 
 export const CATEGORY_LABELS: Record<BlogPost['category'], string> = {
-	update: 'Monthly Update',
-	research: 'Research',
-	community: 'Community',
-	announcement: 'Announcement'
+  update: 'Monthly Update',
+  research: 'Research',
+  community: 'Community',
+  announcement: 'Announcement',
 };
 
 export const CATEGORY_COLORS: Record<BlogPost['category'], string> = {
-	update: 'var(--color-blue)',
-	research: 'var(--color-green)',
-	community: 'var(--color-orange)',
-	announcement: 'var(--color-purple)'
+  update: 'var(--color-blue)',
+  research: 'var(--color-green)',
+  community: 'var(--color-orange)',
+  announcement: 'var(--color-purple)',
 };

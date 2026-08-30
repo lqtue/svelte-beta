@@ -23,8 +23,14 @@
 
 <svelte:head>
   <title>Contribute — Vietnam Map Archive</title>
-  <meta name="description" content="Trace buildings, georeference maps, and review AI output. Anyone with an account can contribute to the Vietnam Map Archive." />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet" />
+  <meta
+    name="description"
+    content="Trace buildings, georeference maps, and review AI output. Anyone with an account can contribute to the Vietnam Map Archive."
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;600;800&display=swap"
+    rel="stylesheet"
+  />
 </svelte:head>
 
 <div class="page" class:mounted>
@@ -40,13 +46,15 @@
 
   <main class="editorial-main">
     <section class="contribute-grid">
-
       <a href="/contribute/digitalize" class="section-card card-link">
         <div class="section-card-header">
           <div class="icon-blob color-orange">✏️</div>
           <div>
             <h2 class="section-title-sm">OCR &amp; Triage</h2>
-            <p class="section-desc">Crop a map's neatline, set tile priorities, and validate the toponyms our pipeline extracts. Feeds the SAM2 segmentation step.</p>
+            <p class="section-desc">
+              Crop a map's neatline, set tile priorities, and validate the toponyms our pipeline
+              extracts. Feeds the SAM2 segmentation step.
+            </p>
           </div>
         </div>
         <span class="card-cta">Start triaging →</span>
@@ -57,7 +65,10 @@
           <div class="icon-blob color-yellow">🖋️</div>
           <div>
             <h2 class="section-title-sm">Trace buildings</h2>
-            <p class="section-desc">Outline buildings, roads, and waterways on a georeferenced map. Every shape goes into the open dataset.</p>
+            <p class="section-desc">
+              Outline buildings, roads, and waterways on a georeferenced map. Every shape goes into
+              the open dataset.
+            </p>
           </div>
         </div>
         <span class="card-cta">Open the tracer →</span>
@@ -68,7 +79,10 @@
           <div class="icon-blob color-blue">📍</div>
           <div>
             <h2 class="section-title-sm">Georeference a map</h2>
-            <p class="section-desc">Place ground control points in the Allmaps Editor to anchor a historical map to real-world coordinates.</p>
+            <p class="section-desc">
+              Place ground control points in the Allmaps Editor to anchor a historical map to
+              real-world coordinates.
+            </p>
           </div>
         </div>
         <span class="card-cta">See what needs georef →</span>
@@ -80,7 +94,10 @@
             <div class="icon-blob color-green">✅</div>
             <div>
               <h2 class="section-title-sm">Review footprints</h2>
-              <p class="section-desc">Approve or reject building traces from volunteers and the SAM2 pipeline. Mods and admins only.</p>
+              <p class="section-desc">
+                Approve or reject building traces from volunteers and the SAM2 pipeline. Mods and
+                admins only.
+              </p>
             </div>
           </div>
           <span class="card-cta">Open the review queue →</span>
@@ -91,16 +108,17 @@
             <div class="icon-blob color-purple">📚</div>
             <div>
               <h2 class="section-title-sm">Catalog metadata</h2>
-              <p class="section-desc">Complete bibliographic records: titles, shelfmarks, creators, dates, rights, and physical descriptions.</p>
+              <p class="section-desc">
+                Complete bibliographic records: titles, shelfmarks, creators, dates, rights, and
+                physical descriptions.
+              </p>
             </div>
           </div>
           <span class="card-cta">Edit the catalog →</span>
         </a>
       {/if}
-
     </section>
   </main>
-
 </div>
 
 <style>
@@ -116,7 +134,9 @@
     opacity: 0;
     transition: opacity 0.4s ease;
   }
-  .page.mounted { opacity: 1; }
+  .page.mounted {
+    opacity: 1;
+  }
 
   .contribute-grid {
     display: grid;
@@ -130,7 +150,9 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    transition: transform 0.1s, box-shadow 0.1s;
+    transition:
+      transform 0.1s,
+      box-shadow 0.1s;
   }
 
   .card-link:hover {
@@ -138,8 +160,12 @@
     box-shadow: var(--shadow-solid-hover);
   }
 
-  .mod-card:hover { border-color: var(--color-green); }
-  .catalog-card:hover { border-color: var(--color-purple); }
+  .mod-card:hover {
+    border-color: var(--color-green);
+  }
+  .catalog-card:hover {
+    border-color: var(--color-purple);
+  }
 
   .card-cta {
     font-size: 0.875rem;

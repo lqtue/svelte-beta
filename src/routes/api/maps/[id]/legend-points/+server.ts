@@ -28,7 +28,8 @@ export const GET: RequestHandler = async ({ params }) => {
     .eq('id', mapId)
     .single();
   // Public route on the service-role client: never serve draft maps.
-  if (!map || !['public', 'featured'].includes((map as any).status)) return json({ points: [], reason: 'not public' });
+  if (!map || !['public', 'featured'].includes((map as any).status))
+    return json({ points: [], reason: 'not public' });
   if (!(map as any)?.allmaps_id) return json({ points: [], reason: 'not georeferenced' });
 
   // Legend entries → number→name map + the legend box rect (shared tile bbox).
@@ -67,7 +68,9 @@ export const GET: RequestHandler = async ({ params }) => {
 
   // Build the pixel→geo transformer from the stored annotation (mirror override
   // first, else the public Allmaps annotation).
-  const annUrl = (map as any).annotation_url || `https://annotations.allmaps.org/maps/${(map as any).allmaps_id}`;
+  const annUrl =
+    (map as any).annotation_url ||
+    `https://annotations.allmaps.org/maps/${(map as any).allmaps_id}`;
   let transformer: GcpTransformer | null = null;
   try {
     const res = await fetch(annUrl);
@@ -83,7 +86,14 @@ export const GET: RequestHandler = async ({ params }) => {
   const inRect = (x: number, y: number) =>
     rect !== null && x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 
-  const points: Array<{ n: number; name: string | null; vn: string | null; grid: string | null; lng: number; lat: number }> = [];
+  const points: Array<{
+    n: number;
+    name: string | null;
+    vn: string | null;
+    grid: string | null;
+    lng: number;
+    lat: number;
+  }> = [];
   for (const r of (refs ?? []) as any[]) {
     const t = (r.text_validated ?? r.text ?? '').trim();
     if (!/^\d+$/.test(t)) continue;
@@ -94,7 +104,14 @@ export const GET: RequestHandler = async ({ params }) => {
     if (inRect(cx, cy)) continue; // drop legend-internal column numbers
     const [lng, lat] = transformer.transformToGeo([cx, cy]);
     const info = nameByN.get(n);
-    points.push({ n, name: info?.name ?? null, vn: info?.vn ?? null, grid: info?.grid ?? null, lng, lat });
+    points.push({
+      n,
+      name: info?.name ?? null,
+      vn: info?.vn ?? null,
+      grid: info?.grid ?? null,
+      lng,
+      lat,
+    });
   }
 
   return json({ points });

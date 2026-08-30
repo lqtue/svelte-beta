@@ -7,10 +7,10 @@
   "Locate me" uses the browser Geolocation API directly.
 -->
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
-  import type { SearchResult, MapListItem } from "$lib/map/types";
-  import { parseCoordinates, findNearbyMaps } from "./searchUtils";
-  import { layersStore, MAX_OVERLAY_LAYERS } from "$lib/stores/layersStore";
+  import { createEventDispatcher } from 'svelte';
+  import type { SearchResult, MapListItem } from '$lib/map/types';
+  import { parseCoordinates, findNearbyMaps } from './searchUtils';
+  import { layersStore, MAX_OVERLAY_LAYERS } from '$lib/stores/layersStore';
 
   $: compareIds = $layersStore.overlays.map((o) => o.ref.mapId);
   $: compareFull = compareIds.length >= MAX_OVERLAY_LAYERS;
@@ -48,24 +48,24 @@
   /** When true, hide the Location tab and only show map list */
   export let mapsOnly = false;
 
-  let activeTab: "maps" | "location" = "maps";
+  let activeTab: 'maps' | 'location' = 'maps';
 
   // Maps tab state
-  let mapsQuery = "";
+  let mapsQuery = '';
 
   // Location tab state
-  let locationQuery = "";
+  let locationQuery = '';
   let locationResults: SearchResult[] = [];
   let locationLoading = false;
   let locatingUser = false;
   let locationNotice: string | null = null;
-  let locationNoticeType: "info" | "error" = "info";
+  let locationNoticeType: 'info' | 'error' = 'info';
   let searchDebounce: ReturnType<typeof setTimeout> | null = null;
   let searchAbortController: AbortController | null = null;
 
   // Nearby maps shown after a location is found
   let nearbyMaps: MapListItem[] = [];
-  let nearbyLabel = "";
+  let nearbyLabel = '';
 
   let searchInputEl: HTMLInputElement | null = null;
   let panelEl: HTMLDivElement | null = null;
@@ -91,11 +91,11 @@
     return maps.filter((m) => {
       const haystack = [
         m.name,
-        m.location ?? "",
-        m.dc_description ?? "",
-        m.year != null ? String(m.year) : "",
+        m.location ?? '',
+        m.dc_description ?? '',
+        m.year != null ? String(m.year) : '',
       ]
-        .join(" ")
+        .join(' ')
         .toLowerCase();
       return haystack.includes(q);
     });
@@ -108,7 +108,7 @@
     locationNotice = null;
     locationLoading = false;
     nearbyMaps = [];
-    nearbyLabel = "";
+    nearbyLabel = '';
   }
 
   async function runLocationSearch(query: string) {
@@ -125,27 +125,27 @@
     locationNotice = null;
     try {
       const params = new URLSearchParams({
-        format: "jsonv2",
+        format: 'jsonv2',
         q: trimmed,
-        addressdetails: "1",
-        polygon_geojson: "1",
-        limit: "10",
+        addressdetails: '1',
+        polygon_geojson: '1',
+        limit: '10',
       });
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?${params.toString()}`,
         {
           signal: searchAbortController.signal,
-          headers: { Accept: "application/json" },
-        },
+          headers: { Accept: 'application/json' },
+        }
       );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = (await response.json()) as SearchResult[];
       locationResults = data;
       if (!data.length) {
-        locationNotice = "Nothing matched that search.";
-        locationNoticeType = "info";
+        locationNotice = 'Nothing matched that search.';
+        locationNoticeType = 'info';
         nearbyMaps = [];
-        nearbyLabel = "";
+        nearbyLabel = '';
       } else {
         // Show nearby maps for the first result
         const first = data[0];
@@ -153,16 +153,16 @@
         const lng = parseFloat(first.lon);
         if (!isNaN(lat) && !isNaN(lng) && maps.length) {
           nearbyMaps = findNearbyMaps(lat, lng, maps);
-          nearbyLabel = first.display_name.split(",")[0];
+          nearbyLabel = first.display_name.split(',')[0];
         }
       }
     } catch (error) {
-      if ((error as Error).name === "AbortError") return;
-      locationNotice = "Search failed. Try again in a moment.";
-      locationNoticeType = "error";
+      if ((error as Error).name === 'AbortError') return;
+      locationNotice = 'Search failed. Try again in a moment.';
+      locationNoticeType = 'error';
       locationResults = [];
       nearbyMaps = [];
-      nearbyLabel = "";
+      nearbyLabel = '';
     } finally {
       locationLoading = false;
     }
@@ -180,12 +180,12 @@
     }
     // Clear nearby maps while typing new query
     nearbyMaps = [];
-    nearbyLabel = "";
+    nearbyLabel = '';
     searchDebounce = setTimeout(() => runLocationSearch(query), 1000);
   }
 
   function clearLocation() {
-    locationQuery = "";
+    locationQuery = '';
     clearLocationResults();
     searchAbortController?.abort();
     searchAbortController = null;
@@ -197,10 +197,10 @@
       display_name: `${parsedCoords.lat.toFixed(4)}, ${parsedCoords.lng.toFixed(4)}`,
       lat: String(parsedCoords.lat),
       lon: String(parsedCoords.lng),
-      type: "coordinate",
+      type: 'coordinate',
     };
-    dispatch("navigate", { result });
-    dispatch("close");
+    dispatch('navigate', { result });
+    dispatch('close');
   }
 
   function handleLocationResultClick(result: SearchResult) {
@@ -209,18 +209,18 @@
     const lng = parseFloat(result.lon);
     if (!isNaN(lat) && !isNaN(lng) && maps.length) {
       nearbyMaps = findNearbyMaps(lat, lng, maps);
-      nearbyLabel = result.display_name.split(",")[0];
+      nearbyLabel = result.display_name.split(',')[0];
     }
-    dispatch("navigate", { result });
+    dispatch('navigate', { result });
   }
 
   function handleNearbyMapClick(map: MapListItem) {
-    dispatch("selectMap", { map });
+    dispatch('selectMap', { map });
   }
 
   function handleMapResultClick(map: MapListItem) {
-    dispatch("selectMap", { map });
-    dispatch("close");
+    dispatch('selectMap', { map });
+    dispatch('close');
   }
 
   // -- Locate me (browser Geolocation API) --
@@ -228,7 +228,7 @@
   function handleLocateMe() {
     if (!navigator.geolocation) {
       locationNotice = "Your browser doesn't support geolocation.";
-      locationNoticeType = "error";
+      locationNoticeType = 'error';
       return;
     }
     locatingUser = true;
@@ -241,49 +241,49 @@
           display_name: `My location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
           lat: String(latitude),
           lon: String(longitude),
-          type: "user location",
+          type: 'user location',
         };
         // Show nearby maps for user's location
         if (maps.length) {
           nearbyMaps = findNearbyMaps(latitude, longitude, maps);
-          nearbyLabel = "your location";
+          nearbyLabel = 'your location';
         }
         locationResults = [result];
-        dispatch("navigate", { result });
+        dispatch('navigate', { result });
       },
       (error) => {
         locatingUser = false;
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            locationNotice = "We need permission to read your location.";
+            locationNotice = 'We need permission to read your location.';
             break;
           case error.POSITION_UNAVAILABLE:
             locationNotice = "Couldn't pin down your location.";
             break;
           case error.TIMEOUT:
-            locationNotice = "Location request timed out. Try again.";
+            locationNotice = 'Location request timed out. Try again.';
             break;
           default:
             locationNotice = "Couldn't read your location.";
         }
-        locationNoticeType = "error";
+        locationNoticeType = 'error';
       },
-      { enableHighAccuracy: true, timeout: 10000 },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
+    if (event.key === 'Escape') {
       event.preventDefault();
-      dispatch("close");
+      dispatch('close');
     }
   }
 
   function handleBackdropClick() {
-    dispatch("close");
+    dispatch('close');
   }
 
-  function switchTab(tab: "maps" | "location") {
+  function switchTab(tab: 'maps' | 'location') {
     activeTab = tab;
     queueMicrotask(() => searchInputEl?.focus());
   }
@@ -291,11 +291,7 @@
 
 {#if open}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <div
-    class="search-backdrop"
-    on:click={handleBackdropClick}
-    role="presentation"
-  ></div>
+  <div class="search-backdrop" on:click={handleBackdropClick} role="presentation"></div>
   <div
     class="search-panel"
     role="dialog"
@@ -310,20 +306,20 @@
         <button
           type="button"
           class="tb"
-          class:active={activeTab === "maps"}
-          on:click={() => switchTab("maps")}>Maps</button
+          class:active={activeTab === 'maps'}
+          on:click={() => switchTab('maps')}>Maps</button
         >
         <button
           type="button"
           class="tb"
-          class:active={activeTab === "location"}
-          on:click={() => switchTab("location")}>Location</button
+          class:active={activeTab === 'location'}
+          on:click={() => switchTab('location')}>Location</button
         >
         <div class="tab-spacer"></div>
         <button
           type="button"
           class="close-btn"
-          on:click={() => dispatch("close")}
+          on:click={() => dispatch('close')}
           aria-label="Close search"
         >
           <svg
@@ -343,7 +339,7 @@
         <button
           type="button"
           class="close-btn"
-          on:click={() => dispatch("close")}
+          on:click={() => dispatch('close')}
           aria-label="Close search"
         >
           <svg
@@ -360,7 +356,7 @@
     {/if}
 
     <!-- Maps tab -->
-    {#if mapsOnly || activeTab === "maps"}
+    {#if mapsOnly || activeTab === 'maps'}
       <div class="search-form">
         <input
           type="text"
@@ -381,7 +377,9 @@
               on:click={() => handleMapResultClick(map)}
               role="button"
               tabindex="0"
-              on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleMapResultClick(map); }}
+              on:keydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') handleMapResultClick(map);
+              }}
             >
               <div class="result-body">
                 <div class="result-row">
@@ -402,7 +400,11 @@
                   class:active={inCompare}
                   disabled={compareFull && !inCompare}
                   on:click={(e) => toggleCompare(e, map)}
-                  title={inCompare ? 'Remove from layer stack' : compareFull ? `Layer stack full (${MAX_OVERLAY_LAYERS} max)` : 'Add to layer stack'}
+                  title={inCompare
+                    ? 'Remove from layer stack'
+                    : compareFull
+                      ? `Layer stack full (${MAX_OVERLAY_LAYERS} max)`
+                      : 'Add to layer stack'}
                   aria-label={inCompare ? 'Remove from compare' : 'Add to compare'}
                 >
                   {inCompare ? '✓' : '⇄'}
@@ -418,15 +420,14 @@
       </div>
 
       <!-- Location tab -->
-    {:else if activeTab === "location"}
+    {:else if activeTab === 'location'}
       <div class="search-form">
         <input
           type="text"
           placeholder="Place, address, or lat,lng…"
           bind:value={locationQuery}
           bind:this={searchInputEl}
-          on:input={(e) =>
-            queueLocationSearch((e.target as HTMLInputElement).value)}
+          on:input={(e) => queueLocationSearch((e.target as HTMLInputElement).value)}
         />
         <div class="search-form-actions">
           <button
@@ -442,11 +443,7 @@
 
       <div class="results-list custom-scrollbar">
         {#if parsedCoords}
-          <button
-            type="button"
-            class="result-item coord-item"
-            on:click={goToCoordinates}
-          >
+          <button type="button" class="result-item coord-item" on:click={goToCoordinates}>
             <span class="coord-icon">
               <svg
                 width="14"
@@ -455,15 +452,11 @@
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
-                ><circle cx="12" cy="12" r="3" /><path
-                  d="M12 2v4M12 18v4M2 12h4M18 12h4"
-                /></svg
+                ><circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg
               >
             </span>
             <span class="result-title"
-              >Go to {parsedCoords.lat.toFixed(4)}, {parsedCoords.lng.toFixed(
-                4,
-              )}</span
+              >Go to {parsedCoords.lat.toFixed(4)}, {parsedCoords.lng.toFixed(4)}</span
             >
           </button>
         {/if}
@@ -471,7 +464,7 @@
         {#if locationLoading}
           <p class="muted">Searching&hellip;</p>
         {:else if locationNotice}
-          <p class:errored={locationNoticeType === "error"}>
+          <p class:errored={locationNoticeType === 'error'}>
             {locationNotice}
           </p>
         {/if}
@@ -493,7 +486,7 @@
                 <button
                   type="button"
                   class="chip ghost"
-                  on:click={() => dispatch("addAsPoint", { result })}
+                  on:click={() => dispatch('addAsPoint', { result })}
                 >
                   + Add as point
                 </button>
@@ -513,9 +506,7 @@
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
-                ><rect x="3" y="3" width="18" height="18" rx="2" /><path
-                  d="M3 9h18M9 3v18"
-                /></svg
+                ><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 3v18" /></svg
               >
               <span>Historical maps near {nearbyLabel}</span>
             </div>
@@ -533,10 +524,8 @@
                   {/if}
                 </div>
                 <div class="result-meta">
-                  {#if map.year}<span class="badge year-badge">{map.year}</span
-                    >{/if}
-                  {#if map.location}<span class="badge type-badge">{map.location}</span
-                    >{/if}
+                  {#if map.year}<span class="badge year-badge">{map.year}</span>{/if}
+                  {#if map.location}<span class="badge type-badge">{map.location}</span>{/if}
                 </div>
               </button>
             {/each}
@@ -547,14 +536,15 @@
   </div>
 {/if}
 
-<style>.search-backdrop {
+<style>
+  .search-backdrop {
     position: fixed;
     inset: 0;
     z-index: 99;
     background: transparent;
-}
+  }
 
-.search-panel {
+  .search-panel {
     position: absolute;
     top: 1rem;
     right: 4rem;
@@ -569,10 +559,10 @@
     box-shadow: var(--shadow-solid);
     color: var(--color-text);
     overflow: hidden;
-}
+  }
 
-/* Tab bar */
-.tab-bar {
+  /* Tab bar */
+  .tab-bar {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -580,18 +570,18 @@
     border-bottom: var(--border-thick);
     padding-bottom: 0.75rem;
     background: var(--color-bg);
-}
-.maps-only-header {
+  }
+  .maps-only-header {
     padding: 0.5rem 0.5rem;
     min-height: 0;
     border-bottom: var(--border-thin);
-}
+  }
 
-.tab-spacer {
+  .tab-spacer {
     flex: 1;
-}
+  }
 
-.tb {
+  .tb {
     border: var(--border-thick);
     border-radius: var(--radius-pill);
     background: var(--color-white);
@@ -605,22 +595,22 @@
     white-space: nowrap;
     line-height: 1.2;
     box-shadow: 2px 2px 0px var(--color-border);
-}
+  }
 
-.tb:hover {
+  .tb:hover {
     background: var(--color-yellow);
     transform: translate(-1px, -1px);
     box-shadow: 3px 3px 0px var(--color-border);
-}
+  }
 
-.tb.active {
+  .tb.active {
     background: var(--color-blue);
     color: white;
     transform: translate(1px, 1px);
     box-shadow: none;
-}
+  }
 
-.close-btn {
+  .close-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -633,23 +623,23 @@
     cursor: pointer;
     transition: all 0.1s;
     box-shadow: 2px 2px 0px var(--color-border);
-}
+  }
 
-.close-btn:hover {
+  .close-btn:hover {
     background: var(--color-yellow);
     transform: translate(-1px, -1px);
-}
+  }
 
-/* Search form */
-.search-form {
+  /* Search form */
+  .search-form {
     padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     background: var(--color-white);
-}
+  }
 
-.search-form input {
+  .search-form input {
     padding: 0.6rem 0.75rem;
     border-radius: var(--radius-pill);
     border: var(--border-thick);
@@ -659,32 +649,32 @@
     font-family: var(--font-family-base);
     font-weight: 600;
     box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.05);
-}
+  }
 
-@media (max-width: 768px) {
+  @media (max-width: 768px) {
     .search-form input {
-        font-size: 16px;
+      font-size: 16px;
     }
-}
+  }
 
-.search-form input:focus {
+  .search-form input:focus {
     outline: none;
     background: var(--color-white);
     box-shadow: 2px 2px 0px var(--color-border);
-}
+  }
 
-.search-form input::placeholder {
+  .search-form input::placeholder {
     color: var(--color-text);
     opacity: 0.5;
-}
+  }
 
-.search-form-actions {
+  .search-form-actions {
     display: flex;
     gap: 0.5rem;
-}
+  }
 
-/* Results */
-.results-list {
+  /* Results */
+  .results-list {
     flex: 1 1 auto;
     overflow-y: auto;
     padding: 0 1rem 1rem;
@@ -693,9 +683,9 @@
     gap: 0.5rem;
     max-height: 380px;
     background: var(--color-white);
-}
+  }
 
-.result-item {
+  .result-item {
     background: var(--color-white);
     border: var(--border-thin);
     border-radius: var(--radius-md);
@@ -710,15 +700,15 @@
     width: 100%;
     box-shadow: 2px 2px 0px var(--color-border);
     box-sizing: border-box;
-}
-.result-body {
+  }
+  .result-body {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-}
-.compare-row-btn {
+  }
+  .compare-row-btn {
     flex-shrink: 0;
     width: 36px;
     height: 36px;
@@ -733,73 +723,76 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.1s, background 0.1s, color 0.1s;
-}
-.compare-row-btn:hover:not(:disabled) {
+    transition:
+      transform 0.1s,
+      background 0.1s,
+      color 0.1s;
+  }
+  .compare-row-btn:hover:not(:disabled) {
     background: #fef3c7;
     transform: scale(1.08);
-}
-.compare-row-btn.active {
+  }
+  .compare-row-btn.active {
     background: #111;
     color: #fff;
-}
-.compare-row-btn:disabled {
+  }
+  .compare-row-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
-}
-.result-item.active-map .compare-row-btn {
-    background: rgba(255,255,255,0.92);
+  }
+  .result-item.active-map .compare-row-btn {
+    background: rgba(255, 255, 255, 0.92);
     color: var(--color-text);
-}
+  }
 
-button.result-item {
+  button.result-item {
     font-family: var(--font-family-base);
-}
+  }
 
-.result-item:hover,
-.result-item:focus-within {
+  .result-item:hover,
+  .result-item:focus-within {
     background: var(--color-yellow);
     transform: translate(-2px, -2px);
     box-shadow: 3px 3px 0px var(--color-border);
-}
+  }
 
-.result-item.active-map {
+  .result-item.active-map {
     background: var(--color-blue);
     color: white;
     border-color: var(--color-border);
-}
+  }
 
-.result-item.active-map .result-title,
-.result-item.active-map .result-type {
+  .result-item.active-map .result-title,
+  .result-item.active-map .result-type {
     color: white;
-}
+  }
 
-.result-row {
+  .result-row {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-}
+  }
 
-.result-title {
+  .result-title {
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--color-text);
     line-height: 1.3;
-}
+  }
 
-.result-type {
+  .result-type {
     font-size: 0.75rem;
     color: var(--color-text);
     opacity: 0.7;
-}
+  }
 
-.result-meta {
+  .result-meta {
     display: flex;
     gap: 0.3rem;
     flex-wrap: wrap;
-}
+  }
 
-.badge {
+  .badge {
     display: inline-block;
     padding: 0.15rem 0.5rem;
     border-radius: var(--radius-sm);
@@ -809,49 +802,49 @@ button.result-item {
     border: var(--border-thin);
     background: var(--color-bg);
     color: var(--color-text);
-}
+  }
 
-.year-badge {
+  .year-badge {
     background: var(--color-orange);
     color: white;
-}
+  }
 
-.type-badge {
+  .type-badge {
     background: var(--color-gray-100);
-}
+  }
 
-.active-badge {
+  .active-badge {
     background: var(--color-green);
     color: white;
     border-color: var(--color-green);
-}
+  }
 
-/* Coordinate item */
-.coord-item {
+  /* Coordinate item */
+  .coord-item {
     flex-direction: row;
     align-items: center;
     gap: 0.75rem;
     background: var(--color-bg);
-}
+  }
 
-.coord-icon {
+  .coord-icon {
     display: flex;
     align-items: center;
     color: var(--color-primary);
     flex-shrink: 0;
-}
+  }
 
-/* Nearby maps section */
-.nearby-section {
+  /* Nearby maps section */
+  .nearby-section {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     margin-top: 0.5rem;
     padding-top: 0.5rem;
     border-top: var(--border-thin);
-}
+  }
 
-.nearby-header {
+  .nearby-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -862,10 +855,10 @@ button.result-item {
     letter-spacing: 0.05em;
     color: var(--color-text);
     opacity: 0.6;
-}
+  }
 
-/* Location result (with actions) */
-.result-main {
+  /* Location result (with actions) */
+  .result-main {
     text-align: left;
     background: transparent;
     border: none;
@@ -877,22 +870,22 @@ button.result-item {
     cursor: pointer;
     width: 100%;
     font-family: var(--font-family-base);
-}
+  }
 
-.result-main:focus-visible {
+  .result-main:focus-visible {
     outline: none;
     background: rgba(255, 255, 255, 0.2);
-}
+  }
 
-.result-actions {
+  .result-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
     margin-top: 0.5rem;
-}
+  }
 
-/* Chips */
-.chip {
+  /* Chips */
+  .chip {
     border: var(--border-thin);
     border-radius: var(--radius-pill);
     padding: 0.35rem 0.6rem;
@@ -904,61 +897,60 @@ button.result-item {
     background: var(--color-white);
     color: var(--color-text);
     box-shadow: 1px 1px 0px var(--color-border);
-}
+  }
 
-.chip:hover {
+  .chip:hover {
     background: var(--color-yellow);
     transform: translate(-1px, -1px);
     box-shadow: 2px 2px 0px var(--color-border);
-}
+  }
 
-.chip.ghost:disabled {
+  .chip.ghost:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     background: var(--color-gray-100);
     transform: none;
     box-shadow: none;
-}
+  }
 
-/* Notices */
-.muted {
+  /* Notices */
+  .muted {
     color: var(--color-text);
     opacity: 0.6;
     font-size: 0.8rem;
     padding: 0.5rem;
     font-weight: 600;
-}
+  }
 
-.errored {
+  .errored {
     color: #b91c1c;
     font-weight: 700;
-}
+  }
 
-.empty-msg {
+  .empty-msg {
     text-align: center;
     padding: 1rem;
     color: var(--color-text);
     opacity: 0.6;
     font-weight: 600;
-}
+  }
 
-.custom-scrollbar {
+  .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: var(--color-gray-300) transparent;
-}
+  }
 
-.custom-scrollbar::-webkit-scrollbar {
+  .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
-}
+  }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
+  .custom-scrollbar::-webkit-scrollbar-thumb {
     background: var(--color-gray-300);
     border-radius: 999px;
-}
+  }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var(--color-gray-400);
-}
-
+  }
 </style>

@@ -29,12 +29,12 @@ export function createHandleFeatures(
   x: number,
   y: number,
   w: number,
-  h: number,
+  h: number
 ): Feature[] {
   const corners: [HandleRole, number, number][] = [
-    ['nw', x,     y],
+    ['nw', x, y],
     ['ne', x + w, y],
-    ['sw', x,     y + h],
+    ['sw', x, y + h],
     ['se', x + w, y + h],
   ];
   return corners.map(([role, cx, cy]) => {
@@ -55,12 +55,12 @@ export function updateHandlePositions(
   x: number,
   y: number,
   w: number,
-  h: number,
+  h: number
 ): void {
   const pos: Record<HandleRole, [number, number]> = {
-    nw: [x,     y],
+    nw: [x, y],
     ne: [x + w, y],
-    sw: [x,     y + h],
+    sw: [x, y + h],
     se: [x + w, y + h],
   };
   for (const feat of features) {
@@ -79,13 +79,17 @@ export function oppositeCorner(
   x: number,
   y: number,
   w: number,
-  h: number,
+  h: number
 ): [number, number] {
   switch (role) {
-    case 'nw': return [x + w, y + h]; // se
-    case 'ne': return [x,     y + h]; // sw
-    case 'sw': return [x + w, y    ]; // ne
-    case 'se': return [x,     y    ]; // nw
+    case 'nw':
+      return [x + w, y + h]; // se
+    case 'ne':
+      return [x, y + h]; // sw
+    case 'sw':
+      return [x + w, y]; // ne
+    case 'se':
+      return [x, y]; // nw
   }
 }
 
@@ -96,7 +100,7 @@ export function oppositeCorner(
 export function rectFromHandleMove(
   _role: HandleRole,
   newPos: [number, number],
-  oppositePos: [number, number],
+  oppositePos: [number, number]
 ): Rect {
   const x = Math.round(Math.min(newPos[0], oppositePos[0]));
   const y = Math.round(Math.min(newPos[1], oppositePos[1]));

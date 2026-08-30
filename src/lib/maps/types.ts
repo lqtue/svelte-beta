@@ -6,10 +6,10 @@ export type MapSourceType = 'ia' | 'bnf' | 'efeo' | 'gallica' | 'rumsey' | 'self
 export interface MapIIIFSource {
   id: string;
   map_id: string;
-  label?: string;            // e.g. "BnF Gallica", "Internet Archive"
+  label?: string; // e.g. "BnF Gallica", "Internet Archive"
   source_type?: MapSourceType;
   iiif_manifest?: string;
-  iiif_image: string;        // image service base URL
+  iiif_image: string; // image service base URL
   is_primary: boolean;
   sort_order: number;
   created_at: string;
@@ -30,31 +30,31 @@ export type MapType = 'cadastral' | 'topographic' | 'city_plan' | 'panorama' | '
 /** Full map record as stored in the database. */
 export interface MapRecord {
   id: string;
-  name: string;                  // display name (set by admin)
-  location?: string;             // city / region (renamed from `type`)
-  original_title?: string;       // title as in source / on the map
+  name: string; // display name (set by admin)
+  location?: string; // city / region (renamed from `type`)
+  original_title?: string; // title as in source / on the map
   creator?: string;
   year?: number;
-  year_label?: string;           // e.g. "c. 1882", "1898–1902"
-  language?: string;             // ISO 639-1
+  year_label?: string; // e.g. "c. 1882", "1898–1902"
+  language?: string; // ISO 639-1
   rights?: string;
-  dc_description?: string;       // dc:description (migrated from `summary`)
+  dc_description?: string; // dc:description (migrated from `summary`)
   thumbnail?: string;
   is_featured: boolean;
 
   // Source
   source_type?: MapSourceType;
-  source_url?: string;           // canonical URL at institution
-  collection?: string;           // e.g. "BnF Gallica", "EFEO"
-  ia_identifier?: string;        // Internet Archive item ID
+  source_url?: string; // canonical URL at institution
+  collection?: string; // e.g. "BnF Gallica", "EFEO"
+  ia_identifier?: string; // Internet Archive item ID
 
   // IIIF
-  iiif_manifest?: string;        // manifest URL
-  iiif_image?: string;           // image service base URL
+  iiif_manifest?: string; // manifest URL
+  iiif_image?: string; // image service base URL
 
   // Georeferencing
-  allmaps_id?: string;           // 16-char Allmaps image ID (from @allmaps/id over canonical IIIF URL)
-  annotation_url?: string;       // Optional override URL to W3C annotation JSON (set by mirror-r2 → Supabase Storage)
+  allmaps_id?: string; // 16-char Allmaps image ID (from @allmaps/id over canonical IIIF URL)
+  annotation_url?: string; // Optional override URL to W3C annotation JSON (set by mirror-r2 → Supabase Storage)
 
   // Classification
   map_type?: MapType | string;
@@ -72,13 +72,13 @@ export interface MapRecord {
 
 /** Lightweight item used in catalog lists and map selector dropdowns. */
 export interface MapListItem {
-  id: string;                    // maps.id (uuid)
-  allmaps_id?: string;           // 16-char Allmaps image ID (or null until derived)
-  annotation_url?: string;       // Optional override URL to the annotation JSON
+  id: string; // maps.id (uuid)
+  allmaps_id?: string; // 16-char Allmaps image ID (or null until derived)
+  annotation_url?: string; // Optional override URL to the annotation JSON
   name: string;
-  location?: string;             // city / region (renamed from `type`)
-  map_type?: string;             // cartographic type: cadastral, topographic, city_plan, panorama
-  dc_description?: string;       // dc:description (migrated from `summary`)
+  location?: string; // city / region (renamed from `type`)
+  map_type?: string; // cartographic type: cadastral, topographic, city_plan, panorama
+  dc_description?: string; // dc:description (migrated from `summary`)
   thumbnail?: string;
   isFeatured?: boolean;
   year?: number;
@@ -86,17 +86,18 @@ export interface MapListItem {
   collection?: string;
   source_type?: MapSourceType;
   status?: MapStatus;
-  bbox?: [number, number, number, number];          // DB column maps.bbox
-  bounds?: [number, number, number, number];        // Runtime-enriched in useMapList; equivalent to bbox once resolved.
+  bbox?: [number, number, number, number]; // DB column maps.bbox
+  bounds?: [number, number, number, number]; // Runtime-enriched in useMapList; equivalent to bbox once resolved.
   extra_metadata?: Record<string, string>;
-  iiif_image?: string;           // IIIF image service base URL (present once ingested)
-  creator?: string;              // present in search results
-  holding_institution?: string;  // present in search results
+  iiif_image?: string; // IIIF image service base URL (present once ingested)
+  creator?: string; // present in search results
+  holding_institution?: string; // present in search results
   // Search-result-only enrichment (only set by /api/search responses)
   _table?: 'maps' | 'scout';
   _score?: number;
-  _snippet?: string;             // ts_headline HTML (already sanitized to allow only <b>)
-  _scout?: {                     // when _table === 'scout'
+  _snippet?: string; // ts_headline HTML (already sanitized to allow only <b>)
+  _scout?: {
+    // when _table === 'scout'
     id: string;
     source: string;
     category?: string;
@@ -112,17 +113,17 @@ export interface MapListItem {
 
 /** Metadata extracted from a IIIF manifest. */
 export interface IIIFManifestMeta {
-  title?: string;           // actual descriptive title (from description/metadata["Title"])
-  shelfmark?: string;       // archival call number (BnF label / metadata["Shelfmark"])
+  title?: string; // actual descriptive title (from description/metadata["Title"])
+  shelfmark?: string; // archival call number (BnF label / metadata["Shelfmark"])
   creator?: string;
   date?: string;
   language?: string;
   rights?: string;
-  attribution?: string;     // holding institution (manifest.attribution / BnF "Repository")
-  sourceUrl?: string;       // canonical item page URL (manifest.related for BnF)
-  physicalDescription?: string;  // format/dimensions from metadata["Format"]
+  attribution?: string; // holding institution (manifest.attribution / BnF "Repository")
+  sourceUrl?: string; // canonical item page URL (manifest.related for BnF)
+  physicalDescription?: string; // format/dimensions from metadata["Format"]
   thumbnail?: string;
-  imageServiceUrl?: string;    // IIIF image service base URL
+  imageServiceUrl?: string; // IIIF image service base URL
   manifestVersion: 2 | 3;
 }
 
@@ -141,7 +142,7 @@ export interface MapIngestOwnScan {
 export interface MapIngestExternal {
   name: string;
   source_type: MapSourceType;
-  iiif_manifest: string;        // manifest URL to fetch metadata from
+  iiif_manifest: string; // manifest URL to fetch metadata from
   source_url?: string;
   collection?: string;
   location?: string;

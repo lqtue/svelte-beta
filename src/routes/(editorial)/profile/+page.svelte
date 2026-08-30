@@ -13,7 +13,12 @@
   const avatarUrl = user.user_metadata?.avatar_url;
   const displayName = user.user_metadata?.full_name || user.email;
   const initials = displayName
-    ? displayName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
+    ? displayName
+        .split(' ')
+        .map((n: string) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
     : '?';
 
   let role = 'user';
@@ -24,7 +29,10 @@
   function toggleLanguage() {
     if (isVietnamese) {
       document.cookie = 'googtrans=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-      document.cookie = 'googtrans=; Path=/; Domain=' + window.location.hostname + '; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie =
+        'googtrans=; Path=/; Domain=' +
+        window.location.hostname +
+        '; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
     } else {
       document.cookie = 'googtrans=/en/vi; path=/';
       document.cookie = 'googtrans=/en/vi; path=/; domain=' + window.location.hostname;
@@ -45,17 +53,23 @@
 
       // 2. Get counts
       const [pinsRes, tracesRes] = await Promise.all([
-        supabase.from('label_pins').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('footprint_submissions').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+        supabase
+          .from('label_pins')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        supabase
+          .from('footprint_submissions')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
       ]);
 
       stats = {
         pins: pinsRes.count || 0,
         traces: tracesRes.count || 0,
-        reviews: 0
+        reviews: 0,
       };
     } catch (e) {
-      console.error("Failed to load profile stats:", e);
+      console.error('Failed to load profile stats:', e);
     } finally {
       loading = false;
     }
@@ -122,13 +136,14 @@
           <div class="setting-item">
             <div class="setting-info">
               <span class="setting-name">Language</span>
-              <span class="setting-desc">Switch between English and Tiếng Việt — translation is beta</span>
+              <span class="setting-desc"
+                >Switch between English and Tiếng Việt — translation is beta</span
+              >
             </div>
             <button class="pill-btn lang-btn" on:click={toggleLanguage}>
               {isVietnamese ? '🇬🇧 Switch to English' : '🇻🇳 Tiếng Việt'}
             </button>
           </div>
-          
         </div>
       </div>
     </div>

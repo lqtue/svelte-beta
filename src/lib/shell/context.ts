@@ -21,27 +21,25 @@ import type { AnnotationStateStore } from '$lib/map/annotationState';
 const SHELL_CTX = Symbol('shell-context');
 
 export interface ShellContextValue {
-	/** Writable holding the OL Map instance (null until mount) */
-	map: Writable<Map | null>;
-	mapStore: MapStore;
-	layerStore: LayerStore;
-	/** Optional — only modes with annotation editing populate this */
-	annotations?: {
-		history: AnnotationHistoryStore;
-		state: AnnotationStateStore;
-	};
+  /** Writable holding the OL Map instance (null until mount) */
+  map: Writable<Map | null>;
+  mapStore: MapStore;
+  layerStore: LayerStore;
+  /** Optional — only modes with annotation editing populate this */
+  annotations?: {
+    history: AnnotationHistoryStore;
+    state: AnnotationStateStore;
+  };
 }
 
 export function setShellContext(value: ShellContextValue): void {
-	setContext(SHELL_CTX, value);
+  setContext(SHELL_CTX, value);
 }
 
 export function getShellContext(): ShellContextValue {
-	const ctx = getContext<ShellContextValue>(SHELL_CTX);
-	if (!ctx) {
-		throw new Error(
-			'Shell context not found — is this component inside a <MapShell>?'
-		);
-	}
-	return ctx;
+  const ctx = getContext<ShellContextValue>(SHELL_CTX);
+  if (!ctx) {
+    throw new Error('Shell context not found — is this component inside a <MapShell>?');
+  }
+  return ctx;
 }

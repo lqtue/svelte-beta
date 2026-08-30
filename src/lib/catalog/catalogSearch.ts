@@ -215,8 +215,8 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
         passType(r, $sel) &&
         passPeriod(r, $sel, $periods) &&
         passStatus(r, $sel) &&
-        (!requireGeoref || !!r.georef_done),
-    ),
+        (!requireGeoref || !!r.georef_done)
+    )
   );
 
   const filteredScout = derived([rawScout, selected, periods], ([$scout, $sel, $periods]) =>
@@ -225,8 +225,8 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
         passArea(r, $sel) &&
         passPeriod(r, $sel, $periods) &&
         passScoutCat(r, $sel) &&
-        passStatus(r, $sel),
-    ),
+        passStatus(r, $sel)
+    )
   );
 
   // "All-but-this-dimension" facet tallies, so a chip shows the count you'd
@@ -235,16 +235,16 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
     [rawMaps, rawScout, selected, periods, includeScout],
     ([$maps, $scout, $sel, $periods, $scoutOn]) => {
       const mapsForArea = $maps.filter(
-        (r) => passType(r, $sel) && passPeriod(r, $sel, $periods) && passStatus(r, $sel),
+        (r) => passType(r, $sel) && passPeriod(r, $sel, $periods) && passStatus(r, $sel)
       );
       const mapsForType = $maps.filter(
-        (r) => passArea(r, $sel) && passPeriod(r, $sel, $periods) && passStatus(r, $sel),
+        (r) => passArea(r, $sel) && passPeriod(r, $sel, $periods) && passStatus(r, $sel)
       );
       const mapsForStatus = $maps.filter(
-        (r) => passArea(r, $sel) && passType(r, $sel) && passPeriod(r, $sel, $periods),
+        (r) => passArea(r, $sel) && passType(r, $sel) && passPeriod(r, $sel, $periods)
       );
       const mapsForPeriod = $maps.filter(
-        (r) => passArea(r, $sel) && passType(r, $sel) && passStatus(r, $sel),
+        (r) => passArea(r, $sel) && passType(r, $sel) && passStatus(r, $sel)
       );
 
       const periodCounts: Record<string, number> = {};
@@ -271,7 +271,7 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
         status: statusCounts,
         scout_category: $scoutOn ? scoutCatTally : {},
       };
-    },
+    }
   );
 
   const results = derived([filteredMaps, filteredScout], ([$m, $s]) => [...$m, ...$s]);
@@ -287,7 +287,7 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
       $m
         .filter((r) => !requireGeoref || r.georef_done)
         .map((r) => periodOfYear(r.year, $periods))
-        .filter(Boolean),
+        .filter(Boolean)
     );
     return $periods.filter((p) => present.has(p.key));
   });

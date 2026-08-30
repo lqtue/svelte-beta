@@ -20,194 +20,191 @@ import { layersStore } from '$lib/stores/layersStore';
 import type { Keyframe } from './timelineStore';
 
 export interface PlaybackHandle {
-	stop: () => void;
-	isPlaying: () => boolean;
+  stop: () => void;
+  isPlaying: () => boolean;
 }
 
 export interface PlayOptions {
-	onFrameEnter?: (index: number) => void;
-	onFinish?: () => void;
-	onError?: (e: unknown) => void;
+  onFrameEnter?: (index: number) => void;
+  onFinish?: () => void;
+  onError?: (e: unknown) => void;
 }
 
 function wait(ms: number, signal: AbortSignal): Promise<void> {
-	return new Promise((resolve, reject) => {
-		if (ms <= 0) return resolve();
-		const t = setTimeout(() => resolve(), ms);
-		signal.addEventListener('abort', () => {
-			clearTimeout(t);
-			reject(new DOMException('aborted', 'AbortError'));
-		});
-	});
+  return new Promise((resolve, reject) => {
+    if (ms <= 0) return resolve();
+    const t = setTimeout(() => resolve(), ms);
+    signal.addEventListener('abort', () => {
+      clearTimeout(t);
+      reject(new DOMException('aborted', 'AbortError'));
+    });
+  });
 }
 
-function reconcileOverlays(
-	target: Keyframe,
-	mode: 'cut' | 'crossfade'
-): Map<string, string> {
-	// Returns mapId → local overlay id in the live store after reconciliation.
-	const live = get(layersStore);
-	const liveByMap = new Map(live.overlays.map((o) => [o.ref.mapId, o] as const));
-	const targetMapIds = new Set(target.layers.overlays.map((o) => o.mapId));
+function reconcileOverlays(target: Keyframe, mode: 'cut' | 'crossfade'): Map<string, string> {
+  // Returns mapId → local overlay id in the live store after reconciliation.
+  const live = get(layersStore);
+  const liveByMap = new Map(live.overlays.map((o) => [o.ref.mapId, o] as const));
+  const targetMapIds = new Set(target.layers.overlays.map((o) => o.mapId));
 
-	// Remove overlays the target frame doesn't include.
-	for (const o of live.overlays) {
-		if (!targetMapIds.has(o.ref.mapId)) layersStore.removeOverlay(o.id);
-	}
+  // Remove overlays the target frame doesn't include.
+  for (const o of live.overlays) {
+    if (!targetMapIds.has(o.ref.mapId)) layersStore.removeOverlay(o.id);
+  }
 
-	// Set base if it differs.
-	const liveBase = live.base;
-	const targetBase = target.layers.base;
-	const baseChanged =
-		liveBase.kind !== targetBase.kind ||
-		(liveBase.kind === 'historical' &&
-			targetBase.kind === 'historical' &&
-			liveBase.mapId !== targetBase.mapId) ||
-		(liveBase.kind === 'basemap' &&
-			targetBase.kind === 'basemap' &&
-			liveBase.key !== targetBase.key);
-	if (baseChanged) layersStore.setBase(targetBase);
+  // Set base if it differs.
+  const liveBase = live.base;
+  const targetBase = target.layers.base;
+  const baseChanged =
+    liveBase.kind !== targetBase.kind ||
+    (liveBase.kind === 'historical' &&
+      targetBase.kind === 'historical' &&
+      liveBase.mapId !== targetBase.mapId) ||
+    (liveBase.kind === 'basemap' &&
+      targetBase.kind === 'basemap' &&
+      liveBase.key !== targetBase.key);
+  if (baseChanged) layersStore.setBase(targetBase);
 
-	// Add missing overlays. In crossfade mode start at 0 so the tween fades them
-	// in; in cut mode start at target opacity (the tween loop will see no diff
-	// and skip them — instant appearance).
-	for (const t of target.layers.overlays) {
-		if (!liveByMap.has(t.mapId)) {
-			layersStore.addOverlay(
-				{
-					kind: 'historical',
-					mapId: t.mapId,
-					allmapsId: t.allmapsId,
-					name: t.name,
-					thumbnail: t.thumbnail
-				},
-				{ opacity: mode === 'crossfade' ? 0 : t.opacity }
-			);
-		}
-	}
+  // Add missing overlays. In crossfade mode start at 0 so the tween fades them
+  // in; in cut mode start at target opacity (the tween loop will see no diff
+  // and skip them — instant appearance).
+  for (const t of target.layers.overlays) {
+    if (!liveByMap.has(t.mapId)) {
+      layersStore.addOverlay(
+        {
+          kind: 'historical',
+          mapId: t.mapId,
+          allmapsId: t.allmapsId,
+          name: t.name,
+          thumbnail: t.thumbnail,
+        },
+        { opacity: mode === 'crossfade' ? 0 : t.opacity }
+      );
+    }
+  }
 
-	// Re-read and build the mapId → liveId map.
-	const next = get(layersStore);
-	return new Map(next.overlays.map((o) => [o.ref.mapId, o.id] as const));
+  // Re-read and build the mapId → liveId map.
+  const next = get(layersStore);
+  return new Map(next.overlays.map((o) => [o.ref.mapId, o.id] as const));
 }
 
 export function playTimeline(
-	map: OLMap,
-	frames: Keyframe[],
-	opts: PlayOptions = {}
+  map: OLMap,
+  frames: Keyframe[],
+  opts: PlayOptions = {}
 ): PlaybackHandle {
-	const controller = new AbortController();
-	const signal = controller.signal;
-	let active: JSAnimation[] = [];
-	let playing = true;
-	let cancelled = false;
+  const controller = new AbortController();
+  const signal = controller.signal;
+  let active: JSAnimation[] = [];
+  let playing = true;
+  let cancelled = false;
 
-	function stop() {
-		if (cancelled) return;
-		cancelled = true;
-		playing = false;
-		controller.abort();
-		for (const a of active) {
-			try {
-				a.pause();
-			} catch {}
-		}
-		active = [];
-		try {
-			map.getView().cancelAnimations();
-		} catch {}
-	}
+  function stop() {
+    if (cancelled) return;
+    cancelled = true;
+    playing = false;
+    controller.abort();
+    for (const a of active) {
+      try {
+        a.pause();
+      } catch {}
+    }
+    active = [];
+    try {
+      map.getView().cancelAnimations();
+    } catch {}
+  }
 
-	(async () => {
-		try {
-			for (let i = 0; i < frames.length; i++) {
-				if (cancelled) break;
-				const frame = frames[i];
-				opts.onFrameEnter?.(i);
+  (async () => {
+    try {
+      for (let i = 0; i < frames.length; i++) {
+        if (cancelled) break;
+        const frame = frames[i];
+        opts.onFrameEnter?.(i);
 
-				const mode = frame.overlay_transition ?? 'cut';
-				const overlayIds = reconcileOverlays(frame, mode);
+        const mode = frame.overlay_transition ?? 'cut';
+        const overlayIds = reconcileOverlays(frame, mode);
 
-				// Opacity diff between current live state and target keyframe.
-				const live = get(layersStore);
-				const targetByMap = new Map(frame.layers.overlays.map((o) => [o.mapId, o] as const));
-				active = [];
-				for (const o of live.overlays) {
-					const target = targetByMap.get(o.ref.mapId);
-					const to = target ? target.opacity : 0;
-					if (Math.abs(o.opacity - to) < 0.001) continue;
-					const id = overlayIds.get(o.ref.mapId) ?? o.id;
-					if (mode === 'cut') {
-						// Hard cut — apply immediately.
-						layersStore.setOpacity(id, to);
-						continue;
-					}
-					const proxy = { v: o.opacity };
-					const anim = animate(proxy, {
-						v: to,
-						duration: frame.duration_ms,
-						ease: 'inOutCubic',
-						onUpdate: () => layersStore.setOpacity(id, proxy.v)
-					});
-					active.push(anim);
-				}
+        // Opacity diff between current live state and target keyframe.
+        const live = get(layersStore);
+        const targetByMap = new Map(frame.layers.overlays.map((o) => [o.mapId, o] as const));
+        active = [];
+        for (const o of live.overlays) {
+          const target = targetByMap.get(o.ref.mapId);
+          const to = target ? target.opacity : 0;
+          if (Math.abs(o.opacity - to) < 0.001) continue;
+          const id = overlayIds.get(o.ref.mapId) ?? o.id;
+          if (mode === 'cut') {
+            // Hard cut — apply immediately.
+            layersStore.setOpacity(id, to);
+            continue;
+          }
+          const proxy = { v: o.opacity };
+          const anim = animate(proxy, {
+            v: to,
+            duration: frame.duration_ms,
+            ease: 'inOutCubic',
+            onUpdate: () => layersStore.setOpacity(id, proxy.v),
+          });
+          active.push(anim);
+        }
 
-				// Camera tween via OL.
-				const view = map.getView();
-				const cameraPromise: Promise<void> = new Promise((resolve) => {
-					view.animate(
-						{
-							center: fromLonLat([frame.camera.lng, frame.camera.lat]),
-							zoom: frame.camera.zoom,
-							rotation: frame.camera.rotation,
-							duration: frame.duration_ms,
-							easing: easeInOutCubic
-						},
-						() => resolve()
-					);
-				});
+        // Camera tween via OL.
+        const view = map.getView();
+        const cameraPromise: Promise<void> = new Promise((resolve) => {
+          view.animate(
+            {
+              center: fromLonLat([frame.camera.lng, frame.camera.lat]),
+              zoom: frame.camera.zoom,
+              rotation: frame.camera.rotation,
+              duration: frame.duration_ms,
+              easing: easeInOutCubic,
+            },
+            () => resolve()
+          );
+        });
 
-				// Wait for both camera + opacity tweens to finish (durations match).
-				await Promise.race([
-					Promise.all([cameraPromise, wait(frame.duration_ms, signal)]),
-					new Promise<void>((_, reject) => {
-						signal.addEventListener('abort', () =>
-							reject(new DOMException('aborted', 'AbortError'))
-						);
-					})
-				]);
+        // Wait for both camera + opacity tweens to finish (durations match).
+        await Promise.race([
+          Promise.all([cameraPromise, wait(frame.duration_ms, signal)]),
+          new Promise<void>((_, reject) => {
+            signal.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError'))
+            );
+          }),
+        ]);
 
-				if (cancelled) break;
-				if (frame.hold_ms > 0) await wait(frame.hold_ms, signal);
-			}
-			if (!cancelled) opts.onFinish?.();
-		} catch (e) {
-			if ((e as DOMException)?.name !== 'AbortError') opts.onError?.(e);
-		} finally {
-			playing = false;
-		}
-	})();
+        if (cancelled) break;
+        if (frame.hold_ms > 0) await wait(frame.hold_ms, signal);
+      }
+      if (!cancelled) opts.onFinish?.();
+    } catch (e) {
+      if ((e as DOMException)?.name !== 'AbortError') opts.onError?.(e);
+    } finally {
+      playing = false;
+    }
+  })();
 
-	return { stop, isPlaying: () => playing };
+  return { stop, isPlaying: () => playing };
 }
 
 function easeInOutCubic(t: number): number {
-	return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 /** Apply a keyframe instantly (no tween). Used for "Jump to". */
 export function applyKeyframeInstant(map: OLMap, frame: Keyframe): void {
-	reconcileOverlays(frame, 'cut');
-	const live = get(layersStore);
-	const targetByMap = new Map(frame.layers.overlays.map((o) => [o.mapId, o] as const));
-	for (const o of live.overlays) {
-		const target = targetByMap.get(o.ref.mapId);
-		layersStore.setOpacity(o.id, target ? target.opacity : 0);
-		if (target) layersStore.setVisible(o.id, target.visible);
-	}
-	const view = map.getView();
-	view.cancelAnimations();
-	view.setCenter(fromLonLat([frame.camera.lng, frame.camera.lat]));
-	view.setZoom(frame.camera.zoom);
-	view.setRotation(frame.camera.rotation);
+  reconcileOverlays(frame, 'cut');
+  const live = get(layersStore);
+  const targetByMap = new Map(frame.layers.overlays.map((o) => [o.mapId, o] as const));
+  for (const o of live.overlays) {
+    const target = targetByMap.get(o.ref.mapId);
+    layersStore.setOpacity(o.id, target ? target.opacity : 0);
+    if (target) layersStore.setVisible(o.id, target.visible);
+  }
+  const view = map.getView();
+  view.cancelAnimations();
+  view.setCenter(fromLonLat([frame.camera.lng, frame.camera.lat]));
+  view.setZoom(frame.camera.zoom);
+  view.setRotation(frame.camera.rotation);
 }

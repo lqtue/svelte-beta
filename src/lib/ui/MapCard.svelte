@@ -86,7 +86,9 @@
     text-decoration: none;
     color: inherit;
     box-shadow: var(--shadow-solid-sm);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
     height: 100%;
   }
 
@@ -118,8 +120,10 @@
     height: 100%;
     background-image: repeating-linear-gradient(
       45deg,
-      var(--color-yellow) 0, var(--color-yellow) 10px,
-      var(--color-white) 10px, var(--color-white) 20px
+      var(--color-yellow) 0,
+      var(--color-yellow) 10px,
+      var(--color-white) 10px,
+      var(--color-white) 20px
     );
   }
 
@@ -142,8 +146,14 @@
     box-shadow: 2px 2px 0px var(--color-border);
   }
 
-  .year-badge   { background: var(--color-green);  color: var(--color-text); }
-  .source-badge { background: var(--color-orange); color: var(--color-white); }
+  .year-badge {
+    background: var(--color-green);
+    color: var(--color-text);
+  }
+  .source-badge {
+    background: var(--color-orange);
+    color: var(--color-white);
+  }
 
   .map-info {
     padding: 1.25rem;
@@ -191,8 +201,12 @@
     transition: transform 0.1s;
   }
 
-  .fav-btn:hover  { transform: scale(1.1) rotate(10deg); }
-  .fav-btn:active { transform: scale(0.95); }
+  .fav-btn:hover {
+    transform: scale(1.1) rotate(10deg);
+  }
+  .fav-btn:active {
+    transform: scale(0.95);
+  }
 
   .compare-btn {
     position: absolute;
@@ -212,16 +226,37 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.1s, background 0.1s, color 0.1s;
+    transition:
+      transform 0.1s,
+      background 0.1s,
+      color 0.1s;
     font-family: 'Space Grotesk', sans-serif;
   }
-  .compare-btn:hover  { transform: scale(1.1); background: #fef3c7; }
-  .compare-btn:active { transform: scale(0.95); }
-  .compare-btn.active { background: #111; color: #fff; }
-  .compare-btn.active:hover { background: #333; }
-  .compare-btn.disabled { opacity: 0.4; cursor: not-allowed; }
-  .compare-btn.disabled:hover { transform: none; background: var(--color-white); }
+  .compare-btn:hover {
+    transform: scale(1.1);
+    background: #fef3c7;
+  }
+  .compare-btn:active {
+    transform: scale(0.95);
+  }
+  .compare-btn.active {
+    background: #111;
+    color: #fff;
+  }
+  .compare-btn.active:hover {
+    background: #333;
+  }
+  .compare-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .compare-btn.disabled:hover {
+    transform: none;
+    background: var(--color-white);
+  }
 
   /* When showFavorite is false, the compare button takes the favorite slot */
-  .map-card-wrapper:not(:has(.fav-btn)) .compare-btn { right: -10px; }
+  .map-card-wrapper:not(:has(.fav-btn)) .compare-btn {
+    right: -10px;
+  }
 </style>

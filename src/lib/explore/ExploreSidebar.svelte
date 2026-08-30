@@ -21,7 +21,12 @@
     toggleCollapse: void;
     pickMap: any;
     removeOverlay: { mapId: string };
-    pickLocation: { lat: number; lng: number; label: string; bbox?: [number, number, number, number] };
+    pickLocation: {
+      lat: number;
+      lng: number;
+      label: string;
+      bbox?: [number, number, number, number];
+    };
     changeViewMode: { mode: ViewMode };
     zoomToOverlay: { mapId: string };
     toggleGps: void;
@@ -50,7 +55,11 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length === 3 && parsed.every((n) => typeof n === 'number')) {
+      if (
+        Array.isArray(parsed) &&
+        parsed.length === 3 &&
+        parsed.every((n) => typeof n === 'number')
+      ) {
         ratios = parsed as [number, number, number];
       }
     } catch {}
@@ -58,7 +67,9 @@
 
   function persist() {
     if (!browser) return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(ratios)); } catch {}
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ratios));
+    } catch {}
   }
 
   let containerEl: HTMLElement | null = null;
@@ -111,8 +122,16 @@
       aria-label="Collapse panel"
       title="Hide panel"
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10"/><path d="M19 8l-4 4 4 4"/>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      >
+        <path d="M15 3H5a2 2 0 00-2 2v14a2 2 0 002 2h10" /><path d="M19 8l-4 4 4 4" />
       </svg>
     </button>
   </div>

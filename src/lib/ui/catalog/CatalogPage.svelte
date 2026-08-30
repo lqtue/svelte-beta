@@ -1,13 +1,13 @@
 <script lang="ts">
-    import "$styles/components/catalog.css";
+  import '$styles/components/catalog.css';
 </script>
 
 <div class="catalog-page">
-    <slot name="header" />
-    <div class="catalog-container">
-        <slot name="filters" />
-        <main class="catalog-main">
-            <slot />
-        </main>
-    </div>
+  <slot name="header" />
+  <div class="catalog-container">
+    <slot name="filters" />
+    <main class="catalog-main">
+      <slot />
+    </main>
+  </div>
 </div>

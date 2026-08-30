@@ -8,8 +8,10 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const sb = createClient(env.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
 const apply = process.argv.includes('--apply');
@@ -33,15 +35,25 @@ function clean(name) {
 }
 
 const { data: maps } = await sb.from('maps').select('id, name');
-const changes = maps.filter(m => clean(m.name) !== m.name);
+const changes = maps.filter((m) => clean(m.name) !== m.name);
 console.log(`${changes.length} maps would change.\n`);
 for (const m of changes.slice(0, 50)) console.log(`  "${m.name}"\n  → "${clean(m.name)}"`);
 if (changes.length > 50) console.log(`  … and ${changes.length - 50} more`);
 
-if (!apply) { console.log('\nDRY-RUN — pass --apply to write.'); process.exit(0); }
-let ok = 0, fail = 0;
+if (!apply) {
+  console.log('\nDRY-RUN — pass --apply to write.');
+  process.exit(0);
+}
+let ok = 0,
+  fail = 0;
 for (const m of changes) {
-  const { error } = await sb.from('maps').update({ name: clean(m.name) }).eq('id', m.id);
-  if (error) { console.error(`✗ ${m.id}: ${error.message}`); fail++; } else ok++;
+  const { error } = await sb
+    .from('maps')
+    .update({ name: clean(m.name) })
+    .eq('id', m.id);
+  if (error) {
+    console.error(`✗ ${m.id}: ${error.message}`);
+    fail++;
+  } else ok++;
 }
 console.log(`\nApplied: ${ok} ok, ${fail} failed.`);

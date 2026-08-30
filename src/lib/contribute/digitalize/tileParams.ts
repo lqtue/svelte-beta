@@ -5,7 +5,6 @@ export interface TileParams {
   tileCount: number;
 }
 
-
 /** Enumerate tile (x,y,w,h) rects covering a neatline region. */
 export function buildTileGrid(
   nx: number,

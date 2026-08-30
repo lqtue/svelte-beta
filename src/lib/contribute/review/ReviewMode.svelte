@@ -25,7 +25,8 @@
   let approving: string | null = null;
 
   // Track pending geometry/type edits before approve
-  let pendingEdits: Record<string, { pixelPolygon?: [number, number][]; featureType?: string }> = {};
+  let pendingEdits: Record<string, { pixelPolygon?: [number, number][]; featureType?: string }> =
+    {};
 
   // Derived from the first footprint's iiifCanvas
   let iiifInfoUrl: string | null = null;
@@ -66,7 +67,9 @@
   function handleRetype(id: string, featureType: string) {
     pendingEdits[id] = { ...pendingEdits[id], featureType };
     // Update local array so sidebar swatch reflects the change
-    footprints = footprints.map(f => f.id === id ? { ...f, featureType: featureType as FeatureType } : f);
+    footprints = footprints.map((f) =>
+      f.id === id ? { ...f, featureType: featureType as FeatureType } : f
+    );
   }
 
   async function handleApprove(id: string) {
@@ -96,8 +99,8 @@
         return;
       }
       // Remove from list; advance selection; clear pending edit
-      const idx = footprints.findIndex(f => f.id === id);
-      footprints = footprints.filter(f => f.id !== id);
+      const idx = footprints.findIndex((f) => f.id === id);
+      footprints = footprints.filter((f) => f.id !== id);
       selectedId = footprints[idx]?.id ?? footprints[idx - 1]?.id ?? null;
       delete pendingEdits[id];
     } finally {
@@ -162,12 +165,14 @@
     justify-content: center;
     gap: 1rem;
     background: #111;
-    font-family: "Be Vietnam Pro", sans-serif;
+    font-family: 'Be Vietnam Pro', sans-serif;
     color: #d1c9be;
     font-size: 0.9rem;
   }
 
-  .fullscreen-state.error { color: #fca5a5; }
+  .fullscreen-state.error {
+    color: #fca5a5;
+  }
 
   .spinner {
     width: 28px;
@@ -178,7 +183,11 @@
     animation: spin 0.7s linear infinite;
   }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .review-layout {
     position: fixed;
@@ -186,7 +195,7 @@
     display: flex;
     flex-direction: column;
     background: #111;
-    font-family: "Be Vietnam Pro", sans-serif;
+    font-family: 'Be Vietnam Pro', sans-serif;
   }
 
   .review-header {
@@ -209,10 +218,15 @@
     font-family: inherit;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
-    transition: color 0.15s, background 0.15s;
+    transition:
+      color 0.15s,
+      background 0.15s;
   }
 
-  .back-btn:hover { color: #e8e0d0; background: #2d2a26; }
+  .back-btn:hover {
+    color: #e8e0d0;
+    background: #2d2a26;
+  }
 
   .header-title {
     flex: 1;

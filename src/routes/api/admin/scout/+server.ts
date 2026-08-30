@@ -10,7 +10,11 @@ async function assertAdmin(locals: App.Locals) {
   const { session, user } = await locals.safeGetSession();
   if (!session || !user) throw error(401, 'Unauthorized');
   const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
   const role = (profile as { role?: string } | null)?.role;
   if (role !== 'admin' && role !== 'mod') throw error(403, 'Forbidden');
   return { user, supabase };
@@ -90,10 +94,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         year: c.year ?? null,
         year_label: c.date ?? null,
         status: 'draft',
-        source_type:
-          holdingInst.includes('David Rumsey') ? 'rumsey'
-          : holdingInst.includes('Bibliothèque nationale') ? 'bnf'
-          : 'other',
+        source_type: holdingInst.includes('David Rumsey')
+          ? 'rumsey'
+          : holdingInst.includes('Bibliothèque nationale')
+            ? 'bnf'
+            : 'other',
         holding_institution: c.holding_institution ?? null,
         collection: c.collection ?? null,
         original_title: c.title ?? null,
@@ -113,12 +118,21 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         },
       };
       const { data: newMap, error: insErr } = await supabase
-        .from('maps').insert(insertPayload).select('id').single();
+        .from('maps')
+        .insert(insertPayload)
+        .select('id')
+        .single();
       if (insErr) throw new Error(insErr.message);
       const mapId = newMap.id;
 
-      await supabase.from('scout_candidates')
-        .update({ status: 'ingested', map_id: mapId, reviewer_id: user.id, reviewed_at: new Date().toISOString() })
+      await supabase
+        .from('scout_candidates')
+        .update({
+          status: 'ingested',
+          map_id: mapId,
+          reviewer_id: user.id,
+          reviewed_at: new Date().toISOString(),
+        })
         .eq('id', c.id);
 
       results.push({ id: c.id, map_id: mapId });
@@ -127,5 +141,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     }
   }
 
-  return json({ results, ok: results.filter(r => !r.error).length, failed: results.filter(r => r.error).length });
+  return json({
+    results,
+    ok: results.filter((r) => !r.error).length,
+    failed: results.filter((r) => r.error).length,
+  });
 };

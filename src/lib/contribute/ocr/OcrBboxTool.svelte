@@ -56,7 +56,9 @@
   }>();
 
   const STATUS_DASH: Record<string, number[]> = {
-    pending: [5, 4], validated: [], rejected: [2, 2],
+    pending: [5, 4],
+    validated: [],
+    rejected: [2, 2],
   };
 
   const shellStore = getImageShellStore();
@@ -75,7 +77,7 @@
 
   function handleStyleFn(feat: Feature): Style {
     const bboxId = feat.get('bboxId') as string;
-    const ext = extractions.find(e => e.id === bboxId);
+    const ext = extractions.find((e) => e.id === bboxId);
     const color = CAT_COLORS[ext?.category ?? ''] ?? '#9ca3af';
     return new Style({
       image: new RegularShape({
@@ -106,15 +108,22 @@
     const label = ext.text_validated ?? ext.text;
 
     return new Style({
-      stroke: new Stroke({ color: color + (opacity < 1 ? '66' : ''), width: selected ? 3 : 1.5, lineDash: dash }),
-      fill: new Fill({ color: color + (selected ? '44' : (opacity < 0.5 ? '08' : '18')) }),
-      text: opacity > 0.5 ? new TextStyle({
-        text: label.length > 28 ? label.slice(0, 28) + '…' : label,
-        font: '10px "Be Vietnam Pro", sans-serif',
-        fill: new Fill({ color: '#fff' }),
-        stroke: new Stroke({ color: '#2b2520', width: 2.5 }),
-        overflow: true,
-      }) : undefined,
+      stroke: new Stroke({
+        color: color + (opacity < 1 ? '66' : ''),
+        width: selected ? 3 : 1.5,
+        lineDash: dash,
+      }),
+      fill: new Fill({ color: color + (selected ? '44' : opacity < 0.5 ? '08' : '18') }),
+      text:
+        opacity > 0.5
+          ? new TextStyle({
+              text: label.length > 28 ? label.slice(0, 28) + '…' : label,
+              font: '10px "Be Vietnam Pro", sans-serif',
+              fill: new Fill({ color: '#fff' }),
+              stroke: new Stroke({ color: '#2b2520', width: 2.5 }),
+              overflow: true,
+            })
+          : undefined,
     });
   }
 
@@ -163,14 +172,30 @@
     if (!handleSource) return;
     handleSource.clear();
     if (!selectedId) return;
-    const ext = extractions.find(e => e.id === selectedId);
+    const ext = extractions.find((e) => e.id === selectedId);
     if (!ext || !(ext.global_w > 0)) return;
-    const feats = createHandleFeatures(selectedId, ext.global_x, ext.global_y, ext.global_w, ext.global_h);
+    const feats = createHandleFeatures(
+      selectedId,
+      ext.global_x,
+      ext.global_y,
+      ext.global_w,
+      ext.global_h
+    );
     handleSource.addFeatures(feats);
   }
 
-  $: { extractions; selectedId; filteredIds; isolationMode; bboxSource && syncFeatures(); }
-  $: { selectedId; extractions; handleSource && syncHandles(); }
+  $: {
+    extractions;
+    selectedId;
+    filteredIds;
+    isolationMode;
+    bboxSource && syncFeatures();
+  }
+  $: {
+    selectedId;
+    extractions;
+    handleSource && syncHandles();
+  }
 
   // Toggle draw mode: disable select/translate, enable Draw interaction
   $: if (initialized) toggleDrawMode(drawMode);
@@ -229,7 +254,13 @@
         const id = feat.get('extractionId') as string;
         const extent = (feat.getGeometry() as Polygon).getExtent();
         const rect = fromOlExtent(extent);
-        dispatch('move', { id, global_x: rect.x, global_y: rect.y, global_w: rect.w, global_h: rect.h });
+        dispatch('move', {
+          id,
+          global_x: rect.x,
+          global_y: rect.y,
+          global_w: rect.w,
+          global_h: rect.h,
+        });
         // Refresh handle positions to match new body position
         if (handleSource && id === selectedId) {
           const handles = handleSource.getFeatures();
@@ -252,7 +283,7 @@
 
       const role = feat.get('handleRole') as HandleRole;
       const bboxId = feat.get('bboxId') as string;
-      const ext = extractions.find(ex => ex.id === bboxId);
+      const ext = extractions.find((ex) => ex.id === bboxId);
       if (!ext) return;
 
       // New position of the dragged corner (convert from OL y-flip to image space)
@@ -269,17 +300,35 @@
         (bboxFeat.getGeometry() as Polygon).setCoordinates([
           toOlRing(newRect.x, newRect.y, newRect.w, newRect.h),
         ]);
-        const updatedExt = { ...ext, global_x: newRect.x, global_y: newRect.y, global_w: newRect.w, global_h: newRect.h };
+        const updatedExt = {
+          ...ext,
+          global_x: newRect.x,
+          global_y: newRect.y,
+          global_w: newRect.w,
+          global_h: newRect.h,
+        };
         bboxFeat.set('extraction', updatedExt);
         bboxFeat.setStyle(makeStyle(updatedExt, true));
       }
 
       // Refresh all 4 handles to match new rect (the other 3 didn't move visually)
       if (handleSource) {
-        updateHandlePositions(handleSource.getFeatures(), newRect.x, newRect.y, newRect.w, newRect.h);
+        updateHandlePositions(
+          handleSource.getFeatures(),
+          newRect.x,
+          newRect.y,
+          newRect.w,
+          newRect.h
+        );
       }
 
-      dispatch('move', { id: bboxId, global_x: newRect.x, global_y: newRect.y, global_w: newRect.w, global_h: newRect.h });
+      dispatch('move', {
+        id: bboxId,
+        global_x: newRect.x,
+        global_y: newRect.y,
+        global_w: newRect.w,
+        global_h: newRect.h,
+      });
     });
     olMap.addInteraction(handleTranslate);
 

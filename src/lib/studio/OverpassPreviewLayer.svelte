@@ -35,7 +35,8 @@
   function teardown() {
     const map = $mapStore;
     if (layer && map) map.removeLayer(layer);
-    layer = null; source = null;
+    layer = null;
+    source = null;
   }
 
   $: {

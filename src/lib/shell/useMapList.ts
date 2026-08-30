@@ -35,7 +35,7 @@ export function createMapList(): MapListController {
           cur.map((m) => {
             const b = m.allmaps_id ? boundsMap.get(m.allmaps_id) : undefined;
             return b ? { ...m, bounds: b } : m;
-          }),
+          })
         );
       });
     }

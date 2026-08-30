@@ -10,8 +10,8 @@ import { resolve } from 'path';
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
     .split('\n')
-    .filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim()))
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
     .filter(([k]) => k)
 );
 const SUPABASE_URL = env.PUBLIC_SUPABASE_URL;
@@ -34,14 +34,29 @@ async function sb(path) {
 }
 
 const CORE_DC = [
-  'original_title', 'creator', 'dc_publisher', 'year_label',
-  'shelfmark', 'source_url', 'rights', 'dc_description',
+  'original_title',
+  'creator',
+  'dc_publisher',
+  'year_label',
+  'shelfmark',
+  'source_url',
+  'rights',
+  'dc_description',
 ];
-const SUPP_DC = [
-  'dc_subject', 'dc_coverage', 'language', 'physical_description', 'collection',
-];
+const SUPP_DC = ['dc_subject', 'dc_coverage', 'language', 'physical_description', 'collection'];
 const IDENTITY = ['name', 'location', 'year', 'map_type', 'source_type', 'status'];
-const ALL_FIELDS = [...IDENTITY, ...CORE_DC, ...SUPP_DC, 'allmaps_id', 'iiif_image', 'iiif_manifest', 'thumbnail', 'bbox', 'extra_metadata', 'is_featured'];
+const ALL_FIELDS = [
+  ...IDENTITY,
+  ...CORE_DC,
+  ...SUPP_DC,
+  'allmaps_id',
+  'iiif_image',
+  'iiif_manifest',
+  'thumbnail',
+  'bbox',
+  'extra_metadata',
+  'is_featured',
+];
 
 const cols = ['id', ...ALL_FIELDS].join(',');
 const maps = await sb(`/maps?select=${cols}&order=created_at.asc`);
@@ -53,7 +68,7 @@ console.log(`Total maps: ${maps.length}\n`);
 console.log(`--- Field coverage (% non-null/non-empty) ---`);
 const cov = {};
 for (const f of ALL_FIELDS) {
-  const filled = maps.filter(m => {
+  const filled = maps.filter((m) => {
     const v = m[f];
     if (v === null || v === undefined) return false;
     if (typeof v === 'string' && v.trim() === '') return false;
@@ -63,7 +78,8 @@ for (const f of ALL_FIELDS) {
   }).length;
   cov[f] = filled;
 }
-const fmt = (n) => `${String(n).padStart(3)}/${maps.length} (${String(Math.round(100 * n / maps.length)).padStart(3)}%)`;
+const fmt = (n) =>
+  `${String(n).padStart(3)}/${maps.length} (${String(Math.round((100 * n) / maps.length)).padStart(3)}%)`;
 console.log('\nIDENTITY:');
 for (const f of IDENTITY) console.log(`  ${f.padEnd(28)} ${fmt(cov[f])}`);
 console.log('\nCORE DUBLIN CORE:');
@@ -71,13 +87,30 @@ for (const f of CORE_DC) console.log(`  ${f.padEnd(28)} ${fmt(cov[f])}`);
 console.log('\nSUPPLEMENTARY DC:');
 for (const f of SUPP_DC) console.log(`  ${f.padEnd(28)} ${fmt(cov[f])}`);
 console.log('\nHOSTING:');
-for (const f of ['allmaps_id', 'iiif_image', 'iiif_manifest', 'thumbnail', 'bbox', 'extra_metadata', 'is_featured']) {
+for (const f of [
+  'allmaps_id',
+  'iiif_image',
+  'iiif_manifest',
+  'thumbnail',
+  'bbox',
+  'extra_metadata',
+  'is_featured',
+]) {
   console.log(`  ${f.padEnd(28)} ${fmt(cov[f])}`);
 }
 
 // 2. Distinct values for low-cardinality fields
 console.log(`\n--- Distinct values (controlled vocab fields) ---`);
-for (const f of ['map_type', 'source_type', 'status', 'collection', 'language', 'rights', 'creator', 'dc_publisher']) {
+for (const f of [
+  'map_type',
+  'source_type',
+  'status',
+  'collection',
+  'language',
+  'rights',
+  'creator',
+  'dc_publisher',
+]) {
   const counts = {};
   for (const m of maps) {
     const v = m[f] == null || m[f] === '' ? '(empty)' : String(m[f]);
@@ -93,7 +126,11 @@ for (const f of ['map_type', 'source_type', 'status', 'collection', 'language', 
 
 // 3. year_label vs year consistency
 console.log(`\n--- year vs year_label consistency ---`);
-let yMatch = 0, yMismatch = 0, yOnlyLabel = 0, yOnlyNum = 0, yBoth = 0;
+let yMatch = 0,
+  yMismatch = 0,
+  yOnlyLabel = 0,
+  yOnlyNum = 0,
+  yBoth = 0;
 const mismatches = [];
 for (const m of maps) {
   const hasY = m.year != null;
@@ -102,7 +139,10 @@ for (const m of maps) {
     yBoth++;
     const numInLabel = String(m.year_label).match(/\b(1[5-9]\d\d|20\d\d)\b/);
     if (numInLabel && parseInt(numInLabel[1]) === m.year) yMatch++;
-    else { yMismatch++; mismatches.push(`  [${m.id.slice(0, 8)}] year=${m.year}  label="${m.year_label}"`); }
+    else {
+      yMismatch++;
+      mismatches.push(`  [${m.id.slice(0, 8)}] year=${m.year}  label="${m.year_label}"`);
+    }
   } else if (hasY) yOnlyNum++;
   else if (hasL) yOnlyLabel++;
 }
@@ -150,7 +190,7 @@ if (issues.length > 40) console.log(`  ... and ${issues.length - 40} more`);
 console.log(`\n--- Completeness (CORE DC fields filled per map) ---`);
 const bucket = {};
 for (const m of maps) {
-  const n = CORE_DC.filter(f => m[f] != null && String(m[f]).trim() !== '').length;
+  const n = CORE_DC.filter((f) => m[f] != null && String(m[f]).trim() !== '').length;
   bucket[n] = (bucket[n] || 0) + 1;
 }
 for (let i = 0; i <= CORE_DC.length; i++) {

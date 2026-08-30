@@ -28,6 +28,6 @@ const COMPASS = [
  * 8-way compass bucket: N at 0°/360°, each bucket spans 45°.
  */
 export function compassLabel(deg: number): { arrow: string; label: string } {
-  const idx = Math.round(((deg % 360) + 360) % 360 / 45) % 8;
+  const idx = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
   return COMPASS[idx];
 }

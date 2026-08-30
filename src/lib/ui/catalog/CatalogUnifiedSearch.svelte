@@ -33,7 +33,17 @@
   const dispatch = createEventDispatcher<{ pick: any }>();
 
   const search = createCatalogSearch({ requireGeoref });
-  const { query, loading, periods, results, facets, total, areaChoices, typeChoices, includeScout } = search;
+  const {
+    query,
+    loading,
+    periods,
+    results,
+    facets,
+    total,
+    areaChoices,
+    typeChoices,
+    includeScout,
+  } = search;
 
   // Mirror the parent's search box into the engine's query store.
   $: query.set(searchQuery);
@@ -59,7 +69,10 @@
   async function openEditor(item: any) {
     editError = '';
     const { data, error } = await supabase.from('maps').select('*').eq('id', item.id).single();
-    if (error) { editError = error.message; return; }
+    if (error) {
+      editError = error.message;
+      return;
+    }
     editingMap = data as MapRow;
   }
   function afterEdit() {
@@ -87,12 +100,7 @@
 
 <div class="v2-layout" class:compact>
   {#if !compact}
-    <FacetRail
-      facets={$facets}
-      periods={$periods}
-      bind:selected
-      showScoutFacets={$includeScout}
-    />
+    <FacetRail facets={$facets} periods={$periods} bind:selected showScoutFacets={$includeScout} />
   {/if}
   <div class="v2-results">
     {#if compact && ($areaChoices.length > 0 || $typeChoices.length > 0)}
@@ -160,7 +168,7 @@
         {compact}
         {activeId}
         {showLayerActions}
-        on:open={(e) => pickMode ? dispatch('pick', e.detail) : (openedItem = e.detail)}
+        on:open={(e) => (pickMode ? dispatch('pick', e.detail) : (openedItem = e.detail))}
         on:facet={handleRowFacet}
       />
     {/if}
@@ -192,20 +200,41 @@
     gap: 1.25rem;
     align-items: start;
   }
-  .v2-layout.compact { grid-template-columns: 1fr; gap: 0.5rem; }
-  .v2-layout.compact .v2-toolbar { font-size: 0.78rem; padding: 0.35rem 0.55rem; }
-  .v2-results { display: flex; flex-direction: column; gap: 0.75rem; }
+  .v2-layout.compact {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .v2-layout.compact .v2-toolbar {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.55rem;
+  }
+  .v2-results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
   .v2-toolbar {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 0.5rem 0.75rem;
     background: #fff;
-    border: 1.5px solid #111; border-radius: 6px;
-    font-family: 'Outfit', sans-serif; font-size: 0.85rem;
+    border: 1.5px solid #111;
+    border-radius: 6px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
   }
-  .v2-count strong { font-weight: 800; }
-  .v2-loading { margin-left: 0.4rem; opacity: 0.6; }
+  .v2-count strong {
+    font-weight: 800;
+  }
+  .v2-loading {
+    margin-left: 0.4rem;
+    opacity: 0.6;
+  }
   .v2-scout-toggle {
-    display: inline-flex; align-items: center; gap: 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     font-weight: 700;
     cursor: pointer;
   }
@@ -215,18 +244,24 @@
     gap: 1rem;
   }
   .v2-selects {
-    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     font-family: 'Outfit', sans-serif;
   }
   .v2-select {
     flex: 1 1 140px;
     min-width: 0;
-    display: flex; flex-direction: column; gap: 0.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
   }
   .v2-select-label {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.62rem; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.05em;
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: #555;
   }
   .v2-select select {
@@ -234,26 +269,49 @@
     min-height: 38px;
     padding: 0.35rem 0.55rem;
     background: #fff;
-    border: 1.5px solid #111; border-radius: 6px;
-    font: inherit; font-family: 'Outfit', sans-serif;
-    font-size: 0.85rem; font-weight: 700;
+    border: 1.5px solid #111;
+    border-radius: 6px;
+    font: inherit;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
     color: #111;
     cursor: pointer;
   }
 
   .edit-error {
-    position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 60;
     padding: 0.6rem 1rem;
-    background: #ffe0e0; border: 2px solid #111; border-radius: 8px;
+    background: #ffe0e0;
+    border: 2px solid #111;
+    border-radius: 8px;
     box-shadow: 3px 3px 0 #111;
-    font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.85rem;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
   }
-  .state-panel { text-align: center; padding: 3rem 1rem; }
-  .empty-emoji { font-size: 3rem; }
-  .state-title { font-family: 'Space Grotesk', sans-serif; font-weight: 800; margin: 0.5rem 0; }
-  .state-desc { color: #555; }
+  .state-panel {
+    text-align: center;
+    padding: 3rem 1rem;
+  }
+  .empty-emoji {
+    font-size: 3rem;
+  }
+  .state-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800;
+    margin: 0.5rem 0;
+  }
+  .state-desc {
+    color: #555;
+  }
   @media (max-width: 900px) {
-    .v2-layout { grid-template-columns: 1fr; }
+    .v2-layout {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

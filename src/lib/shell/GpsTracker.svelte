@@ -49,7 +49,7 @@
 
   function createTrackStyle(): Style {
     return new Style({
-      stroke: new Stroke({ color: '#ea580c', width: 4, lineCap: 'round', lineJoin: 'round' })
+      stroke: new Stroke({ color: '#ea580c', width: 4, lineCap: 'round', lineJoin: 'round' }),
     });
   }
 
@@ -58,8 +58,8 @@
       image: new CircleStyle({
         radius: 8,
         fill: new Fill({ color: '#ffffff' }),
-        stroke: new Stroke({ color: '#ea580c', width: 3 })
-      })
+        stroke: new Stroke({ color: '#ea580c', width: 3 }),
+      }),
     });
   }
 
@@ -111,8 +111,11 @@
         dispatch('error', { message });
         trackingState = 'inactive';
         dispatch('stateChange', { state: 'inactive' });
-        if (watchId !== null) { stopTracking(watchId); watchId = null; }
-      }
+        if (watchId !== null) {
+          stopTracking(watchId);
+          watchId = null;
+        }
+      },
     });
 
     if (watchId !== null) {
@@ -122,7 +125,10 @@
   }
 
   function stop() {
-    if (watchId !== null) { stopTracking(watchId); watchId = null; }
+    if (watchId !== null) {
+      stopTracking(watchId);
+      watchId = null;
+    }
     trackingState = 'inactive';
     dispatch('stateChange', { state: 'inactive' });
   }
@@ -139,21 +145,23 @@
       trackLayer = new VectorImageLayer({
         source: trackSource,
         zIndex: 20,
-        style: createTrackStyle
+        style: createTrackStyle,
       });
 
       positionSource = new VectorSource();
       positionLayer = new VectorImageLayer({
         source: positionSource,
         zIndex: 25,
-        style: createPositionStyle
+        style: createPositionStyle,
       });
 
       olMap.addLayer(trackLayer);
       olMap.addLayer(positionLayer);
     });
 
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   });
 
   onDestroy(() => {

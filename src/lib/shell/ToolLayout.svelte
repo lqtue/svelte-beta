@@ -68,8 +68,12 @@
   // ── Sidebar resizing (desktop) ───────────────────────────────
   let resizing: 'left' | 'right' | null = null;
 
-  function startResizingLeft()  { startResizing('left'); }
-  function startResizingRight() { startResizing('right'); }
+  function startResizingLeft() {
+    startResizing('left');
+  }
+  function startResizingRight() {
+    startResizing('right');
+  }
   function startResizing(side: 'left' | 'right') {
     resizing = side;
     window.addEventListener('mousemove', handleMouseMove);
@@ -84,7 +88,10 @@
     if (resizing === 'left') {
       sidebarWidth = Math.max(260, Math.min(sidebarMaxWidth, e.clientX));
     } else {
-      rightSidebarWidth = Math.max(260, Math.min(rightSidebarMaxWidth, window.innerWidth - e.clientX));
+      rightSidebarWidth = Math.max(
+        260,
+        Math.min(rightSidebarMaxWidth, window.innerWidth - e.clientX)
+      );
     }
   }
   function stopResizing() {
@@ -154,7 +161,15 @@
           on:click={() => (sidebarCollapsed = false)}
           title="Show panel"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
             <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" />
           </svg>
         </button>
@@ -169,7 +184,15 @@
           on:click={() => (rightSidebarCollapsed = false)}
           title="Show editor"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
             <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" />
           </svg>
         </button>
@@ -184,7 +207,11 @@
   </div>
 
   {#if showRightSidebar}
-    <div class="resize-handle resize-handle-right" on:mousedown={startResizingRight} role="presentation"></div>
+    <div
+      class="resize-handle resize-handle-right"
+      on:mousedown={startResizingRight}
+      role="presentation"
+    ></div>
     <div class="right-sidebar-slot">
       <slot name="right-sidebar" />
     </div>
@@ -197,19 +224,35 @@
 
     <div class="drawer-stack" class:open={openDrawer !== 'none'} class:is-expanded={drawerExpanded}>
       <!-- Shared body: shows the active drawer's content. Hidden when closed. -->
-      <div class="drawer-body" aria-hidden={openDrawer === 'none'} on:scroll|capture={onDrawerScroll}>
+      <div
+        class="drawer-body"
+        aria-hidden={openDrawer === 'none'}
+        on:scroll|capture={onDrawerScroll}
+      >
         {#if hasMobileLayers}
-          <div class="drawer-pane" class:active={openDrawer === 'layers'} style="order: {orderOf('layers')}">
+          <div
+            class="drawer-pane"
+            class:active={openDrawer === 'layers'}
+            style="order: {orderOf('layers')}"
+          >
             <slot name="mobile-layers" />
           </div>
         {/if}
         {#if hasMobileControls}
-          <div class="drawer-pane" class:active={openDrawer === 'controls'} style="order: {orderOf('controls')}">
+          <div
+            class="drawer-pane"
+            class:active={openDrawer === 'controls'}
+            style="order: {orderOf('controls')}"
+          >
             <slot name="mobile-controls" />
           </div>
         {/if}
         {#if hasMobileBrowse}
-          <div class="drawer-pane" class:active={openDrawer === 'browse'} style="order: {orderOf('browse')}">
+          <div
+            class="drawer-pane"
+            class:active={openDrawer === 'browse'}
+            style="order: {orderOf('browse')}"
+          >
             <slot name="mobile-browse" />
           </div>
         {/if}
@@ -230,7 +273,8 @@
             on:click={() => (openDrawer = openDrawer === 'layers' ? 'none' : 'layers')}
             aria-pressed={openDrawer === 'layers'}
             style="order: {orderOf('layers')}"
-          ><span aria-hidden="true">🗺️</span><span>Layers</span></button>
+            ><span aria-hidden="true">🗺️</span><span>Layers</span></button
+          >
         {/if}
         {#if hasMobileControls}
           <button
@@ -240,7 +284,8 @@
             on:click={() => (openDrawer = openDrawer === 'controls' ? 'none' : 'controls')}
             aria-pressed={openDrawer === 'controls'}
             style="order: {orderOf('controls')}"
-          ><span aria-hidden="true">⚙️</span><span>Controls</span></button>
+            ><span aria-hidden="true">⚙️</span><span>Controls</span></button
+          >
         {/if}
         {#if hasMobileBrowse}
           <button
@@ -250,7 +295,8 @@
             on:click={() => (openDrawer = openDrawer === 'browse' ? 'none' : 'browse')}
             aria-pressed={openDrawer === 'browse'}
             style="order: {orderOf('browse')}"
-          ><span aria-hidden="true">📋</span><span>Browse</span></button>
+            ><span aria-hidden="true">📋</span><span>Browse</span></button
+          >
         {/if}
         {#if hasMobileSidebar && !hasMobileLayers && !hasMobileBrowse && !hasMobileControls}
           <button
@@ -259,7 +305,8 @@
             class:on={openDrawer === 'legacy'}
             on:click={() => (openDrawer = openDrawer === 'legacy' ? 'none' : 'legacy')}
             aria-pressed={openDrawer === 'legacy'}
-          ><span aria-hidden="true">📋</span><span>Tools</span></button>
+            ><span aria-hidden="true">📋</span><span>Tools</span></button
+          >
         {/if}
       </div>
     </div>
@@ -268,23 +315,30 @@
 
 <style>
   .sidebar-slot {
-    min-width: 0; min-height: 0;
-    display: flex; flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
   .right-sidebar-slot {
-    min-width: 0; min-height: 0;
-    display: flex; flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .resize-handle {
     position: absolute;
-    top: 0; bottom: 0;
+    top: 0;
+    bottom: 0;
     left: var(--sidebar-width);
     width: 8px;
     margin-left: -4px;
     cursor: col-resize;
     z-index: 100;
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .resize-handle.resize-handle-right {
     left: auto;
@@ -298,19 +352,32 @@
   .resize-handle::after {
     content: '';
     position: absolute;
-    top: 50%; left: 50%;
-    width: 3px; height: 28px;
+    top: 50%;
+    left: 50%;
+    width: 3px;
+    height: 28px;
     background: #111;
     border-radius: 2px;
     transition: all 0.15s ease;
     box-shadow: 0 0 0 1px #fff;
   }
-  .resize-handle::before { transform: translate(-5px, -50%); }
-  .resize-handle::after  { transform: translate(2px, -50%); }
+  .resize-handle::before {
+    transform: translate(-5px, -50%);
+  }
+  .resize-handle::after {
+    transform: translate(2px, -50%);
+  }
   .resize-handle:hover::before,
-  .resize-handle:hover::after { background: var(--sb-accent, #2563eb); height: 36px; }
-  .workspace:not(.with-sidebar) .resize-handle:not(.resize-handle-right) { display: none; }
-  .workspace:not(.with-right-sidebar) .resize-handle-right { display: none; }
+  .resize-handle:hover::after {
+    background: var(--sb-accent, #2563eb);
+    height: 36px;
+  }
+  .workspace:not(.with-sidebar) .resize-handle:not(.resize-handle-right) {
+    display: none;
+  }
+  .workspace:not(.with-right-sidebar) .resize-handle-right {
+    display: none;
+  }
 
   /* Floating "show editor" pill (mirror of .top-controls but right-anchored). */
   .right-controls {
@@ -322,19 +389,30 @@
 
   /* ── Mobile drawer stack ───────────────────────────────────── */
   .drawer-backdrop {
-    position: absolute; inset: 0;
+    position: absolute;
+    inset: 0;
     background: rgba(0, 0, 0, 0.25);
     z-index: 55;
     animation: db-fade 0.15s ease-out;
   }
-  @keyframes db-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes db-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
   .drawer-stack {
     --tab-h: clamp(40px, 7vh, 52px);
     position: absolute;
-    left: 0; right: 0; bottom: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 60;
-    display: flex; flex-direction: column;
+    display: flex;
+    flex-direction: column;
     pointer-events: auto;
     padding-bottom: env(safe-area-inset-bottom);
     background: transparent;
@@ -348,9 +426,12 @@
     max-height: 0;
     overflow: hidden;
     background: var(--color-bg, #f5f0ea);
-    transition: max-height 0.25s ease, border-top-width 0.25s ease;
+    transition:
+      max-height 0.25s ease,
+      border-top-width 0.25s ease;
     border-top: 0 solid #111;
-    display: flex; flex-direction: column;
+    display: flex;
+    flex-direction: column;
   }
   .drawer-stack.open .drawer-body {
     max-height: 60vh;
@@ -365,13 +446,21 @@
     min-height: 0;
     overflow-y: auto;
   }
-  .drawer-pane.active { display: flex; flex-direction: column; }
+  .drawer-pane.active {
+    display: flex;
+    flex-direction: column;
+  }
   /* Force scroll inside any wrapper that uses overflow:hidden (e.g. .mobile-pane). */
-  .drawer-pane > :global(*) { overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
+  .drawer-pane > :global(*) {
+    overflow-y: auto;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+  }
 
   /* Horizontal tab row. Equal-width, side-by-side. */
   .drawer-tabs {
-    display: flex; flex-direction: row;
+    display: flex;
+    flex-direction: row;
     height: var(--tab-h);
     background: #fff;
     border-top: 2px solid #111;
@@ -379,20 +468,32 @@
   .drawer-tab {
     flex: 1 1 0;
     min-width: 0;
-    display: inline-flex; align-items: center; justify-content: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     gap: 0.35rem;
     padding: 0 0.5rem;
     background: #fff;
     border: none;
     border-left: 1.5px solid #111;
-    font: inherit; font-family: 'Outfit', sans-serif;
-    font-weight: 700; font-size: 0.82rem;
+    font: inherit;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
     color: #111;
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .drawer-tab:first-child { border-left: none; }
-  .drawer-tab:active { background: #f5f3ea; }
-  .drawer-tab.on { background: #111; color: #fff; }
+  .drawer-tab:first-child {
+    border-left: none;
+  }
+  .drawer-tab:active {
+    background: #f5f3ea;
+  }
+  .drawer-tab.on {
+    background: #111;
+    color: #fff;
+  }
 </style>

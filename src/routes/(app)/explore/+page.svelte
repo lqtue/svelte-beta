@@ -94,7 +94,10 @@
   $: paramMapId = $page.url.searchParams.get('map');
   $: paramStoryId = $page.url.searchParams.get('story');
   $: hasDeeplink = !!(paramMapId || paramStoryId);
-  $: if (hasDeeplink && !choseMode) { choseMode = true; mode = 'all'; }
+  $: if (hasDeeplink && !choseMode) {
+    choseMode = true;
+    mode = 'all';
+  }
 
   // Reactive deeplink application — both `mapList` (from MapWorkspace) and
   // `stories` (from onMount fetch) arrive async, so a one-shot in onMount
@@ -132,11 +135,17 @@
   // Trigger bounds resolution as new entries arrive. Re-runs when canSeeDrafts
   // flips (role lands after mount) so draft maps get their bounds backfilled
   // too. The attemptedBounds guard prevents re-fetching the same ids.
-  $: if (mapList.length > 0) { void canSeeDrafts; ensureBoundsResolved(); }
+  $: if (mapList.length > 0) {
+    void canSeeDrafts;
+    ensureBoundsResolved();
+  }
 
   async function ensureBoundsResolved() {
     const need = pendingBoundsIds();
-    if (need.length === 0) { loading = false; return; }
+    if (need.length === 0) {
+      loading = false;
+      return;
+    }
     loading = true;
     for (const id of need) attemptedBounds.add(id);
     const resolved = await fetchMultipleBounds(need, 12);
@@ -199,7 +208,10 @@
   let tourPending = false;
   $: if (tourPending && !tourOpen) {
     const ready = mode === 'all' ? mapList.length > 0 : userPosition !== null && !loading;
-    if (ready) { tourPending = false; tourOpen = true; }
+    if (ready) {
+      tourPending = false;
+      tourOpen = true;
+    }
   }
   function requestTour() {
     if (shouldShowTour()) tourPending = true;
@@ -222,18 +234,27 @@
       userPosition = pos;
     }
   }
-  function handleGpsError(e: CustomEvent<{ message: string }>) { gpsError = e.detail.message; }
-  function toggleGps() { gpsActive = !gpsActive; gpsError = null; }
+  function handleGpsError(e: CustomEvent<{ message: string }>) {
+    gpsError = e.detail.message;
+  }
+  function toggleGps() {
+    gpsActive = !gpsActive;
+    gpsError = null;
+  }
 
   // ── Welcome chooser ────────────────────────────────────────────
   function chooseLocation() {
-    choseMode = true; mode = 'location';
-    gpsAllowed = true; gpsActive = true;
+    choseMode = true;
+    mode = 'location';
+    gpsAllowed = true;
+    gpsActive = true;
     requestTour();
   }
   function chooseShowAll() {
-    choseMode = true; mode = 'all';
-    gpsAllowed = false; gpsActive = false;
+    choseMode = true;
+    mode = 'all';
+    gpsAllowed = false;
+    gpsActive = false;
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
     requestTour();
   }
@@ -327,7 +348,9 @@
       mapStore.setView({ lng: point.coordinates[0], lat: point.coordinates[1], zoom: 17 });
     }
     if (point.overlayMapId) {
-      const found = mapList.find((m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId);
+      const found = mapList.find(
+        (m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId
+      );
       if (found) addMapOverlay(found, { clear: true });
     }
   }
@@ -335,7 +358,10 @@
     if (!activeStory) return;
     storyPlayer.completePoint(e.detail.storyId, e.detail.pointId, activeStory.points.length);
   }
-  function closeStory() { storyPlayer.stopStory(); activeStory = null; }
+  function closeStory() {
+    storyPlayer.stopStory();
+    activeStory = null;
+  }
 
   // ── URL deeplinks ──────────────────────────────────────────────
   async function applyUrlParams(maps: MapListItem[]) {
@@ -351,14 +377,21 @@
     }
     if (paramStoryId) {
       const story = stories.find((s) => s.id === paramStoryId);
-      if (story) { activeStory = story; storyPlayer.startStory(story.id); }
+      if (story) {
+        activeStory = story;
+        storyPlayer.startStory(story.id);
+      }
     }
   }
 
   onMount(async () => {
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
     if (session?.user?.id) {
-      const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
       role = ((data as any)?.role as 'user' | 'mod' | 'admin') ?? 'user';
     }
     try {
@@ -371,7 +404,10 @@
 
 <svelte:head>
   <title>Explore — Vietnam Map Archive</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+  />
 </svelte:head>
 
 <div class="explore-mode" class:mobile={isMobile}>
@@ -444,10 +480,17 @@
     </svelte:fragment>
 
     <svelte:fragment slot="map-children">
-      <GpsTracker active={gpsActive && gpsAllowed} on:position={handleGpsPosition} on:error={handleGpsError} />
+      <GpsTracker
+        active={gpsActive && gpsAllowed}
+        on:position={handleGpsPosition}
+        on:error={handleGpsError}
+      />
       <LegendPointsLayer mapId={activeOverlayMapId} enabled={showLegendPoints} />
       {#if activeStory}
-        <StoryMarkers points={activeStory.points} currentIndex={activeStoryProgress?.currentPointIndex ?? 0} />
+        <StoryMarkers
+          points={activeStory.points}
+          currentIndex={activeStoryProgress?.currentPointIndex ?? 0}
+        />
         <StoryPlayback
           story={activeStory}
           progress={activeStoryProgress}
@@ -512,9 +555,16 @@
     background-size: 32px 32px;
     overflow: hidden;
   }
-  .explore-mode.mobile :global(.workspace) { padding: 0; gap: 0; }
+  .explore-mode.mobile :global(.workspace) {
+    padding: 0;
+    gap: 0;
+  }
 
-  .mobile-pane { height: 100%; overflow-y: auto; padding: 0.5rem; }
+  .mobile-pane {
+    height: 100%;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
 
   .resolving {
     position: absolute;
@@ -541,7 +591,11 @@
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .gps-error {
     position: absolute;

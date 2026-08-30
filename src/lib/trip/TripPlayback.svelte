@@ -184,7 +184,10 @@
           <div class="head-title">{currentPoint?.title ?? `Stop ${currentIndex + 1}`}</div>
           <div class="head-meta">
             {#if distInfo}
-              <span class="dist-chip" title="{distInfo.meters >= 30 ? 'Walk to this stop' : 'You’re here'}">
+              <span
+                class="dist-chip"
+                title={distInfo.meters >= 30 ? 'Walk to this stop' : 'You’re here'}
+              >
                 <span class="arrow">{distInfo.arrow}</span>
                 <span>{distInfo.text}</span>
                 <span class="comp">{distInfo.label}</span>
@@ -246,8 +249,8 @@
         <div class="challenge">
           <span class="challenge-label">Reach</span>
           <p class="question">
-            Walk within <strong>{currentPoint.challenge.triggerRadius ?? 15} m</strong> and you'll
-            check in automatically.
+            Walk within <strong>{currentPoint.challenge.triggerRadius ?? 15} m</strong> and you'll check
+            in automatically.
           </p>
         </div>
       {/if}
@@ -275,16 +278,16 @@
       {/if}
 
       <div class="actions">
-        <button type="button" class="action-btn"
-          disabled={currentIndex <= 0}
-          on:click={goPrev}>← Prev</button>
+        <button type="button" class="action-btn" disabled={currentIndex <= 0} on:click={goPrev}
+          >← Prev</button
+        >
 
         {#if !isCurrentVisited}
-          <button type="button" class="action-btn is-primary"
-            on:click={markVisited}>Mark visited</button>
+          <button type="button" class="action-btn is-primary" on:click={markVisited}
+            >Mark visited</button
+          >
         {:else}
-          <button type="button" class="action-btn is-primary"
-            on:click={goNext}>
+          <button type="button" class="action-btn is-primary" on:click={goNext}>
             {currentIndex < total - 1 ? 'Next →' : 'Finish →'}
           </button>
         {/if}
@@ -345,7 +348,8 @@
     touch-action: none; /* let pointermove on the grip work on touch */
   }
   .grip {
-    width: 38px; height: 4px;
+    width: 38px;
+    height: 4px;
     margin: 0.25rem auto 0.55rem;
     background: #11111133;
     border-radius: 99px;
@@ -358,8 +362,11 @@
   }
   .num {
     flex-shrink: 0;
-    width: 30px; height: 30px;
-    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: var(--sb-accent, #ea580c);
     color: #fff;
     border: 2px solid #111;
@@ -368,8 +375,13 @@
     font-weight: 800;
     font-size: 0.85rem;
   }
-  .num.done { background: #16a34a; }
-  .head-text { min-width: 0; flex: 1; }
+  .num.done {
+    background: #16a34a;
+  }
+  .head-text {
+    min-width: 0;
+    flex: 1;
+  }
   .head-title {
     font-family: var(--sb-font-display, 'Spectral', serif);
     font-size: 1rem;
@@ -397,9 +409,19 @@
     font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
-  .dist-chip.is-muted { color: #888; font-weight: 500; }
-  .dist-chip .arrow { font-size: 0.9rem; line-height: 1; }
-  .dist-chip .comp { color: #666; font-weight: 500; font-size: 0.7rem; }
+  .dist-chip.is-muted {
+    color: #888;
+    font-weight: 500;
+  }
+  .dist-chip .arrow {
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+  .dist-chip .comp {
+    color: #666;
+    font-weight: 500;
+    font-size: 0.7rem;
+  }
   .counter {
     font-family: ui-monospace, SFMono-Regular, monospace;
     color: #666;
@@ -427,9 +449,16 @@
     flex-direction: column;
     gap: 0.7rem;
   }
-  .sheet.peek .sheet-body { display: none; }
+  .sheet.peek .sheet-body {
+    display: none;
+  }
 
-  .desc { margin: 0; font-size: 0.92rem; line-height: 1.5; color: #1a1a1a; }
+  .desc {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: #1a1a1a;
+  }
   .hint {
     margin: 0;
     padding: 0.55rem 0.7rem;
@@ -456,8 +485,15 @@
     letter-spacing: 0.1em;
     color: var(--sb-accent, #ea580c);
   }
-  .question { margin: 0; font-size: 0.9rem; line-height: 1.45; }
-  .answer-row { display: flex; gap: 0.4rem; }
+  .question {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+  .answer-row {
+    display: flex;
+    gap: 0.4rem;
+  }
   .answer-input {
     flex: 1;
     padding: 0.55rem 0.7rem;
@@ -478,8 +514,16 @@
     box-shadow: 2px 2px 0 #111;
     cursor: pointer;
   }
-  .answer-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #111; }
-  .answer-wrong { margin: 0; font-size: 0.78rem; color: #b91c1c; font-weight: 700; }
+  .answer-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 #111;
+  }
+  .answer-wrong {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #b91c1c;
+    font-weight: 700;
+  }
 
   .status-banner {
     display: flex;
@@ -491,15 +535,30 @@
     box-shadow: 2px 2px 0 #111;
     font-size: 0.9rem;
   }
-  .status-banner.is-correct { background: #bbf7d0; }
-  .status-banner.is-visited { background: #dbeafe; }
-  .status-banner strong { display: block; font-weight: 800; font-size: 0.95rem; }
-  .status-banner .status-sub { font-size: 0.78rem; color: #1f2937; }
+  .status-banner.is-correct {
+    background: #bbf7d0;
+  }
+  .status-banner.is-visited {
+    background: #dbeafe;
+  }
+  .status-banner strong {
+    display: block;
+    font-weight: 800;
+    font-size: 0.95rem;
+  }
+  .status-banner .status-sub {
+    font-size: 0.78rem;
+    color: #1f2937;
+  }
   .status-icon {
     flex-shrink: 0;
-    width: 28px; height: 28px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: #111; color: #fff;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+    color: #fff;
     border-radius: 50%;
     font-weight: 800;
   }
@@ -521,16 +580,32 @@
     cursor: pointer;
     box-shadow: 2px 2px 0 #111;
   }
-  .action-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #111; }
-  .action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .action-btn.is-primary { background: var(--sb-accent, #ea580c); color: #fff; flex: 1.4; }
+  .action-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 #111;
+  }
+  .action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .action-btn.is-primary {
+    background: var(--sb-accent, #ea580c);
+    color: #fff;
+    flex: 1.4;
+  }
   .action-done {
     flex: 1.4;
-    display: inline-flex; align-items: center; justify-content: center;
-    color: #15803d; font-weight: 800; font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #15803d;
+    font-weight: 800;
+    font-size: 0.9rem;
   }
 
-  .itinerary { margin-top: 0.5rem; }
+  .itinerary {
+    margin-top: 0.5rem;
+  }
   .itinerary h3 {
     margin: 0 0 0.4rem;
     font-family: var(--sb-font-display, 'Spectral', serif);
@@ -539,7 +614,14 @@
     letter-spacing: 0.1em;
     color: #555;
   }
-  .itinerary ol { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+  .itinerary ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
   .itinerary li {
     display: flex;
     align-items: center;
@@ -550,26 +632,49 @@
     border-radius: 10px;
     font-size: 0.9rem;
   }
-  .itinerary li.current { border-color: #111; box-shadow: 2px 2px 0 #111; }
-  .itinerary li.done { opacity: 0.75; }
+  .itinerary li.current {
+    border-color: #111;
+    box-shadow: 2px 2px 0 #111;
+  }
+  .itinerary li.done {
+    opacity: 0.75;
+  }
   .li-num {
     flex-shrink: 0;
-    width: 22px; height: 22px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: #2563eb; color: #fff;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2563eb;
+    color: #fff;
     border: 1.5px solid #111;
     border-radius: 50%;
     font-weight: 800;
     font-size: 0.72rem;
   }
-  .li-num.done { background: #16a34a; }
-  .li-num.current { background: var(--sb-accent, #ea580c); }
-  .li-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .li-num.done {
+    background: #16a34a;
+  }
+  .li-num.current {
+    background: var(--sb-accent, #ea580c);
+  }
+  .li-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .li-tag {
     flex-shrink: 0;
     padding: 0.1rem 0.5rem;
-    background: var(--sb-accent, #ea580c); color: #fff;
-    border-radius: 99px; font-size: 0.65rem; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.08em;
+    background: var(--sb-accent, #ea580c);
+    color: #fff;
+    border-radius: 99px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 </style>

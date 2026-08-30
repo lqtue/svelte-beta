@@ -46,12 +46,21 @@
   }>();
 
   // Local neatline inputs (separate vars to avoid array reactivity issues)
-  let nx = 0, ny = 0, nw = 0, nh = 0;
+  let nx = 0,
+    ny = 0,
+    nw = 0,
+    nh = 0;
 
   // Sync local inputs from prop (when TriageTool updates via drag)
   // Guard prevents overwriting user's in-progress typing on every bind:neatline round-trip.
-  $: if (neatline && (neatline[0] !== nx || neatline[1] !== ny || neatline[2] !== nw || neatline[3] !== nh)) {
-    nx = neatline[0]; ny = neatline[1]; nw = neatline[2]; nh = neatline[3];
+  $: if (
+    neatline &&
+    (neatline[0] !== nx || neatline[1] !== ny || neatline[2] !== nw || neatline[3] !== nh)
+  ) {
+    nx = neatline[0];
+    ny = neatline[1];
+    nw = neatline[2];
+    nh = neatline[3];
   }
 
   function onNeatlineInput() {
@@ -62,21 +71,22 @@
     neatline = [0, 0, imgWidth, imgHeight];
   }
 
-  $: neatlineValid = !neatline || (
-    neatline[0] >= 0 && neatline[1] >= 0 &&
-    neatline[0] + neatline[2] <= imgWidth &&
-    neatline[1] + neatline[3] <= imgHeight &&
-    neatline[2] > 0 && neatline[3] > 0
-  );
+  $: neatlineValid =
+    !neatline ||
+    (neatline[0] >= 0 &&
+      neatline[1] >= 0 &&
+      neatline[0] + neatline[2] <= imgWidth &&
+      neatline[1] + neatline[3] <= imgHeight &&
+      neatline[2] > 0 &&
+      neatline[3] > 0);
 
   // Tile count computed locally
-  $: tileCount = neatline && tileSize > 0
-    ? buildTileGrid(...neatline, tileSize, overlap).length
-    : 0;
+  $: tileCount =
+    neatline && tileSize > 0 ? buildTileGrid(...neatline, tileSize, overlap).length : 0;
 
   // Tile priority counts
-  $: lowResCount = Object.values(tileOverrides).filter(v => v === 'low_res').length;
-  $: skipCount   = Object.values(tileOverrides).filter(v => v === 'skip').length;
+  $: lowResCount = Object.values(tileOverrides).filter((v) => v === 'low_res').length;
+  $: skipCount = Object.values(tileOverrides).filter((v) => v === 'skip').length;
   $: normalCount = tileCount - lowResCount - skipCount;
 
   const LOW_RES_RENDER = 512;
@@ -87,12 +97,11 @@
     const area = neatline[2] * neatline[3];
     const raw = Math.sqrt(area / TARGET_TILES);
     tileSize = Math.max(512, Math.round(raw / 200) * 200);
-    overlap  = Math.max(0, Math.round(tileSize * 0.10 / 50) * 50);
+    overlap = Math.max(0, Math.round((tileSize * 0.1) / 50) * 50);
   }
 </script>
 
 <div class="triage-sidebar">
-
   <!-- Image info -->
   <div class="ts-section">
     <div class="ts-section-title">Image</div>
@@ -103,7 +112,9 @@
     {#if iiifInfoUrl}
       <div class="ts-row ts-url-row">
         <span class="ts-label">IIIF</span>
-        <span class="ts-value mono ts-url" title={iiifInfoUrl}>{iiifInfoUrl.replace('/info.json', '').split('/').slice(-2).join('/')}</span>
+        <span class="ts-value mono ts-url" title={iiifInfoUrl}
+          >{iiifInfoUrl.replace('/info.json', '').split('/').slice(-2).join('/')}</span
+        >
       </div>
     {/if}
   </div>
@@ -112,53 +123,104 @@
   <div class="ts-section">
     <div class="ts-section-header">
       <div class="ts-section-title">Neatline crop</div>
-      <button class="ts-ghost-btn" on:click={resetFullImage} disabled={!imgWidth}>Full image</button>
+      <button class="ts-ghost-btn" on:click={resetFullImage} disabled={!imgWidth}>Full image</button
+      >
     </div>
     <div class="ts-coord-grid">
       <label class="ts-coord-label">
         <span>X</span>
-        <input type="number" bind:value={nx} on:change={onNeatlineInput} class="ts-num-input" min="0" max={imgWidth} />
+        <input
+          type="number"
+          bind:value={nx}
+          on:change={onNeatlineInput}
+          class="ts-num-input"
+          min="0"
+          max={imgWidth}
+        />
       </label>
       <label class="ts-coord-label">
         <span>Y</span>
-        <input type="number" bind:value={ny} on:change={onNeatlineInput} class="ts-num-input" min="0" max={imgHeight} />
+        <input
+          type="number"
+          bind:value={ny}
+          on:change={onNeatlineInput}
+          class="ts-num-input"
+          min="0"
+          max={imgHeight}
+        />
       </label>
       <label class="ts-coord-label">
         <span>W</span>
-        <input type="number" bind:value={nw} on:change={onNeatlineInput} class="ts-num-input" min="1" max={imgWidth} />
+        <input
+          type="number"
+          bind:value={nw}
+          on:change={onNeatlineInput}
+          class="ts-num-input"
+          min="1"
+          max={imgWidth}
+        />
       </label>
       <label class="ts-coord-label">
         <span>H</span>
-        <input type="number" bind:value={nh} on:change={onNeatlineInput} class="ts-num-input" min="1" max={imgHeight} />
+        <input
+          type="number"
+          bind:value={nh}
+          on:change={onNeatlineInput}
+          class="ts-num-input"
+          min="1"
+          max={imgHeight}
+        />
       </label>
     </div>
     {#if !neatlineValid}
       <div class="ts-error">Neatline exceeds image bounds.</div>
     {/if}
-    <div class="ts-hint">Drag the amber rectangle on the canvas to adjust, or type coords. From the HTML neatline tool: paste x,y,w,h above.</div>
+    <div class="ts-hint">
+      Drag the amber rectangle on the canvas to adjust, or type coords. From the HTML neatline tool:
+      paste x,y,w,h above.
+    </div>
   </div>
 
   <!-- Tile config -->
   <div class="ts-section">
     <div class="ts-section-header">
-      <div class="ts-section-title">Tile config <span class="ts-hint-inline mono">({tileCount} tiles)</span></div>
-      <button class="ts-ghost-btn" on:click={suggestTileParams} disabled={!neatline}>Suggest</button>
+      <div class="ts-section-title">
+        Tile config <span class="ts-hint-inline mono">({tileCount} tiles)</span>
+      </div>
+      <button class="ts-ghost-btn" on:click={suggestTileParams} disabled={!neatline}>Suggest</button
+      >
     </div>
     <div class="ts-coord-grid">
       <label class="ts-coord-label">
         <span>Size</span>
-        <input type="number" bind:value={tileSize} class="ts-num-input" min="512" max="8192" step="100" />
+        <input
+          type="number"
+          bind:value={tileSize}
+          class="ts-num-input"
+          min="512"
+          max="8192"
+          step="100"
+        />
       </label>
       <label class="ts-coord-label">
         <span>Overlap</span>
-        <input type="number" bind:value={overlap} class="ts-num-input" min="0" max="1200" step="50" />
+        <input
+          type="number"
+          bind:value={overlap}
+          class="ts-num-input"
+          min="0"
+          max="1200"
+          step="50"
+        />
       </label>
     </div>
   </div>
 
   <!-- Tile priority legend -->
   <div class="ts-section">
-    <div class="ts-section-title">Tile priority <span class="ts-hint-inline">— click tiles on the map</span></div>
+    <div class="ts-section-title">
+      Tile priority <span class="ts-hint-inline">— click tiles on the map</span>
+    </div>
     <div class="ts-priority-legend">
       <div class="ts-priority-row">
         <span class="ts-swatch ts-swatch--normal"></span>
@@ -187,7 +249,12 @@
     <div class="ts-section-title">Run</div>
     <label class="ts-field">
       <span class="ts-label">Run ID</span>
-      <input type="text" bind:value={runId} class="ts-text-input mono" placeholder="auto-generated" />
+      <input
+        type="text"
+        bind:value={runId}
+        class="ts-text-input mono"
+        placeholder="auto-generated"
+      />
     </label>
     <label class="ts-field">
       <span class="ts-label">Min confidence <strong>{minConfidence.toFixed(2)}</strong></span>
@@ -241,7 +308,6 @@
       {/each}
     </div>
   {/if}
-
 </div>
 
 <style>
@@ -283,8 +349,14 @@
     letter-spacing: 0;
   }
 
-  .ts-row { display: flex; align-items: baseline; gap: 0.5rem; }
-  .ts-url-row { align-items: flex-start; }
+  .ts-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .ts-url-row {
+    align-items: flex-start;
+  }
 
   .ts-label {
     font-size: 0.72rem;
@@ -293,7 +365,9 @@
     flex-shrink: 0;
   }
 
-  .ts-value { font-size: 0.78rem; }
+  .ts-value {
+    font-size: 0.78rem;
+  }
   .ts-url {
     font-size: 0.68rem;
     overflow: hidden;
@@ -303,7 +377,9 @@
     opacity: 0.6;
   }
 
-  .mono { font-family: ui-monospace, monospace; }
+  .mono {
+    font-family: ui-monospace, monospace;
+  }
 
   .ts-coord-grid {
     display: grid;
@@ -341,8 +417,12 @@
     gap: 0.5rem;
   }
 
-  .ts-field .ts-label { min-width: 90px; }
-  .ts-field .ts-num-input { width: 70px; }
+  .ts-field .ts-label {
+    min-width: 90px;
+  }
+  .ts-field .ts-num-input {
+    width: 70px;
+  }
 
   .ts-text-input {
     flex: 1;
@@ -383,7 +463,11 @@
     letter-spacing: 0.04em;
   }
 
-  .ts-priority-legend { display: flex; flex-direction: column; gap: 0.35rem; }
+  .ts-priority-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
 
   .ts-priority-row {
     display: flex;
@@ -400,13 +484,32 @@
     flex-shrink: 0;
   }
 
-  .ts-swatch--normal  { background: transparent; border-color: rgba(245,158,11,0.35); }
-  .ts-swatch--low-res { background: rgba(245,158,11,0.18); border-color: #f59e0b; }
-  .ts-swatch--skip    { background: rgba(107,114,128,0.28); border-color: #6b7280; }
+  .ts-swatch--normal {
+    background: transparent;
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+  .ts-swatch--low-res {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: #f59e0b;
+  }
+  .ts-swatch--skip {
+    background: rgba(107, 114, 128, 0.28);
+    border-color: #6b7280;
+  }
 
-  .ts-priority-label { font-weight: 600; min-width: 56px; }
-  .ts-priority-count { font-family: ui-monospace, monospace; min-width: 24px; font-size: 0.72rem; }
-  .ts-priority-detail { opacity: 0.5; font-size: 0.68rem; }
+  .ts-priority-label {
+    font-weight: 600;
+    min-width: 56px;
+  }
+  .ts-priority-count {
+    font-family: ui-monospace, monospace;
+    min-width: 24px;
+    font-size: 0.72rem;
+  }
+  .ts-priority-detail {
+    opacity: 0.5;
+    font-size: 0.68rem;
+  }
 
   .ts-ghost-btn {
     font-size: 0.7rem;
@@ -418,8 +521,13 @@
     white-space: nowrap;
     color: var(--color-text, #111);
   }
-  .ts-ghost-btn:hover:not(:disabled) { background: var(--color-surface-hover, #f9fafb); }
-  .ts-ghost-btn:disabled { opacity: 0.4; cursor: default; }
+  .ts-ghost-btn:hover:not(:disabled) {
+    background: var(--color-surface-hover, #f9fafb);
+  }
+  .ts-ghost-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 
   .ts-run-btn {
     display: flex;
@@ -436,17 +544,27 @@
     border-radius: 4px;
     cursor: pointer;
   }
-  .ts-run-btn:hover:not(:disabled) { opacity: 0.85; }
-  .ts-run-btn:disabled { opacity: 0.45; cursor: default; }
+  .ts-run-btn:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+  .ts-run-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
 
   .ts-spinner {
-    width: 12px; height: 12px;
-    border: 2px solid rgba(255,255,255,0.4);
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
     border-top-color: #fff;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .ts-run-row {
     display: flex;
@@ -456,9 +574,19 @@
     padding: 0.3rem 0;
   }
 
-  .ts-run-meta { display: flex; flex-direction: column; gap: 0.1rem; }
-  .ts-run-id { font-size: 0.7rem; opacity: 0.7; }
-  .ts-run-n { font-size: 0.7rem; opacity: 0.5; }
+  .ts-run-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .ts-run-id {
+    font-size: 0.7rem;
+    opacity: 0.7;
+  }
+  .ts-run-n {
+    font-size: 0.7rem;
+    opacity: 0.5;
+  }
 
   .ts-error {
     font-size: 0.72rem;
@@ -504,7 +632,9 @@
     color: #0369a1;
     cursor: pointer;
   }
-  .ts-copy-btn:hover { background: #e0f2fe; }
+  .ts-copy-btn:hover {
+    background: #e0f2fe;
+  }
   .ts-cli-code {
     font-family: ui-monospace, monospace;
     font-size: 0.65rem;

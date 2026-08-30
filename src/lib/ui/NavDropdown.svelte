@@ -16,8 +16,12 @@
   let triggerEl: HTMLButtonElement;
   let panelEl: HTMLDivElement;
 
-  function toggle() { open = !open; }
-  function close() { open = false; }
+  function toggle() {
+    open = !open;
+  }
+  function close() {
+    open = false;
+  }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') close();
@@ -25,8 +29,10 @@
 
   function handleOutsideClick(e: MouseEvent) {
     if (
-      triggerEl && !triggerEl.contains(e.target as Node) &&
-      panelEl   && !panelEl.contains(e.target as Node)
+      triggerEl &&
+      !triggerEl.contains(e.target as Node) &&
+      panelEl &&
+      !panelEl.contains(e.target as Node)
     ) {
       close();
     }
@@ -55,7 +61,13 @@
   >
     {label}
     <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path
+        d="M2 4l4 4 4-4"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
     </svg>
   </button>
 

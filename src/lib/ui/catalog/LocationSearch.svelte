@@ -10,7 +10,15 @@
   /** Hide the list (parent controls visibility, e.g. when collapsed). */
   export let hidden: boolean = false;
 
-  const dispatch = createEventDispatcher<{ pickLocation: { lat: number; lng: number; label: string; bbox?: [number, number, number, number]; geojson?: import('geojson').Geometry } }>();
+  const dispatch = createEventDispatcher<{
+    pickLocation: {
+      lat: number;
+      lng: number;
+      label: string;
+      bbox?: [number, number, number, number];
+      geojson?: import('geojson').Geometry;
+    };
+  }>();
 
   let results: any[] = [];
   let loading = false;
@@ -18,7 +26,10 @@
   let debounce: any = null;
   let lastQuery = '';
 
-  $: if (query !== lastQuery) { lastQuery = query; scheduleSearch(); }
+  $: if (query !== lastQuery) {
+    lastQuery = query;
+    scheduleSearch();
+  }
 
   function scheduleSearch() {
     if (debounce) clearTimeout(debounce);
@@ -27,13 +38,24 @@
 
   async function runSearch() {
     const q = query.trim();
-    if (q.length < 2) { results = []; return; }
+    if (q.length < 2) {
+      results = [];
+      return;
+    }
     abortCtrl?.abort();
     abortCtrl = new AbortController();
     loading = true;
     try {
-      const params = new URLSearchParams({ format: 'jsonv2', q: q + ', Vietnam', addressdetails: '1', limit: '3', polygon_geojson: '1' });
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, { signal: abortCtrl.signal });
+      const params = new URLSearchParams({
+        format: 'jsonv2',
+        q: q + ', Vietnam',
+        addressdetails: '1',
+        limit: '3',
+        polygon_geojson: '1',
+      });
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+        signal: abortCtrl.signal,
+      });
       results = res.ok ? await res.json() : [];
     } catch (e: any) {
       if (e?.name !== 'AbortError') results = [];
@@ -43,7 +65,8 @@
   }
 
   function pick(r: any) {
-    const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+    const lat = parseFloat(r.lat),
+      lng = parseFloat(r.lon);
     let bbox: [number, number, number, number] | undefined;
     if (Array.isArray(r.boundingbox) && r.boundingbox.length === 4) {
       const [s, n, w, e] = r.boundingbox.map(parseFloat);
@@ -70,5 +93,9 @@
 {/if}
 
 <style>
-  .ls { display: flex; flex-direction: column; gap: 0.25rem; }
+  .ls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
 </style>

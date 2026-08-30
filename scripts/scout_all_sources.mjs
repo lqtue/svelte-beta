@@ -23,28 +23,42 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const SUPABASE_URL = env.PUBLIC_SUPABASE_URL;
 const KEY = env.SUPABASE_SERVICE_KEY;
 const UA = 'Mozilla/5.0 VMA-Scout/1.0';
 
 const sIdx = process.argv.indexOf('--sources');
-const SOURCES = sIdx > -1
-  ? process.argv[sIdx + 1].split(',')
-  : ['gallica', 'rumsey', 'loc'];
+const SOURCES = sIdx > -1 ? process.argv[sIdx + 1].split(',') : ['gallica', 'rumsey', 'loc'];
 
-const KEYWORDS = ['Saigon', 'Cochinchine', 'Indochine', 'Tonkin', 'Annam', 'Hanoi',
-                  'Hué', 'Hue', 'Gia Định', 'Cholon', 'Vietnam', 'Viêt-nam',
-                  'Đà Nẵng', 'Tourane', 'Haiphong'];
+const KEYWORDS = [
+  'Saigon',
+  'Cochinchine',
+  'Indochine',
+  'Tonkin',
+  'Annam',
+  'Hanoi',
+  'Hué',
+  'Hue',
+  'Gia Định',
+  'Cholon',
+  'Vietnam',
+  'Viêt-nam',
+  'Đà Nẵng',
+  'Tourane',
+  'Haiphong',
+];
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- Existing VMA arks for dedup ----
 async function fetchExistingKeys() {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/maps?select=iiif_manifest,iiif_image,source_url`, {
-    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
   });
   const rows = await r.json();
   const keys = new Set();
@@ -66,7 +80,9 @@ async function fetchExistingKeys() {
 async function fetchJson(url, { retries = 3, baseDelay = 1500, headers = {} } = {}) {
   for (let i = 0; i <= retries; i++) {
     try {
-      const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json', ...headers } });
+      const r = await fetch(url, {
+        headers: { 'User-Agent': UA, Accept: 'application/json', ...headers },
+      });
       if (r.status === 429 || r.status === 503) {
         if (i === retries) return { __error: r.status };
         await sleep(baseDelay * Math.pow(2, i));
@@ -90,22 +106,37 @@ function parseSRU(xml) {
     if (end === -1) continue;
     const chunk = b.slice(0, end);
     const rec = {};
-    for (const f of ['dc:title', 'dc:creator', 'dc:date', 'dc:type', 'dc:format',
-                     'dc:language', 'dc:publisher', 'dc:rights', 'dc:source',
-                     'dc:identifier', 'dc:coverage', 'dc:subject']) {
+    for (const f of [
+      'dc:title',
+      'dc:creator',
+      'dc:date',
+      'dc:type',
+      'dc:format',
+      'dc:language',
+      'dc:publisher',
+      'dc:rights',
+      'dc:source',
+      'dc:identifier',
+      'dc:coverage',
+      'dc:subject',
+    ]) {
       rec[f.replace('dc:', '')] = [];
       const re = new RegExp(`<${f}>([^<]+)</${f}>`, 'g');
-      let m; while ((m = re.exec(chunk))) rec[f.replace('dc:', '')].push(m[1]);
+      let m;
+      while ((m = re.exec(chunk))) rec[f.replace('dc:', '')].push(m[1]);
     }
     const prov = chunk.match(/<provenance>([^<]+)<\/provenance>/);
     rec.provenance = prov ? prov[1] : null;
     let ark = null;
     for (const id of rec.identifier) {
       const m = id.match(/ark:\/[0-9]+\/[a-z0-9]+/i);
-      if (m) { ark = m[0]; break; }
+      if (m) {
+        ark = m[0];
+        break;
+      }
     }
     rec.ark = ark;
-    rec.url = rec.identifier.find(i => i.startsWith('http')) || null;
+    rec.url = rec.identifier.find((i) => i.startsWith('http')) || null;
     out.push(rec);
   }
   return out;
@@ -114,12 +145,19 @@ async function scoutGallica(keywords) {
   const all = new Map();
   for (const kw of keywords) {
     process.stdout.write(`  gallica/${kw.padEnd(13)} `);
-    let start = 1; const page = 50;
+    let start = 1;
+    const page = 50;
     while (start <= 250) {
       const q = encodeURIComponent(`(dc.type adj "carte") and (dc.title all "${kw}")`);
       const url = `https://gallica.bnf.fr/SRU?operation=searchRetrieve&version=1.2&query=${q}&maximumRecords=${page}&startRecord=${start}`;
       const r = await fetch(url, { headers: { 'User-Agent': UA } });
-      if (!r.ok) { if (r.status === 429) { await sleep(3000); continue; } break; }
+      if (!r.ok) {
+        if (r.status === 429) {
+          await sleep(3000);
+          continue;
+        }
+        break;
+      }
       const xml = await r.text();
       const total = parseInt((xml.match(/<srw:numberOfRecords>(\d+)/) || [])[1] || '0');
       const recs = parseSRU(xml);
@@ -147,9 +185,10 @@ function normalizeGallicaRecord(r, kw) {
     date: r.date[0] || '',
     rights: r.rights[0] || '',
     language: r.language[0] || '',
-    holding_institution: r.provenance && !r.provenance.toLowerCase().includes('gallica')
-      ? r.provenance
-      : 'Bibliothèque nationale de France',
+    holding_institution:
+      r.provenance && !r.provenance.toLowerCase().includes('gallica')
+        ? r.provenance
+        : 'Bibliothèque nationale de France',
     manifestUrl: r.ark ? `https://gallica.bnf.fr/iiif/${r.ark}/manifest.json` : '',
     sourceUrl: r.url || (r.ark ? `https://gallica.bnf.fr/${r.ark}` : ''),
     thumbnail: '',
@@ -164,44 +203,57 @@ async function scoutRumsey(keywords) {
   const all = new Map();
   for (const kw of keywords) {
     process.stdout.write(`  rumsey/${kw.padEnd(13)} `);
-    let start = 0; const page = 50;
+    let start = 0;
+    const page = 50;
     let total = 0;
     while (start < 1000) {
       const url = `https://www.davidrumsey.com/luna/servlet/as/search?q=${encodeURIComponent(kw)}&dh=${page}&os=json&so=${start}`;
       const data = await fetchJson(url);
-      if (data.__error) { console.log(`ERR ${data.__error}`); break; }
+      if (data.__error) {
+        console.log(`ERR ${data.__error}`);
+        break;
+      }
       total = parseInt(data.totalResults || '0');
       const results = data.results || [];
       for (const r of results) {
         // Filter: must include Vietnam-related country or city
-        const fields = Object.fromEntries((r.fieldValues || []).map(fv => {
-          const k = Object.keys(fv)[0]; return [k, Array.isArray(fv[k]) ? fv[k][0] : fv[k]];
-        }));
+        const fields = Object.fromEntries(
+          (r.fieldValues || []).map((fv) => {
+            const k = Object.keys(fv)[0];
+            return [k, Array.isArray(fv[k]) ? fv[k][0] : fv[k]];
+          })
+        );
         const country = String(fields['Country'] || '');
         const city = String(fields['City'] || '');
         const note = String(fields['Note'] || '');
         const region = String(fields['Region'] || '');
         const combined = (country + ' ' + city + ' ' + region + ' ' + r.displayName).toLowerCase();
-        if (!/vietnam|saigon|hanoi|hue|tonkin|annam|cochinchin|indochin|cambodia|laos|indochine/i.test(combined)) continue;
+        if (
+          !/vietnam|saigon|hanoi|hue|tonkin|annam|cochinchin|indochin|cambodia|laos|indochine/i.test(
+            combined
+          )
+        )
+          continue;
         const id = r.id;
         const key = `rumsey:${id}`;
-        if (!all.has(key)) all.set(key, {
-          source: 'rumsey',
-          externalId: id,
-          title: r.displayName || fields['Short Title'] || '',
-          creator: fields['Author'] || fields['Authors'] || '',
-          publisher: fields['Publisher'] || '',
-          date: fields['Date'] || fields['Pub Date'] || '',
-          rights: 'David Rumsey Map Collection',
-          language: '',
-          holding_institution: 'David Rumsey Map Collection (Stanford)',
-          manifestUrl: r.iiifManifest || '',
-          sourceUrl: `https://www.davidrumsey.com/luna/servlet/detail/${id}`,
-          thumbnail: r.urlSize2 || r.urlSize1 || '',
-          foundVia: [kw],
-          dedupKey: key,
-          raw: { type: fields['Type'], country, city, region, note: note.slice(0, 200) },
-        });
+        if (!all.has(key))
+          all.set(key, {
+            source: 'rumsey',
+            externalId: id,
+            title: r.displayName || fields['Short Title'] || '',
+            creator: fields['Author'] || fields['Authors'] || '',
+            publisher: fields['Publisher'] || '',
+            date: fields['Date'] || fields['Pub Date'] || '',
+            rights: 'David Rumsey Map Collection',
+            language: '',
+            holding_institution: 'David Rumsey Map Collection (Stanford)',
+            manifestUrl: r.iiifManifest || '',
+            sourceUrl: `https://www.davidrumsey.com/luna/servlet/detail/${id}`,
+            thumbnail: r.urlSize2 || r.urlSize1 || '',
+            foundVia: [kw],
+            dedupKey: key,
+            raw: { type: fields['Type'], country, city, region, note: note.slice(0, 200) },
+          });
         else all.get(key).foundVia.push(kw);
       }
       if (results.length < page) break;
@@ -219,11 +271,15 @@ async function scoutLoC(keywords) {
   const all = new Map();
   for (const kw of keywords) {
     process.stdout.write(`  loc/${kw.padEnd(16)} `);
-    let page = 1; let totalSeen = 0;
+    let page = 1;
+    let totalSeen = 0;
     while (page <= 10) {
       const url = `https://www.loc.gov/maps/?q=${encodeURIComponent(kw)}&fo=json&c=50&sp=${page}`;
       const data = await fetchJson(url);
-      if (data.__error) { console.log(`ERR ${data.__error}`); break; }
+      if (data.__error) {
+        console.log(`ERR ${data.__error}`);
+        break;
+      }
       const results = data.results || [];
       if (!results.length) break;
       const total = parseInt((data.pagination || {}).of || '0');
@@ -231,23 +287,25 @@ async function scoutLoC(keywords) {
         if (r.original_format && !r.original_format.includes('map')) continue;
         const id = r.id || r.url;
         const key = `loc:${id}`;
-        if (!all.has(key)) all.set(key, {
-          source: 'loc',
-          externalId: id,
-          title: r.title || '',
-          creator: (Array.isArray(r.contributor) ? r.contributor.join(', ') : r.contributor) || '',
-          publisher: '',
-          date: r.date || '',
-          rights: (Array.isArray(r.rights) ? r.rights[0] : r.rights) || 'Library of Congress',
-          language: (Array.isArray(r.language) ? r.language[0] : r.language) || '',
-          holding_institution: 'Library of Congress',
-          manifestUrl: '', // LoC IIIF: r.resources may contain a manifest
-          sourceUrl: r.url || `https://www.loc.gov/item/${id}`,
-          thumbnail: (Array.isArray(r.image_url) ? r.image_url[0] : r.image_url) || '',
-          foundVia: [kw],
-          dedupKey: key,
-          raw: { subject: r.subject, location: r.location, dates: r.dates },
-        });
+        if (!all.has(key))
+          all.set(key, {
+            source: 'loc',
+            externalId: id,
+            title: r.title || '',
+            creator:
+              (Array.isArray(r.contributor) ? r.contributor.join(', ') : r.contributor) || '',
+            publisher: '',
+            date: r.date || '',
+            rights: (Array.isArray(r.rights) ? r.rights[0] : r.rights) || 'Library of Congress',
+            language: (Array.isArray(r.language) ? r.language[0] : r.language) || '',
+            holding_institution: 'Library of Congress',
+            manifestUrl: '', // LoC IIIF: r.resources may contain a manifest
+            sourceUrl: r.url || `https://www.loc.gov/item/${id}`,
+            thumbnail: (Array.isArray(r.image_url) ? r.image_url[0] : r.image_url) || '',
+            foundVia: [kw],
+            dedupKey: key,
+            raw: { subject: r.subject, location: r.location, dates: r.dates },
+          });
         else all.get(key).foundVia.push(kw);
       }
       totalSeen = total;
@@ -287,8 +345,8 @@ if (SOURCES.includes('loc')) {
 }
 
 const all = [...merged.values()];
-const alreadyInVma = all.filter(r => existingKeys.has(r.dedupKey));
-const newCandidates = all.filter(r => !existingKeys.has(r.dedupKey));
+const alreadyInVma = all.filter((r) => existingKeys.has(r.dedupKey));
+const newCandidates = all.filter((r) => !existingKeys.has(r.dedupKey));
 
 console.log(`\n=== MERGED ===`);
 console.log(`Total unique:    ${all.length}`);
@@ -303,7 +361,9 @@ for (const [s, c] of Object.entries(bySource)) console.log(`  ${s.padEnd(10)} ${
 console.log(`\nBy holding institution (top 10):`);
 const byHolder = {};
 for (const r of all) byHolder[r.holding_institution] = (byHolder[r.holding_institution] || 0) + 1;
-for (const [h, c] of Object.entries(byHolder).sort((a,b)=>b[1]-a[1]).slice(0, 10)) {
+for (const [h, c] of Object.entries(byHolder)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 10)) {
   console.log(`  ${String(c).padStart(4)}  ${h}`);
 }
 
@@ -321,14 +381,21 @@ for (const [d, c] of Object.entries(decade).sort()) {
 }
 
 const out = `scripts/scout_all_${Date.now()}.json`;
-writeFileSync(out, JSON.stringify({
-  sources: SOURCES,
-  keywords: KEYWORDS,
-  counts,
-  totalUnique: all.length,
-  alreadyInVma: alreadyInVma.length,
-  newCandidates,
-  alreadyInVma_records: alreadyInVma,
-}, null, 2));
+writeFileSync(
+  out,
+  JSON.stringify(
+    {
+      sources: SOURCES,
+      keywords: KEYWORDS,
+      counts,
+      totalUnique: all.length,
+      alreadyInVma: alreadyInVma.length,
+      newCandidates,
+      alreadyInVma_records: alreadyInVma,
+    },
+    null,
+    2
+  )
+);
 console.log(`\nSaved: ${out}`);
 console.log(`Next: node scripts/categorize_scout_results.mjs --report ${out}`);

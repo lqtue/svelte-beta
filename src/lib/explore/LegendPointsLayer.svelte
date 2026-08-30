@@ -26,7 +26,14 @@
   export let mapId: string | null = null;
   export let enabled = false;
 
-  type LegendPoint = { n: number; name: string | null; vn: string | null; grid: string | null; lng: number; lat: number };
+  type LegendPoint = {
+    n: number;
+    name: string | null;
+    vn: string | null;
+    grid: string | null;
+    lng: number;
+    lat: number;
+  };
 
   const { map: mapWritable } = getShellContext();
   let olMap: Map | null = null;
@@ -43,14 +50,14 @@
       image: new CircleStyle({
         radius: 9,
         fill: new Fill({ color: '#eab308' }),
-        stroke: new Stroke({ color: '#111', width: 1.5 })
+        stroke: new Stroke({ color: '#111', width: 1.5 }),
       }),
       text: new Text({
         text: String(n),
         font: "700 10px 'Space Grotesk', sans-serif",
-        fill: new Fill({ color: '#111' })
+        fill: new Fill({ color: '#111' }),
       }),
-      zIndex: 5
+      zIndex: 5,
     });
 
   function render() {
@@ -68,7 +75,10 @@
   async function load(id: string) {
     try {
       const res = await fetch(`/api/maps/${id}/legend-points`);
-      if (!res.ok) { points = []; return; }
+      if (!res.ok) {
+        points = [];
+        return;
+      }
       const data = await res.json();
       points = (data.points ?? []) as LegendPoint[];
     } catch {
@@ -82,17 +92,22 @@
   // (referencing both so Svelte tracks them as dependencies).
   $: if (enabled && mapId && mapId !== loadedFor) load(mapId);
   $: {
-    enabled; points;
+    enabled;
+    points;
     if (source) render();
     if (!enabled && overlay) overlay.setPosition(undefined);
   }
 
   function onMove(e: any) {
     if (!olMap || !overlay || !enabled) return;
-    const hit = olMap.forEachFeatureAtPixel(e.pixel, (f) => f.get('legend') as LegendPoint | undefined, {
-      hitTolerance: 4,
-      layerFilter: (l) => l === layer
-    });
+    const hit = olMap.forEachFeatureAtPixel(
+      e.pixel,
+      (f) => f.get('legend') as LegendPoint | undefined,
+      {
+        hitTolerance: 4,
+        layerFilter: (l) => l === layer,
+      }
+    );
     if (hit) {
       const label = hit.name ? `№${hit.n} · ${hit.name}` : `№${hit.n}`;
       popupEl.textContent = hit.grid ? `${label}  [${hit.grid}]` : label;
@@ -111,7 +126,12 @@
       source = new VectorSource();
       layer = new VectorImageLayer({ source, zIndex: 60 });
       olMap.addLayer(layer);
-      overlay = new Overlay({ element: popupEl, offset: [0, -16], positioning: 'bottom-center', stopEvent: false });
+      overlay = new Overlay({
+        element: popupEl,
+        offset: [0, -16],
+        positioning: 'bottom-center',
+        stopEvent: false,
+      });
       olMap.addOverlay(overlay);
       olMap.on('pointermove', onMove);
       render();
@@ -137,10 +157,14 @@
     border: 1.5px solid #111;
     border-radius: 4px;
     padding: 3px 7px;
-    font: 600 12px 'Space Grotesk', sans-serif;
+    font:
+      600 12px 'Space Grotesk',
+      sans-serif;
     white-space: nowrap;
     pointer-events: none;
     box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.15);
   }
-  .legend-popup:empty { display: none; }
+  .legend-popup:empty {
+    display: none;
+  }
 </style>

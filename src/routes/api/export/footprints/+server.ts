@@ -26,10 +26,7 @@ import type { RequestHandler } from './$types';
 import { createClient } from '@supabase/supabase-js';
 import { GcpTransformer } from '@allmaps/transform';
 import { parseAnnotation } from '@allmaps/annotation';
-import {
-  PUBLIC_SUPABASE_URL,
-  PUBLIC_SUPABASE_ANON_KEY
-} from '$env/static/public';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 interface AnnotationData {
   transformer: GcpTransformer;
@@ -39,7 +36,10 @@ interface AnnotationData {
 type AnnotationCache = Map<string, AnnotationData>;
 
 // Cache is per-request: module scope is shared across concurrent requests in a CF isolate.
-async function getAnnotationData(allmapsId: string, annotationCache: AnnotationCache): Promise<AnnotationData | null> {
+async function getAnnotationData(
+  allmapsId: string,
+  annotationCache: AnnotationCache
+): Promise<AnnotationData | null> {
   const annotationUrl = `https://annotations.allmaps.org/maps/${allmapsId}`;
   if (annotationCache.has(annotationUrl)) return annotationCache.get(annotationUrl)!;
 
@@ -64,13 +64,13 @@ async function getAnnotationData(allmapsId: string, annotationCache: AnnotationC
 }
 
 const CATEGORY_IDS: Record<string, number> = {
-  building:    1,
-  land_plot:   2,
-  road:        3,
-  waterway:    4,
+  building: 1,
+  land_plot: 2,
+  road: 3,
+  waterway: 4,
   green_space: 5,
-  water_body:  6,
-  other:       7,
+  water_body: 6,
+  other: 7,
 };
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -168,8 +168,10 @@ export const GET: RequestHandler = async ({ url }) => {
     // Bounding box in IIIF pixel space
     const xs = pixelRing.map(([x]) => x);
     const ys = pixelRing.map(([, y]) => y);
-    const xMin = Math.min(...xs), yMin = Math.min(...ys);
-    const xMax = Math.max(...xs), yMax = Math.max(...ys);
+    const xMin = Math.min(...xs),
+      yMin = Math.min(...ys);
+    const xMax = Math.max(...xs),
+      yMax = Math.max(...ys);
 
     // Crop region with padding (clamped to non-negative)
     const cropX = Math.max(0, Math.round(xMin - pad));
@@ -247,13 +249,13 @@ export const GET: RequestHandler = async ({ url }) => {
       export_params: { status, pad, crop_size: cropSize },
     },
     categories: [
-      { id: 1, name: 'building',    supercategory: 'structure' },
-      { id: 2, name: 'land_plot',   supercategory: 'structure' },
-      { id: 3, name: 'road',        supercategory: 'infrastructure' },
-      { id: 4, name: 'waterway',    supercategory: 'infrastructure' },
+      { id: 1, name: 'building', supercategory: 'structure' },
+      { id: 2, name: 'land_plot', supercategory: 'structure' },
+      { id: 3, name: 'road', supercategory: 'infrastructure' },
+      { id: 4, name: 'waterway', supercategory: 'infrastructure' },
       { id: 5, name: 'green_space', supercategory: 'open_land' },
-      { id: 6, name: 'water_body',  supercategory: 'open_land' },
-      { id: 7, name: 'other',       supercategory: 'other' },
+      { id: 6, name: 'water_body', supercategory: 'open_land' },
+      { id: 7, name: 'other', supercategory: 'other' },
     ],
     images: cocoImages,
     annotations: cocoAnnotations,

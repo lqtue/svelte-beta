@@ -20,7 +20,10 @@
 
   cursor: pointer;
   text-decoration: none;
-  transition: transform 0.1s, box-shadow 0.1s, background-color 0.1s;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s,
+    background-color 0.1s;
   flex-shrink: 0;
   min-height: 2.5rem;
 }
@@ -109,4 +112,3 @@
   flex-direction: column;
   gap: var(--space-3);
 }
-

@@ -8,16 +8,16 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const sb = createClient(env.PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
 const apply = process.argv.includes('--apply');
 
 // Title-based language heuristics for rows with empty language
-const ENGLISH_TITLES = [
-  /^Map of /i, /^Town Plan/i, /Việt Nam City Maps/i, /Việt Nam 1:50,000/i,
-];
+const ENGLISH_TITLES = [/^Map of /i, /^Town Plan/i, /Việt Nam City Maps/i, /Việt Nam 1:50,000/i];
 const VIETNAMESE_TITLES = [/Đô thành/i, /^Sài Gòn /i];
 
 function normRights(curr) {
@@ -37,8 +37,8 @@ function normLanguage(curr, name) {
     return s; // already a code or unknown
   }
   // empty — infer from name
-  if (ENGLISH_TITLES.some(re => re.test(name))) return 'en';
-  if (VIETNAMESE_TITLES.some(re => re.test(name))) return 'vi';
+  if (ENGLISH_TITLES.some((re) => re.test(name))) return 'en';
+  if (VIETNAMESE_TITLES.some((re) => re.test(name))) return 'vi';
   return 'fr'; // default for historical Indochina maps
 }
 
@@ -54,7 +54,8 @@ for (const m of maps) {
 }
 
 console.log(`${changes.length} maps would change (of ${maps.length})\n`);
-const rightsDelta = {}, langDelta = {};
+const rightsDelta = {},
+  langDelta = {};
 for (const { m, upd } of changes) {
   if ('rights' in upd) {
     const k = `${m.rights ?? '(empty)'} → ${upd.rights}`;
@@ -66,15 +67,24 @@ for (const { m, upd } of changes) {
   }
 }
 console.log('Rights changes:');
-for (const [k, v] of Object.entries(rightsDelta).sort((a, b) => b[1] - a[1])) console.log(`  ${String(v).padStart(3)}  ${k}`);
+for (const [k, v] of Object.entries(rightsDelta).sort((a, b) => b[1] - a[1]))
+  console.log(`  ${String(v).padStart(3)}  ${k}`);
 console.log('\nLanguage changes:');
-for (const [k, v] of Object.entries(langDelta).sort((a, b) => b[1] - a[1])) console.log(`  ${String(v).padStart(3)}  ${k}`);
+for (const [k, v] of Object.entries(langDelta).sort((a, b) => b[1] - a[1]))
+  console.log(`  ${String(v).padStart(3)}  ${k}`);
 
-if (!apply) { console.log('\nDRY-RUN — pass --apply to write.'); process.exit(0); }
+if (!apply) {
+  console.log('\nDRY-RUN — pass --apply to write.');
+  process.exit(0);
+}
 
-let ok = 0, fail = 0;
+let ok = 0,
+  fail = 0;
 for (const { m, upd } of changes) {
   const { error } = await sb.from('maps').update(upd).eq('id', m.id);
-  if (error) { console.error(`  ✗ ${m.id}: ${error.message}`); fail++; } else ok++;
+  if (error) {
+    console.error(`  ✗ ${m.id}: ${error.message}`);
+    fail++;
+  } else ok++;
 }
 console.log(`\nApplied: ${ok} ok, ${fail} failed.`);

@@ -27,15 +27,23 @@
     if (!browser) return;
     try {
       const prev = localStorage.getItem(STORAGE_KEY) as Choice | null;
-      if (prev === 'location') { dispatch('allow'); return; }
-      if (prev === 'all')      { dispatch('skip');  return; }
+      if (prev === 'location') {
+        dispatch('allow');
+        return;
+      }
+      if (prev === 'all') {
+        dispatch('skip');
+        return;
+      }
     } catch {}
     visible = true;
   });
 
   function persist(choice: Choice) {
     if (!browser || !dontShowAgain) return;
-    try { localStorage.setItem(STORAGE_KEY, choice); } catch {}
+    try {
+      localStorage.setItem(STORAGE_KEY, choice);
+    } catch {}
   }
 
   function chooseLocation() {
@@ -55,8 +63,8 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
     <h2 id="welcome-title">Explore the archive</h2>
     <p class="lede">
-      Browse VMA's historical maps of Vietnam — Saigon, Hanoi, Huế, Cambodia
-      and beyond. Pick how you want to start.
+      Browse VMA's historical maps of Vietnam — Saigon, Hanoi, Huế, Cambodia and beyond. Pick how
+      you want to start.
     </p>
 
     <div class="choices">
@@ -134,9 +142,19 @@
     font-size: var(--text-xl);
     font-weight: var(--font-extrabold);
   }
-  .lede { margin: 0 0 0.85rem; font-size: 0.92rem; color: var(--sb-text-meta); line-height: 1.4; }
+  .lede {
+    margin: 0 0 0.85rem;
+    font-size: 0.92rem;
+    color: var(--sb-text-meta);
+    line-height: 1.4;
+  }
 
-  .choices { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 0.85rem; }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin-bottom: 0.85rem;
+  }
   .choice {
     display: flex;
     align-items: center;
@@ -152,14 +170,39 @@
     cursor: pointer;
     color: var(--sb-text);
   }
-  .choice.primary { background: var(--sb-accent-warm); color: var(--color-white); }
-  .choice:active { transform: translate(2px, 2px); box-shadow: var(--shadow-solid-xs); }
-  .choice-icon { font-size: 1.55rem; line-height: 1; flex-shrink: 0; }
-  .choice-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
-  .choice-body strong { font-size: 0.98rem; font-weight: var(--font-extrabold); }
-  .choice-body span { font-size: 0.82rem; opacity: 0.85; line-height: 1.35; }
+  .choice.primary {
+    background: var(--sb-accent-warm);
+    color: var(--color-white);
+  }
+  .choice:active {
+    transform: translate(2px, 2px);
+    box-shadow: var(--shadow-solid-xs);
+  }
+  .choice-icon {
+    font-size: 1.55rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .choice-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+  .choice-body strong {
+    font-size: 0.98rem;
+    font-weight: var(--font-extrabold);
+  }
+  .choice-body span {
+    font-size: 0.82rem;
+    opacity: 0.85;
+    line-height: 1.35;
+  }
 
-  .privacy { margin-bottom: 0.75rem; font-size: var(--text-sm); }
+  .privacy {
+    margin-bottom: 0.75rem;
+    font-size: var(--text-sm);
+  }
   .privacy summary {
     cursor: pointer;
     font-weight: var(--font-bold);
@@ -188,5 +231,9 @@
     cursor: pointer;
     user-select: none;
   }
-  .ack-row input { width: 16px; height: 16px; accent-color: var(--sb-accent-warm); }
+  .ack-row input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--sb-accent-warm);
+  }
 </style>

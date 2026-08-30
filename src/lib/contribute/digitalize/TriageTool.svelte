@@ -83,20 +83,20 @@
   });
   const normalStyle = new Style({
     stroke: new Stroke({ color: 'rgba(245,158,11,0.55)', width: 1.5 }),
-    fill:   new Fill({ color: 'rgba(0,0,0,0.01)' }),
+    fill: new Fill({ color: 'rgba(0,0,0,0.01)' }),
   });
   const lowResStyle = new Style({
     stroke: new Stroke({ color: '#f59e0b', width: 2 }),
-    fill:   new Fill({ color: 'rgba(245,158,11,0.18)' }),
+    fill: new Fill({ color: 'rgba(245,158,11,0.18)' }),
   });
   const skipStyle = new Style({
     stroke: new Stroke({ color: '#6b7280', width: 1.5 }),
-    fill:   new Fill({ color: 'rgba(107,114,128,0.32)' }),
+    fill: new Fill({ color: 'rgba(107,114,128,0.32)' }),
   });
 
   function tileStyleFn(feat: Feature): Style {
     const s = tileOverrides[feat.getId() as string];
-    if (s === 'skip')    return skipStyle;
+    if (s === 'skip') return skipStyle;
     if (s === 'low_res') return lowResStyle;
     return normalStyle;
   }
@@ -109,17 +109,21 @@
 
     // Neatline layer — zIndex 6
     neatlineSource = new VectorSource();
-    neatlineLayer  = new VectorLayer({ source: neatlineSource, zIndex: 6, style: neatlineStyle });
+    neatlineLayer = new VectorLayer({ source: neatlineSource, zIndex: 6, style: neatlineStyle });
     olMap.addLayer(neatlineLayer);
 
     // Handle layer — zIndex 7 (corner squares, above neatline)
     handleSource = new VectorSource();
-    handleLayer  = new VectorLayer({ source: handleSource, zIndex: 7, style: handleStyle });
+    handleLayer = new VectorLayer({ source: handleSource, zIndex: 7, style: handleStyle });
     olMap.addLayer(handleLayer);
 
     // Tile grid layer — zIndex 3
     tileSource = new VectorSource();
-    tileLayer  = new VectorLayer({ source: tileSource, zIndex: 3, style: (f: any) => tileStyleFn(f as Feature) });
+    tileLayer = new VectorLayer({
+      source: tileSource,
+      zIndex: 3,
+      style: (f: any) => tileStyleFn(f as Feature),
+    });
     olMap.addLayer(tileLayer);
 
     // ── Body translate: move whole neatline ──
@@ -154,18 +158,17 @@
 
     // ── Tile click: cycle priority ──────────────────────────────────────────
     clickKey = olMap.on('singleclick', (event: any) => {
-      const feat = olMap.forEachFeatureAtPixel(
-        event.pixel, (f: any) => f,
-        { layerFilter: (l: any) => l === tileLayer }
-      );
+      const feat = olMap.forEachFeatureAtPixel(event.pixel, (f: any) => f, {
+        layerFilter: (l: any) => l === tileLayer,
+      });
       if (!feat) return;
 
       const k = feat.getId() as string;
       const newOverrides = { ...tileOverrides };
       const cur = newOverrides[k];
-      if (cur === undefined)      newOverrides[k] = 'low_res';
+      if (cur === undefined) newOverrides[k] = 'low_res';
       else if (cur === 'low_res') newOverrides[k] = 'skip';
-      else                        delete newOverrides[k];
+      else delete newOverrides[k];
 
       dispatch('tileOverridesChange', newOverrides);
     });
@@ -182,7 +185,7 @@
   function clamp(x: number, y: number, w: number, h: number): [number, number, number, number] {
     const cx = Math.max(0, x);
     const cy = Math.max(0, y);
-    const cw = Math.max(1, Math.min(imgWidth  - cx, w));
+    const cw = Math.max(1, Math.min(imgWidth - cx, w));
     const ch = Math.max(1, Math.min(imgHeight - cy, h));
     return [cx, cy, cw, ch];
   }
@@ -230,7 +233,8 @@
 
   // ── Reactive: sync prop → OL ───────────────────────────────────────────────
   $: if (neatline && initialized && neatlineSource && tileSource && handleSource) {
-    void tileSize; void overlap;
+    void tileSize;
+    void overlap;
     syncNeatlineGeom(neatline);
     syncHandles(neatline);
     rebuildTileFeatures(neatline);
@@ -245,11 +249,11 @@
     const ctx = get(shellStore);
     if (clickKey) unByKey(clickKey);
     if (ctx) {
-      if (handleTranslate)  ctx.map.removeInteraction(handleTranslate);
-      if (bodyTranslate)    ctx.map.removeInteraction(bodyTranslate);
-      if (handleLayer)      ctx.map.removeLayer(handleLayer);
-      if (neatlineLayer)    ctx.map.removeLayer(neatlineLayer);
-      if (tileLayer)        ctx.map.removeLayer(tileLayer);
+      if (handleTranslate) ctx.map.removeInteraction(handleTranslate);
+      if (bodyTranslate) ctx.map.removeInteraction(bodyTranslate);
+      if (handleLayer) ctx.map.removeLayer(handleLayer);
+      if (neatlineLayer) ctx.map.removeLayer(neatlineLayer);
+      if (tileLayer) ctx.map.removeLayer(tileLayer);
     }
   });
 </script>

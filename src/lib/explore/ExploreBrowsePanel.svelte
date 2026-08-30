@@ -47,7 +47,10 @@
 
   // Oldest → newest, matching /catalog's default sort. Undated maps sink
   // to the bottom; ties break by name so the order is stable.
-  function byYear(a: { year?: number | null; name?: string }, b: { year?: number | null; name?: string }): number {
+  function byYear(
+    a: { year?: number | null; name?: string },
+    b: { year?: number | null; name?: string }
+  ): number {
     const ay = a.year ?? Infinity;
     const by = b.year ?? Infinity;
     if (ay !== by) return ay - by;
@@ -116,20 +119,32 @@
   {#if expanded}
     <div class="filters">
       <label class="search">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
           <circle cx="11" cy="11" r="7" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
         <input type="text" placeholder="Search maps…" bind:value={$query} />
         {#if $query}
-          <button type="button" class="clear" on:click={() => query.set('')} aria-label="Clear">×</button>
+          <button type="button" class="clear" on:click={() => query.set('')} aria-label="Clear"
+            >×</button
+          >
         {/if}
       </label>
       <div class="dropdowns">
         {#if $areaChoices.length}
           <select
             value={$selected.area?.[0] ?? ''}
-            on:change={(e) => search.setSingle('area', (e.currentTarget as HTMLSelectElement).value)}
+            on:change={(e) =>
+              search.setSingle('area', (e.currentTarget as HTMLSelectElement).value)}
             aria-label="Filter by area"
           >
             <option value="">All areas</option>
@@ -141,7 +156,8 @@
         {#if $typeChoices.length}
           <select
             value={$selected.type?.[0] ?? ''}
-            on:change={(e) => search.setSingle('type', (e.currentTarget as HTMLSelectElement).value)}
+            on:change={(e) =>
+              search.setSingle('type', (e.currentTarget as HTMLSelectElement).value)}
             aria-label="Filter by map type"
           >
             <option value="">All types</option>
@@ -153,7 +169,8 @@
         {#if $periodChoices.length}
           <select
             value={$selected.period?.[0] ?? ''}
-            on:change={(e) => search.setSingle('period', (e.currentTarget as HTMLSelectElement).value)}
+            on:change={(e) =>
+              search.setSingle('period', (e.currentTarget as HTMLSelectElement).value)}
             aria-label="Filter by period"
           >
             <option value="">All periods</option>
@@ -166,7 +183,11 @@
     </div>
     <div class="count-row">
       <span class="count">
-        {shownRows.length} map{shownRows.length === 1 ? '' : 's'}{#if $loading}<span class="loading"> …</span>{/if}
+        {shownRows.length} map{shownRows.length === 1 ? '' : 's'}{#if $loading}<span
+            class="loading"
+          >
+            …</span
+          >{/if}
       </span>
       {#if hasFilters}
         <button type="button" class="reset" on:click={resetFilters}>Reset filters</button>
@@ -182,11 +203,28 @@
           <button type="button" class="row" class:is-on={on} on:click={() => onRowClick(m)}>
             <span class="tick" aria-hidden="true" class:on>
               {#if on}
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
                   <path d="M5 12.5l5 5L20 7" />
                 </svg>
               {:else}
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                >
                   <path d="M12 5v14M5 12h14" />
                 </svg>
               {/if}
@@ -209,7 +247,10 @@
   <button
     type="button"
     class="browse-toggle"
-    on:click={() => { expanded = !expanded; if (!expanded) resetFilters(); }}
+    on:click={() => {
+      expanded = !expanded;
+      if (!expanded) resetFilters();
+    }}
   >
     {#if expanded}
       ← Back to maps at this location
@@ -227,15 +268,26 @@
     padding: 0.6rem 0.7rem 0.8rem;
     font-family: var(--sb-font-base);
   }
-  .head { display: flex; flex-direction: column; gap: 0.15rem; }
+  .head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
   .title {
     font-family: var(--sb-font-display);
     font-size: var(--text-base);
     font-weight: var(--font-extrabold);
   }
-  .hint { color: var(--sb-text-meta); font-size: 0.78rem; }
+  .hint {
+    color: var(--sb-text-meta);
+    font-size: 0.78rem;
+  }
 
-  .filters { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .filters {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
   .search {
     flex: 1 1 160px;
     display: flex;
@@ -275,10 +327,21 @@
     cursor: pointer;
   }
 
-  .dropdowns { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-  .dropdowns select { flex: 1 1 110px; }
+  .dropdowns {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .dropdowns select {
+    flex: 1 1 110px;
+  }
 
-  .count-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .count-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
   .count {
     font-size: 0.74rem;
     text-transform: uppercase;
@@ -320,8 +383,12 @@
     font-family: inherit;
     cursor: pointer;
   }
-  .row:active { background: #f3f1ea; }
-  .row.is-on { background: var(--sb-success-bg); }
+  .row:active {
+    background: #f3f1ea;
+  }
+  .row.is-on {
+    background: var(--sb-success-bg);
+  }
 
   .tick {
     width: 32px;
@@ -359,7 +426,11 @@
     overflow: hidden;
     min-width: 0;
   }
-  .type-cell { display: flex; justify-content: flex-end; min-width: 0; }
+  .type-cell {
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+  }
   .type-chip {
     padding: 0.15rem 0.5rem;
     background: var(--sb-accent-yellow);
@@ -392,5 +463,7 @@
     cursor: pointer;
     border-bottom: 1.5px dashed var(--sb-accent);
   }
-  .browse-toggle:hover { color: #1e3a8a; }
+  .browse-toggle:hover {
+    color: #1e3a8a;
+  }
 </style>

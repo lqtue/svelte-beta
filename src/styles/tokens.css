@@ -27,12 +27,11 @@
   --color-warning-600: var(--color-orange);
   --color-error-600: var(--color-primary);
 
-
   /* ========================================
      TYPOGRAPHY
      ======================================== */
-  --font-family-base: "Outfit", "Be Vietnam Pro", system-ui, sans-serif;
-  --font-family-display: "Space Grotesk", system-ui, sans-serif;
+  --font-family-base: 'Outfit', 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-family-display: 'Space Grotesk', system-ui, sans-serif;
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -102,4 +101,3 @@
   --bp-tablet: 768px;
   --bp-desktop: 1024px;
 }
-

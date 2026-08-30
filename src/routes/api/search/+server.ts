@@ -20,11 +20,11 @@ const MAX_LIMIT = 1000;
 const DEFAULT_LIMIT = 60;
 
 const PERIODS: { key: string; label: string; from: number; to: number }[] = [
-  { key: 'pre_colonial', label: 'Pre-colonial (≤1858)', from: 0,    to: 1858 },
+  { key: 'pre_colonial', label: 'Pre-colonial (≤1858)', from: 0, to: 1858 },
   { key: 'early_colonial', label: 'Early colonial (1859–1887)', from: 1859, to: 1887 },
-  { key: 'indochina',   label: 'French Indochina (1888–1939)', from: 1888, to: 1939 },
-  { key: 'war_years',   label: 'War years (1940–1954)',  from: 1940, to: 1954 },
-  { key: 'republic',    label: 'Republic era (1955–1975)', from: 1955, to: 1975 },
+  { key: 'indochina', label: 'French Indochina (1888–1939)', from: 1888, to: 1939 },
+  { key: 'war_years', label: 'War years (1940–1954)', from: 1940, to: 1954 },
+  { key: 'republic', label: 'Republic era (1955–1975)', from: 1955, to: 1975 },
   { key: 'reunification', label: 'Reunification+ (1976–)', from: 1976, to: 9999 },
 ];
 
@@ -33,7 +33,11 @@ async function getRole(locals: App.Locals): Promise<'admin' | 'mod' | 'user' | n
     const { session, user } = await locals.safeGetSession();
     if (!session || !user) return null;
     const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
     const role = (profile as { role?: string } | null)?.role ?? 'user';
     if (role === 'admin' || role === 'mod') return role;
     return 'user';
@@ -43,7 +47,12 @@ async function getRole(locals: App.Locals): Promise<'admin' | 'mod' | 'user' | n
 }
 
 function csvParam(v: string | null): string[] {
-  return v ? v.split(',').map(s => s.trim()).filter(Boolean) : [];
+  return v
+    ? v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
 }
 
 function tally(rows: Record<string, unknown>[] | null, key: string): Record<string, number> {
@@ -69,18 +78,21 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   const q = (url.searchParams.get('q') || '').trim();
   const institution = csvParam(url.searchParams.get('institution'));
-  const type        = csvParam(url.searchParams.get('type'));
-  const period      = csvParam(url.searchParams.get('period'));
-  const source      = csvParam(url.searchParams.get('source'));      // source_type (ia, bnf, …)
+  const type = csvParam(url.searchParams.get('type'));
+  const period = csvParam(url.searchParams.get('period'));
+  const source = csvParam(url.searchParams.get('source')); // source_type (ia, bnf, …)
   const scoutSource = csvParam(url.searchParams.get('scoutSource')); // scout.source (humazur, gallica, …)
-  const category    = csvParam(url.searchParams.get('category'));    // scout category
-  const georef      = url.searchParams.get('georef'); // 'yes' | 'no' | null
-  const includeReq  = csvParam(url.searchParams.get('include'));
-  const limit       = Math.min(parseInt(url.searchParams.get('limit') || String(DEFAULT_LIMIT)), MAX_LIMIT);
-  const offset      = parseInt(url.searchParams.get('offset') || '0');
+  const category = csvParam(url.searchParams.get('category')); // scout category
+  const georef = url.searchParams.get('georef'); // 'yes' | 'no' | null
+  const includeReq = csvParam(url.searchParams.get('include'));
+  const limit = Math.min(
+    parseInt(url.searchParams.get('limit') || String(DEFAULT_LIMIT)),
+    MAX_LIMIT
+  );
+  const offset = parseInt(url.searchParams.get('offset') || '0');
 
   const includeScout = (role === 'admin' || role === 'mod') && includeReq.includes('scout');
-  const includeMaps  = !includeReq.length || includeReq.includes('maps');
+  const includeMaps = !includeReq.length || includeReq.includes('maps');
 
   // ---------- MAPS ----------
   // We fetch a broad set (search applied; facet filters NOT applied) so we can tally facets,
@@ -88,9 +100,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   // stays cheap; if maps ever grows past that we'd push facets server-side.
   let mapsRows: Record<string, unknown>[] = [];
   if (includeMaps) {
-    let qMaps = supabase.from('maps').select(
-      'id,name,location,map_type,dc_description,thumbnail,is_featured,year,year_label,collection,source_type,status,bbox,extra_metadata,iiif_image,allmaps_id,annotation_url,georef_done,creator,holding_institution,original_title,dc_publisher,shelfmark,physical_description,rights,language,source_url'
-    );
+    let qMaps = supabase
+      .from('maps')
+      .select(
+        'id,name,location,map_type,dc_description,thumbnail,is_featured,year,year_label,collection,source_type,status,bbox,extra_metadata,iiif_image,allmaps_id,annotation_url,georef_done,creator,holding_institution,original_title,dc_publisher,shelfmark,physical_description,rights,language,source_url'
+      );
     if (role !== 'admin' && role !== 'mod') {
       // Public users only see public/featured.
       qMaps = qMaps.in('status', ['public', 'featured']);
@@ -105,9 +119,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   // ---------- SCOUT ----------
   let scoutRows: Record<string, unknown>[] = [];
   if (includeScout) {
-    let qScout = supabase.from('scout_candidates').select(
-      'id,title,creator,publisher,date,year,holding_institution,collection,source,external_id,source_url,manifest_url,thumbnail,score,category,status,rights,language'
-    ).neq('status', 'ingested'); // ingested rows already show up under maps
+    let qScout = supabase
+      .from('scout_candidates')
+      .select(
+        'id,title,creator,publisher,date,year,holding_institution,collection,source,external_id,source_url,manifest_url,thumbnail,score,category,status,rights,language'
+      )
+      .neq('status', 'ingested'); // ingested rows already show up under maps
     if (q) qScout = qScout.textSearch('search_vector', q, { config: 'simple', type: 'plain' });
     qScout = qScout.limit(2000);
     const { data, error: err } = await qScout;
@@ -133,11 +150,21 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     !georef || (georef === 'yes' ? !!r.allmaps_id : !r.allmaps_id);
 
   // For maps, build the "all but X" subsets.
-  const mapsForInstitutionFacet = mapsRows.filter(r => passType(r) && passPeriod(r) && passSource(r) && passGeoref(r));
-  const mapsForTypeFacet        = mapsRows.filter(r => passInstitution(r) && passPeriod(r) && passSource(r) && passGeoref(r));
-  const mapsForPeriodFacet      = mapsRows.filter(r => passInstitution(r) && passType(r) && passSource(r) && passGeoref(r));
-  const mapsForSourceFacet      = mapsRows.filter(r => passInstitution(r) && passType(r) && passPeriod(r) && passGeoref(r));
-  const mapsForGeorefFacet      = mapsRows.filter(r => passInstitution(r) && passType(r) && passPeriod(r) && passSource(r));
+  const mapsForInstitutionFacet = mapsRows.filter(
+    (r) => passType(r) && passPeriod(r) && passSource(r) && passGeoref(r)
+  );
+  const mapsForTypeFacet = mapsRows.filter(
+    (r) => passInstitution(r) && passPeriod(r) && passSource(r) && passGeoref(r)
+  );
+  const mapsForPeriodFacet = mapsRows.filter(
+    (r) => passInstitution(r) && passType(r) && passSource(r) && passGeoref(r)
+  );
+  const mapsForSourceFacet = mapsRows.filter(
+    (r) => passInstitution(r) && passType(r) && passPeriod(r) && passGeoref(r)
+  );
+  const mapsForGeorefFacet = mapsRows.filter(
+    (r) => passInstitution(r) && passType(r) && passPeriod(r) && passSource(r)
+  );
 
   // Period counts need bucketing.
   const periodCounts: Record<string, number> = {};
@@ -147,8 +174,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   }
 
   const georefCounts = {
-    yes: mapsForGeorefFacet.filter(r => !!r.allmaps_id).length,
-    no: mapsForGeorefFacet.filter(r => !r.allmaps_id).length,
+    yes: mapsForGeorefFacet.filter((r) => !!r.allmaps_id).length,
+    no: mapsForGeorefFacet.filter((r) => !r.allmaps_id).length,
   };
 
   // Scout facets (when scout included): scoutSource + category.
@@ -164,38 +191,43 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     return p ? period.includes(p) : false;
   };
 
-  const scoutForSourceFacet   = scoutRows.filter(r => passCategory(r) && passScoutInstitution(r) && passScoutPeriod(r));
-  const scoutForCategoryFacet = scoutRows.filter(r => passScoutSource(r) && passScoutInstitution(r) && passScoutPeriod(r));
+  const scoutForSourceFacet = scoutRows.filter(
+    (r) => passCategory(r) && passScoutInstitution(r) && passScoutPeriod(r)
+  );
+  const scoutForCategoryFacet = scoutRows.filter(
+    (r) => passScoutSource(r) && passScoutInstitution(r) && passScoutPeriod(r)
+  );
 
   const facets = {
     institution: tally(mapsForInstitutionFacet, 'holding_institution'),
-    map_type:    tally(mapsForTypeFacet, 'map_type'),
+    map_type: tally(mapsForTypeFacet, 'map_type'),
     source_type: tally(mapsForSourceFacet, 'source_type'),
-    period:      periodCounts,
-    georef:      georefCounts,
-    scout_source:   includeScout ? tally(scoutForSourceFacet, 'source')     : {},
+    period: periodCounts,
+    georef: georefCounts,
+    scout_source: includeScout ? tally(scoutForSourceFacet, 'source') : {},
     scout_category: includeScout ? tally(scoutForCategoryFacet, 'category') : {},
   };
 
   // ---------- APPLY FILTERS + PAGINATE ----------
-  const filteredMaps = mapsRows.filter(r =>
-    passInstitution(r) && passType(r) && passPeriod(r) && passSource(r) && passGeoref(r)
+  const filteredMaps = mapsRows.filter(
+    (r) => passInstitution(r) && passType(r) && passPeriod(r) && passSource(r) && passGeoref(r)
   );
-  const filteredScout = scoutRows.filter(r =>
-    passScoutSource(r) && passCategory(r) && passScoutInstitution(r) && passScoutPeriod(r)
+  const filteredScout = scoutRows.filter(
+    (r) => passScoutSource(r) && passCategory(r) && passScoutInstitution(r) && passScoutPeriod(r)
   );
 
   // Stable ordering: when q is present, supabase preserves rank order; otherwise by year then name.
   if (!q) {
     filteredMaps.sort((a, b) => {
-      const ay = (a.year as number) ?? 9999, by = (b.year as number) ?? 9999;
+      const ay = (a.year as number) ?? 9999,
+        by = (b.year as number) ?? 9999;
       return ay !== by ? ay - by : String(a.name ?? '').localeCompare(String(b.name ?? ''));
     });
     filteredScout.sort((a, b) => ((b.score as number) ?? 0) - ((a.score as number) ?? 0));
   }
 
   // Shape rows for the client. Use the MapListItem shape so the result card can render both.
-  const mapsOut = filteredMaps.slice(offset, offset + limit).map(r => ({
+  const mapsOut = filteredMaps.slice(offset, offset + limit).map((r) => ({
     id: r.id,
     name: r.name,
     location: r.location,
@@ -226,7 +258,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     _table: 'maps' as const,
   }));
 
-  const scoutOut = filteredScout.slice(0, limit).map(r => ({
+  const scoutOut = filteredScout.slice(0, limit).map((r) => ({
     id: `scout:${r.id}`,
     name: r.title,
     year: r.year,

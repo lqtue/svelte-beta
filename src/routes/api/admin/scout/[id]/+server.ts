@@ -10,7 +10,11 @@ async function assertAdmin(locals: App.Locals) {
   const { session, user } = await locals.safeGetSession();
   if (!session || !user) throw error(401, 'Unauthorized');
   const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
   const role = (profile as { role?: string } | null)?.role;
   if (role !== 'admin' && role !== 'mod') throw error(403, 'Forbidden');
   return { user, supabase };
@@ -19,7 +23,16 @@ async function assertAdmin(locals: App.Locals) {
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   const { user, supabase } = await assertAdmin(locals);
   const body = await request.json();
-  const allowed = ['status', 'category', 'thumbnail', 'title', 'creator', 'year', 'language', 'rights'] as const;
+  const allowed = [
+    'status',
+    'category',
+    'thumbnail',
+    'title',
+    'creator',
+    'year',
+    'language',
+    'rights',
+  ] as const;
   const patch: Database['public']['Tables']['scout_candidates']['Update'] = {};
   for (const k of allowed) {
     if (body[k] !== undefined) patch[k] = body[k];
@@ -33,7 +46,10 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
   }
   const { data, error: dbErr } = await supabase
     .from('scout_candidates')
-    .update(patch).eq('id', params.id).select().single();
+    .update(patch)
+    .eq('id', params.id)
+    .select()
+    .single();
   if (dbErr) throw error(500, dbErr.message);
   return json(data);
 };

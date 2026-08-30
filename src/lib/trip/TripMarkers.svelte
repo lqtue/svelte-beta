@@ -47,14 +47,14 @@
       image: new CircleStyle({
         radius,
         fill: new Fill({ color: bg }),
-        stroke: new Stroke({ color: '#111', width: 2 })
+        stroke: new Stroke({ color: '#111', width: 2 }),
       }),
       text: new Text({
         text: isDone ? '✓' : String(index + 1),
         font: `800 ${isCurrent ? 13 : 11}px 'Space Grotesk', sans-serif`,
-        fill: new Fill({ color: '#fff' })
+        fill: new Fill({ color: '#fff' }),
       }),
-      zIndex: isCurrent ? 10 : 1
+      zIndex: isCurrent ? 10 : 1,
     });
   }
 
@@ -85,8 +85,8 @@
             color: '#2563eb',
             width: 3,
             lineDash: [4, 6],
-            lineCap: 'round'
-          })
+            lineCap: 'round',
+          }),
         })
       );
       lineSource.addFeature(line);
@@ -110,7 +110,9 @@
       sync();
     });
 
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   });
 
   onDestroy(() => {

@@ -40,8 +40,7 @@
       };
     });
   $: hasOrphanPin =
-    !!point.overlayMapId
-    && !pinOptions.some((opt) => opt.mapId === point.overlayMapId);
+    !!point.overlayMapId && !pinOptions.some((opt) => opt.mapId === point.overlayMapId);
 
   function update(updates: Partial<StoryPoint>) {
     dispatch('updatePoint', { pointId: point.id, updates });
@@ -60,7 +59,8 @@
     <label class="sb-section">
       <span class="sb-section-label">Title</span>
       <input
-        type="text" class="sb-input"
+        type="text"
+        class="sb-input"
         value={point.title}
         placeholder="Point title"
         on:input={(e) => update({ title: (e.target as HTMLInputElement).value })}
@@ -70,7 +70,8 @@
     <label class="sb-section">
       <span class="sb-section-label">Description (shown on arrival)</span>
       <textarea
-        rows="3" class="sb-textarea"
+        rows="3"
+        class="sb-textarea"
         value={point.description}
         placeholder="What should the reader notice here?"
         on:input={(e) => update({ description: (e.target as HTMLTextAreaElement).value })}
@@ -80,7 +81,8 @@
     <label class="sb-section">
       <span class="sb-section-label">Hint (shown before arrival)</span>
       <input
-        type="text" class="sb-input"
+        type="text"
+        class="sb-input"
         value={point.hint ?? ''}
         placeholder="Optional hint"
         on:input={(e) => update({ hint: (e.target as HTMLInputElement).value || undefined })}
@@ -98,8 +100,12 @@
         <code class="sb-coords sb-grow">
           {point.coordinates[1].toFixed(5)}, {point.coordinates[0].toFixed(5)}
         </code>
-        <button type="button" class="sb-btn is-sm" class:is-on={movingPoint}
-          on:click={() => dispatch('toggleMoving')}>
+        <button
+          type="button"
+          class="sb-btn is-sm"
+          class:is-on={movingPoint}
+          on:click={() => dispatch('toggleMoving')}
+        >
           {movingPoint ? 'Tap map…' : 'Move'}
         </button>
       </div>
@@ -121,7 +127,9 @@
             <option value={opt.mapId}>{opt.label}</option>
           {/each}
           {#if hasOrphanPin}
-            <option value={point.overlayMapId}>{pinnedLayerName ?? point.overlayMapId} (not loaded)</option>
+            <option value={point.overlayMapId}
+              >{pinnedLayerName ?? point.overlayMapId} (not loaded)</option
+            >
           {/if}
         </select>
       {/if}
@@ -129,8 +137,11 @@
   </div>
 
   <footer class="pi-foot">
-    <button type="button" class="sb-btn is-block is-danger"
-      on:click={() => dispatch('removePoint', { pointId: point.id })}>
+    <button
+      type="button"
+      class="sb-btn is-block is-danger"
+      on:click={() => dispatch('removePoint', { pointId: point.id })}
+    >
       Delete point
     </button>
   </footer>
@@ -138,22 +149,28 @@
 
 <style>
   .pi {
-    display: flex; flex-direction: column;
-    height: 100%; min-height: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
     background: var(--sb-card-bg);
   }
   .pi-body {
-    flex: 1; min-height: 0;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 0.7rem 0.65rem;
-    display: flex; flex-direction: column; gap: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
   }
   .pi-pin-select {
     appearance: auto;
     cursor: pointer;
   }
   .pi-foot {
-    display: flex; gap: 0.4rem;
+    display: flex;
+    gap: 0.4rem;
     padding: 0.55rem 0.65rem;
     border-top: var(--sb-border);
     background: var(--sb-bg);

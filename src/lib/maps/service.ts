@@ -31,36 +31,45 @@ function toMapListItem(row: DbRow): MapListItem {
 
 /** All maps (published). For catalog page. */
 export async function fetchMaps(supabase: SupabaseClient<Database>): Promise<MapListItem[]> {
-  const { data, error } = await supabase
-    .from('maps')
-    .select('*')
-    .order('name');
+  const { data, error } = await supabase.from('maps').select('*').order('name');
 
-  if (error) { console.error('fetchMaps:', error); return []; }
+  if (error) {
+    console.error('fetchMaps:', error);
+    return [];
+  }
   return (data as unknown as DbRow[]).map(toMapListItem);
 }
 
 /** Featured maps only, sorted by year. For home page hero. */
-export async function fetchFeaturedMaps(supabase: SupabaseClient<Database>): Promise<MapListItem[]> {
+export async function fetchFeaturedMaps(
+  supabase: SupabaseClient<Database>
+): Promise<MapListItem[]> {
   const { data, error } = await supabase
     .from('maps')
     .select('*')
     .eq('is_featured', true)
     .order('year', { ascending: true, nullsFirst: false });
 
-  if (error) { console.error('fetchFeaturedMaps:', error); return []; }
+  if (error) {
+    console.error('fetchFeaturedMaps:', error);
+    return [];
+  }
   return (data as unknown as DbRow[]).map(toMapListItem);
 }
 
 /** Maps that have been georeferenced (have allmaps_id OR annotation_url). For view/overlay mode. */
-export async function fetchGeoreferencedMaps(supabase: SupabaseClient<Database>): Promise<MapListItem[]> {
+export async function fetchGeoreferencedMaps(
+  supabase: SupabaseClient<Database>
+): Promise<MapListItem[]> {
   const { data, error } = await supabase
     .from('maps')
     .select('*')
     .or('allmaps_id.not.is.null,annotation_url.not.is.null')
     .order('year', { ascending: true, nullsFirst: false });
 
-  if (error) { console.error('fetchGeoreferencedMaps:', error); return []; }
+  if (error) {
+    console.error('fetchGeoreferencedMaps:', error);
+    return [];
+  }
   return (data as unknown as DbRow[]).map(toMapListItem);
 }
-

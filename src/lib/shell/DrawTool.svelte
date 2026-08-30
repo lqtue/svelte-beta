@@ -19,8 +19,19 @@
 
   import type { DrawingMode, SearchResult } from '$lib/map/types';
   import { DRAW_TYPE_MAP } from '$lib/map/constants';
-  import { ensureAnnotationDefaults, toAnnotationSummary, createAnnotationStyle, searchResultStyle } from '$lib/map/olAnnotations';
-  import { captureFeatureSnapshot as snapshotFeature, restoreFeatureFromSnapshot as restoreSnapshot, type FeatureSnapshot, type HistoryEntry, type AnnotationField } from '$lib/map/annotationHistory';
+  import {
+    ensureAnnotationDefaults,
+    toAnnotationSummary,
+    createAnnotationStyle,
+    searchResultStyle,
+  } from '$lib/map/olAnnotations';
+  import {
+    captureFeatureSnapshot as snapshotFeature,
+    restoreFeatureFromSnapshot as restoreSnapshot,
+    type FeatureSnapshot,
+    type HistoryEntry,
+    type AnnotationField,
+  } from '$lib/map/annotationHistory';
   import { getShellContext } from './context';
   import { getAnnotationContext } from '$lib/map/annotationContext';
 
@@ -37,10 +48,18 @@
   let initialized = false;
 
   export let annotationSource = new VectorSource<Feature<Geometry>>({ wrapX: false });
-  let annotationLayer = new VectorImageLayer({ source: annotationSource, style: createAnnotationStyle, zIndex: 100 });
-  
+  let annotationLayer = new VectorImageLayer({
+    source: annotationSource,
+    style: createAnnotationStyle,
+    zIndex: 100,
+  });
+
   let searchSource = new VectorSource<Feature<Geometry>>({ wrapX: false });
-  let searchLayer = new VectorImageLayer({ source: searchSource, style: searchResultStyle, zIndex: 110 });
+  let searchLayer = new VectorImageLayer({
+    source: searchSource,
+    style: searchResultStyle,
+    zIndex: 110,
+  });
 
   let drawInteraction: Draw | null = null;
   let modifyInteraction: Modify | null = null;
@@ -102,19 +121,34 @@
     pushHistoryEntry({ kind: 'annotation-delete', snapshot: captureFeatureSnapshot(feature) });
   }
 
-  function recordAnnotationFieldChange(feature: Feature<Geometry>, field: AnnotationField, before: unknown, after: unknown) {
+  function recordAnnotationFieldChange(
+    feature: Feature<Geometry>,
+    field: AnnotationField,
+    before: unknown,
+    after: unknown
+  ) {
     if (before === after) return;
-    pushHistoryEntry({ kind: 'annotation-update', id: String(feature.getId()), changes: [{ field, before, after }] });
+    pushHistoryEntry({
+      kind: 'annotation-update',
+      id: String(feature.getId()),
+      changes: [{ field, before, after }],
+    });
   }
 
   function recordAnnotationClear(features: Feature<Geometry>[]) {
     if (!features.length) return;
-    pushHistoryEntry({ kind: 'annotation-clear', snapshots: features.map(f => captureFeatureSnapshot(f)) });
+    pushHistoryEntry({
+      kind: 'annotation-clear',
+      snapshots: features.map((f) => captureFeatureSnapshot(f)),
+    });
   }
 
   function recordAnnotationBulkAdd(features: Feature<Geometry>[]) {
     if (!features.length) return;
-    pushHistoryEntry({ kind: 'annotation-bulk-add', snapshots: features.map(f => captureFeatureSnapshot(f)) });
+    pushHistoryEntry({
+      kind: 'annotation-bulk-add',
+      snapshots: features.map((f) => captureFeatureSnapshot(f)),
+    });
   }
 
   // --- Interactions ---
@@ -196,9 +230,17 @@
     if (!geometry) return;
     if (geometry.getType() === 'Point') {
       const coords = (geometry as Point).getCoordinates() as [number, number];
-      map.getView().animate({ center: coords, zoom: Math.max(map.getView().getZoom() ?? 16, 17), duration: 350 });
+      map
+        .getView()
+        .animate({
+          center: coords,
+          zoom: Math.max(map.getView().getZoom() ?? 16, 17),
+          duration: 350,
+        });
     } else {
-      map.getView().fit(geometry.getExtent(), { padding: [80, 80, 80, 80], duration: 400, maxZoom: 18 });
+      map
+        .getView()
+        .fit(geometry.getExtent(), { padding: [80, 80, 80, 80], duration: 400, maxZoom: 18 });
     }
   }
 
@@ -222,9 +264,12 @@
     const features = annotationSource.getFeatures();
     if (!features.length) return;
     const collection = geoJsonFormat.writeFeaturesObject(features, {
-      featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326'
+      featureProjection: 'EPSG:3857',
+      dataProjection: 'EPSG:4326',
     });
-    const blob = new Blob([JSON.stringify(collection, null, 2)], { type: 'application/geo+json;charset=utf-8;' });
+    const blob = new Blob([JSON.stringify(collection, null, 2)], {
+      type: 'application/geo+json;charset=utf-8;',
+    });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -237,14 +282,16 @@
   export function exportAnnotationsAsGeoJsonObject() {
     const features = annotationSource.getFeatures();
     return geoJsonFormat.writeFeaturesObject(features, {
-      featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326'
+      featureProjection: 'EPSG:3857',
+      dataProjection: 'EPSG:4326',
     });
   }
 
   export async function importGeoJsonText(text: string) {
     const json = JSON.parse(text);
     const features = geoJsonFormat.readFeatures(json, {
-      dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
+      dataProjection: 'EPSG:4326',
+      featureProjection: 'EPSG:3857',
     }) as Feature<Geometry>[];
     features.forEach((f) => ensureAnnotationDefaults(f));
     annotationSource.addFeatures(features);
@@ -316,7 +363,10 @@
         break;
       case 'annotation-bulk-add':
         if (direction === 'undo') {
-          entry.snapshots.forEach((s) => { removeFeatureById(s.id); annotationState.clearSelectionIfMatches(s.id); });
+          entry.snapshots.forEach((s) => {
+            removeFeatureById(s.id);
+            annotationState.clearSelectionIfMatches(s.id);
+          });
         } else {
           entry.snapshots.forEach((s) => addSnapshotToSource(s));
         }
@@ -358,9 +408,17 @@
     if (!geometry) return;
     if (geometry.getType() === 'Point') {
       const coords = (geometry as Point).getCoordinates() as [number, number];
-      map.getView().animate({ center: coords, zoom: Math.max(map.getView().getZoom() ?? 12, 16), duration: 400 });
+      map
+        .getView()
+        .animate({
+          center: coords,
+          zoom: Math.max(map.getView().getZoom() ?? 12, 16),
+          duration: 400,
+        });
     } else {
-      map.getView().fit(geometry.getExtent(), { padding: [80, 80, 80, 80], duration: 400, maxZoom: 18 });
+      map
+        .getView()
+        .fit(geometry.getExtent(), { padding: [80, 80, 80, 80], duration: 400, maxZoom: 18 });
     }
   }
 
@@ -381,40 +439,47 @@
   // --- Hook to map ---
 
   onMount(() => {
-    unsubs.push(mapWritable.subscribe(($map) => {
-      if (!$map || initialized) return;
-      initialized = true;
-      map = $map;
+    unsubs.push(
+      mapWritable.subscribe(($map) => {
+        if (!$map || initialized) return;
+        initialized = true;
+        map = $map;
 
-      map.addLayer(searchLayer);
-      map.addLayer(annotationLayer);
+        map.addLayer(searchLayer);
+        map.addLayer(annotationLayer);
 
-      modifyInteraction = new Modify({ source: annotationSource });
-      modifyInteraction.on('modifystart', (e) => {
-        const tempSnapshots = new Map<string, FeatureSnapshot>();
-        e.features.forEach((f) => tempSnapshots.set(String(f.getId()), captureFeatureSnapshot(f as Feature<Geometry>)));
-        (modifyInteraction as any)._tempSnapshots = tempSnapshots;
-      });
-      modifyInteraction.on('modifyend', (e) => {
-        const tempSnapshots = (modifyInteraction as any)._tempSnapshots as Map<string, FeatureSnapshot>;
-        if (!tempSnapshots) return;
-        e.features.forEach((f) => {
-          const id = String(f.getId());
-          const before = tempSnapshots.get(id);
-          if (before) {
-            const after = captureFeatureSnapshot(f as Feature<Geometry>);
-            pushHistoryEntry({ kind: 'annotation-geometry', before, after });
-            updateAnnotationSummaries();
-          }
+        modifyInteraction = new Modify({ source: annotationSource });
+        modifyInteraction.on('modifystart', (e) => {
+          const tempSnapshots = new Map<string, FeatureSnapshot>();
+          e.features.forEach((f) =>
+            tempSnapshots.set(String(f.getId()), captureFeatureSnapshot(f as Feature<Geometry>))
+          );
+          (modifyInteraction as any)._tempSnapshots = tempSnapshots;
         });
-      });
+        modifyInteraction.on('modifyend', (e) => {
+          const tempSnapshots = (modifyInteraction as any)._tempSnapshots as Map<
+            string,
+            FeatureSnapshot
+          >;
+          if (!tempSnapshots) return;
+          e.features.forEach((f) => {
+            const id = String(f.getId());
+            const before = tempSnapshots.get(id);
+            if (before) {
+              const after = captureFeatureSnapshot(f as Feature<Geometry>);
+              pushHistoryEntry({ kind: 'annotation-geometry', before, after });
+              updateAnnotationSummaries();
+            }
+          });
+        });
 
-      if (editingEnabled) map.addInteraction(modifyInteraction);
-    }));
+        if (editingEnabled) map.addInteraction(modifyInteraction);
+      })
+    );
   });
 
   onDestroy(() => {
-    unsubs.forEach(u => u());
+    unsubs.forEach((u) => u());
     if (map) {
       if (drawInteraction) map.removeInteraction(drawInteraction);
       if (modifyInteraction) map.removeInteraction(modifyInteraction);

@@ -15,26 +15,26 @@
     </MapShell>
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import { writable, get } from "svelte/store";
-  import OlMap from "ol/Map";
-  import View from "ol/View";
-  import BaseLayer from "ol/layer/Base";
-  import TileLayer from "ol/layer/Tile";
-  import XYZ from "ol/source/XYZ";
-  import { Attribution, Rotate, ScaleLine, Zoom } from "ol/control";
-  import { defaults as defaultControls } from "ol/control/defaults";
-  import DragRotate from "ol/interaction/DragRotate";
-  import PinchRotate from "ol/interaction/PinchRotate";
-  import { fromLonLat, toLonLat } from "ol/proj";
-  import "ol/ol.css";
+  import { onMount, onDestroy } from 'svelte';
+  import { writable, get } from 'svelte/store';
+  import OlMap from 'ol/Map';
+  import View from 'ol/View';
+  import BaseLayer from 'ol/layer/Base';
+  import TileLayer from 'ol/layer/Tile';
+  import XYZ from 'ol/source/XYZ';
+  import { Attribution, Rotate, ScaleLine, Zoom } from 'ol/control';
+  import { defaults as defaultControls } from 'ol/control/defaults';
+  import DragRotate from 'ol/interaction/DragRotate';
+  import PinchRotate from 'ol/interaction/PinchRotate';
+  import { fromLonLat, toLonLat } from 'ol/proj';
+  import 'ol/ol.css';
 
-  import { BASEMAP_DEFS } from "$lib/map/constants";
-  import type { MapStore } from "$lib/stores/mapStore";
-  import { getOlCenter, fromOlCoordinate } from "$lib/stores/mapStore";
-  import type { LayerStore } from "$lib/stores/layerStore";
-  import { initUrlSync } from "$lib/stores/urlStore";
-  import { setShellContext } from "./context";
+  import { BASEMAP_DEFS } from '$lib/map/constants';
+  import type { MapStore } from '$lib/stores/mapStore';
+  import { getOlCenter, fromOlCoordinate } from '$lib/stores/mapStore';
+  import type { LayerStore } from '$lib/stores/layerStore';
+  import { initUrlSync } from '$lib/stores/urlStore';
+  import { setShellContext } from './context';
 
   // ── Props ────────────────────────────────────────────────────────
 
@@ -152,8 +152,7 @@
 
     // 4. Rotation interactions
     const dragRotate = new DragRotate({
-      condition: (event) =>
-        event.originalEvent.ctrlKey || event.originalEvent.metaKey,
+      condition: (event) => event.originalEvent.ctrlKey || event.originalEvent.metaKey,
     });
     olMap.addInteraction(dragRotate);
     olMap.addInteraction(new PinchRotate());
@@ -162,7 +161,7 @@
     mapWritable.set(olMap);
 
     // 6. OL → store sync on moveend
-    olMap.on("moveend", olViewToStore);
+    olMap.on('moveend', olViewToStore);
 
     // 7. Store → OL sync on store change
     mapStoreUnsub = mapStore.subscribe(() => storeToOlView());
@@ -182,7 +181,7 @@
             urls: [url],
             crossOrigin: 'anonymous',
             maxZoom: 22,
-            attributions: 'Custom tile source'
+            attributions: 'Custom tile source',
           })
         );
       } else {

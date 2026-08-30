@@ -11,84 +11,83 @@ import { fromLonLat, toLonLat } from 'ol/proj';
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface MapViewState {
-	/** EPSG:4326 longitude */
-	lng: number;
-	/** EPSG:4326 latitude */
-	lat: number;
-	zoom: number;
-	/** Radians, clockwise from north */
-	rotation: number;
+  /** EPSG:4326 longitude */
+  lng: number;
+  /** EPSG:4326 latitude */
+  lat: number;
+  zoom: number;
+  /** Radians, clockwise from north */
+  rotation: number;
 }
 
 export interface MapStoreValue extends MapViewState {
-	/** Currently loaded historical map — maps.id UUID (canonical key).
-	 *  Derived from layersStore.overlays[0] (top overlay). Kept here for legacy consumers
-	 *  (URL hash, story playback, share). */
-	activeMapId: string | null;
-	/** maps.allmaps_id — Allmaps service credential for tile loading.
-	 *  Set alongside activeMapId. */
-	activeAllmapsId: string | null;
+  /** Currently loaded historical map — maps.id UUID (canonical key).
+   *  Derived from layersStore.overlays[0] (top overlay). Kept here for legacy consumers
+   *  (URL hash, story playback, share). */
+  activeMapId: string | null;
+  /** maps.allmaps_id — Allmaps service credential for tile loading.
+   *  Set alongside activeMapId. */
+  activeAllmapsId: string | null;
 }
 
 export interface MapStore extends Readable<MapStoreValue> {
-	setView(view: Partial<MapViewState>): void;
-	/** Set the active map. Pass allmapsId when available so LayerRenderer can load tiles. */
-	setActiveMap(id: string | null, allmapsId?: string | null): void;
-	setAll(value: Partial<MapStoreValue>): void;
-	reset(): void;
+  setView(view: Partial<MapViewState>): void;
+  /** Set the active map. Pass allmapsId when available so LayerRenderer can load tiles. */
+  setActiveMap(id: string | null, allmapsId?: string | null): void;
+  setAll(value: Partial<MapStoreValue>): void;
+  reset(): void;
 }
 
 // ── Defaults (Saigon, Vietnam) ───────────────────────────────────────
 
 const DEFAULTS: MapStoreValue = {
-	lng: 106.70098,
-	lat: 10.77653,
-	zoom: 14,
-	rotation: 0,
-	activeMapId: null,
-	activeAllmapsId: null
+  lng: 106.70098,
+  lat: 10.77653,
+  zoom: 14,
+  rotation: 0,
+  activeMapId: null,
+  activeAllmapsId: null,
 };
 
 // ── Factory ──────────────────────────────────────────────────────────
 
 export function createMapStore(initial?: Partial<MapStoreValue>): MapStore {
-	const { subscribe, update, set } = writable<MapStoreValue>({
-		...DEFAULTS,
-		...initial
-	});
+  const { subscribe, update, set } = writable<MapStoreValue>({
+    ...DEFAULTS,
+    ...initial,
+  });
 
-	return {
-		subscribe,
+  return {
+    subscribe,
 
-		setView(view: Partial<MapViewState>) {
-			update((s) => ({ ...s, ...view }));
-		},
+    setView(view: Partial<MapViewState>) {
+      update((s) => ({ ...s, ...view }));
+    },
 
-		setActiveMap(id: string | null, allmapsId?: string | null) {
-			update((s) => ({ ...s, activeMapId: id, activeAllmapsId: allmapsId ?? null }));
-		},
+    setActiveMap(id: string | null, allmapsId?: string | null) {
+      update((s) => ({ ...s, activeMapId: id, activeAllmapsId: allmapsId ?? null }));
+    },
 
-		setAll(value: Partial<MapStoreValue>) {
-			update((s) => ({ ...s, ...value }));
-		},
+    setAll(value: Partial<MapStoreValue>) {
+      update((s) => ({ ...s, ...value }));
+    },
 
-		reset() {
-			set({ ...DEFAULTS });
-		}
-	};
+    reset() {
+      set({ ...DEFAULTS });
+    },
+  };
 }
 
 // ── Derived helpers ──────────────────────────────────────────────────
 
-
 /** Read the current OL center synchronously */
 export function getOlCenter(store: MapStore): [number, number] {
-	const $s = get(store);
-	return fromLonLat([$s.lng, $s.lat]) as [number, number];
+  const $s = get(store);
+  return fromLonLat([$s.lng, $s.lat]) as [number, number];
 }
 
 /** Convert an OL EPSG:3857 coordinate back to lng/lat */
 export function fromOlCoordinate(coord: [number, number]): { lng: number; lat: number } {
-	const [lng, lat] = toLonLat(coord);
-	return { lng, lat };
+  const [lng, lat] = toLonLat(coord);
+  return { lng, lat };
 }

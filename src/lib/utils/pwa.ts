@@ -19,4 +19,3 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     return null;
   }
 }
-

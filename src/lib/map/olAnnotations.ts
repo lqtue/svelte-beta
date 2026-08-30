@@ -44,7 +44,7 @@ export function toAnnotationSummary(feature: Feature<Geometry>): AnnotationSumma
     type: feature.getGeometry()?.getType() ?? 'Geometry',
     color: feature.get('color') ?? DEFAULT_ANNOTATION_COLOR,
     details: feature.get('details') ?? '',
-    hidden: Boolean(feature.get('hidden'))
+    hidden: Boolean(feature.get('hidden')),
   };
 }
 
@@ -53,7 +53,13 @@ function hexToRgba(hex: string, alpha: number) {
   if (![3, 6].includes(normalized.length)) {
     return `rgba(37, 99, 235, ${alpha})`;
   }
-  const value = normalized.length === 3 ? normalized.split('').map((ch) => ch + ch).join('') : normalized;
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((ch) => ch + ch)
+          .join('')
+      : normalized;
   const bigint = Number.parseInt(value, 16);
   const r = (bigint >> 16) & 255;
   const g = (bigint >> 8) & 255;
@@ -77,7 +83,7 @@ export function createAnnotationStyle(featureLike: FeatureLike): Style | undefin
           padding: [3, 6, 2, 6],
           backgroundFill: new Fill({ color: 'rgba(255,255,255,0.85)' }),
           overflow: true,
-          offsetY: geometryType === 'Point' ? -18 : 0
+          offsetY: geometryType === 'Point' ? -18 : 0,
         })
       : undefined;
 
@@ -86,16 +92,16 @@ export function createAnnotationStyle(featureLike: FeatureLike): Style | undefin
       image: new CircleStyle({
         radius: 7,
         fill: new Fill({ color: '#ffffff' }),
-        stroke: new Stroke({ color, width: 3 })
+        stroke: new Stroke({ color, width: 3 }),
       }),
-      text
+      text,
     });
   }
 
   return new Style({
     stroke: new Stroke({ color, width: 3 }),
     fill: new Fill({ color: hexToRgba(color, 0.15) }),
-    text
+    text,
   });
 }
 
@@ -103,8 +109,8 @@ export const searchResultStyle = new Style({
   image: new CircleStyle({
     radius: 6,
     fill: new Fill({ color: '#06b6d4' }),
-    stroke: new Stroke({ color: '#0e7490', width: 2 })
+    stroke: new Stroke({ color: '#0e7490', width: 2 }),
   }),
   stroke: new Stroke({ color: '#06b6d4', width: 2 }),
-  fill: new Fill({ color: 'rgba(6, 182, 212, 0.18)' })
+  fill: new Fill({ color: 'rgba(6, 182, 212, 0.18)' }),
 });

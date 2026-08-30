@@ -19,26 +19,47 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const SUPABASE_URL = env.PUBLIC_SUPABASE_URL;
 const KEY = env.SUPABASE_SERVICE_KEY;
 const UA = 'Mozilla/5.0 VMA-Scout/1.0';
 
 const kwIdx = process.argv.indexOf('--keywords');
-const KEYWORDS = kwIdx > -1
-  ? process.argv[kwIdx + 1].split(',')
-  : ['Saigon', 'Cochinchine', 'Indochine', 'Tonkin', 'Annam', 'Hanoi', 'Hué', 'Hue',
-     'Gia Định', 'Cholon', 'Vietnam', 'Viêt-nam', 'Đà Nẵng', 'Tourane', 'Haiphong'];
+const KEYWORDS =
+  kwIdx > -1
+    ? process.argv[kwIdx + 1].split(',')
+    : [
+        'Saigon',
+        'Cochinchine',
+        'Indochine',
+        'Tonkin',
+        'Annam',
+        'Hanoi',
+        'Hué',
+        'Hue',
+        'Gia Định',
+        'Cholon',
+        'Vietnam',
+        'Viêt-nam',
+        'Đà Nẵng',
+        'Tourane',
+        'Haiphong',
+      ];
 const maxIdx = process.argv.indexOf('--max');
 const MAX_PER_KW = maxIdx > -1 ? parseInt(process.argv[maxIdx + 1]) : 250;
 
 // ---- Existing VMA maps for dedup ----
 async function fetchExistingArks() {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/maps?select=id,name,iiif_manifest,iiif_image,source_url`, {
-    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
-  });
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/maps?select=id,name,iiif_manifest,iiif_image,source_url`,
+    {
+      headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
+    }
+  );
   const rows = await r.json();
   const arks = new Set();
   for (const m of rows) {
@@ -62,14 +83,26 @@ function parseSRU(xml) {
     if (end === -1) continue;
     const chunk = b.slice(0, end);
     const rec = {};
-    const fields = ['dc:title', 'dc:creator', 'dc:date', 'dc:type', 'dc:format',
-                    'dc:language', 'dc:publisher', 'dc:rights', 'dc:source',
-                    'dc:identifier', 'dc:coverage', 'dc:subject'];
+    const fields = [
+      'dc:title',
+      'dc:creator',
+      'dc:date',
+      'dc:type',
+      'dc:format',
+      'dc:language',
+      'dc:publisher',
+      'dc:rights',
+      'dc:source',
+      'dc:identifier',
+      'dc:coverage',
+      'dc:subject',
+    ];
     for (const f of fields) {
       const key = f.replace('dc:', '');
       rec[key] = [];
       const re = new RegExp(`<${f}>([^<]+)</${f}>`, 'g');
-      let m; while ((m = re.exec(chunk))) rec[key].push(m[1]);
+      let m;
+      while ((m = re.exec(chunk))) rec[key].push(m[1]);
     }
     // Extract provenance from extraRecordData
     const prov = chunk.match(/<provenance>([^<]+)<\/provenance>/);
@@ -78,10 +111,13 @@ function parseSRU(xml) {
     let ark = null;
     for (const id of rec.identifier) {
       const m = id.match(/ark:\/[0-9]+\/[a-z0-9]+/i);
-      if (m) { ark = m[0]; break; }
+      if (m) {
+        ark = m[0];
+        break;
+      }
     }
     rec.ark = ark;
-    rec.url = rec.identifier.find(i => i.startsWith('http')) || null;
+    rec.url = rec.identifier.find((i) => i.startsWith('http')) || null;
     records.push(rec);
   }
   return records;
@@ -98,7 +134,14 @@ async function sruSearch(keyword, maxRecords = 250) {
     while (attempts < 3) {
       try {
         const r = await fetch(url, { headers: { 'User-Agent': UA } });
-        if (!r.ok) { if (r.status === 429) { await sleep(5000); attempts++; continue; } throw new Error(`${r.status}`); }
+        if (!r.ok) {
+          if (r.status === 429) {
+            await sleep(5000);
+            attempts++;
+            continue;
+          }
+          throw new Error(`${r.status}`);
+        }
         const xml = await r.text();
         const total = parseInt((xml.match(/<srw:numberOfRecords>(\d+)/) || [])[1] || '0');
         const recs = parseSRU(xml);
@@ -110,7 +153,10 @@ async function sruSearch(keyword, maxRecords = 250) {
         break;
       } catch (e) {
         attempts++;
-        if (attempts === 3) { console.log(` ERR ${e.message}`); return { all, total: 0 }; }
+        if (attempts === 3) {
+          console.log(` ERR ${e.message}`);
+          return { all, total: 0 };
+        }
         await sleep(2000);
       }
     }
@@ -118,7 +164,7 @@ async function sruSearch(keyword, maxRecords = 250) {
   return { all, total: all.length };
 }
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- main ----
 const existingArks = await fetchExistingArks();
@@ -129,9 +175,11 @@ for (const kw of KEYWORDS) {
   const { all, total } = await sruSearch(kw, MAX_PER_KW);
   let newOnes = 0;
   for (const r of all) {
-    const key = r.ark || r.url || (r.title[0] + r.date[0]);
-    if (!allRecords.has(key)) { allRecords.set(key, { ...r, foundVia: [kw] }); newOnes++; }
-    else allRecords.get(key).foundVia.push(kw);
+    const key = r.ark || r.url || r.title[0] + r.date[0];
+    if (!allRecords.has(key)) {
+      allRecords.set(key, { ...r, foundVia: [kw] });
+      newOnes++;
+    } else allRecords.get(key).foundVia.push(kw);
   }
   console.log(`fetched ${all.length}, ${newOnes} new unique`);
 }
@@ -150,7 +198,8 @@ for (const r of allRecords.values()) {
 }
 
 console.log(`\n--- By provenance ---`);
-for (const [p, c] of Object.entries(byProv).sort((a,b)=>b[1]-a[1])) console.log(`  ${String(c).padStart(4)}  ${p}`);
+for (const [p, c] of Object.entries(byProv).sort((a, b) => b[1] - a[1]))
+  console.log(`  ${String(c).padStart(4)}  ${p}`);
 
 console.log(`\n--- Status ---`);
 console.log(`  already in VMA:  ${alreadyInVma.length}`);
@@ -165,7 +214,8 @@ for (const r of newCandidates) {
   decade[key] = (decade[key] || 0) + 1;
 }
 console.log(`\n--- New candidates by decade ---`);
-for (const [d, c] of Object.entries(decade).sort()) console.log(`  ${d.padEnd(8)} ${'█'.repeat(Math.min(c, 50))} ${c}`);
+for (const [d, c] of Object.entries(decade).sort())
+  console.log(`  ${d.padEnd(8)} ${'█'.repeat(Math.min(c, 50))} ${c}`);
 
 // ---- sample candidates ----
 console.log(`\n--- Sample new candidates (first 12) ---`);
@@ -175,12 +225,19 @@ for (const r of newCandidates.slice(0, 12)) {
 }
 
 const out = `scripts/scout_results_${Date.now()}.json`;
-writeFileSync(out, JSON.stringify({
-  keywords: KEYWORDS,
-  totalUnique: allRecords.size,
-  byProvenance: byProv,
-  alreadyInVma: alreadyInVma.length,
-  newCandidates,
-  alreadyInVma_records: alreadyInVma,
-}, null, 2));
+writeFileSync(
+  out,
+  JSON.stringify(
+    {
+      keywords: KEYWORDS,
+      totalUnique: allRecords.size,
+      byProvenance: byProv,
+      alreadyInVma: alreadyInVma.length,
+      newCandidates,
+      alreadyInVma_records: alreadyInVma,
+    },
+    null,
+    2
+  )
+);
 console.log(`\nSaved: ${out}`);

@@ -41,15 +41,15 @@
       image: new CircleStyle({
         radius,
         fill: new Fill({ color: bgColor }),
-        stroke: new Stroke({ color: borderColor, width: borderWidth })
+        stroke: new Stroke({ color: borderColor, width: borderWidth }),
       }),
       text: new Text({
         text: String(index + 1),
         font: `800 ${isCurrent ? 13 : 11}px 'Space Grotesk', sans-serif`,
         fill: new Fill({ color: textColor }),
-        offsetY: 0
+        offsetY: 0,
       }),
-      zIndex: isCurrent ? 10 : 1
+      zIndex: isCurrent ? 10 : 1,
     });
   }
 
@@ -87,14 +87,16 @@
       source = new VectorSource();
       layer = new VectorImageLayer({
         source,
-        zIndex: 30
+        zIndex: 30,
       });
 
       olMap.addLayer(layer);
       syncFeatures();
     });
 
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   });
 
   onDestroy(() => {

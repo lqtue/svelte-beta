@@ -70,8 +70,16 @@
   // ── Color palette ─────────────────────────────────────────────────────────
   const labelColors: Record<string, string> = {};
   const palette = [
-    '#d4af37', '#e06c75', '#61afef', '#98c379',
-    '#c678dd', '#e5c07b', '#56b6c2', '#be5046', '#d19a66', '#abb2bf',
+    '#d4af37',
+    '#e06c75',
+    '#61afef',
+    '#98c379',
+    '#c678dd',
+    '#e5c07b',
+    '#56b6c2',
+    '#be5046',
+    '#d19a66',
+    '#abb2bf',
   ];
   let colorIdx = 0;
 
@@ -112,13 +120,15 @@
     return new Style({
       stroke: new Stroke({ color, width: isLine ? 3 : 2 }),
       fill: isLine ? undefined : new Fill({ color: color + '33' }),
-      text: label ? new Text({
-        text: label,
-        font: 'bold 10px "Be Vietnam Pro", sans-serif',
-        fill: new Fill({ color: '#2b2520' }),
-        stroke: new Stroke({ color: '#fff', width: 3 }),
-        overflow: true,
-      }) : undefined,
+      text: label
+        ? new Text({
+            text: label,
+            font: 'bold 10px "Be Vietnam Pro", sans-serif',
+            fill: new Fill({ color: '#2b2520' }),
+            stroke: new Stroke({ color: '#fff', width: 3 }),
+            overflow: true,
+          })
+        : undefined,
     });
   }
 
@@ -152,10 +162,12 @@
           userId: fp.userId,
         });
       } else {
-        const ring = coords.length > 0 &&
-          (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])
-          ? [...coords, coords[0]]
-          : coords;
+        const ring =
+          coords.length > 0 &&
+          (coords[0][0] !== coords[coords.length - 1][0] ||
+            coords[0][1] !== coords[coords.length - 1][1])
+            ? [...coords, coords[0]]
+            : coords;
         feature = new Feature({
           geometry: new Polygon([ring]),
           label: fp.name,
@@ -168,8 +180,8 @@
     }
   }
 
-  $: pins, pinSource && syncPins();
-  $: footprints, footprintSource && syncFootprints();
+  $: (pins, pinSource && syncPins());
+  $: (footprints, footprintSource && syncFootprints());
   $: if (iiifInfoUrl && map) loadIIIFImage(iiifInfoUrl);
 
   // ── IIIF loading ──────────────────────────────────────────────────────────
@@ -234,7 +246,9 @@
       layers: [drawLayer, fpLayer, pinLayer],
       view: new View({ center: [0, 0], zoom: 1, showFullExtent: true }),
       interactions: defaultInteractions({ doubleClickZoom: false }),
-      controls: defaultControls({ attribution: false, rotate: false, zoom: false }).extend([new Zoom()]),
+      controls: defaultControls({ attribution: false, rotate: false, zoom: false }).extend([
+        new Zoom(),
+      ]),
     });
 
     shellStore.set({
@@ -253,7 +267,10 @@
 
   onDestroy(() => {
     shellStore.set(null);
-    if (map) { map.setTarget(undefined); map = null; }
+    if (map) {
+      map.setTarget(undefined);
+      map = null;
+    }
   });
 </script>
 
@@ -311,8 +328,12 @@
     pointer-events: none;
   }
 
-  .shell-overlay.error { color: #f87171; }
-  .empty-msg { color: #8b7355; }
+  .shell-overlay.error {
+    color: #f87171;
+  }
+  .empty-msg {
+    color: #8b7355;
+  }
 
   .loading-spinner {
     width: 28px;
@@ -323,5 +344,9 @@
     animation: spin 0.8s linear infinite;
   }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 </style>

@@ -7,16 +7,16 @@ import type { Database } from '$lib/supabase/types';
 import { generateId } from '@allmaps/id';
 
 async function assertAdmin(locals: App.Locals) {
-    const { session, user } = await locals.safeGetSession();
-    if (!session || !user) throw error(401, 'Unauthorized');
+  const { session, user } = await locals.safeGetSession();
+  if (!session || !user) throw error(401, 'Unauthorized');
 
-    const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-    if (profile?.role !== 'admin') throw error(403, 'Forbidden');
+  const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (profile?.role !== 'admin') throw error(403, 'Forbidden');
 }
 
 /**
@@ -28,31 +28,31 @@ async function assertAdmin(locals: App.Locals) {
  * service URL (per @allmaps/id).
  */
 export const POST: RequestHandler = async ({ locals, request }) => {
-    await assertAdmin(locals);
+  await assertAdmin(locals);
 
-    const { iiifImage } = (await request.json()) as { iiifImage?: string };
-    if (!iiifImage) throw error(400, 'iiifImage is required');
+  const { iiifImage } = (await request.json()) as { iiifImage?: string };
+  if (!iiifImage) throw error(400, 'iiifImage is required');
 
-    const trimmed = iiifImage.replace(/\/(info\.json|)$/, '').replace(/\/$/, '');
+  const trimmed = iiifImage.replace(/\/(info\.json|)$/, '').replace(/\/$/, '');
 
-    let allmapsId: string;
-    try {
-        allmapsId = await generateId(trimmed);
-    } catch (e: any) {
-        throw error(500, `Could not derive Allmaps ID: ${e.message}`);
-    }
+  let allmapsId: string;
+  try {
+    allmapsId = await generateId(trimmed);
+  } catch (e: any) {
+    throw error(500, `Could not derive Allmaps ID: ${e.message}`);
+  }
 
-    // Probe the annotation server to see if a georef exists.
-    let hasAnnotation = false;
-    try {
-        const probe = await fetch(`https://annotations.allmaps.org/images/${allmapsId}`, {
-            headers: { Accept: 'application/json, application/ld+json' },
-            signal: AbortSignal.timeout(8000),
-        });
-        hasAnnotation = probe.ok;
-    } catch {
-        /* leave hasAnnotation=false */
-    }
+  // Probe the annotation server to see if a georef exists.
+  let hasAnnotation = false;
+  try {
+    const probe = await fetch(`https://annotations.allmaps.org/images/${allmapsId}`, {
+      headers: { Accept: 'application/json, application/ld+json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    hasAnnotation = probe.ok;
+  } catch {
+    /* leave hasAnnotation=false */
+  }
 
-    return json({ allmapsId, hasAnnotation });
+  return json({ allmapsId, hasAnnotation });
 };

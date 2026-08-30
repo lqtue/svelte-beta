@@ -52,10 +52,14 @@
   export let dualPaneActive: boolean = false;
 
   /* Legacy props accepted for backwards compat with Create/Annotate modes — no longer wired. */
-  export let showDual: boolean = false; showDual;
-  export let showAddAsPointInSearch: boolean = false; showAddAsPointInSearch;
-  export let searchMapsOnly: boolean = false; searchMapsOnly;
-  export let toolbarEl: HTMLDivElement | undefined = undefined; toolbarEl;
+  export let showDual: boolean = false;
+  showDual;
+  export let showAddAsPointInSearch: boolean = false;
+  showAddAsPointInSearch;
+  export let searchMapsOnly: boolean = false;
+  searchMapsOnly;
+  export let toolbarEl: HTMLDivElement | undefined = undefined;
+  toolbarEl;
 
   // ── Stores (caller-owned: route page creates via createGeoMapStores() and passes in) ──
 
@@ -105,9 +109,7 @@
   $: viewMode = $layerStore.viewMode;
   $: lensRadius = $layerStore.lensRadius;
 
-  $: selectedMap = selectedMapId
-    ? (mapList.find((m) => m.id === selectedMapId) ?? null)
-    : null;
+  $: selectedMap = selectedMapId ? (mapList.find((m) => m.id === selectedMapId) ?? null) : null;
 
   // ── Map list load ────────────────────────────────────────────────
 
@@ -117,9 +119,12 @@
 
   onMount(() => {
     if (supabase) {
-      listCtrl.loadMaps(supabase).then((m) => dispatch('mapsloaded', { maps: m })).catch((err) => {
-        console.error('[MapWorkspace] Failed to load map list:', err);
-      });
+      listCtrl
+        .loadMaps(supabase)
+        .then((m) => dispatch('mapsloaded', { maps: m }))
+        .catch((err) => {
+          console.error('[MapWorkspace] Failed to load map list:', err);
+        });
     }
   });
 
@@ -145,9 +150,13 @@
 </script>
 
 <ToolLayout
-  bind:sidebarCollapsed bind:isMobile bind:isCompact
-  bind:sidebarWidth {sidebarMaxWidth}
-  bind:rightSidebarWidth {rightSidebarMaxWidth}
+  bind:sidebarCollapsed
+  bind:isMobile
+  bind:isCompact
+  bind:sidebarWidth
+  {sidebarMaxWidth}
+  bind:rightSidebarWidth
+  {rightSidebarMaxWidth}
   bind:rightSidebarCollapsed
   hasRightSidebar={!!$$slots['right-sidebar']}
   {tabOrder}
@@ -189,7 +198,6 @@
     on:dismisserror={() => (overlayError = null)}
   />
 
-
   <!-- Floating controls (bottom-right) -->
   <svelte:fragment slot="floating">
     <slot name="floating" />
@@ -201,7 +209,14 @@
         on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
         title="Toggle panel"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <path d="M3 6h18M3 12h18M3 18h18" />
         </svg>
       </button>

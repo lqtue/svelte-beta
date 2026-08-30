@@ -16,11 +16,11 @@ export interface Rect {
  */
 export function toOlRing(x: number, y: number, w: number, h: number): number[][] {
   return [
-    [x,     -y],
+    [x, -y],
     [x + w, -y],
     [x + w, -(y + h)],
-    [x,     -(y + h)],
-    [x,     -y],
+    [x, -(y + h)],
+    [x, -y],
   ];
 }
 
@@ -36,4 +36,3 @@ export function fromOlExtent([minX, minY, maxX, maxY]: number[]): Rect {
     h: Math.round(maxY - minY),
   };
 }
-

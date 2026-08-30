@@ -25,27 +25,31 @@
   function handleDone() {
     selectedMapId = null;
     selectedAllmapsId = '';
-    fetchMapsWithSubmittedFootprints(supabase).then(m => { maps = m; });
+    fetchMapsWithSubmittedFootprints(supabase).then((m) => {
+      maps = m;
+    });
   }
 </script>
 
 <svelte:head>
   <title>Review footprints — Vietnam Map Archive</title>
-  <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
 </svelte:head>
 
 {#if selectedMapId}
-  <ReviewMode
-    mapId={selectedMapId}
-    allmapsId={selectedAllmapsId}
-    on:done={handleDone}
-  />
+  <ReviewMode mapId={selectedMapId} allmapsId={selectedAllmapsId} on:done={handleDone} />
 {:else}
   <div class="page">
     <header class="page-header">
       <a href="/contribute" class="back-link">← Contribute</a>
       <h1>Review footprints</h1>
-      <p>Check the building polygons SAM2 (Segment Anything Model v2) pulled out of the map — approve the good ones, reject the rest.</p>
+      <p>
+        Check the building polygons SAM2 (Segment Anything Model v2) pulled out of the map — approve
+        the good ones, reject the rest.
+      </p>
     </header>
 
     {#if loading}
@@ -60,7 +64,10 @@
           <li>
             <button
               class="map-card"
-              on:click={() => { selectedMapId = map.id; selectedAllmapsId = map.allmapsId; }}
+              on:click={() => {
+                selectedMapId = map.id;
+                selectedAllmapsId = map.allmapsId;
+              }}
             >
               <span class="map-name">{map.name || map.id}</span>
               <span class="map-badge">{map.pendingCount} pending</span>
@@ -68,7 +75,9 @@
           </li>
         {/each}
       </ul>
-      <p class="hint">Pick a map to start. The canvas loads IIIF tiles straight from Internet Archive.</p>
+      <p class="hint">
+        Pick a map to start. The canvas loads IIIF tiles straight from Internet Archive.
+      </p>
     {/if}
   </div>
 {/if}
@@ -78,7 +87,7 @@
     max-width: 680px;
     margin: 0 auto;
     padding: 2rem 1.5rem 4rem;
-    font-family: "Be Vietnam Pro", sans-serif;
+    font-family: 'Be Vietnam Pro', sans-serif;
   }
 
   .page-header {
@@ -93,16 +102,21 @@
     text-decoration: none;
   }
 
-  .back-link:hover { color: #111; }
+  .back-link:hover {
+    color: #111;
+  }
 
   h1 {
-    font-family: "Spectral", serif;
+    font-family: 'Spectral', serif;
     font-size: 2rem;
     font-weight: 700;
     margin: 0 0 0.5rem;
   }
 
-  p { color: #4b5563; margin: 0; }
+  p {
+    color: #4b5563;
+    margin: 0;
+  }
 
   .state-msg {
     padding: 2rem;
@@ -112,7 +126,10 @@
     border-radius: 8px;
   }
 
-  .state-msg.error { color: #dc2626; border-color: #fca5a5; }
+  .state-msg.error {
+    color: #dc2626;
+    border-color: #fca5a5;
+  }
 
   .map-list {
     list-style: none;
@@ -134,7 +151,9 @@
     border-radius: 8px;
     cursor: pointer;
     text-align: left;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
   }
 
   .map-card:hover {
@@ -142,7 +161,10 @@
     box-shadow: 3px 3px 0 #f97316;
   }
 
-  .map-name { font-weight: 600; font-size: 0.9375rem; }
+  .map-name {
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
 
   .map-badge {
     font-size: 0.8125rem;

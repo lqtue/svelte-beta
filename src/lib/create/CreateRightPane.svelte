@@ -44,26 +44,37 @@
 
 <aside class="right-panel">
   <div class="sb-bar">
-    <button type="button" class="sb-btn is-sm is-ghost"
+    <button
+      type="button"
+      class="sb-btn is-sm is-ghost"
       on:click={() => dispatch('backToLibrary')}
-      aria-label="Back to library" title="Back to my stories">← Library</button>
+      aria-label="Back to library"
+      title="Back to my stories">← Library</button
+    >
     <span class="sb-bar-title">Story editor</span>
-    <button type="button" class="sb-btn is-icon is-ghost"
-      on:click={() => dispatch('toggleCollapse')} aria-label="Collapse panel" title="Hide editor">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M9 3h10a2 2 0 012 2v14a2 2 0 01-2 2H9"/><path d="M5 8l4 4-4 4"/>
+    <button
+      type="button"
+      class="sb-btn is-icon is-ghost"
+      on:click={() => dispatch('toggleCollapse')}
+      aria-label="Collapse panel"
+      title="Hide editor"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      >
+        <path d="M9 3h10a2 2 0 012 2v14a2 2 0 01-2 2H9" /><path d="M5 8l4 4-4 4" />
       </svg>
     </button>
   </div>
 
   <SidebarCard grow={0} padded={false}>
-    <StoryHeaderPanel
-      {story}
-      {isPublishing}
-      {publishSuccess}
-      on:togglePublish
-      on:renameStory
-    />
+    <StoryHeaderPanel {story} {isPublishing} {publishSuccess} on:togglePublish on:renameStory />
   </SidebarCard>
 
   <SidebarCard title="Points" grow={2} padded={false}>
@@ -85,9 +96,13 @@
   <SidebarCard title={pointCardTitle} grow={3}>
     <svelte:fragment slot="head-actions">
       {#if selectedPoint}
-        <button type="button" class="sb-btn is-sm is-ghost"
+        <button
+          type="button"
+          class="sb-btn is-sm is-ghost"
           on:click={() => dispatch('close')}
-          title="Deselect point" aria-label="Deselect point">Close</button>
+          title="Deselect point"
+          aria-label="Deselect point">Close</button
+        >
       {/if}
     </svelte:fragment>
     {#if selectedPoint}
@@ -112,8 +127,11 @@
 
 <style>
   .right-panel {
-    display: flex; flex-direction: column;
-    height: 100%; min-width: 0; min-height: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     background: var(--sb-bg, #fafaf7);
     border-left: 1.5px solid #111;
     overflow: hidden;

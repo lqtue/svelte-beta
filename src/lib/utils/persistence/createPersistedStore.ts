@@ -5,81 +5,85 @@
 import { writable, type Writable } from 'svelte/store';
 
 export interface PersistedStoreOptions<T> {
-	key: string;
-	defaultValue: T;
-	debounceMs?: number;
-	storage?: Storage;
+  key: string;
+  defaultValue: T;
+  debounceMs?: number;
+  storage?: Storage;
 }
 
 export interface PersistedStore<T> extends Writable<T> {
-	reset: () => void;
+  reset: () => void;
 }
 
 /**
  * Checks if we're in a browser environment
  */
 function isBrowser(): boolean {
-	return typeof window !== 'undefined';
+  return typeof window !== 'undefined';
 }
 
 /**
  * Creates a debounced function
  */
 function debounce<T>(fn: (value: T) => void, ms: number): (value: T) => void {
-	let timeoutId: ReturnType<typeof setTimeout> | undefined;
-	return (value: T) => {
-		if (timeoutId !== undefined) {
-			clearTimeout(timeoutId);
-		}
-		timeoutId = setTimeout(() => {
-			fn(value);
-			timeoutId = undefined;
-		}, ms);
-	};
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  return (value: T) => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      fn(value);
+      timeoutId = undefined;
+    }, ms);
+  };
 }
 
 /**
  * Loads value from storage
  */
 function loadFromStorage<T>(key: string, defaultValue: T, storage?: Storage): T {
-	if (!isBrowser()) {
-		return defaultValue;
-	}
+  if (!isBrowser()) {
+    return defaultValue;
+  }
 
-	const store = storage ?? window.localStorage;
+  const store = storage ?? window.localStorage;
 
-	try {
-		const stored = store.getItem(key);
-		if (stored) {
-			const parsed = JSON.parse(stored) as Partial<T>;
-			// Merge with defaults for backwards compatibility
-			if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
-				return { ...defaultValue, ...parsed };
-			}
-			return parsed as T;
-		}
-	} catch (error) {
-		console.warn(`[PersistedStore] Failed to load "${key}":`, error);
-	}
+  try {
+    const stored = store.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<T>;
+      // Merge with defaults for backwards compatibility
+      if (
+        typeof defaultValue === 'object' &&
+        defaultValue !== null &&
+        !Array.isArray(defaultValue)
+      ) {
+        return { ...defaultValue, ...parsed };
+      }
+      return parsed as T;
+    }
+  } catch (error) {
+    console.warn(`[PersistedStore] Failed to load "${key}":`, error);
+  }
 
-	return defaultValue;
+  return defaultValue;
 }
 
 /**
  * Saves value to storage
  */
 function saveToStorage<T>(key: string, value: T, storage?: Storage): void {
-	if (!isBrowser()) {
-		return;
-	}
+  if (!isBrowser()) {
+    return;
+  }
 
-	const store = storage ?? window.localStorage;
+  const store = storage ?? window.localStorage;
 
-	try {
-		store.setItem(key, JSON.stringify(value));
-	} catch (error) {
-		console.warn(`[PersistedStore] Failed to save "${key}":`, error);
-	}
+  try {
+    store.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`[PersistedStore] Failed to save "${key}":`, error);
+  }
 }
 
 /**
@@ -100,36 +104,37 @@ function saveToStorage<T>(key: string, value: T, storage?: Storage): void {
  * ```
  */
 export function createPersistedStore<T>(options: PersistedStoreOptions<T>): PersistedStore<T> {
-	const { key, defaultValue, debounceMs = 0, storage } = options;
+  const { key, defaultValue, debounceMs = 0, storage } = options;
 
-	const initialValue = loadFromStorage(key, defaultValue, storage);
-	const { subscribe, set: _set, update: _update } = writable<T>(initialValue);
+  const initialValue = loadFromStorage(key, defaultValue, storage);
+  const { subscribe, set: _set, update: _update } = writable<T>(initialValue);
 
-	const save = debounceMs > 0
-		? debounce((value: T) => saveToStorage(key, value, storage), debounceMs)
-		: (value: T) => saveToStorage(key, value, storage);
+  const save =
+    debounceMs > 0
+      ? debounce((value: T) => saveToStorage(key, value, storage), debounceMs)
+      : (value: T) => saveToStorage(key, value, storage);
 
-	function set(value: T): void {
-		_set(value);
-		save(value);
-	}
+  function set(value: T): void {
+    _set(value);
+    save(value);
+  }
 
-	function update(updater: (value: T) => T): void {
-		_update((current) => {
-			const newValue = updater(current);
-			save(newValue);
-			return newValue;
-		});
-	}
+  function update(updater: (value: T) => T): void {
+    _update((current) => {
+      const newValue = updater(current);
+      save(newValue);
+      return newValue;
+    });
+  }
 
-	function reset(): void {
-		set(defaultValue);
-	}
+  function reset(): void {
+    set(defaultValue);
+  }
 
-	return {
-		subscribe,
-		set,
-		update,
-		reset
-	};
+  return {
+    subscribe,
+    set,
+    update,
+    reset,
+  };
 }

@@ -15,8 +15,8 @@ import { randomId } from '$lib/utils/id';
 export type BasemapRef = { kind: 'basemap'; key: string };
 export type HistoricalRef = {
   kind: 'historical';
-  mapId: string;            // maps.id (uuid)
-  allmapsId: string;        // annotation source (allmaps id or annotation url)
+  mapId: string; // maps.id (uuid)
+  allmapsId: string; // annotation source (allmaps id or annotation url)
   name?: string;
   thumbnail?: string;
 };
@@ -25,14 +25,14 @@ export type LayerRef = BasemapRef | HistoricalRef;
 export interface OverlayLayer {
   /** Stable local id (for keyed iteration; survives reorder). */
   id: string;
-  ref: HistoricalRef;        // overlays can only be historical for now
-  opacity: number;           // 0..1
+  ref: HistoricalRef; // overlays can only be historical for now
+  opacity: number; // 0..1
   visible: boolean;
 }
 
 export interface LayersState {
   base: LayerRef;
-  overlays: OverlayLayer[];  // index 0 = topmost
+  overlays: OverlayLayer[]; // index 0 = topmost
 }
 
 const STORAGE_KEY = 'vma-layers-v1';
@@ -69,10 +69,14 @@ function load(): LayersState {
 
 function persist(s: LayersState) {
   if (!browser) return;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {}
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  } catch {}
 }
 
-export function clamp01(n: number): number { return Math.max(0, Math.min(1, n)); }
+export function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
 const makeId = () => randomId('layer');
 
 function create() {
@@ -83,7 +87,11 @@ function create() {
     subscribe,
 
     setBase(ref: LayerRef) {
-      update((s) => { const next = { ...s, base: ref }; persist(next); return next; });
+      update((s) => {
+        const next = { ...s, base: ref };
+        persist(next);
+        return next;
+      });
     },
 
     /** Add as topmost overlay. Returns the new layer id; no-op if already present. */
@@ -158,7 +166,11 @@ function create() {
     },
 
     clearOverlays() {
-      update((s) => { const next = { ...s, overlays: [] }; persist(next); return next; });
+      update((s) => {
+        const next = { ...s, overlays: [] };
+        persist(next);
+        return next;
+      });
     },
 
     isOverlay(mapId: string): boolean {
@@ -178,5 +190,5 @@ export const MAX_OVERLAY_LAYERS = MAX_OVERLAYS;
 // ── Derived: top overlay (for legacy mapStore.activeMapId bridge) ──
 export const topOverlay: Readable<HistoricalRef | null> = derived(
   layersStore,
-  ($l) => ($l.overlays[0]?.ref ?? null),
+  ($l) => $l.overlays[0]?.ref ?? null
 );

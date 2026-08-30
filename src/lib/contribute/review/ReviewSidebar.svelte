@@ -43,28 +43,28 @@
 
   const CLASS_COLORS: Record<string, string> = {
     particulier: '#d2956e',
-    communal:    '#7cb87c',
-    militaire:   '#7ba0c8',
-    local_svc:   '#9c9c9c',
-    non_affect:  '#e8e0d0',
-    building:    '#2563eb',
-    land_plot:   '#a78bfa',
-    road:        '#64748b',
-    waterway:    '#38bdf8',
-    other:       '#888888',
+    communal: '#7cb87c',
+    militaire: '#7ba0c8',
+    local_svc: '#9c9c9c',
+    non_affect: '#e8e0d0',
+    building: '#2563eb',
+    land_plot: '#a78bfa',
+    road: '#64748b',
+    waterway: '#38bdf8',
+    other: '#888888',
   };
 
   const ALL_TYPE_LABELS: Record<string, string> = {
     particulier: 'Particulier',
-    communal:    'Communal',
-    militaire:   'Militaire',
-    local_svc:   'Service Local',
-    non_affect:  'Non Affecté',
-    building:    'Building',
-    land_plot:   'Land Plot',
-    road:        'Road',
-    waterway:    'Waterway',
-    other:       'Other',
+    communal: 'Communal',
+    militaire: 'Militaire',
+    local_svc: 'Service Local',
+    non_affect: 'Non Affecté',
+    building: 'Building',
+    land_plot: 'Land Plot',
+    road: 'Road',
+    waterway: 'Waterway',
+    other: 'Other',
   };
 
   function classColor(ft: string) {
@@ -86,11 +86,7 @@
     <div class="empty">All done for this map.</div>
     {#if mapId && total > 0}
       <div class="mark-reviewed-block">
-        <button
-          class="btn-mark-reviewed"
-          disabled={markingReviewed}
-          on:click={markSegReviewed}
-        >
+        <button class="btn-mark-reviewed" disabled={markingReviewed} on:click={markSegReviewed}>
           {markingReviewed ? 'Saving…' : 'Mark seg reviewed'}
         </button>
         {#if markReviewedError}
@@ -118,7 +114,8 @@
               class="type-select"
               value={fp.featureType}
               on:click|stopPropagation
-              on:change={(e) => dispatch('retype', { id: fp.id, featureType: e.currentTarget.value })}
+              on:change={(e) =>
+                dispatch('retype', { id: fp.id, featureType: e.currentTarget.value })}
             >
               {#each Object.entries(ALL_TYPE_LABELS) as [value, label]}
                 <option {value}>{label}</option>
@@ -156,7 +153,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    font-family: "Be Vietnam Pro", sans-serif;
+    font-family: 'Be Vietnam Pro', sans-serif;
   }
 
   .sidebar-header {
@@ -213,8 +210,12 @@
     transition: background 0.1s;
   }
 
-  .fp-item:hover { background: #231f1a; }
-  .fp-item.selected { background: #2d2a26; }
+  .fp-item:hover {
+    background: #231f1a;
+  }
+  .fp-item.selected {
+    background: #2d2a26;
+  }
 
   .swatch {
     width: 12px;
@@ -222,7 +223,7 @@
     border-radius: 3px;
     flex-shrink: 0;
     margin-top: 3px;
-    border: 1px solid rgba(255,255,255,0.15);
+    border: 1px solid rgba(255, 255, 255, 0.15);
   }
 
   .fp-meta {
@@ -264,21 +265,28 @@
   }
 
   .btn-approve:disabled,
-  .btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-reject:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   .btn-approve {
     background: #166534;
     color: #bbf7d0;
   }
 
-  .btn-approve:hover:not(:disabled) { background: #15803d; }
+  .btn-approve:hover:not(:disabled) {
+    background: #15803d;
+  }
 
   .btn-reject {
     background: #7f1d1d;
     color: #fecaca;
   }
 
-  .btn-reject:hover:not(:disabled) { background: #991b1b; }
+  .btn-reject:hover:not(:disabled) {
+    background: #991b1b;
+  }
 
   .type-select {
     width: 100%;
@@ -316,7 +324,16 @@
     border-radius: 4px;
     cursor: pointer;
   }
-  .btn-mark-reviewed:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-mark-reviewed:hover:not(:disabled) { background: #14532d; }
-  .mark-reviewed-error { font-size: 0.72rem; color: #ef4444; margin: 0; }
+  .btn-mark-reviewed:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .btn-mark-reviewed:hover:not(:disabled) {
+    background: #14532d;
+  }
+  .mark-reviewed-error {
+    font-size: 0.72rem;
+    color: #ef4444;
+    margin: 0;
+  }
 </style>

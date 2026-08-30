@@ -54,10 +54,22 @@
   let drawingPointCount = 0;
 
   function clearInteractions(ctx: ImageShellContext) {
-    if (drawInteraction)  { ctx.map.removeInteraction(drawInteraction);  drawInteraction = null; }
-    if (snapInteraction)  { ctx.map.removeInteraction(snapInteraction);  snapInteraction = null; }
-    if (selectInteraction){ ctx.map.removeInteraction(selectInteraction); selectInteraction = null; }
-    if (modifyInteraction){ ctx.map.removeInteraction(modifyInteraction); modifyInteraction = null; }
+    if (drawInteraction) {
+      ctx.map.removeInteraction(drawInteraction);
+      drawInteraction = null;
+    }
+    if (snapInteraction) {
+      ctx.map.removeInteraction(snapInteraction);
+      snapInteraction = null;
+    }
+    if (selectInteraction) {
+      ctx.map.removeInteraction(selectInteraction);
+      selectInteraction = null;
+    }
+    if (modifyInteraction) {
+      ctx.map.removeInteraction(modifyInteraction);
+      modifyInteraction = null;
+    }
     isDrawing = false;
     drawingPointCount = 0;
   }
@@ -65,8 +77,8 @@
   // Style used while drawing (dashed amber preview)
   const DRAW_STYLE = new Style({
     stroke: new Stroke({ color: '#f59e0b', width: 2, lineDash: [6, 4] }),
-    fill:   new Fill({ color: 'rgba(245, 158, 11, 0.15)' }),
-    image:  new CircleStyle({ radius: 5, fill: new Fill({ color: '#f59e0b' }) }),
+    fill: new Fill({ color: 'rgba(245, 158, 11, 0.15)' }),
+    image: new CircleStyle({ radius: 5, fill: new Fill({ color: '#f59e0b' }) }),
   });
 
   // Style for selected footprint
@@ -75,8 +87,8 @@
     const isLine = geomType === 'LineString';
     return new Style({
       stroke: new Stroke({ color: '#ff6b35', width: isLine ? 3 : 2.5 }),
-      fill:   isLine ? undefined : new Fill({ color: 'rgba(255, 107, 53, 0.2)' }),
-      image:  new CircleStyle({
+      fill: isLine ? undefined : new Fill({ color: 'rgba(255, 107, 53, 0.2)' }),
+      image: new CircleStyle({
         radius: 6,
         fill: new Fill({ color: '#ff6b35' }),
         stroke: new Stroke({ color: '#fff', width: 2 }),
@@ -88,7 +100,7 @@
     ctx: ImageShellContext | null,
     mode: typeof drawMode,
     enabled: boolean,
-    gm: typeof geometryMode,
+    gm: typeof geometryMode
   ) {
     if (!ctx) return;
     clearInteractions(ctx);
@@ -135,7 +147,9 @@
           pixelCoords.pop(); // remove closing duplicate
         } else {
           // LineString (road, waterway)
-          pixelCoords = (geom as LineString).getCoordinates().map(([x, y]: number[]) => [x, -y] as PixelCoord);
+          pixelCoords = (geom as LineString)
+            .getCoordinates()
+            .map(([x, y]: number[]) => [x, -y] as PixelCoord);
         }
         dispatch('drawPolygon', { pixelPolygon: pixelCoords });
       });
@@ -171,7 +185,7 @@
       modifyInteraction.on('modifyend', (evt: any) => {
         evt.features.forEach((feature: any) => {
           const footprintId = feature.get('footprintId');
-          const userId      = feature.get('userId');
+          const userId = feature.get('userId');
           if (!footprintId) return;
           if (myUserId && userId !== myUserId) return;
 
@@ -238,7 +252,7 @@
         const features = selectInteraction.getFeatures().getArray().slice();
         for (const feature of features) {
           const footprintId = feature.get('footprintId');
-          const userId      = feature.get('userId');
+          const userId = feature.get('userId');
           if (!footprintId) continue;
           if (myUserId && userId !== myUserId) continue;
           dispatch('removeFootprint', { footprintId });
@@ -264,9 +278,8 @@
       <span class="pts-badge">{drawingPointCount} pt{drawingPointCount !== 1 ? 's' : ''}</span>
       <span class="hint">
         Drawing {geometryMode === 'LineString' ? 'line' : 'polygon'}
-        &nbsp;·&nbsp; <kbd>Enter</kbd> or double-click to finish
-        &nbsp;·&nbsp; <kbd>Ctrl+Z</kbd> undo
-        &nbsp;·&nbsp; <kbd>Esc</kbd> cancel
+        &nbsp;·&nbsp; <kbd>Enter</kbd> or double-click to finish &nbsp;·&nbsp; <kbd>Ctrl+Z</kbd>
+        undo &nbsp;·&nbsp; <kbd>Esc</kbd> cancel
       </span>
     </div>
   {:else}
@@ -296,7 +309,7 @@
     z-index: 50;
     pointer-events: none;
     white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   }
 
   .trace-status.drawing {
@@ -312,13 +325,17 @@
   }
 
   .trace-status.idle {
-    background: linear-gradient(160deg, rgba(244,232,216,0.95) 0%, rgba(232,213,186,0.95) 100%);
+    background: linear-gradient(
+      160deg,
+      rgba(244, 232, 216, 0.95) 0%,
+      rgba(232, 213, 186, 0.95) 100%
+    );
     border: 1px solid #d4af37;
     color: #4a3f35;
   }
 
   .trace-status.select-mode {
-    background: linear-gradient(160deg, rgba(255,107,53,0.12) 0%, rgba(255,107,53,0.08) 100%);
+    background: linear-gradient(160deg, rgba(255, 107, 53, 0.12) 0%, rgba(255, 107, 53, 0.08) 100%);
     border: 1px solid #ff6b35;
     color: #7c2d12;
   }
@@ -326,20 +343,23 @@
   .pts-badge {
     font-weight: 800;
     font-size: 0.8rem;
-    background: rgba(0,0,0,0.12);
+    background: rgba(0, 0, 0, 0.12);
     padding: 0.1rem 0.4rem;
     border-radius: 3px;
     flex-shrink: 0;
   }
 
-  .hint { flex: 1; text-align: center; }
+  .hint {
+    flex: 1;
+    text-align: center;
+  }
 
   kbd {
     font-family: monospace;
     font-size: 0.7rem;
-    background: rgba(0,0,0,0.15);
+    background: rgba(0, 0, 0, 0.15);
     padding: 0.05rem 0.3rem;
     border-radius: 2px;
-    border: 1px solid rgba(0,0,0,0.2);
+    border: 1px solid rgba(0, 0, 0, 0.2);
   }
 </style>

@@ -38,7 +38,10 @@
   let baseLoadedId: string | null = null;
 
   // Overlay layers keyed by layer.id
-  const overlayInstances = new Map<string, { layer: WarpedMapLayer; loadedAllmapsId: string | null }>();
+  const overlayInstances = new Map<
+    string,
+    { layer: WarpedMapLayer; loadedAllmapsId: string | null }
+  >();
 
   /** Show only the basemap matching `key`, or hide them all if key === 'none' / unknown. */
   function setVisibleBasemap(map: OlMap, key: string) {
@@ -62,7 +65,7 @@
   async function syncBase(ref: LayerRef) {
     if (!olMap) return;
     if (ref.kind === 'basemap') {
-      setVisibleBasemap(olMap, ref.key);   // 'none' / unknown key → all hidden
+      setVisibleBasemap(olMap, ref.key); // 'none' / unknown key → all hidden
       if (baseWarped) {
         destroyWarpedLayer(baseWarped);
         baseWarped = null;
@@ -116,7 +119,9 @@
         inst = { layer, loadedAllmapsId: null };
         overlayInstances.set(o.id, inst);
       } else {
-        try { (inst.layer as any).setZIndex(z); } catch {}
+        try {
+          (inst.layer as any).setZIndex(z);
+        } catch {}
       }
 
       if (inst.loadedAllmapsId !== o.ref.allmapsId) {
@@ -159,7 +164,7 @@
           layersStore.subscribe(($l) => {
             syncBase($l.base);
             syncOverlays($l.overlays);
-          }),
+          })
         );
 
         unsubs.push(
@@ -167,19 +172,22 @@
             refreshClips();
             // viewMode changes (e.g. entering/leaving side-by-side) affect overlay visibility.
             syncOverlays(get(layersStore).overlays);
-          }),
+          })
         );
 
         $map.on('moveend', refreshClips);
         $map.on('change:size', refreshClips);
-      }),
+      })
     );
   });
 
   onDestroy(() => {
     unsubs.forEach((u) => u());
     unsubs = [];
-    if (baseWarped) { destroyWarpedLayer(baseWarped); baseWarped = null; }
+    if (baseWarped) {
+      destroyWarpedLayer(baseWarped);
+      baseWarped = null;
+    }
     for (const inst of overlayInstances.values()) destroyWarpedLayer(inst.layer);
     overlayInstances.clear();
   });

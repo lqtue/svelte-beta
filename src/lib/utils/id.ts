@@ -6,5 +6,5 @@
  * ever has to run over plain http on a LAN address.
  */
 export function randomId(prefix = 'id'): string {
-	return `${prefix}-${crypto.randomUUID()}`;
+  return `${prefix}-${crypto.randomUUID()}`;
 }
