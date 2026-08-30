@@ -1,0 +1,58 @@
+# Target architecture (agreed 2026-08-31)
+
+Source of truth for where we're heading. Current-state layout is in `system-guidelines.md`; the code layering rule is in `CLAUDE.md`. Tracker at the bottom.
+
+## Decisions
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Who runs pipelines | **Hybrid**: any machine (M1, bigger local box, Colab, EC2 spot) runs the same Python worker; coordination via a `pipeline_jobs` table. Per-machine revocable keys (`worker_keys`). Local first. |
+| 2 | /explore scale | Undecided → keep footprints in Postgres (add PostGIS geometry), leave door open for a `build_pmtiles` job. No vector tiles yet. |
+| 3 | Public sharing | Yes → SSR on `(editorial)`, new `/map/[id]` share page with OG image. `(app)` stays SPA. |
+| 4 | Contributors | **Open** → shared writes go through `/api/*` only; every shared row has `status/submitted_by/reviewed_by`; `/contribute/review` = generic moderation queue. Browser keeps direct supabase-js for reads + own drafts. |
+| 5 | Allmaps | Stand on it: Allmaps Editor for georef, `@allmaps/openlayers` for warping. **We host imagery** (R2 IIIF, static dzsave tiles via CF Worker — confirmed, keep) and mirror every annotation to Supabase Storage; runtime never calls allmaps.org. "Fetch latest" is a job. |
+| 6 | Annotation versions | Storage has no versioning → write `annotations/{id}.json` (current) + `annotations/{id}/{ISO-ts}.json` (history) on each sync. No table. |
+
+## Shape
+
+```
+BROWSER  (editorial: SSR · app: SPA, OL + @allmaps/openlayers)
+  reads ──► Supabase (anon, RLS)          writes ──► /api/* (CF Pages Functions, lib/server)
+                                                        │ requireRole → repo fns → Postgres RPCs
+SUPABASE  Postgres (catalogue · users · stories · ocr_extractions · footprints · pipeline_jobs · worker_keys)
+          Storage  annotations/ (canonical GCP JSON, versioned by path)
+WORKERS   python `vma-worker` poll pipeline_jobs (FOR UPDATE SKIP LOCKED) → run → POST /api/pipeline/results
+          jobs: ingest_map · tile_to_r2 · mirror_annotation · sync_allmaps · ocr · seg · render_preview · (build_pmtiles)
+R2        vma-tiles (IIIF-3 static tiles) behind CF Worker iiif.maparchive.vn/iiif/{mapId}  ◄── browser
+ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
+```
+
+### One writer per table
+| Table | Writer | Via |
+|---|---|---|
+| maps, map_iiif_sources, scout_candidates | admin/mod | /api → RPC |
+| pipeline_jobs | web enqueues · workers claim/finish | RPC `claim_job(kind[], worker)`, `finish_job(id, result)` |
+| worker_keys | admin | /api |
+| ocr_extractions, footprint_submissions | workers insert · contributors submit/validate | `/api/pipeline/results`, `/api/…/review` → RPC `set_status` |
+| map_pipeline_status | **derived view** over pipeline_jobs (drop table) | — |
+| stories, story_points, annotation_sets | owner drafts (RLS) · publish via /api | supabase-js / RPC |
+| profiles, user_favorites, map_opens | owner | supabase-js RLS |
+
+### Rules
+- Service key exists only in `lib/server` and in workers (behind `worker_keys` → the API; workers never hold the DB key).
+- Invariants (status transitions, validated_by stamps, global-px from tile coords) live in Postgres RPCs/generated columns — browser, API and workers all call the same thing.
+- `status → public` requires `annotation_url` NOT NULL and an R2 tile set (trigger enqueues both jobs; constraint enforced after backfill).
+- Worker `info.json` claims IIIF `level2`; it is effectively level0 + proxy fallback. Don't rely on arbitrary region requests.
+
+## Tracker (each step ships alone)
+- [ ] 1 `pipeline_jobs` + `worker_keys` migration; python `vma-worker` poller (`claim --kinds ocr,seg [--once]`); `/api/…/ocr` enqueues; delete `cli_only`. Run on local box first.
+- [ ] 2 Workers post via `/api/pipeline/results` (Bearer worker key); python `.env` drops DB creds.
+- [ ] 3 RPCs `set_extraction_status`, `set_footprint_status`, `claim_job`, `finish_job`; browser + API call them; drop client tile-coord math; `map_pipeline_status` → view.
+- [ ] 4 `status → public` trigger enqueues `tile_to_r2` + `mirror_annotation`; backfill; `annotation_url NOT NULL` for public.
+- [ ] 5 `sync_allmaps` job ("fetch latest") with path-versioned Storage writes; admin button in MapEditHostingTab.
+- [ ] 6 SSR on `(editorial)`; `/map/[id]` share page; `render_preview` job → OG image on R2.
+- [ ] 7 Generic moderation: `status/submitted_by/reviewed_by` on stories; `/contribute/review` tabs per kind; rate limits in `lib/server/auth.ts`.
+- [ ] 8 PostGIS geometry on footprints (mig); `build_pmtiles` job — only when /explore needs city-wide layers.
+- [ ] 9 mig: drop `maps.is_public/is_featured` (status only), `story_points.quest/qr_payload`.
+
+Order: 1 → 2 → 3 → 4 → 5 → 6 → 7; 8/9 when they hurt.
