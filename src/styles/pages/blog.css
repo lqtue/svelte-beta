@@ -1,3 +1,9 @@
+/*
+  Neutral text greys are expressed as token mixes rather than raw hex:
+  `color-mix(in srgb, var(--color-text) N%, var(--color-white))` reproduces
+  #222…#888 exactly (--color-text is #111, a neutral), so tokenising here is
+  pixel-identical. White overlays use the same form against `transparent`.
+*/
 body {
   margin: 0;
   background-color: var(--color-bg);
@@ -54,7 +60,7 @@ body {
   font-size: 1.1rem;
   font-weight: 500;
   line-height: 1.6;
-  background: rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--color-white) 90%, transparent);
   padding: 1rem 1.25rem;
   border: var(--border-thin);
   border-radius: var(--radius-md);
@@ -114,7 +120,7 @@ body {
 .blog-page .post-date {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #777;
+  color: color-mix(in srgb, var(--color-text) 57%, var(--color-white));
 }
 
 .blog-page .latest-tag {
@@ -141,7 +147,7 @@ body {
   font-size: 1.1rem;
   font-weight: 500;
   line-height: 1.6;
-  color: #444;
+  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
   margin: 0 0 1.5rem 0;
 }
 
@@ -205,7 +211,7 @@ body {
   font-size: 0.9rem;
   font-weight: 500;
   line-height: 1.5;
-  color: #555;
+  color: color-mix(in srgb, var(--color-text) 71%, var(--color-white));
   margin: 0;
   flex: 1;
 }
@@ -246,7 +252,7 @@ body {
   font-size: 0.95rem;
   font-weight: 500;
   line-height: 1.6;
-  color: #444;
+  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
   margin: 0;
 }
 

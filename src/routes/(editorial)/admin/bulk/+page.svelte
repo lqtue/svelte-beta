@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/supabase/context';
   import { fetchUserRole } from '$lib/supabase/role';
+  import GeorefSyncPanel from '$lib/admin/GeorefSyncPanel.svelte';
+  import '$styles/pages/admin-bulk.css';
 
   // ── session / role guard ────────────────────────────────────────────────
   const { supabase, session } = getSupabaseContext();
@@ -206,29 +208,11 @@
     }
     createSummary += ' · thumbnails backfilled';
   }
-
-  // ── Sync georef status from the Allmaps annotation server ───────────────
-  let syncing = false;
-  let syncResult: string | null = null;
-  async function syncGeorefFromAllmaps() {
-    syncing = true;
-    syncResult = null;
-    try {
-      const res = await fetch('/api/admin/maps/sync-georef', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
-      syncResult = `Checked ${data.checked}, flipped ${data.flipped} to georef_done.`;
-    } catch (e: any) {
-      syncResult = `Failed: ${e.message}`;
-    } finally {
-      syncing = false;
-    }
-  }
 </script>
 
 <svelte:head><title>Bulk Upload — Admin</title></svelte:head>
 
-<div class="page">
+<div class="admin-bulk-page">
   <header class="hero">
     <a class="back-link" href="/catalog">← Catalog</a>
     <h1>Bulk Map Upload</h1>
@@ -326,20 +310,7 @@
       {#if createSummary}<p class="status">{createSummary}</p>{/if}
     </section>
 
-    <section class="panel">
-      <h2>Sync georef status</h2>
-      <p class="hint">
-        Probe the Allmaps annotation server for every map with an <code>allmaps_id</code> but
-        <code>georef_done = false</code>. Volunteers who finish georef in the Allmaps Editor become
-        visible to /contribute/digitalize after this runs. Idempotent.
-      </p>
-      <div class="script-actions">
-        <button class="pill-btn" on:click={syncGeorefFromAllmaps} disabled={syncing}>
-          {syncing ? 'Syncing…' : 'Sync georef from Allmaps'}
-        </button>
-      </div>
-      {#if syncResult}<p class="status">{syncResult}</p>{/if}
-    </section>
+    <GeorefSyncPanel />
 
     {#if resultScript}
       <section class="panel">
@@ -360,168 +331,3 @@
     {/if}
   {/if}
 </div>
-
-<style>
-  .page {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
-    font-family: var(--font-sans, system-ui, sans-serif);
-  }
-  .hero {
-    margin-bottom: 2rem;
-  }
-  .back-link {
-    color: var(--color-text-muted, #555);
-    text-decoration: none;
-    font-size: 0.85rem;
-  }
-  .back-link:hover {
-    text-decoration: underline;
-  }
-  h1 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 2.25rem;
-    font-weight: 800;
-    margin: 0.5rem 0 0.25rem;
-  }
-  .lede {
-    color: var(--color-text-muted, #555);
-    margin: 0;
-  }
-
-  .panel {
-    background: #fff;
-    border: 2px solid #111;
-    box-shadow: 5px 5px 0 #111;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-  .panel h2 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.1rem;
-    margin: 0 0 1rem;
-  }
-  .panel .hint {
-    color: var(--color-text-muted, #555);
-    font-size: 0.85rem;
-    margin: 0 0 0.75rem;
-  }
-
-  .field {
-    display: block;
-    margin-bottom: 0.75rem;
-  }
-  .field span {
-    display: block;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-  }
-  .field input,
-  textarea,
-  .grid input {
-    width: 100%;
-    padding: 0.45rem 0.6rem;
-    border: 1.5px solid #111;
-    border-radius: 4px;
-    font: inherit;
-    font-size: 0.85rem;
-    box-sizing: border-box;
-    background: #fff;
-  }
-  textarea {
-    font-family: ui-monospace, Menlo, monospace;
-    font-size: 0.78rem;
-    margin-bottom: 1rem;
-  }
-
-  .grid-wrap {
-    overflow-x: auto;
-    border: 1.5px solid #111;
-  }
-  .grid {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.78rem;
-  }
-  .grid th {
-    text-align: left;
-    background: #f5f5f0;
-    padding: 0.5rem 0.6rem;
-    border-bottom: 1.5px solid #111;
-    font-weight: 700;
-  }
-  .grid td {
-    padding: 0.25rem 0.3rem;
-    border-bottom: 1px solid #ddd;
-  }
-  .grid input {
-    border: 1px solid transparent;
-    padding: 0.3rem 0.5rem;
-  }
-  .grid input:focus {
-    border-color: #111;
-    outline: none;
-  }
-  .grid .row-ok {
-    background: #f0fdf4;
-  }
-  .grid .row-bad {
-    background: #fef2f2;
-  }
-  .status-cell {
-    text-align: center;
-    font-weight: 700;
-  }
-  .status-cell .ok {
-    color: #16a34a;
-  }
-  .status-cell .bad {
-    color: #dc2626;
-  }
-  .icon-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #555;
-    font-size: 0.9rem;
-    padding: 0.3rem;
-  }
-  .icon-btn:hover {
-    color: #dc2626;
-  }
-
-  .row-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-  }
-  .row-actions .grow {
-    flex: 1;
-  }
-
-  .script-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-  .script {
-    background: #0f1115;
-    color: #e5e7eb;
-    padding: 1rem;
-    border-radius: 4px;
-    overflow-x: auto;
-    font-family: ui-monospace, Menlo, monospace;
-    font-size: 0.78rem;
-    line-height: 1.45;
-  }
-
-  .status {
-    font-size: 0.85rem;
-  }
-  .status.error {
-    color: #dc2626;
-  }
-</style>

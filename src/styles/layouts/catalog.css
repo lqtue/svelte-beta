@@ -1,4 +1,10 @@
 /*
+  Neutral text greys are expressed as token mixes rather than raw hex:
+  `color-mix(in srgb, var(--color-text) N%, var(--color-white))` reproduces
+  #222…#888 exactly (--color-text is #111, a neutral), so tokenising here is
+  pixel-identical. White overlays use the same form against `transparent`.
+*/
+/*
  * Catalog browser page layout — /catalog
  *
  * ALL selectors are scoped under .catalog-page to avoid conflicts with
@@ -133,7 +139,7 @@
 .catalog-page .state-desc {
   font-size: 1.125rem;
   font-weight: 500;
-  color: #444;
+  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
   margin: 0;
 }
 

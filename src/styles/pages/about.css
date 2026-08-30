@@ -1,3 +1,9 @@
+/*
+  Neutral text greys are expressed as token mixes rather than raw hex:
+  `color-mix(in srgb, var(--color-text) N%, var(--color-white))` reproduces
+  #222…#888 exactly (--color-text is #111, a neutral), so tokenising here is
+  pixel-identical. White overlays use the same form against `transparent`.
+*/
 body {
   margin: 0;
   background-color: var(--color-bg);
@@ -48,7 +54,7 @@ body {
   font-weight: 500;
   line-height: 1.6;
   max-width: 640px;
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--color-white) 85%, transparent);
   padding: 1.25rem 1.5rem;
   border: var(--border-thin);
   border-radius: var(--radius-md);
@@ -105,7 +111,7 @@ body {
   font-size: 0.9rem;
   font-weight: 500;
   line-height: 1.55;
-  color: #444;
+  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
   margin: 0;
   flex: 1;
 }
@@ -115,7 +121,7 @@ body {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #888;
+  color: color-mix(in srgb, var(--color-text) 50%, var(--color-white));
   padding-top: 0.625rem;
   border-top: var(--border-thin);
   line-height: 1.5;
@@ -158,7 +164,7 @@ body {
 
 .about-page .chevron {
   flex-shrink: 0;
-  color: #888;
+  color: color-mix(in srgb, var(--color-text) 50%, var(--color-white));
   transition: transform 0.2s ease;
 }
 
@@ -193,7 +199,7 @@ body {
 
 .about-page .layer-desc {
   font-size: 0.8rem;
-  color: #666;
+  color: color-mix(in srgb, var(--color-text) 64%, var(--color-white));
   font-weight: 500;
 }
 
@@ -259,7 +265,7 @@ body {
 }
 
 .about-page .next-label {
-  color: #888;
+  color: color-mix(in srgb, var(--color-text) 50%, var(--color-white));
 }
 
 .about-page .detail-list {
@@ -277,7 +283,7 @@ body {
   line-height: 1.45;
   padding-left: 1.1rem;
   position: relative;
-  color: #333;
+  color: color-mix(in srgb, var(--color-text) 86%, var(--color-white));
 }
 
 .about-page .detail-item::before {
@@ -309,7 +315,7 @@ body {
   font-size: 0.83rem;
   font-weight: 500;
   line-height: 1.45;
-  color: #444;
+  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
   margin-top: 0.3rem;
 }
 
@@ -350,7 +356,7 @@ body {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #888;
+  color: color-mix(in srgb, var(--color-text) 50%, var(--color-white));
 }
 
 .about-page .phase-title {
@@ -363,7 +369,7 @@ body {
 .about-page .phase-subtitle {
   font-size: 0.875rem;
   font-style: italic;
-  color: #555;
+  color: color-mix(in srgb, var(--color-text) 71%, var(--color-white));
   margin: 0 0 0.75rem 0;
 }
 
@@ -443,7 +449,7 @@ body {
   font-size: 0.9rem;
   font-weight: 500;
   line-height: 1.5;
-  color: #444;
+  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
   margin: 0;
 }
 
@@ -480,8 +486,8 @@ body {
 }
 
 .about-page .cta-role {
-  background: rgba(255, 255, 255, 0.07);
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--color-white) 7.000000000000001%, transparent);
+  border: 2px solid color-mix(in srgb, var(--color-white) 15%, transparent);
   border-radius: var(--radius-md);
   padding: 1.5rem;
   display: flex;
@@ -571,7 +577,7 @@ body {
   font-size: 1rem;
   font-weight: 500;
   line-height: 1.6;
-  color: #444;
+  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
   margin: 0 0 1.75rem 0;
 }
 

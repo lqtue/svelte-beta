@@ -79,24 +79,24 @@
   .search-box.full {
     display: flex;
     align-items: center;
-    padding: 0.85rem 1.5rem;
-    background: #fff;
-    border: 2.5px solid #111;
-    border-radius: 999px;
-    box-shadow: 4px 4px 0 #111;
+    padding: 0.85rem var(--space-6);
+    background: var(--color-white);
+    border: 2.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-solid-sm);
     transition:
       box-shadow 0.1s,
       transform 0.1s;
   }
   .search-box.full:focus-within {
-    box-shadow: 2px 2px 0 #111;
+    box-shadow: var(--shadow-solid-xs);
     transform: translate(2px, 2px);
   }
   .search-icon {
     flex-shrink: 0;
     width: 22px;
     height: 22px;
-    color: #111;
+    color: var(--color-text);
     margin-right: 0.85rem;
   }
   .search-box .chunky-input {
@@ -105,12 +105,12 @@
     outline: none;
     background: transparent;
     font: inherit;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family-base);
     font-size: 1.05rem;
-    font-weight: 500;
+    font-weight: var(--font-medium);
     padding: 0.15rem 0;
   }
   .search-box .chunky-input::placeholder {
-    color: #888;
+    color: var(--color-gray-400);
   }
 </style>

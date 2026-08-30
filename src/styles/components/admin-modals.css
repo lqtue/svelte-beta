@@ -948,3 +948,319 @@ code.detail-value {
   font-family: inherit;
   font-size: 0.82rem;
 }
+
+/* ── Hosting tab: manifest auto-fill panel (migrated from inline style attrs) ── */
+.hosting-autofill {
+  background: var(--color-gray-50);
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--color-gray-300);
+}
+.autofill-heading {
+  margin-bottom: 0.5rem;
+}
+.autofill-desc {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--color-gray-500);
+}
+.lookup-status--dim {
+  margin-left: 0.5rem;
+  color: var(--color-gray-500);
+}
+.lookup-status--block {
+  margin-top: 0.5rem;
+}
+.detail-value--xs {
+  font-size: 0.75rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NeatlineEditor — migrated from the component's <style> block and tokenised.
+   Every rule is scoped under .neatline-editor so the generic names (.viewport,
+   .handle, .btn) cannot leak, and so the local .btn* keep winning over the
+   modal-wide ones above, exactly as the scoped styles used to.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.neatline-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  /* Corner identity colours — nearest palette tokens to the original
+     #ef4444 / #3b82f6 / #22c55e / #f97316 */
+  --neatline-nw: var(--color-primary);
+  --neatline-ne: var(--color-blue);
+  --neatline-se: var(--color-green);
+  --neatline-sw: var(--color-orange);
+}
+
+.neatline-editor .status-msg {
+  color: var(--color-gray-500);
+  font-style: italic;
+  text-align: center;
+  padding: var(--space-8);
+}
+.neatline-editor .status-msg.error {
+  color: var(--color-error-600);
+}
+
+/* Zoom toolbar */
+.neatline-editor .zoom-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.neatline-editor .zoom-btn {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-white);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.neatline-editor .zoom-btn:hover {
+  background: var(--color-gray-100);
+}
+.neatline-editor .zoom-btn.reset {
+  font-size: 0.78rem;
+  color: var(--color-gray-500);
+}
+.neatline-editor .zoom-label {
+  font-size: 0.82rem;
+  min-width: 3.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-gray-500);
+}
+.neatline-editor .zoom-hint {
+  font-size: 0.75rem;
+  color: var(--color-gray-400);
+  margin-left: auto;
+}
+
+/* Viewport — the clipping window */
+.neatline-editor .viewport {
+  position: relative;
+  width: 100%;
+  max-height: 65vh;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-text);
+  touch-action: none;
+  user-select: none;
+  cursor: default;
+}
+.neatline-editor .viewport.is-zoomed {
+  cursor: grab;
+}
+.neatline-editor .viewport.is-panning {
+  cursor: grabbing;
+}
+
+/* Canvas — receives the CSS transform (applied via style binding) */
+.neatline-editor .canvas {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.neatline-editor .map-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.neatline-editor .overlay-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.neatline-editor .neatline-poly {
+  fill: color-mix(in srgb, var(--color-white) 6%, transparent);
+  stroke: var(--color-white);
+}
+
+.neatline-editor .handle {
+  cursor: grab;
+}
+.neatline-editor .handle:active {
+  cursor: grabbing;
+}
+.neatline-editor .handle-dot {
+  opacity: 0.9;
+}
+.neatline-editor .handle-ring {
+  fill: none;
+  stroke: var(--color-white);
+}
+.neatline-editor .handle-text {
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--color-white);
+  font-weight: var(--font-bold);
+  pointer-events: none;
+}
+
+.neatline-editor .corner-nw .handle-dot,
+.neatline-editor .corner-badge.corner-nw {
+  fill: var(--neatline-nw);
+  background: var(--neatline-nw);
+}
+.neatline-editor .corner-ne .handle-dot,
+.neatline-editor .corner-badge.corner-ne {
+  fill: var(--neatline-ne);
+  background: var(--neatline-ne);
+}
+.neatline-editor .corner-se .handle-dot,
+.neatline-editor .corner-badge.corner-se {
+  fill: var(--neatline-se);
+  background: var(--neatline-se);
+}
+.neatline-editor .corner-sw .handle-dot,
+.neatline-editor .corner-badge.corner-sw {
+  fill: var(--neatline-sw);
+  background: var(--neatline-sw);
+}
+
+/* GCP table */
+.neatline-editor .gcp-table-wrap {
+  overflow-x: auto;
+}
+.neatline-editor .gcp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.neatline-editor .gcp-table th,
+.neatline-editor .gcp-table td {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--color-border);
+  text-align: center;
+}
+.neatline-editor .gcp-table th {
+  background: var(--color-gray-100);
+  font-weight: var(--font-semibold);
+}
+
+.neatline-editor .corner-badge {
+  display: inline-block;
+  color: var(--color-white);
+  font-size: 0.75rem;
+  font-weight: var(--font-bold);
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+}
+
+.neatline-editor .coord-input {
+  width: 90px;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-size: 0.82rem;
+  text-align: right;
+}
+.neatline-editor .coord-input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+/* Datum panel */
+.neatline-editor .datum-panel {
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.neatline-editor .datum-summary {
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-weight: var(--font-semibold);
+  user-select: none;
+}
+.neatline-editor .datum-summary:hover {
+  background: var(--color-gray-100);
+}
+.neatline-editor .datum-body {
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.neatline-editor .datum-desc {
+  color: var(--color-gray-500);
+  margin: 0;
+  line-height: 1.5;
+}
+.neatline-editor .datum-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-weight: var(--font-medium);
+}
+.neatline-editor .datum-select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.83rem;
+}
+.neatline-editor .datum-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.neatline-editor .datum-ok {
+  color: var(--color-success-600);
+  font-size: 0.82rem;
+}
+
+/* Save row */
+.neatline-editor .save-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+.neatline-editor .save-msg {
+  font-size: var(--text-sm);
+  color: var(--color-success-600);
+}
+.neatline-editor .save-msg.save-error {
+  color: var(--color-error-600);
+}
+
+/* Buttons — kept local so they match the pre-migration scoped rules */
+.neatline-editor .btn {
+  padding: 0.45rem var(--space-4);
+  border: none;
+  border-radius: 4px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-weight: var(--font-medium);
+}
+.neatline-editor .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.neatline-editor .btn-primary {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+.neatline-editor .btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-700);
+}
+.neatline-editor .btn-outline {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.neatline-editor .btn-outline:hover {
+  background: var(--color-gray-100);
+}

@@ -42,7 +42,7 @@
     {/if}
 
     <div class="auth-options">
-      <button class="auth-btn google-btn" onclick={loginWithGoogle} disabled={loading}>
+      <button class="auth-btn google-btn" on:click={loginWithGoogle} disabled={loading}>
         <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
           <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -105,16 +105,18 @@
     letter-spacing: -0.02em;
   }
 
+  /* #fee2e2 / #ef4444 / #b91c1c have no exact tokens — nearest is the
+     --color-error-600 family, tinted for the surface. */
   .auth-error {
-    padding: 0.75rem 1rem;
-    background: #fee2e2;
-    border: 2px solid #ef4444;
+    padding: var(--space-3) var(--space-4);
+    background: color-mix(in srgb, var(--color-error-600) 15%, var(--color-white));
+    border: 2px solid var(--color-error-600);
     border-radius: var(--radius-md);
-    color: #b91c1c;
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    box-shadow: 4px 4px 0px #ef4444;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    margin-bottom: var(--space-6);
+    box-shadow: var(--shadow-solid-sm);
   }
 
   .auth-options {
@@ -137,7 +139,7 @@
     font-weight: 800;
     cursor: pointer;
     transition: all 0.1s;
-    box-shadow: 4px 4px 0px var(--color-border);
+    box-shadow: var(--shadow-solid-sm);
     text-transform: uppercase;
     background: var(--color-white);
     color: var(--color-text);
@@ -145,7 +147,7 @@
 
   .auth-btn:hover:not(:disabled) {
     transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0px var(--color-border);
+    box-shadow: var(--shadow-solid);
     background: var(--color-bg);
   }
 

@@ -1,0 +1,220 @@
+/*
+  /admin/scout — candidate review grid.
+  Migrated out of the page's <style> block and tokenised. Every rule is scoped
+  under .scout-page: the class names (.card, .chip, .grid, .title) are generic
+  enough that they must not become global.
+
+  Palette substitutions (nearest token, no exact match in tokens.css):
+    #2e7d32 → --color-success-600   #b71c1c → --color-error-600
+    #ed8c00 → --color-warning-600   #3367d6 → --color-blue
+    #666/#555 → --color-gray-500    #999/#888 → --color-gray-400
+    #ddd/#ccc → --color-gray-300    #eee → --color-gray-100
+    #fafafa → --color-gray-50       #1a1a1a/#333 → --color-text
+*/
+
+.scout-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) 5rem;
+}
+.scout-page .page-header h1 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-3xl);
+}
+.scout-page .page-header p {
+  margin: 0 0 var(--space-6);
+  color: var(--color-gray-500);
+  font-size: 0.9rem;
+}
+
+.scout-page .filters,
+.scout-page .bulk-bar {
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-300);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+.scout-page .filter-row {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  width: 100%;
+  align-items: end;
+}
+.scout-page .filter-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+}
+.scout-page .filter-row select,
+.scout-page .filter-row input {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-gray-300);
+  font-size: 0.9rem;
+}
+.scout-page .result-line {
+  width: 100%;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--color-gray-500);
+}
+.scout-page .result-line button {
+  margin-left: auto;
+}
+.scout-page .spacer {
+  flex: 1;
+}
+.scout-page .action-msg {
+  font-size: 0.85rem;
+  color: var(--color-gray-500);
+}
+
+.scout-page .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+.scout-page .card {
+  border: 1px solid var(--color-gray-300);
+  background: var(--color-white);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.scout-page .card.selected {
+  outline: 3px solid var(--color-blue);
+}
+.scout-page .card-select {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  background: color-mix(in srgb, var(--color-white) 90%, transparent);
+  padding: 0.15rem 0.3rem;
+  border-radius: 2px;
+}
+.scout-page .thumb-link {
+  display: block;
+  background: var(--color-text);
+}
+.scout-page .thumb-link img {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+.scout-page .card-body {
+  padding: 0.6rem var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.scout-page .title {
+  font-size: 0.85rem;
+  font-weight: var(--font-semibold);
+  margin: 0;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.scout-page .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.scout-page .chip {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 2px;
+  background: var(--color-gray-100);
+  color: var(--color-text);
+}
+.scout-page .chip.score[data-score='high'] {
+  background: var(--color-success-600);
+  color: var(--color-white);
+}
+.scout-page .chip.score[data-score='mid'] {
+  background: var(--color-warning-600);
+  color: var(--color-white);
+}
+.scout-page .chip.score[data-score='low'] {
+  background: var(--color-gray-400);
+  color: var(--color-white);
+}
+.scout-page .chip.score[data-score='neg'] {
+  background: var(--color-error-600);
+  color: var(--color-white);
+}
+.scout-page .holder {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+}
+.scout-page .creator {
+  font-size: 0.75rem;
+  color: var(--color-gray-400);
+  font-style: italic;
+}
+.scout-page .actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: auto;
+}
+.scout-page .actions button {
+  flex: 1;
+  padding: 0.35rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--color-gray-300);
+  background: var(--color-white);
+  cursor: pointer;
+}
+/* `button.btn-*` matches the specificity of `.actions button` above and wins on
+   source order — which is what the original !important flags were compensating
+   for inside a scoped stylesheet. Also applies to the buttons in .bulk-bar. */
+.scout-page button.btn-good {
+  background: var(--color-success-600);
+  color: var(--color-white);
+  border-color: var(--color-success-600);
+}
+.scout-page button.btn-bad {
+  background: var(--color-error-600);
+  color: var(--color-white);
+  border-color: var(--color-error-600);
+}
+.scout-page button.btn-primary {
+  background: var(--color-blue);
+  color: var(--color-white);
+  border-color: var(--color-blue);
+}
+.scout-page button.btn-link {
+  background: transparent;
+  border: none;
+  color: var(--color-blue);
+  font-size: 0.75rem;
+}
+.scout-page .status-badge {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+}
+.scout-page .status-badge.approved {
+  background: var(--color-success-600);
+  color: var(--color-white);
+}
+.scout-page .status-badge.rejected {
+  background: var(--color-error-600);
+  color: var(--color-white);
+}
+.scout-page .status-badge.ingested {
+  background: var(--color-blue);
+  color: var(--color-white);
+}
