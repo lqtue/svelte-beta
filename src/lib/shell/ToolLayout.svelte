@@ -20,6 +20,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import MobileDrawerStack from './MobileDrawerStack.svelte';
   import '$styles/layouts/mode-shared.css';
 
   export let sidebarCollapsed = false;
@@ -48,22 +49,6 @@
   /** Mobile: which drawer is open. Exposed so a parent (e.g. the
       /explore tour) can programmatically switch tabs. */
   export let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
-
-  // Bottom-sheet snap: drawer defaults to 60vh max-height; when the user
-  // scrolls inside it past the top, expand to ~90vh so the long list is
-  // browseable without forcing them to remember it's behind the fold.
-  let drawerExpanded = false;
-  function onDrawerScroll(e: Event) {
-    const t = e.target as HTMLElement | null;
-    if (!t) return;
-    drawerExpanded = t.scrollTop > 4;
-  }
-  $: if (openDrawer === 'none') drawerExpanded = false;
-
-  $: orderOf = (key: 'layers' | 'controls' | 'browse') => {
-    const i = tabOrder.indexOf(key);
-    return i === -1 ? 99 : i;
-  };
 
   // ── Sidebar resizing (desktop) ───────────────────────────────
   let resizing: 'left' | 'right' | null = null;
@@ -218,98 +203,19 @@
   {/if}
 
   {#if isMobile && hasAnyDrawer}
-    {#if openDrawer !== 'none'}
-      <div class="drawer-backdrop" on:click={() => (openDrawer = 'none')} role="presentation"></div>
-    {/if}
-
-    <div class="drawer-stack" class:open={openDrawer !== 'none'} class:is-expanded={drawerExpanded}>
-      <!-- Shared body: shows the active drawer's content. Hidden when closed. -->
-      <div
-        class="drawer-body"
-        aria-hidden={openDrawer === 'none'}
-        on:scroll|capture={onDrawerScroll}
-      >
-        {#if hasMobileLayers}
-          <div
-            class="drawer-pane"
-            class:active={openDrawer === 'layers'}
-            style="order: {orderOf('layers')}"
-          >
-            <slot name="mobile-layers" />
-          </div>
-        {/if}
-        {#if hasMobileControls}
-          <div
-            class="drawer-pane"
-            class:active={openDrawer === 'controls'}
-            style="order: {orderOf('controls')}"
-          >
-            <slot name="mobile-controls" />
-          </div>
-        {/if}
-        {#if hasMobileBrowse}
-          <div
-            class="drawer-pane"
-            class:active={openDrawer === 'browse'}
-            style="order: {orderOf('browse')}"
-          >
-            <slot name="mobile-browse" />
-          </div>
-        {/if}
-        {#if hasMobileSidebar && !hasMobileLayers && !hasMobileBrowse && !hasMobileControls}
-          <div class="drawer-pane" class:active={openDrawer === 'legacy'}>
-            <slot name="mobile-sidebar" />
-          </div>
-        {/if}
-      </div>
-
-      <!-- Tab row: horizontal, equal-width. -->
-      <div class="drawer-tabs" role="tablist">
-        {#if hasMobileLayers}
-          <button
-            type="button"
-            class="drawer-tab"
-            class:on={openDrawer === 'layers'}
-            on:click={() => (openDrawer = openDrawer === 'layers' ? 'none' : 'layers')}
-            aria-pressed={openDrawer === 'layers'}
-            style="order: {orderOf('layers')}"
-            ><span aria-hidden="true">🗺️</span><span>Layers</span></button
-          >
-        {/if}
-        {#if hasMobileControls}
-          <button
-            type="button"
-            class="drawer-tab"
-            class:on={openDrawer === 'controls'}
-            on:click={() => (openDrawer = openDrawer === 'controls' ? 'none' : 'controls')}
-            aria-pressed={openDrawer === 'controls'}
-            style="order: {orderOf('controls')}"
-            ><span aria-hidden="true">⚙️</span><span>Controls</span></button
-          >
-        {/if}
-        {#if hasMobileBrowse}
-          <button
-            type="button"
-            class="drawer-tab"
-            class:on={openDrawer === 'browse'}
-            on:click={() => (openDrawer = openDrawer === 'browse' ? 'none' : 'browse')}
-            aria-pressed={openDrawer === 'browse'}
-            style="order: {orderOf('browse')}"
-            ><span aria-hidden="true">📋</span><span>Browse</span></button
-          >
-        {/if}
-        {#if hasMobileSidebar && !hasMobileLayers && !hasMobileBrowse && !hasMobileControls}
-          <button
-            type="button"
-            class="drawer-tab"
-            class:on={openDrawer === 'legacy'}
-            on:click={() => (openDrawer = openDrawer === 'legacy' ? 'none' : 'legacy')}
-            aria-pressed={openDrawer === 'legacy'}
-            ><span aria-hidden="true">📋</span><span>Tools</span></button
-          >
-        {/if}
-      </div>
-    </div>
+    <MobileDrawerStack
+      bind:openDrawer
+      {tabOrder}
+      hasLayers={hasMobileLayers}
+      hasControls={hasMobileControls}
+      hasBrowse={hasMobileBrowse}
+      hasLegacy={hasMobileSidebar}
+    >
+      <slot name="mobile-layers" slot="layers" />
+      <slot name="mobile-controls" slot="controls" />
+      <slot name="mobile-browse" slot="browse" />
+      <slot name="mobile-sidebar" slot="legacy" />
+    </MobileDrawerStack>
   {/if}
 </div>
 
@@ -356,10 +262,10 @@
     left: 50%;
     width: 3px;
     height: 28px;
-    background: #111;
+    background: var(--color-text);
     border-radius: 2px;
     transition: all 0.15s ease;
-    box-shadow: 0 0 0 1px #fff;
+    box-shadow: 0 0 0 1px var(--color-white);
   }
   .resize-handle::before {
     transform: translate(-5px, -50%);
@@ -369,7 +275,7 @@
   }
   .resize-handle:hover::before,
   .resize-handle:hover::after {
-    background: var(--sb-accent, #2563eb);
+    background: var(--sb-accent);
     height: 36px;
   }
   .workspace:not(.with-sidebar) .resize-handle:not(.resize-handle-right) {
@@ -382,118 +288,8 @@
   /* Floating "show editor" pill (mirror of .top-controls but right-anchored). */
   .right-controls {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
+    top: var(--space-4);
+    right: var(--space-4);
     z-index: 50;
-  }
-
-  /* ── Mobile drawer stack ───────────────────────────────────── */
-  .drawer-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.25);
-    z-index: 55;
-    animation: db-fade 0.15s ease-out;
-  }
-  @keyframes db-fade {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .drawer-stack {
-    --tab-h: clamp(40px, 7vh, 52px);
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 60;
-    display: flex;
-    flex-direction: column;
-    pointer-events: auto;
-    padding-bottom: env(safe-area-inset-bottom);
-    background: transparent;
-  }
-
-  /* Shared body: collapses to 0 when no drawer open, defaults to 60vh
-     when open. Expands to 90vh once the user scrolls inside it past the
-     top — so the bottom sheet acts like a snap drawer without needing a
-     drag handle. Closing or switching the drawer resets to default. */
-  .drawer-body {
-    max-height: 0;
-    overflow: hidden;
-    background: var(--color-bg, #f5f0ea);
-    transition:
-      max-height 0.25s ease,
-      border-top-width 0.25s ease;
-    border-top: 0 solid #111;
-    display: flex;
-    flex-direction: column;
-  }
-  .drawer-stack.open .drawer-body {
-    max-height: 60vh;
-    border-top-width: 2px;
-  }
-  .drawer-stack.open.is-expanded .drawer-body {
-    max-height: 90vh;
-  }
-  .drawer-pane {
-    display: none;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-  }
-  .drawer-pane.active {
-    display: flex;
-    flex-direction: column;
-  }
-  /* Force scroll inside any wrapper that uses overflow:hidden (e.g. .mobile-pane). */
-  .drawer-pane > :global(*) {
-    overflow-y: auto;
-    min-height: 0;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Horizontal tab row. Equal-width, side-by-side. */
-  .drawer-tabs {
-    display: flex;
-    flex-direction: row;
-    height: var(--tab-h);
-    background: #fff;
-    border-top: 2px solid #111;
-  }
-  .drawer-tab {
-    flex: 1 1 0;
-    min-width: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    padding: 0 0.5rem;
-    background: #fff;
-    border: none;
-    border-left: 1.5px solid #111;
-    font: inherit;
-    font-family: 'Outfit', sans-serif;
-    font-weight: 700;
-    font-size: 0.82rem;
-    color: #111;
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .drawer-tab:first-child {
-    border-left: none;
-  }
-  .drawer-tab:active {
-    background: #f5f3ea;
-  }
-  .drawer-tab.on {
-    background: #111;
-    color: #fff;
   }
 </style>

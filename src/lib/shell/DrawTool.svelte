@@ -21,17 +21,11 @@
   import { DRAW_TYPE_MAP } from '$lib/map/constants';
   import {
     ensureAnnotationDefaults,
-    toAnnotationSummary,
     createAnnotationStyle,
     searchResultStyle,
   } from '$lib/map/olAnnotations';
-  import {
-    captureFeatureSnapshot as snapshotFeature,
-    restoreFeatureFromSnapshot as restoreSnapshot,
-    type FeatureSnapshot,
-    type HistoryEntry,
-    type AnnotationField,
-  } from '$lib/map/annotationHistory';
+  import type { FeatureSnapshot } from '$lib/map/annotationHistory';
+  import { createAnnotationCommands } from '$lib/map/annotationCommands';
   import { getShellContext } from './context';
   import { getAnnotationContext } from '$lib/map/annotationContext';
 
@@ -64,7 +58,14 @@
   let drawInteraction: Draw | null = null;
   let modifyInteraction: Modify | null = null;
   let selectInteraction: Select | null = null;
-  let suppressHistory = false;
+
+  // All history-recording mutation of annotationSource goes through here.
+  const commands = createAnnotationCommands({
+    source: annotationSource,
+    history: annotationHistory,
+    state: annotationState,
+    geoJson: geoJsonFormat,
+  });
 
   // React to drawing mode changes
   $: if (initialized && map) {
@@ -76,79 +77,6 @@
     const hasModify = map.getInteractions().getArray().includes(modifyInteraction);
     if (editingEnabled && !hasModify) map.addInteraction(modifyInteraction);
     else if (!editingEnabled && hasModify) map.removeInteraction(modifyInteraction);
-  }
-
-  function updateAnnotationSummaries() {
-    const list = annotationSource.getFeatures().map((f) => toAnnotationSummary(f));
-    annotationState.setList(list);
-  }
-
-  function captureFeatureSnapshot(feature: Feature<Geometry>): FeatureSnapshot {
-    ensureAnnotationDefaults(feature);
-    return snapshotFeature(feature, { geoJson: geoJsonFormat });
-  }
-
-  function restoreFeatureFromSnapshot(snapshot: FeatureSnapshot): Feature<Geometry> {
-    const restored = restoreSnapshot(snapshot, { geoJson: geoJsonFormat });
-    ensureAnnotationDefaults(restored);
-    return restored;
-  }
-
-  function addSnapshotToSource(snapshot: FeatureSnapshot): Feature<Geometry> | null {
-    const existing = annotationSource.getFeatureById(snapshot.id);
-    if (existing) annotationSource.removeFeature(existing as Feature<Geometry>);
-    const restored = restoreFeatureFromSnapshot(snapshot);
-    annotationSource.addFeature(restored);
-    return restored;
-  }
-
-  function removeFeatureById(id: string): Feature<Geometry> | null {
-    const feature = annotationSource.getFeatureById(id) as Feature<Geometry> | null;
-    if (feature) annotationSource.removeFeature(feature);
-    return feature;
-  }
-
-  function pushHistoryEntry(entry: HistoryEntry) {
-    if (suppressHistory) return;
-    annotationHistory.push(entry);
-  }
-
-  function recordAnnotationAdd(feature: Feature<Geometry>) {
-    pushHistoryEntry({ kind: 'annotation-add', snapshot: captureFeatureSnapshot(feature) });
-  }
-
-  function recordAnnotationDelete(feature: Feature<Geometry>) {
-    pushHistoryEntry({ kind: 'annotation-delete', snapshot: captureFeatureSnapshot(feature) });
-  }
-
-  function recordAnnotationFieldChange(
-    feature: Feature<Geometry>,
-    field: AnnotationField,
-    before: unknown,
-    after: unknown
-  ) {
-    if (before === after) return;
-    pushHistoryEntry({
-      kind: 'annotation-update',
-      id: String(feature.getId()),
-      changes: [{ field, before, after }],
-    });
-  }
-
-  function recordAnnotationClear(features: Feature<Geometry>[]) {
-    if (!features.length) return;
-    pushHistoryEntry({
-      kind: 'annotation-clear',
-      snapshots: features.map((f) => captureFeatureSnapshot(f)),
-    });
-  }
-
-  function recordAnnotationBulkAdd(features: Feature<Geometry>[]) {
-    if (!features.length) return;
-    pushHistoryEntry({
-      kind: 'annotation-bulk-add',
-      snapshots: features.map((f) => captureFeatureSnapshot(f)),
-    });
   }
 
   // --- Interactions ---
@@ -168,8 +96,8 @@
       const feature = event.feature as Feature<Geometry>;
       ensureAnnotationDefaults(feature);
       annotationState.setSelected(String(feature.getId()));
-      updateAnnotationSummaries();
-      recordAnnotationAdd(feature);
+      commands.updateSummaries();
+      commands.recordAdd(feature);
     });
     map.addInteraction(drawInteraction);
   }
@@ -190,8 +118,8 @@
     const previous = feature.get('label') ?? '';
     if (previous === label) return;
     feature.set('label', label);
-    recordAnnotationFieldChange(feature, 'label', previous, label);
-    updateAnnotationSummaries();
+    commands.recordFieldChange(feature, 'label', previous, label);
+    commands.updateSummaries();
   }
 
   export function updateAnnotationDetails(id: string, details: string) {
@@ -200,8 +128,8 @@
     const previous = feature.get('details') ?? '';
     if (previous === details) return;
     feature.set('details', details);
-    recordAnnotationFieldChange(feature, 'details', previous, details);
-    updateAnnotationSummaries();
+    commands.recordFieldChange(feature, 'details', previous, details);
+    commands.updateSummaries();
   }
 
   export function updateAnnotationColor(id: string, color: string) {
@@ -210,8 +138,8 @@
     const previous = feature.get('color') ?? '';
     if (previous === color) return;
     feature.set('color', color);
-    recordAnnotationFieldChange(feature, 'color', previous, color);
-    updateAnnotationSummaries();
+    commands.recordFieldChange(feature, 'color', previous, color);
+    commands.updateSummaries();
   }
 
   export function toggleAnnotationVisibility(id: string) {
@@ -219,8 +147,8 @@
     if (!feature) return;
     const hidden = Boolean(feature.get('hidden'));
     feature.set('hidden', !hidden);
-    recordAnnotationFieldChange(feature, 'hidden', hidden, !hidden);
-    updateAnnotationSummaries();
+    commands.recordFieldChange(feature, 'hidden', hidden, !hidden);
+    commands.updateSummaries();
   }
 
   export function zoomToAnnotation(id: string) {
@@ -245,15 +173,15 @@
   export function deleteAnnotation(id: string) {
     const feature = getAnnotationFeature(id) as Feature<Geometry> | null;
     if (!feature) return;
-    recordAnnotationDelete(feature);
+    commands.recordDelete(feature);
     annotationSource.removeFeature(feature);
     annotationState.clearSelectionIfMatches(id);
-    updateAnnotationSummaries();
+    commands.updateSummaries();
   }
 
   export function clearAnnotations() {
     const features = annotationSource.getFeatures();
-    recordAnnotationClear(features);
+    commands.recordClear(features);
     annotationSource.clear();
     annotationState.reset();
   }
@@ -293,84 +221,17 @@
     }) as Feature<Geometry>[];
     features.forEach((f) => ensureAnnotationDefaults(f));
     annotationSource.addFeatures(features);
-    recordAnnotationBulkAdd(features);
-    updateAnnotationSummaries();
+    commands.recordBulkAdd(features);
+    commands.updateSummaries();
     return features.length;
   }
 
   export function undoLastAction() {
-    const entry = annotationHistory.undo();
-    if (!entry) return;
-    suppressHistory = true;
-    applyHistoryEntry(entry, 'undo');
-    suppressHistory = false;
+    commands.undo();
   }
 
   export function redoLastAction() {
-    const entry = annotationHistory.redo();
-    if (!entry) return;
-    suppressHistory = true;
-    applyHistoryEntry(entry, 'redo');
-    suppressHistory = false;
-  }
-
-  function applyHistoryEntry(entry: HistoryEntry, direction: 'undo' | 'redo') {
-    switch (entry.kind) {
-      case 'annotation-add':
-        if (direction === 'undo') {
-          removeFeatureById(entry.snapshot.id);
-          annotationState.clearSelectionIfMatches(entry.snapshot.id);
-        } else {
-          const added = addSnapshotToSource(entry.snapshot);
-          if (added) annotationState.setSelected(entry.snapshot.id);
-        }
-        break;
-      case 'annotation-delete':
-        if (direction === 'undo') {
-          const added = addSnapshotToSource(entry.snapshot);
-          if (added) annotationState.setSelected(entry.snapshot.id);
-        } else {
-          removeFeatureById(entry.snapshot.id);
-          annotationState.clearSelectionIfMatches(entry.snapshot.id);
-        }
-        break;
-      case 'annotation-update': {
-        const feature = annotationSource.getFeatureById(entry.id) as Feature<Geometry> | null;
-        if (!feature) break;
-        entry.changes.forEach((change) => {
-          const value = direction === 'undo' ? change.before : change.after;
-          feature.set(change.field, change.field === 'hidden' ? Boolean(value) : value);
-        });
-        feature.changed?.();
-        break;
-      }
-      case 'annotation-geometry': {
-        const snapshot = direction === 'undo' ? entry.before : entry.after;
-        addSnapshotToSource(snapshot);
-        annotationState.setSelected(snapshot.id);
-        break;
-      }
-      case 'annotation-clear':
-        if (direction === 'undo') {
-          annotationSource.clear();
-          entry.snapshots.forEach((s) => addSnapshotToSource(s));
-        } else {
-          annotationSource.clear();
-          annotationState.clearSelection();
-        }
-        break;
-      case 'annotation-bulk-add':
-        if (direction === 'undo') {
-          entry.snapshots.forEach((s) => {
-            removeFeatureById(s.id);
-            annotationState.clearSelectionIfMatches(s.id);
-          });
-        } else {
-          entry.snapshots.forEach((s) => addSnapshotToSource(s));
-        }
-        break;
-    }
-    updateAnnotationSummaries();
+    commands.redo();
   }
 
   // --- Search api ---
@@ -423,9 +284,9 @@
     if (!feature) return;
     ensureAnnotationDefaults(feature);
     annotationSource.addFeature(feature);
-    recordAnnotationAdd(feature);
+    commands.recordAdd(feature);
     annotationState.setSelected(String(feature.getId()));
-    updateAnnotationSummaries();
+    commands.updateSummaries();
   }
 
   export function clearSearchLayer() {
@@ -448,7 +309,7 @@
         modifyInteraction.on('modifystart', (e) => {
           const tempSnapshots = new Map<string, FeatureSnapshot>();
           e.features.forEach((f) =>
-            tempSnapshots.set(String(f.getId()), captureFeatureSnapshot(f as Feature<Geometry>))
+            tempSnapshots.set(String(f.getId()), commands.snapshot(f as Feature<Geometry>))
           );
           (modifyInteraction as any)._tempSnapshots = tempSnapshots;
         });
@@ -462,9 +323,9 @@
             const id = String(f.getId());
             const before = tempSnapshots.get(id);
             if (before) {
-              const after = captureFeatureSnapshot(f as Feature<Geometry>);
-              pushHistoryEntry({ kind: 'annotation-geometry', before, after });
-              updateAnnotationSummaries();
+              const after = commands.snapshot(f as Feature<Geometry>);
+              commands.push({ kind: 'annotation-geometry', before, after });
+              commands.updateSummaries();
             }
           });
         });

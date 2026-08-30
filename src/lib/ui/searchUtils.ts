@@ -1,6 +1,6 @@
 // Shared search utilities: coordinate parsing, covering map detection, bounds helpers
 
-import type { MapListItem } from '$lib/map/types';
+import type { MapListItem, SearchResult } from '$lib/map/types';
 import { haversineDistance } from '$lib/geo/geo';
 
 /**
@@ -113,4 +113,16 @@ export function boundsZoom(bounds: [number, number, number, number]): number {
   // Approximate: 360 degrees = zoom 1, halving each level
   const zoom = Math.log2(360 / maxSpan);
   return Math.max(2, Math.min(18, Math.round(zoom)));
+}
+
+/**
+ * Build the SearchResult a "Go to <lat>, <lng>" coordinate hit dispatches.
+ */
+export function coordinateResult(coords: { lat: number; lng: number }): SearchResult {
+  return {
+    display_name: `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
+    lat: String(coords.lat),
+    lon: String(coords.lng),
+    type: 'coordinate',
+  };
 }

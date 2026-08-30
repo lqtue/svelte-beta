@@ -262,14 +262,4 @@
     background: var(--sb-bg-input, #fff);
     color: var(--sb-text, #000);
   }
-
-  :global(.sb-pill.is-compact) {
-    min-height: 28px;
-    padding: 0.2rem 0.35rem;
-    font-size: 0.74rem;
-    gap: 0.25rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
 </style>

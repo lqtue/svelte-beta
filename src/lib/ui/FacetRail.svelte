@@ -97,24 +97,24 @@
     flex-direction: column;
     gap: 1.1rem;
     padding: 1rem;
-    background: #fff;
-    border: 2px solid #111;
+    background: var(--color-white);
+    border: var(--border-thin);
     border-radius: 10px;
-    box-shadow: 3px 3px 0 #111;
-    font-family: 'Outfit', sans-serif;
+    box-shadow: 3px 3px 0 var(--color-border);
+    font-family: var(--font-family-base);
     min-width: 240px;
     max-width: 280px;
   }
   .facet-group h4 {
     margin: 0 0 0.5rem;
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 800;
+    font-family: var(--font-family-display);
+    font-weight: var(--font-extrabold);
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #111;
+    color: var(--color-text);
     padding-bottom: 0.3rem;
-    border-bottom: 1.5px dashed #111;
+    border-bottom: 1.5px dashed var(--color-border);
   }
   .chips {
     display: flex;
@@ -126,27 +126,27 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.25rem 0.55rem;
-    background: #fafaf7;
-    border: 1.5px solid #111;
-    border-radius: 999px;
+    background: var(--sb-bg);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
     font-family: inherit;
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: var(--font-semibold);
     cursor: pointer;
     max-width: 100%;
   }
   .chip:hover:not(:disabled) {
-    background: #fff;
+    background: var(--color-white);
     transform: translate(-1px, -1px);
-    box-shadow: 1.5px 1.5px 0 #111;
+    box-shadow: 1.5px 1.5px 0 var(--color-border);
   }
   .chip.on {
-    background: #111;
-    color: #fff;
+    background: var(--color-text);
+    color: var(--color-white);
   }
   .chip.on .n {
-    background: #fff;
-    color: #111;
+    background: var(--color-white);
+    color: var(--color-text);
   }
   .chip:disabled {
     opacity: 0.35;
@@ -159,12 +159,12 @@
     max-width: 170px;
   }
   .n {
-    background: #111;
-    color: #fff;
+    background: var(--color-text);
+    color: var(--color-white);
     padding: 0.05rem 0.4rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 0.68rem;
-    font-weight: 800;
+    font-weight: var(--font-extrabold);
     min-width: 1.4rem;
     text-align: center;
   }

@@ -195,6 +195,23 @@ export const MAX_OVERLAY_LAYERS = MAX_OVERLAYS;
 // ── Derived: top overlay ──
 // `createGeoMapStores()` mirrors this into the per-instance mapStore's
 // activeMapId/activeAllmapsId, which the URL hash + story playback read.
+/**
+ * Add the map to the overlay stack, or remove it if it's already on.
+ * No-op for maps without an annotation source, or when the stack is full.
+ * Returns the resulting membership (true = now an overlay).
+ */
+export function toggleOverlayFor(map: Parameters<typeof toHistoricalRef>[0]): boolean {
+  const ref = toHistoricalRef(map);
+  if (!ref.allmapsId) return layersStore.isOverlay(ref.mapId);
+  if (layersStore.isOverlay(ref.mapId)) {
+    layersStore.removeOverlayByMapId(ref.mapId);
+    return false;
+  }
+  if (get(layersStore).overlays.length >= MAX_OVERLAYS) return false;
+  layersStore.addOverlay(ref);
+  return true;
+}
+
 export const topOverlay: Readable<HistoricalRef | null> = derived(
   layersStore,
   ($l) => $l.overlays[0]?.ref ?? null

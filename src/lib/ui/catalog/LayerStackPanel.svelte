@@ -154,21 +154,21 @@
     display: flex;
     flex-direction: column;
     padding: 0.5rem 0.6rem 0.6rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--sb-font-base);
   }
   .lsp-sub {
     font-size: 0.66rem;
-    font-weight: 500;
-    color: #888;
+    font-weight: var(--font-medium);
+    color: var(--sb-text-muted);
     margin: 0 0 0.4rem;
   }
   .lsp-empty {
     padding: 1rem;
     font-size: 0.8rem;
-    color: #888;
-    background: #fafaf7;
-    border-radius: 6px;
-    border: 1px dashed #d9d4c0;
+    color: var(--sb-text-muted);
+    background: var(--sb-bg);
+    border-radius: var(--sb-radius-sm);
+    border: var(--sb-border-soft);
     text-align: center;
   }
   .lsp-list {
@@ -189,19 +189,19 @@
     min-height: 52px;
     background: linear-gradient(
       to right,
-      rgba(37, 99, 235, 0.18) 0,
-      rgba(37, 99, 235, 0.18) var(--fill),
-      #fafaf7 var(--fill),
-      #fafaf7 100%
+      var(--sb-accent-fill) 0,
+      var(--sb-accent-fill) var(--fill),
+      var(--sb-bg) var(--fill),
+      var(--sb-bg) 100%
     );
-    border: 1.5px solid #111;
-    border-radius: 8px;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-sm);
     touch-action: pan-y;
     user-select: none;
     cursor: ew-resize;
   }
   .lsp-row.dragging {
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 0 0 3px var(--sb-accent-glow);
   }
 
   .lsp-reorder {
@@ -216,14 +216,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #fff;
-    border: 1.5px solid #111;
+    background: var(--color-white);
+    border: 1.5px solid var(--color-border);
     border-radius: 4px;
     font: inherit;
     font-size: 0.7rem;
     line-height: 1;
     cursor: pointer;
-    color: #111;
+    color: var(--sb-text);
     padding: 0;
   }
   .lsp-arrow:disabled {
@@ -231,7 +231,7 @@
     cursor: default;
   }
   .lsp-arrow:not(:disabled):active {
-    background: #fff7d1;
+    background: var(--sb-accent-yellow);
   }
 
   .lsp-body {
@@ -243,8 +243,8 @@
   }
   .lsp-name {
     font-size: 0.88rem;
-    font-weight: 700;
-    color: #111;
+    font-weight: var(--font-bold);
+    color: var(--sb-text);
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -260,8 +260,8 @@
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;
     font-size: 0.82rem;
-    font-weight: 800;
-    color: #2563eb;
+    font-weight: var(--font-extrabold);
+    color: var(--sb-accent);
   }
   .lsp-pane {
     flex-shrink: 0;
@@ -269,33 +269,33 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
-    border: 1.5px solid #111;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--color-border);
     font-size: 0.66rem;
-    font-weight: 800;
+    font-weight: var(--font-extrabold);
     line-height: 1.2;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    background: #fff;
-    color: #111;
+    background: var(--color-white);
+    color: var(--sb-text);
   }
   .lsp-pane.left {
-    background: #2563eb;
-    color: #fff;
-    border-color: #2563eb;
+    background: var(--sb-accent);
+    color: var(--color-white);
+    border-color: var(--sb-accent);
   }
   .lsp-pane.right {
-    background: #f59e0b;
-    color: #fff;
-    border-color: #f59e0b;
+    background: var(--sb-accent-warm);
+    color: var(--color-white);
+    border-color: var(--sb-accent-warm);
   }
 
   .lsp-pct {
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;
     font-size: 0.78rem;
-    font-weight: 800;
-    color: #111;
+    font-weight: var(--font-extrabold);
+    color: var(--sb-text);
     min-width: 38px;
     text-align: right;
   }
@@ -304,19 +304,19 @@
     flex-shrink: 0;
     width: 32px;
     height: 32px;
-    background: #fff;
-    border: 1.5px solid #111;
-    border-radius: 999px;
+    background: var(--color-white);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
     font: inherit;
     font-size: 1.1rem;
-    font-weight: 800;
+    font-weight: var(--font-extrabold);
     line-height: 1;
     cursor: pointer;
     padding: 0;
-    color: #666;
+    color: var(--sb-text-meta);
   }
   .lsp-x:active {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--sb-danger-bg);
+    color: var(--sb-danger);
   }
 </style>

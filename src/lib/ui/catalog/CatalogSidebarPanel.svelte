@@ -97,6 +97,6 @@
     flex-direction: column;
     gap: 0.4rem;
     padding: 0.2rem 0 0.4rem;
-    background: #fff;
+    background: var(--color-white);
   }
 </style>

@@ -178,7 +178,7 @@
   .map-city {
     font-size: 0.875rem;
     font-weight: 700;
-    color: #666;
+    color: var(--color-gray-500);
     margin-top: auto;
   }
 

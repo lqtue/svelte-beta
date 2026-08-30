@@ -8,7 +8,7 @@
 -->
 <script lang="ts" generics="T extends { id: string; title: string }">
   import { createEventDispatcher } from 'svelte';
-  import '$styles/layouts/create-mode.css';
+  import '$styles/layouts/library.css';
   import PageHero from './PageHero.svelte';
   import NameDialog from './NameDialog.svelte';
   import CatalogGrid from './catalog/CatalogGrid.svelte';

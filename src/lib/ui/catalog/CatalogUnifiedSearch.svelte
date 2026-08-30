@@ -219,14 +219,14 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem 0.75rem;
-    background: #fff;
-    border: 1.5px solid #111;
-    border-radius: 6px;
-    font-family: 'Outfit', sans-serif;
+    background: var(--color-white);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--sb-radius-sm);
+    font-family: var(--font-family-base);
     font-size: 0.85rem;
   }
   .v2-count strong {
-    font-weight: 800;
+    font-weight: var(--font-extrabold);
   }
   .v2-loading {
     margin-left: 0.4rem;
@@ -236,14 +236,14 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     cursor: pointer;
   }
   .v2-selects {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family-base);
   }
   .v2-select {
     flex: 1 1 140px;
@@ -253,25 +253,25 @@
     gap: 0.2rem;
   }
   .v2-select-label {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-family-display);
     font-size: 0.62rem;
-    font-weight: 800;
+    font-weight: var(--font-extrabold);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #555;
+    color: var(--sb-text-meta);
   }
   .v2-select select {
     width: 100%;
     min-height: 38px;
     padding: 0.35rem 0.55rem;
-    background: #fff;
-    border: 1.5px solid #111;
-    border-radius: 6px;
+    background: var(--color-white);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--sb-radius-sm);
     font: inherit;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family-base);
     font-size: 0.85rem;
-    font-weight: 700;
-    color: #111;
+    font-weight: var(--font-bold);
+    color: var(--color-text);
     cursor: pointer;
   }
 
@@ -282,12 +282,12 @@
     transform: translateX(-50%);
     z-index: 60;
     padding: 0.6rem 1rem;
-    background: #ffe0e0;
-    border: 2px solid #111;
-    border-radius: 8px;
-    box-shadow: 3px 3px 0 #111;
-    font-family: 'Outfit', sans-serif;
-    font-weight: 700;
+    background: var(--sb-error-bg);
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    box-shadow: 3px 3px 0 var(--color-border);
+    font-family: var(--font-family-base);
+    font-weight: var(--font-bold);
     font-size: 0.85rem;
   }
   .state-panel {
@@ -298,12 +298,12 @@
     font-size: 3rem;
   }
   .state-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 800;
+    font-family: var(--font-family-display);
+    font-weight: var(--font-extrabold);
     margin: 0.5rem 0;
   }
   .state-desc {
-    color: #555;
+    color: var(--sb-text-meta);
   }
   @media (max-width: 900px) {
     .v2-layout {

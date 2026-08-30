@@ -59,7 +59,7 @@
 
 {#if open && item}
   <div class="drawer-backdrop" on:click={close} role="presentation"></div>
-  <aside class="drawer" role="dialog" aria-label="Map details">
+  <div class="drawer" role="dialog" aria-label="Map details">
     <header class="drawer-head">
       <h2 class="drawer-title">{item.name}</h2>
       <button class="close-btn" on:click={close} aria-label="Close">×</button>
@@ -114,14 +114,14 @@
         >
       {/if}
     </div>
-  </aside>
+  </div>
 {/if}
 
 <style>
   .drawer-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(17, 17, 17, 0.3);
+    background: var(--sb-scrim);
     z-index: 50;
     animation: fade 0.15s ease-out;
   }
@@ -131,15 +131,15 @@
     right: 0;
     bottom: 0;
     width: min(460px, 100vw);
-    background: #fff;
-    border-left: 2.5px solid #111;
-    box-shadow: -6px 0 0 #111;
+    background: var(--color-white);
+    border-left: 2.5px solid var(--color-border);
+    box-shadow: -6px 0 0 var(--color-border);
     z-index: 51;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
     animation: slidein 0.18s ease-out;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family-base);
   }
   .drawer-head {
     position: sticky;
@@ -148,15 +148,15 @@
     align-items: flex-start;
     gap: 0.75rem;
     padding: 1rem 1.25rem;
-    background: #fafaf7;
-    border-bottom: 2px solid #111;
+    background: var(--sb-head-bg);
+    border-bottom: var(--border-thin);
     z-index: 1;
   }
   .drawer-title {
     flex: 1;
     margin: 0;
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 800;
+    font-family: var(--font-family-display);
+    font-weight: var(--font-extrabold);
     font-size: 1.1rem;
     line-height: 1.25;
   }
@@ -164,18 +164,18 @@
     flex-shrink: 0;
     width: 32px;
     height: 32px;
-    background: #fff;
-    border: 1.5px solid #111;
-    border-radius: 999px;
+    background: var(--color-white);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
     font-size: 1.3rem;
     line-height: 1;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     cursor: pointer;
     padding: 0;
   }
   .close-btn:hover {
-    background: #111;
-    color: #fff;
+    background: var(--color-text);
+    color: var(--color-white);
   }
 
   .thumb-wrap {
@@ -185,20 +185,20 @@
     width: 100%;
     max-height: 280px;
     object-fit: contain;
-    background: #f1ede0;
-    border: 1.5px solid #111;
-    border-radius: 8px;
+    background: var(--sb-thumb-bg);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-sm);
     display: block;
   }
   .status-pill {
     margin: 1rem 1.25rem 0;
     padding: 0.35rem 0.8rem;
     align-self: flex-start;
-    background: #fff7d1;
-    border: 1.5px solid #111;
-    border-radius: 999px;
+    background: var(--sb-accent-yellow);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     display: inline-block;
     width: fit-content;
   }
@@ -206,7 +206,7 @@
     margin: 1rem 1.25rem 0;
     font-size: 0.92rem;
     line-height: 1.5;
-    color: #333;
+    color: var(--sb-text-meta);
   }
   .meta {
     margin: 1rem 0 0;
@@ -217,15 +217,15 @@
     grid-template-columns: 7rem 1fr;
     gap: 0.6rem;
     padding: 0.4rem 0;
-    border-bottom: 1px dashed #e0dccc;
+    border-bottom: var(--sb-border-soft);
     font-size: 0.85rem;
   }
   .meta-row:last-child {
     border-bottom: none;
   }
   .meta-row dt {
-    font-weight: 700;
-    color: #555;
+    font-weight: var(--font-bold);
+    color: var(--sb-text-meta);
     text-transform: uppercase;
     font-size: 0.7rem;
     letter-spacing: 0.04em;
@@ -233,11 +233,11 @@
   }
   .meta-row dd {
     margin: 0;
-    color: #111;
+    color: var(--color-text);
     word-break: break-word;
   }
   .meta-row dd a {
-    color: #1a6bd0;
+    color: var(--sb-accent);
   }
 
   .actions {
@@ -248,23 +248,23 @@
     gap: 0.5rem;
     flex-wrap: wrap;
     padding: 1rem 1.25rem;
-    background: #fafaf7;
-    border-top: 2px solid #111;
+    background: var(--sb-head-bg);
+    border-top: var(--border-thin);
   }
   .act {
     flex: 1;
     min-width: 110px;
     padding: 0.65rem 0.9rem;
-    background: #fff;
-    border: 2px solid #111;
-    border-radius: 8px;
+    background: var(--color-white);
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
     font: inherit;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     font-size: 0.9rem;
     text-decoration: none;
-    color: #111;
+    color: var(--color-text);
     text-align: center;
-    box-shadow: 2px 2px 0 #111;
+    box-shadow: var(--shadow-solid-xs);
     cursor: pointer;
     transition:
       transform 0.1s,
@@ -272,14 +272,14 @@
   }
   .act:hover {
     transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 #111;
+    box-shadow: 3px 3px 0 var(--color-border);
   }
   .act.primary {
-    background: #111;
-    color: #fff;
+    background: var(--color-text);
+    color: var(--color-white);
   }
   .act.primary:hover {
-    background: #333;
+    background: var(--sb-text-meta);
   }
 
   @keyframes slidein {

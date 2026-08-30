@@ -1,11 +1,18 @@
 /**
  * Bidirectional URL ↔ mapStore + layerStore sync.
  *
- * Hash format:  #@<lat>,<lng>,<zoom>z,<rotation>r&map=<id>&base=<key>
+ * Hash format:  #@<lat>,<lng>,<zoom>z,<rotation>r&base=<key>
  *
  * Examples:
  *   #@10.7765,106.7010,14z,0r
- *   #@10.7765,106.7010,14z,0r&map=abc123&base=g-satellite
+ *   #@10.7765,106.7010,14z,0r&base=g-satellite
+ *
+ * The hash carries the camera and the basemap only. The selected map lives in
+ * the `?map=<id>` QUERY param, which is what /catalog, /contribute/digitalize
+ * and every share link point at — see `$lib/explore/exploreUrl.ts`. The hash
+ * used to carry a second `&map=` copy of the same thing; that writer is gone.
+ * Old links are still honoured: a `map=` found in the hash is migrated into
+ * `?map=` on init so the page's normal deeplink handler picks it up.
  *
  * Design:
  *   - Store → URL: debounced (300ms) to avoid history spam
@@ -35,8 +42,9 @@ interface UrlState {
   lng?: number;
   zoom?: number;
   rotation?: number;
-  activeMapId?: string | null;
   basemap?: string;
+  /** Legacy only — old links that still carry `&map=` in the hash. */
+  legacyMapId?: string | null;
 }
 
 function stateToHash(map: MapStoreValue, layer: LayerStoreValue): string {
@@ -46,10 +54,6 @@ function stateToHash(map: MapStoreValue, layer: LayerStoreValue): string {
   const rot = round(map.rotation, 4);
 
   let hash = `@${lat},${lng},${zoom}z,${rot}r`;
-
-  if (map.activeMapId) {
-    hash += `&map=${encodeURIComponent(map.activeMapId)}`;
-  }
 
   if (layer.basemap !== 'g-streets') {
     hash += `&base=${encodeURIComponent(layer.basemap)}`;
@@ -102,7 +106,7 @@ function hashToState(hash: string): UrlState {
       if (eqIdx < 0) continue;
       const key = pair.slice(0, eqIdx);
       const val = decodeURIComponent(pair.slice(eqIdx + 1));
-      if (key === 'map') result.activeMapId = val || null;
+      if (key === 'map') result.legacyMapId = val || null;
       if (key === 'base') result.basemap = val;
     }
   }
@@ -156,7 +160,6 @@ export function initUrlSync(options: UrlSyncOptions): () => void {
     if (parsed.lng !== undefined) mapPatch.lng = parsed.lng;
     if (parsed.zoom !== undefined) mapPatch.zoom = parsed.zoom;
     if (parsed.rotation !== undefined) mapPatch.rotation = parsed.rotation;
-    if (parsed.activeMapId !== undefined) mapPatch.activeMapId = parsed.activeMapId;
 
     if (Object.keys(mapPatch).length > 0) {
       mapStore.setAll(mapPatch);
@@ -175,6 +178,21 @@ export function initUrlSync(options: UrlSyncOptions): () => void {
 
   function onPopState() {
     applyHashToStores();
+  }
+
+  /**
+   * Old share links put the selected map in the hash (`…&map=<id>`). Move it to
+   * `?map=<id>` once on init so the page's deeplink handler — the single reader
+   * of that param — treats it exactly like a fresh link. No-op when the query
+   * already carries a map.
+   */
+  function migrateLegacyMapHash() {
+    const { legacyMapId } = hashToState(window.location.hash);
+    if (!legacyMapId) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('map')) return;
+    url.searchParams.set('map', legacyMapId);
+    replaceState(url, {});
   }
 
   // ── Stores → URL (debounced) ─────────────────────────────────────
@@ -213,6 +231,7 @@ export function initUrlSync(options: UrlSyncOptions): () => void {
   // ── Initialise from URL ──────────────────────────────────────────
 
   if (typeof window !== 'undefined') {
+    migrateLegacyMapHash();
     applyHashToStores();
     window.addEventListener('popstate', onPopState);
   }

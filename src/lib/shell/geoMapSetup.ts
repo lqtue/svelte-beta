@@ -15,8 +15,9 @@ export function createGeoMapStores() {
   const mapStore = createMapStore();
   const layerStore = createLayerStore();
   // One-way mirror, layersStore.overlays[0] → mapStore.activeMapId. The stack is
-  // the source of truth; activeMapId is what the legacy readers (URL `&map=`
-  // hash, MapWorkspace.selectedMap, story playback) still look at.
+  // the source of truth; activeMapId is what the legacy readers
+  // (MapWorkspace.selectedMap, story playback, share) still look at. The URL no
+  // longer reads it — `?map=` is the only map-in-URL mechanism now.
   const unmirror = topOverlay.subscribe((ref) =>
     mapStore.setActiveMap(ref?.mapId ?? null, ref?.allmapsId ?? null)
   );

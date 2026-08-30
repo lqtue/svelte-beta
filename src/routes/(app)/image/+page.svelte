@@ -184,11 +184,11 @@
     gap: 0.6rem;
     margin: 0.6rem 0.6rem 0;
     padding: 0.7rem 0.85rem;
-    background: #f5f3ea;
-    border: 1.5px dashed #c8c4b5;
+    background: var(--sb-row-active);
+    border: 1.5px dashed var(--sb-sort-idle);
     border-radius: 10px;
-    font-family: 'Outfit', sans-serif;
-    color: #777;
+    font-family: var(--font-family-base);
+    color: var(--sb-text-muted);
   }
   .ae-icon {
     font-size: 1.4rem;
@@ -200,12 +200,12 @@
   }
   .ae-label {
     font-size: 0.82rem;
-    font-weight: 700;
-    color: #555;
+    font-weight: var(--font-bold);
+    color: var(--sb-text-meta);
   }
   .ae-hint {
     font-size: 0.7rem;
-    color: #888;
+    color: var(--sb-text-muted);
   }
 
   .active-card {
@@ -213,10 +213,10 @@
     flex-direction: column;
     flex-shrink: 0;
     margin: 0.6rem 0.6rem 0;
-    background: #fff7d1;
-    border: 1.5px solid #111;
+    background: var(--sb-accent-yellow);
+    border: 1.5px solid var(--color-border);
     border-radius: 10px;
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-family-base);
     overflow: hidden;
   }
   .ac-thumb {
@@ -224,33 +224,33 @@
     max-height: 120px;
     object-fit: cover;
     display: block;
-    border-bottom: 1.5px solid #111;
-    background: #f1ede0;
+    border-bottom: 1.5px solid var(--color-border);
+    background: var(--sb-thumb-bg);
   }
   .ac-body {
     padding: 0.55rem 0.7rem 0.7rem;
   }
   .ac-eyebrow {
     font-size: 0.6rem;
-    font-weight: 800;
+    font-weight: var(--font-extrabold);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #555;
+    color: var(--sb-text-meta);
   }
   .ac-name {
     margin: 0.15rem 0 0.3rem;
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 800;
+    font-family: var(--font-family-display);
+    font-weight: var(--font-extrabold);
     font-size: 0.95rem;
     line-height: 1.2;
-    color: #111;
+    color: var(--color-text);
   }
   .ac-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 0.2rem;
     font-size: 0.72rem;
-    color: #444;
+    color: var(--sb-text-meta);
     margin-bottom: 0.5rem;
   }
   .ac-actions {
@@ -263,23 +263,23 @@
     min-width: 90px;
     padding: 0.35rem 0.55rem;
     text-align: center;
-    background: #fff;
-    color: #111;
+    background: var(--color-white);
+    color: var(--color-text);
     text-decoration: none;
-    border: 1.5px solid #111;
-    border-radius: 6px;
-    box-shadow: 1.5px 1.5px 0 #111;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--sb-radius-sm);
+    box-shadow: 1.5px 1.5px 0 var(--color-border);
     font: inherit;
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
   }
   .ac-btn:hover {
     transform: translate(-0.5px, -0.5px);
-    box-shadow: 2px 2px 0 #111;
+    box-shadow: var(--shadow-solid-xs);
   }
   .ac-btn.primary {
-    background: #111;
-    color: #fff;
+    background: var(--color-text);
+    color: var(--color-white);
   }
 
   .panel-scroll {

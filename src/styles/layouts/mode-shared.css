@@ -1,3 +1,16 @@
+/* ── ImageShell canvas palette ─────────────────────────────────────
+   The IIIF canvas is a deliberately dark, warm surface — none of the
+   neo-brutalist tokens fit it, so its four colours are named here. */
+:root {
+  --is-canvas-bg: #1a1612;
+  --is-canvas-scrim: rgba(26, 22, 18, 0.75);
+  --is-canvas-text: #e8d5ba;
+  --is-canvas-text-dim: #8b7355;
+  --is-canvas-error: #f87171;
+  --is-canvas-gold: #d4af37;
+  --is-canvas-gold-dim: rgba(212, 175, 55, 0.3);
+}
+
 /* Shared styles for View, Create, and other mode layouts */
 
 :global(body) {
@@ -263,4 +276,70 @@
   cursor: ew-resize;
   pointer-events: auto;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ── /explore shell ────────────────────────────────────────────────
+   Moved out of src/routes/(app)/explore/+page.svelte. Everything below is
+   scoped under .explore-mode so the generic names stay local to that page. */
+.explore-mode {
+  position: fixed;
+  inset: var(--nav-height) 0 0 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+  background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
+  background-size: 32px 32px;
+  overflow: hidden;
+}
+
+.explore-mode.mobile .workspace {
+  padding: 0;
+  gap: 0;
+}
+
+.explore-mode .mobile-pane {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.explore-mode .resolving {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.45rem 0.85rem;
+  background: var(--sb-card-bg);
+  border: var(--border-thin);
+  border-radius: var(--sb-radius-pill);
+  box-shadow: var(--shadow-solid-xs);
+  font-size: 0.82rem;
+  font-weight: var(--font-semibold);
+  z-index: 95;
+}
+
+.explore-mode .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2.5px solid var(--color-gray-300);
+  border-top-color: var(--sb-accent-warm);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.explore-mode .gps-error {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--sb-accent-yellow);
+  border: var(--border-thin);
+  border-radius: var(--sb-radius-sm);
+  font-size: var(--text-sm);
+  z-index: 95;
 }

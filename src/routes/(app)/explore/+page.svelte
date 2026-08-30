@@ -13,22 +13,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { pushState } from '$app/navigation';
   import type Map from 'ol/Map';
 
   import { getSupabaseContext } from '$lib/supabase/context';
   import { resolveMapRef } from '$lib/story/applyPoint';
   import { createGeoMapStores } from '$lib/shell/geoMapSetup';
-  import {
-    annotationSourceFor,
-    fetchMultipleBounds,
-    resolveBounds,
-    type Bbox,
-  } from '$lib/geo/mapBounds';
-  import { boundsCenter, boundsZoom } from '$lib/ui/searchUtils';
-  import { layersStore, toHistoricalRef } from '$lib/stores/layersStore';
+  import type { Bbox } from '$lib/geo/mapBounds';
+  import { layersStore } from '$lib/stores/layersStore';
   import { fetchPublicStories } from '$lib/supabase/stories';
-  import { recordMapOpen } from '$lib/supabase/mapOpens';
   import { fetchUserRole } from '$lib/supabase/role';
   import { createStoryPlayerStore } from '$lib/story/stores/storyStore';
   import type { Story, StoryPoint } from '$lib/story/types';
@@ -48,14 +40,11 @@
   import ExploreSheet from '$lib/explore/ExploreSheet.svelte';
   import ExploreTour, { shouldShowTour } from '$lib/explore/ExploreTour.svelte';
   import type { MapListItem } from '$lib/map/types';
-  import {
-    bboxContainsPoint,
-    matchMapsAtPoint,
-    unresolvedBoundsSources,
-    SAIGON_CENTER,
-    SAIGON_DEFAULT_ZOOM,
-    type ResolvedMap,
-  } from '$lib/explore/spatialLookup';
+  import { SAIGON_CENTER, SAIGON_DEFAULT_ZOOM, type ResolvedMap } from '$lib/explore/spatialLookup';
+  import { createExploreCoverage } from '$lib/explore/useExploreCoverage';
+  import { createExploreZoom } from '$lib/explore/exploreZoom';
+  import { createExploreUrl, applyExploreUrlParams } from '$lib/explore/exploreUrl';
+  import '$styles/layouts/mode-shared.css';
 
   type Mode = 'location' | 'all';
 
@@ -82,6 +71,20 @@
   let stories: Story[] = [];
   let activeStory: Story | null = null;
   let role: 'user' | 'mod' | 'admin' = 'user';
+  let appliedUrl = false;
+
+  const { addMapOverlay, setViewFromBounds, zoomToMap } = createExploreZoom(mapStore);
+  const { syncMapParam, tallyMapOpen } = createExploreUrl({
+    supabase,
+    role: () => role,
+    markApplied: () => (appliedUrl = true),
+  });
+  const coverage = createExploreCoverage({
+    getMapList: () => mapList,
+    setMapList: (list) => (mapList = list),
+    canSeeDrafts: () => canSeeDrafts,
+    setLoading: (v) => (loading = v),
+  });
 
   // ── Reactive derivations ───────────────────────────────────────
   $: viewMode = $layerStore.viewMode;
@@ -108,85 +111,43 @@
   // Reactive deeplink application — both `mapList` (from MapWorkspace) and
   // `stories` (from onMount fetch) arrive async, so a one-shot in onMount
   // races with whichever finishes second. Run once when both are ready.
-  let appliedUrl = false;
   $: if (
     !appliedUrl &&
     mapList.length > 0 &&
     (paramMapId || (paramStoryId && stories.length > 0))
   ) {
     appliedUrl = true;
-    applyUrlParams(mapList);
+    void applyExploreUrlParams({
+      mapId: paramMapId,
+      storyId: paramStoryId,
+      maps: mapList,
+      stories,
+      addMapOverlay,
+      tallyMapOpen,
+      zoomToMap,
+      startStory: (story) => {
+        activeStory = story;
+        storyPlayer.startStory(story.id);
+      },
+    });
   }
 
   // Admins/mods get draft maps in coverage too (mirrors the browse panel).
   $: canSeeDrafts = role === 'admin' || role === 'mod';
 
-  // Maps whose bounds we've already tried to resolve. Some annotations have no
-  // GCPs / 404 on allmaps.org (e.g. R2-mirrored drafts) and resolve to null —
-  // those can never become valid, so without tracking attempts they'd keep the
-  // "Looking up maps…" spinner on forever. `loading` means "a fetch is still
-  // pending for a map we haven't tried", NOT "every map produced a bbox".
-  let attemptedBounds = new Set<string>();
-  function pendingBoundsIds(): string[] {
-    return unresolvedBoundsSources(mapList, canSeeDrafts).filter((id) => !attemptedBounds.has(id));
-  }
-
   // Coverage match runs whenever the user moves OR new bounds land. Pure
   // client-side filter — no Supabase round-trip.
   $: if (userPosition && mapList.length > 0) {
-    matches = matchMapsAtPoint(mapList, userPosition[0], userPosition[1], canSeeDrafts);
-    loading = pendingBoundsIds().length > 0;
+    matches = coverage.matchAt(userPosition[0], userPosition[1]);
+    loading = coverage.pendingBoundsIds().length > 0;
   }
 
   // Trigger bounds resolution as new entries arrive. Re-runs when canSeeDrafts
   // flips (role lands after mount) so draft maps get their bounds backfilled
-  // too. The attemptedBounds guard prevents re-fetching the same ids.
+  // too. The attemptedBounds guard inside prevents re-fetching the same ids.
   $: if (mapList.length > 0) {
     void canSeeDrafts;
-    ensureBoundsResolved();
-  }
-
-  async function ensureBoundsResolved() {
-    const need = pendingBoundsIds();
-    if (need.length === 0) {
-      loading = false;
-      return;
-    }
-    loading = true;
-    for (const id of need) attemptedBounds.add(id);
-    const resolved = await fetchMultipleBounds(need, 12);
-    mapList = mapList.map((m) => {
-      const src = annotationSourceFor(m);
-      const b = src ? resolved.get(src) : undefined;
-      return b ? { ...m, bounds: b } : m;
-    });
-    // Clears once every needed map has been attempted, even if some yielded no
-    // bbox — the reassignment above re-triggers this block, which then exits.
-    loading = pendingBoundsIds().length > 0;
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────
-  function addMapOverlay(map: MapListItem, { clear = false } = {}): boolean {
-    const ref = toHistoricalRef(map);
-    if (!ref.allmapsId) return false;
-    if (clear) layersStore.clearOverlays();
-    if (layersStore.isOverlay(map.id)) return false;
-    layersStore.addOverlay(ref);
-    return true;
-  }
-
-  function setViewFromBounds(bounds: Bbox) {
-    const c = boundsCenter(bounds);
-    mapStore.setView({ lng: c.lng, lat: c.lat, zoom: boundsZoom(bounds) });
-  }
-
-  async function zoomToMap(map: MapListItem, { force = false } = {}) {
-    const bounds = await resolveBounds(map);
-    if (!bounds) return;
-    // Skip the zoom if the map already covers the current viewport centre —
-    // avoids yanking the camera when the user adds something they're on.
-    if (!force && bboxContainsPoint(bounds, $mapStore.lng, $mapStore.lat)) return;
-    setViewFromBounds(bounds);
+    void coverage.ensureBoundsResolved();
   }
 
   // ── Guided tour ────────────────────────────────────────────────
@@ -208,12 +169,9 @@
   // ── GPS ────────────────────────────────────────────────────────
   function handleGpsPosition(e: CustomEvent<{ lon: number; lat: number }>) {
     const pos: [number, number] = [e.detail.lon, e.detail.lat];
-    if (!userPosition) {
-      userPosition = pos;
-      mapStore.setView({ lng: pos[0], lat: pos[1], zoom: 15 });
-      return;
-    }
-    // Don't snap on subsequent updates — user may have panned away.
+    // Snap the camera on the first fix only — the user may have panned away by
+    // the time later updates land.
+    if (!userPosition) mapStore.setView({ lng: pos[0], lat: pos[1], zoom: 15 });
     userPosition = pos;
   }
   function handleGpsError(e: CustomEvent<{ message: string }>) {
@@ -247,44 +205,6 @@
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
   }
 
-  // ── URL ← state ────────────────────────────────────────────────
-  // Writes the topmost overlay into ?map= so the selection is shareable and,
-  // more importantly, so each opened map shows up as its own path+query in
-  // Cloudflare Web Analytics. /explore was previously a single opaque URL, so
-  // there was no way to tell which of the ~100 maps anyone actually looked at.
-  //
-  // ponytail: mirrors only the topmost overlay, not the whole stack. The
-  // existing applyUrlParams() reader takes a single ?map= id, so a full stack
-  // encoding would need a reader change too — do that if sharing multi-map
-  // stacks is ever asked for.
-  function syncMapParam(mapId: string | null) {
-    // Read window.location, NOT $page.url: pushState() is shallow routing, so it
-    // updates $page.state and leaves $page.url pinned at the last real
-    // navigation ("/explore"). Building from $page.url meant the delete below hit
-    // a URL that never had ?map= on it, so removal silently no-op'd.
-    // MapShell's initUrlSync also owns the #@lat,lng,zoom hash — carrying the
-    // live href over keeps its camera state instead of clobbering it.
-    const url = new URL(window.location.href);
-    if (mapId) url.searchParams.set('map', mapId);
-    else url.searchParams.delete('map');
-    if (url.href === window.location.href) return;
-    // Belt-and-braces: $page.url doesn't currently see our writes, but if that
-    // ever changes the applyUrlParams block below would fire on our own URL and
-    // force-zoom a second time right after handlePickMap's soft zoom.
-    appliedUrl = true;
-    // pushState (not replaceState) so the beacon registers a new pageview and
-    // back/forward walks the maps the visitor opened.
-    pushState(url, {});
-  }
-
-  // Staff opens are skipped. label_pins and footprint_submissions are both 100%
-  // admin rows, which makes them useless as interest signals — cataloguing work
-  // would drown out the handful of real visitors here too.
-  function tallyMapOpen(mapId: string) {
-    if (role !== 'user') return;
-    recordMapOpen(supabase, mapId);
-  }
-
   // ── Catalog / sidebar event handlers ───────────────────────────
   function handlePickLocation(e: CustomEvent<{ lat: number; lng: number; bbox?: Bbox }>) {
     const { lat, lng, bbox } = e.detail;
@@ -308,8 +228,8 @@
     syncMapParam($layersStore.overlays[0]?.ref.mapId ?? null);
   }
   function handleZoomToOverlay(e: CustomEvent<{ mapId: string }>) {
-    const m = mapList.find((m) => m.id === e.detail.mapId);
-    if (m) zoomToMap(m, { force: true });
+    const m = mapList.find((x) => x.id === e.detail.mapId);
+    if (m) void zoomToMap(m, { force: true });
   }
 
   // ── Stories ────────────────────────────────────────────────────
@@ -330,27 +250,6 @@
   function closeStory() {
     storyPlayer.stopStory();
     activeStory = null;
-  }
-
-  // ── URL deeplinks ──────────────────────────────────────────────
-  async function applyUrlParams(maps: MapListItem[]) {
-    if (paramMapId) {
-      const found = resolveMapRef(maps, paramMapId);
-      if (found) {
-        addMapOverlay(found);
-        // Arriving on a shared ?map= link is an open too — and it's the one path
-        // where the visitor never touches the browse panel.
-        tallyMapOpen(found.id);
-        await zoomToMap(found, { force: true });
-      }
-    }
-    if (paramStoryId) {
-      const story = stories.find((s) => s.id === paramStoryId);
-      if (story) {
-        activeStory = story;
-        storyPlayer.startStory(story.id);
-      }
-    }
   }
 
   onMount(async () => {
@@ -502,71 +401,3 @@
     on:setDrawer={(e) => (openDrawer = e.detail.drawer)}
   />
 </div>
-
-<style>
-  .explore-mode {
-    position: fixed;
-    inset: var(--nav-height) 0 0 0;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--color-bg);
-    background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
-    background-size: 32px 32px;
-    overflow: hidden;
-  }
-  .explore-mode.mobile :global(.workspace) {
-    padding: 0;
-    gap: 0;
-  }
-
-  .mobile-pane {
-    height: 100%;
-    overflow-y: auto;
-    padding: 0.5rem;
-  }
-
-  .resolving {
-    position: absolute;
-    top: 0.75rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0.85rem;
-    background: var(--sb-card-bg);
-    border: var(--border-thin);
-    border-radius: var(--sb-radius-pill);
-    box-shadow: var(--shadow-solid-xs);
-    font-size: 0.82rem;
-    font-weight: var(--font-semibold);
-    z-index: 95;
-  }
-  .spinner {
-    width: 14px;
-    height: 14px;
-    border: 2.5px solid var(--color-gray-300);
-    border-top-color: var(--sb-accent-warm);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .gps-error {
-    position: absolute;
-    top: 0.75rem;
-    left: 50%;
-    transform: translateX(-50%);
-    max-width: 80%;
-    padding: 0.5rem 0.75rem;
-    background: var(--sb-accent-yellow);
-    border: var(--border-thin);
-    border-radius: var(--sb-radius-sm);
-    font-size: var(--text-sm);
-    z-index: 95;
-  }
-</style>

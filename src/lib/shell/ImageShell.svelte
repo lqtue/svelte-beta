@@ -17,6 +17,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import '$styles/layouts/mode-shared.css';
   import OlMap from 'ol/Map';
   import View from 'ol/View';
   import TileLayer from 'ol/layer/Tile';
@@ -251,7 +252,7 @@
   .image-shell {
     position: absolute;
     inset: 0;
-    background: #1a1612;
+    background: var(--is-canvas-bg);
   }
 
   .image-map {
@@ -267,26 +268,26 @@
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    background: rgba(26, 22, 18, 0.75);
+    background: var(--is-canvas-scrim);
     z-index: 20;
     font-family: 'Be Vietnam Pro', sans-serif;
     font-size: 0.875rem;
-    color: #e8d5ba;
+    color: var(--is-canvas-text);
     pointer-events: none;
   }
 
   .shell-overlay.error {
-    color: #f87171;
+    color: var(--is-canvas-error);
   }
   .empty-msg {
-    color: #8b7355;
+    color: var(--is-canvas-text-dim);
   }
 
   .loading-spinner {
     width: 28px;
     height: 28px;
-    border: 3px solid rgba(212, 175, 55, 0.3);
-    border-top-color: #d4af37;
+    border: 3px solid var(--is-canvas-gold-dim);
+    border-top-color: var(--is-canvas-gold);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
