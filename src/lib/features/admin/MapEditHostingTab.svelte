@@ -19,6 +19,7 @@
     fetchIIIFMetadata,
     lookupAllmapsId,
     mirrorToR2,
+    syncAllmaps,
     type MapRow,
     type IIIFSourceRow,
     type MirrorR2Result,
@@ -205,12 +206,13 @@
   let mirrorError = '';
   $: isMirrored = !!annotation_url || !!map.annotation_url;
 
-  async function handleMirrorToR2() {
+  /** Shared by both buttons: only the source of the annotation differs. */
+  async function runMirror(fetchUpstream: boolean) {
     mirrorLoading = true;
     mirrorError = '';
     mirrorResult = null;
     try {
-      const result = await mirrorToR2(map.id);
+      const result = fetchUpstream ? await syncAllmaps(map.id) : await mirrorToR2(map.id);
       mirrorResult = result;
       annotation_url = result.annotation_url;
       // Update the row locally so the Georef section reflects it immediately
@@ -228,6 +230,9 @@
       mirrorLoading = false;
     }
   }
+
+  const handleMirrorToR2 = () => runMirror(false);
+  const handleSyncAllmaps = () => runMirror(true);
 
   // ── Allmaps ID lookup ──────────────────────────────────────────────
   let lookingUpAllmaps = false;
@@ -476,6 +481,14 @@
     {/if}
     <button class="action-btn" on:click={handleMirrorToR2} disabled={mirrorLoading || !allmaps_id}>
       {mirrorLoading ? 'Mirroring…' : isMirrored ? 'Re-mirror to R2' : 'Mirror to R2'}
+    </button>
+    <button
+      class="action-btn"
+      on:click={handleSyncAllmaps}
+      disabled={mirrorLoading || !allmaps_id}
+      title="Re-read the annotation from allmaps.org after editing the georeference there. The current copy is kept as history."
+    >
+      {mirrorLoading ? 'Fetching…' : 'Fetch latest from Allmaps'}
     </button>
   </div>
 

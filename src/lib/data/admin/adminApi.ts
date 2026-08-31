@@ -114,6 +114,8 @@ export async function deleteIIIFSource(mapId: string, sourceId: string): Promise
 export interface MirrorR2Result {
   iiif_image: string;
   annotation_url: string;
+  /** The timestamped copy kept as history — Storage has no versioning. */
+  history_url: string;
   thumbnail: string;
   old_source_url: string | null;
   download_url: string | null;
@@ -125,6 +127,18 @@ export async function mirrorToR2(mapId: string): Promise<MirrorR2Result> {
     `/api/admin/maps/${mapId}/mirror-r2`,
     { method: 'POST' },
     'Failed to mirror to R2'
+  );
+}
+
+/**
+ * Re-read the annotation from allmaps.org and store it again. Use after editing
+ * the georeference upstream; `mirrorToR2` re-stores whatever we already have.
+ */
+export async function syncAllmaps(mapId: string): Promise<MirrorR2Result> {
+  return apiFetch<MirrorR2Result>(
+    `/api/admin/maps/${mapId}/sync-allmaps`,
+    { method: 'POST' },
+    'Failed to fetch the latest annotation from Allmaps'
   );
 }
 

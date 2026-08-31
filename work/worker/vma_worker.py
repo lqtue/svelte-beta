@@ -68,6 +68,11 @@ def _post(path: str, body: dict) -> dict:
     return resp.json()
 
 
+def execute(job_id: str) -> dict:
+    """Ask the server to run a job whose work needs the service key."""
+    return _post("/api/pipeline/execute", {"job_id": job_id})
+
+
 def claim(kinds: list[str], worker: str) -> dict | None:
     return _post("/api/pipeline/claim", {"kinds": kinds, "worker": worker}).get("job")
 
@@ -110,18 +115,52 @@ def ocr_argv(job: dict, python_bin: str) -> list[str]:
     return argv
 
 
-RUNNERS = {"ocr": ocr_argv}
+def tile_argv(job: dict, python_bin: str) -> list[str]:
+    """Turn a `tile_to_r2` job into the tiling script's command line.
+
+    scripts/tile_map.sh needs vips and rclone with R2 credentials, so this only
+    runs on a machine set up for it — `--kinds ocr` (the default) skips it.
+    """
+    iiif = job["payload"].get("iiif_image", "").rstrip("/")
+    if not iiif:
+        raise ValueError("tile_to_r2 job has no iiif_image in its payload")
+    # Gallica serves the full image under a different quality name.
+    download = f"{iiif}/full/full/0/native.jpg" if "gallica.bnf.fr" in iiif else f"{iiif}/full/max/0/default.jpg"
+    return [str(REPO_ROOT / "scripts" / "tile_map.sh"), job["map_id"], download, iiif]
+
+
+# Kinds this worker runs itself. mirror_annotation and sync_allmaps are not
+# here: they need the service key, so the server runs them (see execute()).
+RUNNERS = {"ocr": ocr_argv, "tile_to_r2": tile_argv}
+SERVER_KINDS = {"mirror_annotation", "sync_allmaps"}
 
 
 def run_job(job: dict, python_bin: str) -> None:
     kind = job["kind"]
+    if kind in SERVER_KINDS:
+        print(f"[{kind}] {job['id']} handing to the server")
+        try:
+            execute(job["id"])
+            print(f"[{kind}] {job['id']} done")
+        except requests.RequestException as e:
+            # /api/pipeline/execute already closed the job out; this is just the
+            # local report of it.
+            print(f"[{kind}] {job['id']} FAILED: {e}")
+        return
+
     build = RUNNERS.get(kind)
     if build is None:
         finish(job["id"], "failed", err=f"this worker does not run {kind} jobs")
         print(f"[{kind}] {job['id']} rejected — not runnable here")
         return
 
-    argv = build(job, python_bin)
+    try:
+        argv = build(job, python_bin)
+    except (KeyError, ValueError) as e:
+        finish(job["id"], "failed", err=f"bad job payload: {e}")
+        print(f"[{kind}] {job['id']} rejected — {e}")
+        return
+
     print(f"[{kind}] {job['id']} running: {' '.join(argv)}")
     finish(job["id"], "running")
 
@@ -152,7 +191,11 @@ def run_job(job: dict, python_bin: str) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Claim and run VMA pipeline jobs.")
-    ap.add_argument("--kinds", default="ocr", help="comma-separated job kinds to claim (default: ocr)")
+    ap.add_argument(
+        "--kinds",
+        default="ocr",
+        help="comma-separated job kinds to claim: ocr, tile_to_r2, mirror_annotation, sync_allmaps (default: ocr)",
+    )
     ap.add_argument("--worker", default=os.uname().nodename, help="name recorded on the claim")
     ap.add_argument("--interval", type=float, default=10.0, help="seconds between polls when idle")
     ap.add_argument("--once", action="store_true", help="run at most one job, then exit")

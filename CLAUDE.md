@@ -218,7 +218,8 @@ Admin map CRUD:
 - `/api/admin/maps/[id]/image/` — POST upload to Internet Archive.
 - `/api/admin/maps/[id]/annotation/` — PATCH update Allmaps GCPs.
 - `/api/admin/maps/[id]/iiif-sources/` — GET, POST. `.../[sourceId]/` — PATCH (incl. `is_primary`), DELETE.
-- `/api/admin/maps/[id]/mirror-r2/` — POST: fetch Allmaps annotation → rewrite source URL to R2 (`iiif.maparchive.vn`) → Supabase Storage → upsert R2 row as primary → return `tile_command`.
+- `/api/admin/maps/[id]/mirror-r2/` — POST: fetch the annotation we already have → rewrite source URL to R2 (`iiif.maparchive.vn`) → Supabase Storage → upsert R2 row as primary → return `tile_command`.
+- `/api/admin/maps/[id]/sync-allmaps/` — POST: same, but re-reads from allmaps.org first ("Fetch latest from Allmaps" in MapEditHostingTab). Both share `$lib/server/annotationMirror.ts`, which writes **twice**: `annotations/{mapId}.json` (what the app reads) and `annotations/{mapId}/{ISO}.json` as history, since Storage has no versioning.
 - `/api/admin/maps/fetch-iiif-metadata/` — POST `{ manifestUrl }` → parsed IIIF metadata + Allmaps probe.
 - `/api/admin/maps/lookup-allmaps-id/` — POST `{ iiifImage }` → derive Allmaps image ID + probe.
 - `/api/admin/maps/sync-georef/` — POST: probe the Allmaps annotation server for every map with `allmaps_id` and `georef_done = false`, flip on hits. Idempotent; cron-safe. Returns `{ checked, flipped, ids }`.
@@ -235,7 +236,8 @@ Pipeline:
 Worker-authenticated (`Authorization: Bearer <worker_keys token>`, **not** a user session — see `$lib/server/workerAuth.ts`):
 
 - `/api/pipeline/claim/` — POST `{ kinds, worker }` → the claimed job or `{ job: null }`. A key scoped to certain kinds cannot claim outside them.
-- `/api/pipeline/results/` — POST any of `extractions` (≤500 rows, upserted), `pipeline_status` (whitelisted columns only), and `job_id` + `status` (→ `finish_job`). One round trip reports rows, stage and outcome together.
+- `/api/pipeline/results/` — POST `extractions` (≤500 rows, upserted) and/or `job_id` + `status` (→ `finish_job`). There is no stage field: closing the job advances the stage.
+- `/api/pipeline/execute/` — POST `{ job_id }` for the kinds whose work belongs on the server (`mirror_annotation`, `sync_allmaps`): they need the service key, which a worker deliberately lacks. The handler runs the mirror and closes the job itself. Kinds with real compute (`ocr`, `seg`, `tile_to_r2`) are rejected with a 400 — those run on the worker.
 
 Mint a token with `node --env-file=.env scripts/mint-worker-key.mjs <name> [kinds]`; it prints once and only the sha256 is stored. Revoke by setting `worker_keys.revoked_at`.
 - `/api/export/footprints/` — data export (`?format=coco&map_id=`).
@@ -300,7 +302,7 @@ Full command reference and design rationale in `docs/pipelines.md`:
   python work/worker/vma_worker.py --once                             # drain one job
   ```
 
-  It needs `VMA_API_URL` + `VMA_WORKER_KEY` and **no database credentials** — claim and results both go through `/api/pipeline/*`. The worker exports both into the job's subprocess, so `ocr.py --db` writes the same way (`supabase_client.py` switches transport on those two variables; the analysis-only subcommands still use the service key when run by hand). Only `ocr` has a runner today — a claimed `seg` job is failed back with "this worker does not run seg jobs".
+  `--kinds` decides what it takes: `ocr` (default) and `tile_to_r2` run locally (the latter needs vips + rclone for `scripts/tile_map.sh`); `mirror_annotation` and `sync_allmaps` are claimed and then handed to `/api/pipeline/execute`. It needs `VMA_API_URL` + `VMA_WORKER_KEY` and **no database credentials** — claim and results both go through `/api/pipeline/*`. The worker exports both into the job's subprocess, so `ocr.py --db` writes the same way (`supabase_client.py` switches transport on those two variables; the analysis-only subcommands still use the service key when run by hand). Only `ocr` has a runner today — a claimed `seg` job is failed back with "this worker does not run seg jobs".
 - **OCR** (`work/ocr/`) — Gemini Flash → `ocr_extractions`; `join_labels.py` writes the `footprint_id` join (mig 050). Venv: `work/ocr/.venv`.
 - **MapSAM2 inference** (`work/MapSAM2/`) — IIIF tiles → polygons → `footprint_submissions`. Runs on Colab against an upstream clone; there is no local venv for it. Its polygons and `ocr_extractions.global_*` share **one full-image pixel grid** (both scale tile-render → source px and offset by the tile origin, off the same `info.json`), which is what makes the C1 join possible; tile sizes differ and do not matter.
 

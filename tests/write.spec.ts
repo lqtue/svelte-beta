@@ -428,3 +428,35 @@ test('publishing a map queues its hosting jobs, once', async () => {
 
   await admin.from('maps').delete().eq('id', draft!.id); // cascades to the jobs
 });
+
+test('the server-side executor only takes the kinds it can run', async () => {
+  const { data: job } = await admin
+    .from('pipeline_jobs')
+    .insert({ kind: 'ocr', map_id: mapId, payload: { run_id: `exec-${Date.now()}` } })
+    .select('id')
+    .single();
+  created.jobIds.push(job!.id);
+
+  const asWorker = await playwrightRequest.newContext({
+    baseURL: 'http://localhost:5199',
+    extraHTTPHeaders: { Authorization: `Bearer ${TEST_WORKER_TOKEN}` },
+  });
+
+  // ocr has real compute behind it: the worker runs it and reports results.
+  const wrongKind = await asWorker.post('/api/pipeline/execute', { data: { job_id: job!.id } });
+  expect(wrongKind.status()).toBe(400);
+
+  const missing = await asWorker.post('/api/pipeline/execute', {
+    data: { job_id: '00000000-0000-4000-8000-000000000000' },
+  });
+  expect(missing.status()).toBe(404);
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  expect((await anon.post('/api/pipeline/execute', { data: { job_id: job!.id } })).status()).toBe(
+    401
+  );
+
+  await asWorker.dispose();
+  await anon.dispose();
+  await admin.from('pipeline_jobs').delete().eq('id', job!.id);
+});

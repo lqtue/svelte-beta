@@ -49,8 +49,8 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 - [x] 1 mig 053: `pipeline_jobs` + `worker_keys` + `claim_job`/`finish_job`; `work/worker/vma_worker.py --kinds ocr [--once]`; `/api/…/ocr` enqueues; `cli_only` gone. Claim/run/finish/retry exercised against the local stack.
 - [x] 2 `/api/pipeline/claim` + `/api/pipeline/results`, sha256 `worker_keys` tokens, `scripts/mint-worker-key.mjs`. Worker + `ocr.py --db` write only through the API; `VMA_API_URL`/`VMA_WORKER_KEY` replace the service key on pipeline machines.
 - [x] 3 RPCs landed (054), API calls them; 055 fixes the footprint check constraints; 056 makes `map_pipeline_status` a view over `pipeline_jobs` + `map_review_marks` (the three human stages), written only by `set_review_mark`. Workers no longer report a stage at all — closing the job is what advances it.
-- [~] 4 mig 058 adds the trigger and the backfill. The constraint waits on runners for `tile_to_r2` / `mirror_annotation` — the API already has the mirror logic in `/api/admin/maps/[id]/mirror-r2`, so the next step is a runner that calls it rather than new logic.
-- [ ] 5 `sync_allmaps` job ("fetch latest") with path-versioned Storage writes; admin button in MapEditHostingTab.
+- [~] 4 mig 058 adds the trigger and the backfill; step 5 supplied the runners. The `annotation_url NOT NULL` constraint waits until the production queue has drained.
+- [x] 5 `sync_allmaps` + `mirror_annotation` run through `/api/pipeline/execute` (worker claims, server executes — the work needs the service key). Storage writes are path-versioned: `annotations/{id}.json` current, `annotations/{id}/{ISO}.json` history. Button in MapEditHostingTab.
 - [ ] 6 SSR on `(editorial)`; `/map/[id]` share page; `render_preview` job → OG image on R2.
 - [ ] 7 Generic moderation: `status/submitted_by/reviewed_by` on stories; `/contribute/review` tabs per kind; rate limits in `lib/server/auth.ts`.
 - [ ] 8 PostGIS geometry on footprints (mig); `build_pmtiles` job — only when /explore needs city-wide layers.
