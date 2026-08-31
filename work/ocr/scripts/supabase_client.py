@@ -216,28 +216,14 @@ def link_extractions_to_footprints(assignments: dict[str, str]) -> int:
 
 
 def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:
-    """Upsert a row in map_pipeline_status for the given map_id and stage.
+    """No-op since migration 056.
 
-    Extra keyword args (e.g. ocr_run_id, ocr_started_at) are merged into the row.
+    map_pipeline_status is a view now: the ocr/seg stages are derived from the
+    pipeline_jobs row the worker already opens and closes, so a second write
+    from inside the script would have nowhere to land. Kept as a stub so a
+    hand-run pipeline does not crash on the call.
     """
-    api = _api_config()
-    if api:
-        try:
-            _post_results({"pipeline_status": {"map_id": map_id, "stage": stage, **kwargs}})
-        except requests.RequestException as e:
-            print(f"[pipeline] WARNING: status update failed: {e}")
-        return
-
-    url, key = _load_config()
-    payload = {"map_id": map_id, "stage": stage, **kwargs}
-    resp = requests.post(
-        f"{url}/rest/v1/map_pipeline_status?on_conflict=map_id",
-        headers=_headers(key),
-        data=json.dumps(payload),
-        timeout=15,
-    )
-    if not resp.ok:
-        print(f"[pipeline] WARNING: status update failed {resp.status_code}: {resp.text[:200]}")
+    return None
 
 
 def upsert_label_pins(map_id: str, rows: list[dict[str, Any]]) -> int:

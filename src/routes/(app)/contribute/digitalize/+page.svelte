@@ -46,6 +46,7 @@
     fetchPipelineStatus,
     advancePipelineStage,
     type PipelineStatus,
+    type HumanStage,
   } from '$lib/features/contribute/pipelineApi';
   import { resolveMapIiifInfoUrl } from '$lib/features/contribute/shared/iiifSource';
   import { toOlExtent } from '$lib/core/geo/rectUtils';
@@ -147,7 +148,7 @@
     }
   }
 
-  async function advanceStage(stage: string) {
+  async function advanceStage(stage: HumanStage) {
     if (!currentMap?.id) return;
     try {
       pipeline.status = await advancePipelineStage(currentMap.id, stage);

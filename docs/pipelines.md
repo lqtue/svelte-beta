@@ -28,6 +28,8 @@ The worker exports both variables into each job's subprocess, so `ocr.py … --d
 
 Only `ocr` has a runner; a claimed `seg` job is failed straight back with a message, since segmentation runs on Colab.
 
+The scripts no longer report a pipeline stage — `update_pipeline_status()` is a stub since migration 056, because `map_pipeline_status` is a view over the job queue. Opening and closing the job *is* the stage change.
+
 Two companion artifacts live beside the OCR code: `work/ocr/ocr-system-map.excalidraw` (drag onto excalidraw.com) and `work/ocr/pipeline-structure.html` (open in a browser).
 
 Measured quality gate + the one recorded negative result: **`work/ocr/EVAL-BASELINE.md`**. Read it before changing anything in the core loop.

@@ -288,7 +288,6 @@ test('a worker key claims a job and reports back through /api/pipeline', async (
           prompt: 'write-smoke',
         },
       ],
-      pipeline_status: { map_id: mapId, stage: 'ocr_done', ocr_run_id: runId },
     },
   });
   expect(results.ok(), await results.text()).toBe(true);
@@ -304,15 +303,33 @@ test('a worker key claims a job and reports back through /api/pipeline', async (
   const { data: rows } = await admin.from('ocr_extractions').select('text').eq('run_id', runId);
   expect(rows).toHaveLength(1);
 
+  // Nothing wrote a stage: map_pipeline_status is a view (mig 056), so closing
+  // the job is what advances it.
   const { data: stage } = await admin
     .from('map_pipeline_status')
     .select('stage, ocr_run_id')
     .eq('map_id', mapId)
     .single();
   expect(stage!.stage).toBe('ocr_done');
+  expect(stage!.ocr_run_id).toBe(runId);
 
   await asWorker.dispose();
-  await admin.from('map_pipeline_status').delete().eq('map_id', mapId);
+});
+
+test('only the human stages can be set by hand', async () => {
+  const derived = await staffRequest.patch(`/api/admin/maps/${mapId}/pipeline`, {
+    data: { stage: 'ocr_done' },
+  });
+  expect(derived.status()).toBe(400);
+
+  const marked = await staffRequest.patch(`/api/admin/maps/${mapId}/pipeline`, {
+    data: { stage: 'reviewed' },
+  });
+  expect(marked.ok(), await marked.text()).toBe(true);
+  expect((await marked.json()).reviewed_at).toBeTruthy();
+
+  await staffRequest.patch(`/api/admin/maps/${mapId}/pipeline`, { data: { stage: 'idle' } });
+  await admin.from('map_review_marks').delete().eq('map_id', mapId);
 });
 
 test('the pipeline endpoints refuse a missing or unknown worker token', async () => {

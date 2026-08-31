@@ -34,7 +34,8 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 | pipeline_jobs | web enqueues · workers claim/finish | RPC `claim_job(kind[], worker)`, `finish_job(id, result)` |
 | worker_keys | admin | /api |
 | ocr_extractions, footprint_submissions | workers insert · contributors submit/validate | `/api/pipeline/results`, `/api/…/review` → RPC `set_status` |
-| map_pipeline_status | **derived view** over pipeline_jobs (drop table) | — |
+| map_pipeline_status | **derived view** over pipeline_jobs + map_review_marks (table dropped, mig 056) | — |
+| map_review_marks | admin/mod | /api → RPC `set_review_mark` |
 | stories, story_points, annotation_sets | owner drafts (RLS) · publish via /api | supabase-js / RPC |
 | profiles, user_favorites, map_opens | owner | supabase-js RLS |
 
@@ -47,7 +48,7 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 ## Tracker (each step ships alone)
 - [x] 1 mig 053: `pipeline_jobs` + `worker_keys` + `claim_job`/`finish_job`; `work/worker/vma_worker.py --kinds ocr [--once]`; `/api/…/ocr` enqueues; `cli_only` gone. Claim/run/finish/retry exercised against the local stack.
 - [x] 2 `/api/pipeline/claim` + `/api/pipeline/results`, sha256 `worker_keys` tokens, `scripts/mint-worker-key.mjs`. Worker + `ocr.py --db` write only through the API; `VMA_API_URL`/`VMA_WORKER_KEY` replace the service key on pipeline machines.
-- [~] 3 RPCs landed (054) and the API calls them; 055 fixes the footprint check constraints. Still open: `map_pipeline_status` → view. Four of the eight stages come from `pipeline_jobs`, but `reviewed`, `seg_reviewed` and `exported` are human marks with no job behind them — a pure view cannot hold them, so either a marks table stays behind the view or those stages become jobs.
+- [x] 3 RPCs landed (054), API calls them; 055 fixes the footprint check constraints; 056 makes `map_pipeline_status` a view over `pipeline_jobs` + `map_review_marks` (the three human stages), written only by `set_review_mark`. Workers no longer report a stage at all — closing the job is what advances it.
 - [ ] 4 `status → public` trigger enqueues `tile_to_r2` + `mirror_annotation`; backfill; `annotation_url NOT NULL` for public.
 - [ ] 5 `sync_allmaps` job ("fetch latest") with path-versioned Storage writes; admin button in MapEditHostingTab.
 - [ ] 6 SSR on `(editorial)`; `/map/[id]` share page; `render_preview` job → OG image on R2.

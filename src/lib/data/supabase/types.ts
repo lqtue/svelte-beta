@@ -75,6 +75,13 @@ export type Database = {
             foreignKeyName: "annotation_sets_map_id_fk"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "annotation_sets_map_id_fk"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -140,6 +147,13 @@ export type Database = {
             foreignKeyName: "footprint_submissions_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "footprint_submissions_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -177,6 +191,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "label_pins_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
           {
             foreignKeyName: "label_pins_map_id_fkey"
             columns: ["map_id"]
@@ -225,6 +246,13 @@ export type Database = {
             foreignKeyName: "legend_submissions_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "legend_submissions_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -262,6 +290,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "map_help_requests_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
           {
             foreignKeyName: "map_help_requests_map_id_fkey"
             columns: ["map_id"]
@@ -310,6 +345,13 @@ export type Database = {
             foreignKeyName: "map_iiif_sources_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "map_iiif_sources_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -336,51 +378,50 @@ export type Database = {
             foreignKeyName: "map_opens_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "map_opens_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
         ]
       }
-      map_pipeline_status: {
+      map_review_marks: {
         Row: {
+          exported_at: string | null
           map_id: string
-          ocr_finished_at: string | null
-          ocr_run_id: string | null
-          ocr_started_at: string | null
           reviewed_at: string | null
-          seg_finished_at: string | null
-          seg_run_id: string | null
-          seg_started_at: string | null
-          stage: string
+          seg_reviewed_at: string | null
           updated_at: string
         }
         Insert: {
+          exported_at?: string | null
           map_id: string
-          ocr_finished_at?: string | null
-          ocr_run_id?: string | null
-          ocr_started_at?: string | null
           reviewed_at?: string | null
-          seg_finished_at?: string | null
-          seg_run_id?: string | null
-          seg_started_at?: string | null
-          stage?: string
+          seg_reviewed_at?: string | null
           updated_at?: string
         }
         Update: {
+          exported_at?: string | null
           map_id?: string
-          ocr_finished_at?: string | null
-          ocr_run_id?: string | null
-          ocr_started_at?: string | null
           reviewed_at?: string | null
-          seg_finished_at?: string | null
-          seg_run_id?: string | null
-          seg_started_at?: string | null
-          stage?: string
+          seg_reviewed_at?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "map_pipeline_status_map_id_fkey"
+            foreignKeyName: "map_review_marks_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: true
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "map_review_marks_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: true
             referencedRelation: "maps"
@@ -550,6 +591,13 @@ export type Database = {
             foreignKeyName: "metadata_submissions_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "metadata_submissions_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -649,6 +697,13 @@ export type Database = {
             foreignKeyName: "ocr_extractions_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "ocr_extractions_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -710,6 +765,13 @@ export type Database = {
           worker?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pipeline_jobs_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
           {
             foreignKeyName: "pipeline_jobs_map_id_fkey"
             columns: ["map_id"]
@@ -830,6 +892,13 @@ export type Database = {
             foreignKeyName: "scout_candidates_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "scout_candidates_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -931,6 +1000,13 @@ export type Database = {
             foreignKeyName: "story_points_overlay_map_id_fkey"
             columns: ["overlay_map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "story_points_overlay_map_id_fkey"
+            columns: ["overlay_map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -1008,6 +1084,13 @@ export type Database = {
             foreignKeyName: "user_favorites_map_id_fkey"
             columns: ["map_id"]
             isOneToOne: false
+            referencedRelation: "map_pipeline_status"
+            referencedColumns: ["map_id"]
+          },
+          {
+            foreignKeyName: "user_favorites_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
             referencedRelation: "maps"
             referencedColumns: ["id"]
           },
@@ -1045,7 +1128,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      map_pipeline_status: {
+        Row: {
+          exported_at: string | null
+          map_id: string | null
+          ocr_finished_at: string | null
+          ocr_run_id: string | null
+          ocr_started_at: string | null
+          reviewed_at: string | null
+          seg_finished_at: string | null
+          seg_reviewed_at: string | null
+          seg_run_id: string | null
+          seg_started_at: string | null
+          stage: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       canonicalise_category: { Args: { raw: string }; Returns: string }
@@ -1153,6 +1252,22 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "footprint_submissions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_review_mark: {
+        Args: { p_map_id: string; p_stage: string; p_user: string }
+        Returns: {
+          exported_at: string | null
+          map_id: string
+          reviewed_at: string | null
+          seg_reviewed_at: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "map_review_marks"
           isOneToOne: true
           isSetofReturn: false
         }

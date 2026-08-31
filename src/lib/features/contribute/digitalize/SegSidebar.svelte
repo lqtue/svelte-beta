@@ -12,7 +12,7 @@
   import { createEventDispatcher } from 'svelte';
   import CliCommandBlock from '$lib/features/contribute/shared/CliCommandBlock.svelte';
   import { buildSegCommand, type SegConfig } from './segCommand';
-  import type { PipelineStatus } from '$lib/features/contribute/pipelineApi';
+  import type { PipelineStatus, HumanStage } from '$lib/features/contribute/pipelineApi';
   import '$styles/layouts/tool-page.css';
   import '$styles/components/tool-sidebar.css';
 
@@ -23,7 +23,7 @@
   export let config: SegConfig;
   export let compact = false;
 
-  const dispatch = createEventDispatcher<{ advance: { stage: string }; refresh: void }>();
+  const dispatch = createEventDispatcher<{ advance: { stage: HumanStage }; refresh: void }>();
 
   $: stage = status?.stage ?? 'idle';
   $: command = buildSegCommand(mapId, status?.ocr_run_id, config);

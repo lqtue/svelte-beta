@@ -50,7 +50,7 @@ Local ports are **54421** for the API and **54420** for the shadow DB, not the C
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **055**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **056**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -90,7 +90,7 @@ VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 055. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 056. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block — the `vma-theme` boot script in `src/app.html` is vestigial (nothing writes the key, no CSS consumes it). Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
@@ -165,7 +165,7 @@ In dual mode, OL attribution + scale live on the **secondary** pane (right on de
 - **OCR Review**: `OcrBboxTool.svelte` renders + edits `ocr_extractions` bboxes and supports `drawMode` for manual bboxes (POSTs with `model: 'manual'`). `OcrSidebar.svelte` is a filterable table with inline text/category edit and auto-save on blur, split into `OcrFilterBar.svelte` + `OcrRunBar.svelte`, with state in `ocrReviewController.ts`. `BboxPanel.svelte` is the floating selected-bbox editor.
 - **Segmentation**: `SegSidebar.svelte` + `segCommand.ts` emit the MapSAM2 CLI command.
 
-Pipeline stage (idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported) is polled via `GET /api/admin/maps/[id]/pipeline`.
+Pipeline stage (idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported) is polled via `GET /api/admin/maps/[id]/pipeline`. Four of those stages are **derived** from the map's latest `ocr`/`seg` job; PATCH accepts only `reviewed`, `seg_reviewed`, `exported` and `idle` — anything else is a 400.
 
 **Trace (`/contribute/trace`)** — `TraceTool.svelte` (OL Draw + Select + Modify) + `TraceSidebar.svelte`. Polygon for closed footprints, line for roads/waterways. Persists to `footprint_submissions`.
 
@@ -229,7 +229,7 @@ Pipeline:
 - `/api/admin/maps/[id]/ocr/apply/` — POST: turn `ocr_extractions` above a confidence threshold into `label_pins` (bbox centre in source-image px). Body `{ run_id?, min_confidence? }`.
 - `/api/admin/maps/[id]/ocr-review/` — GET extractions + runs; POST manual bbox; PATCH update text/category/status/coords; PUT batch status (`?window=` reverts the last N minutes).
 - `/api/admin/maps/[id]/ocr-review/revert-recent/` — GET count, POST undo the current reviewer's recent validations (thin wrapper over `$lib/server/ocrReview.ts`).
-- `/api/admin/maps/[id]/pipeline/` — GET stage + timestamps; PATCH advance. Stages: `idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported`.
+- `/api/admin/maps/[id]/pipeline/` — GET the composed stage + timestamps; PATCH records a **human** stage (`reviewed`, `seg_reviewed`, `exported`, `idle`) via `set_review_mark`. The machine stages come from `pipeline_jobs` and are rejected with a 400.
 - `/api/admin/footprints/` — GET/PATCH SAM2 review (service key required).
 
 Worker-authenticated (`Authorization: Bearer <worker_keys token>`, **not** a user session — see `$lib/server/workerAuth.ts`):
@@ -251,7 +251,7 @@ Public / other:
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **055**). Key tables:
+Schema lives in `supabase/migrations/` (head **056**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
@@ -266,14 +266,15 @@ Schema lives in `supabase/migrations/` (head **055**). Key tables:
 | `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join |
 | `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (8 values) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs |
 | `worker_keys` | Per-machine revocable worker credentials (mig 053) | `token_hash` (sha256), `kinds`, `revoked_at`. Written in step 2; the table exists now |
-| `map_pipeline_status` | Per-map pipeline state | `map_id` PK, `stage` (8-value enum), `ocr_run_id`, `seg_run_id`, timestamps. Auto-updated by OCR `--db` and SAM2 `--write-supabase` |
+| `map_pipeline_status` | Per-map pipeline state — **a view since mig 056** | Machine stages derived from `pipeline_jobs`, human stages from `map_review_marks`. Read-only; nothing writes it |
+| `map_review_marks` | The three stages a person asserts (mig 056) | `reviewed_at`, `seg_reviewed_at`, `exported_at`. Written only by the `set_review_mark` RPC |
 | `stories`, `story_points`, `story_progress` | Stories/tours | `hunts` / `hunt_stops` were dropped in mig 034; the `hunt*` aliases are gone from the code too |
 | `user_favorites` | Saved maps | via `data/supabase/favorites.ts` |
 | `legend_submissions`, `map_help_requests`, `metadata_submissions` | Community contributions | write paths only; no dedicated UI review screen yet |
 
 `maps.status` (mig 038): `draft | public | featured`. Inserts default to `draft`. The older `pending_georef → georeferenced → processing → published` values fail `maps_status_check`.
 
-**Status transitions live in Postgres** (mig 054), not in the API: `set_extraction_status(status, user, ids?, map_id?, run_id?)` applies the `validated_at`/`validated_by` stamp, `revert_recent_validations(map_id, user, window_mins)` undoes one reviewer's recent work, and `set_footprint_status(id, status, user, …)` moves a polygon out of `needs_review` exactly once and marks a reshaped one `sam-corrected`. With `claim_job`/`finish_job` (mig 053) these are the write paths the API, the workers and any future direct client all share. All are `security definer`, granted to `service_role` only.
+**Status transitions live in Postgres** (mig 054), not in the API: `set_extraction_status(status, user, ids?, map_id?, run_id?)` applies the `validated_at`/`validated_by` stamp, `revert_recent_validations(map_id, user, window_mins)` undoes one reviewer's recent work, and `set_footprint_status(id, status, user, …)` moves a polygon out of `needs_review` exactly once and marks a reshaped one `sam-corrected`; `set_review_mark(map_id, stage, user)` (mig 056) records a human pipeline stage. With `claim_job`/`finish_job` (mig 053) these are the write paths the API, the workers and any future direct client all share. All are `security definer`, granted to `service_role` only.
 
 **Two visibility models coexist on `maps`** — the `status` enum and the `is_public` / `is_featured` booleans — and different code paths gate on different ones. See `docs/db-guidelines.md` before adding a third.
 

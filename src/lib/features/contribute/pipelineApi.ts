@@ -1,6 +1,9 @@
 /**
  * pipelineApi.ts — the single client for `/api/admin/maps/[id]/pipeline`.
  * Throws `Error(<server message>)` on a non-2xx response.
+ *
+ * The stage is read-only apart from the human marks: PATCHing `ocr_done` or
+ * `seg_queued` is a 400, because those follow from the job queue (mig 056).
  */
 
 export type PipelineStage =
@@ -23,7 +26,12 @@ export type PipelineStatus = {
   seg_started_at?: string;
   seg_finished_at?: string;
   reviewed_at?: string;
+  seg_reviewed_at?: string;
+  exported_at?: string;
 };
+
+/** The stages `advancePipelineStage` accepts; everything else is derived. */
+export type HumanStage = 'idle' | 'reviewed' | 'seg_reviewed' | 'exported';
 
 async function request(url: string, init?: RequestInit): Promise<PipelineStatus> {
   const res = await fetch(url, init);
@@ -45,7 +53,7 @@ export function fetchPipelineStatus(mapId: string): Promise<PipelineStatus> {
   return request(`/api/admin/maps/${mapId}/pipeline`);
 }
 
-export function advancePipelineStage(mapId: string, stage: string): Promise<PipelineStatus> {
+export function advancePipelineStage(mapId: string, stage: HumanStage): Promise<PipelineStatus> {
   return request(`/api/admin/maps/${mapId}/pipeline`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
