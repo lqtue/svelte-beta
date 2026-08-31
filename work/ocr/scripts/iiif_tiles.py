@@ -289,24 +289,80 @@ def compute_tile_densities(
     return densities
 
 
+def compute_tile_colours(
+    overview: "Image.Image",
+    tiles: list[tuple[int, int, int, int]],
+    full_w: int,
+    full_h: int,
+) -> dict[tuple[int, int, int, int], float]:
+    """Fraction of each tile covered by flat colour wash — water or vegetation.
+
+    A blue or green wash on a historical map is a river, a park or a paddy: it
+    carries almost no toponyms, but its edges are busy enough that the text
+    density pre-pass sees "ink" and pays for a full render anyway.
+
+    Hue is taken in HSV: water ≈ 150–260°, vegetation ≈ 60–150°, both only when
+    the pixel is saturated enough to be a deliberate wash rather than aged
+    paper. A monochrome scan returns ~0 everywhere, which is the point — the
+    caller must not act on a signal that is not there.
+    """
+    try:
+        import numpy as np
+    except ImportError:
+        return {t: 0.0 for t in tiles}
+
+    hsv = np.array(overview.convert("HSV"), dtype=np.float32)
+    hue = hsv[:, :, 0] * 360.0 / 255.0
+    sat = hsv[:, :, 1] / 255.0
+    val = hsv[:, :, 2] / 255.0
+
+    # Saturated, not near-black (ink), not near-white (paper).
+    washed = (sat > 0.25) & (val > 0.2) & (val < 0.97)
+    coloured = washed & (((hue >= 60) & (hue < 150)) | ((hue >= 150) & (hue < 260)))
+
+    h, w = hue.shape
+    out: dict[tuple[int, int, int, int], float] = {}
+    for tile in tiles:
+        tx, ty, tw, th = tile
+        ox = int(tx / full_w * w)
+        oy = int(ty / full_h * h)
+        ow = max(1, int(tw / full_w * w))
+        oh = max(1, int(th / full_h * h))
+        region = coloured[oy : oy + oh, ox : ox + ow]
+        out[tile] = float(np.mean(region)) if region.size > 0 else 0.0
+    return out
+
+
 def auto_tile_overrides(
     densities: dict[tuple[int, int, int, int], float],
     skip_below: float = 0.01,
     low_res_below: float = 0.08,
+    colours: dict[tuple[int, int, int, int], float] | None = None,
+    wash_above: float = 0.6,
 ) -> dict[str, str]:
-    """Turn per-tile text-density fractions into a priority-grid override map.
+    """Turn per-tile pre-pass fractions into a priority-grid override map.
 
     Auto-fills what the Triage grid does by hand: blank tiles (below skip_below)
     → "skip" so they cost no API call; sparse tiles (below low_res_below) → a
     cheap low-res render; dense tiles are omitted (full render, the default).
     Same {"x_y_w_h": "skip"|"low_res"} shape ocr.py already consumes.
+
+    `colours` adds the water/vegetation pass: a tile that is mostly wash gets
+    demoted one step — full render becomes low_res, low_res becomes skip. It
+    only ever demotes, so a mislabelled wash costs resolution, never a tile.
     """
     out: dict[str, str] = {}
-    for (x, y, w, h), frac in densities.items():
+    for tile, frac in densities.items():
+        x, y, w, h = tile
+        key = f"{x}_{y}_{w}_{h}"
+        wash = (colours or {}).get(tile, 0.0)
+
         if frac < skip_below:
-            out[f"{x}_{y}_{w}_{h}"] = "skip"
+            out[key] = "skip"
         elif frac < low_res_below:
-            out[f"{x}_{y}_{w}_{h}"] = "low_res"
+            out[key] = "skip" if wash >= wash_above else "low_res"
+        elif wash >= wash_above:
+            out[key] = "low_res"
     return out
 
 
@@ -465,11 +521,59 @@ def choose_scale_levels(
     return sorted(chosen, key=lambda s: s["width"])
 
 
-if __name__ == "__main__":
-    # Self-check: density fractions map to the right priority tiers.
+
+
+def _self_check() -> None:
+    """Colour pre-pass + override rules, with no network and no real map.
+
+    Run: python work/ocr/scripts/iiif_tiles.py --self-check
+    """
+    from PIL import Image as _Image
+
+    # Density tiers, unchanged by the colour pass being absent.
     _d = {(0, 0, 10, 10): 0.005,   # blank  → skip
           (10, 0, 10, 10): 0.05,   # sparse → low_res
           (20, 0, 10, 10): 0.40}   # dense  → omitted (full render)
-    _ov = auto_tile_overrides(_d, skip_below=0.01, low_res_below=0.08)
-    assert _ov == {"0_0_10_10": "skip", "10_0_10_10": "low_res"}, _ov
-    print("[ok] iiif_tiles auto_tile_overrides self-check passed")
+    assert auto_tile_overrides(_d, skip_below=0.01, low_res_below=0.08) == {
+        "0_0_10_10": "skip", "10_0_10_10": "low_res"
+    }
+
+    tiles = [(0, 0, 100, 100), (100, 0, 100, 100)]
+
+    # Left half a saturated blue wash, right half bare paper.
+    img = _Image.new("RGB", (200, 100), (245, 240, 230))
+    for x in range(100):
+        for y in range(100):
+            img.putpixel((x, y), (70, 110, 200))
+    colours = compute_tile_colours(img, tiles, 200, 100)
+    assert colours[(0, 0, 100, 100)] > 0.9, colours
+    assert colours[(100, 0, 100, 100)] < 0.1, colours
+
+    # A monochrome scan must produce no signal at all: acting on one would
+    # demote tiles on every grey map in the archive.
+    grey = _Image.new("RGB", (200, 100), (128, 126, 124))
+    assert max(compute_tile_colours(grey, tiles, 200, 100).values()) < 0.05
+
+    # Demotion is one step and never promotes.
+    dense = {tiles[0]: 0.5, tiles[1]: 0.5}
+    assert auto_tile_overrides(dense) == {}
+    assert auto_tile_overrides(dense, colours={tiles[0]: 0.9, tiles[1]: 0.0}) == {
+        "0_0_100_100": "low_res"
+    }
+    sparse = {tiles[0]: 0.05}
+    assert auto_tile_overrides(sparse) == {"0_0_100_100": "low_res"}
+    assert auto_tile_overrides(sparse, colours={tiles[0]: 0.9}) == {"0_0_100_100": "skip"}
+    blank = {tiles[0]: 0.0}
+    assert auto_tile_overrides(blank, colours={tiles[0]: 0.0}) == {"0_0_100_100": "skip"}
+
+    print("[ok] iiif_tiles self-check passed")
+
+
+if __name__ == "__main__":
+    import sys
+
+    if "--self-check" in sys.argv:
+        _self_check()
+    else:
+        print(__doc__)
+        sys.exit(1)

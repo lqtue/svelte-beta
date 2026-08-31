@@ -65,7 +65,9 @@ python work/ocr/scripts/ocr.py clean \
 
 Subcommands (11): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `preview`, `list-models`, `detect-layout`, `numerals`, `legend`.
 
-Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max-row-frames 4`), `--adaptive`, `--target-calls N`, `--smart-grid`, `--skip-sparse`, `--auto-priority`, `--tile-overrides '{"x_y_w_h":"skip|low_res"}'`, `--crop x,y,w,h`, `--prior-run <dir>`, `--legend`, `--db`.
+`--auto-priority` fills the Triage grid without a human: text density decides blank → skip and sparse → low_res, then a colour pre-pass (`compute_tile_colours`, HSV) demotes any tile that is mostly water or vegetation wash one further step. Demotion only — a misread wash costs resolution, never a tile — and a monochrome scan scores ~0, so nothing happens on grey maps. `--wash-above` (default 0.6) is the threshold.
+
+Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max-row-frames 4`), `--adaptive`, `--target-calls N`, `--smart-grid`, `--skip-sparse`, `--auto-priority`, `--wash-above`, `--tile-overrides '{"x_y_w_h":"skip|low_res"}'`, `--crop x,y,w,h`, `--prior-run <dir>`, `--legend`, `--db`.
 
 ### Local passes (no API — run on the M-series for free)
 
@@ -208,7 +210,7 @@ Spatial ordering on the Gemini side is the cheap analogue of the paper's self-so
 
 ## Coarse → fine
 
-`scout` reads the whole map at low resolution to find the neatline and the dense regions; `batch` then tiles only the content area (`--smart-grid`, `--crop`, `--auto-priority`, `--skip-sparse`) at full resolution. Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
+`scout` reads the whole map at low resolution to find the neatline and the dense regions; `batch` then tiles only the content area (`--smart-grid`, `--crop`, `--auto-priority`, `--wash-above`, `--skip-sparse`) at full resolution. Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
 
 ## Coordinate contract
 

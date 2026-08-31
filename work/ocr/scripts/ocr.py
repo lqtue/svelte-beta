@@ -40,6 +40,7 @@ from iiif_tiles import (
     auto_tile_overrides,
     auto_tile_params,
     choose_scale_levels,
+    compute_tile_colours,
     compute_tile_densities,
     detect_neatline,
     estimate_density,
@@ -398,13 +399,22 @@ def cmd_batch(args: argparse.Namespace) -> None:
     elif not local_image and getattr(args, "auto_priority", False):
         # Auto-fill the priority grid from a color pre-pass instead of by hand:
         # blank → skip, sparse → low_res, dense → full render.
-        print("  Auto-priority: computing tile density pre-pass ...")
-        densities = compute_tile_densities(_overview(), tiles, img_w, img_h)
+        print("  Auto-priority: computing density + colour pre-pass ...")
+        overview = _overview()
+        densities = compute_tile_densities(overview, tiles, img_w, img_h)
+        # Water and vegetation wash reads as busy to the density pass but holds
+        # almost no toponyms, so it demotes a tile one step.
+        colours = compute_tile_colours(overview, tiles, img_w, img_h)
         tile_overrides = auto_tile_overrides(
             densities,
             skip_below=getattr(args, "skip_below", 0.01),
             low_res_below=getattr(args, "low_res_below", 0.08),
+            colours=colours,
+            wash_above=getattr(args, "wash_above", 0.6),
         )
+        washed = sum(1 for v in colours.values() if v >= getattr(args, "wash_above", 0.6))
+        if washed:
+            print(f"  Colour pre-pass: {washed} tiles are mostly water/vegetation wash")
     low_res_render = getattr(args, "low_res_render", 512)
 
     skip_keys = {k for k, v in tile_overrides.items() if v == "skip"}
@@ -2352,6 +2362,9 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Text-density fraction below which --auto-priority marks a tile skip (default 0.01)")
     p_batch.add_argument("--low-res-below", type=float, default=0.08,
                          help="Text-density fraction below which --auto-priority marks a tile low_res (default 0.08)")
+    p_batch.add_argument("--wash-above", type=float, default=0.6,
+                         help="Water/vegetation coverage above which --auto-priority demotes a tile "
+                              "one step (default 0.6)")
     p_batch.set_defaults(func=cmd_batch)
 
     # dedup

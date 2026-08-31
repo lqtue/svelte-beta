@@ -500,6 +500,13 @@ def write_to_supabase(
         }
         if run_id:
             row["run_id"] = run_id
+        # A polygon SAM2 found because OCR pointed at it already knows its own
+        # name — carry it now rather than making the join pass rediscover it.
+        if p.seed:
+            if p.seed.get("text"):
+                row["name"] = p.seed["text"]
+            if p.seed.get("category"):
+                row["category"] = p.seed["category"]
         rows.append(row)
 
     resp = requests.post(endpoint, headers=hdrs, json=rows)
