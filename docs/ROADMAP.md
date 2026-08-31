@@ -7,7 +7,7 @@ Record: `docs/cleanup-2026-08.md`. History: `work/cleanup/{PLAN,MODULES,ORGANIZA
 Layout now `core → data → map → features → routes`, `ui` primitives, `server` guarded (rule in `CLAUDE.md`). check 0/0, lint 0 err, smoke 7/7, build green.
 
 ## Track A — Ship + harden (do first, ~2 days)
-- [ ] A1 CF preview click-through: /explore /catalog(admin edit) /contribute/{digitalize,trace,review} /create /studio /trip — eyeball token colour shifts, review tool dark→light
+- [x] A1 CF preview click-through (2026-08-31, https://chore-cleanup.vmabeta.pages.dev): 12 routes load, smoke 7/7 against the preview, zero console errors except /explore's Allmaps 404s. Tokenised review + digitalize confirmed light. Needed a deploy fix: `pagesBuildOutputDir` → `pages_build_output_dir`. Three findings pushed to Track D.
 - [ ] A2 PR `chore/cleanup` → `main`
 - [x] A3 CI: `npm run lint && npm run check && npm run build` on PR (none exists)
 - [x] A4 eslint `import/no-restricted-paths` encoding the layering rule (ui/core ↛ features; client ↛ server)
@@ -36,6 +36,10 @@ Flow: colour pre-pass → OCR → coarse seg (blocks, rivers) → fine seg (buil
 Runs as B1 jobs (`ocr`, `seg`, `join`) once B1 lands — no more copy-paste CLI.
 
 ## Track D — Burn-down (when it hurts)
+- **CARTO basemap tiles now render "API KEY REQUIRED" over the whole map** (`BASEMAP_DEFS` in `src/lib/map/constants.ts` uses the keyless `basemaps.cartocdn.com` raster endpoint). Affects prod, not just the preview. Get a CARTO key, or move to another raster source — `.env.example` still lists `PUBLIC_PROTOMAPS_KEY`.
+- 43 maps have `georef_done` but 404 on `annotations.allmaps.org` — run `/api/admin/maps/sync-georef` and see whether the flag or the upstream annotation is what drifted
+- `/contribute/review` back-link: the round icon button overlaps the "Contribute" label
+- `/explore` Display row: the "Side-by-side" button label is clipped
 - API response shapes → `{ ok, data }` (inventory: `work/cleanup/review-admin-api-editorial.md`)
 - tokens.css grey ramp → fold the `color-mix` hacks
 - 71 eslint warnings (mostly unkeyed `{#each}`)
