@@ -18,7 +18,7 @@ function toMapListItem(row: DbRow): MapListItem {
     map_type: row.map_type ?? undefined,
     dc_description: row.dc_description ?? undefined,
     thumbnail: row.thumbnail ?? undefined,
-    isFeatured: row.is_featured ?? false,
+    isFeatured: row.status === 'featured',
     year: row.year ?? undefined,
     year_label: row.year_label ?? undefined,
     collection: row.collection ?? undefined,
@@ -47,7 +47,7 @@ export async function fetchFeaturedMaps(
   const { data, error } = await supabase
     .from('maps')
     .select('*')
-    .eq('is_featured', true)
+    .eq('status', 'featured')
     .order('year', { ascending: true, nullsFirst: false });
 
   if (error) {

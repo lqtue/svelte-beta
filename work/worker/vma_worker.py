@@ -129,9 +129,24 @@ def tile_argv(job: dict, python_bin: str) -> list[str]:
     return [str(REPO_ROOT / "scripts" / "tile_map.sh"), job["map_id"], download, iiif]
 
 
+def join_argv(job: dict, python_bin: str) -> list[str]:
+    """Turn a `join` job into the label↔footprint join command line.
+
+    Run ids are optional: join_labels pins the newest run on each side when it
+    is not told which ones to use.
+    """
+    p = job["payload"]
+    argv = [python_bin, str(REPO_ROOT / "work" / "ocr" / "scripts" / "join_labels.py"), job["map_id"]]
+    if p.get("ocr_run_id"):
+        argv.append(str(p["ocr_run_id"]))
+        if p.get("seg_run_id"):
+            argv.append(str(p["seg_run_id"]))
+    return argv
+
+
 # Kinds this worker runs itself. mirror_annotation and sync_allmaps are not
 # here: they need the service key, so the server runs them (see execute()).
-RUNNERS = {"ocr": ocr_argv, "tile_to_r2": tile_argv}
+RUNNERS = {"ocr": ocr_argv, "join": join_argv, "tile_to_r2": tile_argv}
 SERVER_KINDS = {"mirror_annotation", "sync_allmaps"}
 
 
@@ -193,8 +208,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Claim and run VMA pipeline jobs.")
     ap.add_argument(
         "--kinds",
-        default="ocr",
-        help="comma-separated job kinds to claim: ocr, tile_to_r2, mirror_annotation, sync_allmaps (default: ocr)",
+        default="ocr,join",
+        help="comma-separated job kinds to claim: ocr, join, tile_to_r2, mirror_annotation, sync_allmaps (default: ocr,join)",
     )
     ap.add_argument("--worker", default=os.uname().nodename, help="name recorded on the claim")
     ap.add_argument("--interval", type=float, default=10.0, help="seconds between polls when idle")

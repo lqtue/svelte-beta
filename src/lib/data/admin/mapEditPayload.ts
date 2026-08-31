@@ -34,10 +34,8 @@ export interface MapEditForm {
   // Hosting / georef
   allmaps_id: string;
   annotation_url: string;
-  // Quick bar + pipeline flags
-  is_featured: boolean;
+  // Quick bar + pipeline flags. Visibility is `status` alone (mig 060).
   priority: number;
-  is_public: boolean;
   georef_done: boolean;
   legend_done: boolean;
   help_needed: boolean;
@@ -62,7 +60,6 @@ export interface MapEditPayload {
   map_type?: string;
   year: number | null;
   dc_description?: string;
-  is_featured: boolean;
   extra_metadata: Record<string, string>;
   source_type?: string;
   collection?: string;
@@ -80,7 +77,6 @@ export interface MapEditPayload {
   holding_institution?: string;
   label_config: LabelConfig;
   priority: number;
-  is_public: boolean;
   georef_done: boolean;
   legend_done: boolean;
   help_needed: boolean;
@@ -141,7 +137,6 @@ export function toMapEditPayload(form: MapEditForm): MapEditPayload {
     map_type: opt(form.map_type),
     year: form.year ? Number(form.year) : null,
     dc_description: opt(form.dc_description),
-    is_featured: form.is_featured,
     extra_metadata,
     source_type: opt(form.source_type),
     collection: opt(form.collection),
@@ -163,7 +158,6 @@ export function toMapEditPayload(form: MapEditForm): MapEditPayload {
       form.labelCategories
     ),
     priority: form.priority,
-    is_public: form.is_public,
     georef_done: form.georef_done,
     legend_done: form.legend_done,
     help_needed: form.help_needed,

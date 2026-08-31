@@ -453,8 +453,6 @@ export type Database = {
           id: string
           iiif_image: string | null
           iiif_manifest: string | null
-          is_featured: boolean | null
-          is_public: boolean
           label_config: Json
           language: string | null
           legend_done: boolean
@@ -495,8 +493,6 @@ export type Database = {
           id?: string
           iiif_image?: string | null
           iiif_manifest?: string | null
-          is_featured?: boolean | null
-          is_public?: boolean
           label_config?: Json
           language?: string | null
           legend_done?: boolean
@@ -537,8 +533,6 @@ export type Database = {
           id?: string
           iiif_image?: string | null
           iiif_manifest?: string | null
-          is_featured?: boolean | null
-          is_public?: boolean
           label_config?: Json
           language?: string | null
           legend_done?: boolean
@@ -912,7 +906,6 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
-          is_public: boolean
           mode: string
           region: Json
           reviewed_at: string | null
@@ -926,7 +919,6 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          is_public?: boolean
           mode?: string
           region?: Json
           reviewed_at?: string | null
@@ -940,7 +932,6 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          is_public?: boolean
           mode?: string
           region?: Json
           reviewed_at?: string | null
@@ -964,8 +955,6 @@ export type Database = {
           lat: number
           lon: number
           overlay_map_id: string | null
-          qr_payload: string | null
-          quest: string | null
           sort_order: number
           story_id: string
           title: string
@@ -982,8 +971,6 @@ export type Database = {
           lat: number
           lon: number
           overlay_map_id?: string | null
-          qr_payload?: string | null
-          quest?: string | null
           sort_order?: number
           story_id: string
           title: string
@@ -1000,8 +987,6 @@ export type Database = {
           lat?: number
           lon?: number
           overlay_map_id?: string | null
-          qr_payload?: string | null
-          quest?: string | null
           sort_order?: number
           story_id?: string
           title?: string
@@ -1291,7 +1276,6 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
-          is_public: boolean
           mode: string
           region: Json
           reviewed_at: string | null

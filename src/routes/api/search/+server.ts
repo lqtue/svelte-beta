@@ -74,7 +74,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     let qMaps = supabase
       .from('maps')
       .select(
-        'id,name,location,map_type,dc_description,thumbnail,is_featured,year,year_label,collection,source_type,status,bbox,extra_metadata,iiif_image,allmaps_id,annotation_url,georef_done,creator,holding_institution,original_title,dc_publisher,shelfmark,physical_description,rights,language,source_url'
+        'id,name,location,map_type,dc_description,thumbnail,year,year_label,collection,source_type,status,bbox,extra_metadata,iiif_image,allmaps_id,annotation_url,georef_done,creator,holding_institution,original_title,dc_publisher,shelfmark,physical_description,rights,language,source_url'
       );
     if (role !== 'admin' && role !== 'mod') {
       // Public users only see public/featured.
@@ -205,7 +205,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     map_type: r.map_type,
     dc_description: r.dc_description,
     thumbnail: r.thumbnail,
-    isFeatured: r.is_featured,
+    isFeatured: r.status === 'featured',
     year: r.year,
     year_label: r.year_label,
     collection: r.collection,

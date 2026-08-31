@@ -20,17 +20,35 @@ comment on column public.stories.status is
 -- Anything already public was, in effect, approved.
 update public.stories set status = 'approved' where is_public = true;
 
+-- Two policies read stories.is_public, so they have to go before the column
+-- does — Postgres refuses to drop a column a policy depends on.
+drop policy if exists "stories_select" on public.stories;
+drop policy if exists "story_points_select" on public.story_points;
+
 alter table public.stories drop column if exists is_public;
 
 create index if not exists idx_stories_status on public.stories (status) where status = 'submitted';
 
-drop policy if exists "stories_select" on public.stories;
 create policy "stories_select"
   on public.stories for select
   using (
     status = 'approved'
     or user_id = auth.uid()
     or exists (select 1 from public.profiles where id = auth.uid() and role in ('mod', 'admin'))
+  );
+
+create policy "story_points_select"
+  on public.story_points for select
+  using (
+    exists (
+      select 1 from public.stories
+      where id = story_id
+        and (
+          status = 'approved'
+          or user_id = auth.uid()
+          or exists (select 1 from public.profiles where id = auth.uid() and role in ('mod', 'admin'))
+        )
+    )
   );
 
 -- An author may edit their own story, but not review it: the status column is

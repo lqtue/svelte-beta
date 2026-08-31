@@ -55,10 +55,9 @@
   let allmaps_id = map.allmaps_id ?? '';
   let annotation_url = map.annotation_url ?? '';
 
-  // Quick bar + workflow flags
-  let is_featured = map.is_featured ?? false;
+  // Quick bar + workflow flags. Visibility is the status select alone: the
+  // is_public / is_featured checkboxes went with migration 060.
   let priority: number = map.priority ?? 0;
-  let is_public: boolean = map.is_public ?? false;
   let georef_done: boolean = map.georef_done ?? false;
   let legend_done: boolean = map.legend_done ?? false;
   let help_needed: boolean = map.help_needed ?? false;
@@ -138,9 +137,7 @@
         rights,
         allmaps_id,
         annotation_url,
-        is_featured,
         priority,
-        is_public,
         georef_done,
         legend_done,
         help_needed,
@@ -207,14 +204,6 @@
           <option value="public">Public</option>
           <option value="featured">Featured</option>
         </select>
-      </label>
-      <label class="quick-toggle" title="Show on featured carousel">
-        <input type="checkbox" bind:checked={is_featured} />
-        <span>★ Featured</span>
-      </label>
-      <label class="quick-toggle" title="Visible publicly on site">
-        <input type="checkbox" bind:checked={is_public} />
-        <span>👁 Public</span>
       </label>
       <label class="quick-toggle" title="Flag for community help">
         <input type="checkbox" bind:checked={help_needed} />

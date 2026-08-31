@@ -34,7 +34,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     location: body.location || null,
     year: body.year ? Number(body.year) : null,
     dc_description: body.dc_description || null,
-    is_featured: body.is_featured || false,
   };
 
   const { data, error: err } = await adminClient()

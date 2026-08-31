@@ -14,14 +14,14 @@ export interface GeorefMapItem {
   year: number | null;
 }
 
-/** The georeferencing queue: non-public maps, highest priority first. */
+/** The georeferencing queue: maps not yet published, highest priority first. */
 export async function fetchGeorefQueue(
   supabase: SupabaseClient<Database>
 ): Promise<GeorefMapItem[]> {
   const { data, error } = await supabase
     .from('maps')
     .select('id, name, allmaps_id, iiif_image, iiif_manifest, georef_done, year')
-    .eq('is_public', false)
+    .eq('status', 'draft')
     .order('priority', { ascending: false })
     .order('name');
 

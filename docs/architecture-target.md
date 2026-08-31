@@ -53,7 +53,7 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 - [x] 5 `sync_allmaps` + `mirror_annotation` run through `/api/pipeline/execute` (worker claims, server executes — the work needs the service key). Storage writes are path-versioned: `annotations/{id}.json` current, `annotations/{id}/{ISO}.json` history. Button in MapEditHostingTab.
 - [x] 6 `/map/[id]` share page (SSR, OG/Twitter, drafts 404). `(editorial)` already server-rendered apart from the home page, which needs a load function before the flag buys anything. No `render_preview` job: the OG image is the map's IIIF thumbnail — one fewer job kind, one fewer artefact to keep in sync.
 - [x] 7 mig 059: stories carry `status` + `reviewed_by`/`reviewed_at`, `is_public` dropped, `set_story_status` RPC, `/api/admin/stories` queue, tabs on `/contribute/review`. Rate limiting counts the target table rather than keeping a counter store. Note: the column is `user_id`, not `submitted_by` — db-guidelines forbids the latter, and the author was already recorded.
-- [ ] 8 PostGIS geometry on footprints (mig); `build_pmtiles` job — only when /explore needs city-wide layers.
-- [ ] 9 mig: drop `maps.is_public/is_featured` (status only), `story_points.quest/qr_payload`.
+- [ ] 8 PostGIS geometry on footprints; `build_pmtiles` job — deferred on purpose. Polygons are in image pixel space, so a geometry column is not a column addition but a warp of every row through its map's georeference. Do it when /explore actually asks for city-wide layers.
+- [x] 9 mig 060. The four policies reading `maps.is_public` (footprints, label_pins, legend_submissions, metadata_submissions) moved to `status` in the same migration — dropping the column first would have made those tables unreadable.
 
 Order: 1 → 2 → 3 → 4 → 5 → 6 → 7; 8/9 when they hurt.

@@ -66,7 +66,6 @@ const { data: map, error: mapErr } = await db
       allmaps_id: TEST_MAP_ALLMAPS_ID,
       name: 'Write-smoke fixture map',
       status: 'public',
-      is_public: true,
       georef_done: true,
       year: 1900,
       iiif_image: 'https://example.invalid/iiif/write-smoke',

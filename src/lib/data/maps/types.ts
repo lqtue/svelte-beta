@@ -17,7 +17,6 @@ export interface MapRecord {
   rights?: string;
   dc_description?: string; // dc:description (migrated from `summary`)
   thumbnail?: string;
-  is_featured: boolean;
 
   // Source
   source_type?: MapSourceType;

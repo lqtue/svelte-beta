@@ -3,7 +3,7 @@
  *
  * `POST /api/admin/maps` and `PATCH /api/admin/maps/[id]` each maintained their
  * own copy and had already drifted — PATCH accepted `label_config`, `priority`,
- * `is_public`, `legend_done` and `help_needed` while POST silently dropped
+ * `legend_done` and `help_needed` while POST silently dropped
  * them. This is the union of the two, with the coercion each field had.
  *
  * Server-set columns (`id`, `created_at`, `updated_at`, `search_vector`) are
@@ -36,7 +36,6 @@ export const MAP_WRITABLE_FIELDS: Record<string, Coerce> = {
   dc_publisher: orNull,
   dc_subject: orNull,
   dc_coverage: orNull,
-  is_featured: asBool,
   thumbnail: orNull,
   // source / IIIF
   source_type: asIs,
@@ -59,7 +58,6 @@ export const MAP_WRITABLE_FIELDS: Record<string, Coerce> = {
   label_config: asIs,
   // contribution flags
   priority: asCount,
-  is_public: asBool,
   georef_done: asBool,
   legend_done: asBool,
   help_needed: asBool,
