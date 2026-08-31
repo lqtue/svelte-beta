@@ -34,7 +34,7 @@ npm run deploy       # Build + deploy to Cloudflare Pages via wrangler
 npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 ```
 
-`wrangler.toml` at the repo root configures the Pages project (`pagesBuildOutputDir = .svelte-kit/cloudflare`, `nodejs_compat`). The R2 tile worker has its own `worker/wrangler.toml`.
+`wrangler.toml` at the repo root configures the Pages project (`pages_build_output_dir = .svelte-kit/cloudflare`, `nodejs_compat`). The R2 tile worker has its own `worker/wrangler.toml`.
 
 **Blank page right after a deploy is expected, and self-heals.** Cloudflare Pages serves the new HTML + `entry/app.<hash>.js` before every `_app/immutable/` chunk is reachable at the edge; individual chunks 404 for a minute or two, and which one is missing moves between requests. Because every route sets `ssr = false`, one unreachable chunk means a fully blank document whose only symptom is `Failed to fetch dynamically imported module` (WebKit says `Importing a module script failed`). Wait for propagation and hard-reload before debugging — verify with `curl -o /dev/null -w "%{http_code}"` against the chunk the console names, and retry a few times to see it flip to 200.
 
