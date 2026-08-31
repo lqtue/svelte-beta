@@ -29,6 +29,7 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY!;
 const TEST_EMAIL = 'write-smoke@vma.test';
 const TEST_PASSWORD = 'write-smoke-password';
 const TEST_MAP_ALLMAPS_ID = 'f0f0f0f0f0f0f0f0';
+const TEST_WORKER_TOKEN = 'write-smoke-worker-token';
 
 if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(SUPABASE_URL ?? '')) {
   throw new Error(
@@ -230,4 +231,102 @@ test('running OCR enqueues one job, and only one at a time', async () => {
   // The worker builds its command line from this payload, so the defaults matter.
   expect((jobs![0].payload as { tile_size: number; auto: boolean }).tile_size).toBe(2400);
   expect((jobs![0].payload as { tile_size: number; auto: boolean }).auto).toBe(true);
+
+  // The one-live-job index is global to the map, so leaving this queued would
+  // block the next test from enqueuing its own.
+  await admin.from('pipeline_jobs').delete().eq('map_id', mapId);
+});
+
+test('a worker key claims a job and reports back through /api/pipeline', async () => {
+  const runId = `worker-smoke-${Date.now()}`;
+  created.runIds.push(runId);
+
+  const { data: job, error: jobErr } = await admin
+    .from('pipeline_jobs')
+    .insert({ kind: 'ocr', map_id: mapId, payload: { run_id: runId } })
+    .select('id')
+    .single();
+  expect(jobErr, jobErr?.message).toBeNull();
+  created.jobIds.push(job!.id);
+
+  const asWorker = await playwrightRequest.newContext({
+    baseURL: 'http://localhost:5199',
+    extraHTTPHeaders: { Authorization: `Bearer ${TEST_WORKER_TOKEN}` },
+  });
+
+  const claim = await asWorker.post('/api/pipeline/claim', {
+    data: { kinds: ['ocr'], worker: 'write-smoke-box' },
+  });
+  expect(claim.ok(), await claim.text()).toBe(true);
+  const claimed = (await claim.json()).job;
+  expect(claimed.id).toBe(job!.id);
+  expect(claimed.status).toBe('claimed');
+  expect(claimed.payload.run_id).toBe(runId);
+
+  // One round trip carries the rows, the stage and the job's own outcome.
+  const results = await asWorker.post('/api/pipeline/results', {
+    data: {
+      job_id: job!.id,
+      status: 'done',
+      result: { returncode: 0 },
+      extractions: [
+        {
+          map_id: mapId,
+          run_id: runId,
+          tile_x: 0,
+          tile_y: 0,
+          tile_w: 512,
+          tile_h: 512,
+          global_x: 10,
+          global_y: 20,
+          global_w: 30,
+          global_h: 12,
+          category: 'street_name',
+          text: 'Boulevard Bonard',
+          confidence: 0.9,
+          model: 'write-smoke',
+          prompt: 'write-smoke',
+        },
+      ],
+      pipeline_status: { map_id: mapId, stage: 'ocr_done', ocr_run_id: runId },
+    },
+  });
+  expect(results.ok(), await results.text()).toBe(true);
+
+  const { data: finished } = await admin
+    .from('pipeline_jobs')
+    .select('status, result, finished_at')
+    .eq('id', job!.id)
+    .single();
+  expect(finished!.status).toBe('done');
+  expect(finished!.finished_at).toBeTruthy();
+
+  const { data: rows } = await admin.from('ocr_extractions').select('text').eq('run_id', runId);
+  expect(rows).toHaveLength(1);
+
+  const { data: stage } = await admin
+    .from('map_pipeline_status')
+    .select('stage, ocr_run_id')
+    .eq('map_id', mapId)
+    .single();
+  expect(stage!.stage).toBe('ocr_done');
+
+  await asWorker.dispose();
+  await admin.from('map_pipeline_status').delete().eq('map_id', mapId);
+});
+
+test('the pipeline endpoints refuse a missing or unknown worker token', async () => {
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  expect((await anon.post('/api/pipeline/claim', { data: { kinds: ['ocr'] } })).status()).toBe(401);
+
+  const wrong = await playwrightRequest.newContext({
+    baseURL: 'http://localhost:5199',
+    extraHTTPHeaders: { Authorization: 'Bearer not-a-real-token' },
+  });
+  expect((await wrong.post('/api/pipeline/results', { data: { job_id: mapId } })).status()).toBe(
+    401
+  );
+
+  await anon.dispose();
+  await wrong.dispose();
 });

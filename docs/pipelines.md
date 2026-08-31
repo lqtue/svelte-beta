@@ -15,7 +15,18 @@ python work/worker/vma_worker.py --once --python /usr/bin/true     # exercise th
 
 Claiming goes through the `claim_job(kinds, worker)` RPC, which is a single `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)`: several machines can poll the same kinds with no coordination. `finish_job(id, status, result, error)` closes a job out, and a failure with `attempts < max_attempts` goes back to `queued` instead of `failed`, so a worker dying mid-run costs one retry rather than the job.
 
-Credentials come from the repo-root `.env` (`PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_KEY`) — step 2 in `architecture-target.md` replaces them with a per-machine `worker_keys` token posting to `/api/pipeline/results`. Only `ocr` has a runner; a claimed `seg` job is failed straight back with a message, since segmentation runs on Colab.
+The worker holds **no database credentials**: it authenticates with a `worker_keys` token against `/api/pipeline/claim` and `/api/pipeline/results`, so a compromised pipeline machine can write extractions and close its own jobs, nothing else.
+
+```bash
+node --env-file=.env scripts/mint-worker-key.mjs macbook-m1     # prints the token once
+# on the worker machine's .env:
+VMA_API_URL=https://maparchive.vn
+VMA_WORKER_KEY=<token>
+```
+
+The worker exports both variables into each job's subprocess, so `ocr.py … --db` posts its rows through the same endpoint — `supabase_client.py` picks its transport from them. Run by hand without those variables, it falls back to PostgREST with the service key, which is what `clean`, `join_labels` and `eval` still use.
+
+Only `ocr` has a runner; a claimed `seg` job is failed straight back with a message, since segmentation runs on Colab.
 
 Two companion artifacts live beside the OCR code: `work/ocr/ocr-system-map.excalidraw` (drag onto excalidraw.com) and `work/ocr/pipeline-structure.html` (open in a browser).
 

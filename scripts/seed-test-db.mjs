@@ -9,10 +9,13 @@
  * `.env` can't point it at production.
  */
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'node:crypto';
 
 export const TEST_EMAIL = 'write-smoke@vma.test';
 export const TEST_PASSWORD = 'write-smoke-password';
 export const TEST_MAP_ALLMAPS_ID = 'f0f0f0f0f0f0f0f0';
+// Fixed so tests/write.spec.ts can present it; only ever exists in a local stack.
+export const TEST_WORKER_TOKEN = 'write-smoke-worker-token';
 
 const url = process.env.PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -73,5 +76,17 @@ const { data: map, error: mapErr } = await db
   .select('id')
   .single();
 if (mapErr) throw mapErr;
+
+// 3. A worker key, so the pipeline endpoints have something to authenticate.
+const { error: keyErr } = await db.from('worker_keys').upsert(
+  {
+    name: 'write-smoke-worker',
+    kinds: [],
+    token_hash: createHash('sha256').update(TEST_WORKER_TOKEN).digest('hex'),
+    revoked_at: null,
+  },
+  { onConflict: 'token_hash' }
+);
+if (keyErr) throw keyErr;
 
 console.log(JSON.stringify({ url, userId, mapId: map.id, email: TEST_EMAIL }, null, 2));

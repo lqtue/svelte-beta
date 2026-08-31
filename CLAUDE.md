@@ -82,6 +82,7 @@ src/lib/
 PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY   # anon key = the sb_publishable_… key
 SUPABASE_SERVICE_KEY            # admin API routes only; the sb_secret_… key
 IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
+VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 ```
 
 (`.env.example` also lists `PUBLIC_PROTOMAPS_KEY`; nothing in `src/` reads it since MapLibre was removed.)
@@ -230,6 +231,13 @@ Pipeline:
 - `/api/admin/maps/[id]/ocr-review/revert-recent/` — GET count, POST undo the current reviewer's recent validations (thin wrapper over `$lib/server/ocrReview.ts`).
 - `/api/admin/maps/[id]/pipeline/` — GET stage + timestamps; PATCH advance. Stages: `idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported`.
 - `/api/admin/footprints/` — GET/PATCH SAM2 review (service key required).
+
+Worker-authenticated (`Authorization: Bearer <worker_keys token>`, **not** a user session — see `$lib/server/workerAuth.ts`):
+
+- `/api/pipeline/claim/` — POST `{ kinds, worker }` → the claimed job or `{ job: null }`. A key scoped to certain kinds cannot claim outside them.
+- `/api/pipeline/results/` — POST any of `extractions` (≤500 rows, upserted), `pipeline_status` (whitelisted columns only), and `job_id` + `status` (→ `finish_job`). One round trip reports rows, stage and outcome together.
+
+Mint a token with `node --env-file=.env scripts/mint-worker-key.mjs <name> [kinds]`; it prints once and only the sha256 is stored. Revoke by setting `worker_keys.revoked_at`.
 - `/api/export/footprints/` — data export (`?format=coco&map_id=`).
 
 Public / other:
@@ -287,7 +295,7 @@ Full command reference and design rationale in `docs/pipelines.md`:
   python work/worker/vma_worker.py --once                             # drain one job
   ```
 
-  It reads `PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_KEY` from the repo-root `.env`; step 2 of `architecture-target.md` swaps that for a worker key against `/api/pipeline/results`. Only `ocr` has a runner today — a claimed `seg` job is failed back with "this worker does not run seg jobs".
+  It needs `VMA_API_URL` + `VMA_WORKER_KEY` and **no database credentials** — claim and results both go through `/api/pipeline/*`. The worker exports both into the job's subprocess, so `ocr.py --db` writes the same way (`supabase_client.py` switches transport on those two variables; the analysis-only subcommands still use the service key when run by hand). Only `ocr` has a runner today — a claimed `seg` job is failed back with "this worker does not run seg jobs".
 - **OCR** (`work/ocr/`) — Gemini Flash → `ocr_extractions`; `join_labels.py` writes the `footprint_id` join (mig 050). Venv: `work/ocr/.venv`.
 - **MapSAM2 inference** (`work/MapSAM2/`) — IIIF tiles → polygons → `footprint_submissions`. Runs on Colab against an upstream clone; there is no local venv for it.
 

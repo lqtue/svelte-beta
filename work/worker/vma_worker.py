@@ -7,12 +7,18 @@ Any machine with the OCR venv can run this; the queue decides who gets what.
     python work/worker/vma_worker.py --kinds ocr --worker macbook-m1
     python work/worker/vma_worker.py --once          # drain one job and exit
 
-Claiming goes through the claim_job() RPC (FOR UPDATE SKIP LOCKED), so running
-several workers against the same kinds needs no coordination between them.
+Claiming goes through /api/pipeline/claim, which runs the claim_job() RPC
+(FOR UPDATE SKIP LOCKED) server-side, so running several workers against the
+same kinds needs no coordination between them.
 
-Credentials come from the repo-root .env: PUBLIC_SUPABASE_URL and
-SUPABASE_SERVICE_KEY. Step 2 of docs/architecture-target.md replaces those with
-a per-machine worker key and an /api/pipeline/results endpoint.
+The worker holds no database credentials. It needs two variables, from the
+environment or the repo-root .env:
+
+    VMA_API_URL      https://maparchive.vn  (or http://localhost:5173 in dev)
+    VMA_WORKER_KEY   minted by scripts/mint-worker-key.mjs
+
+They are passed down to the pipeline scripts too, so ocr.py writes its rows
+through the same endpoint.
 """
 
 from __future__ import annotations
@@ -38,29 +44,39 @@ def _config() -> tuple[str, str]:
         load_dotenv(REPO_ROOT / ".env")
     except ImportError:
         pass
-    url = os.environ.get("PUBLIC_SUPABASE_URL", "").rstrip("/")
-    key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+    url = os.environ.get("VMA_API_URL", "").rstrip("/")
+    key = os.environ.get("VMA_WORKER_KEY", "")
     if not url or not key:
-        sys.exit("Set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY in .env")
+        sys.exit(
+            "Set VMA_API_URL and VMA_WORKER_KEY (mint one with "
+            "`node --env-file=.env scripts/mint-worker-key.mjs <name>`)"
+        )
     return url, key
 
 
-def _rpc(name: str, args: dict) -> dict | None:
+def _post(path: str, body: dict) -> dict:
     url, key = _config()
     resp = requests.post(
-        f"{url}/rest/v1/rpc/{name}",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-        },
-        data=json.dumps(args),
+        f"{url}{path}",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        data=json.dumps(body),
         timeout=30,
     )
+    if resp.status_code in (401, 403):
+        sys.exit(f"worker key rejected: {resp.status_code} {resp.text[:200]}")
     resp.raise_for_status()
-    body = resp.json()
-    # claim_job returns a null-filled row rather than NULL when the queue is empty.
-    return body if isinstance(body, dict) and body.get("id") else None
+    return resp.json()
+
+
+def claim(kinds: list[str], worker: str) -> dict | None:
+    return _post("/api/pipeline/claim", {"kinds": kinds, "worker": worker}).get("job")
+
+
+def finish(job_id: str, status: str, result: dict | None = None, err: str | None = None) -> None:
+    _post(
+        "/api/pipeline/results",
+        {"job_id": job_id, "status": status, "result": result or {}, "error": err},
+    )
 
 
 def ocr_argv(job: dict, python_bin: str) -> list[str]:
@@ -101,45 +117,36 @@ def run_job(job: dict, python_bin: str) -> None:
     kind = job["kind"]
     build = RUNNERS.get(kind)
     if build is None:
-        _rpc("finish_job", {
-            "p_id": job["id"],
-            "p_status": "failed",
-            "p_error": f"this worker does not run {kind} jobs",
-        })
+        finish(job["id"], "failed", err=f"this worker does not run {kind} jobs")
         print(f"[{kind}] {job['id']} rejected — not runnable here")
         return
 
     argv = build(job, python_bin)
     print(f"[{kind}] {job['id']} running: {' '.join(argv)}")
-    _rpc("finish_job", {"p_id": job["id"], "p_status": "running"})
+    finish(job["id"], "running")
+
+    # The pipeline scripts write through the same endpoint with the same key.
+    api_url, api_key = _config()
+    env = {**os.environ, "VMA_API_URL": api_url, "VMA_WORKER_KEY": api_key}
 
     try:
-        proc = subprocess.run(argv, cwd=REPO_ROOT, capture_output=True, text=True)
+        proc = subprocess.run(argv, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
     except OSError as e:
         # A missing interpreter or script would otherwise leave the job stuck in
         # 'running' with nobody to claim it again.
-        _rpc("finish_job", {"p_id": job["id"], "p_status": "failed", "p_error": str(e)})
+        finish(job["id"], "failed", err=str(e))
         print(f"[{kind}] {job['id']} FAILED to start: {e}")
         return
 
     if proc.returncode == 0:
         tail = proc.stdout.strip().splitlines()[-1:] or [""]
-        _rpc("finish_job", {
-            "p_id": job["id"],
-            "p_status": "done",
-            "p_result": {"returncode": 0, "last_line": tail[0][:500]},
-        })
+        finish(job["id"], "done", {"returncode": 0, "last_line": tail[0][:500]})
         print(f"[{kind}] {job['id']} done")
     else:
         # Keep the tail: the whole log would not fit a jsonb column comfortably,
         # and the last few lines are what actually says why it died.
         err = (proc.stderr or proc.stdout or "").strip()[-2000:]
-        _rpc("finish_job", {
-            "p_id": job["id"],
-            "p_status": "failed",
-            "p_result": {"returncode": proc.returncode},
-            "p_error": err,
-        })
+        finish(job["id"], "failed", {"returncode": proc.returncode}, err)
         print(f"[{kind}] {job['id']} FAILED rc={proc.returncode}\n{err[-500:]}")
 
 
@@ -157,7 +164,7 @@ def main() -> None:
 
     while True:
         try:
-            job = _rpc("claim_job", {"p_kinds": kinds, "p_worker": args.worker})
+            job = claim(kinds, args.worker)
         except requests.RequestException as e:
             print(f"claim failed: {e}")
             job = None

@@ -46,7 +46,7 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 
 ## Tracker (each step ships alone)
 - [x] 1 mig 053: `pipeline_jobs` + `worker_keys` + `claim_job`/`finish_job`; `work/worker/vma_worker.py --kinds ocr [--once]`; `/api/…/ocr` enqueues; `cli_only` gone. Claim/run/finish/retry exercised against the local stack.
-- [ ] 2 Workers post via `/api/pipeline/results` (Bearer worker key); python `.env` drops DB creds.
+- [x] 2 `/api/pipeline/claim` + `/api/pipeline/results`, sha256 `worker_keys` tokens, `scripts/mint-worker-key.mjs`. Worker + `ocr.py --db` write only through the API; `VMA_API_URL`/`VMA_WORKER_KEY` replace the service key on pipeline machines.
 - [ ] 3 RPCs `set_extraction_status`, `set_footprint_status`, `claim_job`, `finish_job`; browser + API call them; drop client tile-coord math; `map_pipeline_status` → view.
 - [ ] 4 `status → public` trigger enqueues `tile_to_r2` + `mirror_annotation`; backfill; `annotation_url NOT NULL` for public.
 - [ ] 5 `sync_allmaps` job ("fetch latest") with path-versioned Storage writes; admin button in MapEditHostingTab.

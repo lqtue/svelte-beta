@@ -15,7 +15,7 @@ Layout now `core → data → map → features → routes`, `ui` primitives, `se
 
 ## Track B — Architecture (`docs/architecture-target.md`, decisions locked)
 - [x] B1 mig 053 (`pipeline_jobs`, `worker_keys`, `claim_job`/`finish_job` RPCs) · `work/worker/vma_worker.py` · `/api/…/ocr` enqueues (202/409) · `cli_only` deleted. Verified end to end on the local stack.
-- [ ] B2 Workers POST `/api/pipeline/results` (Bearer worker key); python `.env` drops DB creds
+- [x] B2 `/api/pipeline/{claim,results}` + `worker_keys` bearer auth (`$lib/server/workerAuth.ts`), `scripts/mint-worker-key.mjs`; worker and `ocr.py --db` hold no DB creds
 - [ ] B3 RPCs `set_extraction_status` / `set_footprint_status` / `claim_job` / `finish_job`; all writers use them; `map_pipeline_status` → view
 - [ ] B4 `status → public` trigger enqueues `tile_to_r2` + `mirror_annotation`; backfill; `annotation_url NOT NULL` for public
 - [ ] B5 `sync_allmaps` job ("fetch latest"), path-versioned Storage; button in MapEditHostingTab
