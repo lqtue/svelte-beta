@@ -118,8 +118,12 @@ Other persisted keys (there is no `vma-viewer-state-v1`): `vma-layers-v1`, `vma-
 
 ### Route groups
 
-- `(editorial)` — public pages with nav/footer: `/`, `/catalog`, `/about`, `/blog`, `/blog/[slug]`, `/profile`, `/login`, `/contribute`, `/contribute/georef`, `/admin/bulk`, `/admin/scout`. There is no `/signup`.
+- `(editorial)` — public pages with nav/footer: `/`, `/catalog`, `/about`, `/blog`, `/blog/[slug]`, `/map/[id]`, `/profile`, `/login`, `/contribute`, `/contribute/georef`, `/admin/bulk`, `/admin/scout`. There is no `/signup`.
+
+`/map/[id]` is the **share page**: server-rendered from `+page.server.ts` so a crawler sees the title, description and OG image without running JavaScript. Only `public`/`featured` maps resolve — a draft id is a 404. Everything interactive is one click away at `/explore?map=<id>`. The OG image is the map's `thumbnail` column, falling back to a derived `…/full/800,/0/default.jpg`; there is no rendered preview, because the R2 worker is level0 behind a proxy and a IIIF size we know exists beats one we hope for.
 - `(app)` — full-screen tools with their own layout: `/explore`, `/studio`, `/create`, `/trip/[id]`, `/image`, `/contribute/digitalize`, `/contribute/trace`, `/contribute/review`.
+
+Only the home page and the `(app)` tools set `ssr = false`; the rest of `(editorial)` server-renders already.
 
 Every route lives in one of those two groups. Legacy paths are 301-redirected (query string preserved) by the `LEGACY_REDIRECTS` table in `src/hooks.server.ts` — `/view` → `/explore`, `/annotate` → `/studio`, `/contribute/label` → `/contribute/digitalize`. There are **no redirect stub pages**. There is no `/admin`, `/hunt` or `/georef` route.
 

@@ -460,3 +460,31 @@ test('the server-side executor only takes the kinds it can run', async () => {
   await anon.dispose();
   await admin.from('pipeline_jobs').delete().eq('id', job!.id);
 });
+
+test('the share page is server-rendered and hides drafts', async () => {
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+
+  // No JavaScript runs here: this is what a link-preview crawler sees.
+  const res = await anon.get(`/map/${mapId}`);
+  expect(res.status()).toBe(200);
+  const html = await res.text();
+  expect(html).toContain('og:title');
+  expect(html).toContain('Write-smoke fixture map');
+  expect(html).toContain(`/explore?map=${mapId}`);
+
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({
+      allmaps_id: `shr${Date.now()}`.slice(0, 16),
+      name: 'Share-smoke draft',
+      status: 'draft',
+    })
+    .select('id')
+    .single();
+
+  // A draft is not published, so its link must not resolve for anyone.
+  expect((await anon.get(`/map/${draft!.id}`)).status()).toBe(404);
+
+  await admin.from('maps').delete().eq('id', draft!.id);
+  await anon.dispose();
+});
