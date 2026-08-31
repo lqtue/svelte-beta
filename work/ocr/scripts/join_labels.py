@@ -117,15 +117,44 @@ def assign_footprints(
     return out
 
 
-def _run(map_id: str) -> None:
+def latest_run(rows: list[dict]) -> str | None:
+    """The run_id of the most recently created row that has one.
+
+    Both tables accumulate runs, so joining everything a map has ever produced
+    would match this month's labels against last month's polygons. Rows without
+    a run_id are hand-made and always keep their place.
+    """
+    dated = [r for r in rows if r.get("run_id") and r.get("created_at")]
+    if not dated:
+        return None
+    return max(dated, key=lambda r: r["created_at"])["run_id"]
+
+
+def pin_to_run(rows: list[dict], run_id: str | None, keep_unrun: bool = False) -> list[dict]:
+    """Keep the rows from `run_id`, plus hand-made rows when asked."""
+    if not run_id:
+        return rows
+    return [r for r in rows if r.get("run_id") == run_id or (keep_unrun and not r.get("run_id"))]
+
+
+def _run(map_id: str, ocr_run: str | None = None, seg_run: str | None = None) -> None:
     try:
         from .supabase_client import fetch_ocr_extractions, fetch_footprints, link_extractions_to_footprints
     except (ImportError, ValueError):
         from supabase_client import fetch_ocr_extractions, fetch_footprints, link_extractions_to_footprints
 
-    extractions = fetch_ocr_extractions(map_id)
+    extractions = fetch_ocr_extractions(map_id, ocr_run)
     footprints = fetch_footprints(map_id)
-    print(f"[join] {len(extractions)} labels × {len(footprints)} footprints")
+
+    # Pin both sides to one run each unless the caller named them. Hand-traced
+    # footprints have no run_id and stay in the pool either way.
+    ocr_run = ocr_run or latest_run(extractions)
+    seg_run = seg_run or latest_run(footprints)
+    extractions = pin_to_run(extractions, ocr_run)
+    footprints = pin_to_run(footprints, seg_run, keep_unrun=True)
+
+    print(f"[join] {len(extractions)} labels (run {ocr_run or 'all'}) × "
+          f"{len(footprints)} footprints (run {seg_run or 'all'})")
 
     assignments = assign_footprints(extractions, footprints)
     linked = link_extractions_to_footprints(assignments)
@@ -169,14 +198,27 @@ def _self_check() -> None:
     got2 = assign_footprints([rejected, fixed], footprints)
     assert "r1" not in got2, "rejected label must not link"
     assert got2.get("f1") == "block", f"category_validated 'place' → block, got {got2.get('f1')}"
+    # Run pinning: the newest run wins, and hand-traced rows survive it.
+    rows = [
+        {"id": "old", "run_id": "r1", "created_at": "2026-01-01T00:00:00Z"},
+        {"id": "new", "run_id": "r2", "created_at": "2026-02-01T00:00:00Z"},
+        {"id": "hand", "run_id": None, "created_at": "2025-01-01T00:00:00Z"},
+    ]
+    assert latest_run(rows) == "r2", latest_run(rows)
+    assert [r["id"] for r in pin_to_run(rows, "r2")] == ["new"]
+    assert [r["id"] for r in pin_to_run(rows, "r2", keep_unrun=True)] == ["new", "hand"]
+    assert latest_run([{"id": "hand", "run_id": None}]) is None
+    assert len(pin_to_run(rows, None)) == 3, "no run to pin to keeps everything"
+
     print("[ok] join_labels self-check passed")
 
 
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] == "--self-check":
         _self_check()
-    elif len(sys.argv) == 2:
-        _run(sys.argv[1])
+    elif len(sys.argv) in (2, 3, 4):
+        # join_labels.py <map-id> [ocr-run-id] [seg-run-id]
+        _run(*sys.argv[1:])
     else:
         print(__doc__)
         sys.exit(1)

@@ -454,37 +454,21 @@ def save_preview(
 # ── Supabase writeback ────────────────────────────────────────────────────────
 
 def update_pipeline_status(map_id: str, stage: str, **kwargs) -> None:
-    """Upsert map_pipeline_status for the given map. Silently skips on failure."""
-    import json as _json
-    import requests as _req
-    url  = os.environ.get("PUBLIC_SUPABASE_URL", "").rstrip("/")
-    key  = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("PUBLIC_SUPABASE_ANON_KEY", "")
-    if not url or not key:
-        return
-    payload = {"map_id": map_id, "stage": stage, **kwargs}
-    try:
-        resp = _req.post(
-            f"{url}/rest/v1/map_pipeline_status?on_conflict=map_id",
-            headers={
-                "apikey": key,
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-                "Prefer": "resolution=merge-duplicates,return=minimal",
-            },
-            data=_json.dumps(payload),
-            timeout=10,
-        )
-        if not resp.ok:
-            print(f"[pipeline] WARNING: {resp.status_code}: {resp.text[:200]}")
-    except Exception as e:
-        print(f"[pipeline] status update skipped: {e}")
+    """No-op since migration 056.
+
+    map_pipeline_status is a view: the seg stages are derived from the
+    pipeline_jobs row the worker opens and closes around this script. Kept as a
+    stub so a hand-run inference does not crash on the call.
+    """
+    return None
 
 
 def write_to_supabase(
     polys: list[PolygonResult],
     map_id: str,
     feature_type: str = "building",
-    source: str = "mapsam2",
+    source: str = "sam-auto",
+    run_id: str | None = None,
 ) -> int:
     """Insert polygons into footprint_submissions. Returns inserted count."""
     import os
@@ -502,16 +486,20 @@ def write_to_supabase(
 
     rows = []
     for p in polys:
+        # Column names are footprint_submissions', not PolygonResult's: the
+        # outer ring is `pixel_polygon` (full-image source px, same grid as
+        # ocr_extractions.global_*), and SAM2's IoU is the row's confidence.
+        # Holes are dropped — the column holds one ring.
         row: dict[str, Any] = {
-            "map_id":       map_id,
-            "coords":       p.coords,
-            "feature_type": feature_type,
-            "status":       "needs_review",
-            "source":       source,
-            "iou_score":    round(p.iou, 4),
+            "map_id":        map_id,
+            "pixel_polygon": p.coords,
+            "feature_type":  feature_type,
+            "status":        "needs_review",
+            "source":        source,
+            "confidence":    round(p.iou, 4),
         }
-        if p.seed:
-            row["ocr_seed"] = p.seed
+        if run_id:
+            row["run_id"] = run_id
         rows.append(row)
 
     resp = requests.post(endpoint, headers=hdrs, json=rows)
@@ -712,8 +700,9 @@ def main() -> None:
         update_pipeline_status(args.map_id, "seg_queued",
                                seg_started_at=datetime.now(timezone.utc).isoformat())
 
-        source = "mapsam2+ocr" if args.ocr_run_id else "mapsam2"
-        n = write_to_supabase(all_polys, args.map_id, args.feature_type, source)
+        # `source` is constrained to volunteer | sam-auto | sam-corrected |
+        # import (mig 055); the prompted/automatic distinction lives in the run.
+        n = write_to_supabase(all_polys, args.map_id, args.feature_type, "sam-auto", seg_run_id)
         print(f"Supabase: inserted {n} rows into footprint_submissions")
 
         update_pipeline_status(args.map_id, "seg_done",

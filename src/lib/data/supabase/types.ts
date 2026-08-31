@@ -98,6 +98,7 @@ export type Database = {
           map_id: string | null
           name: string | null
           pixel_polygon: Json
+          run_id: string | null
           source: string
           status: string
           temporal_status: string
@@ -116,6 +117,7 @@ export type Database = {
           map_id?: string | null
           name?: string | null
           pixel_polygon: Json
+          run_id?: string | null
           source?: string
           status?: string
           temporal_status?: string
@@ -134,6 +136,7 @@ export type Database = {
           map_id?: string | null
           name?: string | null
           pixel_polygon?: Json
+          run_id?: string | null
           source?: string
           status?: string
           temporal_status?: string
@@ -1241,6 +1244,7 @@ export type Database = {
           map_id: string | null
           name: string | null
           pixel_polygon: Json
+          run_id: string | null
           source: string
           status: string
           temporal_status: string

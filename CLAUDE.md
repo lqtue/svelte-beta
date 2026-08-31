@@ -50,7 +50,7 @@ Local ports are **54421** for the API and **54420** for the shadow DB, not the C
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **056**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **058**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -90,7 +90,7 @@ VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 056. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 058. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block — the `vma-theme` boot script in `src/app.html` is vestigial (nothing writes the key, no CSS consumes it). Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
@@ -251,7 +251,7 @@ Public / other:
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **056**). Key tables:
+Schema lives in `supabase/migrations/` (head **058**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
@@ -261,7 +261,7 @@ Schema lives in `supabase/migrations/` (head **056**). Key tables:
 | `map_iiif_sources` | Multiple IIIF sources per map | `map_id → maps.id`, `source_type`, `is_primary`, `sort_order`. Partial unique index = one primary per map; trigger syncs primary to `maps.iiif_image` |
 | `map_opens` | Per-map open tally (mig 049) | Fire-and-forget insert from /explore |
 | `label_pins` | Point annotations | `map_id → maps.id`, pixel coords. `label_tasks` was dropped in mig 038 |
-| `footprint_submissions` | Polygon traces + SAM2 output | `map_id → maps.id`; status ∈ `draft/submitted/needs_review/approved/rejected`, source ∈ `volunteer/sam-auto/sam-corrected/import` (both widened in mig 055 — 038's lists rejected every SAM2 write); `pixel_polygon` |
+| `footprint_submissions` | Polygon traces + SAM2 output | `map_id → maps.id`; status ∈ `draft/submitted/needs_review/approved/rejected`, source ∈ `volunteer/sam-auto/sam-corrected/import` (both widened in mig 055 — 038's lists rejected every SAM2 write); `pixel_polygon`; `run_id` (mig 057) pins a segmentation run so the OCR join cannot mix runs |
 | `annotation_sets` | User GeoJSON | `map_id → maps.id` nullable, `user_id → auth.users` |
 | `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join |
 | `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (8 values) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs |
@@ -279,6 +279,8 @@ Schema lives in `supabase/migrations/` (head **056**). Key tables:
 **Two visibility models coexist on `maps`** — the `status` enum and the `is_public` / `is_featured` booleans — and different code paths gate on different ones. See `docs/db-guidelines.md` before adding a third.
 
 `source_type` (mig 027, extended by mig 041): `ia | bnf | efeo | gallica | rumsey | self | other | r2`.
+
+**Publishing enqueues hosting work** (mig 058): moving a map to `public`/`featured` fires `enqueue_publish_jobs()`, which queues `mirror_annotation` (when `annotation_url` is null) and `tile_to_r2` (when `source_type` isn't already `r2`). `on conflict do nothing` rides the one-live-job index, so re-publishing never duplicates. **No worker runs those two kinds yet** — the rows queue up, and `annotation_url NOT NULL` for public maps waits until the queue can drain.
 
 **Full-text search** (mig 046): both `maps` and `scout_candidates` have a `search_vector tsvector GENERATED STORED` column + GIN index. `simple` config (not `english`) is intentional — the corpus is multilingual French/Vietnamese/English. Query via `.textSearch('search_vector', q, { config: 'simple', type: 'plain' })`.
 
@@ -300,7 +302,7 @@ Full command reference and design rationale in `docs/pipelines.md`:
 
   It needs `VMA_API_URL` + `VMA_WORKER_KEY` and **no database credentials** — claim and results both go through `/api/pipeline/*`. The worker exports both into the job's subprocess, so `ocr.py --db` writes the same way (`supabase_client.py` switches transport on those two variables; the analysis-only subcommands still use the service key when run by hand). Only `ocr` has a runner today — a claimed `seg` job is failed back with "this worker does not run seg jobs".
 - **OCR** (`work/ocr/`) — Gemini Flash → `ocr_extractions`; `join_labels.py` writes the `footprint_id` join (mig 050). Venv: `work/ocr/.venv`.
-- **MapSAM2 inference** (`work/MapSAM2/`) — IIIF tiles → polygons → `footprint_submissions`. Runs on Colab against an upstream clone; there is no local venv for it.
+- **MapSAM2 inference** (`work/MapSAM2/`) — IIIF tiles → polygons → `footprint_submissions`. Runs on Colab against an upstream clone; there is no local venv for it. Its polygons and `ocr_extractions.global_*` share **one full-image pixel grid** (both scale tile-render → source px and offset by the tile origin, off the same `info.json`), which is what makes the C1 join possible; tile sizes differ and do not matter.
 
 (The legacy `scripts/vectorize.py` colour-profile pipeline was removed — MapSAM2 supersedes it, and `work/vectorize/` is gone from the tree.)
 

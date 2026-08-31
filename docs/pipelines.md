@@ -28,6 +28,8 @@ The worker exports both variables into each job's subprocess, so `ocr.py … --d
 
 Only `ocr` has a runner; a claimed `seg` job is failed straight back with a message, since segmentation runs on Colab.
 
+`--write-supabase` writes `pixel_polygon` (the outer ring, full-image source px — the same grid `ocr_extractions.global_*` uses), `confidence` from SAM2's IoU, `source='sam-auto'` and the run id. Holes are dropped: the column holds one ring. Before migration 055/057 this path could not insert at all — it posted three columns that do not exist and a `source` the check constraint refused.
+
 The scripts no longer report a pipeline stage — `update_pipeline_status()` is a stub since migration 056, because `map_pipeline_status` is a view over the job queue. Opening and closing the job *is* the stage change.
 
 Two companion artifacts live beside the OCR code: `work/ocr/ocr-system-map.excalidraw` (drag onto excalidraw.com) and `work/ocr/pipeline-structure.html` (open in a browser).

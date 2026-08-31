@@ -171,7 +171,7 @@ def fetch_footprints(map_id: str) -> list[dict[str, Any]]:
     url, key = _load_config()
     endpoint = (
         f"{url}/rest/v1/footprint_submissions?map_id=eq.{map_id}"
-        "&select=id,pixel_polygon,feature_type,category,name"
+        "&select=id,pixel_polygon,feature_type,category,name,run_id,created_at,status"
     )
     resp = requests.get(
         endpoint,

@@ -222,19 +222,20 @@ test('running OCR enqueues one job, and only one at a time', async () => {
   const again = await staffRequest.post(`/api/admin/maps/${mapId}/ocr`, { data: {} });
   expect(again.status()).toBe(409);
 
+  // Filtered by kind: publishing a map queues hosting jobs too (mig 058).
   const { data: jobs } = await admin
     .from('pipeline_jobs')
     .select('id, kind, payload')
-    .eq('map_id', mapId);
+    .eq('map_id', mapId)
+    .eq('kind', 'ocr');
   expect(jobs).toHaveLength(1);
-  expect(jobs![0].kind).toBe('ocr');
   // The worker builds its command line from this payload, so the defaults matter.
   expect((jobs![0].payload as { tile_size: number; auto: boolean }).tile_size).toBe(2400);
   expect((jobs![0].payload as { tile_size: number; auto: boolean }).auto).toBe(true);
 
-  // The one-live-job index is global to the map, so leaving this queued would
+  // The one-live-job index is per (kind, map), so leaving this queued would
   // block the next test from enqueuing its own.
-  await admin.from('pipeline_jobs').delete().eq('map_id', mapId);
+  await admin.from('pipeline_jobs').delete().eq('map_id', mapId).eq('kind', 'ocr');
 });
 
 test('a worker key claims a job and reports back through /api/pipeline', async () => {
@@ -396,4 +397,34 @@ test('reviewing a footprint moves it out of the queue exactly once', async () =>
     data: { id: fp!.id, status: 'rejected' },
   });
   expect(again.status()).toBe(409);
+});
+
+test('publishing a map queues its hosting jobs, once', async () => {
+  const { data: draft, error: draftErr } = await admin
+    .from('maps')
+    .insert({
+      allmaps_id: `pub${Date.now()}`.slice(0, 16),
+      name: 'Publish-smoke fixture',
+      status: 'draft',
+      iiif_image: 'https://example.invalid/iiif/publish-smoke',
+    })
+    .select('id')
+    .single();
+  expect(draftErr, draftErr?.message).toBeNull();
+
+  const { data: quiet } = await admin.from('pipeline_jobs').select('id').eq('map_id', draft!.id);
+  expect(quiet).toHaveLength(0); // a draft queues nothing
+
+  await admin.from('maps').update({ status: 'public' }).eq('id', draft!.id);
+
+  const { data: queued } = await admin.from('pipeline_jobs').select('kind').eq('map_id', draft!.id);
+  expect(queued!.map((j) => j.kind).sort()).toEqual(['mirror_annotation', 'tile_to_r2']);
+
+  // Re-publishing must not pile up duplicates while the first pair is live.
+  await admin.from('maps').update({ status: 'draft' }).eq('id', draft!.id);
+  await admin.from('maps').update({ status: 'featured' }).eq('id', draft!.id);
+  const { data: still } = await admin.from('pipeline_jobs').select('id').eq('map_id', draft!.id);
+  expect(still).toHaveLength(2);
+
+  await admin.from('maps').delete().eq('id', draft!.id); // cascades to the jobs
 });

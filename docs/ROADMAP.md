@@ -17,7 +17,7 @@ Layout now `core → data → map → features → routes`, `ui` primitives, `se
 - [x] B1 mig 053 (`pipeline_jobs`, `worker_keys`, `claim_job`/`finish_job` RPCs) · `work/worker/vma_worker.py` · `/api/…/ocr` enqueues (202/409) · `cli_only` deleted. Verified end to end on the local stack.
 - [x] B2 `/api/pipeline/{claim,results}` + `worker_keys` bearer auth (`$lib/server/workerAuth.ts`), `scripts/mint-worker-key.mjs`; worker and `ocr.py --db` hold no DB creds
 - [x] B3 RPCs (mig 054 `set_extraction_status`, `revert_recent_validations`, `set_footprint_status`; `claim_job`/`finish_job` from 053) with every API writer calling them · mig 055 widens the footprint `status`/`source` checks that rejected every SAM2 write · mig 056 turns `map_pipeline_status` into a view over `pipeline_jobs` + the new `map_review_marks`, so the stage has one writer per fact.
-- [ ] B4 `status → public` trigger enqueues `tile_to_r2` + `mirror_annotation`; backfill; `annotation_url NOT NULL` for public
+- [~] B4 mig 058: trigger + backfill enqueue `mirror_annotation` and `tile_to_r2` on publish, dedup via the one-live-job index. **`annotation_url NOT NULL` still deferred** — no worker runs those kinds yet, so the constraint would reject every public map until the queue drains.
 - [ ] B5 `sync_allmaps` job ("fetch latest"), path-versioned Storage; button in MapEditHostingTab
 - [ ] B6 SSR on `(editorial)`; `/map/[id]` share page; `render_preview` job → OG image
 - [ ] B7 Generic moderation: `status/submitted_by/reviewed_by` on stories; `/contribute/review` tabs per kind; rate limits in `lib/server/auth.ts`
@@ -26,7 +26,7 @@ Layout now `core → data → map → features → routes`, `ui` primitives, `se
 
 ## Track C — Product: OCR ↔ SAM2 join (`feat/ocr-footprint-join`; design 2026-08-08)
 Flow: colour pre-pass → OCR → coarse seg (blocks, rivers) → fine seg (buildings) → level-aware join → px→geo → `/api/maps/[id]/legend-points` → `LegendPointsLayer` on /explore.
-- [ ] C0 **Blocker check**: `ocr_extractions.global_*` and `footprint_submissions` px must share one full-res pixel grid (read footprint writer + `ocr.py` global math). Also pin latest-run-of-each to avoid stale cross-joins.
+- [x] C0 **Blocker check — grids agree, but the writer never worked.** Both sides are full-image source px off the same `info.json` (`ocr.py:_to_global` and `shift_polygons(origin=tile, scale=src/render)`), so the join is geometrically sound. What blocked it instead: MapSAM2's `write_to_supabase` posted `coords` / `iou_score` / `ocr_seed` — none of which are columns — with `source='mapsam2'`, which the check constraint rejects. Fixed to `pixel_polygon` / `confidence` / `sam-auto`. Run pinning added: mig 057 gives footprints a `run_id`, and `join_labels` now pins the newest run on each side (hand-traced polygons always stay in the pool).
 - [ ] C1 Level-aware join (smallest containing polygon; category↔level: number→building/parcel, name→block/street; nearest-within-threshold fallback for linear features) + `footprint_id` FK (mig 050 exists — verify it's what's needed)
 - [ ] C2 Colour pre-pass (numpy/scipy): auto-fill Triage priority grid, water/veg mask, blank-tile skip
 - [ ] C3 Neighbour-window OCR batching
