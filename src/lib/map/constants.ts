@@ -60,20 +60,22 @@ function buildVnClaimsLayer(): VectorLayer<VectorSource> {
 
 function buildStreetsGroup(visible: boolean): LayerGroup {
   const tileLayer = new TileLayer({
+    // CARTO's keyless raster endpoint now stamps "API KEY REQUIRED" across every
+    // tile, so this is the OSM Foundation's own standard style: keyless, and the
+    // attribution we already showed. Their tile usage policy fits an archive of
+    // this size but not a heavy one — the upgrade path is a Protomaps key
+    // (`PUBLIC_PROTOMAPS_KEY` is already in .env.example) or a paid CARTO plan.
     source: new XYZ({
       urls: [
-        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
       ],
-      tilePixelRatio: 2,
       tileSize: 256,
       attributions: [
         '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
-        '&copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>',
       ],
-      maxZoom: 20,
+      maxZoom: 19,
       crossOrigin: 'anonymous',
     }),
     zIndex: 0,
