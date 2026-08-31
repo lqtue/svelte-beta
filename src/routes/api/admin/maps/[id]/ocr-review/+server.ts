@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { requireRole } from '$lib/server/auth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { assertUuid, dbError } from '$lib/server/http';
-import { bulkSetStatus, isOcrReviewStatus, validationStamp } from '$lib/server/ocrReview';
+import { bulkSetStatus, isOcrReviewStatus } from '$lib/server/ocrReview';
 import type { Database } from '$lib/data/supabase/types';
 
 /** GET /api/admin/maps/[id]/ocr-review
@@ -124,8 +124,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     throw error(400, 'status must be validated, rejected, or pending');
   }
 
+  // Corrections are plain column writes; the status transition is not, because
+  // it carries the validated_at/validated_by stamp — that lives in the RPC.
   const update: Database['public']['Tables']['ocr_extractions']['Update'] = {};
-  if (status !== undefined) update.status = status;
   if (text !== undefined) update.text_validated = text;
   if (category !== undefined) update.category_validated = category;
   if (notes !== undefined) update.notes = notes;
@@ -133,17 +134,29 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   if (global_y !== undefined) update.global_y = global_y;
   if (global_w !== undefined) update.global_w = global_w;
   if (global_h !== undefined) update.global_h = global_h;
-  if (!Object.keys(update).length) throw error(400, 'No fields to update');
+  if (!Object.keys(update).length && status === undefined) {
+    throw error(400, 'No fields to update');
+  }
 
-  if (status !== undefined) Object.assign(update, validationStamp(status, user.id));
+  if (Object.keys(update).length) {
+    const { error: err } = await adminClient()
+      .from('ocr_extractions')
+      .update(update)
+      .eq('id', extractionId)
+      .eq('map_id', mapId);
+    if (err) dbError(err, 'Could not update extraction');
+  }
 
-  const { error: err } = await adminClient()
-    .from('ocr_extractions')
-    .update(update)
-    .eq('id', extractionId)
-    .eq('map_id', mapId);
+  if (status !== undefined) {
+    const { error: err } = await bulkSetStatus({
+      mapId,
+      status,
+      userId: user.id,
+      ids: [extractionId],
+    });
+    if (err) dbError(err, 'Could not update extraction status');
+  }
 
-  if (err) dbError(err, 'Could not update extraction');
   return json({ ok: true });
 };
 
@@ -161,7 +174,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
   }
   if (!ids?.length && !run_id) throw error(400, 'Provide ids[] or run_id');
 
-  const { error: err, count } = await bulkSetStatus({
+  const { error: err, data: count } = await bulkSetStatus({
     mapId,
     status,
     userId: user.id,

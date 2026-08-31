@@ -3,7 +3,6 @@ import type { RequestHandler } from './$types';
 import { requireRole } from '$lib/server/auth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { assertUuid, dbError } from '$lib/server/http';
-import type { Database } from '$lib/data/supabase/types';
 
 /** GET /api/admin/footprints?map_id=&status= */
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -25,9 +24,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   return json(data);
 };
 
-/** PATCH /api/admin/footprints  { id, status: 'submitted' | 'rejected' } */
+/**
+ * PATCH /api/admin/footprints  { id, status: 'submitted' | 'rejected' }
+ *
+ * The transition (and the `sam-corrected` marking that comes with an edited
+ * polygon) lives in the `set_footprint_status` RPC — migration 054.
+ */
 export const PATCH: RequestHandler = async ({ locals, request }) => {
-  await requireRole(locals);
+  const { user } = await requireRole(locals);
 
   const body = await request.json();
   const { id, status, pixel_polygon, feature_type, name, category } = body as {
@@ -44,24 +48,20 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
     throw error(400, 'status must be submitted or rejected');
   }
 
-  const update: Database['public']['Tables']['footprint_submissions']['Update'] = { status };
-  if (pixel_polygon) {
-    update.pixel_polygon = pixel_polygon;
-    update.source = 'sam-corrected';
-  }
-  if (feature_type) {
-    update.feature_type = feature_type;
-    update.source = 'sam-corrected';
-  }
-  if (name !== undefined) update.name = name;
-  if (category !== undefined) update.category = category;
-
-  const { error: err } = await adminClient()
-    .from('footprint_submissions')
-    .update(update)
-    .eq('id', id)
-    .eq('status', 'needs_review'); // only transition from needs_review
+  const { data, error: err } = await adminClient().rpc('set_footprint_status', {
+    p_id: assertUuid(id, 'footprint id'),
+    p_status: status,
+    p_user: user.id,
+    p_pixel_polygon: pixel_polygon ?? undefined,
+    p_feature_type: feature_type ?? undefined,
+    p_name: name ?? undefined,
+    p_category: category ?? undefined,
+  });
 
   if (err) dbError(err, 'Could not update footprint');
+  // The RPC only moves rows out of needs_review, and returns nothing otherwise.
+  if (!data || !(data as { id: string | null }).id) {
+    throw error(409, 'That footprint is not awaiting review');
+  }
   return json({ ok: true });
 };

@@ -1,10 +1,10 @@
 /**
  * Shared write paths for OCR review.
  *
- * `PUT /api/admin/maps/[id]/ocr-review` (bulk status) and
- * `…/ocr-review/revert-recent` (undo the last N minutes of validations) both
- * stamp `validated_at` / `validated_by` the same way; that stamping used to be
- * written out three times.
+ * Since migration 054 the transitions themselves live in Postgres
+ * (`set_extraction_status`, `revert_recent_validations`) — the `validated_at` /
+ * `validated_by` stamping is applied there, so a worker or a future direct
+ * client write cannot skip it. What is left here is argument shaping.
  */
 
 import { adminClient } from './supabaseAdmin';
@@ -16,24 +16,14 @@ export function isOcrReviewStatus(v: unknown): v is OcrReviewStatus {
   return OCR_REVIEW_STATUSES.includes(v as OcrReviewStatus);
 }
 
-/**
- * `validated_at` / `validated_by` for a status transition. Validating records
- * who signed off; rejecting or reverting to pending clears the stamp.
- */
-export function validationStamp(status: string, userId: string) {
-  return status === 'validated'
-    ? { validated_at: new Date().toISOString(), validated_by: userId }
-    : { validated_at: null, validated_by: null };
-}
-
 /** ISO timestamp `windowMins` ago — the cut-off for "recently validated". */
 export function revertThreshold(windowMins: number): string {
   return new Date(Date.now() - windowMins * 60 * 1000).toISOString();
 }
 
 /**
- * Bulk status change for a map's extractions, scoped either to explicit `ids`
- * or to a whole `runId`. The caller is responsible for requiring one of them.
+ * Status change for a map's extractions, scoped either to explicit `ids` or to
+ * a whole `runId`. The caller is responsible for requiring one of them.
  */
 export async function bulkSetStatus(opts: {
   mapId: string;
@@ -42,15 +32,13 @@ export async function bulkSetStatus(opts: {
   ids?: string[] | null;
   runId?: string | null;
 }) {
-  let q = adminClient()
-    .from('ocr_extractions')
-    .update({ status: opts.status, ...validationStamp(opts.status, opts.userId) })
-    .eq('map_id', opts.mapId);
-
-  if (opts.ids?.length) q = q.in('id', opts.ids);
-  else if (opts.runId) q = q.eq('run_id', opts.runId);
-
-  return await q;
+  return await adminClient().rpc('set_extraction_status', {
+    p_status: opts.status,
+    p_user: opts.userId,
+    p_ids: opts.ids?.length ? opts.ids : undefined,
+    p_map_id: opts.mapId,
+    p_run_id: opts.ids?.length ? undefined : (opts.runId ?? undefined),
+  });
 }
 
 /** Rows this user validated on this map inside the window. */
@@ -73,14 +61,11 @@ export async function countRecentValidations(mapId: string, userId: string, wind
 
 /** Revert this user's validations on this map inside the window back to pending. */
 export async function revertRecentValidations(mapId: string, userId: string, windowMins: number) {
-  const threshold = revertThreshold(windowMins);
-  const { error, count } = await adminClient()
-    .from('ocr_extractions')
-    .update({ status: 'pending', ...validationStamp('pending', userId) })
-    .eq('map_id', mapId)
-    .eq('status', 'validated')
-    .eq('validated_by', userId)
-    .gt('validated_at', threshold);
+  const { data, error } = await adminClient().rpc('revert_recent_validations', {
+    p_map_id: mapId,
+    p_user: userId,
+    p_window_mins: windowMins,
+  });
 
-  return { error, count, threshold };
+  return { error, count: data ?? 0, threshold: revertThreshold(windowMins) };
 }

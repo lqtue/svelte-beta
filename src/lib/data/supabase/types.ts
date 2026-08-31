@@ -1108,6 +1108,55 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      revert_recent_validations: {
+        Args: { p_map_id: string; p_user: string; p_window_mins?: number }
+        Returns: number
+      }
+      set_extraction_status: {
+        Args: {
+          p_ids?: string[]
+          p_map_id?: string
+          p_run_id?: string
+          p_status: string
+          p_user: string
+        }
+        Returns: number
+      }
+      set_footprint_status: {
+        Args: {
+          p_category?: string
+          p_feature_type?: string
+          p_id: string
+          p_name?: string
+          p_pixel_polygon?: Json
+          p_status: string
+          p_user: string
+        }
+        Returns: {
+          category: string | null
+          confidence: number | null
+          created_at: string | null
+          feature_type: string
+          id: string
+          iiif_canvas: string | null
+          map_id: string | null
+          name: string | null
+          pixel_polygon: Json
+          source: string
+          status: string
+          temporal_status: string
+          updated_at: string | null
+          user_id: string | null
+          valid_from: string | null
+          valid_to: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "footprint_submissions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never

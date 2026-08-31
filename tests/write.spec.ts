@@ -330,3 +330,53 @@ test('the pipeline endpoints refuse a missing or unknown worker token', async ()
   await anon.dispose();
   await wrong.dispose();
 });
+
+test('reviewing a footprint moves it out of the queue exactly once', async () => {
+  const { data: fp, error: fpErr } = await admin
+    .from('footprint_submissions')
+    .insert({
+      map_id: mapId,
+      user_id: session.user.id,
+      pixel_polygon: [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+      ],
+      feature_type: 'building',
+      status: 'needs_review',
+      source: 'sam-auto',
+    })
+    .select('id')
+    .single();
+  expect(fpErr, fpErr?.message).toBeNull();
+  created.footprintIds.push(fp!.id);
+
+  const approve = await staffRequest.patch('/api/admin/footprints', {
+    data: {
+      id: fp!.id,
+      status: 'submitted',
+      pixel_polygon: [
+        [0, 0],
+        [12, 0],
+        [12, 12],
+      ],
+    },
+  });
+  expect(approve.ok(), await approve.text()).toBe(true);
+
+  const { data: reviewed } = await admin
+    .from('footprint_submissions')
+    .select('status, source')
+    .eq('id', fp!.id)
+    .single();
+  expect(reviewed!.status).toBe('submitted');
+  // An edited polygon is machine output a human fixed, and exports care.
+  expect(reviewed!.source).toBe('sam-corrected');
+
+  // set_footprint_status only moves rows out of needs_review, so a second
+  // decision on the same row is refused rather than silently applied.
+  const again = await staffRequest.patch('/api/admin/footprints', {
+    data: { id: fp!.id, status: 'rejected' },
+  });
+  expect(again.status()).toBe(409);
+});
