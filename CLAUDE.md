@@ -320,3 +320,32 @@ Full command reference and design rationale in `docs/pipelines.md`:
 ## Deployment
 
 Cloudflare Pages adapter. Build output: `.svelte-kit/cloudflare`. Config: `wrangler.toml`.
+
+**`wrangler.toml` is the source of truth, and that includes environment.** Once
+`pages_build_output_dir` is set, Pages stops applying the variables configured in the
+dashboard — you can still see them there, but they no longer reach a build. This is not
+theoretical: it broke ten consecutive preview builds while `npm run build` stayed green
+locally, because `$env/static/*` is resolved by rollup and the missing name fails the
+first import (`"PUBLIC_SUPABASE_URL" is not exported by "virtual:env/static/public"`).
+
+The split that follows from it:
+
+- **Public** values (`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`) live in `[vars]`
+  in `wrangler.toml`. They must be build-time — the anon key is inlined into the client
+  bundle, and `$env/dynamic/public` cannot replace it because the `(app)` routes set
+  `ssr = false`. Committing them is safe: the publishable key ships to every browser
+  already, and RLS is what protects the data.
+- **Secrets** (`SUPABASE_SERVICE_KEY`, `IA_S3_ACCESS_KEY`, `IA_S3_SECRET_KEY`) are read
+  through `$env/dynamic/private` in `$lib/server/{supabaseAdmin,storage,ia}.ts`, so they
+  are never needed at build and never inlined into a bundle. Set them per environment:
+
+  ```bash
+  npx wrangler pages secret put SUPABASE_SERVICE_KEY --project-name vmabeta
+  npx wrangler pages secret put SUPABASE_SERVICE_KEY --project-name vmabeta --environment preview
+  ```
+
+  `wrangler pages secret list` shows what an environment holds. An unset secret is not a
+  build failure — it is a runtime 500 in the admin and pipeline routes only.
+
+CI covers the same requirement differently: `.github/workflows` does `cp .env.test .env`
+before `check` and `build`, which is why CI stayed green through all ten failures.

@@ -8,7 +8,7 @@
 
 import { error } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 /**
  * Write `obj` as pretty-printed JSON to `bucket/path`, creating or overwriting.
@@ -19,7 +19,7 @@ export async function uploadJson(bucket: string, path: string, obj: unknown): Pr
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
       'Content-Type': 'application/json',
       'x-upsert': 'true',
       'Cache-Control': 'no-cache',

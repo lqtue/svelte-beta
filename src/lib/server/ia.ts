@@ -3,7 +3,7 @@
  */
 
 import { error } from '@sveltejs/kit';
-import { IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export interface IAUploadResult {
   identifier: string;
@@ -26,7 +26,7 @@ export async function uploadToIA(
   const res = await fetch(`https://s3.us.archive.org/${identifier}/${filename}`, {
     method: 'PUT',
     headers: {
-      Authorization: `LOW ${IA_S3_ACCESS_KEY}:${IA_S3_SECRET_KEY}`,
+      Authorization: `LOW ${env.IA_S3_ACCESS_KEY}:${env.IA_S3_SECRET_KEY}`,
       'x-amz-auto-make-bucket': '1',
       'x-archive-meta-title': title,
       'x-archive-meta-mediatype': 'image',
