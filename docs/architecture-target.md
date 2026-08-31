@@ -42,14 +42,14 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 ### Rules
 - Service key exists only in `lib/server` and in workers (behind `worker_keys` → the API; workers never hold the DB key).
 - Invariants (status transitions, validated_by stamps, global-px from tile coords) live in Postgres RPCs/generated columns — browser, API and workers all call the same thing.
-- `status → public` enqueues `mirror_annotation` + `tile_to_r2` (mig 058). The `annotation_url NOT NULL` constraint lands once those kinds have a runner and the backfill has drained.
+- `status → public` enqueues `mirror_annotation` + `tile_to_r2` (mig 058) and requires something to georeference with — `annotation_url` or `allmaps_id` (mig 062).
 - Worker `info.json` claims IIIF `level2`; it is effectively level0 + proxy fallback. Don't rely on arbitrary region requests.
 
 ## Tracker (each step ships alone)
 - [x] 1 mig 053: `pipeline_jobs` + `worker_keys` + `claim_job`/`finish_job`; `work/worker/vma_worker.py --kinds ocr [--once]`; `/api/…/ocr` enqueues; `cli_only` gone. Claim/run/finish/retry exercised against the local stack.
 - [x] 2 `/api/pipeline/claim` + `/api/pipeline/results`, sha256 `worker_keys` tokens, `scripts/mint-worker-key.mjs`. Worker + `ocr.py --db` write only through the API; `VMA_API_URL`/`VMA_WORKER_KEY` replace the service key on pipeline machines.
 - [x] 3 RPCs landed (054), API calls them; 055 fixes the footprint check constraints; 056 makes `map_pipeline_status` a view over `pipeline_jobs` + `map_review_marks` (the three human stages), written only by `set_review_mark`. Workers no longer report a stage at all — closing the job is what advances it.
-- [~] 4 mig 058 adds the trigger and the backfill; step 5 supplied the runners. The `annotation_url NOT NULL` constraint waits until the production queue has drained.
+- [x] 4 mig 058 (trigger + backfill), runners from step 5, and mig 062's constraint: a public map needs `annotation_url` **or** `allmaps_id`. The literal `annotation_url NOT NULL` in the original plan cannot work — publishing is what enqueues the mirror, so requiring the mirrored URL first makes the trigger unreachable.
 - [x] 5 `sync_allmaps` + `mirror_annotation` run through `/api/pipeline/execute` (worker claims, server executes — the work needs the service key). Storage writes are path-versioned: `annotations/{id}.json` current, `annotations/{id}/{ISO}.json` history. Button in MapEditHostingTab.
 - [x] 6 `/map/[id]` share page (SSR, OG/Twitter, drafts 404). `(editorial)` already server-rendered apart from the home page, which needs a load function before the flag buys anything. No `render_preview` job: the OG image is the map's IIIF thumbnail — one fewer job kind, one fewer artefact to keep in sync.
 - [x] 7 mig 059: stories carry `status` + `reviewed_by`/`reviewed_at`, `is_public` dropped, `set_story_status` RPC, `/api/admin/stories` queue, tabs on `/contribute/review`. Rate limiting counts the target table rather than keeping a counter store. Note: the column is `user_id`, not `submitted_by` — db-guidelines forbids the latter, and the author was already recorded.

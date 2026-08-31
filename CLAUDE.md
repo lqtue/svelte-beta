@@ -51,7 +51,7 @@ Local ports are **54421** for the API and **54420** for the shadow DB, not the C
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **061**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **062**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -91,7 +91,7 @@ VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 061. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 062, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block — the `vma-theme` boot script in `src/app.html` is vestigial (nothing writes the key, no CSS consumes it). Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
@@ -260,7 +260,7 @@ Public / other:
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **061**). Key tables:
+Schema lives in `supabase/migrations/` (head **062**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
@@ -288,6 +288,8 @@ Schema lives in `supabase/migrations/` (head **061**). Key tables:
 **Two visibility models coexist on `maps`** — the `status` enum and the `is_public` / `is_featured` booleans — and different code paths gate on different ones. See `docs/db-guidelines.md` before adding a third.
 
 `source_type` (mig 027, extended by mig 041): `ia | bnf | efeo | gallica | rumsey | self | other | r2`.
+
+**A published map must be georeferenceable** (mig 062): `status in ('public','featured')` requires `annotation_url` **or** `allmaps_id`. Not `annotation_url NOT NULL` as originally planned — that deadlocks, since publishing is what enqueues `mirror_annotation`. Full self-hosting is the queue's job, not the constraint's.
 
 **Publishing enqueues hosting work** (mig 058): moving a map to `public`/`featured` fires `enqueue_publish_jobs()`, which queues `mirror_annotation` (when `annotation_url` is null) and `tile_to_r2` (when `source_type` isn't already `r2`). `on conflict do nothing` rides the one-live-job index, so re-publishing never duplicates. **No worker runs those two kinds yet** — the rows queue up, and `annotation_url NOT NULL` for public maps waits until the queue can drain.
 

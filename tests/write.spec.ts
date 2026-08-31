@@ -554,3 +554,32 @@ test('tracing submits through the API, which stamps the author', async () => {
   expect(rejected.status()).toBe(401);
   await anon.dispose();
 });
+
+test('a published map must be georeferenceable', async () => {
+  // Neither annotation_url nor allmaps_id: nothing to warp with, so publishing
+  // is refused (mig 062) rather than shipping a map that cannot render.
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({ name: 'Ungeoreferenced fixture', status: 'draft' })
+    .select('id')
+    .single();
+
+  const { error: pubErr } = await admin
+    .from('maps')
+    .update({ status: 'public' })
+    .eq('id', draft!.id);
+  expect(pubErr?.message ?? '').toContain('maps_public_needs_georef');
+
+  // With an Allmaps id it is publishable, even before the annotation is mirrored.
+  await admin
+    .from('maps')
+    .update({ allmaps_id: `geo${Date.now()}`.slice(0, 16) })
+    .eq('id', draft!.id);
+  const { error: okErr } = await admin
+    .from('maps')
+    .update({ status: 'public' })
+    .eq('id', draft!.id);
+  expect(okErr, okErr?.message).toBeNull();
+
+  await admin.from('maps').delete().eq('id', draft!.id);
+});
