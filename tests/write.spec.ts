@@ -189,24 +189,48 @@ test('publishing a story makes it readable by anonymous visitors', async () => {
   const { data: story, error } = await asUser
     .from('stories')
     .insert({ user_id: session.user.id, title: 'Write-smoke tour', mode: 'guided' })
-    .select('id, is_public')
+    .select('id, status')
     .single();
   expect(error, error?.message).toBeNull();
   created.storyIds.push(story!.id);
-  expect(story!.is_public).toBe(false);
+  expect(story!.status).toBe('draft');
 
   const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
   const draftRead = await anon.from('stories').select('id').eq('id', story!.id).maybeSingle();
   expect(draftRead.data).toBeNull();
 
-  const { error: pubErr } = await asUser
+  // Publishing submits for review; an author cannot approve their own story.
+  const { error: subErr } = await asUser
     .from('stories')
-    .update({ is_public: true })
+    .update({ status: 'submitted' })
     .eq('id', story!.id);
-  expect(pubErr, pubErr?.message).toBeNull();
+  expect(subErr, subErr?.message).toBeNull();
+  expect(
+    (await anon.from('stories').select('id').eq('id', story!.id).maybeSingle()).data
+  ).toBeNull();
+
+  const selfApprove = await asUser
+    .from('stories')
+    .update({ status: 'approved' })
+    .eq('id', story!.id);
+  expect(selfApprove.error, 'an author must not be able to approve their own story').not.toBeNull();
+
+  // A mod decides, through the API, and only then is it public.
+  const review = await staffRequest.patch('/api/admin/stories', {
+    data: { id: story!.id, status: 'approved' },
+  });
+  expect(review.ok(), await review.text()).toBe(true);
 
   const publishedRead = await anon.from('stories').select('id').eq('id', story!.id).maybeSingle();
   expect(publishedRead.data?.id).toBe(story!.id);
+
+  const { data: stamped } = await admin
+    .from('stories')
+    .select('reviewed_by, reviewed_at')
+    .eq('id', story!.id)
+    .single();
+  expect(stamped!.reviewed_by).toBe(session.user.id);
+  expect(stamped!.reviewed_at).toBeTruthy();
 });
 
 test('running OCR enqueues one job, and only one at a time', async () => {
@@ -486,5 +510,47 @@ test('the share page is server-rendered and hides drafts', async () => {
   expect((await anon.get(`/map/${draft!.id}`)).status()).toBe(404);
 
   await admin.from('maps').delete().eq('id', draft!.id);
+  await anon.dispose();
+});
+
+test('tracing submits through the API, which stamps the author', async () => {
+  const res = await staffRequest.post('/api/contribute/footprints', {
+    data: {
+      map_id: mapId,
+      pixel_polygon: [
+        [1, 1],
+        [5, 1],
+        [5, 5],
+      ],
+      name: 'api-traced building',
+      // A body that tried to attribute the trace to someone else must not win.
+      user_id: '00000000-0000-4000-8000-000000000000',
+    },
+  });
+  expect(res.status(), await res.text()).toBe(201);
+  const { id } = await res.json();
+  created.footprintIds.push(id);
+
+  const { data: row } = await admin
+    .from('footprint_submissions')
+    .select('user_id, source, status')
+    .eq('id', id)
+    .single();
+  expect(row!.user_id).toBe(session.user.id);
+  // 'volunteer' is the schema's word for hand-traced; 'manual' was never valid.
+  expect(row!.source).toBe('volunteer');
+  expect(row!.status).toBe('submitted');
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const rejected = await anon.post('/api/contribute/footprints', {
+    data: {
+      map_id: mapId,
+      pixel_polygon: [
+        [0, 0],
+        [1, 1],
+      ],
+    },
+  });
+  expect(rejected.status()).toBe(401);
   await anon.dispose();
 });

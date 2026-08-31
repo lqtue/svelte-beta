@@ -36,7 +36,7 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 | ocr_extractions, footprint_submissions | workers insert · contributors submit/validate | `/api/pipeline/results`, `/api/…/review` → RPC `set_status` |
 | map_pipeline_status | **derived view** over pipeline_jobs + map_review_marks (table dropped, mig 056) | — |
 | map_review_marks | admin/mod | /api → RPC `set_review_mark` |
-| stories, story_points, annotation_sets | owner drafts (RLS) · publish via /api | supabase-js / RPC |
+| stories, story_points, annotation_sets | owner drafts (RLS) · review via /api → RPC `set_story_status` | supabase-js / RPC |
 | profiles, user_favorites, map_opens | owner | supabase-js RLS |
 
 ### Rules
@@ -52,7 +52,7 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 - [~] 4 mig 058 adds the trigger and the backfill; step 5 supplied the runners. The `annotation_url NOT NULL` constraint waits until the production queue has drained.
 - [x] 5 `sync_allmaps` + `mirror_annotation` run through `/api/pipeline/execute` (worker claims, server executes — the work needs the service key). Storage writes are path-versioned: `annotations/{id}.json` current, `annotations/{id}/{ISO}.json` history. Button in MapEditHostingTab.
 - [x] 6 `/map/[id]` share page (SSR, OG/Twitter, drafts 404). `(editorial)` already server-rendered apart from the home page, which needs a load function before the flag buys anything. No `render_preview` job: the OG image is the map's IIIF thumbnail — one fewer job kind, one fewer artefact to keep in sync.
-- [ ] 7 Generic moderation: `status/submitted_by/reviewed_by` on stories; `/contribute/review` tabs per kind; rate limits in `lib/server/auth.ts`.
+- [x] 7 mig 059: stories carry `status` + `reviewed_by`/`reviewed_at`, `is_public` dropped, `set_story_status` RPC, `/api/admin/stories` queue, tabs on `/contribute/review`. Rate limiting counts the target table rather than keeping a counter store. Note: the column is `user_id`, not `submitted_by` — db-guidelines forbids the latter, and the author was already recorded.
 - [ ] 8 PostGIS geometry on footprints (mig); `build_pmtiles` job — only when /explore needs city-wide layers.
 - [ ] 9 mig: drop `maps.is_public/is_featured` (status only), `story_points.quest/qr_payload`.
 

@@ -50,7 +50,7 @@ Local ports are **54421** for the API and **54420** for the shadow DB, not the C
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **058**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **059**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -90,7 +90,7 @@ VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 058. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 059. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block — the `vma-theme` boot script in `src/app.html` is vestigial (nothing writes the key, no CSS consumes it). Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
@@ -171,9 +171,9 @@ In dual mode, OL attribution + scale live on the **secondary** pane (right on de
 
 Pipeline stage (idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported) is polled via `GET /api/admin/maps/[id]/pipeline`. Four of those stages are **derived** from the map's latest `ocr`/`seg` job; PATCH accepts only `reviewed`, `seg_reviewed`, `exported` and `idle` — anything else is a 400.
 
-**Trace (`/contribute/trace`)** — `TraceTool.svelte` (OL Draw + Select + Modify) + `TraceSidebar.svelte`. Polygon for closed footprints, line for roads/waterways. Persists to `footprint_submissions`.
+**Trace (`/contribute/trace`)** — `TraceTool.svelte` (OL Draw + Select + Modify) + `TraceSidebar.svelte`. Polygon for closed footprints, line for roads/waterways. Submits through `POST /api/contribute/footprints` (rate-limited, author stamped server-side).
 
-**Footprint Review (`/contribute/review`)** — HITL for SAM2 `submitted` / `needs_review` polygons: `ReviewMode.svelte` mounts `ImageShell` + `ReviewTool.svelte` + `ReviewSidebar.svelte` (approve/reject, "Mark seg reviewed"). Map list from `fetchMapsWithSubmittedFootprints()`. API `GET/PATCH /api/admin/footprints`; "Mark seg reviewed" PATCHes `/api/admin/maps/[id]/pipeline` → `seg_reviewed`.
+**Review (`/contribute/review`)** — a queue per kind of contribution, chosen by a tab (`?kind=stories` opens the second one). **Stories**: `StoryReviewPanel.svelte` lists submitted stories and approves / sends back / rejects through `/api/admin/stories`. **Footprints**: HITL for SAM2 `submitted` / `needs_review` polygons: `ReviewMode.svelte` mounts `ImageShell` + `ReviewTool.svelte` + `ReviewSidebar.svelte` (approve/reject, "Mark seg reviewed"). Map list from `fetchMapsWithSubmittedFootprints()`. API `GET/PATCH /api/admin/footprints`; "Mark seg reviewed" PATCHes `/api/admin/maps/[id]/pipeline` → `seg_reviewed`.
 
 ### Maps domain
 
@@ -235,7 +235,9 @@ Pipeline:
 - `/api/admin/maps/[id]/ocr-review/` — GET extractions + runs; POST manual bbox; PATCH update text/category/status/coords; PUT batch status (`?window=` reverts the last N minutes).
 - `/api/admin/maps/[id]/ocr-review/revert-recent/` — GET count, POST undo the current reviewer's recent validations (thin wrapper over `$lib/server/ocrReview.ts`).
 - `/api/admin/maps/[id]/pipeline/` — GET the composed stage + timestamps; PATCH records a **human** stage (`reviewed`, `seg_reviewed`, `exported`, `idle`) via `set_review_mark`. The machine stages come from `pipeline_jobs` and are rejected with a 400.
-- `/api/admin/footprints/` — GET/PATCH SAM2 review (service key required).
+- `/api/admin/footprints/` — GET/PATCH SAM2 review (staff only).
+- `/api/admin/stories/` — GET the `submitted` queue, PATCH a decision (`approved` / `rejected` / `draft`) via `set_story_status`. Admin **or mod**.
+- `/api/contribute/footprints/` — POST a hand-traced polygon. Any signed-in user; `user_id` comes from the session, never the body, and `assertUnderRateLimit` caps it at 300/hour. `data/supabase/footprints.ts:createFootprint` posts here rather than inserting directly.
 
 Worker-authenticated (`Authorization: Bearer <worker_keys token>`, **not** a user session — see `$lib/server/workerAuth.ts`):
 
@@ -257,7 +259,7 @@ Public / other:
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **058**). Key tables:
+Schema lives in `supabase/migrations/` (head **059**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
@@ -274,7 +276,7 @@ Schema lives in `supabase/migrations/` (head **058**). Key tables:
 | `worker_keys` | Per-machine revocable worker credentials (mig 053) | `token_hash` (sha256), `kinds`, `revoked_at`. Written in step 2; the table exists now |
 | `map_pipeline_status` | Per-map pipeline state — **a view since mig 056** | Machine stages derived from `pipeline_jobs`, human stages from `map_review_marks`. Read-only; nothing writes it |
 | `map_review_marks` | The three stages a person asserts (mig 056) | `reviewed_at`, `seg_reviewed_at`, `exported_at`. Written only by the `set_review_mark` RPC |
-| `stories`, `story_points`, `story_progress` | Stories/tours | `hunts` / `hunt_stops` were dropped in mig 034; the `hunt*` aliases are gone from the code too |
+| `stories`, `story_points`, `story_progress` | Stories/tours | `hunts` / `hunt_stops` were dropped in mig 034. Since mig 059 a story has `status` (`draft/submitted/approved/rejected`) + `reviewed_by`/`reviewed_at`, and **`is_public` is gone** — publishing submits for review, and only `approved` is publicly readable |
 | `user_favorites` | Saved maps | via `data/supabase/favorites.ts` |
 | `legend_submissions`, `map_help_requests`, `metadata_submissions` | Community contributions | write paths only; no dedicated UI review screen yet |
 

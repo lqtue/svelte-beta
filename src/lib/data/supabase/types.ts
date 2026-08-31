@@ -915,6 +915,9 @@ export type Database = {
           is_public: boolean
           mode: string
           region: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
           title: string
           updated_at: string
           user_id: string | null
@@ -926,6 +929,9 @@ export type Database = {
           is_public?: boolean
           mode?: string
           region?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           title: string
           updated_at?: string
           user_id?: string | null
@@ -937,6 +943,9 @@ export type Database = {
           is_public?: boolean
           mode?: string
           region?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           title?: string
           updated_at?: string
           user_id?: string | null
@@ -1272,6 +1281,29 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "map_review_marks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_story_status: {
+        Args: { p_id: string; p_status: string; p_user: string }
+        Returns: {
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          mode: string
+          region: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stories"
           isOneToOne: true
           isSetofReturn: false
         }

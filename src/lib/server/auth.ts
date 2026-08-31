@@ -58,3 +58,46 @@ export async function getRole(locals: App.Locals): Promise<Role | null> {
     return null;
   }
 }
+
+/**
+ * Any signed-in account. Open contribution means the gate is "is this a user",
+ * not "is this staff" — the row's status is what keeps it out of public view
+ * until someone reviews it.
+ */
+export async function requireUser(locals: App.Locals): Promise<{ user: User; role: Role }> {
+  const resolved = await resolve(locals);
+  if (!resolved) throw error(401, 'Sign in to contribute');
+  return resolved;
+}
+
+/**
+ * Cheap abuse brake for open contribution: how many rows this user has already
+ * created in `table` within the window.
+ *
+ * ponytail: counts the target table directly rather than keeping a separate
+ * rate-limit store — the data needed is already there, and a counter table
+ * would need its own writer, its own cleanup and its own migration. Trades
+ * exactness under bursts for having no moving parts; swap it for a real
+ * limiter if a single count query ever shows up in the slow log.
+ */
+export async function assertUnderRateLimit(
+  table: 'footprint_submissions' | 'stories',
+  userId: string,
+  maxPerHour: number
+): Promise<void> {
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count, error: err } = await adminClient()
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gt('created_at', since);
+
+  // A failed count must not become a closed door: log and let the write through.
+  if (err) {
+    console.error('[auth] rate-limit count failed:', err.message);
+    return;
+  }
+  if ((count ?? 0) >= maxPerHour) {
+    throw error(429, `Rate limit: at most ${maxPerHour} ${table.replace(/_/g, ' ')} per hour`);
+  }
+}

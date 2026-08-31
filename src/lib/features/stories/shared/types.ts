@@ -8,6 +8,8 @@ export interface PointChallenge {
   triggerRadius?: number; // for 'reach' type (meters)
 }
 
+export type StoryStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
+
 export interface StoryPoint {
   id: string;
   order: number;
@@ -31,7 +33,11 @@ export interface Story {
   region?: { center: [number, number]; zoom: number };
   createdAt: number;
   updatedAt: number;
-  isPublic: boolean;
+  /**
+   * draft → submitted → approved | rejected. Publishing submits for review
+   * (mig 059); only a mod can approve, and only approved stories are public.
+   */
+  status: StoryStatus;
   authorId: string;
   authorName?: string; // Display name of the story creator
 }

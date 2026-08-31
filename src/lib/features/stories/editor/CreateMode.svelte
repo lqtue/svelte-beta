@@ -220,10 +220,12 @@
     isPublishing = true;
     publishSuccess = false;
 
-    // Push the full local draft (story row + every point) before flipping the
-    // public flag — the row may not exist in Supabase yet since drafts are
-    // localStorage-only until first publish.
-    const next: Story = { ...currentStory, isPublic: !currentStory.isPublic };
+    // Push the full local draft (story row + every point) before changing the
+    // status — the row may not exist in Supabase yet, since drafts are
+    // localStorage-only until first publish. Publishing means "submitted":
+    // approval is a reviewer's call (mig 059).
+    const wasShared = currentStory.status === 'submitted' || currentStory.status === 'approved';
+    const next: Story = { ...currentStory, status: wasShared ? 'draft' : 'submitted' };
     const ok = await syncStoryToSupabase(supabase, next, userId);
     if (!ok) {
       isPublishing = false;
@@ -402,8 +404,14 @@
     <svelte:fragment slot="meta" let:item>
       <span class="meta-tag">{item.points.length} point{item.points.length !== 1 ? 's' : ''}</span>
       <span class="meta-tag date">{new Date(item.updatedAt).toLocaleDateString('en-GB')}</span>
-      <span class="meta-tag publish-status" class:published={item.isPublic}>
-        {item.isPublic ? 'Public' : 'Private'}
+      <span class="meta-tag publish-status" class:published={item.status === 'approved'}>
+        {item.status === 'approved'
+          ? 'Public'
+          : item.status === 'submitted'
+            ? 'In review'
+            : item.status === 'rejected'
+              ? 'Sent back'
+              : 'Private'}
       </span>
     </svelte:fragment>
 

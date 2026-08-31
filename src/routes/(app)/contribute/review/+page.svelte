@@ -11,6 +11,11 @@
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { fetchMapsWithSubmittedFootprints } from '$lib/data/supabase/footprints';
   import ReviewMode from '$lib/features/contribute/review/ReviewMode.svelte';
+  import StoryReviewPanel from '$lib/features/contribute/review/StoryReviewPanel.svelte';
+
+  /** One queue per kind of contribution — footprints today, stories since mig 059. */
+  let kind: 'footprints' | 'stories' =
+    'stories' === $page.url.searchParams.get('kind') ? 'stories' : 'footprints';
 
   const { supabase } = getSupabaseContext();
 
@@ -53,7 +58,7 @@
 </script>
 
 <svelte:head>
-  <title>Review footprints — Vietnam Map Archive</title>
+  <title>Review contributions — Vietnam Map Archive</title>
 </svelte:head>
 
 {#if selectedMapId}
@@ -67,33 +72,56 @@
   <div class="page">
     <header class="page-header">
       <a href="/contribute" class="back-link">← Contribute</a>
-      <h1>Review footprints</h1>
+      <h1>Review contributions</h1>
       <p>
-        Check the building polygons SAM2 (Segment Anything Model v2) pulled out of the map — approve
-        the good ones, reject the rest.
+        {kind === 'footprints'
+          ? 'Check the building polygons SAM2 (Segment Anything Model v2) pulled out of the map — approve the good ones, reject the rest.'
+          : 'Stories submitted by contributors. Approving one makes it publicly visible.'}
       </p>
+      <div class="queue-tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={kind === 'footprints'}
+          class:is-on={kind === 'footprints'}
+          on:click={() => (kind = 'footprints')}
+        >
+          Footprints
+        </button>
+        <button
+          role="tab"
+          aria-selected={kind === 'stories'}
+          class:is-on={kind === 'stories'}
+          on:click={() => (kind = 'stories')}
+        >
+          Stories
+        </button>
+      </div>
     </header>
 
-    {#if loading}
-      <div class="state-msg">Loading maps…</div>
-    {:else if loadError}
-      <div class="state-msg error">{loadError}</div>
-    {:else if maps.length === 0}
-      <div class="state-msg">Queue's clear — no footprints waiting on review.</div>
+    {#if kind === 'stories'}
+      <StoryReviewPanel />
     {:else}
-      <ul class="review-map-list">
-        {#each maps as map}
-          <li>
-            <button class="map-card" on:click={() => open(map)}>
-              <span class="map-name">{map.name || map.id}</span>
-              <span class="map-badge">{map.pendingCount} pending</span>
-            </button>
-          </li>
-        {/each}
-      </ul>
-      <p class="hint">
-        Pick a map to start. The canvas loads IIIF tiles straight from Internet Archive.
-      </p>
+      {#if loading}
+        <div class="state-msg">Loading maps…</div>
+      {:else if loadError}
+        <div class="state-msg error">{loadError}</div>
+      {:else if maps.length === 0}
+        <div class="state-msg">Queue's clear — no footprints waiting on review.</div>
+      {:else}
+        <ul class="review-map-list">
+          {#each maps as map}
+            <li>
+              <button class="map-card" on:click={() => open(map)}>
+                <span class="map-name">{map.name || map.id}</span>
+                <span class="map-badge">{map.pendingCount} pending</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+        <p class="hint">
+          Pick a map to start. The canvas loads IIIF tiles straight from Internet Archive.
+        </p>
+      {/if}
     {/if}
   </div>
 {/if}
@@ -108,6 +136,26 @@
 
   .page-header {
     margin-bottom: 2rem;
+  }
+
+  .queue-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .queue-tabs button {
+    padding: 0.4rem 0.9rem;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-white);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .queue-tabs button.is-on {
+    background: var(--color-yellow);
+    font-weight: 700;
   }
 
   .back-link {

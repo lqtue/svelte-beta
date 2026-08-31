@@ -44,7 +44,7 @@ function rowToStory(row: StoryWithPoints): Story {
 			row.region && Object.keys(row.region).length
 				? (row.region as unknown as Story['region'])
 				: undefined,
-		isPublic: row.is_public,
+		status: row.status as Story['status'],
 		points,
 		createdAt: new Date(row.created_at).getTime(),
 		updatedAt: new Date(row.updated_at).getTime(),
@@ -68,7 +68,7 @@ export async function fetchPublicStories(supabase: SupabaseClient<Database>): Pr
 	const { data, error } = await supabase
 		.from('stories')
 		.select('*, story_points(*)')
-		.eq('is_public', true)
+		.eq('status', 'approved')
 		.order('updated_at', { ascending: false });
 
 	if (error) { console.error('fetchPublicStories:', error); return []; }
@@ -78,7 +78,7 @@ export async function fetchPublicStories(supabase: SupabaseClient<Database>): Pr
 /**
  * Push the full local draft (story row + every point) to Supabase, then return.
  * Used by /create's Publish toggle: local drafts only live in localStorage, so
- * before flipping `is_public` we have to make sure the row actually exists.
+ * before submitting for review we have to make sure the row actually exists.
  *
  * Strategy: upsert the story row by id, then replace all child story_points
  * (delete + insert). Atomic enough for a single user editing one draft at a time.
@@ -97,7 +97,7 @@ export async function syncStoryToSupabase(
 		description: story.description || null,
 		mode: story.mode ?? 'guided',
 		region: (story.region ?? {}) as unknown as Json,
-		is_public: story.isPublic
+		status: story.status
 	});
 	if (storyErr) { console.error('syncStoryToSupabase (story):', storyErr); return false; }
 

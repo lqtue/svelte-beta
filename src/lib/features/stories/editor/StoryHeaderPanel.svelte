@@ -4,6 +4,21 @@
   and the Public/Private publish toggle.
 -->
 <script lang="ts">
+  // Publishing submits for review (mig 059) — a mod turns submitted into
+  // approved, which is the only status the public can see.
+  const STATUS_LABEL = {
+    draft: 'Private',
+    submitted: 'In review',
+    approved: 'Public',
+    rejected: 'Sent back',
+  } as const;
+  const STATUS_HINT = {
+    draft: 'Private — click to submit for review',
+    submitted: 'Waiting for a reviewer — click to withdraw',
+    approved: 'Public — click to unpublish',
+    rejected: 'A reviewer sent this back — click to resubmit',
+  } as const;
+
   import { createEventDispatcher } from 'svelte';
   import type { Story } from '$lib/features/stories/shared/types';
   import InlineRename from '$lib/ui/InlineRename.svelte';
@@ -31,21 +46,13 @@
     <button
       type="button"
       class="sb-btn is-sm"
-      class:is-on={story?.isPublic}
+      class:is-on={story?.status === 'approved' || story?.status === 'submitted'}
       class:is-success={publishSuccess}
       on:click={() => dispatch('togglePublish')}
       disabled={isPublishing || publishSuccess}
-      title={story?.isPublic ? 'Public — click to make private' : 'Private — click to publish'}
+      title={STATUS_HINT[story?.status ?? 'draft']}
     >
-      {publishSuccess
-        ? story?.isPublic
-          ? 'Published'
-          : 'Unpublished'
-        : isPublishing
-          ? '…'
-          : story?.isPublic
-            ? 'Public'
-            : 'Private'}
+      {isPublishing ? '…' : STATUS_LABEL[story?.status ?? 'draft']}
     </button>
   </div>
 </div>

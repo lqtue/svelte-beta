@@ -23,7 +23,7 @@ export function createStoryDraft(
     points: [],
     createdAt: now,
     updatedAt: now,
-    isPublic: false,
+    status: 'draft',
     authorId,
   };
 }

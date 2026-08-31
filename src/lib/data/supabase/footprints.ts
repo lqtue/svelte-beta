@@ -80,8 +80,15 @@ export async function fetchMapFootprints(
 	return (data as DbFootprint[]).map(toFootprint);
 }
 
+/**
+ * Submit a traced polygon through `/api/contribute/footprints`.
+ *
+ * Not a direct insert: the endpoint stamps `user_id` from the session and
+ * applies a rate limit, neither of which RLS can do. `supabase` stays in the
+ * signature so every call site keeps one shape; it is unused here.
+ */
 export async function createFootprint(
-	supabase: SupabaseClient<Database>,
+	_supabase: SupabaseClient<Database>,
 	params: {
 		mapId: string;
 		userId: string;
@@ -91,23 +98,25 @@ export async function createFootprint(
 		featureType?: FeatureType;
 	}
 ): Promise<string | null> {
-	const { data, error } = await supabase
-		.from('footprint_submissions')
-		.insert({
-			map_id:        params.mapId,
-			user_id:       params.userId,
-			pixel_polygon: params.pixelPolygon as unknown as Json,
-			name:          params.name    ?? null,
-			category:      params.category ?? null,
-			feature_type:  params.featureType ?? 'building',
-			status:        'submitted',
-			source:        'manual'
-		})
-		.select('id')
-		.single();
-
-	if (error) { console.error('Failed to create footprint:', error); return null; }
-	return (data as { id: string }).id;
+	try {
+		const res = await fetch('/api/contribute/footprints', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				map_id:       params.mapId,
+				pixel_polygon: params.pixelPolygon,
+				name:         params.name ?? null,
+				category:     params.category ?? null,
+				feature_type: params.featureType ?? 'building'
+			})
+		});
+		const data = await res.json().catch(() => ({}));
+		if (!res.ok) { console.error('Failed to create footprint:', data.message ?? res.statusText); return null; }
+		return data.id ?? null;
+	} catch (e) {
+		console.error('Failed to create footprint:', e);
+		return null;
+	}
 }
 
 export async function updateFootprint(
