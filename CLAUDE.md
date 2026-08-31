@@ -50,7 +50,7 @@ Local ports are **54421** for the API and **54420** for the shadow DB, not the C
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **052**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **053**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -89,7 +89,7 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 052 (052 drops a trigger; no type change). Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 053. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block — the `vma-theme` boot script in `src/app.html` is vestigial (nothing writes the key, no CSS consumes it). Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
@@ -160,7 +160,7 @@ In dual mode, OL attribution + scale live on the **secondary** pane (right on de
 
 **Digitalize (`/contribute/digitalize`)** — two-phase HITL on a single `ImageShell`, tabs via `PhaseTabs.svelte`:
 
-- **Triage**: `TriageTool.svelte` (neatline rect + tile priority grid; click cycles normal → low-res amber → skip gray) and `TriageSidebar.svelte` (tile params + Run OCR). In Cloudflare prod (no `child_process`) the POST returns `{ cli_only, cli_command }`, rendered by `CliCommandBlock`.
+- **Triage**: `TriageTool.svelte` (neatline rect + tile priority grid; click cycles normal → low-res amber → skip gray) and `TriageSidebar.svelte` (tile params + Run OCR). "Run OCR" **enqueues a `pipeline_jobs` row** and returns 202; nothing runs until a worker claims it. Same behaviour in dev and on Cloudflare — the old `child_process` spawn and its `{ cli_only, cli_command }` fallback are gone. `CliCommandBlock` now only serves the segmentation panel.
 - **OCR Review**: `OcrBboxTool.svelte` renders + edits `ocr_extractions` bboxes and supports `drawMode` for manual bboxes (POSTs with `model: 'manual'`). `OcrSidebar.svelte` is a filterable table with inline text/category edit and auto-save on blur, split into `OcrFilterBar.svelte` + `OcrRunBar.svelte`, with state in `ocrReviewController.ts`. `BboxPanel.svelte` is the floating selected-bbox editor.
 - **Segmentation**: `SegSidebar.svelte` + `segCommand.ts` emit the MapSAM2 CLI command.
 
@@ -224,7 +224,7 @@ Admin map CRUD:
 
 Pipeline:
 
-- `/api/admin/maps/[id]/ocr/` — GET run summaries; POST trigger batch (local only; returns `{ cli_only, cli_command }` in CF).
+- `/api/admin/maps/[id]/ocr/` — GET run summaries + the latest `pipeline_jobs` row for the map; POST enqueues an `ocr` job (202 `{ job_id, run_id, status }`, or 409 when one is already in flight).
 - `/api/admin/maps/[id]/ocr/apply/` — POST: turn `ocr_extractions` above a confidence threshold into `label_pins` (bbox centre in source-image px). Body `{ run_id?, min_confidence? }`.
 - `/api/admin/maps/[id]/ocr-review/` — GET extractions + runs; POST manual bbox; PATCH update text/category/status/coords; PUT batch status (`?window=` reverts the last N minutes).
 - `/api/admin/maps/[id]/ocr-review/revert-recent/` — GET count, POST undo the current reviewer's recent validations (thin wrapper over `$lib/server/ocrReview.ts`).
@@ -243,7 +243,7 @@ Public / other:
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **052**). Key tables:
+Schema lives in `supabase/migrations/` (head **053**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
@@ -256,6 +256,8 @@ Schema lives in `supabase/migrations/` (head **052**). Key tables:
 | `footprint_submissions` | Polygon traces + SAM2 output | `map_id → maps.id`; status ∈ `submitted/needs_review/consensus/verified/rejected`; `pixel_polygon` |
 | `annotation_sets` | User GeoJSON | `map_id → maps.id` nullable, `user_id → auth.users` |
 | `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join |
+| `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (8 values) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs |
+| `worker_keys` | Per-machine revocable worker credentials (mig 053) | `token_hash` (sha256), `kinds`, `revoked_at`. Written in step 2; the table exists now |
 | `map_pipeline_status` | Per-map pipeline state | `map_id` PK, `stage` (8-value enum), `ocr_run_id`, `seg_run_id`, timestamps. Auto-updated by OCR `--db` and SAM2 `--write-supabase` |
 | `stories`, `story_points`, `story_progress` | Stories/tours | `hunts` / `hunt_stops` were dropped in mig 034; the `hunt*` aliases are gone from the code too |
 | `user_favorites` | Saved maps | via `data/supabase/favorites.ts` |
@@ -277,6 +279,15 @@ Map CRUD is inline in `/catalog`, gated by `role === 'admin' | 'mod'`: `CatalogU
 
 Full command reference and design rationale in `docs/pipelines.md`:
 
+- **The worker** (`work/worker/vma_worker.py`) — claims `pipeline_jobs` via the `claim_job` RPC (`FOR UPDATE SKIP LOCKED`) and shells out to the pipeline scripts. Run it wherever the venv lives:
+
+  ```bash
+  source work/ocr/.venv/bin/activate
+  python work/worker/vma_worker.py --kinds ocr --worker $(hostname)   # poll forever
+  python work/worker/vma_worker.py --once                             # drain one job
+  ```
+
+  It reads `PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_KEY` from the repo-root `.env`; step 2 of `architecture-target.md` swaps that for a worker key against `/api/pipeline/results`. Only `ocr` has a runner today — a claimed `seg` job is failed back with "this worker does not run seg jobs".
 - **OCR** (`work/ocr/`) — Gemini Flash → `ocr_extractions`; `join_labels.py` writes the `footprint_id` join (mig 050). Venv: `work/ocr/.venv`.
 - **MapSAM2 inference** (`work/MapSAM2/`) — IIIF tiles → polygons → `footprint_submissions`. Runs on Colab against an upstream clone; there is no local venv for it.
 

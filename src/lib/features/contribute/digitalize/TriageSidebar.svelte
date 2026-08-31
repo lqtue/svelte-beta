@@ -8,7 +8,6 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import CliCommandBlock from '$lib/features/contribute/shared/CliCommandBlock.svelte';
   import '$styles/layouts/tool-page.css';
   import '$styles/components/tool-sidebar.css';
   import type { TileOverrides } from './tileParams';
@@ -32,7 +31,8 @@
 
   export let ocrRunning: boolean = false;
   export let ocrError: string = '';
-  export let cliCommand: string | null = null;
+  /** Set once the run is queued; a worker has to claim it before anything happens. */
+  export let queuedJobId: string | null = null;
   export let runs: Record<string, { n: number; categories: Record<string, number> }> = {};
 
   const dispatch = createEventDispatcher<{
@@ -269,8 +269,11 @@
       <div class="tool-error">{ocrError}</div>
     {/if}
 
-    {#if cliCommand}
-      <CliCommandBlock command={cliCommand} />
+    {#if queuedJobId}
+      <div class="tool-hint">
+        Queued as job <code>{queuedJobId.slice(0, 8)}</code>. A worker has to claim it:
+        <code>python work/worker/vma_worker.py --kinds ocr</code>
+      </div>
     {/if}
 
     <button
@@ -279,12 +282,12 @@
       disabled={ocrRunning || !neatlineValid || !imgWidth}
     >
       {#if ocrRunning}
-        <span class="tool-spinner"></span> Starting…
+        <span class="tool-spinner"></span> Queueing…
       {:else}
         Run OCR
       {/if}
     </button>
-    <div class="tool-hint">Runs in the background — check terminal for progress.</div>
+    <div class="tool-hint">Queues a job — a worker runs it and the stage flips to ocr_done.</div>
   </div>
 
   <!-- Run history -->

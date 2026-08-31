@@ -45,7 +45,7 @@ ALLMAPS   Editor (UI) + annotation API — fetched by sync_allmaps only
 - Worker `info.json` claims IIIF `level2`; it is effectively level0 + proxy fallback. Don't rely on arbitrary region requests.
 
 ## Tracker (each step ships alone)
-- [ ] 1 `pipeline_jobs` + `worker_keys` migration; python `vma-worker` poller (`claim --kinds ocr,seg [--once]`); `/api/…/ocr` enqueues; delete `cli_only`. Run on local box first.
+- [x] 1 mig 053: `pipeline_jobs` + `worker_keys` + `claim_job`/`finish_job`; `work/worker/vma_worker.py --kinds ocr [--once]`; `/api/…/ocr` enqueues; `cli_only` gone. Claim/run/finish/retry exercised against the local stack.
 - [ ] 2 Workers post via `/api/pipeline/results` (Bearer worker key); python `.env` drops DB creds.
 - [ ] 3 RPCs `set_extraction_status`, `set_footprint_status`, `claim_job`, `finish_job`; browser + API call them; drop client tile-coord math; `map_pipeline_status` → view.
 - [ ] 4 `status → public` trigger enqueues `tile_to_r2` + `mirror_annotation`; backfill; `annotation_url NOT NULL` for public.

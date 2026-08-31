@@ -30,7 +30,7 @@
   export let run: {
     running: boolean;
     error: string;
-    cliCommand: string | null;
+    queuedJobId: string | null;
     runs: Record<string, { n: number; categories: Record<string, number> }>;
   };
   export let pipeline: { status: PipelineStatus | null; loading: boolean; error: string };
@@ -65,7 +65,7 @@
       tileOverrides={triage.tileOverrides}
       ocrRunning={run.running}
       ocrError={run.error}
-      cliCommand={run.cliCommand}
+      queuedJobId={run.queuedJobId}
       runs={run.runs}
       on:runOcr
       on:loadRun

@@ -654,6 +654,71 @@ export type Database = {
           },
         ]
       }
+      pipeline_jobs: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          kind: string
+          map_id: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          result: Json | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          worker: string | null
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          kind: string
+          map_id?: string | null
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          worker?: string | null
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          map_id?: string | null
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          worker?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_jobs_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -948,12 +1013,101 @@ export type Database = {
           },
         ]
       }
+      worker_keys: {
+        Row: {
+          created_at: string
+          id: string
+          kinds: string[]
+          last_seen_at: string | null
+          name: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kinds?: string[]
+          last_seen_at?: string | null
+          name: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kinds?: string[]
+          last_seen_at?: string | null
+          name?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       canonicalise_category: { Args: { raw: string }; Returns: string }
+      claim_job: {
+        Args: { p_kinds: string[]; p_worker: string }
+        Returns: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          kind: string
+          map_id: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          result: Json | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          worker: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pipeline_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      finish_job: {
+        Args: {
+          p_error?: string
+          p_id: string
+          p_result?: Json
+          p_status: string
+        }
+        Returns: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          kind: string
+          map_id: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          result: Json | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          worker: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pipeline_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never
@@ -1089,3 +1243,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

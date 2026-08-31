@@ -14,7 +14,7 @@ Layout now `core → data → map → features → routes`, `ui` primitives, `se
 - [x] A5 Local Supabase stack + seeded staff user → 4 write-path smokes (`npm run test:write`). Found and fixed a real bug: mig 021's `populate_footprint_map_id` trigger outlived the `task_id` column 038 dropped, so **every** footprint insert failed — mig 052 drops it.
 
 ## Track B — Architecture (`docs/architecture-target.md`, decisions locked)
-- [ ] B1 `pipeline_jobs` + `worker_keys` mig; python `vma-worker` poller; `/api/…/ocr` enqueues; delete `cli_only`. Local box first.
+- [x] B1 mig 053 (`pipeline_jobs`, `worker_keys`, `claim_job`/`finish_job` RPCs) · `work/worker/vma_worker.py` · `/api/…/ocr` enqueues (202/409) · `cli_only` deleted. Verified end to end on the local stack.
 - [ ] B2 Workers POST `/api/pipeline/results` (Bearer worker key); python `.env` drops DB creds
 - [ ] B3 RPCs `set_extraction_status` / `set_footprint_status` / `claim_job` / `finish_job`; all writers use them; `map_pipeline_status` → view
 - [ ] B4 `status → public` trigger enqueues `tile_to_r2` + `mirror_annotation`; backfill; `annotation_url NOT NULL` for public

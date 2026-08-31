@@ -1,13 +1,11 @@
 /**
- * POST /api/admin/maps/[id]/ocr
+ * POST /api/admin/maps/[id]/ocr — enqueue a batch OCR run.
  *
- * Triggers the Python OCR batch pipeline for a map.
- * Spawns: python work/ocr/scripts/ocr.py batch --map-id <id> --db
- *
- * NOTE: Uses child_process — only works in local dev (npm run dev).
- * Not available in Cloudflare Workers (production). Use the CLI directly
- * for production runs:
- *   python work/ocr/scripts/ocr.py batch --map-id <id> --db
+ * The request writes a `pipeline_jobs` row and returns; a worker
+ * (`work/worker/vma_worker.py`, running wherever the GPU/venv lives) claims it
+ * and runs `work/ocr/scripts/ocr.py batch`. This works identically in local dev
+ * and on Cloudflare — there is no `child_process` path any more, and no
+ * copy-paste CLI fallback.
  */
 
 import { json, error } from '@sveltejs/kit';
@@ -22,107 +20,69 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
   const body = await request.json().catch(() => ({}));
   const runId: string = body.run_id ?? new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
-  const tileSize: number = body.tile_size ?? 2400;
-  const overlap: number = body.overlap ?? 600;
-  const concurrency: number = body.concurrency ?? 3;
-  const minConfidence: number = body.min_confidence ?? 0.5;
-  const neatline: number[] | undefined =
-    Array.isArray(body.neatline) && body.neatline.length === 4 ? body.neatline : undefined;
-  const targetCalls: number | undefined = body.target_calls ? Number(body.target_calls) : undefined;
-  const priorRun: string | undefined = body.prior_run ?? undefined;
-  const tileOverrides: Record<string, string> | undefined =
-    body.tile_overrides && typeof body.tile_overrides === 'object'
-      ? body.tile_overrides
-      : undefined;
 
-  // Verify map exists and has an IIIF image
-  const { data: map } = await adminClient()
+  const payload = {
+    run_id: runId,
+    tile_size: body.tile_size ?? 2400,
+    overlap: body.overlap ?? 600,
+    concurrency: body.concurrency ?? 3,
+    min_confidence: body.min_confidence ?? 0.5,
+    // Fully automated chain (default on): scout the neatline unless one was
+    // drawn, then extract the legend. Stops at ocr_done for human review.
+    auto: body.auto !== false,
+    ...(Array.isArray(body.neatline) && body.neatline.length === 4
+      ? { neatline: body.neatline }
+      : {}),
+    ...(body.target_calls ? { target_calls: Number(body.target_calls) } : {}),
+    ...(body.prior_run ? { prior_run: body.prior_run } : {}),
+    ...(body.tile_overrides && typeof body.tile_overrides === 'object'
+      ? { tile_overrides: body.tile_overrides }
+      : {}),
+  };
+
+  const supabase = adminClient();
+  const { data: map } = await supabase
     .from('maps')
-    .select('id, name, iiif_image')
+    .select('id, iiif_image')
     .eq('id', mapId)
     .single();
 
   if (!map) throw error(404, 'Map not found');
   if (!map.iiif_image) throw error(400, 'Map has no iiif_image — cannot run OCR');
 
-  // Build the CLI args list (used for both spawn and CLI-command fallback)
-  const cliArgs = [
-    'batch',
-    '--map-id',
-    mapId,
-    '--tile-size',
-    String(tileSize),
-    '--overlap',
-    String(overlap),
-    '--concurrency',
-    String(concurrency),
-    '--min-confidence',
-    String(minConfidence),
-    '--run-id',
-    runId,
-    '--db',
-  ];
-  if (neatline) cliArgs.push('--crop', neatline.join(','));
-  // Fully automated chain (default on): scout neatline + auto legend extract.
-  // Stops at stage 'ocr_done' — extractions land pending for human review.
-  const auto: boolean = body.auto !== false;
-  if (auto) {
-    if (!neatline) cliArgs.push('--scout'); // manual --crop already pins the neatline
-    cliArgs.push('--legend');
+  const { data: job, error: err } = await supabase
+    .from('pipeline_jobs')
+    .insert({ kind: 'ocr', map_id: mapId, payload })
+    .select('id, status')
+    .single();
+
+  // idx_pipeline_jobs_one_live: this map already has an OCR job in flight.
+  if (err?.code === '23505') {
+    const { data: existing } = await supabase
+      .from('pipeline_jobs')
+      .select('id, status, created_at, payload')
+      .eq('kind', 'ocr')
+      .eq('map_id', mapId)
+      .in('status', ['queued', 'claimed', 'running'])
+      .single();
+    throw error(409, `An OCR job for this map is already ${existing?.status ?? 'in flight'}`);
   }
-  if (targetCalls) cliArgs.push('--target-calls', String(targetCalls));
-  if (priorRun) cliArgs.push('--prior-run', priorRun);
-  if (tileOverrides && Object.keys(tileOverrides).length > 0) {
-    cliArgs.push('--tile-overrides', JSON.stringify(tileOverrides));
-  }
+  if (err) dbError(err, 'Could not enqueue the OCR job');
 
-  // child_process only available in Node.js (local dev), not Cloudflare Workers
-  // ponytail: node: prefix is required — bare 'child_process'/'path' fail the
-  // Cloudflare Pages Functions bundle step (esbuild can't resolve them).
-  let spawnFn: typeof import('node:child_process').spawn | null = null;
-  try {
-    ({ spawn: spawnFn } = await import('node:child_process'));
-  } catch {
-    // Production: return the exact CLI command so the user can run it locally.
-    // NOTE: this is the one route that signals failure in the body rather than
-    // by throwing — the admin UI branches on `cli_only`. Keep the shape.
-    const cliCommand = `source .venv/bin/activate && python work/ocr/scripts/ocr.py ${cliArgs.join(' ')}`;
-    return json(
-      {
-        ok: false,
-        cli_only: true,
-        cli_command: cliCommand,
-        message: 'OCR must be run locally — copy the command below',
-      },
-      { status: 422 }
-    );
-  }
-
-  const { resolve } = await import('node:path');
-  const repoRoot = resolve('.');
-  const pythonBin = resolve(repoRoot, '.venv/bin/python');
-  const script = resolve(repoRoot, 'work/ocr/scripts/ocr.py');
-
-  // Detached so the process outlives the HTTP request
-  const child = spawnFn(pythonBin, [script, ...cliArgs], {
-    cwd: repoRoot,
-    detached: true,
-    stdio: 'ignore',
-  });
-  child.unref();
-
-  console.log(`[OCR] started PID ${child.pid} run_id=${runId} map=${mapId}`);
-
-  return json({ run_id: runId, map_id: mapId, status: 'started' }, { status: 202 });
+  return json(
+    { job_id: job!.id, run_id: runId, map_id: mapId, status: job!.status },
+    { status: 202 }
+  );
 };
 
-/** GET — return existing OCR extractions count for this map */
+/** GET — extraction counts per run, plus any unfinished job for this map. */
 export const GET: RequestHandler = async ({ locals, params, url }) => {
   await requireRole(locals);
   const mapId = assertUuid(params.id, 'map id');
   const runId = url.searchParams.get('run_id');
 
-  let query = adminClient()
+  const supabase = adminClient();
+  let query = supabase
     .from('ocr_extractions')
     .select('run_id, category, confidence', { count: 'exact' })
     .eq('map_id', mapId);
@@ -141,5 +101,14 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
       (runs[row.run_id].categories[row.category] ?? 0) + 1;
   }
 
-  return json({ map_id: mapId, total: count ?? 0, runs });
+  const { data: job } = await supabase
+    .from('pipeline_jobs')
+    .select('id, status, worker, error, created_at')
+    .eq('kind', 'ocr')
+    .eq('map_id', mapId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return json({ map_id: mapId, total: count ?? 0, runs, job: job ?? null });
 };

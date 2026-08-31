@@ -42,7 +42,12 @@ let session: Session;
 let mapId: string;
 let staffRequest: APIRequestContext;
 /** Everything this file inserts, so afterAll can take it back out. */
-const created = { runIds: [] as string[], footprintIds: [] as string[], storyIds: [] as string[] };
+const created = {
+  runIds: [] as string[],
+  footprintIds: [] as string[],
+  storyIds: [] as string[],
+  jobIds: [] as string[],
+};
 
 test.beforeAll(async () => {
   const auth = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
@@ -97,6 +102,7 @@ test.afterAll(async () => {
   for (const id of created.footprintIds)
     await admin.from('footprint_submissions').delete().eq('id', id);
   for (const id of created.storyIds) await admin.from('stories').delete().eq('id', id);
+  for (const id of created.jobIds) await admin.from('pipeline_jobs').delete().eq('id', id);
   await staffRequest?.dispose();
 });
 
@@ -200,4 +206,28 @@ test('publishing a story makes it readable by anonymous visitors', async () => {
 
   const publishedRead = await anon.from('stories').select('id').eq('id', story!.id).maybeSingle();
   expect(publishedRead.data?.id).toBe(story!.id);
+});
+
+test('running OCR enqueues one job, and only one at a time', async () => {
+  const post = await staffRequest.post(`/api/admin/maps/${mapId}/ocr`, {
+    data: { run_id: `write-smoke-${Date.now()}`, tile_size: 2400, overlap: 600 },
+  });
+  expect(post.status(), await post.text()).toBe(202);
+  const { job_id, status } = await post.json();
+  created.jobIds.push(job_id);
+  expect(status).toBe('queued');
+
+  // idx_pipeline_jobs_one_live: a second click must not queue a duplicate run.
+  const again = await staffRequest.post(`/api/admin/maps/${mapId}/ocr`, { data: {} });
+  expect(again.status()).toBe(409);
+
+  const { data: jobs } = await admin
+    .from('pipeline_jobs')
+    .select('id, kind, payload')
+    .eq('map_id', mapId);
+  expect(jobs).toHaveLength(1);
+  expect(jobs![0].kind).toBe('ocr');
+  // The worker builds its command line from this payload, so the defaults matter.
+  expect((jobs![0].payload as { tile_size: number; auto: boolean }).tile_size).toBe(2400);
+  expect((jobs![0].payload as { tile_size: number; auto: boolean }).auto).toBe(true);
 });

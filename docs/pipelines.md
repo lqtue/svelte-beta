@@ -1,6 +1,21 @@
 # Pipelines
 
-CLI-driven pipelines that live outside the SvelteKit app. Each section is the canonical reference — CLAUDE.md only links here.
+Pipelines that live outside the SvelteKit app. Each section is the canonical reference — CLAUDE.md only links here.
+
+## The worker (`work/worker/vma_worker.py`)
+
+Since migration 053 the app does not run a pipeline itself: "Run OCR" writes a `pipeline_jobs` row, and a worker claims it. Everything below still runs by hand — the worker only assembles the same command lines from a job payload.
+
+```bash
+source work/ocr/.venv/bin/activate
+python work/worker/vma_worker.py --kinds ocr --worker $(hostname)  # poll forever
+python work/worker/vma_worker.py --once                            # drain one job, exit
+python work/worker/vma_worker.py --once --python /usr/bin/true     # exercise the loop, run nothing
+```
+
+Claiming goes through the `claim_job(kinds, worker)` RPC, which is a single `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)`: several machines can poll the same kinds with no coordination. `finish_job(id, status, result, error)` closes a job out, and a failure with `attempts < max_attempts` goes back to `queued` instead of `failed`, so a worker dying mid-run costs one retry rather than the job.
+
+Credentials come from the repo-root `.env` (`PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_KEY`) — step 2 in `architecture-target.md` replaces them with a per-machine `worker_keys` token posting to `/api/pipeline/results`. Only `ocr` has a runner; a claimed `seg` job is failed straight back with a message, since segmentation runs on Colab.
 
 Two companion artifacts live beside the OCR code: `work/ocr/ocr-system-map.excalidraw` (drag onto excalidraw.com) and `work/ocr/pipeline-structure.html` (open in a browser).
 

@@ -68,9 +68,9 @@
   let run: {
     running: boolean;
     error: string;
-    cliCommand: string | null;
+    queuedJobId: string | null;
     runs: Record<string, OcrRunSummary>;
-  } = { running: false, error: '', cliCommand: null, runs: {} };
+  } = { running: false, error: '', queuedJobId: null, runs: {} };
   let pipeline: { status: PipelineStatus | null; loading: boolean; error: string } = {
     status: null,
     loading: false,
@@ -159,10 +159,10 @@
   // ── Triage actions ────────────────────────────────────────────────────────────
   async function runOcr() {
     if (!currentMap || !triage.neatline || run.running) return;
-    run = { ...run, running: true, error: '', cliCommand: null };
+    run = { ...run, running: true, error: '', queuedJobId: null };
     triage.runId = triage.runId || new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
     try {
-      const { cliCommand } = await startOcrBatch(currentMap.id, {
+      const { jobId } = await startOcrBatch(currentMap.id, {
         neatline: triage.neatline,
         tile_size: triage.tileSize,
         overlap: triage.overlap,
@@ -170,14 +170,10 @@
         min_confidence: triage.minConfidence,
         tile_overrides: Object.keys(triage.tileOverrides).length ? triage.tileOverrides : undefined,
       });
-      if (cliCommand) {
-        run.cliCommand = cliCommand;
-        return;
-      }
+      // Queued, not finished: a worker picks it up, so stay on Triage and let
+      // the pipeline panel report progress rather than opening an empty review.
+      run.queuedJobId = jobId;
       await refreshRuns();
-      phase = 'ocr';
-      await tick();
-      ocrSidebar?.load?.();
     } catch (e: any) {
       run.error = e.message;
     } finally {

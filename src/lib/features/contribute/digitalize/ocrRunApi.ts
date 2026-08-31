@@ -29,21 +29,20 @@ export async function fetchOcrRuns(mapId: string): Promise<Record<string, OcrRun
 }
 
 /**
- * Starts a batch. On Cloudflare there is no `child_process`, so the server
- * answers with the command to run by hand — that comes back as `cliCommand`
- * rather than an error.
+ * Enqueues a batch. Nothing runs until a `vma_worker.py` claims the job, so a
+ * 202 here means "queued", not "finished" — extractions appear once the worker
+ * has run and the pipeline stage flips to `ocr_done`.
  */
 export async function startOcrBatch(
   mapId: string,
   body: OcrBatchInput
-): Promise<{ cliCommand: string | null }> {
+): Promise<{ jobId: string; status: string }> {
   const res = await fetch(`/api/admin/maps/${mapId}/ocr`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (data.cli_only) return { cliCommand: data.cli_command };
   if (!res.ok) throw new Error(data.message ?? res.statusText);
-  return { cliCommand: null };
+  return { jobId: data.job_id, status: data.status };
 }
