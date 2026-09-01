@@ -323,31 +323,33 @@ Full command reference and design rationale in `docs/pipelines.md`:
 
 Cloudflare Pages adapter. Build output: `.svelte-kit/cloudflare`. Config: `wrangler.toml`.
 
-**`wrangler.toml` is the source of truth, and that includes environment.** Once
-`pages_build_output_dir` is set, Pages stops applying the variables configured in the
-dashboard — you can still see them there, but they no longer reach a build. This is not
-theoretical: it broke ten consecutive preview builds while `npm run build` stayed green
-locally, because `$env/static/*` is resolved by rollup and the missing name fails the
-first import (`"PUBLIC_SUPABASE_URL" is not exported by "virtual:env/static/public"`).
+**Environment lives in the Cloudflare dashboard, and `wrangler.toml` must not exist.**
+A root `wrangler.toml` carrying `pages_build_output_dir` makes the Wrangler file the
+source of truth for the Pages project, and Cloudflare then replaces the dashboard's
+entire environment with what that file declares — build variables *and* runtime
+secrets. Secrets cannot live in a committed file, so the file cannot be used here.
 
-The split that follows from it:
+Both halves of that were learned the expensive way:
 
-- **Public** values (`PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`) live in `[vars]`
-  in `wrangler.toml`. They must be build-time — the anon key is inlined into the client
-  bundle, and `$env/dynamic/public` cannot replace it because the `(app)` routes set
-  `ssr = false`. Committing them is safe: the publishable key ships to every browser
-  already, and RLS is what protects the data.
-- **Secrets** (`SUPABASE_SERVICE_KEY`, `IA_S3_ACCESS_KEY`, `IA_S3_SECRET_KEY`) are read
-  through `$env/dynamic/private` in `$lib/server/{supabaseAdmin,storage,ia}.ts`, so they
-  are never needed at build and never inlined into a bundle. Set them per environment:
+- With the file present and no `[vars]`, the build logged `Build environment variables:
+  (none found)` and rollup failed on the first `$env/static/public` import
+  (`"PUBLIC_SUPABASE_URL" is not exported by "virtual:env/static/public"`). Ten
+  consecutive preview builds died this way while `npm run build` stayed green locally.
+- Adding `[vars]` fixed the build, and the deploy then failed at runtime instead:
+  `Error: supabaseKey is required.` — `wrangler pages secret put` had reported success,
+  but the config file had displaced the secret store too.
 
-  ```bash
-  npx wrangler pages secret put SUPABASE_SERVICE_KEY --project-name vmabeta
-  npx wrangler pages secret put SUPABASE_SERVICE_KEY --project-name vmabeta --environment preview
-  ```
+So: `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY` and `PUBLIC_PROTOMAPS_KEY` are
+plain **Text** variables in Settings → Variables and Secrets; `SUPABASE_SERVICE_KEY`,
+`IA_S3_ACCESS_KEY` and `IA_S3_SECRET_KEY` are **Secret** there. Build command, output
+directory (`.svelte-kit/cloudflare`) and `nodejs_compat` are dashboard settings too.
+Each environment (Production, Preview) holds its own copy — a preview deployment with
+no secrets returns 500 from every route that needs one, and nothing inherits.
 
-  `wrangler pages secret list` shows what an environment holds. An unset secret is not a
-  build failure — it is a runtime 500 in the admin and pipeline routes only.
+`npm run deploy` therefore passes the directory explicitly:
+`wrangler pages deploy .svelte-kit/cloudflare --project-name vmabeta`.
 
-CI covers the same requirement differently: `.github/workflows` does `cp .env.test .env`
-before `check` and `build`, which is why CI stayed green through all ten failures.
+Secrets are read through `$env/dynamic/private` in `$lib/server/{supabaseAdmin,storage,ia}.ts`,
+so they bind at request time and are never inlined into a bundle. CI has no dashboard, so
+`.github/workflows` does `cp .env.test .env` before `check` and `build` — which is why CI
+stayed green through all ten build failures.
