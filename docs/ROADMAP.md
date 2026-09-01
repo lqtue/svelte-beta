@@ -8,7 +8,7 @@ Layout now `core → data → map → features → routes`, `ui` primitives, `se
 
 ## Track A — Ship + harden (done)
 - [x] A1 CF preview click-through (2026-08-31, https://chore-cleanup.vmabeta.pages.dev): 12 routes load, smoke 7/7 against the preview, zero console errors except /explore's Allmaps 404s. Tokenised review + digitalize confirmed light. Needed a deploy fix: `pagesBuildOutputDir` → `pages_build_output_dir`. Three findings pushed to Track D.
-- [ ] A2 PR `chore/cleanup` → `main`
+- [x] A2 PR #7 `chore/cleanup` → `main` (merged 2026-09-01, 65 commits). #8–#12 followed: the Pages environment, mig 063, the self-hosted basemap.
 - [x] A3 CI: `npm run lint && npm run check && npm run build` on PR (none exists)
 - [x] A4 eslint `import/no-restricted-paths` encoding the layering rule (ui/core ↛ features; client ↛ server)
 - [x] A5 Local Supabase stack + seeded staff user → 4 write-path smokes (`npm run test:write`). Found and fixed a real bug: mig 021's `populate_footprint_map_id` trigger outlived the `task_id` column 038 dropped, so **every** footprint insert failed — mig 052 drops it.
@@ -37,15 +37,20 @@ Runs as B1 jobs (`ocr`, `seg`, `join`) once B1 lands — no more copy-paste CLI.
 
 ## Track D — Burn-down (when it hurts)
 - ~~Basemap on a third-party tile server~~ — **done 2026-09-01**: self-hosted PMTiles (Saigon extract, 37 MB) in R2, served by the existing worker at `iiif.maparchive.vn/basemap/*`, styled in `src/lib/map/basemapStyle.ts`. No key, no quota, no usage policy.
-- 43 maps have `georef_done` but 404 on `annotations.allmaps.org` — run `/api/admin/maps/sync-georef` and see whether the flag or the upstream annotation is what drifted
+- ~~43 maps `georef_done` but 404 upstream~~ — **not true as of 2026-09-01**. Measured against production: every one of the 39 `georef_done` maps has a mirrored `annotation_url`, and the 62 that 404 on allmaps.org all have `georef_done = false`, correctly, because they were never georeferenced. `sync-georef` has nothing to fix.
 - `/contribute/review` back-link: the round icon button overlaps the "Contribute" label
 - `/explore` Display row: the "Side-by-side" button label is clipped
 - API response shapes → `{ ok, data }` (inventory: `work/cleanup/review-admin-api-editorial.md`)
 - tokens.css grey ramp → fold the `color-mix` hacks
-- 71 eslint warnings (mostly unkeyed `{#each}`)
-- Files >400 L: CreateMode 575, MapEditHostingTab 571, OcrSidebar 562 (→ OcrTable, needs OCR test data), MapEditPipelineTab 467, TripPlayback 462, CatalogTable 450
+- 69 eslint warnings (mostly unkeyed `{#each}`)
+- Files >400 L: MapEditHostingTab 584, CreateMode 583, OcrSidebar 562 (→ OcrTable, needs OCR test data), MapEditPipelineTab 467, TripPlayback 462, CatalogTable 450, StudioAnimationPanel 412, explore/+page 407, TriageSidebar 407, trip/[id]/+page 405, StudioMode 405
 - Dead theme switcher (`vma-theme` read, never written, no `[data-theme]` CSS) — finish archival theme or delete
-- `scripts/tile_map.sh` → becomes B4's `tile_to_r2` job; retire script
+- ~~`scripts/tile_map.sh` → B4's `tile_to_r2` job~~ — **done**: `work/worker/vma_worker.py` claims the job and shells out to the script, so it is the job's implementation rather than something to retire. First real run 2026-09-01: 4,625 objects, 64.9 MB.
+
+## Open, as of 2026-09-01
+
+- **Preview environment has no variables.** Production holds all five; Preview holds none, so every preview build fails at the first `$env/static/*` import. Dashboard only — `wrangler pages secret` has no environment flag in any current version.
+- **62 drafts are ungeoreferenced.** All 101 maps are self-hosted (imagery on `iiif.maparchive.vn`, tiles in R2), and 39 have mirrored annotations. The remaining 62 need a human in `/contribute/georef`; publishing each one then enqueues its hosting jobs automatically. This is the last thing between the archive and owning the whole pipeline.
 
 ## Order
 A1–A4 → B1 → B2 → C0 → C1 → B3 → B4 → B5 → C2… ; B6/B7 interleave when a public/moderation need shows; A5 alongside B3 (RPCs are what make write tests cheap). D never blocks.
