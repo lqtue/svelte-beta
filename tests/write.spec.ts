@@ -430,6 +430,9 @@ test('publishing a map queues its hosting jobs, once', async () => {
       allmaps_id: `pub${Date.now()}`.slice(0, 16),
       name: 'Publish-smoke fixture',
       status: 'draft',
+      // Both jobs are wanted here, so the fixture has to earn both: an upstream
+      // annotation to mirror (georef_done) and imagery not yet on our host.
+      georef_done: true,
       iiif_image: 'https://example.invalid/iiif/publish-smoke',
     })
     .select('id')
@@ -451,6 +454,38 @@ test('publishing a map queues its hosting jobs, once', async () => {
   expect(still).toHaveLength(2);
 
   await admin.from('maps').delete().eq('id', draft!.id); // cascades to the jobs
+});
+
+test('publishing queues neither job when neither would accomplish anything', async () => {
+  // The shape of the 62 drafts: never georeferenced, scan already served from
+  // our own host. Migration 064 stops both jobs; before it, publishing these
+  // queued a doomed mirror and a redundant re-tile apiece.
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({
+      allmaps_id: `noop${Date.now()}`.slice(0, 16),
+      name: 'Publish-smoke no-op fixture',
+      status: 'draft',
+      georef_done: false,
+      iiif_image: 'https://iiif.maparchive.vn/iiif/publish-smoke-noop',
+    })
+    .select('id')
+    .single();
+
+  await admin.from('maps').update({ status: 'public' }).eq('id', draft!.id);
+
+  const { data: queued } = await admin.from('pipeline_jobs').select('kind').eq('map_id', draft!.id);
+  expect(queued).toHaveLength(0);
+
+  // Georeferencing it later is what earns the mirror.
+  await admin.from('maps').update({ status: 'draft' }).eq('id', draft!.id);
+  await admin.from('maps').update({ georef_done: true }).eq('id', draft!.id);
+  await admin.from('maps').update({ status: 'public' }).eq('id', draft!.id);
+
+  const { data: after } = await admin.from('pipeline_jobs').select('kind').eq('map_id', draft!.id);
+  expect(after!.map((j) => j.kind)).toEqual(['mirror_annotation']);
+
+  await admin.from('maps').delete().eq('id', draft!.id);
 });
 
 test('the server-side executor only takes the kinds it can run', async () => {
