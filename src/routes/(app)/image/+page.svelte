@@ -130,7 +130,10 @@
                   {#if currentMap.collection}<span>· {currentMap.collection}</span>{/if}
                 </div>
                 <div class="ac-actions">
-                  {#if currentMap.allmaps_id}
+                  <!-- allmaps_id alone is not enough: every draft has one and
+                       404s upstream. georef_done is what says the map can be
+                       placed on the world. -->
+                  {#if currentMap.georef_done}
                     <a class="ac-btn primary" href={`/explore?map=${currentMap.id}`}>Open on map</a>
                   {/if}
                   <a class="ac-btn" href={`/studio?map=${currentMap.id}`}>Annotate</a>
