@@ -24,55 +24,51 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createClient } from '@supabase/supabase-js';
-import { GcpTransformer } from '@allmaps/transform';
-import { parseAnnotation } from '@allmaps/annotation';
-import {
-  PUBLIC_SUPABASE_URL,
-  PUBLIC_SUPABASE_ANON_KEY
-} from '$env/static/public';
+import type { GcpTransformer } from '@allmaps/transform';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { allmapsAnnotationUrl, getTransformer } from '$lib/server/transformer';
+import { dbError } from '$lib/server/http';
 
 interface AnnotationData {
   transformer: GcpTransformer;
   iiifBaseUrl: string; // IIIF image service base URL (for region crop requests)
 }
 
-const annotationCache = new Map<string, AnnotationData>();
+type AnnotationCache = Map<string, AnnotationData>;
 
-async function getAnnotationData(allmapsId: string): Promise<AnnotationData | null> {
-  const annotationUrl = `https://annotations.allmaps.org/maps/${allmapsId}`;
-  if (annotationCache.has(annotationUrl)) return annotationCache.get(annotationUrl)!;
+// Cache is per-request: module scope is shared across concurrent requests in a CF isolate.
+async function getAnnotationData(
+  allmapsId: string,
+  annotationCache: AnnotationCache
+): Promise<AnnotationData | null> {
+  const key = allmapsAnnotationUrl(allmapsId);
+  const cached = annotationCache.get(key);
+  if (cached) return cached;
 
-  try {
-    const res = await fetch(annotationUrl);
-    if (!res.ok) return null;
-    const annotation = await res.json();
-    const maps = parseAnnotation(annotation);
-    if (!maps.length) return null;
+  const resolved = await getTransformer(allmapsId);
+  // Without the IIIF base URL we cannot build crop requests, so treat it as a miss.
+  if (!resolved?.iiifBaseUrl) return null;
 
-    const transformer = GcpTransformer.fromGeoreferencedMap(maps[0] as any);
-    // IIIF image service base URL lives at items[0].target.source.id in the annotation
-    const iiifBaseUrl = annotation.items?.[0]?.target?.source?.id as string | undefined;
-    if (!iiifBaseUrl) return null;
-
-    const data: AnnotationData = { transformer, iiifBaseUrl };
-    annotationCache.set(annotationUrl, data);
-    return data;
-  } catch {
-    return null;
-  }
+  const data: AnnotationData = {
+    transformer: resolved.transformer,
+    iiifBaseUrl: resolved.iiifBaseUrl,
+  };
+  annotationCache.set(key, data);
+  return data;
 }
 
 const CATEGORY_IDS: Record<string, number> = {
-  building:    1,
-  land_plot:   2,
-  road:        3,
-  waterway:    4,
+  building: 1,
+  land_plot: 2,
+  road: 3,
+  waterway: 4,
   green_space: 5,
-  water_body:  6,
-  other:       7,
+  water_body: 6,
+  other: 7,
 };
 
 export const GET: RequestHandler = async ({ url }) => {
+  const annotationCache: AnnotationCache = new Map();
   const mapId = url.searchParams.get('map_id');
   const status = url.searchParams.get('status') || 'submitted';
   const format = url.searchParams.get('format') || 'geojson';
@@ -83,6 +79,8 @@ export const GET: RequestHandler = async ({ url }) => {
     throw error(400, 'map_id is required for coco format');
   }
 
+  // Deliberately the anon key, not $lib/server/supabaseAdmin: this endpoint is
+  // public and unauthenticated, so it must stay behind RLS.
   const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
 
   let fpQuery = supabase
@@ -92,8 +90,8 @@ export const GET: RequestHandler = async ({ url }) => {
 
   if (mapId) fpQuery = fpQuery.eq('map_id', mapId);
 
-  const { data: rows, error: dbError } = await fpQuery;
-  if (dbError) throw error(500, dbError.message);
+  const { data: rows, error: err } = await fpQuery;
+  if (err) dbError(err, 'Could not load footprints');
 
   // ── GeoJSON ──────────────────────────────────────────────────────────────
 
@@ -104,7 +102,7 @@ export const GET: RequestHandler = async ({ url }) => {
       const resolvedAllmapsId = (row.maps as any)?.allmaps_id ?? null;
       if (!resolvedAllmapsId) continue;
 
-      const annData = await getAnnotationData(resolvedAllmapsId);
+      const annData = await getAnnotationData(resolvedAllmapsId, annotationCache);
       const pixelRing: [number, number][] = row.pixel_polygon;
       let coordinates: [number, number][];
 
@@ -139,7 +137,6 @@ export const GET: RequestHandler = async ({ url }) => {
       });
     }
 
-    annotationCache.clear();
     return new Response(JSON.stringify({ type: 'FeatureCollection', features }, null, 2), {
       headers: {
         'Content-Type': 'application/geo+json',
@@ -158,7 +155,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const resolvedAllmapsId = (row.maps as any)?.allmaps_id ?? null;
     if (!resolvedAllmapsId) continue;
 
-    const annData = await getAnnotationData(resolvedAllmapsId);
+    const annData = await getAnnotationData(resolvedAllmapsId, annotationCache);
     if (!annData) continue; // can't build crop URL without IIIF base
 
     const pixelRing: [number, number][] = row.pixel_polygon;
@@ -167,8 +164,10 @@ export const GET: RequestHandler = async ({ url }) => {
     // Bounding box in IIIF pixel space
     const xs = pixelRing.map(([x]) => x);
     const ys = pixelRing.map(([, y]) => y);
-    const xMin = Math.min(...xs), yMin = Math.min(...ys);
-    const xMax = Math.max(...xs), yMax = Math.max(...ys);
+    const xMin = Math.min(...xs),
+      yMin = Math.min(...ys);
+    const xMax = Math.max(...xs),
+      yMax = Math.max(...ys);
 
     // Crop region with padding (clamped to non-negative)
     const cropX = Math.max(0, Math.round(xMin - pad));
@@ -236,8 +235,6 @@ export const GET: RequestHandler = async ({ url }) => {
     annId++;
   }
 
-  annotationCache.clear();
-
   return json({
     info: {
       description: 'Vietnam Map Archive — Building Footprints (segmentation training)',
@@ -248,13 +245,13 @@ export const GET: RequestHandler = async ({ url }) => {
       export_params: { status, pad, crop_size: cropSize },
     },
     categories: [
-      { id: 1, name: 'building',    supercategory: 'structure' },
-      { id: 2, name: 'land_plot',   supercategory: 'structure' },
-      { id: 3, name: 'road',        supercategory: 'infrastructure' },
-      { id: 4, name: 'waterway',    supercategory: 'infrastructure' },
+      { id: 1, name: 'building', supercategory: 'structure' },
+      { id: 2, name: 'land_plot', supercategory: 'structure' },
+      { id: 3, name: 'road', supercategory: 'infrastructure' },
+      { id: 4, name: 'waterway', supercategory: 'infrastructure' },
       { id: 5, name: 'green_space', supercategory: 'open_land' },
-      { id: 6, name: 'water_body',  supercategory: 'open_land' },
-      { id: 7, name: 'other',       supercategory: 'other' },
+      { id: 6, name: 'water_body', supercategory: 'open_land' },
+      { id: 7, name: 'other', supercategory: 'other' },
     ],
     images: cocoImages,
     annotations: cocoAnnotations,

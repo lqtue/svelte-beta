@@ -1,4 +1,20 @@
-"""Versioned prompt strings and JSON schema for the OCR pipeline."""
+"""Versioned prompt strings and JSON schema for the OCR pipeline.
+
+CANONICAL COORDINATE CONTRACT
+-----------------------------
+Gemini `bbox_px` is 0–1000 normalized *per frame* (0,0 = top-left, 1000,1000 =
+bottom-right of the tile it was read in). This is the ONE space every prompt
+here must state and every model call assumes; `ocr.py:_to_global` converts it
+to full-image source pixels by treating render_w/h as 1000. All prompt versions
+(V1–V8) now say 0–1000 — earlier V1–V3 mistakenly said "pixels" and were
+corrected. SCOUT uses the same 0–1000 space but at full-map scale (its own
+inline scaling in ocr.py, not _to_global).
+
+NOT this space: `local_vision.py` (detect_legend_boxes / spot_numerals) returns
+raw source-image pixels — a separate, legitimate space for the local tools; the
+`numerals` / `detect-layout` subcommands convert those directly, never via the
+0–1000 path. Don't feed local_vision boxes through _to_global.
+"""
 
 # ── JSON schema ───────────────────────────────────────────────────────────────
 
@@ -90,8 +106,8 @@ For each text region:
 1. Transcribe the text exactly as it appears (preserve accents, capitalisation).
 2. Assign the most appropriate category.
 3. Note the language.
-4. Provide bbox_px as [x, y, width, height] in pixels within this tile image \
-(top-left origin, values must be within the tile dimensions).
+4. Provide bbox_px as [x, y, width, height] in 0–1000 normalized scale \
+(0,0 = top-left, 1000,1000 = bottom-right of this tile).
 5. Estimate rotation_deg: the angle of the text baseline from horizontal \
 (0 = left-to-right horizontal; positive = counter-clockwise). Most street labels \
 follow the road angle.
@@ -123,8 +139,8 @@ For each text region:
 1. Transcribe the complete label text in reading order (preserve accents, capitalisation).
 2. Assign the most appropriate category.
 3. Note the language.
-4. Provide bbox_px as [x, y, width, height] in pixels within this tile image \
-(top-left origin, enclosing ALL words of the label, values must be within the tile dimensions).
+4. Provide bbox_px as [x, y, width, height] in 0–1000 normalized scale \
+(0,0 = top-left, 1000,1000 = bottom-right; enclosing ALL words of the label).
 5. Estimate rotation_deg: the angle of the text baseline from horizontal \
 (0 = left-to-right horizontal; positive = counter-clockwise). Most street labels \
 follow the road angle.
@@ -179,7 +195,7 @@ NOT extracted as standalone items.
 1. Full assembled text in reading order (preserve accents, capitalisation).
 2. Category: street | place | building | institution | legend | title | other
 3. Language: fr | vi | zh | other
-4. bbox_px: [x, y, width, height] enclosing ALL words, within tile dimensions.
+4. bbox_px: [x, y, width, height] enclosing ALL words, 0–1000 normalized scale.
 5. rotation_deg: baseline angle from horizontal (positive = counter-clockwise).
 6. confidence: 0.5–1.0 (only include labels you are at least 50% confident about).
 7. notes: optional observations.

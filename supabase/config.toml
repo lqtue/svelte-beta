@@ -7,7 +7,7 @@ project_id = "svelte-beta"
 [api]
 enabled = true
 # Port to use for the API URL.
-port = 54321
+port = 54421
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
 schemas = ["public", "graphql_public"]
@@ -28,7 +28,7 @@ enabled = false
 # Port to use for the local database URL.
 port = 54322
 # Port used by db diff command to initialize the shadow database.
-shadow_port = 54320
+shadow_port = 54420
 # Maximum amount of time to wait for health check when starting the local database.
 health_timeout = "2m"
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW

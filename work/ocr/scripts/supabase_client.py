@@ -1,4 +1,14 @@
-"""Supabase REST client for OCR pipeline writes."""
+"""Database access for the OCR pipeline.
+
+Two transports, picked per call:
+
+* **Worker mode** — when VMA_API_URL and VMA_WORKER_KEY are set (the worker
+  exports both into every job it runs), writes go to /api/pipeline/results with
+  the worker token. The machine holds no database credentials.
+* **Direct mode** — otherwise, PostgREST with SUPABASE_SERVICE_KEY, as before.
+  This is what the analysis-only subcommands (clean, join_labels, eval) still
+  use when run by hand on a trusted machine.
+"""
 
 from __future__ import annotations
 
@@ -32,6 +42,32 @@ _CHUNK_SIZE = 50  # rows per request — avoids PostgREST payload limits
 _CONFLICT_COLS = "map_id,run_id,tile_x,tile_y,text"
 
 
+def _api_config() -> tuple[str, str] | None:
+    """(api_url, worker_key) when this process should write through the API."""
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).resolve().parents[3] / ".env")
+    except ImportError:
+        pass
+    url = os.environ.get("VMA_API_URL", "").rstrip("/")
+    key = os.environ.get("VMA_WORKER_KEY", "")
+    return (url, key) if url and key else None
+
+
+def _post_results(payload: dict[str, Any]) -> dict[str, Any]:
+    """POST one bundle to /api/pipeline/results. Caller has checked _api_config()."""
+    url, key = _api_config()  # type: ignore[misc]
+    resp = requests.post(
+        f"{url}/api/pipeline/results",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        data=json.dumps(payload),
+        timeout=60,
+    )
+    if not resp.ok:
+        raise requests.HTTPError(f"{resp.status_code} results: {resp.text[:400]}", response=resp)
+    return resp.json()
+
+
 def _headers(key: str) -> dict[str, str]:
     return {
         "apikey": key,
@@ -53,7 +89,6 @@ def upsert_ocr_extractions(map_id: str, run_id: str, rows: list[dict[str, Any]])
     if not rows:
         return 0
 
-    url, key = _load_config()
     payload = [
         {**row, "map_id": map_id, "run_id": run_id}
         for row in rows
@@ -75,6 +110,16 @@ def upsert_ocr_extractions(map_id: str, run_id: str, rows: list[dict[str, Any]])
             deduped_payload.append(row)
     payload = deduped_payload
 
+    api = _api_config()
+    if api:
+        total = 0
+        for i in range(0, len(payload), _CHUNK_SIZE):
+            chunk = payload[i : i + _CHUNK_SIZE]
+            _post_results({"extractions": chunk})
+            total += len(chunk)
+        return total
+
+    url, key = _load_config()
     # PostgREST requires on_conflict param to resolve conflicts on non-PK unique indexes
     endpoint = f"{url}/rest/v1/ocr_extractions?on_conflict={_CONFLICT_COLS}"
     total = 0
@@ -121,21 +166,64 @@ def fetch_ocr_extractions(map_id: str, run_id: str | None = None) -> list[dict[s
     return data
 
 
-def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:
-    """Upsert a row in map_pipeline_status for the given map_id and stage.
-
-    Extra keyword args (e.g. ocr_run_id, ocr_started_at) are merged into the row.
-    """
+def fetch_footprints(map_id: str) -> list[dict[str, Any]]:
+    """Fetch footprint_submissions polygons for a map (for the label join)."""
     url, key = _load_config()
-    payload = {"map_id": map_id, "stage": stage, **kwargs}
-    resp = requests.post(
-        f"{url}/rest/v1/map_pipeline_status?on_conflict=map_id",
-        headers=_headers(key),
-        data=json.dumps(payload),
-        timeout=15,
+    endpoint = (
+        f"{url}/rest/v1/footprint_submissions?map_id=eq.{map_id}"
+        "&select=id,pixel_polygon,feature_type,category,name,run_id,created_at,status"
+    )
+    resp = requests.get(
+        endpoint,
+        headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        timeout=30,
     )
     if not resp.ok:
-        print(f"[pipeline] WARNING: status update failed {resp.status_code}: {resp.text[:200]}")
+        raise requests.HTTPError(f"{resp.status_code} footprints fetch failed: {resp.text}", response=resp)
+    return resp.json()
+
+
+def link_extractions_to_footprints(assignments: dict[str, str]) -> int:
+    """Write footprint_id back to ocr_extractions (migration 050).
+
+    assignments = {extraction_id: footprint_id}. Grouped by footprint so a whole
+    building's labels update in one PATCH — one request per distinct footprint.
+    """
+    if not assignments:
+        return 0
+
+    url, key = _load_config()
+    by_footprint: dict[str, list[str]] = {}
+    for ext_id, fp_id in assignments.items():
+        by_footprint.setdefault(fp_id, []).append(ext_id)
+
+    total = 0
+    for fp_id, ext_ids in by_footprint.items():
+        for i in range(0, len(ext_ids), _CHUNK_SIZE):
+            chunk = ext_ids[i : i + _CHUNK_SIZE]
+            id_list = ",".join(chunk)
+            resp = requests.patch(
+                f"{url}/rest/v1/ocr_extractions?id=in.({id_list})",
+                headers=_headers(key),
+                data=json.dumps({"footprint_id": fp_id}),
+                timeout=30,
+            )
+            if not resp.ok:
+                raise requests.HTTPError(f"{resp.status_code} link failed: {resp.text[:400]}", response=resp)
+            total += len(chunk)
+
+    return total
+
+
+def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:
+    """No-op since migration 056.
+
+    map_pipeline_status is a view now: the ocr/seg stages are derived from the
+    pipeline_jobs row the worker already opens and closes, so a second write
+    from inside the script would have nowhere to land. Kept as a stub so a
+    hand-run pipeline does not crash on the call.
+    """
+    return None
 
 
 def upsert_label_pins(map_id: str, rows: list[dict[str, Any]]) -> int:

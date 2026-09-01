@@ -1,0 +1,59 @@
+export type StoryMode = 'guided' | 'adventure';
+export type PointChallengeType = 'none' | 'question' | 'reach';
+
+export interface PointChallenge {
+  type: PointChallengeType;
+  question?: string;
+  answer?: string;
+  triggerRadius?: number; // for 'reach' type (meters)
+}
+
+export type StoryStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
+
+export interface StoryPoint {
+  id: string;
+  order: number;
+  title: string;
+  description: string;
+  hint?: string;
+  coordinates: [number, number]; // [lon, lat] EPSG:4326
+  triggerRadius: number; // meters, default 10
+  interaction: StopInteraction;
+  challenge: PointChallenge;
+  overlayMapId?: string; // maps.id UUID (new) or maps.allmaps_id (legacy) — callers resolve via mapList lookup
+  camera?: { center: [number, number]; zoom: number; rotation?: number };
+}
+
+export interface Story {
+  id: string;
+  title: string;
+  description: string;
+  mode: StoryMode;
+  points: StoryPoint[];
+  region?: { center: [number, number]; zoom: number };
+  createdAt: number;
+  updatedAt: number;
+  /**
+   * draft → submitted → approved | rejected. Publishing submits for review
+   * (mig 059); only a mod can approve, and only approved stories are public.
+   */
+  status: StoryStatus;
+  authorId: string;
+  authorName?: string; // Display name of the story creator
+}
+
+export interface StoryProgress {
+  storyId: string;
+  currentPointIndex: number;
+  completedPoints: string[];
+  startedAt: number;
+  completedAt?: number;
+}
+
+export interface StoryPlayerState {
+  activeStoryId: string | null;
+  progress: Record<string, StoryProgress>;
+}
+
+// Only proximity stops exist; the 'qr'/'camera' variants were never reachable.
+export type StopInteraction = 'proximity';

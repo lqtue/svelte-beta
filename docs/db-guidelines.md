@@ -17,7 +17,7 @@ id uuid primary key default gen_random_uuid()
 
 `maps.allmaps_id` is a **service credential** — the Allmaps API key for this map's annotation. It is only used when calling Allmaps endpoints (building annotation URLs, loading warped tile layers). It is never a join key or URL parameter.
 
-Current debt: `mapStore.activeMapId`, URL hash `&map=`, and `src/lib/supabase/maps.ts` shim still use `allmaps_id` as identity. This will be resolved when the home page and shell are migrated to `maps/service.ts`.
+Resolved (Aug 2026): `mapStore.activeMapId` now holds the `maps.id` UUID, mirrored from `layersStore.topOverlay`; the map deep-link is the `?map=<uuid>` query param, and the `&map=` hash writer is gone. The old `supabase/maps.ts` shim was deleted — read through `src/lib/data/maps/service.ts`.
 
 ### Foreign keys
 All FK columns reference the PK (`id uuid`). Text pseudo-FKs are not permitted.
@@ -38,7 +38,7 @@ allmaps_id text  -- service credential used as join key
 | Concept | Column name | Example |
 |---------|------------|---------|
 | Primary key | `id` | `id uuid primary key` |
-| Foreign key | `{table_singular}_id` | `map_id`, `task_id` |
+| Foreign key | `{table_singular}_id` | `map_id`, `story_id`, `run_id` |
 | User identity | `user_id` | `user_id uuid references auth.users` |
 | Boolean flag | `is_{state}` | `is_featured`, `is_public`, `is_primary` |
 | Creation time | `created_at` | `created_at timestamptz default now()` |
@@ -47,7 +47,7 @@ allmaps_id text  -- service credential used as join key
 
 Never use `submitted_by`, `author_id`, `owner_id` — always `user_id`.
 
-Table names are plural snake_case matching the domain, not feature names (`maps`, `label_tasks`, not `hunts`).
+Table names are plural snake_case matching the domain, not the feature that happens to use them (`maps`, `footprint_submissions`, `story_points` — not `hunts`, which was dropped in migration 034 when the feature was renamed).
 
 ---
 
@@ -169,4 +169,6 @@ All tables must have `alter table ... enable row level security`.
 
 | Item | Location | Fix |
 |------|---------|-----|
-| `maps.allmaps_id` used as map identity | `mapStore`, URL hash `&map=`, `supabase/maps.ts` shim, home page grid | Migrate to `maps.id` UUID when shim is removed |
+| Two visibility models on `maps` | the `status` enum (`draft \| public \| featured`, mig 038) and the `is_public` / `is_featured` booleans both exist, and different code paths gate on different ones — `data/maps/georef.ts` selects the georef queue with `.eq('is_public', false)` while `/api/search` enforces `status IN ('public','featured')`, and `MapEditModal` exposes both | Pick one as authoritative, migrate the other to a generated column or drop it. **Do not add a third.** |
+| `label_pins` outlives its feature | `label_tasks` was dropped in mig 038 but `label_pins` remains, now written only by `POST /api/admin/maps/[id]/ocr/apply` | Either fold into `ocr_extractions` or document it as the OCR-applied point layer |
+| Migration head is 051 | `supabase/migrations/` | Regenerate `src/lib/data/supabase/types.ts` after every push: `supabase gen types typescript --linked` |

@@ -1,0 +1,64 @@
+/*
+  auth-gate.css — the "sign in to continue" card shown by $lib/ui/AuthGate.svelte.
+  Split out of layouts/create-mode.css; imported by the tool modes that render
+  AuthGate (/create, /studio).
+*/
+
+.auth-gate {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth-gate-card {
+  background: var(--color-white);
+  padding: 2.5rem;
+  border-radius: var(--radius-lg);
+  border: var(--border-thick);
+  box-shadow: var(--shadow-solid);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.auth-gate-title {
+  font-family: var(--font-family-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 1.5rem 0 0.5rem;
+  text-transform: uppercase;
+}
+
+.auth-gate-text {
+  color: var(--color-text);
+  margin-bottom: 2rem;
+  opacity: 0.8;
+}
+
+.auth-gate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--color-white);
+  border: var(--border-thick);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-family-base);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-solid-xs);
+  transition: transform 0.1s;
+}
+
+.auth-gate-btn:hover {
+  background: var(--color-yellow);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-solid-sm);
+}

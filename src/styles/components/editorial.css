@@ -59,7 +59,9 @@
   margin-left: auto;
 }
 @media (max-width: 600px) {
-  .nav-links { display: none; }
+  .nav-links {
+    display: none;
+  }
 }
 
 /* ----------------------------------------
@@ -108,7 +110,9 @@
   text-shadow: 4px 4px 0 var(--color-text);
 }
 @media (max-width: 600px) {
-  .editorial-hero { padding: 3rem 1.25rem; }
+  .editorial-hero {
+    padding: 3rem 1.25rem;
+  }
 }
 
 /* ----------------------------------------
@@ -139,12 +143,16 @@
   border: var(--border-thin);
   box-shadow: 2px 2px 0 var(--color-border);
 }
-.chip-green  { background: var(--color-green); }
-.chip-blue   { background: var(--color-blue); color: white; }
-.chip-yellow { background: var(--color-white); }
-.chip-orange { background: var(--color-orange); }
-.chip-purple { background: var(--color-purple); color: white; }
-.chip-red    { background: var(--color-primary); color: white; }
+.chip-green {
+  background: var(--color-green);
+}
+.chip-blue {
+  background: var(--color-blue);
+  color: white;
+}
+.chip-yellow {
+  background: var(--color-white);
+}
 
 /* ----------------------------------------
    SECTION CARD — white card with thick border + shadow
@@ -197,11 +205,22 @@
   box-shadow: var(--shadow-solid-sm);
   flex-shrink: 0;
 }
-.icon-blob.color-green  { background: var(--color-green); }
-.icon-blob.color-blue   { background: var(--color-blue); }
-.icon-blob.color-orange { background: var(--color-orange); }
-.icon-blob.color-yellow { background: var(--color-yellow); }
-.icon-blob.color-purple { background: var(--color-purple); color: white; }
+.icon-blob.color-green {
+  background: var(--color-green);
+}
+.icon-blob.color-blue {
+  background: var(--color-blue);
+}
+.icon-blob.color-orange {
+  background: var(--color-orange);
+}
+.icon-blob.color-yellow {
+  background: var(--color-yellow);
+}
+.icon-blob.color-purple {
+  background: var(--color-purple);
+  color: white;
+}
 
 /* ----------------------------------------
    ACTION BUTTONS — pill CTAs
@@ -219,7 +238,9 @@
   text-decoration: none;
   cursor: pointer;
   box-shadow: var(--shadow-solid-sm);
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
   width: max-content;
 }
 .action-btn:hover {
@@ -227,8 +248,14 @@
   box-shadow: var(--shadow-solid);
   text-decoration: none;
 }
-.action-btn.primary-btn  { background: var(--color-primary); color: white; }
-.action-btn.secondary-btn { background: var(--color-white); color: var(--color-text); }
+.action-btn.primary-btn {
+  background: var(--color-primary);
+  color: white;
+}
+.action-btn.secondary-btn {
+  background: var(--color-white);
+  color: var(--color-text);
+}
 
 /* ----------------------------------------
    PILL BUTTONS — smaller auth/util buttons
@@ -247,7 +274,9 @@
   color: var(--color-text);
   cursor: pointer;
   box-shadow: 2px 2px 0 var(--color-border);
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
 }
 .pill-btn:hover {
   transform: translate(-2px, -2px);
@@ -266,7 +295,10 @@
   gap: 3.5rem;
 }
 @media (max-width: 600px) {
-  .editorial-main { padding: 2.5rem 1rem; gap: 2.5rem; }
+  .editorial-main {
+    padding: 2.5rem 1rem;
+    gap: 2.5rem;
+  }
 }
 
 /* ----------------------------------------

@@ -1,0 +1,10 @@
+.svelte-kit
+node_modules
+static
+work
+docs
+supabase
+src/lib/supabase/types.ts
+*.md
+test-results
+playwright-report

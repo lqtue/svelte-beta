@@ -13,42 +13,43 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { pushState } from '$app/navigation';
   import type Map from 'ol/Map';
 
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { createGeoMapStores } from '$lib/shell/geoMapSetup';
-  import { fetchAnnotationBounds } from '$lib/geo/mapBounds';
-  import { boundsCenter, boundsZoom } from '$lib/ui/searchUtils';
-  import { layersStore } from '$lib/stores/layersStore';
-  import { fetchPublicStories } from '$lib/supabase/stories';
-  import { createStoryPlayerStore } from '$lib/story/stores/storyStore';
-  import type { Story, StoryPoint } from '$lib/story/types';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { resolveMapRef } from '$lib/features/stories/shared/applyPoint';
+  import { createGeoMapStores } from '$lib/map/shell/geoMapSetup';
+  import type { Bbox } from '$lib/core/geo/mapBounds';
+  import { layersStore } from '$lib/map/stores/layersStore';
+  import { fetchPublicStories } from '$lib/data/supabase/stories';
+  import { fetchUserRole } from '$lib/data/supabase/role';
+  import { createStoryPlayerStore } from '$lib/features/stories/shared/stores/storyStore';
+  import type { Story, StoryPoint } from '$lib/features/stories/shared/types';
 
-  import MapWorkspace from '$lib/shell/MapWorkspace.svelte';
-  import DualMapPane from '$lib/shell/DualMapPane.svelte';
-  import GpsTracker from '$lib/shell/GpsTracker.svelte';
-  import StoryMarkers from '$lib/story/StoryMarkers.svelte';
-  import StoryPlayback from '$lib/story/StoryPlayback.svelte';
-  import LayerStackPanel from '$lib/ui/catalog/LayerStackPanel.svelte';
-  import LayerControlsPanel from '$lib/ui/catalog/LayerControlsPanel.svelte';
+  import MapWorkspace from '$lib/map/shell/MapWorkspace.svelte';
+  import DualMapPane from '$lib/map/shell/DualMapPane.svelte';
+  import GpsTracker from '$lib/map/shell/GpsTracker.svelte';
+  import StoryMarkers from '$lib/features/stories/shared/StoryMarkers.svelte';
+  import LegendPointsLayer from '$lib/features/explore/LegendPointsLayer.svelte';
+  import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
+  import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
+  import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
 
-  import ExploreSidebar from '$lib/explore/ExploreSidebar.svelte';
-  import ExploreBrowsePanel from '$lib/explore/ExploreBrowsePanel.svelte';
-  import ExplorePrivacyNotice from '$lib/explore/ExplorePrivacyNotice.svelte';
-  import ExploreSheet from '$lib/explore/ExploreSheet.svelte';
-  import ExploreTour, { shouldShowTour } from '$lib/explore/ExploreTour.svelte';
-  import type { MapListItem } from '$lib/map/types';
+  import ExploreSidebar from '$lib/features/explore/ExploreSidebar.svelte';
+  import ExploreBrowsePanel from '$lib/features/explore/ExploreBrowsePanel.svelte';
+  import ExplorePrivacyNotice from '$lib/features/explore/ExplorePrivacyNotice.svelte';
+  import ExploreSheet from '$lib/features/explore/ExploreSheet.svelte';
+  import ExploreTour, { shouldShowTour } from '$lib/features/explore/ExploreTour.svelte';
+  import type { MapListItem } from '$lib/data/maps/types';
   import {
-    matchMapsAtPoint,
-    unresolvedAllmapsIds,
-    fetchMultipleBounds,
     SAIGON_CENTER,
     SAIGON_DEFAULT_ZOOM,
     type ResolvedMap,
-  } from '$lib/explore/spatialLookup';
+  } from '$lib/features/explore/spatialLookup';
+  import { createExploreCoverage } from '$lib/features/explore/useExploreCoverage';
+  import { createExploreZoom } from '$lib/features/explore/exploreZoom';
+  import { createExploreUrl, applyExploreUrlParams } from '$lib/features/explore/exploreUrl';
+  import '$styles/layouts/mode-shared.css';
 
-  type Bbox = [number, number, number, number];
   type Mode = 'location' | 'all';
 
   const { supabase, session } = getSupabaseContext();
@@ -60,7 +61,6 @@
   let shellMap: Map | null = null;
   let sidebarCollapsed = false;
   let isMobile = false;
-  let isCompact = false;
   let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
 
   // ── Explore-specific state ─────────────────────────────────────
@@ -75,6 +75,20 @@
   let stories: Story[] = [];
   let activeStory: Story | null = null;
   let role: 'user' | 'mod' | 'admin' = 'user';
+  let appliedUrl = false;
+
+  const { addMapOverlay, setViewFromBounds, zoomToMap } = createExploreZoom(mapStore);
+  const { syncMapParam, tallyMapOpen } = createExploreUrl({
+    supabase,
+    role: () => role,
+    markApplied: () => (appliedUrl = true),
+  });
+  const coverage = createExploreCoverage({
+    getMapList: () => mapList,
+    setMapList: (list) => (mapList = list),
+    canSeeDrafts: () => canSeeDrafts,
+    setLoading: (v) => (loading = v),
+  });
 
   // ── Reactive derivations ───────────────────────────────────────
   $: viewMode = $layerStore.viewMode;
@@ -82,6 +96,10 @@
   $: dualPaneActive = viewMode === 'dual';
   $: sideAlt = $layersStore.overlays[1] ?? null;
   $: stackCount = $layersStore.overlays.length;
+  // Numbered-legend point overlay — gated to the active (top) overlay map.
+  $: activeOverlayMapId = $layersStore.overlays[0]?.ref.mapId ?? null;
+  let showLegendPoints = false;
+  $: if (!activeOverlayMapId) showLegendPoints = false;
   $: playerState = $storyPlayer;
   $: activeStoryProgress = activeStory ? (playerState.progress[activeStory.id] ?? null) : null;
 
@@ -89,102 +107,51 @@
   $: paramMapId = $page.url.searchParams.get('map');
   $: paramStoryId = $page.url.searchParams.get('story');
   $: hasDeeplink = !!(paramMapId || paramStoryId);
-  $: if (hasDeeplink && !choseMode) { choseMode = true; mode = 'all'; }
+  $: if (hasDeeplink && !choseMode) {
+    choseMode = true;
+    mode = 'all';
+  }
 
   // Reactive deeplink application — both `mapList` (from MapWorkspace) and
   // `stories` (from onMount fetch) arrive async, so a one-shot in onMount
   // races with whichever finishes second. Run once when both are ready.
-  let appliedUrl = false;
   $: if (
     !appliedUrl &&
     mapList.length > 0 &&
     (paramMapId || (paramStoryId && stories.length > 0))
   ) {
     appliedUrl = true;
-    applyUrlParams(mapList);
+    void applyExploreUrlParams({
+      mapId: paramMapId,
+      storyId: paramStoryId,
+      maps: mapList,
+      stories,
+      addMapOverlay,
+      tallyMapOpen,
+      zoomToMap,
+      startStory: (story) => {
+        activeStory = story;
+        storyPlayer.startStory(story.id);
+      },
+    });
   }
 
   // Admins/mods get draft maps in coverage too (mirrors the browse panel).
   $: canSeeDrafts = role === 'admin' || role === 'mod';
 
-  // Maps whose bounds we've already tried to resolve. Some annotations have no
-  // GCPs / 404 on allmaps.org (e.g. R2-mirrored drafts) and resolve to null —
-  // those can never become valid, so without tracking attempts they'd keep the
-  // "Looking up maps…" spinner on forever. `loading` means "a fetch is still
-  // pending for a map we haven't tried", NOT "every map produced a bbox".
-  let attemptedBounds = new Set<string>();
-  function pendingBoundsIds(): string[] {
-    return unresolvedAllmapsIds(mapList, canSeeDrafts).filter((id) => !attemptedBounds.has(id));
-  }
-
   // Coverage match runs whenever the user moves OR new bounds land. Pure
   // client-side filter — no Supabase round-trip.
   $: if (userPosition && mapList.length > 0) {
-    matches = matchMapsAtPoint(mapList, userPosition[0], userPosition[1], canSeeDrafts);
-    loading = pendingBoundsIds().length > 0;
+    matches = coverage.matchAt(userPosition[0], userPosition[1]);
+    loading = coverage.pendingBoundsIds().length > 0;
   }
 
   // Trigger bounds resolution as new entries arrive. Re-runs when canSeeDrafts
   // flips (role lands after mount) so draft maps get their bounds backfilled
-  // too. The attemptedBounds guard prevents re-fetching the same ids.
-  $: if (mapList.length > 0) { void canSeeDrafts; ensureBoundsResolved(); }
-
-  async function ensureBoundsResolved() {
-    const need = pendingBoundsIds();
-    if (need.length === 0) { loading = false; return; }
-    loading = true;
-    for (const id of need) attemptedBounds.add(id);
-    const resolved = await fetchMultipleBounds(need, 12);
-    mapList = mapList.map((m) => {
-      if (!m.allmaps_id) return m;
-      const b = resolved.get(m.allmaps_id);
-      return b ? { ...m, bounds: b } : m;
-    });
-    // Clears once every needed map has been attempted, even if some yielded no
-    // bbox — the reassignment above re-triggers this block, which then exits.
-    loading = pendingBoundsIds().length > 0;
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────
-  function addMapOverlay(map: MapListItem, { clear = false } = {}): boolean {
-    const allmapsId = map.annotation_url ?? map.allmaps_id;
-    if (!allmapsId) return false;
-    if (clear) layersStore.clearOverlays();
-    if (layersStore.isOverlay(map.id)) return false;
-    layersStore.addOverlay({
-      kind: 'historical',
-      mapId: map.id,
-      allmapsId,
-      name: map.name,
-      thumbnail: map.thumbnail,
-    });
-    return true;
-  }
-
-  async function resolveMapBounds(map: MapListItem): Promise<Bbox | null> {
-    if (map.bounds) return map.bounds;
-    if (map.bbox) return map.bbox;
-    const src = map.annotation_url ?? map.allmaps_id;
-    return src ? await fetchAnnotationBounds(src) : null;
-  }
-
-  function setViewFromBounds(bounds: Bbox) {
-    const c = boundsCenter(bounds);
-    mapStore.setView({ lng: c.lng, lat: c.lat, zoom: boundsZoom(bounds) });
-  }
-
-  // Skip the zoom if the map already covers the current viewport centre —
-  // avoids yanking the camera when the user adds something they're on.
-  function viewportIsInside(bounds: Bbox): boolean {
-    const v = $mapStore;
-    return v.lng >= bounds[0] && v.lng <= bounds[2] && v.lat >= bounds[1] && v.lat <= bounds[3];
-  }
-
-  async function zoomToMap(map: MapListItem, { force = false } = {}) {
-    const bounds = await resolveMapBounds(map);
-    if (!bounds) return;
-    if (!force && viewportIsInside(bounds)) return;
-    setViewFromBounds(bounds);
+  // too. The attemptedBounds guard inside prevents re-fetching the same ids.
+  $: if (mapList.length > 0) {
+    void canSeeDrafts;
+    void coverage.ensureBoundsResolved();
   }
 
   // ── Guided tour ────────────────────────────────────────────────
@@ -194,7 +161,10 @@
   let tourPending = false;
   $: if (tourPending && !tourOpen) {
     const ready = mode === 'all' ? mapList.length > 0 : userPosition !== null && !loading;
-    if (ready) { tourPending = false; tourOpen = true; }
+    if (ready) {
+      tourPending = false;
+      tourOpen = true;
+    }
   }
   function requestTour() {
     if (shouldShowTour()) tourPending = true;
@@ -203,32 +173,32 @@
   // ── GPS ────────────────────────────────────────────────────────
   function handleGpsPosition(e: CustomEvent<{ lon: number; lat: number }>) {
     const pos: [number, number] = [e.detail.lon, e.detail.lat];
-    if (!userPosition) {
-      userPosition = pos;
-      mapStore.setView({ lng: pos[0], lat: pos[1], zoom: 15 });
-      return;
-    }
-    const dx = (pos[0] - userPosition[0]) * 111000 * Math.cos((pos[1] * Math.PI) / 180);
-    const dy = (pos[1] - userPosition[1]) * 111000;
-    if (Math.hypot(dx, dy) > 250) {
-      userPosition = pos;
-      // Don't snap on subsequent updates — user may have panned away.
-    } else {
-      userPosition = pos;
-    }
+    // Snap the camera on the first fix only — the user may have panned away by
+    // the time later updates land.
+    if (!userPosition) mapStore.setView({ lng: pos[0], lat: pos[1], zoom: 15 });
+    userPosition = pos;
   }
-  function handleGpsError(e: CustomEvent<{ message: string }>) { gpsError = e.detail.message; }
-  function toggleGps() { gpsActive = !gpsActive; gpsError = null; }
+  function handleGpsError(e: CustomEvent<{ message: string }>) {
+    gpsError = e.detail.message;
+  }
+  function toggleGps() {
+    gpsActive = !gpsActive;
+    gpsError = null;
+  }
 
   // ── Welcome chooser ────────────────────────────────────────────
   function chooseLocation() {
-    choseMode = true; mode = 'location';
-    gpsAllowed = true; gpsActive = true;
+    choseMode = true;
+    mode = 'location';
+    gpsAllowed = true;
+    gpsActive = true;
     requestTour();
   }
   function chooseShowAll() {
-    choseMode = true; mode = 'all';
-    gpsAllowed = false; gpsActive = false;
+    choseMode = true;
+    mode = 'all';
+    gpsAllowed = false;
+    gpsActive = false;
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
     requestTour();
   }
@@ -237,55 +207,6 @@
   function jumpToSaigon() {
     userPosition = [SAIGON_CENTER[0], SAIGON_CENTER[1]];
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
-  }
-
-  // ── URL ← state ────────────────────────────────────────────────
-  // Writes the topmost overlay into ?map= so the selection is shareable and,
-  // more importantly, so each opened map shows up as its own path+query in
-  // Cloudflare Web Analytics. /explore was previously a single opaque URL, so
-  // there was no way to tell which of the ~100 maps anyone actually looked at.
-  //
-  // ponytail: mirrors only the topmost overlay, not the whole stack. The
-  // existing applyUrlParams() reader takes a single ?map= id, so a full stack
-  // encoding would need a reader change too — do that if sharing multi-map
-  // stacks is ever asked for.
-  function syncMapParam(mapId: string | null) {
-    // Read window.location, NOT $page.url: pushState() is shallow routing, so it
-    // updates $page.state and leaves $page.url pinned at the last real
-    // navigation ("/explore"). Building from $page.url meant the delete below hit
-    // a URL that never had ?map= on it, so removal silently no-op'd.
-    // MapShell's initUrlSync also owns the #@lat,lng,zoom hash — carrying the
-    // live href over keeps its camera state instead of clobbering it.
-    const url = new URL(window.location.href);
-    if (mapId) url.searchParams.set('map', mapId);
-    else url.searchParams.delete('map');
-    if (url.href === window.location.href) return;
-    // Belt-and-braces: $page.url doesn't currently see our writes, but if that
-    // ever changes the applyUrlParams block below would fire on our own URL and
-    // force-zoom a second time right after handlePickMap's soft zoom.
-    appliedUrl = true;
-    // pushState (not replaceState) so the beacon registers a new pageview and
-    // back/forward walks the maps the visitor opened.
-    pushState(url, {});
-  }
-
-  // Tally one row per map open (migration 049). This is the only way to learn
-  // which maps get looked at: Cloudflare Web Analytics reports requestPath and
-  // has no query-string dimension, so the ?map= above is invisible to it.
-  //
-  // Staff opens are skipped. label_pins and footprint_submissions are both 100%
-  // admin rows, which makes them useless as interest signals — cataloguing work
-  // would drown out the handful of real visitors here too.
-  function recordMapOpen(mapId: string) {
-    if (role !== 'user') return;
-    // ponytail: fire-and-forget. A dropped tally must never interrupt opening a
-    // map, so nothing awaits this and failures only warn.
-    void supabase
-      .from('map_opens')
-      .insert({ map_id: mapId })
-      .then(({ error }) => {
-        if (error) console.warn('[explore] map_opens insert failed:', error.message);
-      });
   }
 
   // ── Catalog / sidebar event handlers ───────────────────────────
@@ -303,7 +224,7 @@
     const map = mapList.find((m) => m.id === item.id) ?? (item as MapListItem);
     addMapOverlay(map);
     syncMapParam(map.id);
-    recordMapOpen(map.id);
+    tallyMapOpen(map.id);
     await zoomToMap(map);
   }
   function handleRemoveOverlay(e: CustomEvent<{ mapId: string }>) {
@@ -311,8 +232,8 @@
     syncMapParam($layersStore.overlays[0]?.ref.mapId ?? null);
   }
   function handleZoomToOverlay(e: CustomEvent<{ mapId: string }>) {
-    const m = mapList.find((m) => m.id === e.detail.mapId);
-    if (m) zoomToMap(m, { force: true });
+    const m = mapList.find((x) => x.id === e.detail.mapId);
+    if (m) void zoomToMap(m, { force: true });
   }
 
   // ── Stories ────────────────────────────────────────────────────
@@ -322,7 +243,7 @@
       mapStore.setView({ lng: point.coordinates[0], lat: point.coordinates[1], zoom: 17 });
     }
     if (point.overlayMapId) {
-      const found = mapList.find((m) => m.id === point.overlayMapId || m.allmaps_id === point.overlayMapId);
+      const found = resolveMapRef(mapList, point.overlayMapId);
       if (found) addMapOverlay(found, { clear: true });
     }
   }
@@ -330,32 +251,14 @@
     if (!activeStory) return;
     storyPlayer.completePoint(e.detail.storyId, e.detail.pointId, activeStory.points.length);
   }
-  function closeStory() { storyPlayer.stopStory(); activeStory = null; }
-
-  // ── URL deeplinks ──────────────────────────────────────────────
-  async function applyUrlParams(maps: MapListItem[]) {
-    if (paramMapId) {
-      const found = maps.find((m) => m.id === paramMapId || m.allmaps_id === paramMapId);
-      if (found) {
-        addMapOverlay(found);
-        // Arriving on a shared ?map= link is an open too — and it's the one path
-        // where the visitor never touches the browse panel.
-        recordMapOpen(found.id);
-        await zoomToMap(found, { force: true });
-      }
-    }
-    if (paramStoryId) {
-      const story = stories.find((s) => s.id === paramStoryId);
-      if (story) { activeStory = story; storyPlayer.startStory(story.id); }
-    }
+  function closeStory() {
+    storyPlayer.stopStory();
+    activeStory = null;
   }
 
   onMount(async () => {
     mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
-    if (session?.user?.id) {
-      const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-      role = ((data as any)?.role as 'user' | 'mod' | 'admin') ?? 'user';
-    }
+    role = (await fetchUserRole(supabase, session?.user?.id)) ?? 'user';
     try {
       stories = await fetchPublicStories(supabase);
     } catch (err) {
@@ -366,7 +269,10 @@
 
 <svelte:head>
   <title>Explore — Vietnam Map Archive</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+  />
 </svelte:head>
 
 <div class="explore-mode" class:mobile={isMobile}>
@@ -375,13 +281,11 @@
     {mapStore}
     {layerStore}
     tabOrder={['browse', 'layers', 'controls']}
-    showDual={true}
     {dualPaneActive}
     bind:mapList
     bind:shellMap
     bind:sidebarCollapsed
     bind:isMobile
-    bind:isCompact
     bind:openDrawer
   >
     <svelte:fragment slot="sidebar">
@@ -391,6 +295,8 @@
         {gpsActive}
         {matches}
         {role}
+        legendPointsAvailable={!!activeOverlayMapId}
+        {showLegendPoints}
         forceBrowseExpanded={mode === 'all'}
         on:zoomToOverlay={handleZoomToOverlay}
         on:pickMap={handlePickMap}
@@ -398,6 +304,7 @@
         on:pickLocation={handlePickLocation}
         on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
         on:toggleGps={toggleGps}
+        on:toggleLegendPoints={() => (showLegendPoints = !showLegendPoints)}
         on:toggleCollapse={() => (sidebarCollapsed = true)}
       />
     </svelte:fragment>
@@ -413,9 +320,12 @@
         <LayerControlsPanel
           {viewMode}
           {gpsActive}
+          legendPointsAvailable={!!activeOverlayMapId}
+          {showLegendPoints}
           on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
           on:pickLocation={handlePickLocation}
           on:toggleGps={toggleGps}
+          on:toggleLegendPoints={() => (showLegendPoints = !showLegendPoints)}
         />
       </div>
     </svelte:fragment>
@@ -433,9 +343,17 @@
     </svelte:fragment>
 
     <svelte:fragment slot="map-children">
-      <GpsTracker active={gpsActive && gpsAllowed} on:position={handleGpsPosition} on:error={handleGpsError} />
+      <GpsTracker
+        active={gpsActive && gpsAllowed}
+        on:position={handleGpsPosition}
+        on:error={handleGpsError}
+      />
+      <LegendPointsLayer mapId={activeOverlayMapId} enabled={showLegendPoints} />
       {#if activeStory}
-        <StoryMarkers points={activeStory.points} currentIndex={activeStoryProgress?.currentPointIndex ?? 0} />
+        <StoryMarkers
+          points={activeStory.points}
+          currentIndex={activeStoryProgress?.currentPointIndex ?? 0}
+        />
         <StoryPlayback
           story={activeStory}
           progress={activeStoryProgress}
@@ -483,65 +401,7 @@
     {mapStore}
     {layerStore}
     {isMobile}
-    {openDrawer}
     on:close={() => (tourOpen = false)}
     on:setDrawer={(e) => (openDrawer = e.detail.drawer)}
   />
 </div>
-
-<style>
-  .explore-mode {
-    position: fixed;
-    inset: var(--nav-height) 0 0 0;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--color-bg);
-    background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
-    background-size: 32px 32px;
-    overflow: hidden;
-  }
-  .explore-mode.mobile :global(.workspace) { padding: 0; gap: 0; }
-
-  .mobile-pane { height: 100%; overflow-y: auto; padding: 0.5rem; }
-
-  .resolving {
-    position: absolute;
-    top: 0.75rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0.85rem;
-    background: var(--sb-card-bg);
-    border: var(--border-thin);
-    border-radius: var(--sb-radius-pill);
-    box-shadow: var(--shadow-solid-xs);
-    font-size: 0.82rem;
-    font-weight: var(--font-semibold);
-    z-index: 95;
-  }
-  .spinner {
-    width: 14px;
-    height: 14px;
-    border: 2.5px solid var(--color-gray-300);
-    border-top-color: var(--sb-accent-warm);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .gps-error {
-    position: absolute;
-    top: 0.75rem;
-    left: 50%;
-    transform: translateX(-50%);
-    max-width: 80%;
-    padding: 0.5rem 0.75rem;
-    background: var(--sb-accent-yellow);
-    border: var(--border-thin);
-    border-radius: var(--sb-radius-sm);
-    font-size: var(--text-sm);
-    z-index: 95;
-  }
-</style>

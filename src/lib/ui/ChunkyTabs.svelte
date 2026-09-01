@@ -54,5 +54,4 @@
     transform: translate(2px, 2px);
     box-shadow: 0 0 0 var(--color-border);
   }
-
 </style>

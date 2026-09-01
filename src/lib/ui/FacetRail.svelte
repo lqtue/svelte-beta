@@ -18,10 +18,16 @@
   }
 
   function sortedEntries(o: Record<string, number>, max = 12): [string, number][] {
-    return Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, max);
+    return Object.entries(o)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, max);
   }
 
-  const STATUS_LABELS: Record<string, string> = { map: '🌍 On map', image: '🖼️ Image only', scout: '✨ Scout' };
+  const STATUS_LABELS: Record<string, string> = {
+    map: '🌍 On map',
+    image: '🖼️ Image only',
+    scout: '✨ Scout',
+  };
   function labelFor(group: string, val: string): string {
     if (group === 'status') return STATUS_LABELS[val] ?? val;
     return val;
@@ -29,11 +35,17 @@
 
   type Group = { title: string; key: string; entries: [string, number][] };
   $: groups = [
-    { title: 'Area',   key: 'area',   entries: sortedEntries(facets.area ?? {}) },
-    { title: 'Type',   key: 'type',   entries: sortedEntries(facets.map_type ?? {}) },
+    { title: 'Area', key: 'area', entries: sortedEntries(facets.area ?? {}) },
+    { title: 'Type', key: 'type', entries: sortedEntries(facets.map_type ?? {}) },
     { title: 'Status', key: 'status', entries: sortedEntries(facets.status ?? {}) },
     ...(showScoutFacets
-      ? [{ title: 'Scout category', key: 'category', entries: sortedEntries(facets.scout_category ?? {}, 12) }]
+      ? [
+          {
+            title: 'Scout category',
+            key: 'category',
+            entries: sortedEntries(facets.scout_category ?? {}, 12),
+          },
+        ]
       : []),
   ] as Group[];
 </script>
@@ -47,7 +59,12 @@
         {#each periods as p}
           {@const n = (facets.period ?? {})[p.key] ?? 0}
           {@const on = (selected.period ?? []).includes(p.key)}
-          <button class="chip" class:on disabled={!n && !on} on:click={() => toggle('period', p.key)}>
+          <button
+            class="chip"
+            class:on
+            disabled={!n && !on}
+            on:click={() => toggle('period', p.key)}
+          >
             <span class="lbl">{p.label}</span>
             <span class="n">{n}</span>
           </button>
@@ -76,51 +93,85 @@
 
 <style>
   .facet-rail {
-    display: flex; flex-direction: column; gap: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
     padding: 1rem;
-    background: #fff;
-    border: 2px solid #111; border-radius: 10px;
-    box-shadow: 3px 3px 0 #111;
-    font-family: 'Outfit', sans-serif;
-    min-width: 240px; max-width: 280px;
+    background: var(--color-white);
+    border: var(--border-thin);
+    border-radius: 10px;
+    box-shadow: 3px 3px 0 var(--color-border);
+    font-family: var(--font-family-base);
+    min-width: 240px;
+    max-width: 280px;
   }
   .facet-group h4 {
     margin: 0 0 0.5rem;
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 800;
+    font-family: var(--font-family-display);
+    font-weight: var(--font-extrabold);
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #111;
+    color: var(--color-text);
     padding-bottom: 0.3rem;
-    border-bottom: 1.5px dashed #111;
+    border-bottom: 1.5px dashed var(--color-border);
   }
-  .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
   .chip {
-    display: inline-flex; align-items: center; gap: 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     padding: 0.25rem 0.55rem;
-    background: #fafaf7;
-    border: 1.5px solid #111; border-radius: 999px;
-    font-family: inherit; font-size: 0.78rem; font-weight: 600;
+    background: var(--sb-bg);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: var(--font-semibold);
     cursor: pointer;
     max-width: 100%;
   }
-  .chip:hover:not(:disabled) { background: #fff; transform: translate(-1px, -1px); box-shadow: 1.5px 1.5px 0 #111; }
-  .chip.on { background: #111; color: #fff; }
-  .chip.on .n { background: #fff; color: #111; }
-  .chip:disabled { opacity: 0.35; cursor: not-allowed; }
+  .chip:hover:not(:disabled) {
+    background: var(--color-white);
+    transform: translate(-1px, -1px);
+    box-shadow: 1.5px 1.5px 0 var(--color-border);
+  }
+  .chip.on {
+    background: var(--color-text);
+    color: var(--color-white);
+  }
+  .chip.on .n {
+    background: var(--color-white);
+    color: var(--color-text);
+  }
+  .chip:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
   .lbl {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     max-width: 170px;
   }
   .n {
-    background: #111; color: #fff;
+    background: var(--color-text);
+    color: var(--color-white);
     padding: 0.05rem 0.4rem;
-    border-radius: 999px;
-    font-size: 0.68rem; font-weight: 800;
-    min-width: 1.4rem; text-align: center;
+    border-radius: var(--radius-pill);
+    font-size: 0.68rem;
+    font-weight: var(--font-extrabold);
+    min-width: 1.4rem;
+    text-align: center;
   }
   @media (max-width: 900px) {
-    .facet-rail { max-width: none; width: 100%; }
+    .facet-rail {
+      max-width: none;
+      width: 100%;
+    }
   }
 </style>

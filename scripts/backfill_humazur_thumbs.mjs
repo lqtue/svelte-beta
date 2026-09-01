@@ -16,8 +16,10 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const SUPABASE_URL = env.PUBLIC_SUPABASE_URL;
 const KEY = env.SUPABASE_SERVICE_KEY;
@@ -30,11 +32,16 @@ const MIN_SCORE = midx > -1 ? parseInt(process.argv[midx + 1]) : 0;
 const sidx = process.argv.indexOf('--status');
 const STATUS = sidx > -1 ? process.argv[sidx + 1] : 'pending';
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function sb(path, opts = {}) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
-    headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    headers: {
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
     ...opts,
   });
   if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
@@ -46,7 +53,9 @@ async function fetchJson(url) {
     const r = await fetch(url, { headers: { 'User-Agent': UA } });
     if (!r.ok) return null;
     return await r.json();
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function deriveThumb(itemId) {
@@ -56,31 +65,42 @@ async function deriveThumb(itemId) {
   if (!Array.isArray(media) || !media[0]?.['@id']) return null;
   const mediaIdMatch = String(media[0]['@id']).match(/\/media\/(\d+)/);
   if (!mediaIdMatch) return null;
-  const mediaObj = await fetchJson(`https://humazur.univ-cotedazur.fr/api/media/${mediaIdMatch[1]}`);
+  const mediaObj = await fetchJson(
+    `https://humazur.univ-cotedazur.fr/api/media/${mediaIdMatch[1]}`
+  );
   if (!mediaObj) return null;
-  return mediaObj['o:thumbnail_urls']?.['medium']
-      || mediaObj['o:thumbnail_urls']?.['large']
-      || mediaObj['o:thumbnail_urls']?.['square']
-      || null;
+  return (
+    mediaObj['o:thumbnail_urls']?.['medium'] ||
+    mediaObj['o:thumbnail_urls']?.['large'] ||
+    mediaObj['o:thumbnail_urls']?.['square'] ||
+    null
+  );
 }
 
 // ---- main ----
 let url = `/scout_candidates?source=eq.humazur&thumbnail=is.null&status=eq.${STATUS}&score=gte.${MIN_SCORE}&order=score.desc&limit=${LIMIT}&select=id,external_id,title`;
 const r = await sb(url);
 const rows = await r.json();
-console.log(`Found ${rows.length} Humazur rows without thumbnails (status=${STATUS}, min_score=${MIN_SCORE})`);
+console.log(
+  `Found ${rows.length} Humazur rows without thumbnails (status=${STATUS}, min_score=${MIN_SCORE})`
+);
 
-let ok = 0, miss = 0;
+let ok = 0,
+  miss = 0;
 for (let i = 0; i < rows.length; i++) {
   const c = rows[i];
   const thumb = await deriveThumb(c.external_id);
   if (thumb) {
-    await sb(`/scout_candidates?id=eq.${c.id}`, { method: 'PATCH', body: JSON.stringify({ thumbnail: thumb }) });
+    await sb(`/scout_candidates?id=eq.${c.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ thumbnail: thumb }),
+    });
     ok++;
   } else {
     miss++;
   }
-  if ((i + 1) % 10 === 0) process.stdout.write(`  ${i+1}/${rows.length}  (ok=${ok} miss=${miss})\r`);
+  if ((i + 1) % 10 === 0)
+    process.stdout.write(`  ${i + 1}/${rows.length}  (ok=${ok} miss=${miss})\r`);
   await sleep(150);
 }
 console.log(`\nDone: ${ok} thumbnails backfilled, ${miss} not found.`);

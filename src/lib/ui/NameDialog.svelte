@@ -3,7 +3,7 @@
   Neo-brutalist styling using design tokens.
 -->
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
+  import { createEventDispatcher, onMount } from 'svelte';
 
   const dispatch = createEventDispatcher<{
     submit: { title: string; description?: string };
@@ -11,10 +11,10 @@
   }>();
 
   export let open = false;
-  export let value = "";
+  export let value = '';
   export let showDescription = false;
-  export let descriptionValue = "";
-  export let heading = "Name";
+  export let descriptionValue = '';
+  export let heading = 'Name';
 
   let inputEl: HTMLInputElement | null = null;
   let overlayEl: HTMLDivElement | null = null;
@@ -25,20 +25,20 @@
   }
 
   function handleOverlayClick(e: MouseEvent) {
-    if (e.target === overlayEl) dispatch("close");
+    if (e.target === overlayEl) dispatch('close');
   }
 
   function handleSubmit() {
     if (!value.trim()) return;
-    dispatch("submit", {
+    dispatch('submit', {
       title: value.trim(),
       description: showDescription ? descriptionValue.trim() : undefined,
     });
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") dispatch("close");
-    if (e.key === "Enter" && value.trim()) handleSubmit();
+    if (e.key === 'Escape') dispatch('close');
+    if (e.key === 'Enter' && value.trim()) handleSubmit();
   }
 </script>
 
@@ -53,8 +53,12 @@
     <div class="mo-dialog is-narrow" role="dialog" aria-modal="true" aria-label={heading}>
       <header class="mo-dialog-head">
         <span class="mo-dialog-title">{heading}</span>
-        <button type="button" class="sb-btn is-icon is-ghost"
-          on:click={() => dispatch('close')} aria-label="Close">×</button>
+        <button
+          type="button"
+          class="sb-btn is-icon is-ghost"
+          on:click={() => dispatch('close')}
+          aria-label="Close">×</button
+        >
       </header>
 
       <div class="mo-dialog-body">
@@ -76,8 +80,7 @@
               class="sb-textarea"
               rows="2"
               bind:value={descriptionValue}
-              placeholder="Add a description (optional)"
-            ></textarea>
+              placeholder="Add a description (optional)"></textarea>
           </label>
         {/if}
       </div>
@@ -86,8 +89,7 @@
         <button type="button" class="sb-btn is-ghost" on:click={() => dispatch('close')}>
           Cancel
         </button>
-        <button type="button" class="sb-btn is-on"
-          on:click={handleSubmit} disabled={!value.trim()}>
+        <button type="button" class="sb-btn is-on" on:click={handleSubmit} disabled={!value.trim()}>
           Save
         </button>
       </footer>

@@ -18,23 +18,34 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const SUPABASE_URL = env.PUBLIC_SUPABASE_URL;
 const KEY = env.SUPABASE_SERVICE_KEY;
 
 const fidx = process.argv.indexOf('--file');
 const RESET = process.argv.includes('--reset');
-const filePath = fidx > -1 ? process.argv[fidx + 1] : (() => {
-  const candidates = readdirSync('scripts')
-    .filter(f => f.startsWith('scout_all_') && f.endsWith('.json'))
-    .sort();
-  if (!candidates.length) { console.error('No scout_all_*.json found in scripts/'); process.exit(1); }
-  // Prefer the _with_humazur variant if present
-  const withHum = candidates.filter(f => f.includes('humazur'));
-  return 'scripts/' + (withHum.length ? withHum[withHum.length - 1] : candidates[candidates.length - 1]);
-})();
+const filePath =
+  fidx > -1
+    ? process.argv[fidx + 1]
+    : (() => {
+        const candidates = readdirSync('scripts')
+          .filter((f) => f.startsWith('scout_all_') && f.endsWith('.json'))
+          .sort();
+        if (!candidates.length) {
+          console.error('No scout_all_*.json found in scripts/');
+          process.exit(1);
+        }
+        // Prefer the _with_humazur variant if present
+        const withHum = candidates.filter((f) => f.includes('humazur'));
+        return (
+          'scripts/' +
+          (withHum.length ? withHum[withHum.length - 1] : candidates[candidates.length - 1])
+        );
+      })();
 
 console.log(`Loading: ${filePath}\n`);
 const scout = JSON.parse(readFileSync(filePath, 'utf8'));
@@ -68,40 +79,122 @@ function parseYear(rec) {
 function scoreAndCategorize(rec) {
   const title = String(rec.title || '').toLowerCase();
   const subj = (rec.raw?.subject || []).join(' ');
-  const cov = (rec.raw?.coverage || rec.raw?.region || rec.raw?.country || rec.raw?.city || []);
+  const cov = rec.raw?.coverage || rec.raw?.region || rec.raw?.country || rec.raw?.city || [];
   const covStr = Array.isArray(cov) ? cov.join(' ') : String(cov || '');
   const allText = `${title} ${subj} ${covStr}`.toLowerCase();
-  let score = 0; let category = 'unknown'; const reasons = [];
+  let score = 0;
+  let category = 'unknown';
+  const reasons = [];
 
-  const VN_PLACES = ['saigon','saïgon','sài gòn','hanoi','hanoï','hà nội','hue','hué','huế','đà nẵng','tourane','haiphong','hải phòng','cholon','chợ lớn','gia định','cochinchine','tonkin','annam','indochine','indo-chine','mekong','mékong','vietnam','viêt-nam','viêtnam','cambodge','laos','thanh hoa','phu yen','dalat','đà lạt','nha trang','bac bo','trung bo','nam bo'];
-  if (VN_PLACES.some(p => allText.includes(p))) { score += 20; reasons.push('+place'); }
-  else { score -= 10; reasons.push('-no_vn_place'); }
+  const VN_PLACES = [
+    'saigon',
+    'saïgon',
+    'sài gòn',
+    'hanoi',
+    'hanoï',
+    'hà nội',
+    'hue',
+    'hué',
+    'huế',
+    'đà nẵng',
+    'tourane',
+    'haiphong',
+    'hải phòng',
+    'cholon',
+    'chợ lớn',
+    'gia định',
+    'cochinchine',
+    'tonkin',
+    'annam',
+    'indochine',
+    'indo-chine',
+    'mekong',
+    'mékong',
+    'vietnam',
+    'viêt-nam',
+    'viêtnam',
+    'cambodge',
+    'laos',
+    'thanh hoa',
+    'phu yen',
+    'dalat',
+    'đà lạt',
+    'nha trang',
+    'bac bo',
+    'trung bo',
+    'nam bo',
+  ];
+  if (VN_PLACES.some((p) => allText.includes(p))) {
+    score += 20;
+    reasons.push('+place');
+  } else {
+    score -= 10;
+    reasons.push('-no_vn_place');
+  }
 
   const year = parseYear(rec);
-  if (year && year >= 1850 && year <= 1955) { score += 20; reasons.push(`+colonial:${year}`); }
-  else if (year && year >= 1700 && year < 1850) { score += 10; reasons.push(`+precolonial:${year}`); }
-  else if (year && year > 1955) { score += 5; reasons.push(`+modern:${year}`); }
-  else if (!year) { score -= 10; reasons.push('-no_year'); }
+  if (year && year >= 1850 && year <= 1955) {
+    score += 20;
+    reasons.push(`+colonial:${year}`);
+  } else if (year && year >= 1700 && year < 1850) {
+    score += 10;
+    reasons.push(`+precolonial:${year}`);
+  } else if (year && year > 1955) {
+    score += 5;
+    reasons.push(`+modern:${year}`);
+  } else if (!year) {
+    score -= 10;
+    reasons.push('-no_year');
+  }
 
-  const MAP_HINTS = /\b(plan|carte|atlas|map|levé|levée|croquis topograph|topograph|cadastr|chart|itinéraire|carte routi)/i;
+  const MAP_HINTS =
+    /\b(plan|carte|atlas|map|levé|levée|croquis topograph|topograph|cadastr|chart|itinéraire|carte routi)/i;
   const HAS_MAP_KW = MAP_HINTS.test(title);
-  if (HAS_MAP_KW) { score += 15; reasons.push('+map_kw'); }
-  if (rec.manifestUrl) { score += 5; reasons.push('+iiif'); }
+  if (HAS_MAP_KW) {
+    score += 15;
+    reasons.push('+map_kw');
+  }
+  if (rec.manifestUrl) {
+    score += 5;
+    reasons.push('+iiif');
+  }
 
-  if (/cadastr/.test(title)) { category = 'cadastral'; score += 5; }
-  else if (/plan de la (ville|cité)|plan de saigon|plan de hanoi|plan de hué/.test(title)) { category = 'urban_plan'; score += 10; }
-  else if (/topograph/.test(title)) { category = 'topographic'; score += 5; }
-  else if (/atlas/.test(title)) { category = 'atlas_plate'; score -= 5; }
-  else if (/carte routière|routier|itinéraire/.test(title)) { category = 'route_road'; }
-  else if (/chemin de fer|voies? ferrée|tramway/.test(title)) { score -= 30; category = 'route_railway'; reasons.push('-railway'); }
-  else if (/monde|hémisphère|projection mondiale/.test(title)) { score -= 50; category = 'world'; reasons.push('-world'); }
-  else if (/carte/.test(title)) category = 'regional';
+  if (/cadastr/.test(title)) {
+    category = 'cadastral';
+    score += 5;
+  } else if (/plan de la (ville|cité)|plan de saigon|plan de hanoi|plan de hué/.test(title)) {
+    category = 'urban_plan';
+    score += 10;
+  } else if (/topograph/.test(title)) {
+    category = 'topographic';
+    score += 5;
+  } else if (/atlas/.test(title)) {
+    category = 'atlas_plate';
+    score -= 5;
+  } else if (/carte routière|routier|itinéraire/.test(title)) {
+    category = 'route_road';
+  } else if (/chemin de fer|voies? ferrée|tramway/.test(title)) {
+    score -= 30;
+    category = 'route_railway';
+    reasons.push('-railway');
+  } else if (/monde|hémisphère|projection mondiale/.test(title)) {
+    score -= 50;
+    category = 'world';
+    reasons.push('-world');
+  } else if (/carte/.test(title)) category = 'regional';
   else if (/plan/.test(title)) category = 'urban_plan';
 
-  const PHOTO_HINTS = /\b(vue|intérieur|extérieur|façade|rue|avenue|boulevard|pagode|temple|village|hameau|maison|pont|gare|monument|famille|femme|homme|enfant|boutique|marché|fête|f[êe]te|portrait|jardin|tombeau|cimet|chapelle|église|cathédrale|h[oô]tel|caserne|école|usine|port|navire|bateau|pirogue|jonque|costume|annamite|tonkinois|cochinchinois|paysage|panorama photographique|cérémonie|cortège|défilé)\b/i;
+  const PHOTO_HINTS =
+    /\b(vue|intérieur|extérieur|façade|rue|avenue|boulevard|pagode|temple|village|hameau|maison|pont|gare|monument|famille|femme|homme|enfant|boutique|marché|fête|f[êe]te|portrait|jardin|tombeau|cimet|chapelle|église|cathédrale|h[oô]tel|caserne|école|usine|port|navire|bateau|pirogue|jonque|costume|annamite|tonkinois|cochinchinois|paysage|panorama photographique|cérémonie|cortège|défilé)\b/i;
   if (!HAS_MAP_KW && PHOTO_HINTS.test(title)) {
-    score -= 60; category = 'photo'; reasons.push('-photo_subject');
-  } else if (!HAS_MAP_KW && rec.source === 'humazur' && (rec.raw?.collection || '') === 'Indochine française') {
+    score -= 60;
+    category = 'photo';
+    reasons.push('-photo_subject');
+  } else if (
+    !HAS_MAP_KW &&
+    rec.source === 'humazur' &&
+    (rec.raw?.collection || '') === 'Indochine française'
+  ) {
     score -= 30;
     if (category === 'unknown') category = 'non_cartographic';
     reasons.push('-no_map_kw');
@@ -111,31 +204,33 @@ function scoreAndCategorize(rec) {
 }
 
 // ---- Build rows ----
-const rows = candidates.map(rec => {
-  const sc = scoreAndCategorize(rec);
-  return {
-    source: rec.source,
-    external_id: rec.externalId || rec.dedupKey || '',
-    source_url: rec.sourceUrl || null,
-    manifest_url: fixManifestUrl(rec),
-    title: (rec.title || '(untitled)').slice(0, 1000),
-    creator: rec.creator || null,
-    publisher: rec.publisher || null,
-    date: rec.date || null,
-    year: sc.year,
-    rights: rec.rights || null,
-    language: rec.language || null,
-    holding_institution: rec.holding_institution || null,
-    collection: rec.raw?.collection || null,
-    thumbnail: deriveThumbnail(rec),
-    score: sc.score,
-    category: sc.category,
-    reasons: sc.reasons,
-    found_via: (rec.foundVia || []).join(';'),
-    status: 'pending',
-    raw: rec.raw || null,
-  };
-}).filter(r => r.external_id);
+const rows = candidates
+  .map((rec) => {
+    const sc = scoreAndCategorize(rec);
+    return {
+      source: rec.source,
+      external_id: rec.externalId || rec.dedupKey || '',
+      source_url: rec.sourceUrl || null,
+      manifest_url: fixManifestUrl(rec),
+      title: (rec.title || '(untitled)').slice(0, 1000),
+      creator: rec.creator || null,
+      publisher: rec.publisher || null,
+      date: rec.date || null,
+      year: sc.year,
+      rights: rec.rights || null,
+      language: rec.language || null,
+      holding_institution: rec.holding_institution || null,
+      collection: rec.raw?.collection || null,
+      thumbnail: deriveThumbnail(rec),
+      score: sc.score,
+      category: sc.category,
+      reasons: sc.reasons,
+      found_via: (rec.foundVia || []).join(';'),
+      status: 'pending',
+      raw: rec.raw || null,
+    };
+  })
+  .filter((r) => r.external_id);
 
 console.log(`Prepared ${rows.length} rows for insertion`);
 
@@ -157,12 +252,16 @@ async function sb(path, opts = {}) {
 
 if (RESET) {
   console.log('Resetting: deleting existing pending rows...');
-  await sb(`/scout_candidates?status=eq.pending`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+  await sb(`/scout_candidates?status=eq.pending`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=minimal' },
+  });
 }
 
 console.log('Inserting in batches of 200...');
 const batchSize = 200;
-let ok = 0, fail = 0;
+let ok = 0,
+  fail = 0;
 for (let i = 0; i < rows.length; i += batchSize) {
   const batch = rows.slice(i, i + batchSize);
   try {
@@ -177,7 +276,10 @@ for (let i = 0; i < rows.length; i += batchSize) {
 console.log(`\nDone: ${ok} inserted/upserted, ${fail} failed.`);
 
 // Summary
-const { count: pending } = await fetch(`${SUPABASE_URL}/rest/v1/scout_candidates?status=eq.pending&select=id`, {
-  headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, Prefer: 'count=exact' }
-}).then(async r => ({ count: parseInt(r.headers.get('content-range')?.split('/')?.[1] || '0') }));
+const { count: pending } = await fetch(
+  `${SUPABASE_URL}/rest/v1/scout_candidates?status=eq.pending&select=id`,
+  {
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, Prefer: 'count=exact' },
+  }
+).then(async (r) => ({ count: parseInt(r.headers.get('content-range')?.split('/')?.[1] || '0') }));
 console.log(`Pending in DB: ${pending}`);

@@ -19,8 +19,10 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const SUPABASE_URL = env.PUBLIC_SUPABASE_URL;
 const KEY = env.SUPABASE_SERVICE_KEY;
@@ -29,9 +31,14 @@ const ridx = process.argv.indexOf('--report');
 const oidx = process.argv.indexOf('--only');
 const ONLY = oidx > -1 ? process.argv[oidx + 1] : 'all';
 
-const reportPath = ridx > -1
-  ? process.argv[ridx + 1]
-  : readdirSync('scripts').filter(f => f.startsWith('metadata_audit_') && f.endsWith('.json')).sort().pop().replace(/^/, 'scripts/');
+const reportPath =
+  ridx > -1
+    ? process.argv[ridx + 1]
+    : readdirSync('scripts')
+        .filter((f) => f.startsWith('metadata_audit_') && f.endsWith('.json'))
+        .sort()
+        .pop()
+        .replace(/^/, 'scripts/');
 
 console.log(`Mode: ${APPLY ? 'APPLY (writes)' : 'DRY-RUN (no writes)'}`);
 console.log(`Audit report: ${reportPath}`);
@@ -54,8 +61,14 @@ async function sb(path, opts = {}) {
 
 // ---- 1. Hosted maps (from audit JSON) ----
 const FIELDS_TO_BACKFILL = [
-  'original_title', 'creator', 'year_label', 'shelfmark', 'rights',
-  'language', 'physical_description', 'holding_institution',
+  'original_title',
+  'creator',
+  'year_label',
+  'shelfmark',
+  'rights',
+  'language',
+  'physical_description',
+  'holding_institution',
 ];
 
 function chooseAuthoritative(entry) {
@@ -84,8 +97,8 @@ function buildHostedPatch(entry) {
 
 // ---- 2. SGI self-hosted constants ----
 const SGI_DEFAULTS = {
-  creator: 'Service Géographique de l\'Indochine',
-  dc_publisher: 'Service Géographique de l\'Indochine',
+  creator: "Service Géographique de l'Indochine",
+  dc_publisher: "Service Géographique de l'Indochine",
   holding_institution: 'Cartomundi (Aix-Marseille Université / CNRS)',
   collection: 'Indochine 1:25,000 — Tonkin & Thanh Hóa',
   language: 'français',
@@ -107,14 +120,16 @@ async function run() {
 
   // SGI
   if (ONLY === 'all' || ONLY === 'sgi') {
-    const sgi = await sb(`/maps?select=id,name,creator,dc_publisher,holding_institution,collection,language,rights&source_type=eq.self`);
+    const sgi = await sb(
+      `/maps?select=id,name,creator,dc_publisher,holding_institution,collection,language,rights&source_type=eq.self`
+    );
     for (const m of sgi) {
       const patch = {};
       for (const [k, v] of Object.entries(SGI_DEFAULTS)) {
         if (m[k] == null || String(m[k]).trim() === '') patch[k] = v;
       }
       // Special: collection — overwrite only the literal SGI string from old data
-      if (m.collection === 'Service Géographique de l\'Indochine') {
+      if (m.collection === "Service Géographique de l'Indochine") {
         patch.collection = SGI_DEFAULTS.collection;
       }
       if (Object.keys(patch).length) plannedSgi.push({ id: m.id, name: m.name, patch });
@@ -124,15 +139,17 @@ async function run() {
   // Print plan
   console.log(`=== HOSTED (${plannedHosted.length} maps) ===`);
   for (const p of plannedHosted.slice(0, 5)) {
-    console.log(`  ${p.id.slice(0,8)} ${p.name.slice(0,55)}`);
-    for (const [k, v] of Object.entries(p.patch)) console.log(`    + ${k}: ${String(v).slice(0,90)}`);
+    console.log(`  ${p.id.slice(0, 8)} ${p.name.slice(0, 55)}`);
+    for (const [k, v] of Object.entries(p.patch))
+      console.log(`    + ${k}: ${String(v).slice(0, 90)}`);
   }
   if (plannedHosted.length > 5) console.log(`  ... and ${plannedHosted.length - 5} more`);
 
   console.log(`\n=== SGI (${plannedSgi.length} maps) ===`);
   for (const p of plannedSgi.slice(0, 3)) {
-    console.log(`  ${p.id.slice(0,8)} ${p.name.slice(0,55)}`);
-    for (const [k, v] of Object.entries(p.patch)) console.log(`    + ${k}: ${String(v).slice(0,90)}`);
+    console.log(`  ${p.id.slice(0, 8)} ${p.name.slice(0, 55)}`);
+    for (const [k, v] of Object.entries(p.patch))
+      console.log(`    + ${k}: ${String(v).slice(0, 90)}`);
   }
   if (plannedSgi.length > 3) console.log(`  ... and ${plannedSgi.length - 3} more`);
 
@@ -147,7 +164,8 @@ async function run() {
   }
 
   console.log('\nWriting changes...');
-  let ok = 0, fail = 0;
+  let ok = 0,
+    fail = 0;
   for (const set of [plannedHosted, plannedSgi]) {
     for (const p of set) {
       try {
@@ -155,11 +173,14 @@ async function run() {
         ok++;
       } catch (e) {
         fail++;
-        console.log(`  FAIL ${p.id.slice(0,8)}: ${e.message.slice(0,120)}`);
+        console.log(`  FAIL ${p.id.slice(0, 8)}: ${e.message.slice(0, 120)}`);
       }
     }
   }
   console.log(`\nApplied: ${ok} ok, ${fail} failed.`);
 }
 
-run().catch(e => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

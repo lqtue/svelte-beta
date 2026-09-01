@@ -1,37 +1,38 @@
 # Vietnam Map Archive
 
-A SvelteKit 5 application for exploring and recovering georeferenced historical maps of Saigon/Ho Chi Minh City. Built with Allmaps, OpenLayers, and Supabase — combining map visualization, crowdsourced labeling, and an AI-assisted vectorization pipeline.
+A SvelteKit 5 application for exploring and recovering georeferenced historical maps of Saigon/Ho Chi Minh City. Built with Allmaps, OpenLayers and Supabase — map visualization, crowdsourced labeling, and an AI-assisted digitization pipeline.
 
 ## Features
 
-- **Historical Map Viewer** — Overlay georeferenced vintage maps on modern basemaps with opacity, side-by-side, and spyglass modes
-- **Compare maps** — Pin up to N maps in a tray and flip between them across catalog and viewer
-- **Unified catalog search** — Postgres `tsvector` full-text search across maps + scout candidates with faceted filters
-- **GPS Stories** — Location-aware guided tours through historical maps
-- **Annotation System** — Draw and label features with full undo/redo history
-- **Triage + OCR + Trace** — Crowdsourced HITL pipeline: neatline + tile-priority triage, Gemini Flash OCR review, polygon/line tracing on IIIF map scans
-- **MapSAM2 Vectorization** — Fine-tuned SAM2 inference for cadastral footprints, with human-in-the-loop review
-- **Scout** — Discover and import IIIF maps from external collections (BnF, Rumsey, Humazur, etc.)
-- **Auto-georef sync** — Every map gets a pre-registered Allmaps ID on insert; a probe job flips `georef_done = true` when a volunteer completes the georef on the Allmaps Editor
+- **Historical map viewer** — stack up to 10 georeferenced maps over a modern basemap, with per-layer opacity and three display modes: Stacked, Lens, Side-by-side
+- **Unified catalog search** — Postgres `tsvector` full-text search across maps + scout candidates, with faceted filters
+- **Stories** — author guided, location-aware tours (`/create`) and play them back (`/trip/[id]`)
+- **Annotation studio** — draw and label features with full undo/redo, plus timeline animation
+- **Triage + OCR + Trace** — crowdsourced HITL pipeline: neatline + tile-priority triage, Gemini Flash OCR review, polygon/line tracing on IIIF map scans
+- **MapSAM2 vectorization** — fine-tuned SAM2 inference for cadastral footprints, with human review
+- **Scout** — discover and import IIIF maps from external collections (BnF, Rumsey, Humazur…)
+- **Auto-georef sync** — every map gets a pre-registered Allmaps ID on insert; a probe job flips `georef_done = true` when a volunteer finishes the georef in the Allmaps Editor
 
 ## Quick Start
 
 ```bash
 npm install
 npm run dev
-npm run check     # type-check (primary verification — no test runner)
+npm run check     # type-check — the primary verification gate
+npm run lint      # prettier --check . && eslint .
+npm run test      # Playwright smoke suite (read-only, hits the real project)
 ```
 
 ## Tech Stack
 
 | Category | Technology |
-|----------|------------|
+| --- | --- |
 | Framework | SvelteKit 5 (legacy Svelte syntax — `$:`, `export let`, not runes) |
 | Language | TypeScript |
-| Maps | OpenLayers 10 (primary), MapLibre GL 5 (embed-only) |
-| Georeferencing | Allmaps (`@allmaps/openlayers`, `@allmaps/maplibre`, `@allmaps/id`) |
+| Maps | OpenLayers 10 (the only map engine) |
+| Georeferencing | Allmaps (`@allmaps/openlayers`, `@allmaps/annotation`, `@allmaps/id`, `@allmaps/transform`) |
 | Backend | Supabase (Postgres + Auth + Storage) |
-| Storage | Cloudflare R2 (self-hosted IIIF tiles via worker at `iiif.maparchive.vn`) |
+| Storage | Cloudflare R2 (self-hosted IIIF tiles via the worker at `iiif.maparchive.vn`) |
 | Deployment | Cloudflare Pages |
 | OCR | Gemini Flash (`work/ocr/`) |
 | Segmentation | Fine-tuned SAM2 (`work/MapSAM2/`) |
@@ -39,12 +40,13 @@ npm run check     # type-check (primary verification — no test runner)
 ## Routes
 
 | Route | Description |
-|-------|-------------|
+| --- | --- |
 | `/` | Home + featured maps |
-| `/catalog` | Faceted catalog with unified FTS search (`maps` + scout candidates for mods/admins) |
-| `/view` | Browse maps, play GPS stories |
-| `/annotate` | Free-form annotation drawing |
-| `/create` | Build guided stories |
+| `/catalog` | Faceted catalog with unified FTS search (plus scout candidates for mods/admins) |
+| `/explore` | Browse maps, stack overlays, play stories |
+| `/studio` | Free-form annotation + timeline animation |
+| `/create` | Author guided stories |
+| `/trip/[id]` | Story playback |
 | `/image` | IIIF inspector |
 | `/contribute` | Contribute hub |
 | `/contribute/georef` | Submit georeferencing via the Allmaps Editor |
@@ -53,51 +55,50 @@ npm run check     # type-check (primary verification — no test runner)
 | `/contribute/review` | HITL review of SAM2 footprints |
 | `/admin/bulk` | Bulk map creation + tiling script generator |
 | `/admin/scout` | Review and approve scout-discovered IIIF maps |
-| `/blog`, `/about`, `/profile` | Editorial pages |
+| `/login`, `/profile`, `/blog`, `/about` | Account + editorial pages |
 
-There is no `/admin` index route — admin actions are gated inline inside `/catalog` (when `role === 'admin' | 'mod'`) and surface through the modal flows on map cards. `/contribute/label` redirects to `/contribute/digitalize`.
+There is no `/admin` index route — admin map CRUD is gated inline inside `/catalog` when `role === 'admin' | 'mod'`. Retired paths 301-redirect via `src/hooks.server.ts`: `/view` → `/explore`, `/annotate` → `/studio`, `/contribute/label` → `/contribute/digitalize`.
 
 ## Authentication
 
-Email magic link only — no passwords, no OAuth. Users enter their email and receive a sign-in link. New accounts are created automatically on first sign-in. Roles (`user`, `mod`, `admin`) are set in the `profiles` table.
+Email magic link only — no passwords, no OAuth. New accounts are created on first sign-in. Roles (`user`, `mod`, `admin`) live in the `profiles` table.
 
 ## Adding Maps
 
 Three ingest paths:
 
-1. **Admin UI (`/catalog` map sheet)** — paste a IIIF manifest URL (BnF Gallica, Internet Archive, David Rumsey, EFEO, Humazur…). The server parses the manifest, derives the canonical IIIF image-service URL, and **auto-derives `allmaps_id`** via `@allmaps/id` (SHA-1 hex first 16). The Allmaps annotation server is probed; if an annotation already exists, `georef_done` is flagged.
-2. **Bulk (`/admin/bulk` + `scripts/bulk_upload_local.sh`)** — for self-hosted scans. The UI generates a tiling script (R2 worker), the shell script inserts `maps` + `map_iiif_sources` rows, derives `allmaps_id`, and writes the thumbnail.
-3. **Scout (`/admin/scout`)** — runs `scripts/scout_*` against external IIIF endpoints, surfaces candidates with similarity scores, and lets admins one-click ingest into `maps`.
+1. **Admin UI (`/catalog` map sheet)** — paste a IIIF manifest URL (BnF Gallica, Internet Archive, David Rumsey, EFEO, Humazur…). The server parses the manifest, derives the canonical IIIF image-service URL, and auto-derives `allmaps_id` via `@allmaps/id` (SHA-1 hex, first 16). The Allmaps annotation server is probed; if an annotation already exists, `georef_done` is flagged.
+2. **Bulk (`/admin/bulk` + `scripts/bulk_upload_local.sh`)** — for self-hosted scans. The UI generates a tiling script (R2 worker); the shell script inserts `maps` + `map_iiif_sources` rows, derives `allmaps_id`, and writes the thumbnail.
+3. **Scout (`/admin/scout`)** — `scripts/scout_*.mjs` crawl external IIIF endpoints, surface candidates with similarity scores, and admins one-click ingest into `maps`.
 
-Status lifecycle: `draft → public → featured` (no `pending_georef`/`georeferenced` — those were removed). Georef state is tracked separately on `maps.georef_done`.
+Status lifecycle: `draft → public → featured`. Georef state is tracked separately on `maps.georef_done`.
 
 ### Sync georef from Allmaps
 
-Since the Allmaps Editor has no webhook, volunteers' georef work is picked up by a probe job that hits `https://annotations.allmaps.org/images/{allmaps_id}` for every map with `georef_done = false`:
+The Allmaps Editor has no webhook, so volunteers' work is picked up by a probe that hits `https://annotations.allmaps.org/images/{allmaps_id}` for every map with `georef_done = false`:
 
 ```bash
-node scripts/sync_allmaps_georef.mjs --apply        # all pending maps
+node scripts/sync_allmaps_georef.mjs --apply           # all pending maps
 node scripts/sync_allmaps_georef.mjs --map-id <id> --apply
 ```
 
-Or from the `/admin/bulk` page, click **Sync georef from Allmaps**. The same endpoint is available at `POST /api/admin/maps/sync-georef` for cron / Cloudflare scheduled triggers.
+Or click **Sync georef from Allmaps** on `/admin/bulk`. The same job is exposed at `POST /api/admin/maps/sync-georef` for cron / Cloudflare scheduled triggers.
 
 ### Backfill `allmaps_id`
 
-For rows imported before the auto-derive was wired in:
+For rows imported before auto-derive was wired in:
 
 ```bash
-node scripts/backfill_allmaps_ids.mjs                # dry-run audit
-node scripts/backfill_allmaps_ids.mjs --apply        # write
+node scripts/backfill_allmaps_ids.mjs            # dry-run audit
+node scripts/backfill_allmaps_ids.mjs --apply    # write
 ```
 
 ## Environment Variables
 
 ```
 PUBLIC_SUPABASE_URL        # Supabase project URL
-PUBLIC_SUPABASE_ANON_KEY   # Supabase anon key
-SUPABASE_SERVICE_KEY       # Service role key (admin API routes only)
-PUBLIC_MAPTILER_KEY        # MapLibre basemap (optional, falls back to demo tiles)
+PUBLIC_SUPABASE_ANON_KEY   # Supabase anon (publishable) key
+SUPABASE_SERVICE_KEY       # Service role key — admin API routes only
 IA_S3_ACCESS_KEY           # Internet Archive upload
 IA_S3_SECRET_KEY           # Internet Archive upload
 ```
@@ -110,24 +111,29 @@ npm run deploy                                    # Cloudflare Pages via wrangle
 npx wrangler pages dev .svelte-kit/cloudflare     # Local Cloudflare preview
 ```
 
+Pages config lives in the root `wrangler.toml`; the R2 tile worker has its own under `worker/`.
+
 ## ML Pipelines
 
 Both pipelines live outside the SvelteKit app and read/write Supabase via the service key.
 
-- **OCR** — `work/ocr/`. Gemini Flash over IIIF tiles → `ocr_extractions`. Reviewed and edited in `/contribute/digitalize` (Phase 2).
-- **MapSAM2** — `work/MapSAM2/` (fine-tuned SAM2 fork, own venv `.venv-m1`). Tile-level polygon inference → `footprint_submissions`. Reviewed in `/contribute/review`.
+- **OCR** — `work/ocr/` (venv at `work/ocr/.venv`). Gemini Flash over IIIF tiles → `ocr_extractions`. Reviewed and edited in `/contribute/digitalize`.
+- **MapSAM2** — `work/MapSAM2/`. Fine-tuned SAM2 fork, run on Colab against an upstream clone. Tile-level polygon inference → `footprint_submissions`. Reviewed in `/contribute/review`.
 
-See `docs/pipelines.md` for the full command reference and `work/MapSAM2/CLAUDE.md` for the SAM2 training/inference details.
+See `docs/pipelines.md` for the command reference, `work/MapSAM2/TECHNICAL.md` for SAM2 training/inference detail, and `work/ocr/EVAL-BASELINE.md` for the measured OCR quality gate.
 
 ## Documentation
 
-- `CLAUDE.md` — top-level architecture, conventions, route map
-- `docs/system-guidelines.md` — page structure, MapWorkspace plugin contract, known debt
+- `CLAUDE.md` — architecture, conventions, layering rule, route/API/schema map
+- `docs/system-guidelines.md` — layering rule, page structure, component patterns, known debt
 - `docs/db-guidelines.md` — schema conventions and migration rules
-- `docs/design-system.md` — design tokens, shared CSS, page templates
+- `docs/design-system.md` — design tokens, the CSS file map, page template
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker
-- `docs/pipelines.md` — OCR + MapSAM2 command reference
-- `docs/knowledge-graph.html` — interactive graph of routes, components, stores, tables, pipelines
+- `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale
+- `docs/user-guide.md` — end-user manual by role
+- `docs/theory.md`, `docs/strategy.md` — the intellectual framework and the funder-facing roadmap
+- `docs/cleanup-2026-08.md` — what the August 2026 repo cleanup changed
+- `docs/archive/` — frozen historical plans; not current
 
 ## License
 

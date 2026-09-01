@@ -107,8 +107,13 @@ def _log_malformed(log_path: Path | None, raw_text: str, model: str, context: st
 
 def _parse_result(response_text: str, schema: dict, model: str, user_prompt: str,
                   config_kwargs: dict, client: Any, log_path: Path | None,
-                  context: str = "") -> dict:
-    """Parse JSON from response text; retry once with schema hint on failure."""
+                  context: str = "", image_parts: list | None = None) -> dict:
+    """Parse JSON from response text; retry once with schema hint on failure.
+
+    image_parts: the image Part(s) from the original call. Must be re-sent on
+    retry — a text-only retry gives the model nothing to read (it would
+    hallucinate or return empty extractions).
+    """
     try:
         return json.loads(response_text)
     except json.JSONDecodeError:
@@ -125,12 +130,14 @@ def _parse_result(response_text: str, schema: dict, model: str, user_prompt: str
         "\n\nIMPORTANT: Your previous response was not valid JSON. "
         "Return ONLY a valid JSON object with this exact structure:\n"
         '{"extractions": [{"text": "...", "category": "...", "language": "...", '
-        '"bbox_px": [x, y, w, h], "rotation_deg": 0, "confidence": 0.9}]}'
+        '"bbox_px": [x, y, w, h], "rotation_deg": 0, "confidence": 0.9}]}\n'
+        "bbox_px is [x, y, width, height] in 0-1000 normalized scale "
+        "(0,0 = top-left, 1000,1000 = bottom-right of the frame)."
     )
     retry_prompt = user_prompt + schema_hint if isinstance(user_prompt, str) else schema_hint
     retry_response = client.models.generate_content(
         model=model,
-        contents=[retry_prompt],
+        contents=(image_parts or []) + [retry_prompt],
         config=genai_types.GenerateContentConfig(**config_kwargs),
     )
     try:
@@ -178,6 +185,10 @@ def extract_labels(
         "system_instruction": system_prompt,
         "response_mime_type": "application/json",
         "response_schema": schema,
+        # A dense tile can hold 100+ labels; the model default output cap
+        # truncates mid-JSON (the "unterminated string" malformed error). Give
+        # it plenty of headroom so a full tile never gets cut off.
+        "max_output_tokens": 65536,
     }
 
     # Small stagger before every call to smooth per-second burst spikes.
@@ -202,7 +213,8 @@ def extract_labels(
             elapsed = time.monotonic() - t_start
             result = _parse_result(
                 response.text, schema, model, user_prompt, config_kwargs, client,
-                log_path, context="extract_labels"
+                log_path, context="extract_labels",
+                image_parts=[genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")],
             )
             if log_path:
                 _log_call(log_path=log_path, model=model, elapsed=elapsed,
@@ -348,6 +360,12 @@ def extract_labels_sequence(
         "system_instruction": system_prompt,
         "response_mime_type": "application/json",
         "response_schema": seq_schema,
+        # Same truncation guard as extract_labels: a dense row-strip holds 100+
+        # labels and the default output cap cuts JSON mid-string ("unterminated
+        # string" malformed error). This is the default batch path, and the
+        # malformed retry inherits config_kwargs — without the cap it would
+        # truncate again on the retry too.
+        "max_output_tokens": 65536,
     }
 
     t_start = time.monotonic()
@@ -364,7 +382,8 @@ def extract_labels_sequence(
             elapsed = time.monotonic() - t_start
             result = _parse_result(
                 response.text, seq_schema, model, sequence_prompt, config_kwargs, client,
-                log_path, context="extract_labels_sequence"
+                log_path, context="extract_labels_sequence",
+                image_parts=parts,
             )
             if log_path:
                 _log_call(log_path=log_path, model=model, elapsed=elapsed,
@@ -401,3 +420,70 @@ def list_models() -> list[str]:
     client, _ = _load_client()
     models = client.models.list()
     return sorted(m.name for m in models)
+
+
+# ── Legend extraction (structured numbered-legend read) ────────────────────────
+
+_LEGEND_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "entries": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "n": {"type": "integer"},
+                    "name": {"type": "string"},
+                    "name_vn": {"type": "string"},
+                    "grid": {"type": "string"},
+                },
+                "required": ["n", "name", "grid"],
+            },
+        }
+    },
+    "required": ["entries"],
+}
+
+
+def extract_legend(image: Image.Image, model: str = DEFAULT_MODEL,
+                   bilingual: bool = False) -> list[dict]:
+    """Extract a numbered map legend as [{n, name, name_vn?, grid}].
+
+    Forces JSON via response_schema, so the return is always valid structured
+    data. `bilingual` tells the model the rows carry both a Vietnamese and an
+    English name (name_vn = Vietnamese, name = English).
+    """
+    from io import BytesIO
+    buf = BytesIO()
+    image.save(buf, format="JPEG", quality=92)
+    image_bytes = buf.getvalue()
+
+    if bilingual:
+        prompt = (
+            "This is a numbered legend from a historical map of Saigon. Each row has: "
+            "a Vietnamese name, a number, a grid-cell code (letter+number like 'H10'), "
+            "and an English name. Extract EVERY numbered entry: n = the number, "
+            "name_vn = Vietnamese name, name = English name, grid = the grid cell. "
+            "Read the grid letter carefully — columns sit at ruled edges."
+        )
+    else:
+        prompt = (
+            "This is a numbered legend from a historical map. Each entry has a number, "
+            "a name (French/Vietnamese, keep diacritics), and a grid-cell code "
+            "(letter+number like 'C10'). Extract EVERY numbered entry: n, name, grid."
+        )
+
+    client, _ = _load_client()
+    config = genai_types.GenerateContentConfig(
+        temperature=0,
+        response_mime_type="application/json",
+        response_schema=_LEGEND_SCHEMA,
+        max_output_tokens=65536,  # a 244-row bilingual legend is long — avoid truncation
+    )
+    resp = client.models.generate_content(
+        model=model,
+        contents=[genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"), prompt],
+        config=config,
+    )
+    data = json.loads(resp.text)
+    return data.get("entries", [])

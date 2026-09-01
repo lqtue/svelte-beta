@@ -10,6 +10,8 @@ __pycache__/
 .env
 .env.*
 !.env.example
+# local Supabase demo keys only — see the header in the file
+!.env.test
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
@@ -31,3 +33,7 @@ work/vectorize/outputs/
 
 # OCR pipeline outputs (local artifacts)
 work/ocr/outputs/
+work/ocr/.venv/
+
+# Claude Code local session state
+.claude/

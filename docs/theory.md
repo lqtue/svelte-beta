@@ -24,7 +24,9 @@ L2 · LiDAR / 3D model       — volumetric geometry, CityJSON
 L1 · Macro signal (map)     — georeferenced historical map rasters
 ```
 
-**Dependency rule:** You cannot build layer N without layer N-1. This is the build sequence.
+**Dependency rule:** You cannot build layer N without layer N-1. This is the build sequence. Value compounds as you ascend: L1 is a picture, L6 is a city that can be asked questions.
+
+**This is the canonical layer scheme.** A rival L1–L6 keyed on pipeline stages (source → capture → georeferencing → KG → interaction → civic) circulated in earlier drafts; it is retired.
 
 **Context rule:** Political, social, and economic context is not a layer — it is a cross-cutting dimension that reframes the meaning of data at every layer and every time period. The same building footprint means something different under French colonial administration (1900), RVN governance (1960), and post-reunification (1980).
 
@@ -95,7 +97,7 @@ The community does specialized annotation work motivated by mission — the same
 
 The OSM (OpenStreetMap) community is a natural partner for the Cartographer tier — they already know how to trace building footprints and share VMA’s commitment to open data. HOT (Humanitarian OpenStreetMap Team) and local OSM Vietnam chapters are the primary Phase 1 community outreach channel.
 
-See `docs/gamification.md` for the full system design.
+See `docs/archive/gamification.md` for the full system design (archived — unbuilt).
 
 ---
 
@@ -129,6 +131,58 @@ Tuệ frames the VMA mission as recovering both the *body* and the *soul* of the
 - **Soul** = sensory details, social histories, economic logic, human narratives (L5–L6)
 
 The gap between body and soul is what VMA exists to fill. A georeferenced map gives you the body. The Knowledge Graph + community layer gives you the soul.
+
+---
+
+## Precedents and Reading List
+
+Tier 1 — the technical precedents this framework is built against:
+
+| Source | Relevance |
+|---|---|
+| **Morlighem 2021** (TU Delft MSc) | OBIA → vectorization → LoD2 CityJSON from historical maps. The L2–L4 blueprint. Code: `github.com/CamilleMorlighem/histo3d` |
+| **Bauckhage 2025** (ETH Zürich) | Static historical map → dynamic 3D VR landscape; extends Morlighem to 4D |
+| **Gao 2024** | Diffusion models for urban change detection from historical maps → L1 automation |
+| **Liu 2025** | Spatio-temporal KG + LLMs for geospatial Q&A on historical maps → L5 |
+| **Jiao 2024** | Deep-learning road extraction from historical maps → L3 |
+| **Kapoor et al. 2019** (Google/KDD, "Nostalgin") | 3D city from historical images → LoD3 photogrammetry |
+| **NYPL Building Inspector** | Gamified crowdsourced historical building cataloguing → Cartographer-tier UX |
+| **SODUCO** (ANR, Paris 1789–1950) | 113 Parisian trade directories → historical KG. Direct precedent for the pipeline below |
+
+**The open gap:** no published work exists on OBIA calibration for French colonial Indochina map symbology (contrast fills, hachure, street colour conventions). Morlighem calibrated for Dutch/Belgian sheets. This is VMA's primary research-contribution opportunity.
+
+---
+
+## Geographical Text Analysis → Knowledge Graph
+
+How L5–L6 get populated at a scale crowdsourcing alone cannot reach. The method is Ian Gregory's geographical text analysis (Lancaster, Spatial Humanities):
+
+```
+Colonial text corpus (BnF/Gallica, EFEO — much already OCR'd by BnF)
+         ↓
+Geo-parsing — extract place references, disambiguate, assign coordinates
+         ↓
+Named Entity Recognition — persons, organizations, businesses, events
+         ↓
+Relation extraction — who owned what, where, when
+         ↓
+Knowledge graph population — entities, relations, and their source citations
+         ↓
+Spatial linking — connect entities to georeferenced map footprints (L1/L4)
+```
+
+**Status: unbuilt.** No knowledge-graph schema exists in the database. Nothing in `supabase/migrations/` creates entity, relation, or source tables — the only trace is a comment in `040_ocr_extractions.sql`. Treat this section as a design target, not a description of the system.
+
+**Primary source corpus:**
+
+| Source | Content | Layer |
+|---|---|---|
+| *Annuaire de la Cochinchine / de l'Indochine* | Merchant names, addresses, business types, year | L5 — who was where, in what year |
+| *L'Opinion*, *La Dépêche d'Indochine* | Events, property transactions, street openings, public works | L6 events, L5 commercial activity |
+| Rapports annuels, budgets coloniaux | Administrative boundaries, public works, census | L1 admin boundaries, L4 land use |
+| EFEO field notes and published research | Vernacular names, ethnic quarters, temple records | Disambiguation layer |
+
+The population method is three-layered: automated (geo-parsing + NER), community-validated (HITL correction and enrichment), spatially linked (entities bound to footprints from the vectorization pipeline). That keeps human interpretive judgment in the loop without making every entity a manual task.
 
 ---
 

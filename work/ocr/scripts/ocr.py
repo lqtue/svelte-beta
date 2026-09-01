@@ -8,8 +8,9 @@ Subcommands:
   dedup        Deduplicate existing labels from DB or local files
   preview      Render bbox overlay on a saved output JSON
   stitch       Composite multiple tiles into one preview image
-  compare      Stub for future A/B of models / prompt versions
   list-models  List available Gemini models
+  detect-layout  Local (scipy): find legend/cartouche boxes — no API
+  numerals       Local (Tesseract): spot legend-ref numerals — no API
 """
 
 from __future__ import annotations
@@ -36,8 +37,10 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 from iiif_tiles import (
     adaptive_render_size,
+    auto_tile_overrides,
     auto_tile_params,
     choose_scale_levels,
+    compute_tile_colours,
     compute_tile_densities,
     detect_neatline,
     estimate_density,
@@ -47,8 +50,9 @@ from iiif_tiles import (
     get_iiif_base_from_supabase,
     tile_grid,
 )
-from gemini_client import DEFAULT_MODEL, extract_labels, extract_labels_sequence, list_models
+from gemini_client import DEFAULT_MODEL, extract_labels, extract_labels_sequence, extract_legend, list_models
 from prompt import DEFAULT_PROMPT, EXTRACTION_SCHEMA, PROMPTS, SYSTEM_PROMPT
+from local_vision import detect_legend_boxes, spot_numerals
 
 OUTPUTS_CACHE_DIR = Path(__file__).resolve().parents[1] / "outputs" / ".cache"
 
@@ -286,7 +290,6 @@ def cmd_batch(args: argparse.Namespace) -> None:
     if getattr(args, "db", False) and map_label != "unknown":
         try:
             from supabase_client import update_pipeline_status
-            from datetime import datetime, timezone
             update_pipeline_status(map_label, "ocr_queued",
                                    ocr_started_at=datetime.now(timezone.utc).isoformat())
         except Exception as e:
@@ -308,10 +311,13 @@ def cmd_batch(args: argparse.Namespace) -> None:
         print(f"  Manual crop: {grid_region}")
 
     # 1. Scout pass (optional) — detect neatline via LLM
+    scout_cartouche = None  # legend region for --legend, harvested from the scout pass
     if not grid_region and getattr(args, "scout", False):
         print("\n--- SCOUT PASS INITIALIZED ---")
         scout_args = argparse.Namespace(**{**vars(args), 'prompt': 'scout', 'render_size': 4096, 'preview': True})
-        grid_region = cmd_scout(scout_args)
+        scout_out = cmd_scout(scout_args)
+        grid_region = scout_out.get("content")
+        scout_cartouche = scout_out.get("cartouche")
         if grid_region:
             print(f"  Adaptive Tiling: Constraining grid to map bound {grid_region}")
 
@@ -327,11 +333,19 @@ def cmd_batch(args: argparse.Namespace) -> None:
         print(f"  Auto-tile: tile={tile_size} overlap={overlap} render={render_size} "
               f"(targeting ~{target_calls} calls)")
 
+    # Shared 1024px full-image overview — neatline, skip-sparse, and
+    # auto-priority all want the same downscale; fetch it at most once.
+    _ov_cache: dict = {}
+    def _overview():
+        if "img" not in _ov_cache:
+            _ov_cache["img"] = fetch_crop(iiif_base, 0, 0, img_w, img_h,
+                                          size=1024, quality=iiif_quality)
+        return _ov_cache["img"]
+
     # 3. Local neatline detection as fallback (no API call, pure image processing)
     if not grid_region and not local_image and getattr(args, "smart_grid", False):
         print("  Detecting neatline from overview image ...")
-        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024,
-                              quality=iiif_quality)
+        overview = _overview()
         neatline = detect_neatline(overview)
         if neatline:
             ox, oy, ow, oh = neatline
@@ -350,9 +364,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
     if not local_image and getattr(args, "skip_sparse", False):
         min_text_frac = getattr(args, "min_text_frac", 0.01)
         print(f"  Computing text density (threshold={min_text_frac}) ...")
-        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024,
-                              quality=iiif_quality)
-        densities = compute_tile_densities(overview, tiles, img_w, img_h)
+        densities = compute_tile_densities(_overview(), tiles, img_w, img_h)
         tiles = [t for t in tiles if densities.get(t, 1.0) >= min_text_frac]
         skipped = total_before_filter - len(tiles)
         if skipped:
@@ -384,6 +396,25 @@ def cmd_batch(args: argparse.Namespace) -> None:
             tile_overrides = json.loads(args.tile_overrides)
         except json.JSONDecodeError as e:
             print(f"  Warning: could not parse --tile-overrides JSON: {e}")
+    elif not local_image and getattr(args, "auto_priority", False):
+        # Auto-fill the priority grid from a color pre-pass instead of by hand:
+        # blank → skip, sparse → low_res, dense → full render.
+        print("  Auto-priority: computing density + colour pre-pass ...")
+        overview = _overview()
+        densities = compute_tile_densities(overview, tiles, img_w, img_h)
+        # Water and vegetation wash reads as busy to the density pass but holds
+        # almost no toponyms, so it demotes a tile one step.
+        colours = compute_tile_colours(overview, tiles, img_w, img_h)
+        tile_overrides = auto_tile_overrides(
+            densities,
+            skip_below=getattr(args, "skip_below", 0.01),
+            low_res_below=getattr(args, "low_res_below", 0.08),
+            colours=colours,
+            wash_above=getattr(args, "wash_above", 0.6),
+        )
+        washed = sum(1 for v in colours.values() if v >= getattr(args, "wash_above", 0.6))
+        if washed:
+            print(f"  Colour pre-pass: {washed} tiles are mostly water/vegetation wash")
     low_res_render = getattr(args, "low_res_render", 512)
 
     skip_keys = {k for k, v in tile_overrides.items() if v == "skip"}
@@ -656,41 +687,51 @@ def cmd_batch(args: argparse.Namespace) -> None:
 
     if getattr(args, "db", False) and map_label != "unknown":
         from supabase_client import upsert_ocr_extractions
-        # Write per-tile extractions with real tile coords — the unique index
-        # (map_id, run_id, tile_x, tile_y, text) deduplicates on re-runs.
-        # The master JSON dedup is for preview only; DB stores the raw per-tile rows.
+        # Write the DEDUPED rows. The global-space IoU/proximity dedup above already
+        # collapsed overlap-band double-reads (the tiling edge problem) — writing raw
+        # per-tile rows here would reintroduce them, because the unique index
+        # (map_id, run_id, tile_x, tile_y, text) can only dedup within a single tile,
+        # not across the two tiles that share an overlap band.
+        # Key each surviving row to its winning tile's origin so the unique index
+        # still gives re-run idempotency. global_bbox is already full-image px.
+        tile_dims = {(x, y): (w, h) for x, y, w, h in tiles}
         db_rows = []
-        for tr in tile_results:
-            tx, ty, tw, th = tr["tile_x"], tr["tile_y"], tr["tile_w"], tr["tile_h"]
-            rw, rh = tr["render_w"], tr["render_h"]
-            for e in tr["extractions"]:
-                bbox = e.get("bbox_px", [0, 0, 0, 0])
-                gx = tx + bbox[0] * tw / rw
-                gy = ty + bbox[1] * th / rh
-                gw = bbox[2] * tw / rw
-                gh = bbox[3] * th / rh
-                db_rows.append({
-                    "tile_x": tx, "tile_y": ty, "tile_w": tw, "tile_h": th,
-                    "global_x": gx, "global_y": gy, "global_w": gw, "global_h": gh,
-                    "category": e.get("category", "other"),
-                    "text": e.get("text", ""),
-                    "confidence": e.get("confidence", 0),
-                    "rotation_deg": e.get("rotation_deg"),
-                    "notes": e.get("notes"),
-                    "model": model,
-                    "prompt": args.prompt,
-                })
+        for e in deduped:
+            gx, gy, gw, gh = e["global_bbox"]
+            tx, ty = e.get("_tile_origin", (0, 0))
+            tw, th = tile_dims.get((tx, ty), (img_w, img_h))
+            db_rows.append({
+                "tile_x": tx, "tile_y": ty, "tile_w": tw, "tile_h": th,
+                "global_x": gx, "global_y": gy, "global_w": gw, "global_h": gh,
+                "category": e.get("category", "other"),
+                "text": e.get("text", ""),
+                "confidence": e.get("confidence", 0),
+                "rotation_deg": e.get("rotation_deg"),
+                "notes": e.get("notes"),
+                "model": model,
+                "prompt": args.prompt,
+            })
+        # ponytail: two distinct same-text features on one tile collapse to one DB
+        # row (shared unique key) — same ceiling the old raw path had. Fix with a
+        # location suffix in the key only if it ever bites.
         n_written = upsert_ocr_extractions(map_label, out_dir.name, db_rows)
-        print(f"DB: upserted {n_written} rows ({raw_n} per-tile) to ocr_extractions")
+        print(f"DB: upserted {n_written} deduped rows ({raw_n} raw per-tile) to ocr_extractions")
 
         try:
             from supabase_client import update_pipeline_status
-            from datetime import datetime, timezone
             update_pipeline_status(map_label, "ocr_done",
                                    ocr_run_id=out_dir.name,
                                    ocr_finished_at=datetime.now(timezone.utc).isoformat())
         except Exception as e:
             print(f"[pipeline] status update skipped: {e}")
+
+        if getattr(args, "legend", False):
+            try:
+                _run_legend_pass(iiif_base, img_w, img_h, scout_cartouche,
+                                 local_image, map_label, out_dir.name, model,
+                                 quality=("default" if local_image else iiif_quality))
+            except Exception as e:
+                print(f"[legend] pass failed: {e}")
 
     save_run_config(out_dir, {
         "map_id": map_label,
@@ -1629,7 +1670,7 @@ def cmd_dedup(args: argparse.Namespace) -> None:
                 print(f"  ... and {len(uncertain) - 5} more")
 
     # Save a preview JSON
-    out_name = f"dedup_preview_{datetime.now().strftime('%Y%H%M%S')}.json"
+    out_name = f"dedup_preview_{datetime.now().strftime('%Y%m%dT%H%M%S')}.json"
     if args.local:
         out_path = Path(args.local) / out_name
     else:
@@ -1647,8 +1688,9 @@ def cmd_dedup(args: argparse.Namespace) -> None:
         if not args.map_id:
             raise SystemExit("Provide --map-id for --apply")
         
-        # Use provided user_id or fall back to the discovered admin ID be1961db-ba19-47ad-9530-5ecf4a055f8b
-        user_id = args.user_id or "be1961db-ba19-47ad-9530-5ecf4a055f8b"
+        if not args.user_id:
+            raise SystemExit("Provide --user-id for --apply (pins need an owner)")
+        user_id = args.user_id
         
         print(f"\nApplying {len(deduped)} labels as Map Pins for user {user_id} ...")
         from supabase_client import upsert_label_pins
@@ -1802,11 +1844,6 @@ def cmd_clean(args: argparse.Namespace) -> None:
         print(f"\nUpserting {len(rows)} rows to ocr_extractions (run_id={args.run_id}) ...")
         n = upsert_ocr_extractions(args.map_id, args.run_id, rows)
         print(f"Done — {n} rows in ocr_extractions.")
-
-
-def cmd_compare(args: argparse.Namespace) -> None:
-    print("compare subcommand — stub for future A/B of models/prompts")
-    print("Not implemented in POC phase.")
 
 
 def cmd_scout(args: argparse.Namespace) -> None:
@@ -1969,7 +2006,7 @@ def cmd_scout(args: argparse.Namespace) -> None:
         render_preview(image, preview_extractions, prev_path)
         print(f"  Preview saved to {prev_path}")
 
-    return global_bound
+    return {"content": global_bound, "cartouche": global_cartouche}
 
 
 def cmd_list_models(args: argparse.Namespace) -> None:
@@ -1985,6 +2022,265 @@ def cmd_list_models(args: argparse.Namespace) -> None:
 
 
 # ── Argument parser ───────────────────────────────────────────────────────────
+
+
+def _resolve_base_and_dims(args) -> tuple[str, int, int]:
+    """Shared IIIF-base + image-dimension resolution for the local passes.
+
+    Mirrors cmd_batch: --local-image | --iiif-base | --map-id.
+    """
+    local_image = getattr(args, "local_image", None)
+    if local_image:
+        import warnings
+        from PIL import Image as _Img
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _Img.MAX_IMAGE_PIXELS = None
+            w, h = _Img.open(local_image).size
+        return "local", w, h
+    base = args.iiif_base
+    if not base:
+        if not args.map_id:
+            raise SystemExit("Provide --map-id, --iiif-base, or --local-image")
+        base = get_iiif_base_from_supabase(args.map_id)
+        if not base:
+            raise SystemExit("Could not resolve IIIF base.")
+    info = get_image_info(base)
+    return base, info["width"], info["height"]
+
+
+def cmd_detect_layout(args: argparse.Namespace) -> None:
+    """Local scipy pass: find legend/cartouche/title boxes from a low-res overview.
+
+    Emits source-pixel regions to feed the (Gemini) structured legend pass. No API
+    calls — runs free on the M-series.
+    """
+    base, W, H = _resolve_base_and_dims(args)
+    local_image = getattr(args, "local_image", None)
+    overview = fetch_crop(base, 0, 0, W, H, size=args.overview_size, fit=True,
+                          local_image=local_image)
+    ow, oh = overview.size
+    sx, sy = W / ow, H / oh  # overview px → source px
+
+    boxes = detect_legend_boxes(overview, min_area_frac=args.min_area,
+                                max_area_frac=args.max_area)
+    regions = []
+    for b in boxes:
+        x, y, w, h = b["bbox"]
+        regions.append({
+            "bbox_source": [int(x * sx), int(y * sy), int(w * sx), int(h * sy)],
+            "bbox_overview": [x, y, w, h],
+            "score": b["score"],
+            "category": "legend_region",
+        })
+
+    map_label = args.map_id or "unknown"
+    out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
+    out_path = out_dir / "layout.json"
+    out_path.write_text(json.dumps({
+        "map_id": map_label,
+        "source_size": [W, H],
+        "overview_size": [ow, oh],
+        "regions": regions,
+    }, indent=2))
+    print(f"Found {len(regions)} candidate box(es) (overview {ow}×{oh}):")
+    for r in regions:
+        print(f"  score={r['score']:.2f}  source_bbox={r['bbox_source']}")
+    print(f"→ {out_path}")
+
+
+def cmd_numerals(args: argparse.Namespace) -> None:
+    """Local Tesseract pass: spot standalone numerals (legend refs) across the map body.
+
+    Writes category='legend_ref' rows — a later join on value links each to its
+    legend entry. No API calls.
+    """
+    base, W, H = _resolve_base_and_dims(args)
+    local_image = getattr(args, "local_image", None)
+    tiles = list(tile_grid(W, H, tile=args.tile_size, overlap=args.overlap))
+    if args.limit:
+        tiles = tiles[: args.limit]
+    print(f"Numeral pass over {len(tiles)} tile(s) "
+          f"({args.tile_size}px, {args.overlap}px overlap, render={args.render_size}px)")
+
+    items: list[dict] = []
+    for i, (tx, ty, tw, th) in enumerate(tiles):
+        img = fetch_crop(base, tx, ty, tw, th, size=args.render_size,
+                         local_image=local_image)
+        rw, rh = img.size
+        rsx, rsy = tw / rw, th / rh  # render px → source px
+        for hit in spot_numerals(img, min_conf=args.min_conf):
+            bx, by, bw, bh = hit["bbox"]
+            gx, gy = int(tx + bx * rsx), int(ty + by * rsy)
+            gw, gh = int(bw * rsx), int(bh * rsy)
+            items.append({
+                "text": hit["text"],
+                "confidence": hit["confidence"],
+                "global_bbox": (gx, gy, gw, gh),
+                "tile": (tx, ty, tw, th),
+            })
+        print(f"  [{i+1}/{len(tiles)}] tile ({tx},{ty}) → {len(items)} total so far")
+
+    deduped = dedup_items(items, iou_threshold=args.iou)
+    print(f"Dedup: {len(items)} raw → {len(deduped)} unique numerals")
+
+    map_label = args.map_id or "unknown"
+    out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
+    out_path = out_dir / "numerals.json"
+    out_path.write_text(json.dumps({
+        "map_id": map_label,
+        "source_size": [W, H],
+        "n_raw": len(items),
+        "n_deduped": len(deduped),
+        "numerals": [{**d, "global_bbox": list(d["global_bbox"]), "tile": list(d["tile"])}
+                     for d in deduped],
+    }, indent=2))
+    print(f"→ {out_path}")
+
+    if getattr(args, "db", False) and map_label != "unknown":
+        from supabase_client import upsert_ocr_extractions
+        rows = []
+        for d in deduped:
+            gx, gy, gw, gh = d["global_bbox"]
+            tx, ty, tw, th = d["tile"]
+            rows.append({
+                "tile_x": tx, "tile_y": ty, "tile_w": tw, "tile_h": th,
+                "category": "legend_ref", "text": d["text"],
+                "confidence": d["confidence"],
+                "global_x": gx, "global_y": gy, "global_w": gw, "global_h": gh,
+                "rotation_deg": 0, "notes": None,
+                "model": "tesseract", "prompt": "numerals-v1",
+            })
+        n = upsert_ocr_extractions(map_label, out_dir.name, rows)
+        print(f"[db] upserted {n} legend_ref row(s)")
+
+
+def _write_legend_rows(map_id: str, run_id: str, region: tuple[int, int, int, int],
+                       entries: list[dict], model: str) -> int:
+    """Upsert extracted legend entries as category='legend_entry' rows.
+
+    ponytail: ocr_extractions has no number/grid columns, so the number + grid
+    live in `notes` (parseable "n=..; grid=..") and `text` carries "n. name" —
+    that keeps the row key unique (duplicate names exist) and carries the
+    body-numeral join key. Add real columns if the number-join gets clumsy.
+    """
+    from supabase_client import upsert_ocr_extractions
+    x, y, w, h = region
+    rows = []
+    for e in entries:
+        note = f"n={e['n']}; grid={e.get('grid','')}"
+        if e.get("name_vn"): note += f"; vn={e['name_vn']}"
+        if e.get("grid_disputed"): note += "; grid_disputed"
+        rows.append({
+            "tile_x": x, "tile_y": y, "tile_w": w, "tile_h": h,
+            "category": "legend_entry", "text": f"{e['n']}. {e['name']}",
+            "confidence": 0.9,
+            "global_x": x, "global_y": y, "global_w": w, "global_h": h,
+            "rotation_deg": 0, "notes": note,
+            "model": model, "prompt": "legend-v1",
+        })
+    return upsert_ocr_extractions(map_id, run_id, rows)
+
+
+def _run_legend_pass(iiif_base: str, img_w: int, img_h: int, cartouche,
+                     local_image: str | None, map_id: str, run_id: str,
+                     model: str, quality: str = "default") -> None:
+    """Auto legend step for `batch --legend`: locate a legend region, extract it.
+
+    Region priority: scout cartouche bbox → local ruled-box finder → skip.
+    Single model, no consensus — the batch path stays cheap; use `legend
+    --consensus` by hand when a legend's grid cells are worth cross-checking.
+    """
+    from gemini_client import extract_legend
+    region = tuple(int(v) for v in cartouche) if cartouche else None
+    if not region and not local_image:
+        overview = fetch_crop(iiif_base, 0, 0, img_w, img_h, size=1024, quality=quality)
+        boxes = detect_legend_boxes(overview)
+        if boxes:
+            bx, by, bw, bh = boxes[0]["bbox"]
+            sx, sy = img_w / overview.size[0], img_h / overview.size[1]
+            region = (int(bx * sx), int(by * sy), int(bw * sx), int(bh * sy))
+    if not region:
+        print("[legend] no cartouche/ruled-box region found — skipped")  # no silent cap
+        return
+    x, y, w, h = region
+    crop = fetch_crop(iiif_base, x, y, w, h, size=2600, local_image=local_image, quality=quality)
+    entries = extract_legend(crop, model=model)
+    n = _write_legend_rows(map_id, run_id, region, entries, model)
+    print(f"[legend] region={region} entries={len(entries)} upserted={n}")
+
+
+def cmd_legend(args: argparse.Namespace) -> None:
+    """Gemini pass: read a numbered legend region into structured {n, name, grid}.
+
+    Optionally cross-checks the grid cell across N models (--consensus) and flags
+    entries where they disagree — those are the ~few cells worth a human glance.
+    """
+    base, W, H = _resolve_base_and_dims(args)
+    local_image = getattr(args, "local_image", None)
+    try:
+        x, y, w, h = (int(v) for v in args.region.split(","))
+    except (ValueError, AttributeError):
+        raise SystemExit("--region must be x,y,w,h in source pixels")
+    crop = fetch_crop(base, x, y, w, h, size=args.render_size, local_image=local_image)
+
+    models = [args.model]
+    if args.consensus > 1:
+        extra = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]
+        for m in extra:
+            if m not in models and len(models) < args.consensus:
+                models.append(m)
+
+    import collections
+    def ngrid(s): return "".join((s or "").upper().split()).replace(",", "").replace("-", "")
+
+    runs = {}
+    for m in models:
+        try:
+            entries = extract_legend(crop, model=m, bilingual=args.bilingual)
+            runs[m] = {int(e["n"]): e for e in entries if str(e.get("n", "")).strip().lstrip("-").isdigit()}
+            print(f"  {m}: {len(runs[m])} entries")
+        except Exception as e:
+            print(f"  {m}: ERROR {str(e)[:100]}")
+
+    best = runs.get(args.model) or (next(iter(runs.values())) if runs else {})
+    flagged = []
+    out_entries = []
+    for n in sorted(best):
+        e = dict(best[n])
+        if len(runs) > 1:
+            present = [r[n] for r in runs.values() if n in r]
+            votes = collections.Counter(ngrid(r.get("grid")) for r in present)
+            top, cnt = votes.most_common(1)[0]
+            # Adopt the majority grid; flag only when there is NO majority
+            # (all models disagree) — those are the cells worth a human glance.
+            if cnt >= 2:
+                e["grid"] = next(r.get("grid") for r in present if ngrid(r.get("grid")) == top)
+            elif len(present) >= 2:
+                e["grid_disputed"] = True
+                e["grid_votes"] = dict(votes)
+                flagged.append(n)
+        out_entries.append(e)
+
+    map_label = args.map_id or "unknown"
+    out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
+    out_path = out_dir / "legend.json"
+    out_path.write_text(json.dumps({
+        "map_id": map_label,
+        "region_source": [x, y, w, h],
+        "models": list(runs),
+        "n_entries": len(out_entries),
+        "grid_disputed": flagged,
+        "entries": out_entries,
+    }, indent=2, ensure_ascii=False))
+    print(f"Extracted {len(out_entries)} legend entries "
+          f"({len(flagged)} grid-disputed: {flagged})" if flagged else
+          f"Extracted {len(out_entries)} legend entries (no grid disputes)")
+    print(f"→ {out_path}")
+
+    if getattr(args, "db", False) and map_label != "unknown":
+        n = _write_legend_rows(map_label, out_dir.name, (x, y, w, h), out_entries, args.model)
+        print(f"[db] upserted {n} legend_entry row(s)")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -2028,6 +2324,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--db", action="store_true",
                          help="Upsert deduped extractions to Supabase ocr_extractions table")
     p_batch.add_argument("--scout", action="store_true", help="Run a macro-level Scout Pass first")
+    p_batch.add_argument("--legend", action="store_true",
+                         help="After tiles, auto-extract the legend region (scout cartouche → local box finder) into legend_entry rows")
     p_batch.add_argument("--row-sequence", action="store_true", default=True,
                          help="Process tiles as row-strips (one sequence call per row, default on)")
     p_batch.add_argument("--no-row-sequence", dest="row_sequence", action="store_false",
@@ -2057,6 +2355,16 @@ def build_parser() -> argparse.ArgumentParser:
                               'Example: \'{"390_295_2000_2000":"skip","2390_0_2000_2000":"low_res"}\'')
     p_batch.add_argument("--low-res-render", type=int, default=512,
                          help="Render size (px) for low_res tiles (default 512)")
+    p_batch.add_argument("--auto-priority", action="store_true",
+                         help="Auto-fill the priority grid from a density pre-pass "
+                              "(blank→skip, sparse→low_res). Ignored if --tile-overrides is given.")
+    p_batch.add_argument("--skip-below", type=float, default=0.01,
+                         help="Text-density fraction below which --auto-priority marks a tile skip (default 0.01)")
+    p_batch.add_argument("--low-res-below", type=float, default=0.08,
+                         help="Text-density fraction below which --auto-priority marks a tile low_res (default 0.08)")
+    p_batch.add_argument("--wash-above", type=float, default=0.6,
+                         help="Water/vegetation coverage above which --auto-priority demotes a tile "
+                              "one step (default 0.6)")
     p_batch.set_defaults(func=cmd_batch)
 
     # dedup
@@ -2116,15 +2424,65 @@ def build_parser() -> argparse.ArgumentParser:
     p_st.add_argument("--adaptive", action="store_true", help="Auto-scale render size by tile density")
     p_st.set_defaults(func=cmd_stitch)
 
-    # compare
-    p_cmp = sub.add_parser("compare", help="A/B compare models or prompts (stub)")
-    p_cmp.add_argument("--map-id", help="Map UUID")
-    p_cmp.add_argument("--tiles", type=int, default=3, help="Number of tiles to compare")
-    p_cmp.set_defaults(func=cmd_compare)
-
     # list-models
     p_lm = sub.add_parser("list-models", help="List available Gemini models")
     p_lm.set_defaults(func=cmd_list_models)
+
+    # ── detect-layout (local scipy — legend/cartouche box finder) ──────────────
+    p_dl = sub.add_parser("detect-layout",
+                          help="Local: find legend/cartouche boxes (no API)")
+    p_dl.add_argument("--map-id", help="Supabase maps.id UUID")
+    p_dl.add_argument("--iiif-base", help="IIIF image service base URL")
+    p_dl.add_argument("--local-image", help="Local image file path (skips IIIF)")
+    p_dl.add_argument("--overview-size", type=int, default=2000,
+                      help="Max overview dimension for detection (default 2000)")
+    p_dl.add_argument("--min-area", type=float, default=0.008,
+                      help="Min box area as fraction of image (default 0.008)")
+    p_dl.add_argument("--max-area", type=float, default=0.6,
+                      help="Max box area as fraction of image (default 0.6)")
+    p_dl.add_argument("--run-id", help="Run identifier (default: timestamp)")
+    p_dl.set_defaults(func=cmd_detect_layout)
+
+    # ── numerals (local Tesseract — legend-ref digit spotting) ─────────────────
+    p_num = sub.add_parser("numerals",
+                           help="Local: spot standalone numerals / legend refs (no API)")
+    p_num.add_argument("--map-id", help="Supabase maps.id UUID")
+    p_num.add_argument("--iiif-base", help="IIIF image service base URL")
+    p_num.add_argument("--local-image", help="Local image file path (skips IIIF)")
+    p_num.add_argument("--tile-size", type=int, default=2400,
+                       help="Tile size in source px (default 2400)")
+    p_num.add_argument("--overlap", type=int, default=300,
+                       help="Tile overlap in source px (default 300)")
+    p_num.add_argument("--render-size", type=int, default=2048,
+                       help="Rendered tile width — bigger helps tiny digits (default 2048)")
+    p_num.add_argument("--min-conf", type=float, default=40.0,
+                       help="Min Tesseract confidence 0-100 (default 40)")
+    p_num.add_argument("--iou", type=float, default=0.15,
+                       help="IoU threshold for cross-tile dedup (default 0.15)")
+    p_num.add_argument("--limit", type=int, help="Max tiles (for testing)")
+    p_num.add_argument("--db", action="store_true",
+                       help="Upsert results into ocr_extractions as category='legend_ref'")
+    p_num.add_argument("--run-id", help="Run identifier (default: timestamp)")
+    p_num.set_defaults(func=cmd_numerals)
+
+    # ── legend (Gemini — structured numbered-legend read) ──────────────────────
+    p_leg = sub.add_parser("legend",
+                           help="Gemini: read a numbered legend region into {n, name, grid}")
+    p_leg.add_argument("--map-id", help="Supabase maps.id UUID")
+    p_leg.add_argument("--iiif-base", help="IIIF image service base URL")
+    p_leg.add_argument("--local-image", help="Local image file path (skips IIIF)")
+    p_leg.add_argument("--region", required=True, help="Legend crop: x,y,w,h in source px")
+    p_leg.add_argument("--render-size", type=int, default=2600,
+                       help="Rendered crop width — bigger helps tiny text (default 2600)")
+    p_leg.add_argument("--model", default=DEFAULT_MODEL, help="Primary Gemini model")
+    p_leg.add_argument("--bilingual", action="store_true",
+                       help="Rows carry both Vietnamese and English names")
+    p_leg.add_argument("--consensus", type=int, default=1,
+                       help="Cross-check grid cells across N models; flag disagreements (default 1)")
+    p_leg.add_argument("--db", action="store_true",
+                       help="Upsert into ocr_extractions as category='legend_entry'")
+    p_leg.add_argument("--run-id", help="Run identifier (default: timestamp)")
+    p_leg.set_defaults(func=cmd_legend)
 
     return parser
 

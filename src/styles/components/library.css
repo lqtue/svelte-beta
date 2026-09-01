@@ -1,0 +1,149 @@
+/*
+  library.css — project/story library grid shown by $lib/ui/LibraryGrid.svelte
+  (the /create and /studio landing screens): create button, empty + loading
+  states, and the CatalogCard slot styles (thumb, meta tags, description,
+  edit/delete icon buttons).
+
+  Split out of layouts/create-mode.css; imported by the tool modes that render
+  LibraryGrid (/create, /studio).
+*/
+
+.library-create-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-blue);
+  color: var(--color-white);
+  border: var(--border-thick);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-solid-xs);
+  transition: transform 0.1s;
+}
+
+.library-create-btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-solid-sm);
+}
+
+.library-create-btn.large {
+  padding: 0.75rem 1.5rem;
+  font-size: 1.1rem;
+}
+
+.library-loading,
+.library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  flex: 1;
+  text-align: center;
+}
+
+.empty-title {
+  font-family: var(--font-family-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.empty-text {
+  max-width: 400px;
+  margin-bottom: 2rem;
+  opacity: 0.8;
+}
+
+/* Story Card Custom Styles for CatalogCard slots */
+.story-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--color-text);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.meta-tag {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--color-gray-100);
+  border: var(--border-thin);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.meta-tag.publish-status {
+  background: var(--color-white);
+}
+
+.meta-tag.publish-status.published {
+  background: var(--sb-success-bg);
+  color: var(--sb-success);
+  border-color: var(--sb-success);
+}
+
+.description {
+  font-size: 0.85rem;
+  color: var(--color-text);
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.btn-icon-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: var(--border-thin);
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-solid-xs);
+}
+
+.btn-icon-edit:hover {
+  color: var(--color-blue);
+  background: #dbeafe;
+  transform: translate(-1px, -1px);
+}
+
+.btn-icon-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: var(--border-thin);
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-solid-xs);
+}
+
+.btn-icon-delete:hover {
+  color: var(--sb-danger);
+  background: var(--sb-danger-bg);
+  transform: translate(-1px, -1px);
+}

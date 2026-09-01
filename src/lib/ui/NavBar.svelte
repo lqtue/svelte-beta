@@ -14,18 +14,20 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  import type { Session } from '@supabase/supabase-js';
+
   import NavDropdown from './NavDropdown.svelte';
-  import { getSupabaseContext } from '$lib/supabase/context';
   import { page } from '$app/stores';
 
-  const { session } = getSupabaseContext();
+  // ui/ is domain-free (layering rule): the layout that mounts NavBar passes the session in.
+  export let session: Session | null = null;
 
   let isVietnamese = false;
   let drawerOpen = false;
 
-
-
-  function closeDrawer() { drawerOpen = false; }
+  function closeDrawer() {
+    drawerOpen = false;
+  }
 
   function handleDrawerKey(e: KeyboardEvent) {
     if (e.key === 'Escape') closeDrawer();
@@ -40,16 +42,23 @@
   });
 
   $: path = $page.url.pathname;
-  $: activeCatalog    = path.startsWith('/catalog') || path.startsWith('/view') || path.startsWith('/explore') || path.startsWith('/image');
-  $: activeTools      = path.startsWith('/create') || path.startsWith('/studio') || path.startsWith('/annotate');
+  $: activeCatalog =
+    path.startsWith('/catalog') || path.startsWith('/explore') || path.startsWith('/image');
+  $: activeTools = path.startsWith('/create') || path.startsWith('/studio');
   $: activeContribute = path.startsWith('/contribute');
-  $: activeAbout      = path.startsWith('/about');
-  $: activeBlog       = path.startsWith('/blog');
+  $: activeAbout = path.startsWith('/about');
+  $: activeBlog = path.startsWith('/blog');
 
-  $: avatarUrl    = session?.user?.user_metadata?.avatar_url as string | undefined;
-  $: displayName  = (session?.user?.user_metadata?.full_name as string | undefined) ?? session?.user?.email ?? '';
-  $: initials     = displayName
-    ? displayName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
+  $: avatarUrl = session?.user?.user_metadata?.avatar_url as string | undefined;
+  $: displayName =
+    (session?.user?.user_metadata?.full_name as string | undefined) ?? session?.user?.email ?? '';
+  $: initials = displayName
+    ? displayName
+        .split(' ')
+        .map((n: string) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
     : '?';
 </script>
 
@@ -60,24 +69,26 @@
   <!-- Desktop links -->
   <div class="nav-links">
     <NavDropdown label="Catalog" active={activeCatalog}>
-      <a href="/catalog"  class="dropdown-item" on:click={closeDrawer}>Browse the catalog</a>
-      <a href="/explore"  class="dropdown-item" on:click={closeDrawer}>Open the map viewer</a>
-      <a href="/image"    class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
+      <a href="/catalog" class="dropdown-item" on:click={closeDrawer}>Browse the catalog</a>
+      <a href="/explore" class="dropdown-item" on:click={closeDrawer}>Open the map viewer</a>
+      <a href="/image" class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
     </NavDropdown>
 
     <NavDropdown label="Tools" active={activeTools}>
-      <a href="/create"   class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
-      <a href="/annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
+      <a href="/create" class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
+      <a href="/studio" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
     </NavDropdown>
 
     <NavDropdown label="Contribute" active={activeContribute}>
-      <a href="/contribute/digitalize"  class="dropdown-item" on:click={closeDrawer}>OCR &amp; Triage</a>
-      <a href="/contribute/trace"  class="dropdown-item" on:click={closeDrawer}>Trace buildings</a>
+      <a href="/contribute/digitalize" class="dropdown-item" on:click={closeDrawer}
+        >OCR &amp; Triage</a
+      >
+      <a href="/contribute/trace" class="dropdown-item" on:click={closeDrawer}>Trace buildings</a>
       <a href="/contribute/georef" class="dropdown-item" on:click={closeDrawer}>Georeference</a>
     </NavDropdown>
 
     <a href="/about" class="nav-link" class:active={activeAbout}>About</a>
-    <a href="/blog"  class="nav-link" class:active={activeBlog}>Blog</a>
+    <a href="/blog" class="nav-link" class:active={activeBlog}>Blog</a>
   </div>
 
   <!-- Auth + utils -->
@@ -109,39 +120,45 @@
 
 <!-- ─── Mobile drawer ────────────────────────────────────────────── -->
 {#if drawerOpen}
-  <div
-    class="drawer-overlay"
-    role="presentation"
-    on:click={closeDrawer}
-  ></div>
+  <div class="drawer-overlay" role="presentation" on:click={closeDrawer}></div>
   <div class="drawer" role="dialog" aria-modal="true" aria-label="Navigation">
     <div class="drawer-header">
       <span class="nav-logo">VMA</span>
       <button class="drawer-close" type="button" aria-label="Close menu" on:click={closeDrawer}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <path d="M18 6L6 18M6 6l12 12"/>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        >
+          <path d="M18 6L6 18M6 6l12 12" />
         </svg>
       </button>
     </div>
 
     <nav class="drawer-nav">
       <p class="drawer-section-label">Catalog</p>
-      <a href="/catalog"  class="drawer-link" on:click={closeDrawer}>Browse the catalog</a>
-      <a href="/explore"  class="drawer-link" on:click={closeDrawer}>Open the map viewer</a>
-      <a href="/image"    class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
+      <a href="/catalog" class="drawer-link" on:click={closeDrawer}>Browse the catalog</a>
+      <a href="/explore" class="drawer-link" on:click={closeDrawer}>Open the map viewer</a>
+      <a href="/image" class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
 
       <p class="drawer-section-label">Tools</p>
-      <a href="/create"   class="drawer-link" on:click={closeDrawer}>Story Builder</a>
-      <a href="/annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
+      <a href="/create" class="drawer-link" on:click={closeDrawer}>Story Builder</a>
+      <a href="/studio" class="drawer-link" on:click={closeDrawer}>Annotate</a>
 
       <p class="drawer-section-label">Contribute</p>
-      <a href="/contribute/digitalize"  class="drawer-link" on:click={closeDrawer}>OCR &amp; Triage</a>
-      <a href="/contribute/trace"  class="drawer-link" on:click={closeDrawer}>Trace buildings</a>
+      <a href="/contribute/digitalize" class="drawer-link" on:click={closeDrawer}
+        >OCR &amp; Triage</a
+      >
+      <a href="/contribute/trace" class="drawer-link" on:click={closeDrawer}>Trace buildings</a>
       <a href="/contribute/georef" class="drawer-link" on:click={closeDrawer}>Georeference</a>
 
       <p class="drawer-section-label">Info</p>
       <a href="/about" class="drawer-link" on:click={closeDrawer}>About</a>
-      <a href="/blog"  class="drawer-link" on:click={closeDrawer}>Blog</a>
+      <a href="/blog" class="drawer-link" on:click={closeDrawer}>Blog</a>
     </nav>
 
     <div class="drawer-footer">
@@ -166,7 +183,9 @@
     color: var(--color-text);
     border-radius: var(--radius-sm);
     border: 2px solid transparent;
-    transition: background 0.12s, border-color 0.12s;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
   }
   .dropdown-item:hover {
     background: var(--color-yellow);
@@ -174,8 +193,10 @@
   }
 
   /* ── Auth controls ── */
-  .lang-btn { background: var(--color-blue); color: white; border: none; }
-  .signin-link { text-decoration: none; background: var(--color-white); }
+  .signin-link {
+    text-decoration: none;
+    background: var(--color-white);
+  }
 
   .avatar-pill {
     display: inline-flex;
@@ -187,7 +208,9 @@
     border: var(--border-thin);
     overflow: hidden;
     box-shadow: 2px 2px 0 var(--color-border);
-    transition: transform 0.1s, box-shadow 0.1s;
+    transition:
+      transform 0.1s,
+      box-shadow 0.1s;
     flex-shrink: 0;
   }
   .avatar-pill:hover {
@@ -195,7 +218,9 @@
     box-shadow: 4px 4px 0 var(--color-border);
   }
   .avatar-img {
-    width: 100%; height: 100%; object-fit: cover;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
   .avatar-initials {
     font-family: var(--font-family-display);
@@ -203,7 +228,8 @@
     font-size: 0.7rem;
     color: var(--color-text);
     background: var(--color-yellow);
-    width: 100%; height: 100%;
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -233,7 +259,7 @@
   .drawer-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.4);
+    background: rgba(0, 0, 0, 0.4);
     z-index: 299;
   }
   .drawer {
@@ -294,7 +320,9 @@
     color: var(--color-text);
     border-radius: var(--radius-sm);
     border: 2px solid transparent;
-    transition: background 0.12s, border-color 0.12s;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
   }
   .drawer-link:hover {
     background: var(--color-yellow);
@@ -308,6 +336,8 @@
 
   /* ── Responsive ── */
   @media (max-width: 640px) {
-    .hamburger { display: flex; }
+    .hamburger {
+      display: flex;
+    }
   }
 </style>

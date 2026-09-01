@@ -1,151 +1,95 @@
 # VMA System Guidelines
 
-Canonical reference for page structure, component patterns, and design decisions. All new routes and components must follow these rules. Deviations require a comment explaining why.
+Canonical reference for code organisation, page structure, and component patterns. All new routes and components follow these rules; deviations need a comment saying why.
+
+Companion docs: `db-guidelines.md` (schema), `design-system.md` (tokens + CSS), `admin-tooling.md`, `pipelines.md`, `theory.md` (the intellectual framing), `cleanup-2026-08.md` (what the Aug-2026 restructure changed).
 
 ---
 
-## 1. Two page registers
+## 0. Mission and product layers
 
-Every page belongs to exactly one register. The register determines which layout shell and CSS classes to use.
-
-### Editorial register
-Used by: Home (`/`), About, Blog, Contribute hub, Knowledge Graph, Timeline, Sources, any new public landing page.
-
-Shell structure:
-```
-.page (class:mounted fade-in)
-  NavBar.svelte
-  <header class="editorial-hero">
-    <div class="hero-inner">
-      <div class="label-chip">Context label</div>
-      <h1 class="hero-title">Headline<br><span class="text-highlight">key word.</span></h1>
-      <p class="hero-sub">Supporting sentence.</p>
-    </div>
-  </header>
-  <main class="editorial-main">
-    <!-- section-cards go here -->
-  </main>
-  <footer class="editorial-footer">...</footer>
-```
-
-All editorial page CSS is in `src/styles/components/editorial.css`, imported globally. **Do not redefine these classes inline.** If a page needs a layout variation, add a modifier class or extend `editorial.css`.
-
-### Tool / mode register
-Used by: `/view`, `/create`, `/annotate`, `/contribute/label`, `/contribute/review`.
-
-Shell structure: fullscreen, no NavBar, no footer.
-
-**Two sub-types:**
-
-#### Geo-map modes (`/view`, `/create`, `/annotate`)
-Use `GeoMapShell` (`src/lib/shell/GeoMapShell.svelte`) as the outer layout. It provides:
-- `workspace` + `map-stage` grid with `with-sidebar` / `compact` breakpoints
-- Responsive detection (`isMobile`, `isCompact`) — bind these from the parent
-- Sidebar collapse/toggle + "show panel" button
-- Mobile sidebar sliding panel + backdrop
-
-Slots: `sidebar` (desktop panel), default (map content inside `map-stage`), `floating` (bottom-right controls), `mobile-sidebar` (sliding panel on mobile).
-
-MapShell or StudioMap goes in the default slot. Never create a second OL map outside of MapShell.
-
-```svelte
-<div class="my-mode" class:mobile={isMobile}>
-  <GeoMapShell bind:sidebarCollapsed bind:isMobile bind:isCompact>
-    <svelte:fragment slot="sidebar"><MySidebar /></svelte:fragment>
-    <MapShell ...><HistoricalOverlay /><!-- mode content --></MapShell>
-    <svelte:fragment slot="floating"><!-- basemap btn, etc. --></svelte:fragment>
-    <svelte:fragment slot="mobile-sidebar"><MySidebar /></svelte:fragment>
-  </GeoMapShell>
-</div>
-```
-
-The mode root div (`.my-mode`) sets `height: 100dvh`, `display: flex`, `flex-direction: column`. Import mode-specific CSS (e.g. `view-mode.css`) in the mode — do NOT import `mode-shared.css` (GeoMapShell handles it).
-
-#### Pixel-map modes (`/contribute/label`, `/contribute/review`)
-Own OL instance in IIIF pixel coordinates. Do not use MapShell or GeoMapShell.
-
-LabelStudio uses: `top-bar` + `workspace` (with resizable `panel` + `map-stage`) + `bottom-bar`.
-ReviewMode uses: `review-header` + `review-body` (canvas + sidebar, dark theme).
-
-These two modes are different enough that no shared shell is used. New pixel-map modes should follow the LabelStudio pattern (light theme, tool-heavy) or ReviewMode pattern (dark theme, review-heavy) as appropriate.
-
-### Admin register
-Used by: `/admin`, `/contribute/catalog`.
-
-Shell structure: full-page, no NavBar, no footer. Sticky top-bar with left/right zones.
+Build the spatial memory of colonial Saigon: ingest historical maps → process into geometry → enrich with knowledge → serve to users and researchers.
 
 ```
-.dashboard
-  <header class="top-bar">
-    <div class="top-bar-left">...</div>       <!-- title + badge -->
-    <div class="top-bar-right">...</div>      <!-- search, sort, action buttons -->
-  </header>
-  <main class="content">
-    <!-- admin content: grids, task lists, edit forms -->
-  </main>
+6. PLATFORM        auth, nav, about, blog, profile
+5. RESEARCH SUITE  user publications combining maps + annotations + stories   [future]
+4. USAGE           explore, studio, stories, walking tours
+3. ENRICHMENT      knowledge graph, photos, 3D                                [future]
+2. PROCESSING      pixel (triage / OCR / SAM2 / review) | georef (Allmaps)
+1. INGEST          upload map → IA / BnF / R2 / own server
 ```
 
-CSS: import `$styles/layouts/admin.css` in the component's `<script>`:
-```js
-import "$styles/layouts/admin.css";
-```
-
-Available classes: `.dashboard`, `.top-bar`, `.top-bar-left`, `.top-bar-right`, `.page-title`, `.badge`, `.search-input`, `.sort-select`, `.btn`, `.btn-primary`, `.btn-outline`, `.filter-bar`, `.content`, `.alert`, `.alert-error`, `.loading-state`, `.empty-state`, task-row classes.
-
-`/contribute/catalog` uses admin.css with a sticky top-bar override and `max-width: 940px` on `.content`. `/admin` uses full 1200px.
-
-Role check: admin pages require `profiles.role = 'admin'`; cataloger pages require `mod` or `admin`.
-
-### Catalog browser register
-Used by: `/catalog`.
-
-Shell structure: editorial NavBar + filter bar + card grid. Uses catalog-specific CSS that lives inline in `+page.svelte` (1246 lines, pending extraction to `src/styles/layouts/catalog.css` — see §11 Known Debt).
-
-This is the only page type whose CSS is not yet extracted. Until task #25 is done, treat `/catalog` as a monolith — do not copy its inline styles elsewhere.
+Layers 1, 2, 4 and 6 are built. Layer 3 and 5 are aspirations — no schema and no code. See `docs/theory.md` for the underlying data-stack model and `docs/strategy.md` for what is funded or planned.
 
 ---
 
-## Summary: 7 page registers
+## 1. The layering rule
 
-| Register | Routes | Shell |
-|----------|--------|-------|
-| Editorial | `/`, `/about`, `/blog`, `/blog/[slug]`, `/contribute`, `/contribute/georef`, `/login`, `/profile` | NavBar + editorial-hero + editorial-main + footer |
-| Catalog browser | `/catalog` | NavBar + filter-bar + card grid (inline CSS) |
-| Geo-map tool | `/explore`, `/studio`, `/create`, `/trip/[id]` | MapShell / MapWorkspace (fullscreen, no nav) |
-| IIIF-canvas tool | `/image`, `/contribute/digitalize`, `/contribute/trace` | ImageShell + ToolLayout |
-| Pixel-map review | `/contribute/review` | ReviewMode (dark, review-header + review-body) |
-| Admin | `/admin/bulk`, `/admin/scout` | admin.css dashboard (editorial layout) |
+> **`core → data → map → features → routes`; `ui` is leaf primitives with zero domain imports; `server` is `$lib/server` only.**
+
+A directory may import only from directories to its **left**. This is the single organising rule for `src/lib`; it replaced 19 ad-hoc top-level directories in August 2026.
+
+```
+src/lib/
+├─ core/      pure — no OpenLayers, no Supabase
+│             geo/ (geo, bearing, geolocation, mapBounds, types)
+│             iiif/ (allmapsId, annotationUrl, iiifImageInfo)
+│             utils/ (debounce, id, pwa, persistence/)
+├─ data/      DB + HTTP access and the canonical domain types
+│             supabase/ maps/ admin/ blog/ about/
+├─ server/    $lib/server — SvelteKit makes a client import a build error
+│             auth · supabaseAdmin · http · storage · ia · mapFields
+│             facets · transformer · allmaps · ocrReview
+├─ map/       the OpenLayers runtime, one home
+│             shell/ (MapShell, ImageShell, LayerRenderer, ToolLayout, …)
+│             stores/ (mapStore, layerStore, layersStore, urlStore)
+│             annotations/ · types.ts · constants.ts
+├─ features/  one directory per product surface
+│             explore/ catalog/ stories/{shared,editor,play} studio/
+│             contribute/{ocr,digitalize,trace,review,shared} admin/
+└─ ui/        generic primitives only — no domain imports
+              NavBar EditorialFooter PageHero MapCard LocationSearch AuthGate …
+```
+
+**Consequences to respect:**
+
+- `data/maps/types.ts` is the **only** home for `MapRecord` / `MapListItem` / `MapStatus`. `map/types.ts` no longer re-exports them and holds UI-only types (`ViewMode`, `DrawingMode`, `AnnotationSummary`, `SearchResult`, `AnnotationSet`).
+- `core/` must not import `@allmaps/openlayers` or `ol` — that is what keeps the OL bundle off `/explore`'s data path.
+- `ui/` must not import from `features/`. When a primitive needs domain behaviour, the **route page** wires it: `/catalog` renders `MapEditModal` itself, `CatalogUnifiedSearch` only dispatches `edit`.
+- Routes are thin — load, wire, render. Business logic belongs in a `features/` module so it stays importable and testable.
+- One Svelte component per file. No barrel `index.ts` re-exports for components.
 
 ---
 
 ## 2. Route map
 
-Route group in parentheses is the SvelteKit layout group, not part of the URL.
+The group in parentheses is the SvelteKit layout group, not part of the URL. Both groups render `NavBar`; only `(editorial)` adds `EditorialFooter` (`src/routes/(editorial)/+layout.svelte`).
 
-| Route | Group | Component | Auth |
-|-------|-------|-----------|------|
-| `/` | (editorial) | `+page.svelte` (monolith, pending split) | none |
-| `/about` | (editorial) | `+page.svelte` | none |
-| `/blog`, `/blog/[slug]` | (editorial) | `+page.svelte` + `lib/blog/posts.ts` | none |
-| `/catalog` | (editorial) | `CatalogPage` | none |
-| `/contribute` | (editorial) | `+page.svelte` | none (mod card gated) |
+| Route | Group | Entry component | Auth |
+|-------|-------|-----------------|------|
+| `/` | (editorial) | `+page.svelte` | none |
+| `/about` | (editorial) | `+page.svelte` + `data/about/content.ts` | none |
+| `/blog`, `/blog/[slug]` | (editorial) | `+page.svelte` + `data/blog/posts.ts` | none |
+| `/catalog` | (editorial) | `+page.svelte` → `CatalogUnifiedSearch` (+ `MapEditModal` for admin/mod) | none |
+| `/contribute` | (editorial) | `+page.svelte` | none (mod cards gated) |
 | `/contribute/georef` | (editorial) | `+page.svelte` → Allmaps Editor | none |
 | `/login` | (editorial) | `+page.svelte` | none |
-| `/profile` | (editorial) | `+page.svelte` | auth (303 → `/login`) |
+| `/profile` | (editorial) | `+page.svelte` + `+page.server.ts` | auth (303 → `/login`) |
 | `/admin/bulk` | (editorial) | `+page.svelte` | admin |
-| `/admin/scout` | (editorial) | `+page.svelte` | admin/mod |
-| `/explore` | (app) | `+page.svelte` + `MapWorkspace` | none |
+| `/admin/scout` | (editorial) | `+page.svelte` + `ScoutCard` | admin/mod |
+| `/explore` | (app) | `+page.svelte` + `MapWorkspace` + `ExploreSidebar` | none |
 | `/studio` | (app) | `StudioMode.svelte` | auth |
 | `/create` | (app) | `CreateMode.svelte` | auth |
-| `/trip/[id]` | (app) | `+page.svelte` + `MapShell` | none |
+| `/trip/[id]` | (app) | `+page.svelte` + `TripPlayback` | none |
 | `/image` | (app) | `+page.svelte` + `ImageShell` | none |
-| `/contribute/digitalize` | (app) | `TriageTool` + `OcrBboxTool` | auth |
-| `/contribute/trace` | (app) | `TraceTool.svelte` | auth |
-| `/contribute/review` | *(none)* | `ReviewMode.svelte` | mod/admin |
+| `/contribute/digitalize` | (app) | `+page.svelte` + `TriageTool` / `OcrBboxTool` / `SegSidebar` | auth |
+| `/contribute/trace` | (app) | `+page.svelte` + `TraceTool` | auth |
+| `/contribute/review` | (app) | `+page.svelte` + `ReviewMode` | mod/admin |
 
-`/contribute/review` sits outside both route groups — an accident, not a design choice.
+Every route is in one of the two groups — `/contribute/review` moved into `(app)` in Aug 2026.
 
-**Redirects** (301, query params preserved):
+**Redirects** are a table, not stub pages. `LEGACY_REDIRECTS` in `src/hooks.server.ts` issues a 301 with the query string preserved:
+
 - `/view` → `/explore`
 - `/annotate` → `/studio`
 - `/contribute/label` → `/contribute/digitalize`
@@ -154,44 +98,52 @@ There is no `/admin`, `/signup`, `/contribute/catalog`, `/hunt` or `/georef` rou
 
 ---
 
-## 3. Lib directory layout
+## 3. Page registers
 
-```
-src/lib/
-  shell/          MapShell, HistoricalOverlay, warpedOverlay, context
-  stores/         mapStore, layerStore, urlStore
-  maps/           domain module: types, service, iiifManifest, adminApi
-  supabase/       client, server, context, annotations, stories, labels, favorites
-  contribute/
-    label/        LabelStudio, LabelCanvas, LabelSidebar, LabelProgress, types
-    review/       ReviewMode, ReviewCanvas, ReviewSidebar
-  view/           ViewMode, ViewSidebar, StoryPlayback, StoryMarkers, GpsTracker
-  create/         CreateMode, StoryEditor, MapClickCapture, ChallengeConfig
-  annotate/       AnnotateMode, AnnotationsPanel, StudioMap
-  map/            annotationState, annotationHistory, annotationContext, olAnnotations
-  viewer/         types, constants (shared across map modes)
-  story/          types, storyStore
-  geo/            geolocation, geo, types
-  iiif/           iiifImageInfo
-  ui/             NavBar, MapToolbar, SearchPanel, catalog/, ThemeToggle, ...
-  admin/          AdminDashboard, MapEditModal, MapUploadModal, adminApi, NeatlineEditor
-  blog/           posts.ts (static)
-  utils/          debounce, id, persistence/
-  styles/         (alias $styles)
+Four registers. The register decides the shell and the CSS.
+
+### Editorial
+
+`/`, `/about`, `/blog`, `/blog/[slug]`, `/catalog`, `/contribute`, `/contribute/georef`, `/login`, `/profile`, `/admin/bulk`, `/admin/scout`.
+
+Nav and footer come from the group layout, so a page renders only its own body:
+
+```svelte
+<div class="page my-page" class:mounted>
+  <header class="editorial-hero">
+    <div class="hero-inner">
+      <div class="label-chip">Context label</div>
+      <h1 class="hero-title">Headline<br /><span class="text-highlight">key word.</span></h1>
+      <p class="hero-sub">Supporting sentence.</p>
+    </div>
+  </header>
+  <main class="editorial-main"><!-- .section-card blocks --></main>
+</div>
 ```
 
-**Rules:**
-- New domain features go in a dedicated subfolder, not at the lib root.
-- `supabase/` holds data-layer functions only — no UI. UI components import from `supabase/` but not vice versa.
-- `maps/service.ts` is the canonical public-read layer. `supabase/maps.ts` is a backward-compat shim (pending removal). New code uses `maps/service.ts`.
-- One Svelte component per file. No barrel `index.ts` re-exports for components.
+The shared classes (`.editorial-hero`, `.editorial-main`, `.section-card`, `.label-chip`, `.text-highlight`, `.action-btn`, `.pill-btn`, `.badge-chip`, `.chip-*`) live in `src/styles/components/editorial.css`, imported globally. **Do not redefine them per component** — add a modifier class or extend the sheet. Page-specific CSS goes in `src/styles/pages/<page>.css`.
+
+### Geo-map tool
+
+`/explore`, `/studio`, `/create`, `/trip/[id]`.
+
+`src/lib/map/shell/MapWorkspace.svelte` is the shared base (§5). It composes `ToolLayout` + `MapShell` + `LayerRenderer` + `MapModeOverlays`. Never create a second OL map outside `MapShell`.
+
+### IIIF-canvas tool
+
+`/image`, `/contribute/digitalize`, `/contribute/trace`, `/contribute/review`, plus `NeatlineEditor` inside the admin modal.
+
+These use `ImageShell` (static image extent, pixel coordinates) and the shared sidebar frame `ToolSidebarShell` + `ToolMapPicker`. They do **not** use MapShell or the global map stores. CSS: `src/styles/layouts/tool-page.css` + `src/styles/components/tool-sidebar.css`.
+
+### Admin
+
+Admin work happens inside the editorial register. Map CRUD is a modal rendered by `/catalog`; bulk and scout are ordinary editorial pages using `src/styles/pages/admin-bulk.css` and `admin-scout.css`, with modal chrome in `src/styles/components/admin-modals.css`. The old `layouts/admin.css` dashboard sheet was deleted — there is no `.dashboard` / `.top-bar` register any more.
 
 ---
 
 ## 4. Component rules
 
-### Svelte syntax
-This project uses **legacy Svelte syntax**. Do not use runes.
+**Legacy Svelte syntax. Do not use runes.**
 
 ```svelte
 <!-- correct -->
@@ -204,152 +156,112 @@ let value = $state('');
 let derived = $derived(value.toUpperCase());
 ```
 
-### Props and events
-- Parent → child: props + Svelte `createEventDispatcher` (dispatch up, never two-way bind on complex data).
-- Deep context sharing: use `setContext`/`getContext` (see `getShellContext()`, `getSupabaseContext()`, `getAnnotationContext()`).
-- Never prop-drill more than two levels. Use context instead.
-
-### Reactive declarations
-- `$:` for derived values. Keep them short — if a reactive block is more than 3 lines, extract a function.
-- Do not use `$:` for side effects that depend on async operations; use `onMount` or reactive functions called explicitly.
-
-### Lifecycle
-- `onMount` for DOM setup, event listeners, and initial data fetches.
-- Always return a cleanup function from `onMount` if event listeners are added.
+- Parent → child: props. Child → parent: `createEventDispatcher`. Never two-way bind complex data.
+- Deep sharing: `setContext`/`getContext` — `getShellContext()`, `getImageShellStore()`, `getSupabaseContext()`, `getAnnotationContext()`. Never prop-drill more than two levels.
+- `$:` for derived values only, and keep it under ~3 lines — extract a function past that. Never use `$:` for async side effects; use `onMount` or an explicit call.
+- Always return a cleanup function from `onMount` when you add listeners.
+- Any component past ~400 lines is a smell. The Aug-2026 pass split every file over that line; the largest survivor is 575.
 
 ---
 
-## 5. API routes
+## 5. MapWorkspace contract
 
-All API routes live under `src/routes/api/`. All mutating routes require authentication; admin routes additionally check `profiles.role = 'admin'`.
+`src/lib/map/shell/MapWorkspace.svelte` is the unified base for geo-map modes. `/explore`, `StudioMode` and `CreateMode` all build on it; new geo-map surfaces must use it rather than mounting `MapShell` directly.
 
-### Structure
-```
-/api/admin/maps/            GET list, POST create
-/api/admin/maps/[id]/       PATCH update, DELETE
-/api/admin/maps/[id]/image/        POST upload to IA
-/api/admin/maps/[id]/annotation/   PATCH update Allmaps GCPs
-/api/admin/maps/[id]/iiif-sources/ GET list, POST add
-/api/admin/maps/[id]/iiif-sources/[sourceId]/  PATCH, DELETE
-/api/admin/maps/fetch-iiif-metadata/  POST { manifestUrl }
-/api/admin/footprints/      GET list, PATCH status
-/api/admin/pipeline/annotate/  POST build annotation (generic utility)
-/api/export/footprints/     GET export
-/api/contribute/catalog/[mapId]/  PATCH Dublin Core metadata (mod/admin only)
-/auth/callback/             OAuth
-```
+**Owns:** `ToolLayout` chrome (responsive workspace, sidebar resize, mobile drawer stack) · `MapShell` + `LayerRenderer` + `MapModeOverlays` · the map-list fetch and bounds backfill (`useMapList`) · deriving `selectedMap` · forwarding view-mode changes to `layerStore` · the "Zoom to Map" prompt.
 
-### Rules
-- Admin routes use the Supabase service key (bypasses RLS). Always re-check `profiles.role` in the handler — do not rely on RLS alone.
-- Requests that read many rows for export should use the service key, not the anon key.
-- Accept JSON, return JSON. No form data.
-- Return `{ message: string }` on error alongside the HTTP status code.
-- Never expose the service key to the client. It is server-only (`$env/static/private`).
+**Does NOT own:** auth gates (the route page decides whether to render it) · mode-specific stores (story player, annotation project, story library) · URL parameter parsing (the route page reads params and seeds the stores).
 
----
+**Props:** `mapStore` and `layerStore` (created by `createGeoMapStores()` in the route page — that helper also wires the `topOverlay → mapStore.activeMapId` bridge), `supabase` (pass `null` to skip auto-load), `dualPaneActive`, sidebar width/max props for both sidebars.
 
-## 6. Data layer conventions
+**Bind targets:** `shellMap`, `sidebarCollapsed`, `isMobile`, `isCompact`.
 
-### Map identity
-`maps.id` (UUID) is the canonical map identifier everywhere — in FK columns, URL params, and component props.
+**Slots:** `sidebar`, `right-sidebar`, `map-children` (rendered inside MapShell's default slot — GpsTracker, StoryMarkers, DrawTool, MapClickCapture, LegendPointsLayer), `dual-pane`, `map-overlay`, `floating`, `mobile-layers`, `mobile-controls`, `mobile-browse`, `mobile-sidebar` (legacy single-drawer fallback).
 
-`maps.allmaps_id` is used only when calling Allmaps APIs (building annotation URLs, warped tile layers). It is never a join key.
+**Events:** `mapsloaded` only. Overlay load/error state is handled internally by `MapModeOverlays`; there are no `overlayload*` events to wire.
 
-**Current debt:** `mapStore.activeMapId`, URL hash `&map=`, and the `supabase/maps.ts` shim still use `allmaps_id` as identity. This will be resolved when the home page migrates to `maps/service.ts`.
+**Z-index scale** (`src/styles/layouts/mode-shared.css`) — follow it:
 
-### Supabase client usage
-- Browser: `import { getSupabaseContext }` → `const { supabase, session } = getSupabaseContext()`
-- Server / API routes: `createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY)` directly
-- Never call the service-key client from a component. It must stay in `+server.ts` files.
-
-### TypeScript types
-- `src/lib/supabase/types.ts` is generated — do not hand-edit. Regenerate with:
-  ```bash
-  npx supabase gen types typescript --project-id trioykjhhwrruwjsklfo \
-    | tail -n +2 > src/lib/supabase/types.ts
-  ```
-  (The `tail -n +2` strips the `npm warn` line that prefixes the output.)
-- When accessing columns added since the last type regeneration, cast via `(supabase as any).from(...)` and add a `// TODO: regenerate types` comment.
-- Insert/Update payloads: use `?:` optional field syntax, not `Partial<{...}>`. `Partial` resolves as `never` in Supabase client types.
+| z | Element |
+|---|---------|
+| 0 | `.dual-container` |
+| 5–30 | in-map elements; `.lens-overlay` is 30 |
+| 50 | `.top-controls`, `.floating-controls` |
+| 95 | `.explore-mode .resolving`, `.explore-mode .gps-error` |
+| 100 | `.mobile-sidebar` |
 
 ---
 
-## 7. Styling rules
+## 6. API route conventions
 
-All shared styles live in `src/styles/`. Import with the `$styles` alias:
-```svelte
-<style>
-  @import '$styles/components/editorial.css';
-</style>
-```
+All API routes live under `src/routes/api/`. Every handler is `requireRole → adminClient → query → json`, built from `$lib/server`:
 
-### File map
-```
-src/styles/
-  global.css          root import (tokens + all components)
-  tokens.css          all CSS custom properties
-  components/
-    editorial.css     top-nav, hero, section-card, action-btn, footer, etc.
-    buttons.css       pill-btn, action-btn variants
-    label.css         label-studio-specific classes
-    catalog.css       catalog grid
-    admin.css         admin dashboard
-    admin-modals.css  modal scaffolding
-  layouts/
-    mode-shared.css   shared mode chrome (bottom-bar, panel, map-stage)
-    view-mode.css
-    create-mode.css
-```
+| Helper | File | Purpose |
+|---|---|---|
+| `requireRole`, `getRole` | `server/auth.ts` | role gate; never trust a client-supplied role |
+| `adminClient` | `server/supabaseAdmin.ts` | service-key client (bypasses RLS) |
+| `assertUuid`, `dbError` | `server/http.ts` | 400 on a malformed id; no raw Postgres message reaches the client |
+| `pickMapFields` | `server/mapFields.ts` | the one allow-list of writable `maps` columns |
+| `uploadJson`, `uploadToIA` | `server/storage.ts`, `server/ia.ts` | Supabase Storage / Internet Archive |
+| `tally` | `server/facets.ts` | declarative facet counting for `/api/search` |
+| `getTransformer`, `allmapsAnnotationUrl` | `server/transformer.ts` | Allmaps warping server-side |
+| `probeAllmapsAnnotation`, `lookupAllmapsId` | `server/allmaps.ts` | georef probe + id derivation |
+| `bulkSetStatus`, `revertRecentValidations` | `server/ocrReview.ts` | OCR review write paths |
 
-### Token usage
-Never hardcode hex values in component CSS. Always use `var(--color-*)`, `var(--border-*)`, `var(--shadow-*)`, `var(--radius-*)`.
-
-Wrong: `border: 3px solid #111;`
-Right: `border: var(--border-thick);`
-
-**Exception:** `/contribute/catalog` still uses hardcoded hex values in catalog-specific classes (map rows, progress bar, form inputs). These will be tokenised when the page is fully refactored.
-
-### Component-scoped CSS
-- CSS in a `<style>` block is component-scoped by default. Use it for anything layout-specific to that component.
-- Shared classes (listed in `editorial.css`) are global and must not be redefined per-component.
-- Use `:global()` sparingly — only for styling third-party elements (OL controls, etc.) that Svelte cannot scope.
-
-### Inline styles
-Allowed only for dynamic values that cannot be expressed as CSS classes: `style="--sidebar-width: {sidebarWidth}px"`. Not for static styles.
+Rules: accept JSON, return JSON — no form data. Admin routes re-check `profiles.role` in the handler; do not rely on RLS alone. The service key is `$env/static/private` and must never reach a component. The current route inventory is in `CLAUDE.md`.
 
 ---
 
-## 8. Navigation and footer
+## 7. Data layer conventions
 
-Every editorial page must include:
-1. `<NavBar />` (component at `src/lib/ui/NavBar.svelte`)
-2. `<footer class="editorial-footer">` with all current nav links
+**Map identity.** `maps.id` (UUID) is the canonical identifier everywhere — FK columns, URL params, component props. `maps.allmaps_id` is used only when calling Allmaps (annotation URLs, warped tile layers) and is never a join key. `mapStore.activeMapId` now holds the UUID and is mirrored from `layersStore.topOverlay`; the old `&map=` hash writer is gone and the deep-link param is `?map=<uuid>`.
 
-When adding a new public page:
-1. Add the route link to `NavBar.svelte`
-2. Add it to the footer in `NavBar.svelte` and in `src/routes/+page.svelte`
-3. Add it to the Route Map table in this document (§ 2)
+**Client usage.** Browser: `getSupabaseContext()` → `{ supabase, session }`. Server: `adminClient()` from `$lib/server/supabaseAdmin`. Always pass the generic — `createClient<Database>(...)`. A bare `createClient(...)` is what forces `as any` casts downstream; about 25 remain.
+
+**Generated types.** `src/lib/data/supabase/types.ts` is generated — never hand-edit:
+
+```bash
+supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts
+```
+
+It is current against migration head 051. Insert/Update payloads use `?:` optional fields, not `Partial<{...}>` (which resolves as `never`).
 
 ---
 
-## 9. Page state pattern
+## 8. Styling
 
-All editorial pages use a mount fade-in:
+Everything shared lives in `src/styles/`, reached via the `$styles` alias. `global.css` imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by whoever needs them. The full file map and the token list are in `docs/design-system.md`.
+
+**Token rule.** Never hardcode a colour, border or shadow in a component `<style>` block. Component CSS carries layout and positioning; everything visual goes through `var(--token)`.
+
+```css
+/* wrong */ border: 3px solid #111;
+/* right */ border: var(--border-thick);
+```
+
+The Aug-2026 sweep took component hex literals from ~900 to 116; the survivors are OpenLayers JS palettes (which cannot read CSS variables) and brand SVG fills.
+
+**Scoping.** `<style>` is component-scoped by default — use it freely for layout. Never redefine a shared global class per component. Use `:global()` only for third-party DOM (OL controls). Inline `style=` is for dynamic values only (`style="--sidebar-width: {w}px"`).
+
+**One theme.** `tokens.css` has no `[data-theme]` block. The `vma-theme` boot script in `src/app.html` is vestigial — nothing writes the key and no CSS consumes it. Either implement the switcher or delete the script; do not write docs or code that assume two themes.
+
+---
+
+## 9. Navigation and page state
+
+Nav and footer render once from the group layout. To add a public page: create the route under `(editorial)/`, add the link to `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`, and add a row to §2 above.
+
+Editorial pages use a mount fade-in:
+
 ```svelte
 <script lang="ts">
-  import { onMount } from 'svelte';
   let mounted = false;
   onMount(() => { mounted = true; });
 </script>
-<div class="page" class:mounted>...</div>
-
-<style>
-  .page { opacity: 0; transition: opacity 0.4s ease; }
-  .page.mounted { opacity: 1; }
-</style>
+<div class="page" class:mounted>…</div>
 ```
 
-For pages that load async data, `loading` state shows a skeleton or spinner inside the content area — not on the full page. The hero and nav should be visible immediately.
+Async data shows a skeleton or spinner **inside** the content area — the hero and nav are visible immediately.
 
 ---
 
@@ -357,99 +269,23 @@ For pages that load async data, `loading` state shows a skeleton or spinner insi
 
 | Role | Access |
 |------|--------|
-| (none / logged out) | Public read: viewer, catalog, blog, about |
-| `user` (any logged-in) | Contribute: label, georeference, submit footprints |
-| `mod` | All of the above + review/approve footprints, catalog metadata |
-| `admin` | All of the above + admin dashboard, publish maps, manage users |
+| logged out | public read: explore, catalog, blog, about, trip playback |
+| `user` | contribute: georeference, trace footprints, digitalize, author stories |
+| `mod` | + review/approve footprints, OCR review, map metadata, scout |
+| `admin` | + create/delete maps, publish, bulk upload, pipeline control |
 
-Role is stored in `profiles.role`. Check it server-side in API routes (never trust the client-side role for write operations).
-
-The contribute hub (`/contribute`) shows review and catalog cards only to `mod` and `admin`.
+Role lives in `profiles.role`, read on the client via `fetchUserRole` (`data/supabase/role.ts`) and enforced server-side by `requireRole`. `/contribute` shows the review and admin cards only to `mod` / `admin`.
 
 ---
 
-## 11. MapWorkspace plugin contract
-
-`src/lib/shell/MapWorkspace.svelte` is the unified base for every geo-map mode. ViewMode, CreateMode, and AnnotateMode all build on it; new geo-map experiences (LabelMode, RouteMode, etc.) MUST use it rather than mounting `MapShell` directly.
-
-### What MapWorkspace owns
-- `ToolLayout` chrome (responsive workspace, sidebar resize, mobile drawer)
-- `MapShell` + `HistoricalOverlay` (single OL Map instance, basemap layers, warped overlay)
-- `MapToolbar` (view-mode cycle, opacity slider)
-- `MapSearchBar` (geocoding + map title search)
-- `MapModeOverlays` (lens-resize knob, overlay loading toast, error toast)
-- `useMapList` map catalogue fetch + bounds backfill
-- Floating basemap toggle + mobile sidebar toggle
-
-### What MapWorkspace does NOT own
-- Auth gates → caller (route page) decides whether to render the workspace
-- Mode-specific stores (storyPlayer, projectStore, storyLibrary, compareStore, annotation context)
-- Library/editor activeView state → that pattern lives in the mode component
-- URL parameter parsing → route page reads params and seeds the stores
-
-### Required props
-| Prop | Type | Purpose |
-|---|---|---|
-| `mapStore` | `MapStore` | Created via `createGeoMapStores()` in the mode page |
-| `layerStore` | `LayerStore` | Same |
-| `supabase` | `SupabaseClient \| null` | For internal `fetchMaps()` call. Pass `null` to skip auto-load |
-
-### Optional props
-| Prop | Default | When to set |
-|---|---|---|
-| `showDual` | `false` | ViewMode only (only mode that supports dual pane) |
-| `showAddAsPointInSearch` | `false` | CreateMode only |
-| `searchMapsOnly` | `false` | Search shouldn't include geocoded locations |
-| `dualPaneActive` | `false` | Reactive: ViewMode flips this on for dual/compare-split |
-
-### Bind targets
-`bind:mapList`, `bind:selectedMap`, `bind:shellMap`, `bind:sidebarCollapsed`, `bind:isMobile`, `bind:isCompact`. The mode reads these to drive its own logic (e.g. compare-tray needs `mapList`).
-
-### Slots
-| Slot | Render position | Use for |
-|---|---|---|
-| `sidebar` | ToolLayout desktop sidebar | Main editor panel (StoryEditor, AnnotationsPanel, ViewSidebar) |
-| `mobile-sidebar` | ToolLayout mobile drawer | Same panel, mobile presentation |
-| `map-children` | Inside `<MapShell>`'s default slot | OL layers needing shell context: GpsTracker, StoryMarkers, StackedOverlay, DrawTool, MapClickCapture |
-| `dual-pane` | Right pane when `dualPaneActive` | DualMapPane in ViewMode |
-| `map-overlay` | Absolute over the map | Mode-specific DOM toasts (CompareTray, GPS error) |
-| `floating` | Bottom-right next to basemap toggle | Mode-specific buttons (GPS toggle) |
-
-### Events forwarded
-`overlayloadstart`, `overlayloadend`, `overlayloaderror`, `searchnavigate`, `selectmap`, `changeviewmode`, `changeopacity`, `mapsloaded`. Wire whichever ones the plugin needs.
-
-### Z-index layers
-Plugins MUST follow the existing scale in `src/styles/layouts/mode-shared.css`:
-- `5–40`: in-map elements (markers, overlays, draw shapes)
-- `60`: `.overlay-loading` toast
-- `70`: `.overlay-error` toast
-- `90`: `.mobile-overlay` backdrop
-- `100`: `.top-controls`, `.floating-controls`, `.lens-overlay`, sidebar resize handle
-- `200+`: mobile sidebar panel itself
-
-### Example
-```svelte
-<MapWorkspace
-  {supabase}
-  {mapStore}
-  {layerStore}
-  showDual={false}
-  bind:mapList bind:selectedMap bind:shellMap
-  bind:sidebarCollapsed bind:isMobile bind:isCompact
-  on:searchnavigate={handleSearchNavigate}
->
-  <svelte:fragment slot="sidebar"><MyEditorPanel ... /></svelte:fragment>
-  <svelte:fragment slot="map-children"><MyDrawTool bind:this={drawRef} /></svelte:fragment>
-</MapWorkspace>
-```
-
----
-
-## 12. Known debt
+## 11. Known debt
 
 | Item | Location | Fix |
 |------|----------|-----|
-| `maps.allmaps_id` used as map identity | `mapStore`, URL hash `&map=`, `supabase/maps.ts` shim, `+page.svelte` map grid link | Migrate to `maps.id` UUID with `maps/service.ts` (#29) |
-| Home page uses bespoke layout classes | `src/routes/+page.svelte` | Refactor to `editorial-hero`, `editorial-main`, `section-card` (#26) |
-| Home page CSS is 970+ lines inline | `src/routes/+page.svelte` | Extract to `src/styles/layouts/home.css` (#26) |
-| Catalog CSS is 700+ lines inline | `src/routes/catalog/+page.svelte` | Scope all classes under `.catalog-page` → extract to `catalog.css` (#25) |
+| Dead theme switcher | `src/app.html` boot script reads `vma-theme`; nothing writes it, no CSS consumes it | implement or delete |
+| Two visibility models on `maps` | `status` enum vs `is_public` / `is_featured` booleans; different code paths gate on different ones | pick one, document in `db-guidelines.md` |
+| ~25 `as any` casts | mostly Svelte components | pass `<Database>` to `createClient` at each call site |
+| `footprints.ts` mixes two concerns | `data/supabase/footprints.ts` holds both map-selector queries and footprint CRUD | split into `maps/labelMaps.ts` + a contribute-scoped module |
+| `CatalogUnifiedSearch` still queries Supabase directly | `features/catalog/CatalogUnifiedSearch.svelte` | move the read into `data/maps/service.ts` |
+| Mixed error conventions | throw vs `console` → `[]` vs `console` → `false` across `data/` | pick one |
+| `system-map.excalidraw` is stale | generated 2026-08-02, predates the restructure | regenerate |

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { MapListItem } from '$lib/map/types';
+  import type { MapListItem } from '$lib/data/maps/types';
   export let map: MapListItem;
   /** Full href for the card link. Caller builds it (home page adds &city=, catalog doesn't). */
   export let href: string;
@@ -86,7 +86,9 @@
     text-decoration: none;
     color: inherit;
     box-shadow: var(--shadow-solid-sm);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
     height: 100%;
   }
 
@@ -118,8 +120,10 @@
     height: 100%;
     background-image: repeating-linear-gradient(
       45deg,
-      var(--color-yellow) 0, var(--color-yellow) 10px,
-      var(--color-white) 10px, var(--color-white) 20px
+      var(--color-yellow) 0,
+      var(--color-yellow) 10px,
+      var(--color-white) 10px,
+      var(--color-white) 20px
     );
   }
 
@@ -142,8 +146,14 @@
     box-shadow: 2px 2px 0px var(--color-border);
   }
 
-  .year-badge   { background: var(--color-green);  color: var(--color-text); }
-  .source-badge { background: var(--color-orange); color: var(--color-white); }
+  .year-badge {
+    background: var(--color-green);
+    color: var(--color-text);
+  }
+  .source-badge {
+    background: var(--color-orange);
+    color: var(--color-white);
+  }
 
   .map-info {
     padding: 1.25rem;
@@ -168,7 +178,7 @@
   .map-city {
     font-size: 0.875rem;
     font-weight: 700;
-    color: #666;
+    color: var(--color-gray-500);
     margin-top: auto;
   }
 
@@ -191,37 +201,10 @@
     transition: transform 0.1s;
   }
 
-  .fav-btn:hover  { transform: scale(1.1) rotate(10deg); }
-  .fav-btn:active { transform: scale(0.95); }
-
-  .compare-btn {
-    position: absolute;
-    top: -10px;
-    right: 36px;
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
-    font-weight: 800;
-    background: var(--color-white);
-    color: #111;
-    border: var(--border-thick);
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: var(--shadow-solid-sm);
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.1s, background 0.1s, color 0.1s;
-    font-family: 'Space Grotesk', sans-serif;
+  .fav-btn:hover {
+    transform: scale(1.1) rotate(10deg);
   }
-  .compare-btn:hover  { transform: scale(1.1); background: #fef3c7; }
-  .compare-btn:active { transform: scale(0.95); }
-  .compare-btn.active { background: #111; color: #fff; }
-  .compare-btn.active:hover { background: #333; }
-  .compare-btn.disabled { opacity: 0.4; cursor: not-allowed; }
-  .compare-btn.disabled:hover { transform: none; background: var(--color-white); }
-
-  /* When showFavorite is false, the compare button takes the favorite slot */
-  .map-card-wrapper:not(:has(.fav-btn)) .compare-btn { right: -10px; }
+  .fav-btn:active {
+    transform: scale(0.95);
+  }
 </style>

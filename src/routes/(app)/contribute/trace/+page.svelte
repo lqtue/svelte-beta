@@ -17,36 +17,34 @@
     ● Edit    — Select + Modify existing footprints
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import ToolLayout from '$lib/shell/ToolLayout.svelte';
-  import ImageShell from '$lib/shell/ImageShell.svelte';
-  import MapSearchBar from '$lib/ui/MapSearchBar.svelte';
-  import TraceTool from '$lib/contribute/trace/TraceTool.svelte';
-  import TraceSidebar from '$lib/contribute/trace/TraceSidebar.svelte';
-  import ToolPanelHeader from '$lib/contribute/shared/ToolPanelHeader.svelte';
-  import EmptyPanel from '$lib/contribute/shared/EmptyPanel.svelte';
-  import SidebarToggleButton from '$lib/contribute/shared/SidebarToggleButton.svelte';
+  import ToolLayout from '$lib/map/shell/ToolLayout.svelte';
+  import ImageShell from '$lib/map/shell/ImageShell.svelte';
+  import TraceTool from '$lib/features/contribute/trace/TraceTool.svelte';
+  import TraceSidebar from '$lib/features/contribute/trace/TraceSidebar.svelte';
+  import ToolSidebarShell from '$lib/features/contribute/shared/ToolSidebarShell.svelte';
+  import ToolMapPicker from '$lib/features/contribute/shared/ToolMapPicker.svelte';
+  import EmptyPanel from '$lib/features/contribute/shared/EmptyPanel.svelte';
+  import SidebarToggleButton from '$lib/features/contribute/shared/SidebarToggleButton.svelte';
   import '$styles/layouts/tool-page.css';
-  import { getSupabaseContext } from '$lib/supabase/context';
-  import { resolveIiifInfoUrl } from '$lib/iiif/iiifImageInfo';
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { resolveMapIiifInfoUrl } from '$lib/features/contribute/shared/iiifSource';
   import {
-    fetchLabelMaps,
     fetchMapFootprints,
     createFootprint,
     updateFootprint,
     updateFootprintMeta,
     deleteFootprint,
-  } from '$lib/supabase/labels';
-  import type { LabelMapInfo } from '$lib/supabase/labels';
-  import type { FootprintSubmission, PixelCoord, FeatureType } from '$lib/contribute/shared/types';
+  } from '$lib/data/supabase/footprints';
+  import type { LabelMapInfo } from '$lib/data/supabase/footprints';
+  import type { FootprintSubmission, PixelCoord, FeatureType } from '$lib/data/maps/footprintTypes';
 
   const { supabase, session } = getSupabaseContext();
   const userId = session?.user?.id ?? null;
 
   // ── Map selection state ────────────────────────────────────────────────────
-  let maps: LabelMapInfo[] = [];
   let currentMap: LabelMapInfo | null = null;
   let iiifInfoUrl: string | null = null;
+  let mapsError = '';
 
   // ── Trace data ─────────────────────────────────────────────────────────────
   let footprints: FootprintSubmission[] = [];
@@ -61,25 +59,13 @@
   // ── Layout ─────────────────────────────────────────────────────────────────
   let sidebarCollapsed = false;
   let isMobile = false;
-  let isCompact = false;
 
   // ── Derived ────────────────────────────────────────────────────────────────
   $: myFootprints = userId ? footprints.filter((f) => f.userId === userId) : [];
-  $: traceCategories = currentMap?.categories?.length
-    ? currentMap.categories
-    : [];
+  $: traceCategories = currentMap?.categories?.length ? currentMap.categories : [];
 
   function getNextShapeName(): string {
     return `Shape ${myFootprints.length + 1}`;
-  }
-
-  // ── Load all traceable maps ────────────────────────────────────────────────
-  async function loadMaps() {
-    try {
-      maps = await fetchLabelMaps(supabase);
-    } catch (err) {
-      console.error('[TracePage] Failed to load maps:', err);
-    }
   }
 
   // ── Select a map ──────────────────────────────────────────────────────────
@@ -88,8 +74,8 @@
     currentMap = m;
     iiifInfoUrl = null;
     footprints = [];
-    const resolve = m.allmapsId ? resolveIiifInfoUrl(m.allmapsId) : Promise.resolve(null);
-    const [url] = await Promise.all([resolve, loadFootprints()]);
+    // resolveMapIiifInfoUrl prefers m.iiifImage, so R2-mirrored maps resolve too.
+    const [url] = await Promise.all([resolveMapIiifInfoUrl(m), loadFootprints()]);
     iiifInfoUrl = url;
   }
 
@@ -97,8 +83,8 @@
     if (!currentMap) return;
     try {
       footprints = await fetchMapFootprints(supabase, currentMap.id);
-    } catch (err) {
-      console.error('[TracePage] Failed to load footprints:', err);
+    } catch (err: any) {
+      mapsError = `Couldn't load shapes: ${err?.message ?? err}`;
       footprints = [];
     }
   }
@@ -128,7 +114,9 @@
       };
       footprints = [...footprints, newFp];
       newFootprintId = id;
-      setTimeout(() => { newFootprintId = null; }, 150);
+      setTimeout(() => {
+        newFootprintId = null;
+      }, 150);
     }
   }
 
@@ -138,9 +126,7 @@
     const { footprintId, pixelPolygon } = event.detail;
     const ok = await updateFootprint(supabase, footprintId, pixelPolygon);
     if (ok) {
-      footprints = footprints.map((f) =>
-        f.id === footprintId ? { ...f, pixelPolygon } : f
-      );
+      footprints = footprints.map((f) => (f.id === footprintId ? { ...f, pixelPolygon } : f));
     }
   }
 
@@ -152,7 +138,12 @@
   }
 
   async function handleUpdateFootprintMeta(
-    event: CustomEvent<{ footprintId: string; name?: string; featureType?: FeatureType; category?: string | null }>
+    event: CustomEvent<{
+      footprintId: string;
+      name?: string;
+      featureType?: FeatureType;
+      category?: string | null;
+    }>
   ) {
     const { footprintId, name, featureType: ft, category } = event.detail;
     const ok = await updateFootprintMeta(supabase, footprintId, {
@@ -173,35 +164,22 @@
       );
     }
   }
-
-  // Zoom to footprint: we relay footprintId via a store so TraceTool can do it
-  // without a direct ref — via ImageShell context. We use a simple event bus approach:
-  // set a reactive variable that TraceSidebar triggers from its zoomToFootprint dispatch.
-  let zoomTargetId: string | null = null;
-  function handleZoomToFootprint(event: CustomEvent<{ footprintId: string }>) {
-    // TraceTool doesn't expose zoomToFootprint directly (no bind:this needed).
-    // ImageShell exposes footprintSource via context; we rely on TraceTool's
-    // OL interactions to handle this — emit to a custom event bus store instead.
-    // For now: dispatch a custom window event that TraceTool listens to.
-    window.dispatchEvent(new CustomEvent('trace:zoom', { detail: event.detail }));
-  }
-
-  onMount(loadMaps);
 </script>
 
 <svelte:head>
   <title>{currentMap ? `${currentMap.name} — Trace` : 'Trace Maps'} — Vietnam Map Archive</title>
-  <meta name="description" content="Trace building footprints and road networks on historical maps." />
-  <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta
+    name="description"
+    content="Trace building footprints and road networks on historical maps."
+  />
 </svelte:head>
 
 <!-- ── Page shell ─────────────────────────────────────────────────────────────── -->
 <div class="tool-page">
-  <ToolLayout bind:sidebarCollapsed bind:isMobile bind:isCompact>
+  <ToolLayout bind:sidebarCollapsed bind:isMobile>
     <!-- Sidebar -->
     <svelte:fragment slot="sidebar">
-      <aside class="panel">
-        <ToolPanelHeader title="Trace" onCollapse={() => (sidebarCollapsed = true)} />
+      <ToolSidebarShell title="Trace" onCollapse={() => (sidebarCollapsed = true)}>
         {#if !currentMap}
           <EmptyPanel message="Select a map to start tracing." />
         {:else}
@@ -212,27 +190,21 @@
             {newFootprintId}
             on:removeFootprint={handleRemoveFootprint}
             on:updateFootprintMeta={handleUpdateFootprintMeta}
-            on:zoomToFootprint={handleZoomToFootprint}
           />
         {/if}
-      </aside>
+      </ToolSidebarShell>
     </svelte:fragment>
 
     <!-- Floating map search (canvas, top-center) — maps only, no location tab -->
-    <MapSearchBar
-      maps={maps as any}
+    <ToolMapPicker
       selectedMapId={currentMap?.id ?? null}
-      mapsOnly={true}
-      on:selectMap={(e) => selectMap(e.detail.map as any)}
+      on:select={(e) => selectMap(e.detail.map)}
+      on:error={(e) => (mapsError = e.detail.message)}
     />
 
     <!-- Image stage -->
     {#if currentMap && iiifInfoUrl}
-      <ImageShell
-        {iiifInfoUrl}
-        {footprints}
-        myUserId={userId}
-      >
+      <ImageShell {iiifInfoUrl} {footprints}>
         <TraceTool
           {drawMode}
           {geometryMode}
@@ -245,10 +217,23 @@
       </ImageShell>
     {:else if !currentMap}
       <div class="empty-stage">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.25">
-          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          opacity="0.25"
+        >
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
         </svg>
         <p>Pick a map to start tracing.</p>
+        {#if mapsError}
+          <p class="stage-error">{mapsError}</p>
+        {/if}
         <a href="/catalog" class="catalog-link">Browse the catalog →</a>
       </div>
     {:else}
@@ -260,8 +245,10 @@
 
     <!-- Mobile sidebar -->
     <svelte:fragment slot="mobile-sidebar">
-      <aside class="panel">
-        <ToolPanelHeader title={currentMap?.name ?? 'Trace'} onCollapse={() => (sidebarCollapsed = true)} />
+      <ToolSidebarShell
+        title={currentMap?.name ?? 'Trace'}
+        onCollapse={() => (sidebarCollapsed = true)}
+      >
         {#if currentMap}
           <TraceSidebar
             {traceCategories}
@@ -270,12 +257,11 @@
             {newFootprintId}
             on:removeFootprint={handleRemoveFootprint}
             on:updateFootprintMeta={handleUpdateFootprintMeta}
-            on:zoomToFootprint={handleZoomToFootprint}
           />
         {:else}
           <EmptyPanel showIcon={false} />
         {/if}
-      </aside>
+      </ToolSidebarShell>
     </svelte:fragment>
   </ToolLayout>
 
@@ -289,8 +275,17 @@
         on:click={() => (traceTool = 'polygon')}
         title="Polygon — for buildings and closed shapes"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
         </svg>
         <span>Polygon</span>
       </button>
@@ -302,8 +297,17 @@
         on:click={() => (traceTool = 'line')}
         title="Line — for roads and waterways"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="4 19 8 10 14 14 20 5"/>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="4 19 8 10 14 14 20 5" />
         </svg>
         <span>Line</span>
       </button>
@@ -315,8 +319,17 @@
         on:click={() => (traceTool = 'edit')}
         title="Select and edit a shape"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
         </svg>
         <span>Edit</span>
       </button>
@@ -333,3 +346,12 @@
     </footer>
   {/if}
 </div>
+
+<style>
+  .stage-error {
+    font-size: 0.8rem;
+    color: var(--tone-red-ink);
+    max-width: 34ch;
+    text-align: center;
+  }
+</style>

@@ -18,8 +18,10 @@ import { resolve } from 'path';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
-    .split('\n').filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim())).filter(([k]) => k)
+    .split('\n')
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
+    .filter(([k]) => k)
 );
 const SUPABASE_URL = env.PUBLIC_SUPABASE_URL;
 const KEY = env.SUPABASE_SERVICE_KEY;
@@ -30,7 +32,7 @@ const SETS = setsIdx > -1 ? process.argv[setsIdx + 1].split(',').map(Number) : [
 const mergeIdx = process.argv.indexOf('--merge');
 const MERGE_PATH = mergeIdx > -1 ? process.argv[mergeIdx + 1] : null;
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchJson(url, retries = 3) {
   for (let i = 0; i <= retries; i++) {
@@ -38,7 +40,8 @@ async function fetchJson(url, retries = 3) {
       const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
       if (r.status === 429 || r.status === 503) {
         if (i === retries) return { __error: r.status };
-        await sleep(1500 * Math.pow(2, i)); continue;
+        await sleep(1500 * Math.pow(2, i));
+        continue;
       }
       if (!r.ok) return { __error: r.status };
       return await r.json();
@@ -62,7 +65,7 @@ function dc(item, key) {
 function dcAll(item, key) {
   const arr = item[`dcterms:${key}`];
   if (!Array.isArray(arr)) return [];
-  return arr.map(v => v?.['@value'] ?? v?.['display_title'] ?? '').filter(Boolean);
+  return arr.map((v) => v?.['@value'] ?? v?.['display_title'] ?? '').filter(Boolean);
 }
 
 function isLikelyVietnamMap(item) {
@@ -71,7 +74,9 @@ function isLikelyVietnamMap(item) {
   const coverage = dcAll(item, 'spatial').concat(dcAll(item, 'coverage')).join(' ').toLowerCase();
   const desc = dc(item, 'description').toLowerCase();
   const combined = `${title} ${subjects} ${coverage} ${desc}`;
-  return /vietnam|viet-nam|viêt|saigon|saïgon|sài gòn|hanoi|hanoï|hà nội|hue|hué|huế|tonkin|annam|cochinchin|indochin|gia định|gia-dinh|cholon|chợ lớn|tonkin|đà nẵng|tourane|haiphong|hải phòng|nam bo|bac bo|trung bo|thanh hoa|phu yen|nha trang|dalat|đà lạt|cambodge|laos/.test(combined);
+  return /vietnam|viet-nam|viêt|saigon|saïgon|sài gòn|hanoi|hanoï|hà nội|hue|hué|huế|tonkin|annam|cochinchin|indochin|gia định|gia-dinh|cholon|chợ lớn|tonkin|đà nẵng|tourane|haiphong|hải phòng|nam bo|bac bo|trung bo|thanh hoa|phu yen|nha trang|dalat|đà lạt|cambodge|laos/.test(
+    combined
+  );
 }
 
 async function scoutSet(setId, requireResourceClass = 33) {
@@ -81,7 +86,10 @@ async function scoutSet(setId, requireResourceClass = 33) {
   while (page <= 25) {
     const url = `https://humazur.univ-cotedazur.fr/api/items?item_set_id=${setId}&resource_class_id=${requireResourceClass}&per_page=100&page=${page}`;
     const data = await fetchJson(url);
-    if (data.__error || !Array.isArray(data)) { console.log(`  page ${page} ERR ${data.__error}`); break; }
+    if (data.__error || !Array.isArray(data)) {
+      console.log(`  page ${page} ERR ${data.__error}`);
+      break;
+    }
     items.push(...data);
     process.stdout.write(`  page ${page}: ${data.length} (cum ${items.length})\r`);
     if (data.length < 100) break;
@@ -114,14 +122,15 @@ function normalizeHumazurItem(item, setId) {
     date: dc(item, 'date') || dc(item, 'temporal'),
     rights: dc(item, 'rights') || 'Domaine public',
     language: dc(item, 'language') || 'français',
-    holding_institution: 'Humazur, Université Côte d\'Azur',
+    holding_institution: "Humazur, Université Côte d'Azur",
     manifestUrl: findManifestUrl(item),
     sourceUrl: item['@id'] || `https://humazur.univ-cotedazur.fr/s/humazur/item/${item['o:id']}`,
     thumbnail: item['o:thumbnail_urls']?.['medium'] || '',
     foundVia: [`humazur:set${setId}`],
     dedupKey: `humazur:${item['o:id']}`,
     raw: {
-      collection: setId === 59 ? 'Cartothèque ASEMI' : (setId === 519 ? 'Indochine française' : `set ${setId}`),
+      collection:
+        setId === 59 ? 'Cartothèque ASEMI' : setId === 519 ? 'Indochine française' : `set ${setId}`,
       subject: dcAll(item, 'subject'),
       coverage: dcAll(item, 'spatial').concat(dcAll(item, 'coverage')),
       shelfmark: dc(item, 'identifier'),
@@ -131,7 +140,8 @@ function normalizeHumazurItem(item, setId) {
 
 // ---- main ----
 const allItems = new Map();
-let totalSeen = 0, totalKept = 0;
+let totalSeen = 0,
+  totalKept = 0;
 
 for (const setId of SETS) {
   const items = await scoutSet(setId);
@@ -157,7 +167,7 @@ console.log(`\nFetched ${totalSeen} raw items → ${totalKept} kept (media + Vie
 
 // VMA dedup
 const r = await fetch(`${SUPABASE_URL}/rest/v1/maps?select=iiif_manifest,iiif_image,source_url`, {
-  headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
+  headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
 });
 const existing = await r.json();
 const existingArks = new Set();
@@ -171,7 +181,7 @@ for (const m of existing) {
     if (h) existingHumazurIds.add(h[1]);
   }
 }
-const newCandidates = recs.filter(r => !existingHumazurIds.has(r.externalId));
+const newCandidates = recs.filter((r) => !existingHumazurIds.has(r.externalId));
 const already = recs.length - newCandidates.length;
 
 console.log(`Already in VMA: ${already}`);
@@ -181,22 +191,24 @@ console.log(`New candidates: ${newCandidates.length}\n`);
 const byColl = {};
 for (const r of newCandidates) byColl[r.raw.collection] = (byColl[r.raw.collection] || 0) + 1;
 console.log('By collection:');
-for (const [c, n] of Object.entries(byColl).sort((a,b)=>b[1]-a[1])) console.log(`  ${String(n).padStart(4)}  ${c}`);
+for (const [c, n] of Object.entries(byColl).sort((a, b) => b[1] - a[1]))
+  console.log(`  ${String(n).padStart(4)}  ${c}`);
 
 // Decade
 const dec = {};
 for (const r of newCandidates) {
   const y = (r.date || '').match(/\b(1[5-9]\d\d|20\d\d)\b/);
-  const k = y ? `${Math.floor(parseInt(y[1])/10)*10}s` : '(no year)';
+  const k = y ? `${Math.floor(parseInt(y[1]) / 10) * 10}s` : '(no year)';
   dec[k] = (dec[k] || 0) + 1;
 }
 console.log('\nBy decade:');
-for (const [d, n] of Object.entries(dec).sort()) console.log(`  ${d.padEnd(10)} ${'█'.repeat(Math.min(n, 60))} ${n}`);
+for (const [d, n] of Object.entries(dec).sort())
+  console.log(`  ${d.padEnd(10)} ${'█'.repeat(Math.min(n, 60))} ${n}`);
 
 // Sample
 console.log('\nSample (first 10):');
 for (const r of newCandidates.slice(0, 10)) {
-  console.log(`  [${(r.date || '?').slice(0,10)}] ${r.title.slice(0, 80)}`);
+  console.log(`  [${(r.date || '?').slice(0, 10)}] ${r.title.slice(0, 80)}`);
 }
 
 // Save (merge if requested)
@@ -205,24 +217,35 @@ if (MERGE_PATH) {
   const existing = JSON.parse(readFileSync(MERGE_PATH, 'utf8'));
   const before = existing.newCandidates.length;
   // dedup by dedupKey
-  const haveKeys = new Set(existing.newCandidates.map(x => x.dedupKey));
-  const additions = newCandidates.filter(x => !haveKeys.has(x.dedupKey));
+  const haveKeys = new Set(existing.newCandidates.map((x) => x.dedupKey));
+  const additions = newCandidates.filter((x) => !haveKeys.has(x.dedupKey));
   existing.newCandidates.push(...additions);
   existing.counts = existing.counts || {};
   existing.counts.humazur = recs.length;
   existing.sources = [...new Set([...(existing.sources || []), 'humazur'])];
   merged = existing;
-  console.log(`\nMerged into ${MERGE_PATH}: +${additions.length} (was ${before}, now ${existing.newCandidates.length})`);
+  console.log(
+    `\nMerged into ${MERGE_PATH}: +${additions.length} (was ${before}, now ${existing.newCandidates.length})`
+  );
 }
 
-const out = MERGE_PATH ? MERGE_PATH.replace(/\.json$/, '_with_humazur.json') : `scripts/scout_humazur_${Date.now()}.json`;
-writeFileSync(out, JSON.stringify(merged || {
-  sources: ['humazur'],
-  sets: SETS,
-  totalUnique: recs.length,
-  alreadyInVma: already,
-  newCandidates,
-}, null, 2));
+const out = MERGE_PATH
+  ? MERGE_PATH.replace(/\.json$/, '_with_humazur.json')
+  : `scripts/scout_humazur_${Date.now()}.json`;
+writeFileSync(
+  out,
+  JSON.stringify(
+    merged || {
+      sources: ['humazur'],
+      sets: SETS,
+      totalUnique: recs.length,
+      alreadyInVma: already,
+      newCandidates,
+    },
+    null,
+    2
+  )
+);
 console.log(`\nSaved: ${out}`);
 if (!MERGE_PATH) {
   console.log(`Next: node scripts/categorize_scout_results.mjs --report ${out}`);

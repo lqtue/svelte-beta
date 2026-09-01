@@ -1,0 +1,431 @@
+/*
+  search-panel.css — styles for SearchPanel.svelte and its tab components
+  (SearchMapsTab.svelte, SearchLocationTab.svelte).
+
+  Every rule is scoped under `.search-panel` (or `.search-backdrop`) so these
+  generic class names (.chip, .badge, .result-item…) cannot leak into the rest
+  of the app. Imported by SearchPanel.svelte.
+*/
+
+.search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: transparent;
+}
+
+.search-panel {
+  position: absolute;
+  top: var(--space-4);
+  right: 4rem;
+  z-index: 100;
+  width: 320px;
+  max-height: calc(100% - 5rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-white);
+  border: var(--border-thick);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-solid);
+  color: var(--color-text);
+  overflow: hidden;
+}
+
+/* ---------- Tab bar ---------- */
+.search-panel .tab-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) 0;
+  border-bottom: var(--border-thick);
+  padding-bottom: var(--space-3);
+  background: var(--color-bg);
+}
+
+.search-panel .maps-only-header {
+  padding: var(--space-2) var(--space-2);
+  min-height: 0;
+  border-bottom: var(--border-thin);
+}
+
+.search-panel .tab-spacer {
+  flex: 1;
+}
+
+.search-panel .tb {
+  border: var(--border-thick);
+  border-radius: var(--radius-pill);
+  background: var(--color-white);
+  color: var(--color-text);
+  padding: 0.4rem var(--space-3);
+  font-family: var(--font-family-base);
+  font-size: 0.8rem;
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  transition: all 0.1s;
+  white-space: nowrap;
+  line-height: 1.2;
+  box-shadow: var(--shadow-solid-xs);
+}
+
+.search-panel .tb:hover {
+  background: var(--color-yellow);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px var(--color-border);
+}
+
+.search-panel .tb.active {
+  background: var(--color-blue);
+  color: var(--color-white);
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+.search-panel .close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: var(--border-thin);
+  border-radius: 50%;
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.1s;
+  box-shadow: var(--shadow-solid-xs);
+}
+
+.search-panel .close-btn:hover {
+  background: var(--color-yellow);
+  transform: translate(-1px, -1px);
+}
+
+/* ---------- Search form ---------- */
+.search-panel .search-form {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-white);
+}
+
+.search-panel .search-form input {
+  padding: 0.6rem var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border-thick);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-family: var(--font-family-base);
+  font-weight: var(--font-semibold);
+  box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .search-panel .search-form input {
+    font-size: 16px;
+  }
+}
+
+.search-panel .search-form input:focus {
+  outline: none;
+  background: var(--color-white);
+  box-shadow: var(--shadow-solid-xs);
+}
+
+.search-panel .search-form input::placeholder {
+  color: var(--color-text);
+  opacity: 0.5;
+}
+
+.search-panel .search-form-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ---------- Results ---------- */
+.search-panel .results-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0 var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 380px;
+  background: var(--color-white);
+}
+
+.search-panel .result-item {
+  background: var(--color-white);
+  border: var(--border-thin);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  transition: all 0.1s;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: var(--shadow-solid-xs);
+  box-sizing: border-box;
+}
+
+.search-panel .result-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.search-panel .compare-row-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text);
+  font-family: var(--font-family-display);
+  font-size: 1rem;
+  font-weight: var(--font-extrabold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.1s,
+    background 0.1s,
+    color 0.1s;
+}
+
+.search-panel .compare-row-btn:hover:not(:disabled) {
+  background: var(--color-yellow);
+  transform: scale(1.08);
+}
+
+.search-panel .compare-row-btn.active {
+  background: var(--color-text);
+  color: var(--color-white);
+}
+
+.search-panel .compare-row-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.search-panel .result-item.active-map .compare-row-btn {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-text);
+}
+
+.search-panel button.result-item {
+  font-family: var(--font-family-base);
+}
+
+.search-panel .result-item:hover,
+.search-panel .result-item:focus-within {
+  background: var(--color-yellow);
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0px var(--color-border);
+}
+
+.search-panel .result-item.active-map {
+  background: var(--color-blue);
+  color: var(--color-white);
+  border-color: var(--color-border);
+}
+
+.search-panel .result-item.active-map .result-title {
+  color: var(--color-white);
+}
+
+.search-panel .result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.search-panel .result-title {
+  font-size: 0.85rem;
+  font-weight: var(--font-bold);
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.search-panel .result-type {
+  font-size: 0.75rem;
+  color: var(--color-text);
+  opacity: 0.7;
+}
+
+.search-panel .result-meta {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.search-panel .badge {
+  display: inline-block;
+  padding: 0.15rem var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: var(--font-bold);
+  line-height: 1.4;
+  border: var(--border-thin);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.search-panel .year-badge {
+  background: var(--color-orange);
+  color: var(--color-white);
+}
+
+.search-panel .type-badge {
+  background: var(--color-gray-100);
+}
+
+.search-panel .active-badge {
+  background: var(--color-green);
+  color: var(--color-white);
+  border-color: var(--color-green);
+}
+
+/* ---------- Coordinate item ---------- */
+.search-panel .coord-item {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-bg);
+}
+
+.search-panel .coord-icon {
+  display: flex;
+  align-items: center;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+/* ---------- Nearby maps section ---------- */
+.search-panel .nearby-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-thin);
+}
+
+.search-panel .nearby-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: 0.7rem;
+  font-weight: var(--font-extrabold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text);
+  opacity: 0.6;
+}
+
+/* ---------- Location result (with actions) ---------- */
+.search-panel .result-main {
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  cursor: pointer;
+  width: 100%;
+  font-family: var(--font-family-base);
+}
+
+.search-panel .result-main:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.search-panel .result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: var(--space-2);
+}
+
+/* ---------- Chips ---------- */
+.search-panel .chip {
+  border: var(--border-thin);
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  transition: all 0.1s;
+  font-family: var(--font-family-base);
+  background: var(--color-white);
+  color: var(--color-text);
+  box-shadow: 1px 1px 0px var(--color-border);
+}
+
+.search-panel .chip:hover {
+  background: var(--color-yellow);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-solid-xs);
+}
+
+.search-panel .chip.ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--color-gray-100);
+  transform: none;
+  box-shadow: none;
+}
+
+/* ---------- Notices ---------- */
+.search-panel .muted {
+  color: var(--color-text);
+  opacity: 0.6;
+  font-size: 0.8rem;
+  padding: var(--space-2);
+  font-weight: var(--font-semibold);
+}
+
+.search-panel .errored {
+  color: var(--color-error-600);
+  font-weight: var(--font-bold);
+}
+
+.search-panel .empty-msg {
+  text-align: center;
+  padding: var(--space-4);
+  color: var(--color-text);
+  opacity: 0.6;
+  font-weight: var(--font-semibold);
+}
+
+.search-panel .custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-300) transparent;
+}
+
+.search-panel .custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.search-panel .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-gray-300);
+  border-radius: 999px;
+}
+
+.search-panel .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-400);
+}

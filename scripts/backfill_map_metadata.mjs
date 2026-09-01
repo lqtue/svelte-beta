@@ -19,13 +19,13 @@ const envPath = resolve(process.cwd(), '.env');
 const env = Object.fromEntries(
   readFileSync(envPath, 'utf8')
     .split('\n')
-    .filter(l => l && !l.startsWith('#'))
-    .map(l => l.split('=').map(s => s.trim()))
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => l.split('=').map((s) => s.trim()))
     .filter(([k]) => k)
 );
 
 const SUPABASE_URL = env.PUBLIC_SUPABASE_URL;
-const SERVICE_KEY  = env.SUPABASE_SERVICE_KEY;
+const SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 const DRY_RUN = process.argv.includes('--dry-run');
 const SPECIFIC_MAP = process.argv.includes('--map-id')
   ? process.argv[process.argv.indexOf('--map-id') + 1]
@@ -87,11 +87,12 @@ async function fetchJson(url) {
 
 function detectSource(imageServiceUrl) {
   const u = imageServiceUrl.toLowerCase();
-  if (u.includes('gallica.bnf.fr'))    return { source_type: 'bnf',    collection: 'BnF Gallica' };
-  if (u.includes('archive.org'))       return { source_type: 'ia',     collection: 'Internet Archive' };
-  if (u.includes('efeo'))              return { source_type: 'efeo',   collection: 'EFEO' };
-  if (u.includes('davidrumsey.com'))   return { source_type: 'rumsey', collection: 'David Rumsey' };
-  if (u.includes('iiif.io') || u.includes('localhost')) return { source_type: 'self', collection: null };
+  if (u.includes('gallica.bnf.fr')) return { source_type: 'bnf', collection: 'BnF Gallica' };
+  if (u.includes('archive.org')) return { source_type: 'ia', collection: 'Internet Archive' };
+  if (u.includes('efeo')) return { source_type: 'efeo', collection: 'EFEO' };
+  if (u.includes('davidrumsey.com')) return { source_type: 'rumsey', collection: 'David Rumsey' };
+  if (u.includes('iiif.io') || u.includes('localhost'))
+    return { source_type: 'self', collection: null };
   return { source_type: 'other', collection: null };
 }
 
@@ -107,13 +108,18 @@ function v3Label(label) {
 function v2MetadataValue(metadata, key) {
   if (!metadata) return undefined;
   for (const entry of metadata) {
-    const labelStr = typeof entry.label === 'string' ? entry.label : Object.values(entry.label ?? {})[0]?.[0] ?? '';
+    const labelStr =
+      typeof entry.label === 'string'
+        ? entry.label
+        : (Object.values(entry.label ?? {})[0]?.[0] ?? '');
     if (labelStr.toLowerCase().includes(key.toLowerCase())) {
       if (typeof entry.value === 'string') return entry.value;
       // Array of {"@value": "..."} objects (BnF v2 format field)
       if (Array.isArray(entry.value)) {
         const first = entry.value[0];
-        return typeof first === 'string' ? first : (first?.['@value'] ?? Object.values(first ?? {})[0]);
+        return typeof first === 'string'
+          ? first
+          : (first?.['@value'] ?? Object.values(first ?? {})[0]);
       }
       return Object.values(entry.value ?? {})[0]?.[0];
     }
@@ -122,7 +128,7 @@ function v2MetadataValue(metadata, key) {
 
 function v3MetadataValue(metadata, key) {
   if (!metadata) return undefined;
-  const entry = metadata.find(m => (v3Label(m.label) ?? '').toLowerCase().includes(key));
+  const entry = metadata.find((m) => (v3Label(m.label) ?? '').toLowerCase().includes(key));
   return entry ? v3Label(entry.value) : undefined;
 }
 
@@ -136,15 +142,20 @@ function parseThumbnail(manifest, isV3) {
 }
 
 function parseManifest(manifest) {
-  const ctx = Array.isArray(manifest['@context']) ? manifest['@context'].join(' ') : (manifest['@context'] ?? '');
+  const ctx = Array.isArray(manifest['@context'])
+    ? manifest['@context'].join(' ')
+    : (manifest['@context'] ?? '');
   const isV3 = ctx.includes('presentation/3') || manifest.type === 'Manifest';
 
   if (isV3) {
     return {
-      title:     v3Label(manifest.label),
-      creator:   v3MetadataValue(manifest.metadata, 'creator') ?? v3MetadataValue(manifest.metadata, 'author'),
-      date:      v3MetadataValue(manifest.metadata, 'date') ?? v3MetadataValue(manifest.metadata, 'year'),
-      rights:    manifest.rights ?? v3MetadataValue(manifest.metadata, 'rights'),
+      title: v3Label(manifest.label),
+      creator:
+        v3MetadataValue(manifest.metadata, 'creator') ??
+        v3MetadataValue(manifest.metadata, 'author'),
+      date:
+        v3MetadataValue(manifest.metadata, 'date') ?? v3MetadataValue(manifest.metadata, 'year'),
+      rights: manifest.rights ?? v3MetadataValue(manifest.metadata, 'rights'),
       thumbnail: parseThumbnail(manifest, true),
     };
   }
@@ -155,21 +166,25 @@ function parseManifest(manifest) {
   const title = manifest.description || v2MetadataValue(manifest.metadata, 'title') || labelStr;
   const shelfmark = v2MetadataValue(manifest.metadata, 'shelfmark') || labelStr;
   const formatVal = v2MetadataValue(manifest.metadata, 'format');
-  const physicalDescription = formatVal && !formatVal.startsWith('image/') && !formatVal.startsWith('Nombre')
-    ? formatVal : undefined;
+  const physicalDescription =
+    formatVal && !formatVal.startsWith('image/') && !formatVal.startsWith('Nombre')
+      ? formatVal
+      : undefined;
   const related = manifest.related;
-  const sourceUrl = typeof related === 'string' ? related : Array.isArray(related) ? related[0] : undefined;
+  const sourceUrl =
+    typeof related === 'string' ? related : Array.isArray(related) ? related[0] : undefined;
   return {
-    title:               title || undefined,
-    shelfmark:           shelfmark || undefined,
-    creator:             v2MetadataValue(manifest.metadata, 'creator') ?? v2MetadataValue(manifest.metadata, 'author'),
-    date:                v2MetadataValue(manifest.metadata, 'date') ?? v2MetadataValue(manifest.metadata, 'year'),
-    language:            v2MetadataValue(manifest.metadata, 'language'),
-    rights:              manifest.license ?? v2MetadataValue(manifest.metadata, 'rights'),
-    attribution:         manifest.attribution ?? v2MetadataValue(manifest.metadata, 'repository'),
+    title: title || undefined,
+    shelfmark: shelfmark || undefined,
+    creator:
+      v2MetadataValue(manifest.metadata, 'creator') ?? v2MetadataValue(manifest.metadata, 'author'),
+    date: v2MetadataValue(manifest.metadata, 'date') ?? v2MetadataValue(manifest.metadata, 'year'),
+    language: v2MetadataValue(manifest.metadata, 'language'),
+    rights: manifest.license ?? v2MetadataValue(manifest.metadata, 'rights'),
+    attribution: manifest.attribution ?? v2MetadataValue(manifest.metadata, 'repository'),
     sourceUrl,
     physicalDescription,
-    thumbnail:           parseThumbnail(manifest, false),
+    thumbnail: parseThumbnail(manifest, false),
   };
 }
 
@@ -194,7 +209,9 @@ function extractManifestUrl(annotation) {
         if (nested.type === 'Manifest' && nested.id) return nested.id;
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return null;
 }
 
@@ -245,33 +262,35 @@ async function processMap(map) {
 
   // 5. Build update payload
   // Skip year_label if it looks like a timestamp (IA upload date, not historical date)
-  const isHistoricalDate = manifestMeta.date &&
-    /^\d{3,4}(-\d{2}(-\d{2})?)?$/.test(manifestMeta.date.trim());
+  const isHistoricalDate =
+    manifestMeta.date && /^\d{3,4}(-\d{2}(-\d{2})?)?$/.test(manifestMeta.date.trim());
 
   const mapUpdate = {
-    iiif_image:    imageServiceUrl,
+    iiif_image: imageServiceUrl,
     iiif_manifest: manifestUrl ?? null,
     thumbnail,
     source_type,
     collection,
-    ...(manifestMeta.title               && { original_title:       manifestMeta.title }),
-    ...(manifestMeta.shelfmark           && { shelfmark:            manifestMeta.shelfmark }),
-    ...(manifestMeta.creator             && { creator:              manifestMeta.creator }),
-    ...(isHistoricalDate                 && { year_label:           manifestMeta.date }),
-    ...(manifestMeta.language            && { language:             manifestMeta.language }),
-    ...(manifestMeta.rights              && { rights:               manifestMeta.rights }),
-    ...(manifestMeta.physicalDescription && { physical_description: manifestMeta.physicalDescription }),
-    ...(manifestMeta.sourceUrl           && { source_url:           manifestMeta.sourceUrl }),
+    ...(manifestMeta.title && { original_title: manifestMeta.title }),
+    ...(manifestMeta.shelfmark && { shelfmark: manifestMeta.shelfmark }),
+    ...(manifestMeta.creator && { creator: manifestMeta.creator }),
+    ...(isHistoricalDate && { year_label: manifestMeta.date }),
+    ...(manifestMeta.language && { language: manifestMeta.language }),
+    ...(manifestMeta.rights && { rights: manifestMeta.rights }),
+    ...(manifestMeta.physicalDescription && {
+      physical_description: manifestMeta.physicalDescription,
+    }),
+    ...(manifestMeta.sourceUrl && { source_url: manifestMeta.sourceUrl }),
   };
 
   const sourceRow = {
-    map_id:        id,
-    label:         collection ?? source_type,
+    map_id: id,
+    label: collection ?? source_type,
     source_type,
     iiif_manifest: manifestUrl ?? null,
-    iiif_image:    imageServiceUrl,
-    is_primary:    true,
-    sort_order:    0,
+    iiif_image: imageServiceUrl,
+    is_primary: true,
+    sort_order: 0,
   };
 
   if (DRY_RUN) {
@@ -290,10 +309,10 @@ async function processMap(map) {
     console.log('  ✓ Inserted map_iiif_sources row');
   } else {
     await sbPatch(`/map_iiif_sources?map_id=eq.${id}&is_primary=eq.true`, {
-      label:         sourceRow.label,
-      source_type:   sourceRow.source_type,
+      label: sourceRow.label,
+      source_type: sourceRow.source_type,
       iiif_manifest: sourceRow.iiif_manifest,
-      iiif_image:    sourceRow.iiif_image,
+      iiif_image: sourceRow.iiif_image,
     });
     console.log('  ✓ Updated existing map_iiif_sources row');
   }
@@ -314,7 +333,8 @@ async function main() {
 
   console.log(`Found ${maps.length} maps to process`);
 
-  let success = 0, failed = 0;
+  let success = 0,
+    failed = 0;
   for (const map of maps) {
     try {
       const result = await processMap(map);
@@ -325,10 +345,13 @@ async function main() {
       failed++;
     }
     // Small delay to avoid rate limiting
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 300));
   }
 
   console.log(`\nDone: ${success} updated, ${failed} failed`);
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

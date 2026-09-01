@@ -8,7 +8,7 @@
 #   - Optionally: wrangler logged in (wrangler r2 object put as fallback)
 #
 # After upload, update maps.iiif_image in Supabase to:
-#   https://iiif.vmaproject.org/iiif/<map-uuid>
+#   https://iiif.maparchive.vn/iiif/<map-uuid>
 
 set -euo pipefail
 

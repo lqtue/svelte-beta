@@ -44,9 +44,7 @@ async function probeAnnotation(allmapsId) {
 }
 
 async function main() {
-  let q = sb.from('maps')
-    .select('id, name, allmaps_id, georef_done')
-    .not('allmaps_id', 'is', null);
+  let q = sb.from('maps').select('id, name, allmaps_id, georef_done').not('allmaps_id', 'is', null);
   if (!includeDone) q = q.eq('georef_done', false);
   if (onlyMapId) q = q.eq('id', onlyMapId);
   const { data: rows, error } = await q;
@@ -57,7 +55,9 @@ async function main() {
   }
 
   console.log(`Probing ${rows.length} map(s).`);
-  console.log(apply ? 'APPLY mode — flipping georef_done on hits.' : 'DRY-RUN — pass --apply to write.\n');
+  console.log(
+    apply ? 'APPLY mode — flipping georef_done on hits.' : 'DRY-RUN — pass --apply to write.\n'
+  );
 
   let hits = 0;
   let writes = 0;
@@ -71,11 +71,17 @@ async function main() {
     if (apply && needsWrite) {
       const { error: updErr } = await sb.from('maps').update({ georef_done: true }).eq('id', r.id);
       if (updErr) console.log(`    ⚠ write failed: ${updErr.message}`);
-      else { writes++; console.log('    ✓ georef_done = true'); }
+      else {
+        writes++;
+        console.log('    ✓ georef_done = true');
+      }
     }
   }
 
   console.log(`\nDone. ${hits} annotation(s) found, ${writes} row(s) updated.`);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

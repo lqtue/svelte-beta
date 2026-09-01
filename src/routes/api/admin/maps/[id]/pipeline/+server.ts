@@ -1,70 +1,65 @@
 /**
  * GET  /api/admin/maps/[id]/pipeline — current pipeline stage + timestamps
- * PATCH /api/admin/maps/[id]/pipeline — advance stage (body: { stage })
+ * PATCH /api/admin/maps/[id]/pipeline — record a human stage (body: { stage })
+ *
+ * Since migration 056 `map_pipeline_status` is a view: the machine stages
+ * (ocr_queued/ocr_done/seg_queued/seg_done) are derived from `pipeline_jobs`
+ * and cannot be set by hand. Only the three a person asserts — reviewed,
+ * seg_reviewed, exported — are writable, plus `idle` to clear them.
  */
 
 import { json, error } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
+import { requireRole } from '$lib/server/auth';
+import { adminClient } from '$lib/server/supabaseAdmin';
+import { assertUuid, dbError } from '$lib/server/http';
 
-const VALID_STAGES = [
-	'idle', 'ocr_queued', 'ocr_done', 'reviewed',
-	'seg_queued', 'seg_done', 'seg_reviewed', 'exported'
-] as const;
-
-async function getAdminClient(locals: App.Locals) {
-	const { session, user } = await locals.safeGetSession();
-	if (!session || !user) throw error(401, 'Unauthorized');
-
-	const adminSupabase = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-	const { data: profile } = await (adminSupabase as any)
-		.from('profiles')
-		.select('role')
-		.eq('id', user.id)
-		.single();
-
-	if ((profile as any)?.role !== 'admin') throw error(403, 'Forbidden');
-
-	return adminSupabase;
-}
+/** Stages a person can assert. The rest follow from the job queue. */
+const HUMAN_STAGES = ['idle', 'reviewed', 'seg_reviewed', 'exported'] as const;
 
 export const GET: RequestHandler = async ({ locals, params }) => {
-	const adminSupabase = await getAdminClient(locals);
+  await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
 
-	const { data, error: err } = await (adminSupabase as any)
-		.from('map_pipeline_status')
-		.select('*')
-		.eq('map_id', params.id)
-		.maybeSingle();
+  const { data, error: err } = await adminClient()
+    .from('map_pipeline_status')
+    .select('*')
+    .eq('map_id', mapId)
+    .maybeSingle();
 
-	if (err) throw error(500, err.message);
+  if (err) dbError(err, 'Could not read pipeline status');
 
-	return json(data ?? { map_id: params.id, stage: 'idle' });
+  return json(data ?? { map_id: mapId, stage: 'idle' });
 };
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
-	const adminSupabase = await getAdminClient(locals);
+  const { user } = await requireRole(locals);
+  const mapId = assertUuid(params.id, 'map id');
 
-	const body = await request.json().catch(() => ({}));
-	const stage = body.stage as string;
+  const body = await request.json().catch(() => ({}));
+  const stage = body.stage as string;
 
-	if (!VALID_STAGES.includes(stage as typeof VALID_STAGES[number])) {
-		throw error(400, `Invalid stage: ${stage}`);
-	}
+  if (!HUMAN_STAGES.includes(stage as (typeof HUMAN_STAGES)[number])) {
+    throw error(
+      400,
+      `Stage ${stage} is derived from pipeline_jobs — settable stages are ${HUMAN_STAGES.join(', ')}`
+    );
+  }
 
-	const extra: Record<string, string> = {};
-	if (stage === 'reviewed') extra.reviewed_at = new Date().toISOString();
+  const { error: markErr } = await adminClient().rpc('set_review_mark', {
+    p_map_id: mapId,
+    p_stage: stage,
+    p_user: user.id,
+  });
+  if (markErr) dbError(markErr, 'Could not update pipeline status');
 
-	const { data, error: err } = await (adminSupabase as any)
-		.from('map_pipeline_status')
-		.upsert({ map_id: params.id, stage, ...extra }, { onConflict: 'map_id' })
-		.select()
-		.single();
+  // Answer with the composed row, not the mark: callers show the stage.
+  const { data, error: err } = await adminClient()
+    .from('map_pipeline_status')
+    .select('*')
+    .eq('map_id', mapId)
+    .maybeSingle();
+  if (err) dbError(err, 'Could not read pipeline status');
 
-	if (err) throw error(500, err.message);
-
-	return json(data);
+  return json(data ?? { map_id: mapId, stage: 'idle' });
 };
