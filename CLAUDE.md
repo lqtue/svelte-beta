@@ -349,7 +349,11 @@ no secrets returns 500 from every route that needs one, and nothing inherits.
 `npm run deploy` therefore passes the directory explicitly:
 `wrangler pages deploy .svelte-kit/cloudflare --project-name vmabeta`.
 
-Secrets are read through `$env/dynamic/private` in `$lib/server/{supabaseAdmin,storage,ia}.ts`,
-so they bind at request time and are never inlined into a bundle. CI has no dashboard, so
+Secrets are read through `$env/static/private`, which resolves them at **build** time.
+`$env/dynamic/private` was tried and does not work here — the three secrets came back
+undefined in Pages Functions (`Error: supabaseKey is required.` on every route using
+`adminClient()`), both with and without a Wrangler config. Consequence: every environment
+that builds needs all three present, Preview included, or the build fails on the first
+import. CI has no dashboard, so
 `.github/workflows` does `cp .env.test .env` before `check` and `build` — which is why CI
 stayed green through all ten build failures.
