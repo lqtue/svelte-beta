@@ -36,7 +36,7 @@ Flow: colour pre-pass → OCR → coarse seg (blocks, rivers) → fine seg (buil
 Runs as B1 jobs (`ocr`, `seg`, `join`) once B1 lands — no more copy-paste CLI.
 
 ## Track D — Burn-down (when it hurts)
-- **CARTO basemap tiles now render "API KEY REQUIRED" over the whole map** (`BASEMAP_DEFS` in `src/lib/map/constants.ts` uses the keyless `basemaps.cartocdn.com` raster endpoint). Affects prod, not just the preview. Get a CARTO key, or move to another raster source — `.env.example` still lists `PUBLIC_PROTOMAPS_KEY`.
+- ~~Basemap on a third-party tile server~~ — **done 2026-09-01**: self-hosted PMTiles (Saigon extract, 37 MB) in R2, served by the existing worker at `iiif.maparchive.vn/basemap/*`, styled in `src/lib/map/basemapStyle.ts`. No key, no quota, no usage policy.
 - 43 maps have `georef_done` but 404 on `annotations.allmaps.org` — run `/api/admin/maps/sync-georef` and see whether the flag or the upstream annotation is what drifted
 - `/contribute/review` back-link: the round icon button overlaps the "Contribute" label
 - `/explore` Display row: the "Side-by-side" button label is clipped

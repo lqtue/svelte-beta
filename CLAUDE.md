@@ -210,6 +210,8 @@ Admin client functions: `src/lib/data/admin/adminApi.ts` (map CRUD, image upload
 
 ### Map libraries
 
+**The basemap is self-hosted.** `/explore`'s street basemap is one ~37 MB PMTiles archive of the Saigon region (Protomaps' daily OpenStreetMap build, bbox `106.3,10.3,107.1,11.2`, z0–15) in the `vma-tiles` R2 bucket at key `basemap/saigon.pmtiles`, served by `worker/` at `iiif.maparchive.vn/basemap/*` with byte-range support. No API key, no quota, no third-party usage policy. `src/lib/map/basemapStyle.ts` holds the source and a deliberately quiet OpenLayers style over the Protomaps v4 schema (`earth`, `landcover`, `landuse`, `water`, `roads`, `buildings`, `boundaries`, `places`); it carries the rebuild commands. Predecessors, both abandoned: CARTO's keyless raster endpoint began stamping "API KEY REQUIRED" over every tile, and the OSM Foundation's own tiles have a usage policy that does not cover a busy site. `PUBLIC_PROTOMAPS_KEY` in `.env.example` is now doubly unused — nothing reads it and nothing needs it.
+
 **OpenLayers is the only map engine** (MapShell + ImageShell); `@allmaps/openlayers` warps historical tiles. MapLibre GL was removed (Aug 2026) along with `@allmaps/maplibre`, `@protomaps/basemaps` and `ol-mapbox-style`.
 
 ## API routes (`src/routes/api/`)
