@@ -37,3 +37,4 @@ work/ocr/.venv/
 
 # Claude Code local session state
 .claude/
+worker/.wrangler

@@ -76,16 +76,33 @@ function waterLineWidth(zoom: number): number {
   return zoom < 9 ? 0.5 : zoom < 12 ? 1 : zoom < 14 ? 1.8 : 3;
 }
 
+/**
+ * Vietnamese administrative sub-units — `Khu phố 13`, `Ấp 4`, `Tổ 7` — are
+ * numbered blocks, not places anyone navigates by. OSM has one per few streets,
+ * so rendering them buries Saigon under a grid of numerals. Named
+ * neighbourhoods (Tân Định, Đa Kao, Ba Son) are exactly what you *do* want.
+ */
+// Matches the prefix *and* its number, so a real name like "Ấp Bắc" survives.
+// No `\b` here: JavaScript word boundaries are ASCII-only, and "khu phố" ends
+// in `ố`, so `\b` never matches after it.
+const ADMIN_BLOCK = /^(khu phố|khu vực|ấp|tổ|thôn|xóm)\s+\d/iu;
+
 /** Place labels appear as you zoom in, biggest settlements first. */
-function placeLabel(kind: string, zoom: number): { size: number; weight: number } | null {
+function placeLabel(
+  kind: string,
+  zoom: number,
+  name: string
+): { size: number; weight: number } | null {
   if (kind === 'locality' || kind === 'city') {
     if (zoom < 6) return null;
     return { size: zoom < 10 ? 12 : 14, weight: 600 };
   }
   if (kind === 'town') return zoom < 10 ? null : { size: 12, weight: 500 };
   if (kind === 'village') return zoom < 12 ? null : { size: 11, weight: 500 };
-  if (kind === 'neighbourhood' || kind === 'suburb')
-    return zoom < 13 ? null : { size: 11, weight: 400 };
+  if (kind === 'neighbourhood' || kind === 'suburb') {
+    if (zoom < 14 || ADMIN_BLOCK.test(name)) return null;
+    return { size: 11, weight: 400 };
+  }
   return null;
 }
 
@@ -165,9 +182,10 @@ function styleFor(feature: FeatureLike, resolution: number): Style | Style[] | u
     }
 
     case 'places': {
-      const spec = placeLabel(kind, zoom);
-      const name = spec && nameOf(feature);
-      return spec && name ? label(name, spec.size, spec.weight, C.label) : undefined;
+      const name = nameOf(feature);
+      if (!name) return undefined;
+      const spec = placeLabel(kind, zoom, name);
+      return spec ? label(name, spec.size, spec.weight, C.label) : undefined;
     }
 
     default:
