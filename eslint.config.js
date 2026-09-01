@@ -71,6 +71,18 @@ export default ts.config(
     },
   })),
   {
-    ignores: ['.svelte-kit/', 'build/', 'node_modules/', 'work/', 'scripts/', 'worker/', 'static/'],
+    ignores: [
+      '.svelte-kit/',
+      'build/',
+      'node_modules/',
+      'work/',
+      'scripts/',
+      'worker/',
+      'static/',
+      // Playwright artefacts. Gitignored, but eslint does not read .gitignore,
+      // so `npm run lint` broke for anyone who had run the suite.
+      'test-results/',
+      'playwright-report/',
+    ],
   }
 );

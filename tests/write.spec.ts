@@ -583,3 +583,34 @@ test('a published map must be georeferenceable', async () => {
 
   await admin.from('maps').delete().eq('id', draft!.id);
 });
+
+test('a draft map is invisible to an anonymous reader, visible once signed in', async () => {
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({
+      allmaps_id: `rls${Date.now()}`.slice(0, 16),
+      name: 'RLS-smoke draft',
+      status: 'draft',
+    })
+    .select('id')
+    .single();
+
+  // The publishable key ships in every client bundle, so "anonymous" here is
+  // "anyone on the internet". Before migration 063 this returned the row.
+  const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const { data: unauthed } = await anon.from('maps').select('id').eq('id', draft!.id);
+  expect(unauthed).toEqual([]);
+
+  // A signed-in volunteer still needs drafts: /contribute/georef selects them
+  // by status, and the digitalize and trace pickers are mostly unpublished maps.
+  const signedIn = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  await signedIn.auth.signInWithPassword({ email: TEST_EMAIL, password: TEST_PASSWORD });
+  const { data: authed } = await signedIn.from('maps').select('id').eq('id', draft!.id);
+  expect(authed).toHaveLength(1);
+
+  // Published maps stay readable without an account.
+  const { data: published } = await anon.from('maps').select('id').eq('id', mapId);
+  expect(published).toHaveLength(1);
+
+  await admin.from('maps').delete().eq('id', draft!.id);
+});

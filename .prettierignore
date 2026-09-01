@@ -6,3 +6,5 @@ docs
 supabase
 src/lib/supabase/types.ts
 *.md
+test-results
+playwright-report
