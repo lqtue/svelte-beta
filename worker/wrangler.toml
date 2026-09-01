@@ -8,7 +8,8 @@ bucket_name = "vma-tiles"
 
 [env.production]
 routes = [
-  { pattern = "iiif.maparchive.vn/iiif/*", zone_name = "maparchive.vn" }
+  { pattern = "iiif.maparchive.vn/iiif/*", zone_name = "maparchive.vn" },
+  { pattern = "iiif.maparchive.vn/basemap/*", zone_name = "maparchive.vn" }
 ]
 
 [[env.production.r2_buckets]]

@@ -11,6 +11,7 @@ import Text from 'ol/style/Text';
 import Fill from 'ol/style/Fill';
 import Stroke from 'ol/style/Stroke';
 import type BaseLayer from 'ol/layer/Base';
+import { buildPmtilesBasemapLayer } from './basemapStyle';
 
 export const DEFAULT_ANNOTATION_COLOR = '#2563eb';
 
@@ -59,33 +60,15 @@ function buildVnClaimsLayer(): VectorLayer<VectorSource> {
 }
 
 function buildStreetsGroup(visible: boolean): LayerGroup {
-  const tileLayer = new TileLayer({
-    // CARTO's keyless raster endpoint now stamps "API KEY REQUIRED" across every
-    // tile, so this is the OSM Foundation's own standard style: keyless, and the
-    // attribution we already showed. Their tile usage policy fits an archive of
-    // this size but not a heavy one — the upgrade path is a Protomaps key
-    // (`PUBLIC_PROTOMAPS_KEY` is already in .env.example) or a paid CARTO plan.
-    source: new XYZ({
-      urls: [
-        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      ],
-      tileSize: 256,
-      attributions: [
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
-      ],
-      maxZoom: 19,
-      crossOrigin: 'anonymous',
-    }),
-    zIndex: 0,
-  });
-
+  // Self-hosted: one PMTiles archive in our own R2 bucket, styled in
+  // `basemapStyle.ts`. It replaced CARTO (which started stamping "API KEY
+  // REQUIRED" over every tile) and then the OSM Foundation's own tiles, whose
+  // usage policy does not cover a busy site. This depends on nobody.
   return new LayerGroup({
     visible,
     properties: { name: 'g-streets', base: true },
     zIndex: 0,
-    layers: [tileLayer, buildVnClaimsLayer()],
+    layers: [buildPmtilesBasemapLayer(true), buildVnClaimsLayer()],
   });
 }
 

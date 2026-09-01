@@ -4,20 +4,66 @@ interface Env {
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+  // PMTiles is read entirely by byte range, so the browser must be allowed to
+  // send Range and to read back Content-Range / Content-Length.
+  'Access-Control-Allow-Headers': 'Content-Type, Range',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, ETag',
 };
+
+/**
+ * Serve a whole R2 object with Range support.
+ *
+ * The basemap is one ~37 MB PMTiles archive; a client never wants all of it, it
+ * seeks a directory and then a tile. Without 206 support the library would pull
+ * the entire file on the first request.
+ */
+async function serveRange(env: Env, key: string, request: Request): Promise<Response> {
+  const range = request.headers.get('Range');
+  const m = range?.match(/^bytes=(\d+)-(\d*)$/);
+
+  const obj = m
+    ? await env.TILES.get(key, {
+        range: m[2] ? { offset: +m[1], length: +m[2] - +m[1] + 1 } : { offset: +m[1] },
+      })
+    : await env.TILES.get(key);
+
+  if (!obj) return new Response('Not found', { status: 404, headers: CORS_HEADERS });
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/octet-stream',
+    'Cache-Control': 'public, max-age=86400',
+    'Accept-Ranges': 'bytes',
+    ETag: obj.httpEtag,
+    ...CORS_HEADERS,
+  };
+
+  if (m && obj.range && 'offset' in obj.range) {
+    const start = obj.range.offset ?? 0;
+    const length = obj.range.length ?? obj.size - start;
+    headers['Content-Range'] = `bytes ${start}-${start + length - 1}/${obj.size}`;
+    return new Response(request.method === 'HEAD' ? null : obj.body, { status: 206, headers });
+  }
+
+  headers['Content-Length'] = String(obj.size);
+  return new Response(request.method === 'HEAD' ? null : obj.body, { status: 200, headers });
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
-    if (request.method !== 'GET') {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response('Method not allowed', { status: 405 });
     }
 
     const url = new URL(request.url);
+
+    // /basemap/{file}.pmtiles — the OpenStreetMap basemap, self-hosted so the
+    // app depends on no third-party tile server. Range requests only.
+    const basemap = url.pathname.match(/^\/basemap\/([A-Za-z0-9._-]+)$/);
+    if (basemap) return serveRange(env, `basemap/${basemap[1]}`, request);
 
     // /iiif/{mapId}/info.json  or  /iiif/{mapId}/{region}/{size}/{rotation}/{quality}.{format}
     const match = url.pathname.match(/^\/iiif\/([^/]+)(\/.*)?$/);
