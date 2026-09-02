@@ -1155,6 +1155,23 @@ export type Database = {
         }
         Relationships: []
       }
+      place_names: {
+        Row: {
+          category: string | null
+          first_year: number | null
+          geom_rmse: number | null
+          last_year: number | null
+          lat: number | null
+          lng: number | null
+          map_ids: string[] | null
+          mentions: number | null
+          name: string | null
+          name_key: string | null
+          variants: string[] | null
+          years: number[] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       canonicalise_category: { Args: { raw: string }; Returns: string }
@@ -1237,6 +1254,10 @@ export type Database = {
       map_context: {
         Args: { p_geom_src?: string; p_map_id: string; p_public_only?: boolean }
         Returns: Json
+      }
+      place_key: {
+        Args: { p_text: string; p_validated: string }
+        Returns: string
       }
       revert_recent_validations: {
         Args: { p_map_id: string; p_user: string; p_window_mins?: number }

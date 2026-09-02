@@ -6,6 +6,7 @@ import {
 } from '@playwright/test';
 import { createClient, type Session } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
+import { loadSchema, unsupportedKeywords, validate } from './schemaCheck';
 
 /**
  * Write-path smokes (ROADMAP A5). Unlike smoke.spec.ts these DO write rows, so
@@ -914,4 +915,161 @@ test('the place-time index warps on write, gates drafts, and rewarps on demand',
   expect(ran.ok(), await ran.text()).toBe(true);
   expect((await ran.json()).result.reason).toBe('no usable annotation');
   await asWorker.dispose();
+});
+
+test('the published contracts match what the API actually returns', async () => {
+  // contracts/ is the written definition consumers outside this repo rely on
+  // (docs/platform-design.md §3). This is the executable half: if a field
+  // changes shape, it fails here rather than in someone else's app.
+  const runId = `write-smoke-contract-${Date.now()}`;
+  created.runIds.push(runId);
+
+  const HERE = { lng: 106.70098, lat: 10.77653 };
+  const { data: label } = await admin
+    .from('ocr_extractions')
+    .insert({
+      map_id: mapId,
+      run_id: runId,
+      tile_x: 0,
+      tile_y: 42,
+      tile_w: 100,
+      tile_h: 100,
+      global_x: 10,
+      global_y: 20,
+      global_w: 50,
+      global_h: 10,
+      text: 'Rue Contractuelle',
+      category: 'street',
+      confidence: 0.95,
+      geom: `SRID=4326;POINT(${HERE.lng} ${HERE.lat})`,
+      geom_src: 'contract-smoke',
+      geom_rmse: 3.1,
+    })
+    .select('id')
+    .single();
+
+  const { data: print } = await admin
+    .from('footprint_submissions')
+    .insert({
+      map_id: mapId,
+      pixel_polygon: [
+        [10, 10],
+        [30, 10],
+        [30, 30],
+      ],
+      name: 'contract-smoke building',
+      feature_type: 'building',
+      status: 'approved',
+      source: 'volunteer',
+      geom: 'SRID=4326;POLYGON((106.7008 10.7764, 106.7012 10.7764, 106.7012 10.7767, 106.7008 10.7764))',
+      geom_src: 'contract-smoke',
+      geom_rmse: 3.1,
+    })
+    .select('id')
+    .single();
+  created.footprintIds.push(print!.id);
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+
+  // Every schema must stay inside the subset the checker implements; a contract
+  // that quietly asks for an unchecked keyword is worse than no contract.
+  for (const name of [
+    'context.schema.json',
+    'label-hit.schema.json',
+    'footprint-feature.schema.json',
+  ]) {
+    expect(unsupportedKeywords(loadSchema(name)), `${name} uses unchecked keywords`).toEqual([]);
+  }
+
+  const ctxRes = await anon.get(`/api/context?lng=${HERE.lng}&lat=${HERE.lat}&radius=300`);
+  expect(ctxRes.ok(), await ctxRes.text()).toBe(true);
+  const ctx = await ctxRes.json();
+  expect(validate(loadSchema('context.schema.json'), ctx)).toEqual([]);
+  expect(ctx.labels.some((l: { id: string }) => l.id === label!.id)).toBe(true);
+  expect(ctx.footprints.some((f: { id: string }) => f.id === print!.id)).toBe(true);
+
+  const search = await anon.get('/api/search?q=rue%20contractuelle&include=labels');
+  expect(search.ok()).toBe(true);
+  const hits = (await search.json()).labels;
+  const hitSchema = loadSchema('label-hit.schema.json');
+  expect(hits.length).toBeGreaterThan(0);
+  for (const h of hits) expect(validate(hitSchema, h)).toEqual([]);
+
+  const exported = await anon.get(`/api/export/footprints?map_id=${mapId}`);
+  expect(exported.ok()).toBe(true);
+  const features = (await exported.json()).features;
+  const featureSchema = loadSchema('footprint-feature.schema.json');
+  expect(features.length).toBeGreaterThan(0);
+  for (const f of features) expect(validate(featureSchema, f)).toEqual([]);
+
+  // And the checker itself has teeth: a wrong type must be reported.
+  expect(validate(hitSchema, { ...hits[0], year: 'nineteen hundred' })).toEqual([
+    '$.year: expected integer|null, got string',
+  ]);
+
+  await anon.dispose();
+});
+
+test('a place page groups every spelling and hides unpublished sheets', async () => {
+  const runId = `write-smoke-place-${Date.now()}`;
+  created.runIds.push(runId);
+
+  const HERE = { lng: 106.7009, lat: 10.7765 };
+  const row = (text: string, tile_y: number) => ({
+    map_id: mapId,
+    run_id: runId,
+    tile_x: 0,
+    tile_y,
+    tile_w: 100,
+    tile_h: 100,
+    global_x: 10,
+    global_y: 20,
+    global_w: 50,
+    global_h: 10,
+    text,
+    category: 'street',
+    confidence: 0.9,
+    geom: `SRID=4326;POINT(${HERE.lng} ${HERE.lat})`,
+    geom_src: 'place-smoke',
+    geom_rmse: 7.5,
+  });
+  // The same street written three ways: hyphenated, spaced, and accented. The
+  // gazetteer's key folds punctuation, so all three are one place.
+  const { error: insErr } = await admin
+    .from('ocr_extractions')
+    .insert([row('Rue de Cây-Mai', 51), row('Rue de Cay Mai', 52), row('Rue de Cay Mai', 53)]);
+  expect(insErr, insErr?.message).toBeNull();
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const res = await anon.get('/place/rue-de-cay-mai');
+  expect(res.ok(), `${res.status()} ${await res.text()}`).toBe(true);
+  const html = await res.text();
+
+  // Server-rendered: the crawler must see all of this without JavaScript.
+  expect(html).toContain('Rue de Cay Mai'); // the most-attested spelling wins the title
+  expect(html).toContain('Rue de Cây-Mai'); // the other spelling is listed as a variant
+  expect(html).toContain('Write-smoke fixture map');
+  expect(html).toContain('1900');
+  expect(html).toContain(`at=${HERE.lng.toFixed(6)}`); // the explore link lands on the spot
+  expect(html).toContain('8 m'); // the rounded warp error, stated rather than hidden
+
+  // The share page links to it, which is the only crawl path there is.
+  const share = await anon.get(`/map/${mapId}`);
+  expect(share.ok()).toBe(true);
+  expect(await share.text()).toContain('/place/rue-de-cay-mai');
+
+  // An unknown name is a 404, not an empty page.
+  expect((await anon.get('/place/rue-qui-nexiste-pas')).status()).toBe(404);
+
+  // A name attested only on a draft map has no public page.
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({ name: 'place-smoke draft', status: 'draft', year: 1902 })
+    .select('id')
+    .single();
+  created.mapIds.push(draft!.id);
+  await admin.from('ocr_extractions').insert({ ...row('Rue Introuvable', 54), map_id: draft!.id });
+  expect((await anon.get('/place/rue-introuvable')).status()).toBe(404);
+
+  await anon.dispose();
 });

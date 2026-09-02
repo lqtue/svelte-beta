@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maparchive.vn/contracts/context.schema.json",
+  "title": "Place-time context",
+  "description": "Everything the archive knows about a spot: the maps covering it, the labels and reviewed footprints near it, and any story point standing there. Returned by GET /api/context and by the context_at RPC (migration 066). Rows whose map has no georeference are absent by construction — they have no position to report.",
+  "type": "object",
+  "required": ["at", "radius_m", "maps", "labels", "footprints", "stories"],
+  "properties": {
+    "at": {
+      "type": "array",
+      "description": "[lng, lat] echoed back.",
+      "items": { "type": "number" }
+    },
+    "radius_m": { "type": "number", "description": "The radius actually used, after clamping." },
+    "maps": {
+      "type": "array",
+      "description": "Maps whose bbox covers the point, oldest first.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "year", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": ["string", "null"] },
+          "year": { "type": ["integer", "null"] },
+          "status": { "type": "string" },
+          "allmaps_id": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "labels": {
+      "type": "array",
+      "description": "Nearest first. A label's position is its bbox centre, so the honest question is 'near here'.",
+      "items": {
+        "type": "object",
+        "required": ["id", "map_id", "text", "category", "distance_m", "lng", "lat"],
+        "properties": {
+          "id": { "type": "string" },
+          "map_id": { "type": "string" },
+          "map_name": { "type": ["string", "null"] },
+          "year": { "type": ["integer", "null"] },
+          "text": { "type": "string" },
+          "category": { "type": "string" },
+          "status": { "type": "string" },
+          "distance_m": { "type": "number" },
+          "geom_rmse": {
+            "type": ["number", "null"],
+            "description": "The source map's own GCP residual in metres. Weigh a 1799 sketch differently from a 1923 cadastral plan."
+          },
+          "lng": { "type": "number" },
+          "lat": { "type": "number" }
+        }
+      }
+    },
+    "footprints": {
+      "type": "array",
+      "description": "Reviewed polygons only; the queue is never served here.",
+      "items": {
+        "type": "object",
+        "required": ["id", "map_id", "distance_m", "geometry"],
+        "properties": {
+          "id": { "type": "string" },
+          "map_id": { "type": "string" },
+          "map_name": { "type": ["string", "null"] },
+          "year": { "type": ["integer", "null"] },
+          "name": { "type": ["string", "null"] },
+          "feature_type": { "type": ["string", "null"] },
+          "category": { "type": ["string", "null"] },
+          "source": { "type": ["string", "null"] },
+          "status": { "type": "string" },
+          "distance_m": { "type": "number" },
+          "geom_rmse": { "type": ["number", "null"] },
+          "geometry": { "type": "object", "description": "GeoJSON Polygon." }
+        }
+      }
+    },
+    "stories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["story_id", "point_id", "distance_m"],
+        "properties": {
+          "story_id": { "type": "string" },
+          "point_id": { "type": "string" },
+          "title": { "type": ["string", "null"] },
+          "story_title": { "type": ["string", "null"] },
+          "distance_m": { "type": "number" }
+        }
+      }
+    }
+  }
+}

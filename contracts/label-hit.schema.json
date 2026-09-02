@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maparchive.vn/contracts/label-hit.schema.json",
+  "title": "Label hit",
+  "description": "One OCR'd label matched inside a map, warped to the ground where the map's georeference allows it. Returned by GET /api/search?include=labels.",
+  "type": "object",
+  "required": ["id", "map_id", "map_name", "year", "text", "category", "bbox", "lng", "lat"],
+  "properties": {
+    "id": { "type": "string", "description": "ocr_extractions.id" },
+    "map_id": { "type": "string", "description": "maps.id (uuid)" },
+    "map_name": { "type": ["string", "null"] },
+    "year": {
+      "type": ["integer", "null"],
+      "description": "The source map's year; the only date a single sheet supports."
+    },
+    "text": {
+      "type": "string",
+      "description": "The reviewer's correction where one exists, else the model's reading."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["street", "hydrology", "place", "building", "institution"],
+      "description": "Legend and title furniture is never returned: a legend entry names a class, not a place."
+    },
+    "bbox": {
+      "type": "array",
+      "description": "Source-image pixel bbox [x, y, w, h]. Always present, because pixels are the master.",
+      "items": { "type": "number" }
+    },
+    "lng": {
+      "type": ["number", "null"],
+      "description": "Null when the map has no usable georeference."
+    },
+    "lat": { "type": ["number", "null"] }
+  }
+}

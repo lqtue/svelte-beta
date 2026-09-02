@@ -26,5 +26,15 @@ export const load: PageServerLoad = async ({ params }) => {
 
   if (!map) throw error(404, 'No published map with that id');
 
-  return { map };
+  // The places this sheet names, most-attested first. Two jobs: it tells a
+  // reader what is on the map before they open it, and it is the only crawl
+  // path to the /place pages, which otherwise exist without being linked.
+  const { data: places } = await adminClient()
+    .from('place_names')
+    .select('name_key, name, mentions, category')
+    .contains('map_ids', [id])
+    .order('mentions', { ascending: false })
+    .limit(40);
+
+  return { map, places: places ?? [] };
 };
