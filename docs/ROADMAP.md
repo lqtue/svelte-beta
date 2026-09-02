@@ -6,9 +6,9 @@ One list. Everything else is detail or history. Update this file, not the others
 
 The actionable list. Everything below it is the reference plan and the record; read the why when you need it, not before you start. Each item names the command or query that says it is finished.
 
-**Blocked on the user's shell** (classifier-blocked for the agent — see the memory note on outward actions). Production has neither migration and no OCR beyond one map, so nothing in Track E is live until these run:
+**Blocked on the user's shell** (classifier-blocked for the agent — see the memory note on outward actions). Production has none of the three migrations and no OCR beyond one map, so nothing in Track E is live until these run:
 
-- [ ] 1. `supabase db push` — lands migrations **065** (label search) and **066** (the place-time index). Exit: `select proname from pg_proc where proname in ('search_labels','context_at','map_context')` returns three rows.
+- [ ] 1. `supabase db push` — lands migrations **065** (label search), **066** (the place-time index) and **067** (the gazetteer). Exit: `select proname from pg_proc where proname in ('search_labels','context_at','map_context','place_key')` returns four rows, and `select count(*) from place_names` answers.
 - [ ] 2. `supabase gen types typescript --linked > src/lib/data/supabase/types.ts` then `npm run check`. The committed types were generated from the **local** stack, which is ahead of production until step 1. Exit: 0 errors and no unrelated churn in `git diff`.
 - [ ] 3. `node --env-file=.env scripts/enqueue_ocr_all.mjs --dry`, then without `--dry` — queues OCR for the ~38 georeferenced maps that have none. Exit: `select count(*) from pipeline_jobs where kind='ocr' and status='queued'` matches the script's own count.
 - [ ] 4. `source work/ocr/.venv/bin/activate && python work/worker/vma_worker.py --worker $(hostname)` — drain it (Gemini Flash, cents per map, hours not minutes). Exit: `select count(distinct map_id) from ocr_extractions` > 30.
@@ -24,16 +24,18 @@ The actionable list. Everything below it is the reference plan and the record; r
 - [x] ← / → scrub the years, ↑ / ↓ the opacity, camera held still
 - [x] `--clahe` adaptive-contrast pre-pass, **off** until the eval set measures it (commands in `docs/pipelines.md`)
 - [x] `scripts/pmtiles_extract.sh` — one basemap recipe for both apps; proven by building a real Huế extract, 2.3 MB in 15 s
+- [x] E1b gazetteer — mig 067's `place_names` view (every spelling · years · sheets · a position), `place_key` folding punctuation so hyphenated and spaced forms group, plus `/place/<name>` server-rendered hub pages linked from every share page
+- [x] Platform step 2 — `contracts/` with `context`, `label-hit` and `footprint-feature`, each naming its second consumer, validated against the live API by the write smoke
+- [x] `work/analysis/district4/` — `metrics.py` (self-checking morphology measurements) and `series.py` (`--demo` proves the path with no data, real run pulls the export per sheet)
 
 **Then, in order** (detail in `docs/time-machine-plan.md`, engine design in `docs/platform-design.md`):
 
 - [ ] 7. **E2 step 1 on Colab** — mint a `seg`-scoped worker key, run `vma_worker.py --kinds seg` in the notebook. Exit: one `seg` job goes `queued → done` and writes `footprint_submissions` rows with `source='sam-auto'`.
-- [ ] 8. **District 4 review + notebook** — review the 8-map series in `/contribute/review`; `work/analysis/district4/` computes built-area %, block size, road density and canal length per year. Exit: a metrics table and figures for 1878 · 1898 · 1923 · 1942 · 1959 · 1968, and the approved polygons double as the C5 seg eval set.
+- [ ] 8. **District 4 review** — `work/analysis/district4/` is built and self-checking (`series.py --demo` proves the path with no data), so what is left is human: review the 8-map series in `/contribute/review` until the table stops printing zeros. Exit: real numbers for 1878 · 1898 · 1923 · 1942 · 1959 · 1968, and the approved polygons exported as the C5 seg eval set.
 - [ ] 9. **Measure `--clahe`** against `work/ocr/EVAL-BASELINE.md` and record the result, including a null one. Exit: a numbered row in that file.
-- [ ] 10. **E1b gazetteer** — the `place_names` view (variants · years · maps), once ≥ 20 maps have extractions. It also gives `/api/press` every spelling of a name instead of three guessed forms.
-- [ ] 11. **Colonial ↔ current street names** with namesake notes (`docs/journals/260902-creator-scan.md`: the single best-performing feature post of a comparable project, sourced from one book appendix).
-- [ ] 12. **`/place/<name>` hub pages** off the label index — the traffic engine the same scan identifies, and `/map/[id]` already proves the server-rendered pattern.
-- [ ] 13. **Platform step 2** — `packages/contracts`, leading with `context.schema.json`, then `label-hit`, `legend-point`, `footprint-feature`; the write smoke validates the API's own output against them.
+- [ ] 10. **Feed `/api/press` from the gazetteer** instead of its three guessed spelling forms — `place_names.variants` now holds the real ones. Cheap, and waiting only on a corpus with more than one map OCR'd.
+- [ ] 11. **Colonial ↔ current street names** with namesake notes (`docs/journals/260902-creator-scan.md`: the single best-performing feature post of a comparable project, sourced from one book appendix). Needs the source data, not code.
+- [ ] 12. **Figures for the District 4 table**, once it has numbers. Deliberately absent: a chart of three zero rows is worse than no chart.
 
 **Parallel, whenever there is human time:** E4 georef sprint — the 62 drafts are all 1900–1929, so target the decade gaps first (`select year, name from maps where not georef_done order by year`).
 
