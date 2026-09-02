@@ -4,32 +4,40 @@ One list. Everything else is detail or history. Update this file, not the others
 
 ## Start here — do next (2026-09-02)
 
-The actionable list. Everything below this section is the reference plan and the record; read the why when you need it, not before you start. Each item names the command or query that says it is finished.
+The actionable list. Everything below it is the reference plan and the record; read the why when you need it, not before you start. Each item names the command or query that says it is finished.
 
-**Blocked on the user's shell** (classifier-blocked for the agent — see the memory note on outward actions). Nothing else in E1 counts until these run:
+**Blocked on the user's shell** (classifier-blocked for the agent — see the memory note on outward actions). Production has neither migration and no OCR beyond one map, so nothing in Track E is live until these run:
 
-- [ ] 1. `supabase db push` — lands migration 065 in production. Exit: `search_labels` exists (`select proname from pg_proc where proname = 'search_labels'`).
-- [ ] 2. `supabase gen types typescript --linked > src/lib/data/supabase/types.ts` then `npm run check` — replaces the hand-spliced RPC types with generated ones. Exit: 0 errors, and `git diff` shows no unrelated churn.
+- [ ] 1. `supabase db push` — lands migrations **065** (label search) and **066** (the place-time index). Exit: `select proname from pg_proc where proname in ('search_labels','context_at','map_context')` returns three rows.
+- [ ] 2. `supabase gen types typescript --linked > src/lib/data/supabase/types.ts` then `npm run check`. The committed types were generated from the **local** stack, which is ahead of production until step 1. Exit: 0 errors and no unrelated churn in `git diff`.
 - [ ] 3. `node --env-file=.env scripts/enqueue_ocr_all.mjs --dry`, then without `--dry` — queues OCR for the ~38 georeferenced maps that have none. Exit: `select count(*) from pipeline_jobs where kind='ocr' and status='queued'` matches the script's own count.
-- [ ] 4. `source work/ocr/.venv/bin/activate && python work/worker/vma_worker.py --worker $(hostname)` — drain the queue (Gemini Flash, cents per map, hours not minutes). Exit: `select count(distinct map_id) from ocr_extractions` > 30.
-- [ ] 5. `git push -u origin feat/label-search` and open the PR. Exit: CI green.
+- [ ] 4. `source work/ocr/.venv/bin/activate && python work/worker/vma_worker.py --worker $(hostname)` — drain it (Gemini Flash, cents per map, hours not minutes). Exit: `select count(distinct map_id) from ocr_extractions` > 30.
+- [ ] 5. Backfill the index for maps whose rows predate it: enqueue one `warp` job per georeferenced map, then let the worker hand them to `/api/pipeline/execute`. Exit: `select count(*) from ocr_extractions where geom is not null` > 0 on more than one map.
+- [ ] 6. **E1 + E3 acceptance on production.** Search "Khánh Hội" on /catalog and /explore, land on the spot, watch the pulse, read the press panel. Check a draft map's labels are absent when signed out. Exit: hits from ≥ 5 maps, and `/api/context?lng=106.70098&lat=10.77653` returns labels.
 
-**Then, in order** (detail in `docs/time-machine-plan.md`, engine design in `docs/platform-design.md` §0):
+**Shipped on `feat/label-search` today** (code green: check 0/0, lint 0 errors, 19 write smokes + 17 pure checks):
 
-- [ ] 6. **E1 acceptance on production.** Search "Khánh Hội" on /catalog and /explore, land on the spot, check a draft map's labels are absent when signed out. Exit: both surfaces show hits from ≥ 5 different maps.
-- [ ] 7. **E1 follow-ups worth doing while the corpus OCRs.** `?at=` written back on a label pick so a spot is shareable; a pulse marker at the landed point; `place_names` gazetteer view (E1b) once ≥ 20 maps have extractions.
-- [ ] 8. **E2 step 1 — the `seg` runner.** Mint a `seg`-scoped worker key, run `vma_worker.py --kinds seg` inside the Colab notebook. Exit: one `seg` job goes `queued → done` and writes `footprint_submissions` rows with `source='sam-auto'`.
-- [ ] 9. **E2 step 2 — AOI triage.** `iiif_tiles.py --aoi minLng,minLat,maxLng,maxLat` (warp corners with `transformToResource`, mark outside tiles `skip`) + the same knob in `TriageSidebar` taking the current /explore viewport. Exit: a District 4 run touches < 40 % of the tiles a full run does.
-- [ ] 10. **E2 step 3 — export upgrade.** CSV `map_id`, default `status=approved`, `year` in properties, `bbox=` geo filter. Exit: the write smoke asserts an anonymous caller gets the approved row and not the submitted one.
-- [ ] 11. **E2 step 4 — vectors toggle** per row in `LayerStackPanel`, reading that map's export. Exit: two maps' fabric visible at once, ordered by the stack the user already controls.
-- [ ] 12. **E2 step 5 — District 4 review + notebook.** Review the 8-map series in `/contribute/review`; `work/analysis/district4/` computes built-area %, block size, road density, canal length per year. Exit: a metrics table and a figure series for 1878 · 1898 · 1923 · 1942 · 1959 · 1968, and the approved polygons double as the C5 seg eval set.
-- [ ] 13. **E2b the engine.** PostGIS, `geom`/`geom_src`/`geom_rmse`, warp-on-write in the three server writers, the `warp` job kind, `context_at()` / `map_context()`. Exit: `select jsonb_array_length(context_at(106.7009, 10.7565, 200) -> 'labels')` > 0, and the write smoke covers the draft gate and a stale `geom_src`.
-- [ ] 14. **E3 period sources.** `/api/press?q&year&window` over Gallica SRU + ContentSearch, plus the National Library of Vietnam's press archive, edge-cached 24 h; "In the press" panel on /explore. Exit: a clicked label on the 1923 plan lists dated clippings, and the query builder has a unit check for a diacritic'd two-word name.
-- [ ] 15. **Platform step 1 — `packages/basemap`.** One `pmtiles_extract.sh <bbox> <out>` + flavor overrides, referenced by both the archive style and HACW's. Exit: a Hanoi extract built with the same script the Saigon one was.
+- [x] E1 label search — mig 065, `/api/search?include=labels`, `LabelHits` on /catalog and /explore, `?at=` deeplink both read and written, `FocusPulse` on the landed spot, `scripts/enqueue_ocr_all.mjs`
+- [x] E2b **the engine** — mig 066: PostGIS, `geom`/`geom_src`/`geom_rmse` beside the pixel master, warp-on-write in the three server writers, the `warp` job kind and its server-side runner, `context_at()` / `map_context()`, public `GET /api/context`
+- [x] E2 pieces — `--aoi-px` study-area triage; export by map list, year and ground bbox, defaulting to `approved`; the ⬡ per-layer vectors toggle drawing a sheet's fabric on the ground; the `seg` runner so a Colab GPU session is just a worker
+- [x] E3 — `GET /api/press` over Gallica **and** the National Library of Vietnam's 262k-page press archive, edge-cached 24 h, plus the "In the press" panel on /explore
+- [x] ← / → scrub the years, ↑ / ↓ the opacity, camera held still
+- [x] `--clahe` adaptive-contrast pre-pass, **off** until the eval set measures it (commands in `docs/pipelines.md`)
+- [x] `scripts/pmtiles_extract.sh` — one basemap recipe for both apps; proven by building a real Huế extract, 2.3 MB in 15 s
+
+**Then, in order** (detail in `docs/time-machine-plan.md`, engine design in `docs/platform-design.md`):
+
+- [ ] 7. **E2 step 1 on Colab** — mint a `seg`-scoped worker key, run `vma_worker.py --kinds seg` in the notebook. Exit: one `seg` job goes `queued → done` and writes `footprint_submissions` rows with `source='sam-auto'`.
+- [ ] 8. **District 4 review + notebook** — review the 8-map series in `/contribute/review`; `work/analysis/district4/` computes built-area %, block size, road density and canal length per year. Exit: a metrics table and figures for 1878 · 1898 · 1923 · 1942 · 1959 · 1968, and the approved polygons double as the C5 seg eval set.
+- [ ] 9. **Measure `--clahe`** against `work/ocr/EVAL-BASELINE.md` and record the result, including a null one. Exit: a numbered row in that file.
+- [ ] 10. **E1b gazetteer** — the `place_names` view (variants · years · maps), once ≥ 20 maps have extractions. It also gives `/api/press` every spelling of a name instead of three guessed forms.
+- [ ] 11. **Colonial ↔ current street names** with namesake notes (`docs/journals/260902-creator-scan.md`: the single best-performing feature post of a comparable project, sourced from one book appendix).
+- [ ] 12. **`/place/<name>` hub pages** off the label index — the traffic engine the same scan identifies, and `/map/[id]` already proves the server-rendered pattern.
+- [ ] 13. **Platform step 2** — `packages/contracts`, leading with `context.schema.json`, then `label-hit`, `legend-point`, `footprint-feature`; the write smoke validates the API's own output against them.
 
 **Parallel, whenever there is human time:** E4 georef sprint — the 62 drafts are all 1900–1929, so target the decade gaps first (`select year, name from maps where not georef_done order by year`).
 
-**Deliberately not now:** E5 (needs reviewed E2 fabric on ≥ 3 maps), the monorepo import (platform steps 4–5, after a contract has two real consumers), vector tiles / `build_pmtiles`, runes migration. Reopen conditions in `docs/platform-design.md` §6.
+**Deliberately not now:** E5 (needs reviewed E2 fabric on ≥ 3 maps), the monorepo import (platform steps 4–5, after a contract has two real consumers), vector tiles / `build_pmtiles`, the runes migration. Reopen conditions in `docs/platform-design.md` §6.
 
 ## Done — August cleanup (branch `chore/cleanup`, 24 commits, not yet merged)
 Record: `docs/cleanup-2026-08.md`. History: `work/cleanup/{PLAN,MODULES,ORGANIZATION}.md` + 6 `review-*.md`.
@@ -67,11 +75,11 @@ Runs as B1 jobs (`ocr`, `seg`, `join`) once B1 lands — no more copy-paste CLI.
 ## Track E — Time machine (`docs/time-machine-plan.md`, planned 2026-09-02)
 Label search → temporal fabric → period sources, on the existing jobs + HITL + RPC substrate. Measured start: OCR on 1 map, zero SAM2 output, 8-map Saigon series 1878→1968 already georeferenced for District 4.
 - [x] E1 Label search (code, 2026-09-02, `feat/label-search`) — mig 065: `pg_trgm` + immutable `unaccent` wrapper, `search_labels` RPC (security definer + explicit `p_public_only`, since /api/search runs on the service client), and `ocr_extractions` read policy now inherits the map's gate (it had been `using (true)` since 040). **No trigram index**: the indexable `<%` reads a GUC Supabase's role may not SET on a function, and 0.6 misses one-letter typos; explicit `word_similarity() ≥ 0.5` seq-scans, fine at 10⁵ rows. `/api/search?include=labels` warps each hit via `transformer.ts`; `LabelHits.svelte` on /catalog (→ `/explore?map=&at=lng,lat`) and in /explore's browse pane; `scripts/enqueue_ocr_all.mjs`. Write smoke: typo hit + draft gate + raw-table leak. **Pending, user's shell:** `supabase db push`, then `enqueue_ocr_all` + a worker run — the index is one map until then
-- [ ] E1b Gazetteer view `place_names` (variants · years · maps) — after E1
-- [ ] E2 Temporal fabric — `seg` runner = worker inside Colab · `iiif_tiles.py --aoi` · export: CSV `map_id`, default `approved`, `year`, `bbox=` · "vectors" toggle per layer row on /explore · `work/analysis/district4/` notebook (metrics + figure series). B8 stays deferred; District 4 review is the C5 eval set
-- [ ] E2b The engine (B8 re-scoped) — the index E3 and the thesis both query; lands after E2's seg runner so footprints exist to warp
-- [ ] E3 Period sources — `/api/press?q&year&provider` over Gallica SRU/ContentSearch + the National Library of Vietnam, edge-cached 24 h · "In the press" panel on /explore from label / legend points. No table until pinning is asked for
-- [ ] E4 Corpus growth — georef sprint by decade gap (62 drafts, all 1900–1929) · new scout sources (UT PCL, NARA, ANOM) · Hanoi/Huế basemap extracts later
+- [ ] E1b Gazetteer view `place_names` (variants · years · maps) — after ≥ 20 maps carry extractions; also feeds `/api/press` every spelling instead of three guessed forms
+- [~] E2 Temporal fabric — **code done 2026-09-02**: the `seg` runner (a Colab GPU session is now just `vma_worker.py --kinds seg`), `--aoi-px` study-area triage, the export upgrade (CSV `map_id`, default `approved`, `year`, ground `bbox=`), and the ⬡ per-layer vectors toggle. **Left:** one real Colab run, the District 4 review, and `work/analysis/district4/` — all human or GPU time, no code. District 4 review is the C5 eval set
+- [x] E2b The engine (B8 re-scoped, 2026-09-02) — mig 066: PostGIS, `geom`/`geom_src`/`geom_rmse` beside the pixel master, warp-on-write in the three server writers that already hold the transformer, a `warp` job kind for re-georeference, `context_at()`/`map_context()` read as jsonb because PostGIS columns type as `unknown`, and public `GET /api/context`. Landed before the seg runner rather than after: labels alone already make the index worth querying
+- [x] E3 Period sources (2026-09-02) — `/api/press?q&year&provider` over Gallica SRU/ContentSearch **and** the National Library of Vietnam's 262k-page archive (no date filter upstream, so the window is applied client-side; a courtesy third-party proxy, so no retry), merged chronologically, edge-cached 24 h · "In the press" panel on /explore from a label pick. No table until pinning is asked for
+- [~] E4 Corpus growth — georef sprint by decade gap (62 drafts, all 1900–1929) · new scout sources (UT PCL, NARA, ANOM) · **the Hanoi/Huế extracts are now one command** (`scripts/pmtiles_extract.sh`, Huế already built)
 - [ ] E5 Building attributes → OSM tags → LoD2 — deferred until E2 fabric is reviewed on ≥ 3 maps; `tags jsonb` lands with its first writer
 
 ## Track D — Burn-down (when it hurts)
