@@ -12,7 +12,7 @@ The actionable list. Everything below it is the reference plan and the record; r
 - [x] 2. Types regenerated against production. Re-run it once 068 lands, since 068 changes `search_labels`'s return type.
 - [ ] 3. `node --env-file=.env scripts/enqueue_ocr_all.mjs --dry`, then without `--dry` — queues OCR for the ~38 georeferenced maps that have none. Exit: `select count(*) from pipeline_jobs where kind='ocr' and status='queued'` matches the script's own count.
 - [ ] 4. `source work/ocr/.venv/bin/activate && python work/worker/vma_worker.py --worker $(hostname)` — drain it (Gemini Flash, cents per map, hours not minutes). Exit: `select count(distinct map_id) from ocr_extractions` > 30.
-- [ ] 5. Backfill the index for maps whose rows predate it: enqueue one `warp` job per georeferenced map, then let the worker hand them to `/api/pipeline/execute`. Exit: `select count(*) from ocr_extractions where geom is not null` > 0 on more than one map.
+- [ ] 5. Backfill the index for maps whose rows predate it: `node --env-file=.env scripts/enqueue_warp_all.mjs --dry`, then without `--dry`, then a worker with `--kinds warp`. Measured 2026-09-02: two maps need it, the 1882 cadastral plan (1,028 rows) and the 1968 Saigon sheet (376). Exit: `select count(*) from ocr_extractions where geom is not null` > 1,400.
 - [ ] 6. **E1 + E3 acceptance on production.** Search "Khánh Hội" on /catalog and /explore, land on the spot, watch the pulse, read the press panel. Check a draft map's labels are absent when signed out. Exit: hits from ≥ 5 maps, and `/api/context?lng=106.70098&lat=10.77653` returns labels.
 
 **Shipped on `feat/label-search` today** (code green: check 0/0, lint 0 errors, 19 write smokes + 17 pure checks):
