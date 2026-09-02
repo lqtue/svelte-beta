@@ -19,7 +19,14 @@
   /** Catalog list used to enrich rows with year. */
   export let mapList: MapListItem[] = [];
 
-  const dispatch = createEventDispatcher<{ zoomToOverlay: { mapId: string } }>();
+  const dispatch = createEventDispatcher<{
+    zoomToOverlay: { mapId: string };
+    toggleVectors: { mapId: string };
+  }>();
+
+  /** Map ids whose traced fabric is currently drawn, owned by the page. */
+  export let vectorMapIds: string[] = [];
+  $: vectorOn = new Set(vectorMapIds);
 
   $: state = $layersStore;
   $: isSideBySide = viewMode === 'dual';
@@ -136,6 +143,16 @@
           </div>
 
           <div class="lsp-pct">{Math.round(o.opacity * 100)}%</div>
+
+          <button
+            type="button"
+            class="lsp-action lsp-vec"
+            class:is-on={vectorOn.has(o.ref.mapId)}
+            on:click={() => dispatch('toggleVectors', { mapId: o.ref.mapId })}
+            aria-label="Toggle traced footprints"
+            aria-pressed={vectorOn.has(o.ref.mapId)}
+            title="Traced footprints">⬡</button
+          >
 
           <button
             type="button"
@@ -299,6 +316,15 @@
     color: var(--sb-text);
     min-width: 38px;
     text-align: right;
+  }
+
+  .lsp-vec {
+    color: var(--sb-text);
+    opacity: 0.55;
+  }
+  .lsp-vec.is-on {
+    opacity: 1;
+    color: var(--sb-success, #16a34a);
   }
 
   .lsp-x {

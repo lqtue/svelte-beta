@@ -24,6 +24,7 @@
     toggleCollapse: void;
     pickMap: any;
     pickLabel: LabelHit;
+    toggleVectors: { mapId: string };
     removeOverlay: { mapId: string };
     pickLocation: {
       lat: number;
@@ -39,6 +40,8 @@
 
   export let viewMode: ViewMode = 'overlay';
   export let mapList: MapListItem[] = [];
+  /** Map ids whose traced fabric is drawn; owned by the page. */
+  export let vectorMapIds: string[] = [];
   export let gpsActive: boolean = false;
   export let matches: ResolvedMap[] = [];
   export let forceBrowseExpanded = false;
@@ -163,7 +166,9 @@
       <LayerStackPanel
         {viewMode}
         {mapList}
+        {vectorMapIds}
         on:zoomToOverlay={(e) => dispatch('zoomToOverlay', e.detail)}
+        on:toggleVectors={(e) => dispatch('toggleVectors', e.detail)}
       />
     </SidebarCard>
   </div>

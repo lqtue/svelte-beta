@@ -31,6 +31,7 @@
   import StoryMarkers from '$lib/features/stories/shared/StoryMarkers.svelte';
   import LegendPointsLayer from '$lib/features/explore/LegendPointsLayer.svelte';
   import FocusPulse from '$lib/features/explore/FocusPulse.svelte';
+  import FootprintsLayer from '$lib/features/explore/FootprintsLayer.svelte';
   import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
   import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
   import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
@@ -108,6 +109,8 @@
   let showLegendPoints = false;
   /** The spot a search hit sent us to, pulsed once so it is findable. */
   let focusPoint: { lng: number; lat: number } | null = null;
+  /** Overlay maps whose reviewed footprints are drawn on the ground. */
+  let vectorMapIds: string[] = [];
   $: if (!activeOverlayMapId) showLegendPoints = false;
   $: playerState = $storyPlayer;
   $: activeStoryProgress = activeStory ? (playerState.progress[activeStory.id] ?? null) : null;
@@ -287,7 +290,16 @@
     }
   }
 
+  function handleToggleVectors(e: CustomEvent<{ mapId: string }>) {
+    const { mapId } = e.detail;
+    vectorMapIds = vectorMapIds.includes(mapId)
+      ? vectorMapIds.filter((id) => id !== mapId)
+      : [...vectorMapIds, mapId];
+  }
+
   function handleRemoveOverlay(e: CustomEvent<{ mapId: string }>) {
+    // A removed sheet takes its fabric with it.
+    vectorMapIds = vectorMapIds.filter((id) => id !== e.detail.mapId);
     layersStore.removeOverlayByMapId(e.detail.mapId);
     syncMapParam($layersStore.overlays[0]?.ref.mapId ?? null);
   }
@@ -354,6 +366,7 @@
       <ExploreSidebar
         {viewMode}
         {mapList}
+        {vectorMapIds}
         {gpsActive}
         {matches}
         {role}
@@ -361,6 +374,7 @@
         {showLegendPoints}
         forceBrowseExpanded={mode === 'all'}
         on:zoomToOverlay={handleZoomToOverlay}
+        on:toggleVectors={handleToggleVectors}
         on:pickMap={handlePickMap}
         on:pickLabel={handlePickLabel}
         on:removeOverlay={handleRemoveOverlay}
@@ -374,7 +388,13 @@
 
     <svelte:fragment slot="mobile-layers">
       <div class="mobile-pane" data-tour="layers-mobile">
-        <LayerStackPanel {viewMode} {mapList} on:zoomToOverlay={handleZoomToOverlay} />
+        <LayerStackPanel
+          {viewMode}
+          {mapList}
+          {vectorMapIds}
+          on:zoomToOverlay={handleZoomToOverlay}
+          on:toggleVectors={handleToggleVectors}
+        />
       </div>
     </svelte:fragment>
 
@@ -414,6 +434,7 @@
       />
       <LegendPointsLayer mapId={activeOverlayMapId} enabled={showLegendPoints} />
       <FocusPulse point={focusPoint} />
+      <FootprintsLayer mapIds={vectorMapIds} />
       {#if activeStory}
         <StoryMarkers
           points={activeStory.points}
