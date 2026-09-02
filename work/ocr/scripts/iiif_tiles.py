@@ -227,6 +227,103 @@ def adaptive_render_size(image: Image.Image, low: int = 1024, high: int = 2048, 
     return high if estimate_density(image) >= threshold else low
 
 
+# ── Adaptive-contrast pre-pass (CLAHE) ────────────────────────────────────────
+#
+# Faded French colonial scans lose their thin hand-lettered toponyms into the
+# paper: locally the ink/paper gap is a handful of grey levels, globally the
+# sheet still spans 0-255 so a plain histogram stretch does nothing. CLAHE
+# equalizes per-region instead, with a clip limit so the flat paper between
+# strokes is not amplified into noise.
+#
+# Applied to **luminance only** (LAB L). Equalizing per RGB channel would move
+# hue and saturation, and `compute_tile_colours` scores the water/vegetation
+# wash in HSV — the pre-pass must never be able to reach that signal. It cannot:
+# it runs on the per-tile render on its way to the model, long after the shared
+# overview the colour pass reads. See docs/pipelines.md.
+#
+# ponytail: pure numpy + Pillow, ~30 lines, because there is no cv2 wheel for
+# Python 3.14 and this must not add a dependency. Ceiling: a full 2048px tile
+# costs ~0.2s and four 256-entry LUT gathers of float32 (~64 MB peak), and the
+# interpolation is bilinear between tile centres exactly as cv2 does it, so
+# output is equivalent but not bit-identical. Upgrade path if it ever shows up
+# in the profile — `cv2.createCLAHE(clipLimit, tileGridSize).apply(L)` on the
+# same L channel, same flag surface, delete `_clahe_lut` and this function's
+# body. Nothing downstream sees the difference.
+
+
+def _clahe_lut(block, clip_limit: float):
+    """Clipped, excess-redistributed CDF for one grid block → a 256-entry LUT."""
+    import numpy as np
+
+    n = block.size
+    if n == 0:
+        return np.arange(256, dtype=np.float32)
+    hist = np.bincount(block.ravel(), minlength=256).astype(np.int64)
+    # Clip tall bins (flat paper) and spread what was cut back over all levels.
+    limit = max(1, int(clip_limit * n / 256.0))
+    excess = int(np.maximum(hist - limit, 0).sum())
+    hist = np.minimum(hist, limit) + excess // 256
+    cdf = np.cumsum(hist)
+    # max(...,1) is the uniform-image guard: a flat block still has a non-zero
+    # total after redistribution, but never divide by an unchecked cdf.
+    return (cdf * (255.0 / max(int(cdf[-1]), 1))).astype(np.float32)
+
+
+def apply_clahe(
+    image: Image.Image,
+    clip_limit: float = 2.0,
+    grid: int | tuple[int, int] = 8,
+) -> Image.Image:
+    """Contrast-Limited Adaptive Histogram Equalization on the LAB L channel.
+
+    clip_limit: histogram clip, as a multiple of the flat-histogram bin height.
+                1.0 ≈ no equalization, 2.0 is a safe default, >4 gets noisy.
+    grid:       grid blocks — an int for square, or (rows, cols).
+
+    Pure function: no network, no cache, no mutation of the input.
+    """
+    import numpy as np
+
+    if isinstance(grid, int):
+        grid = (grid, grid)
+    gy, gx = max(1, int(grid[0])), max(1, int(grid[1]))
+
+    lab = np.array(image.convert("LAB"), dtype=np.uint8)
+    lum = lab[:, :, 0]
+    h, w = lum.shape
+    if h == 0 or w == 0:
+        return image.copy()
+
+    ys = np.linspace(0, h, gy + 1).round().astype(int)
+    xs = np.linspace(0, w, gx + 1).round().astype(int)
+    luts = np.empty((gy, gx, 256), dtype=np.float32)
+    for i in range(gy):
+        for j in range(gx):
+            luts[i, j] = _clahe_lut(lum[ys[i]:ys[i + 1], xs[j]:xs[j + 1]], clip_limit)
+
+    # Bilinear blend between the four surrounding block centres, so block
+    # boundaries do not show up as seams the model would read as strokes.
+    def _axis(centres, length, count):
+        coord = np.arange(length, dtype=np.float32)
+        i1 = np.clip(np.searchsorted(centres, coord), 0, count - 1)
+        i0 = np.clip(i1 - 1, 0, count - 1)
+        span = np.where(i1 > i0, centres[i1] - centres[i0], 1.0)
+        t = np.clip((coord - centres[i0]) / span, 0.0, 1.0).astype(np.float32)
+        return i0, i1, t
+
+    iy0, iy1, ty = _axis((ys[:-1] + ys[1:] - 1) * 0.5, h, gy)
+    jx0, jx1, tx = _axis((xs[:-1] + xs[1:] - 1) * 0.5, w, gx)
+
+    Iy0, Iy1 = iy0[:, None], iy1[:, None]
+    Jx0, Jx1 = jx0[None, :], jx1[None, :]
+    TY, TX = ty[:, None], tx[None, :]
+    top = luts[Iy0, Jx0, lum] * (1.0 - TX) + luts[Iy0, Jx1, lum] * TX
+    bot = luts[Iy1, Jx0, lum] * (1.0 - TX) + luts[Iy1, Jx1, lum] * TX
+
+    lab[:, :, 0] = np.rint(top * (1.0 - TY) + bot * TY).clip(0, 255).astype(np.uint8)
+    return Image.fromarray(lab, mode="LAB").convert("RGB")
+
+
 def detect_neatline(image: Image.Image) -> tuple[int, int, int, int] | None:
     """Detect map content bounding box (neatline) from a low-res overview.
 
@@ -577,7 +674,7 @@ def choose_scale_levels(
 
 
 def _self_check() -> None:
-    """Colour pre-pass, override rules and AOI triage — no network, no real map.
+    """Colour pre-pass, CLAHE, override rules and AOI triage — no network, no real map.
 
     Run: python work/ocr/scripts/iiif_tiles.py --self-check
     """
@@ -618,6 +715,61 @@ def _self_check() -> None:
     assert auto_tile_overrides(sparse, colours={tiles[0]: 0.9}) == {"0_0_100_100": "skip"}
     blank = {tiles[0]: 0.0}
     assert auto_tile_overrides(blank, colours={tiles[0]: 0.0}) == {"0_0_100_100": "skip"}
+
+    # ── CLAHE pre-pass ──────────────────────────────────────────────────────
+    import numpy as _np
+
+    def _std(i) -> float:
+        return float(_np.asarray(i.convert("L"), dtype=_np.float32).std())
+
+    def _grey(a) -> "_Image.Image":
+        return _Image.fromarray(_np.dstack([a.astype(_np.uint8)] * 3))
+
+    rng = _np.random.default_rng(7)
+
+    # A faded scan: full texture squeezed into a 20-level band. This is the
+    # case the flag exists for, so require a real gain, not a nudge.
+    faded = _grey(118 + rng.random((512, 512)) * 20)
+    faded_bytes = faded.tobytes()
+    faded_std = _std(faded)
+    lifted = apply_clahe(faded, 2.0, 8)
+    assert lifted.size == faded.size and lifted.mode == "RGB"
+    assert _std(lifted) > 2.0 * faded_std, (faded_std, _std(lifted))
+
+    # Pure function: the caller's image is not mutated in place.
+    assert faded.tobytes() == faded_bytes
+
+    # An already-crisp ink-on-paper tile must not be wrecked. CLAHE's clip is
+    # what buys this; a plain histogram equalization would not.
+    crisp = _grey(_np.where(rng.random((512, 512)) > 0.8, 20, 235))
+    before, after = _std(crisp), _std(apply_clahe(crisp, 2.0, 8))
+    assert 0.9 * before < after < 1.1 * before, (before, after)
+
+    # A uniform image has one occupied bin: no divide-by-zero, no NaN, and it
+    # stays uniform (a blank margin tile must not become noise).
+    for flat in (_Image.new("RGB", (64, 64), (128, 128, 128)),
+                 _Image.new("RGB", (64, 64), (0, 0, 0)),
+                 _Image.new("RGB", (64, 64), (255, 255, 255))):
+        out = apply_clahe(flat, 2.0, 8)
+        assert _std(out) == 0.0, (flat.getpixel((0, 0)), _std(out))
+
+    # Degenerate geometry: 1x1, a single global block, a non-square grid.
+    assert apply_clahe(_Image.new("RGB", (1, 1), (40, 40, 40)), 2.0, 8).size == (1, 1)
+    assert _std(apply_clahe(faded, 2.0, 1)) > faded_std
+    assert apply_clahe(faded, 2.0, (4, 16)).size == (512, 512)
+
+    # Luminance only: a saturated wash keeps its hue, so the water/vegetation
+    # score compute_tile_colours reads cannot move even if the pre-pass were
+    # ever misplaced upstream of it.
+    wash = _Image.new("RGB", (200, 100), (70, 110, 200))
+    for x in range(100, 200):
+        for y in range(100):
+            wash.putpixel((x, y), (245, 240, 230))
+    wash_tiles = [(0, 0, 100, 100), (100, 0, 100, 100)]
+    plain = compute_tile_colours(wash, wash_tiles, 200, 100)
+    equalized = compute_tile_colours(apply_clahe(wash, 2.0, 8), wash_tiles, 200, 100)
+    assert plain[(0, 0, 100, 100)] > 0.9 and equalized[(0, 0, 100, 100)] > 0.9, (plain, equalized)
+    assert plain[(100, 0, 100, 100)] < 0.1 and equalized[(100, 0, 100, 100)] < 0.1, (plain, equalized)
 
     # ── AOI triage ──────────────────────────────────────────────────────────
     # Corners in any order normalise to a corner-ordered rect.

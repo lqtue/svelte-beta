@@ -38,6 +38,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from iiif_tiles import (
     AOI_GEO_HINT,
     adaptive_render_size,
+    apply_clahe,
     aoi_tile_overrides,
     auto_tile_overrides,
     auto_tile_params,
@@ -139,6 +140,31 @@ def render_preview(
 # ── Subcommands ───────────────────────────────────────────────────────────────
 
 
+def clahe_prep(args: argparse.Namespace):
+    """Build the tile pre-pass from the --clahe flags, or None when it is off.
+
+    The returned callable is applied at the **last** point before a tile's
+    bytes reach the model — after both tile caches, after the shared overview
+    that feeds `compute_tile_colours`. So the caches keep raw pixels (an A/B
+    eval reuses the same cached tiles and only the pre-pass differs, and a
+    later run without the flag is not served an equalized tile), and the
+    water/vegetation wash scores are structurally out of reach.
+    """
+    if not getattr(args, "clahe", False):
+        return None
+    spec = str(getattr(args, "clahe_grid", "8")).lower()
+    grid: int | tuple[int, int]
+    if "x" in spec:
+        r, _, c = spec.partition("x")
+        grid = (int(r), int(c))
+    else:
+        grid = int(spec)
+    clip = float(getattr(args, "clahe_clip", 2.0))
+    print(f"  CLAHE pre-pass ON (clip={clip}, grid={spec}) — advisory, "
+          f"not yet in EVAL-BASELINE.md")
+    return lambda img: apply_clahe(img, clip, grid)
+
+
 def cmd_run(args: argparse.Namespace) -> None:
     # Resolve IIIF base
     iiif_base = args.iiif_base
@@ -178,6 +204,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         tiles = tiles[: args.limit]
 
     print(f"Processing {len(tiles)} tile(s) with model {model}")
+    clahe = clahe_prep(args)
 
     for i, (x, y, w, h) in enumerate(tiles, 1):
         tile_key = f"{x}_{y}_{w}_{h}"
@@ -200,6 +227,8 @@ def cmd_run(args: argparse.Namespace) -> None:
         image = fetch_crop(iiif_base, x, y, w, h, size=render_size, quality=iiif_quality)
         density = estimate_density(image)
         print(f"fetched ({image.size[0]}×{image.size[1]}, density={density:.2f})", end=" ", flush=True)
+        if clahe:
+            image = clahe(image)
 
         # Extract labels
         result = _sanitize_extractions(extract_labels(
@@ -243,6 +272,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         "tile_size": getattr(args, "tile_size", None),
         "overlap": getattr(args, "overlap", None),
         "tiles": [f"{x},{y},{w},{h}" for x, y, w, h in tiles],
+        "clahe": [args.clahe_clip, args.clahe_grid] if getattr(args, "clahe", False) else False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -338,6 +368,8 @@ def cmd_batch(args: argparse.Namespace) -> None:
         )
         print(f"  Auto-tile: tile={tile_size} overlap={overlap} render={render_size} "
               f"(targeting ~{target_calls} calls)")
+
+    clahe = clahe_prep(args)
 
     # Shared 1024px full-image overview — neatline, skip-sparse, and
     # auto-priority all want the same downscale; fetch it at most once.
@@ -519,7 +551,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                         img = fetch_crop(iiif_base, x, y, w, h, size=rs,
                                          local_image=local_image, quality=iiif_quality)
                         img.save(tile_img_path)
-                    row_images.append(img)
+                    row_images.append(clahe(img) if clahe else img)
                     row_order.append(tile)
                 except Exception as e:
                     print(f"  Row {row_idx+1}: could not fetch tile {tile_key}: {e}")
@@ -616,6 +648,8 @@ def cmd_batch(args: argparse.Namespace) -> None:
                     image = fetch_crop(iiif_base, x, y, w, h, size=tile_rs,
                                        local_image=local_image, quality=iiif_quality)
                     image.save(tile_img_path)
+                if clahe:
+                    image = clahe(image)
 
                 result = _sanitize_extractions(extract_labels(
                     image=image,
@@ -767,6 +801,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
         "low_res_render": low_res_render if tile_overrides else None,
         "target_calls": getattr(args, "target_calls", None),
         "smart_grid": getattr(args, "smart_grid", False),
+        "clahe": [args.clahe_clip, args.clahe_grid] if getattr(args, "clahe", False) else False,
         "prior_run": getattr(args, "prior_run", None),
         "n_tiles": total,
         "n_errors": len(errors),
@@ -2323,6 +2358,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--adaptive", action="store_true", help="Auto-scale render size by tile density (dense=2048, sparse=1024)")
     p_run.add_argument("--dry-run", action="store_true", help="Fetch tiles but skip API calls")
     p_run.add_argument("--preview", action="store_true", help="Save PNG preview with bbox overlay")
+    p_run.add_argument("--clahe", action="store_true",
+        help="Adaptive-contrast (CLAHE) pre-pass on each tile before the model call. "
+             "OFF by default — for faded/low-contrast scans; not yet measured against EVAL-BASELINE.md")
+    p_run.add_argument("--clahe-clip", type=float, default=2.0,
+        help="CLAHE clip limit (default 2.0; 1.0 is a no-op, >4 amplifies paper grain)")
+    p_run.add_argument("--clahe-grid", default="8",
+        help="CLAHE grid: N for NxN, or ROWSxCOLS (default 8)")
     p_run.set_defaults(func=cmd_run)
 
     # batch
@@ -2388,6 +2430,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--aoi",
                          help="Study area in WGS84 lng/lat — not supported here; "
                               "errors with a pointer to --aoi-px.")
+    p_batch.add_argument("--clahe", action="store_true",
+        help="Adaptive-contrast (CLAHE) pre-pass on each tile before the model call. "
+             "OFF by default — for faded/low-contrast scans; not yet measured against EVAL-BASELINE.md")
+    p_batch.add_argument("--clahe-clip", type=float, default=2.0,
+        help="CLAHE clip limit (default 2.0; 1.0 is a no-op, >4 amplifies paper grain)")
+    p_batch.add_argument("--clahe-grid", default="8",
+        help="CLAHE grid: N for NxN, or ROWSxCOLS (default 8)")
     p_batch.add_argument("--wash-above", type=float, default=0.6,
                          help="Water/vegetation coverage above which --auto-priority demotes a tile "
                               "one step (default 0.6)")

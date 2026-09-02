@@ -71,6 +71,17 @@ Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max
 
 `--aoi-px x0,y0,x1,y1` limits a run to a study area (District 4 is the first one). It takes **source-image pixels, not lng/lat**: the Allmaps georeference lives on the JS side (`src/lib/server/transformer.ts`), so the caller warps the four WGS84 corners with `GcpTransformer.transformToResource` and passes the pixel bbox. `--aoi` exists only to fail with that instruction. The filter runs *after* `--auto-priority` / `--tile-overrides`, and only ever demotes: a tile overlapping the AOI keeps whatever priority it had, a tile outside becomes `skip`, and a tile straddling the boundary counts as inside. So an AOI covering the whole map changes nothing.
 
+`--clahe` turns on an adaptive-contrast pre-pass before a tile's bytes reach the model. Faded colonial scans lose their thin hand-lettered toponyms into the paper: locally the ink-to-paper gap is a handful of grey levels while the sheet still spans the full range, so a plain histogram stretch does nothing and CLAHE equalizes per region instead. `--clahe-clip` (default 2.0) caps the amplification so flat paper between strokes does not become noise; `--clahe-grid` (default 8, or `RxC`) sets the region grid. It runs on **luminance only** — equalizing per RGB channel would move hue and saturation, and `compute_tile_colours` scores the water and vegetation wash in HSV. It is also applied after both tile caches and after the shared overview the colour pass reads, so the caches keep raw pixels, an A/B run reuses the same cached tiles, and the wash scores are structurally out of reach.
+
+**Off by default, and it must stay off until it is measured.** The idea is borrowed from Pastmaps, which runs adaptive contrast on every sheet so computer vision can read faded copperplate, but borrowed practice is not evidence about *our* corpus. To measure it, run the eval set both ways against the ground truth in `work/ocr/EVAL-BASELINE.md`:
+
+```bash
+python work/ocr/scripts/eval.py --run-id baseline-noclahe
+python work/ocr/scripts/eval.py --run-id baseline-clahe --clahe
+```
+
+Default it on only if recall improves and precision does not fall — a pre-pass that finds two more street names while inventing three is a loss. Record the numbers in `EVAL-BASELINE.md` either way, including a null result, so nobody re-runs this experiment blind.
+
 ### Local passes (no API — run on the M-series for free)
 
 Two subcommands offload the geometry/digit parts of map OCR to local tools, keeping Gemini for semantic text (place names, legend descriptions). Both live in `work/ocr/scripts/local_vision.py`.
