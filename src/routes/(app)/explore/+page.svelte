@@ -19,7 +19,7 @@
   import { resolveMapRef } from '$lib/features/stories/shared/applyPoint';
   import { createGeoMapStores } from '$lib/map/shell/geoMapSetup';
   import type { Bbox } from '$lib/core/geo/mapBounds';
-  import { layersStore } from '$lib/map/stores/layersStore';
+  import { layersStore, toHistoricalRef } from '$lib/map/stores/layersStore';
   import { fetchPublicStories } from '$lib/data/supabase/stories';
   import { fetchUserRole } from '$lib/data/supabase/role';
   import { createStoryPlayerStore } from '$lib/features/stories/shared/stores/storyStore';
@@ -53,6 +53,7 @@
     LABEL_ZOOM,
   } from '$lib/features/explore/exploreUrl';
   import type { LabelHit } from '$lib/features/catalog/catalogSearch';
+  import { OPACITY_STEP, isTypingTarget, stepByYear } from '$lib/features/explore/exploreKeys';
   import '$styles/layouts/mode-shared.css';
 
   type Mode = 'location' | 'all';
@@ -247,6 +248,35 @@
       mapStore.setView({ lng: h.lng, lat: h.lat, zoom: LABEL_ZOOM });
     else void zoomToMap(map, { force: true });
   }
+  /**
+   * Keyboard time scrubber: ← / → walk the top overlay through the years,
+   * ↑ / ↓ move its opacity. The camera deliberately stays put — holding one
+   * spot still while the years change is the point.
+   */
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+    const top = $layersStore.overlays[0];
+    if (!top) return;
+
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const next = stepByYear(mapList, top.ref.mapId, e.key === 'ArrowLeft' ? -1 : 1);
+      if (!next) return;
+      e.preventDefault();
+      // Add first, then drop the old one, so the map never renders bare.
+      layersStore.addOverlay(toHistoricalRef(next), { opacity: top.opacity });
+      layersStore.removeOverlayByMapId(top.ref.mapId);
+      syncMapParam(next.id);
+      tallyMapOpen(next.id);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const delta = e.key === 'ArrowUp' ? OPACITY_STEP : -OPACITY_STEP;
+      layersStore.setOpacity(top.id, top.opacity + delta);
+    }
+  }
+
   function handleRemoveOverlay(e: CustomEvent<{ mapId: string }>) {
     layersStore.removeOverlayByMapId(e.detail.mapId);
     syncMapParam($layersStore.overlays[0]?.ref.mapId ?? null);
@@ -286,6 +316,8 @@
     }
   });
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <svelte:head>
   <title>Explore — Vietnam Map Archive</title>
