@@ -3,9 +3,79 @@
 **Status:** proposed · **Owner:** lqtue · **Baseline:** VMA `feat/label-search` @ bccd495, HACW `main` @ 2026-08-30, Tasco `platform/docs` read 2026-09-02.
 Detail for the "Platform" idea in `docs/strategy.md`; Track E product plan is `docs/time-machine-plan.md`.
 
-**For the hurried reader.** Three codebases share an author: VMA (SvelteKit, legacy syntax, OpenLayers + Allmaps, Supabase, Python workers), HACW (SvelteKit, runes, MapLibre + shipped PMTiles, no backend), and Tasco's mobility platform (employer's Go/React monorepo — a source of practices, not code). Tasco's docs encode one rule that settles the unification question: **promote something to shared only when a second real consumer exists** (`tasco/platform/docs/engineering-workflow.md:79`). Applied honestly, that yields a small pnpm monorepo whose shared surface is **contracts, basemap recipe, deploy conventions, docs system, decision register** — and leaves map engine, data store, auth, design tokens and Svelte syntax per-app. Unify the seams, not the bodies.
+**For the hurried reader.** At the core is not an app but a **place-time index**: Postgres + PostGIS answering *what was here, when, and what was it called* (§0). Three codebases share an author: VMA (SvelteKit, legacy syntax, OpenLayers + Allmaps, Supabase, Python workers), HACW (SvelteKit, runes, MapLibre + shipped PMTiles, no backend), and Tasco's mobility platform (employer's Go/React monorepo — a source of practices, not code). Tasco's docs encode one rule that settles the unification question: **promote something to shared only when a second real consumer exists** (`tasco/platform/docs/engineering-workflow.md:79`). Applied honestly, that yields a small pnpm monorepo whose shared surface is **contracts, basemap recipe, deploy conventions, docs system, decision register** — and leaves map engine, data store, auth, design tokens and Svelte syntax per-app. Unify the seams, not the bodies.
 
 ---
+
+## 0. The engine — a place-time index in Postgres
+
+Everything above is packaging. The thing being packaged is one query:
+
+> **`(lng, lat, year?)` → everything the archive knows about that spot**, and its inverse **`text` → places** (E1 shipped that half).
+
+That is what no competitor has. `pastmaps` browses rasters; `hanoimaps` is a static site; a IIIF viewer serves pixels. An archive that can answer *what was here, when, and what did people call it* is a data product, and the apps in §2 are its clients.
+
+### Where the geometry is today
+
+| Content | Geometry stored as | Queryable by location in SQL? |
+|---|---|---|
+| `maps` | `bbox` column | yes, coarse |
+| `ocr_extractions` (labels) | source-image pixels `global_*` | **no** — warped in TypeScript per request |
+| `footprint_submissions` | source-image pixels `pixel_polygon` | **no** — same |
+| legend points | not stored; computed per request | no |
+| `story_points` | lng/lat | yes |
+| press sources (E3) | not stored; fetched live | no |
+
+Every map-derived row is in pixel space, and the pixel→geo warp happens in `$lib/server/transformer.ts` on each request. So "what was here in 1923" cannot be one query today. Closing that is the engine.
+
+### Decision: PostGIS, warped on write, read through RPCs
+
+1. **`create extension postgis`.** Supabase's Postgres ships it; no new infrastructure, no second store.
+2. **Add derived geometry beside the pixel columns**, never instead of them:
+   - `ocr_extractions.geom geography(Point,4326)` — the bbox centre warped.
+   - `footprint_submissions.geom geography(Polygon,4326)` — the ring warped.
+   - both plus `geom_src text` (the annotation version the warp used) and `geom_rmse double precision` (that map's GCP residual).
+   - GiST index on each; `geom` is null until warped, and null is a legitimate state (ungeoreferenced map).
+
+   Pixel coordinates stay the master; `geom` is **derived, disposable and rebuildable** — the rule from `tasco/platform/docs/map-data-operations.md:39-45`. Nothing hand-edits it, and `geom_src` is what says whether it is stale.
+3. **Warp on write, in the writer that already holds the transformer.** Every path into these tables is a server route on the service key: `/api/pipeline/results` (worker OCR rows), `/api/contribute/footprints` (hand traces), `/api/admin/maps/[id]/ocr-review` (manual bboxes and coordinate edits). Each already resolves the map, so each computes `geom` inline. Re-georeferencing is the only other event that invalidates it: `$lib/server/annotationMirror.ts` enqueues one `warp` job per map, and the worker recomputes that map's rows through `/api/pipeline/execute` — the kind that runs server-side because it needs the service key. One new job kind, no new machinery.
+4. **Read through RPCs, never PostgREST on a geometry column.** `supabase gen types` renders PostGIS types as `unknown`, and a client that selects `geom` gets WKB it cannot use. Two functions, both `security definer`, both gated exactly as migrations 063/065 gate their tables:
+
+   ```
+   context_at(lng, lat, radius_m default 150, year_from default null, year_to default null,
+              public_only default true) → jsonb
+     { maps: [...], labels: [...], footprints: [...], legend_points: [...], stories: [...] }
+   ```
+
+   Each item carries `map_id`, `year`, `distance_m`, and the warp's own `geom_rmse`, so a caller can weigh a 1799 sketch differently from a 1923 cadastral plan. Sister function `map_context(map_id)` answers the map-centric view (everything this sheet knows), which is what `/api/export/footprints` and the thesis notebook want.
+
+### Why this is the platform's first contract, ahead of stories
+
+`context.schema.json` has more real consumers than anything else on the §3 table:
+
+| Consumer | Uses |
+|---|---|
+| archive `/explore` | click the map → "here, across time" panel |
+| archive E3 | nearby label names → the Gallica query, instead of one clicked label |
+| `apps/event` | "what stood here in 1923" on a festival map, no Supabase client needed |
+| `work/analysis/district4` | AOI query per year instead of warping in the notebook |
+| Tasco / any planner | the same call with a different AOI |
+| an LLM tool later | one function, one JSON shape: "ask the archive about this place" |
+
+So step 2 of §6 leads with `context.schema.json`, and `story.schema.json` follows.
+
+### What this changes in the tracker
+
+- **B8 un-defers, re-scoped.** It was written as "PostGIS on footprints + `build_pmtiles`", deferred because a geometry column only pays off when /explore wants city-wide layers. That reasoning holds for *rendering* and is wrong for *querying*: the index pays for itself the first time anything asks a spatial question, which E3 and the thesis both do. Vector tiles stay deferred; `build_pmtiles` stays a non-goal.
+- **E2's export becomes a view over the index** rather than a warp loop per request.
+- **E1 is already the inverse half** of the engine — text → place. `context_at` is place → everything.
+
+### Honest limits, carried in the response
+
+- **Warp error is per map and sometimes large.** A 1799 sketch has few GCPs and metres of residual; asking for a 150 m radius there is fiction dressed as data. Every row returns `geom_rmse` and the UI shows it. Flag, never pretend — `tasco/BUILDINGS_PLAN.md:345-347`.
+- **`geom_src` is the staleness contract.** A map re-georeferenced after a warp has rows whose `geom_src` no longer matches its annotation; the `warp` job clears that, and a mismatch is a queryable defect rather than silent drift.
+- **Radius, not containment.** A label's point is its bbox centre, not its extent, so `context_at` answers "near here", and the honest unit for a street name is tens of metres.
+- **No temporal database.** `year` comes from the map the row was observed on; there is no `valid_to` and no attempt at continuity between sheets. Change is computed by comparing two years, in the notebook or in the caller.
 
 ## 1. What Tasco's docs teach, and what we adopt
 
@@ -66,6 +136,7 @@ Two apps, two packages. No `packages/ui`, no `packages/map`, no `packages/tokens
 
 | Contract / package | Producer | Consumers | Status |
 |---|---|---|---|
+| `context.schema.json` — `context_at(lng, lat, radius, years)` → maps · labels · footprints · legend points · stories, each with `year`, `distance_m`, `geom_rmse` | archive RPC (§0) | archive `/explore` + E3, event map, thesis notebook, any planner AOI, an LLM tool later | **The engine's contract.** Leads step 2 |
 | `story.schema.json` — tour with stops `{id, title, lng, lat, mapId?, year?, body, media[]}` | archive `/create` | archive `/trip`, event `/tours` + check-in | **The unification with teeth.** Author once in the archive, ship frozen JSON in the event PWA. Replaces HACW's hand-edited `tours.json`. |
 | `label-hit.schema.json` — `/api/search?include=labels` row | archive API | archive `/catalog` + `/explore`, event map (historical labels as pins), thesis notebook | Shipped in E1; freeze shape |
 | `legend-point.schema.json` | archive API | archive `LegendPointsLayer`, event map | Freeze |
@@ -111,7 +182,8 @@ Reopen any row when a second consumer appears (e.g. an archive "field mode" that
 |---|---|---|---|
 | 0 | E1 → E2 → E3 ship as planned in the archive | — | — |
 | 1 | `packages/basemap`: one `pmtiles_extract.sh`, flavor overrides; archive `basemapStyle.ts` and HACW `map-style.js` both point at it | archive + event | now |
-| 2 | `packages/contracts` with `label-hit`, `legend-point`, `footprint-feature`; archive API validates its own output against them in the write smoke | archive API + thesis notebook (E2) | E2 export upgrade |
+| 1.5 | **The engine** (§0): PostGIS, `geom`/`geom_src`/`geom_rmse` on labels and footprints, warp-on-write in the three server writers, one `warp` job kind, `context_at` + `map_context` RPCs. Re-scopes B8 | archive `/explore` + E3 + thesis | E2's seg runner (so footprints exist to index) |
+| 2 | `packages/contracts` leading with `context.schema.json`, then `label-hit`, `legend-point`, `footprint-feature`; archive API validates its own output against them in the write smoke | archive API + thesis notebook (E2) | step 1.5 |
 | 3 | `story.schema.json`; archive `/create` exports it; HACW `/tours` reads it | archive + event | step 2 |
 | 4 | `git subtree add` HACW → `apps/event`; pnpm workspace; root lanes; CF Pages root dir per app | — | step 3 (so the import carries a real shared dependency, not a hope) |
 | 5 | Archive moves root → `apps/archive`; CF Pages root dir change; repo rename | — | step 4, one PR, nothing else in it |
@@ -132,3 +204,5 @@ Reopen any row when a second consumer appears (e.g. an archive "field mode" that
 | Step 3 finds HACW tours need fields the archive story model should not carry (GPS radius, quiz, points) | `story.schema.json` becomes a *base* the event extends; if the extension is bigger than the base, drop the shared contract and keep the monorepo for basemap + deploy only |
 | Two apps in one workspace slow `check`/`build` past what one did | Per-app lanes only; root lane runs on changed paths (`ci-cd-flow.md:195` — err toward more) |
 | No second event ships within a year of step 4 | `apps/event` is a one-off; archive it under `_archive/` and stop paying workspace cost |
+| `context_at` returns rows whose `geom_rmse` makes them unusable at any radius a user would ask for, on most maps | The engine is a per-map tool, not a city-wide one: keep `map_context`, drop `context_at` from the public surface, and say so |
+| Warp-on-write turns out to need the annotation more often than the three writers hold it | Move the warp wholly into the `warp` job (write null, backfill async) rather than duplicating transformer fetches |
