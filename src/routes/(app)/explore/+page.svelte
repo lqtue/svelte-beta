@@ -30,6 +30,7 @@
   import GpsTracker from '$lib/map/shell/GpsTracker.svelte';
   import StoryMarkers from '$lib/features/stories/shared/StoryMarkers.svelte';
   import LegendPointsLayer from '$lib/features/explore/LegendPointsLayer.svelte';
+  import FocusPulse from '$lib/features/explore/FocusPulse.svelte';
   import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
   import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
   import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
@@ -84,7 +85,7 @@
   let appliedUrl = false;
 
   const { addMapOverlay, setViewFromBounds, zoomToMap } = createExploreZoom(mapStore);
-  const { syncMapParam, tallyMapOpen } = createExploreUrl({
+  const { syncMapParam, syncAtParam, tallyMapOpen } = createExploreUrl({
     supabase,
     role: () => role,
     markApplied: () => (appliedUrl = true),
@@ -105,6 +106,8 @@
   // Numbered-legend point overlay — gated to the active (top) overlay map.
   $: activeOverlayMapId = $layersStore.overlays[0]?.ref.mapId ?? null;
   let showLegendPoints = false;
+  /** The spot a search hit sent us to, pulsed once so it is findable. */
+  let focusPoint: { lng: number; lat: number } | null = null;
   $: if (!activeOverlayMapId) showLegendPoints = false;
   $: playerState = $storyPlayer;
   $: activeStoryProgress = activeStory ? (playerState.progress[activeStory.id] ?? null) : null;
@@ -137,7 +140,10 @@
       addMapOverlay,
       tallyMapOpen,
       zoomToMap,
-      setView: (v) => mapStore.setView(v),
+      setView: (v) => {
+        mapStore.setView(v);
+        focusPoint = { lng: v.lng, lat: v.lat };
+      },
       startStory: (story) => {
         activeStory = story;
         storyPlayer.startStory(story.id);
@@ -244,9 +250,13 @@
     addMapOverlay(map);
     syncMapParam(map.id);
     tallyMapOpen(map.id);
-    if (h.lng != null && h.lat != null)
+    if (h.lng != null && h.lat != null) {
       mapStore.setView({ lng: h.lng, lat: h.lat, zoom: LABEL_ZOOM });
-    else void zoomToMap(map, { force: true });
+      focusPoint = { lng: h.lng, lat: h.lat };
+      syncAtParam(focusPoint);
+    } else {
+      void zoomToMap(map, { force: true });
+    }
   }
   /**
    * Keyboard time scrubber: ← / → walk the top overlay through the years,
@@ -403,6 +413,7 @@
         on:error={handleGpsError}
       />
       <LegendPointsLayer mapId={activeOverlayMapId} enabled={showLegendPoints} />
+      <FocusPulse point={focusPoint} />
       {#if activeStory}
         <StoryMarkers
           points={activeStory.points}

@@ -7,7 +7,7 @@
  * mechanism for the same thing and was dropped — see `$lib/map/stores/urlStore.ts`.
  * The hash reader stays tolerant of `map=` so old links still land here.
  */
-import { pushState } from '$app/navigation';
+import { pushState, replaceState } from '$app/navigation';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/data/supabase/types';
 import type { MapListItem } from '$lib/data/maps/types';
@@ -25,6 +25,8 @@ export interface ExploreUrlOptions {
 
 export interface ExploreUrl {
   syncMapParam(mapId: string | null): void;
+  /** Writes (or clears) `?at=` so the spot the reader landed on is shareable. */
+  syncAtParam(at: { lng: number; lat: number } | null): void;
   tallyMapOpen(mapId: string): void;
 }
 
@@ -70,7 +72,24 @@ export function createExploreUrl({ supabase, role, markApplied }: ExploreUrlOpti
     recordMapOpen(supabase, mapId);
   }
 
-  return { syncMapParam, tallyMapOpen };
+  /**
+   * `?at=` is the spot, `?map=` is the sheet. Written on a label pick so the
+   * reader can copy the URL and hand someone the same place on the same map;
+   * cleared when the overlay changes, because a coordinate from one sheet is
+   * not a claim about another.
+   */
+  function syncAtParam(at: { lng: number; lat: number } | null) {
+    const url = new URL(window.location.href);
+    if (at) url.searchParams.set('at', `${at.lng.toFixed(6)},${at.lat.toFixed(6)}`);
+    else url.searchParams.delete('at');
+    if (url.href === window.location.href) return;
+    markApplied();
+    // replaceState, not pushState: the map param already made a history entry
+    // for this pick, and a second one would make Back feel broken.
+    replaceState(url, {});
+  }
+
+  return { syncMapParam, syncAtParam, tallyMapOpen };
 }
 
 export interface ApplyExploreUrlParams {
