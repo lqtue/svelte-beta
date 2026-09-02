@@ -9,6 +9,13 @@
 -- A view, not a table. The grouping is cheap, the source rows are the master,
 -- and a materialised copy would need a refresh policy nobody would maintain.
 --
+-- Every PostGIS reference below is schema-qualified as `extensions.*`. A view
+-- has no `set search_path`, and the role Supabase's migration runner uses does
+-- not carry `extensions` on its path — this failed on production exactly once
+-- with `type "geometry" does not exist` while passing locally, where the
+-- `postgres` role does carry it. The functions in migration 066 get away with
+-- bare names only because a function *can* pin its own search_path.
+--
 -- `security_invoker = true` is the whole access story: the view inherits
 -- migration 065's read policy on ocr_extractions, so an anonymous caller sees
 -- names from published maps only, and a signed-in contributor sees drafts too.
@@ -46,8 +53,12 @@ as
     mode() within group (order by coalesce(e.category_validated, e.category)) as category,
     -- One representative position: the centroid of everything warped under this
     -- name. Null while nothing has been warped, which is honest rather than 0,0.
-    st_y(st_centroid(st_collect(e.geom::geometry))::geometry)            as lat,
-    st_x(st_centroid(st_collect(e.geom::geometry))::geometry)            as lng,
+    extensions.st_y(
+      extensions.st_centroid(
+        extensions.st_collect(e.geom::extensions.geometry))::extensions.geometry) as lat,
+    extensions.st_x(
+      extensions.st_centroid(
+        extensions.st_collect(e.geom::extensions.geometry))::extensions.geometry) as lng,
     max(e.geom_rmse)                                                     as geom_rmse
     from public.ocr_extractions e
     join public.maps m on m.id = e.map_id
