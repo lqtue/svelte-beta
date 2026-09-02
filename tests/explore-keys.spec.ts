@@ -10,7 +10,10 @@ const m = (id: string, year: number | null, extra: Partial<MapListItem> = {}) =>
 const MAPS = [m('c', 1923), m('a', 1878), m('b', 1898), m('d', 1968)];
 
 test('timeOrder is oldest first and drops maps that cannot be overlaid', () => {
-  const withOrphan = [...MAPS, m('no-georef', 1900, { allmaps_id: undefined, annotation_url: undefined })];
+  const withOrphan = [
+    ...MAPS,
+    m('no-georef', 1900, { allmaps_id: undefined, annotation_url: undefined }),
+  ];
   expect(timeOrder(withOrphan).map((x) => x.id)).toEqual(['a', 'b', 'c', 'd']);
 });
 
