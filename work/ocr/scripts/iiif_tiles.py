@@ -366,6 +366,59 @@ def auto_tile_overrides(
     return out
 
 
+AOI_GEO_HINT = (
+    "--aoi takes WGS84 lng/lat, and this pipeline has no georeferencer: the "
+    "Allmaps transform lives on the JS side (src/lib/server/transformer.ts), "
+    "not in Python. Warp the study area to source-image pixels first "
+    "(GcpTransformer.transformToResource on the map's annotation) and pass "
+    "--aoi-px x0,y0,x1,y1."
+)
+
+
+def parse_aoi_px(spec: str) -> tuple[int, int, int, int]:
+    """Parse "x0,y0,x1,y1" source-image pixels into a corner-ordered rect.
+
+    Corners may arrive in any order — the caller warped four geo corners and
+    a rotated map does not keep them sorted.
+    """
+    try:
+        x0, y0, x1, y1 = (int(round(float(v))) for v in spec.split(","))
+    except ValueError:
+        raise ValueError("--aoi-px must be x0,y0,x1,y1 in source image pixels") from None
+    return min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)
+
+
+def aoi_tile_overrides(
+    tiles: list[tuple[int, int, int, int]],
+    aoi_px: tuple[int, int, int, int],
+    overrides: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Mark every tile outside the AOI "skip", leaving the rest untouched.
+
+    A study area (District 4 is the first one) is a filter, not a priority
+    signal: a tile that overlaps it keeps whatever --auto-priority or the
+    Triage grid decided, and a tile that does not becomes "skip" so the
+    existing override machinery drops it. This never promotes — the AOI can
+    only take tiles away.
+
+    Rectangles are half-open, so a tile whose edge merely touches the AOI
+    boundary counts as outside; a tile straddling it counts as inside.
+
+    # ponytail: the AOI is an axis-aligned rectangle in pixel space. A
+    # rotated or badly-skewed map means the caller's pixel bbox over-covers
+    # the true geo polygon, so a few extra tiles survive. Over-covering costs
+    # API calls; under-covering would lose labels, so the ceiling is the safe
+    # side of the trade.
+    """
+    ax0, ay0, ax1, ay1 = aoi_px
+    out = dict(overrides or {})
+    for tx, ty, tw, th in tiles:
+        inside = tx < ax1 and tx + tw > ax0 and ty < ay1 and ty + th > ay0
+        if not inside:
+            out[f"{tx}_{ty}_{tw}_{th}"] = "skip"
+    return out
+
+
 def auto_tile_params(
     full_w: int,
     full_h: int,
@@ -524,7 +577,7 @@ def choose_scale_levels(
 
 
 def _self_check() -> None:
-    """Colour pre-pass + override rules, with no network and no real map.
+    """Colour pre-pass, override rules and AOI triage — no network, no real map.
 
     Run: python work/ocr/scripts/iiif_tiles.py --self-check
     """
@@ -565,6 +618,51 @@ def _self_check() -> None:
     assert auto_tile_overrides(sparse, colours={tiles[0]: 0.9}) == {"0_0_100_100": "skip"}
     blank = {tiles[0]: 0.0}
     assert auto_tile_overrides(blank, colours={tiles[0]: 0.0}) == {"0_0_100_100": "skip"}
+
+    # ── AOI triage ──────────────────────────────────────────────────────────
+    # Corners in any order normalise to a corner-ordered rect.
+    assert parse_aoi_px("300,80,100,20") == (100, 20, 300, 80)
+    assert parse_aoi_px(" 10 , 10 , 20.6 , 20.4 ") == (10, 10, 21, 20)
+    try:
+        parse_aoi_px("106.7,10.7")
+    except ValueError as e:
+        assert "--aoi-px" in str(e), e
+    else:
+        raise AssertionError("parse_aoi_px accepted a 2-value spec")
+
+    # One row of three 100px tiles; the AOI covers the middle one and clips
+    # 20px into the first, leaving the third untouched by it.
+    row = [(0, 0, 100, 100), (100, 0, 100, 100), (200, 0, 100, 100)]
+    assert aoi_tile_overrides(row, (80, 0, 200, 100)) == {"200_0_100_100": "skip"}
+
+    # Fully inside → untouched; fully outside → skip; straddling → untouched.
+    assert aoi_tile_overrides(row, (100, 0, 200, 100)) == {
+        "0_0_100_100": "skip", "200_0_100_100": "skip"
+    }
+
+    # Touching the boundary is outside: tile 1 ends exactly where the AOI starts.
+    assert aoi_tile_overrides(row, (100, 0, 150, 50)) == {
+        "0_0_100_100": "skip", "200_0_100_100": "skip"
+    }
+
+    # An AOI covering everything changes nothing.
+    assert aoi_tile_overrides(row, (0, 0, 300, 100)) == {}
+    assert aoi_tile_overrides(row, (-1000, -1000, 5000, 5000)) == {}
+
+    # An AOI covering nothing skips every tile.
+    assert aoi_tile_overrides(row, (9000, 9000, 9100, 9100)) == {
+        "0_0_100_100": "skip", "100_0_100_100": "skip", "200_0_100_100": "skip"
+    }
+
+    # Never promotes: an existing skip/low_res inside the AOI is left alone,
+    # and an existing low_res outside it is demoted, not preserved.
+    prior = {"0_0_100_100": "skip", "100_0_100_100": "low_res",
+             "200_0_100_100": "low_res"}
+    assert aoi_tile_overrides(row, (0, 0, 200, 100), prior) == prior | {
+        "200_0_100_100": "skip"
+    }
+    # The caller's dict is not mutated.
+    assert prior["200_0_100_100"] == "low_res"
 
     print("[ok] iiif_tiles self-check passed")
 

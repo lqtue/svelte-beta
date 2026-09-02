@@ -67,7 +67,9 @@ Subcommands (11): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `preview`
 
 `--auto-priority` fills the Triage grid without a human: text density decides blank → skip and sparse → low_res, then a colour pre-pass (`compute_tile_colours`, HSV) demotes any tile that is mostly water or vegetation wash one further step. Demotion only — a misread wash costs resolution, never a tile — and a monochrome scan scores ~0, so nothing happens on grey maps. `--wash-above` (default 0.6) is the threshold.
 
-Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max-row-frames 4`), `--adaptive`, `--target-calls N`, `--smart-grid`, `--skip-sparse`, `--auto-priority`, `--wash-above`, `--tile-overrides '{"x_y_w_h":"skip|low_res"}'`, `--crop x,y,w,h`, `--prior-run <dir>`, `--legend`, `--db`.
+Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max-row-frames 4`), `--adaptive`, `--target-calls N`, `--smart-grid`, `--skip-sparse`, `--auto-priority`, `--wash-above`, `--aoi-px x0,y0,x1,y1`, `--tile-overrides '{"x_y_w_h":"skip|low_res"}'`, `--crop x,y,w,h`, `--prior-run <dir>`, `--legend`, `--db`.
+
+`--aoi-px x0,y0,x1,y1` limits a run to a study area (District 4 is the first one). It takes **source-image pixels, not lng/lat**: the Allmaps georeference lives on the JS side (`src/lib/server/transformer.ts`), so the caller warps the four WGS84 corners with `GcpTransformer.transformToResource` and passes the pixel bbox. `--aoi` exists only to fail with that instruction. The filter runs *after* `--auto-priority` / `--tile-overrides`, and only ever demotes: a tile overlapping the AOI keeps whatever priority it had, a tile outside becomes `skip`, and a tile straddling the boundary counts as inside. So an AOI covering the whole map changes nothing.
 
 ### Local passes (no API — run on the M-series for free)
 

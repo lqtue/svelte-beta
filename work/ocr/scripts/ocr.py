@@ -36,7 +36,9 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from iiif_tiles import (
+    AOI_GEO_HINT,
     adaptive_render_size,
+    aoi_tile_overrides,
     auto_tile_overrides,
     auto_tile_params,
     choose_scale_levels,
@@ -48,6 +50,7 @@ from iiif_tiles import (
     get_image_info,
     get_iiif_base_from_allmaps,
     get_iiif_base_from_supabase,
+    parse_aoi_px,
     tile_grid,
 )
 from gemini_client import DEFAULT_MODEL, extract_labels, extract_labels_sequence, extract_legend, list_models
@@ -253,6 +256,9 @@ def cmd_batch(args: argparse.Namespace) -> None:
     import threading
     from PIL import Image as PILImage
 
+    if getattr(args, "aoi", None):
+        raise SystemExit(AOI_GEO_HINT)
+
     local_image: str | None = getattr(args, "local_image", None)
     iiif_base = args.iiif_base
 
@@ -415,6 +421,19 @@ def cmd_batch(args: argparse.Namespace) -> None:
         washed = sum(1 for v in colours.values() if v >= getattr(args, "wash_above", 0.6))
         if washed:
             print(f"  Colour pre-pass: {washed} tiles are mostly water/vegetation wash")
+
+    # 6b. Study-area filter — everything outside the AOI becomes a skip. Runs
+    # after the priority pass so it can only take tiles away, never promote.
+    if getattr(args, "aoi_px", None):
+        try:
+            aoi = parse_aoi_px(args.aoi_px)
+        except ValueError as e:
+            raise SystemExit(str(e)) from None
+        before = sum(1 for v in tile_overrides.values() if v == "skip")
+        tile_overrides = aoi_tile_overrides(tiles, aoi, tile_overrides)
+        after = sum(1 for v in tile_overrides.values() if v == "skip")
+        print(f"  AOI {aoi}: {after - before} tiles outside the study area → skip")
+
     low_res_render = getattr(args, "low_res_render", 512)
 
     skip_keys = {k for k, v in tile_overrides.items() if v == "skip"}
@@ -2362,6 +2381,13 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Text-density fraction below which --auto-priority marks a tile skip (default 0.01)")
     p_batch.add_argument("--low-res-below", type=float, default=0.08,
                          help="Text-density fraction below which --auto-priority marks a tile low_res (default 0.08)")
+    p_batch.add_argument("--aoi-px",
+                         help="Study-area filter: x0,y0,x1,y1 in source image pixels. "
+                              "Tiles outside it are marked skip; tiles inside keep "
+                              "their existing priority.")
+    p_batch.add_argument("--aoi",
+                         help="Study area in WGS84 lng/lat — not supported here; "
+                              "errors with a pointer to --aoi-px.")
     p_batch.add_argument("--wash-above", type=float, default=0.6,
                          help="Water/vegetation coverage above which --auto-priority demotes a tile "
                               "one step (default 0.6)")
