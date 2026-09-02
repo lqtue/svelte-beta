@@ -35,6 +35,15 @@ Flow: colour pre-pass → OCR → coarse seg (blocks, rivers) → fine seg (buil
 - [ ] deferred: gazetteer link, LoRA shot set
 Runs as B1 jobs (`ocr`, `seg`, `join`) once B1 lands — no more copy-paste CLI.
 
+## Track E — Time machine (`docs/time-machine-plan.md`, planned 2026-09-02)
+Label search → temporal fabric → period sources, on the existing jobs + HITL + RPC substrate. Measured start: OCR on 1 map, zero SAM2 output, 8-map Saigon series 1878→1968 already georeferenced for District 4.
+- [ ] E1 Label search — mig 065 (`pg_trgm` + `unaccent` index, `search_labels` RPC, security invoker so mig 063 gates drafts) · `/api/search?include=labels` warped via `transformer.ts` · results block on /catalog + /explore · `?at=lng,lat` deeplink · `scripts/enqueue_ocr_all.mjs` so the index is not one map
+- [ ] E1b Gazetteer view `place_names` (variants · years · maps) — after E1
+- [ ] E2 Temporal fabric — `seg` runner = worker inside Colab · `iiif_tiles.py --aoi` · export: CSV `map_id`, default `approved`, `year`, `bbox=` · "vectors" toggle per layer row on /explore · `work/analysis/district4/` notebook (metrics + figure series). B8 stays deferred; District 4 review is the C5 eval set
+- [ ] E3 Period sources — `/api/context?q&year` over Gallica SRU/ContentSearch, edge-cached 24 h · "In the press" panel on /explore from label / legend points. No table until pinning is asked for
+- [ ] E4 Corpus growth — georef sprint by decade gap (62 drafts, all 1900–1929) · new scout sources (UT PCL, NARA, ANOM) · Hanoi/Huế basemap extracts later
+- [ ] E5 Building attributes → OSM tags → LoD2 — deferred until E2 fabric is reviewed on ≥ 3 maps; `tags jsonb` lands with its first writer
+
 ## Track D — Burn-down (when it hurts)
 - ~~Basemap on a third-party tile server~~ — **done 2026-09-01**: self-hosted PMTiles (Saigon extract, 37 MB) in R2, served by the existing worker at `iiif.maparchive.vn/basemap/*`, styled in `src/lib/map/basemapStyle.ts`. No key, no quota, no usage policy.
 - ~~43 maps `georef_done` but 404 upstream~~ — **not true as of 2026-09-01**. Measured against production: every one of the 39 `georef_done` maps has a mirrored `annotation_url`, and the 62 that 404 on allmaps.org all have `georef_done = false`, correctly, because they were never georeferenced. `sync-georef` has nothing to fix.
@@ -54,3 +63,5 @@ Runs as B1 jobs (`ocr`, `seg`, `join`) once B1 lands — no more copy-paste CLI.
 
 ## Order
 A1–A4 → B1 → B2 → C0 → C1 → B3 → B4 → B5 → C2… ; B6/B7 interleave when a public/moderation need shows; A5 alongside B3 (RPCs are what make write tests cheap). D never blocks.
+
+Next: **E1 → E2 → E3**; E4 whenever there is human time; E5 not before E2 is reviewed.
