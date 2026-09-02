@@ -32,6 +32,7 @@
   import LegendPointsLayer from '$lib/features/explore/LegendPointsLayer.svelte';
   import FocusPulse from '$lib/features/explore/FocusPulse.svelte';
   import FootprintsLayer from '$lib/features/explore/FootprintsLayer.svelte';
+  import PressPanel from '$lib/features/explore/PressPanel.svelte';
   import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
   import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
   import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
@@ -111,6 +112,8 @@
   let focusPoint: { lng: number; lat: number } | null = null;
   /** Overlay maps whose reviewed footprints are drawn on the ground. */
   let vectorMapIds: string[] = [];
+  /** The place and year the press panel is showing, if any. */
+  let pressFor: { q: string; year: number | null } | null = null;
   $: if (!activeOverlayMapId) showLegendPoints = false;
   $: playerState = $storyPlayer;
   $: activeStoryProgress = activeStory ? (playerState.progress[activeStory.id] ?? null) : null;
@@ -257,6 +260,8 @@
       mapStore.setView({ lng: h.lng, lat: h.lat, zoom: LABEL_ZOOM });
       focusPoint = { lng: h.lng, lat: h.lat };
       syncAtParam(focusPoint);
+      // The label names the place, the sheet it came from dates it.
+      pressFor = { q: h.text, year: h.year ?? map.year ?? null };
     } else {
       void zoomToMap(map, { force: true });
     }
@@ -476,6 +481,11 @@
       {#if gpsError}
         <div class="gps-error" role="alert">{gpsError}</div>
       {/if}
+      <PressPanel
+        q={pressFor?.q ?? null}
+        year={pressFor?.year ?? null}
+        on:close={() => (pressFor = null)}
+      />
     </svelte:fragment>
   </MapWorkspace>
 
