@@ -1172,6 +1172,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      f_unaccent: { Args: { "": string }; Returns: string }
+      label_key: {
+        Args: { p_text: string; p_validated: string }
+        Returns: string
+      }
+      search_labels: {
+        Args: { p_limit?: number; p_public_only?: boolean; p_q: string }
+        Returns: {
+          category: string
+          confidence: number
+          h: number
+          id: string
+          label: string
+          map_id: string
+          sim: number
+          w: number
+          x: number
+          y: number
+        }[]
+      }
       finish_job: {
         Args: {
           p_error?: string

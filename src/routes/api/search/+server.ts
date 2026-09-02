@@ -1,7 +1,11 @@
 // Unified search across `maps` and (admin-only) `scout_candidates`.
 // Powers the upgraded /catalog search bar + facet rail.
 //
-// GET /api/search?q=<text>&institution=<csv>&type=<csv>&period=<csv>&georef=<bool>&source=<csv>&include=maps,scout&limit=60&offset=0
+// GET /api/search?q=<text>&institution=<csv>&type=<csv>&period=<csv>&georef=<bool>&source=<csv>&include=maps,scout,labels&limit=60&offset=0
+//
+// `include=labels` searches *inside* the maps: OCR'd labels via the
+// `search_labels` RPC (mig 065, trigram word-similarity), each warped to lng/lat
+// through the map's georeference so the client can jump straight to the spot.
 //
 // Facets are computed against the search-applied set (q + admin gate) but
 // BEFORE the facet filters themselves are applied — so each chip shows how
@@ -13,6 +17,25 @@ import { getRole } from '$lib/server/auth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { dbError } from '$lib/server/http';
 import { tally } from '$lib/server/facets';
+import { getTransformer } from '$lib/server/transformer';
+
+/** Distinct maps whose annotation we will fetch to warp label hits, per request. */
+const MAX_LABEL_MAPS = 20;
+const LABEL_LIMIT = 60;
+
+export interface LabelHit {
+  id: string;
+  map_id: string;
+  map_name: string | null;
+  year: number | null;
+  text: string;
+  category: string;
+  /** Source-image pixel bbox [x, y, w, h]. */
+  bbox: [number, number, number, number];
+  /** Null when the map has no usable annotation. */
+  lng: number | null;
+  lat: number | null;
+}
 
 // No pagination UI on the catalog/sidebar yet, so the page slice must be able
 // to hold the whole archive. Raw queries keep their own 2000-row safety ceiling.
@@ -64,6 +87,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   const includeScout = (role === 'admin' || role === 'mod') && includeReq.includes('scout');
   const includeMaps = !includeReq.length || includeReq.includes('maps');
+  const includeLabels = !!q && includeReq.includes('labels');
 
   // ---------- MAPS ----------
   // We fetch a broad set (search applied; facet filters NOT applied) so we can tally facets,
@@ -101,6 +125,60 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     const { data, error: err } = await qScout;
     if (err) dbError(err, 'Scout search failed');
     scoutRows = (data as Record<string, unknown>[]) || [];
+  }
+
+  // ---------- LABELS ----------
+  // Fuzzy match on the OCR text, one row per (map, label). Draft maps are gated
+  // in the RPC for public callers; staff see everything, like the maps block.
+  const labels: LabelHit[] = [];
+  if (includeLabels) {
+    const { data: hits, error: err } = await supabase.rpc('search_labels', {
+      p_q: q,
+      p_public_only: role !== 'admin' && role !== 'mod',
+      p_limit: LABEL_LIMIT,
+    });
+    if (err) dbError(err, 'Label search failed');
+
+    const mapIds = [...new Set((hits ?? []).map((h) => h.map_id))].slice(0, MAX_LABEL_MAPS);
+    if (mapIds.length) {
+      const { data: labelMaps } = await supabase
+        .from('maps')
+        .select('id, name, year, allmaps_id, annotation_url')
+        .in('id', mapIds);
+      const byId = new Map((labelMaps ?? []).map((m) => [m.id, m]));
+      const transformers = new Map(
+        await Promise.all(
+          [...byId.values()].map(
+            async (m) => [m.id, await getTransformer(m.allmaps_id, m.annotation_url)] as const
+          )
+        )
+      );
+      for (const h of hits ?? []) {
+        const m = byId.get(h.map_id);
+        if (!m) continue; // past the MAX_LABEL_MAPS cut
+        const t = transformers.get(h.map_id);
+        let lng: number | null = null;
+        let lat: number | null = null;
+        if (t) {
+          try {
+            [lng, lat] = t.transformer.transformToGeo([h.x + h.w / 2, h.y + h.h / 2]);
+          } catch {
+            /* a GCP set that cannot warp this point: leave null, the hit still lists */
+          }
+        }
+        labels.push({
+          id: h.id,
+          map_id: h.map_id,
+          map_name: m.name,
+          year: m.year,
+          text: h.label,
+          category: h.category,
+          bbox: [h.x, h.y, h.w, h.h],
+          lng,
+          lat,
+        });
+      }
+    }
   }
 
   // ---------- FACETS (pre-filter) ----------
@@ -257,7 +335,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   return json({
     maps: mapsOut,
     scout: scoutOut,
-    total: { maps: filteredMaps.length, scout: filteredScout.length },
+    labels,
+    total: { maps: filteredMaps.length, scout: filteredScout.length, labels: labels.length },
     limit,
     offset,
     facets,

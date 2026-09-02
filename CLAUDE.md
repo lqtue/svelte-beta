@@ -46,13 +46,13 @@ Never import a Node builtin bare (`import('path')`); the CF Functions bundle err
 
 `npm run test` starts a dev server on 5173, or reuses one already running. The **seven** smokes are **read-only** — they hit the real Supabase project but never write.
 
-**Write paths** are covered separately by `npm run test:write` (`tests/write.spec.ts`, four tests) against a **local** stack, never production: `npm run db:test` runs `supabase start -x vector -x logflare` and seeds one staff user + one map via `scripts/seed-test-db.mjs`. The suite throws unless `PUBLIC_SUPABASE_URL` is a loopback address, and deletes every row it writes. Credentials come from `.env.test` (the CLI's published demo keys, committed on purpose) which Vite loads for the `--mode test` dev server on port 5199. Server-route auth is done by letting `@supabase/ssr` mint the session cookies, so chunking and encoding match the app exactly.
+**Write paths** are covered separately by `npm run test:write` (`tests/write.spec.ts`, seventeen tests) against a **local** stack, never production: `npm run db:test` runs `supabase start -x vector -x logflare` and seeds one staff user + one map via `scripts/seed-test-db.mjs`. The suite throws unless `PUBLIC_SUPABASE_URL` is a loopback address, and deletes every row it writes. Credentials come from `.env.test` (the CLI's published demo keys, committed on purpose) which Vite loads for the `--mode test` dev server on port 5199. Server-route auth is done by letting `@supabase/ssr` mint the session cookies, so chunking and encoding match the app exactly.
 
 Local ports are **54421** for the API and **54420** for the shadow DB, not the CLI defaults — 54321/54320 collide with another local project. `-x vector -x logflare` is needed under colima: those containers bind-mount `/var/run/docker.sock`, which colima cannot provide.
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **064**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **065**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -92,7 +92,7 @@ VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 064, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 065, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block — the `vma-theme` boot script in `src/app.html` is vestigial (nothing writes the key, no CSS consumes it). Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
@@ -256,14 +256,14 @@ Public / other:
 
 - `/api/maps/[id]/legend-points/` — **public** GET. Numbered-legend references placed on the ground: each body numeral (`category = 'legend_ref'`) warped to lng/lat via the map's Allmaps georeference, joined to its `legend_entry` for a name. Legend-internal numbers are dropped. Rendered by `src/lib/features/explore/LegendPointsLayer.svelte`.
 - `/api/admin/scout/`, `/api/admin/scout/[id]/` — see `docs/admin-tooling.md`.
-- `/api/search/` — unified GET over `maps` + (admin/mod) `scout_candidates`. Postgres tsvector via `.textSearch('search_vector', q, { config: 'simple' })`. Query: `q, institution, type, period, source, scoutSource, category, georef, include=maps,scout, limit, offset`. Returns `{ maps, scout, total, facets, periods, role }`; facet tallies are declarative via `$lib/server/facets.ts` ("all-but-this-dimension"). Public users get `status IN ('public','featured')` server-enforced; `include=scout` is silently dropped for non-admin/mod.
+- `/api/search/` — unified GET over `maps` + (admin/mod) `scout_candidates`. Postgres tsvector via `.textSearch('search_vector', q, { config: 'simple' })`. Query: `q, institution, type, period, source, scoutSource, category, georef, include=maps,scout,labels, limit, offset`. Returns `{ maps, scout, labels, total, facets, periods, role }`; facet tallies are declarative via `$lib/server/facets.ts` ("all-but-this-dimension"). Public users get `status IN ('public','featured')` server-enforced; `include=scout` is silently dropped for non-admin/mod. **`include=labels`** searches *inside* the maps: the `search_labels` RPC (mig 065, `pg_trgm` word-similarity ≥ 0.5 over unaccented `ocr_extractions` text, one row per map × label, drafts gated by role) and each hit's bbox centre warped to lng/lat via `$lib/server/transformer.ts`. Rendered by `LabelHits.svelte` on /catalog (links to `/explore?map=<id>&at=<lng>,<lat>`) and in /explore's browse pane (stacks the map, lands on the spot). Only maps that have been OCR'd can hit — `scripts/enqueue_ocr_all.mjs` queues the rest.
 - `/auth/callback/`.
 
 `/api/admin/upload-image` and `/api/admin/labels/*` were deleted (Aug 2026) — do not reintroduce references.
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **064**). Key tables:
+Schema lives in `supabase/migrations/` (head **065**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
@@ -275,7 +275,7 @@ Schema lives in `supabase/migrations/` (head **064**). Key tables:
 | `label_pins` | Point annotations | `map_id → maps.id`, pixel coords. `label_tasks` was dropped in mig 038 |
 | `footprint_submissions` | Polygon traces + SAM2 output | `map_id → maps.id`; status ∈ `draft/submitted/needs_review/approved/rejected`, source ∈ `volunteer/sam-auto/sam-corrected/import` (both widened in mig 055 — 038's lists rejected every SAM2 write); `pixel_polygon`; `run_id` (mig 057) pins a segmentation run so the OCR join cannot mix runs |
 | `annotation_sets` | User GeoJSON | `map_id → maps.id` nullable, `user_id → auth.users` |
-| `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join |
+| `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join. Read policy inherits the map's gate since mig 065 (published, or any signed-in user) |
 | `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (9 values incl. `join`, mig 061) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs |
 | `worker_keys` | Per-machine revocable worker credentials (mig 053) | `token_hash` (sha256), `kinds`, `revoked_at`. Written in step 2; the table exists now |
 | `map_pipeline_status` | Per-map pipeline state — **a view since mig 056** | Machine stages derived from `pipeline_jobs`, human stages from `map_review_marks`. Read-only; nothing writes it |

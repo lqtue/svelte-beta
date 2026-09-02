@@ -41,7 +41,22 @@ const DEBOUNCE_MS = 100;
 type Row = Record<string, any>;
 type Selected = Record<string, string[]>;
 
+/** One OCR'd label matched inside a map — `/api/search?include=labels`. */
+export interface LabelHit {
+  id: string;
+  map_id: string;
+  map_name: string | null;
+  year: number | null;
+  text: string;
+  category: string;
+  bbox: [number, number, number, number];
+  lng: number | null;
+  lat: number | null;
+}
+
 export interface CatalogSearchController {
+  /** Labels found *on* maps for the current query (empty when the query is blank). */
+  labels: Readable<LabelHit[]>;
   query: Writable<string>;
   selected: Writable<Selected>;
   includeScout: Writable<boolean>;
@@ -137,9 +152,13 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
   const loading = writable(false);
   const rawMaps = writable<Row[]>([]);
   const rawScout = writable<Row[]>([]);
+  const labels = writable<LabelHit[]>([]);
   const periods = writable<PeriodDef[]>(DEFAULT_PERIODS);
 
-  const cache = new Map<string, { maps: Row[]; scout: Row[]; periods: PeriodDef[] }>();
+  const cache = new Map<
+    string,
+    { maps: Row[]; scout: Row[]; labels: LabelHit[]; periods: PeriodDef[] }
+  >();
   let inflight: AbortController | null = null;
   let started = false;
 
@@ -148,7 +167,11 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
   function buildQS(q: string, scout: boolean): string {
     const sp = new URLSearchParams();
     if (q.trim()) sp.set('q', q.trim());
-    if (scout) sp.set('include', 'maps,scout');
+    // Labels only mean something against a query; the server skips them otherwise.
+    sp.set(
+      'include',
+      ['maps', ...(scout ? ['scout'] : []), ...(q.trim() ? ['labels'] : [])].join(',')
+    );
     sp.set('limit', String(FETCH_LIMIT));
     return sp.toString();
   }
@@ -162,6 +185,7 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
       periods.set(hit.periods);
       rawMaps.set(hit.maps);
       rawScout.set(hit.scout);
+      labels.set(hit.labels);
       loading.set(false);
       return;
     }
@@ -175,12 +199,14 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
       const entry = {
         maps: json.maps ?? [],
         scout: json.scout ?? [],
+        labels: json.labels ?? [],
         periods: json.periods ?? DEFAULT_PERIODS,
       };
       cache.set(key, entry);
       periods.set(entry.periods);
       rawMaps.set(entry.maps);
       rawScout.set(entry.scout);
+      labels.set(entry.labels);
     } catch (e: any) {
       if (e?.name !== 'AbortError') console.error('catalog search failed:', e);
     } finally {
@@ -312,6 +338,7 @@ export function createCatalogSearch(opts: CatalogSearchOptions = {}): CatalogSea
     periods,
     rawMaps,
     rawScout,
+    labels,
     filteredMaps,
     filteredScout,
     results,

@@ -13,8 +13,9 @@ import { createServerClient } from '@supabase/ssr';
  * they create.
  *
  * Covered: the OCR-review API route (staff-gated server write), footprint
- * submission and story publishing (both RLS-gated client writes), plus the
- * negative case that an anonymous caller cannot reach the staff route.
+ * submission and story publishing (both RLS-gated client writes), the
+ * negative case that an anonymous caller cannot reach the staff route, and
+ * label search (mig 065: fuzzy hit, draft-map labels hidden from anonymous).
  *
  * ponytail: the client writes go through supabase-js on the same contract the
  * app's data layer uses, not through the drawing UI — canvas-dragging tests
@@ -48,6 +49,7 @@ const created = {
   footprintIds: [] as string[],
   storyIds: [] as string[],
   jobIds: [] as string[],
+  mapIds: [] as string[],
 };
 
 test.beforeAll(async () => {
@@ -104,6 +106,7 @@ test.afterAll(async () => {
     await admin.from('footprint_submissions').delete().eq('id', id);
   for (const id of created.storyIds) await admin.from('stories').delete().eq('id', id);
   for (const id of created.jobIds) await admin.from('pipeline_jobs').delete().eq('id', id);
+  for (const id of created.mapIds) await admin.from('maps').delete().eq('id', id);
   await staffRequest?.dispose();
 });
 
@@ -648,4 +651,65 @@ test('a draft map is invisible to an anonymous reader, visible once signed in', 
   expect(published).toHaveLength(1);
 
   await admin.from('maps').delete().eq('id', draft!.id);
+});
+
+test("label search finds a typo'd label on a public map and hides draft-map labels from anonymous", async () => {
+  const runId = `write-smoke-labels-${Date.now()}`;
+  created.runIds.push(runId);
+
+  const { data: draft, error: draftErr } = await admin
+    .from('maps')
+    .insert({ name: 'Write-smoke draft map', status: 'draft', year: 1901 })
+    .select('id')
+    .single();
+  expect(draftErr, draftErr?.message).toBeNull();
+  created.mapIds.push(draft!.id);
+
+  const row = (map_id: string, text: string, tile_y: number) => ({
+    map_id,
+    run_id: runId,
+    tile_x: 0,
+    tile_y,
+    tile_w: 100,
+    tile_h: 100,
+    global_x: 10,
+    global_y: 20,
+    global_w: 50,
+    global_h: 10,
+    text,
+    category: 'street',
+    confidence: 0.9,
+  });
+  const { error: insErr } = await admin
+    .from('ocr_extractions')
+    .insert([row(mapId, 'Rue de Khánh-Hội', 0), row(draft!.id, 'Khanh Hoi (draft)', 1)]);
+  expect(insErr, insErr?.message).toBeNull();
+
+  // Anonymous: one-letter typo still hits, the draft map's label does not appear.
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const res = await anon.get('/api/search?q=khan%20hoy&include=labels');
+  expect(res.ok(), await res.text()).toBe(true);
+  const { labels } = await res.json();
+  const texts = labels.map((l: { text: string }) => l.text);
+  expect(texts).toContain('Rue de Khánh-Hội');
+  expect(texts).not.toContain('Khanh Hoi (draft)');
+  const hit = labels.find((l: { text: string }) => l.text === 'Rue de Khánh-Hội');
+  expect(hit.map_id).toBe(mapId);
+  expect(hit.bbox).toEqual([10, 20, 50, 10]);
+  await anon.dispose();
+
+  // Staff see the draft map's label too.
+  const staff = await staffRequest.get('/api/search?q=khanh%20hoi&include=labels');
+  expect(staff.ok()).toBe(true);
+  const staffTexts = (await staff.json()).labels.map((l: { text: string }) => l.text);
+  expect(staffTexts).toContain('Khanh Hoi (draft)');
+
+  // And the raw table no longer leaks draft labels to the publishable key (mig 065 RLS).
+  const anonDb = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const { data: leaked } = await anonDb
+    .from('ocr_extractions')
+    .select('id')
+    .eq('run_id', runId)
+    .eq('map_id', draft!.id);
+  expect(leaked).toEqual([]);
 });

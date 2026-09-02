@@ -66,7 +66,7 @@
   </div>
 
   {#if expanded}
-    <ExploreArchiveBrowser sortRows={byYear} on:pick on:remove />
+    <ExploreArchiveBrowser sortRows={byYear} on:pick on:remove on:pickLabel />
   {:else if visibleMatches.length}
     <ExploreMapRows rows={visibleMatches} on:pick on:remove />
   {/if}

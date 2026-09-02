@@ -16,12 +16,14 @@
   import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
   import SidebarCard from '$lib/features/catalog/SidebarCard.svelte';
   import ExploreBrowsePanel from './ExploreBrowsePanel.svelte';
+  import type { LabelHit } from '$lib/features/catalog/catalogSearch';
   import type { ResolvedMap } from './spatialLookup';
   import { readJson, writeJson } from '$lib/core/utils/persistence/storage';
 
   const dispatch = createEventDispatcher<{
     toggleCollapse: void;
     pickMap: any;
+    pickLabel: LabelHit;
     removeOverlay: { mapId: string };
     pickLocation: {
       lat: number;
@@ -142,6 +144,7 @@
         {role}
         forceExpanded={forceBrowseExpanded}
         on:pick={(e) => dispatch('pickMap', e.detail)}
+        on:pickLabel={(e) => dispatch('pickLabel', e.detail)}
         on:remove={(e) => dispatch('removeOverlay', e.detail)}
       />
     </SidebarCard>

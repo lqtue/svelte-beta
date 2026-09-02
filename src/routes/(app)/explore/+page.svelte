@@ -47,7 +47,12 @@
   } from '$lib/features/explore/spatialLookup';
   import { createExploreCoverage } from '$lib/features/explore/useExploreCoverage';
   import { createExploreZoom } from '$lib/features/explore/exploreZoom';
-  import { createExploreUrl, applyExploreUrlParams } from '$lib/features/explore/exploreUrl';
+  import {
+    createExploreUrl,
+    applyExploreUrlParams,
+    LABEL_ZOOM,
+  } from '$lib/features/explore/exploreUrl';
+  import type { LabelHit } from '$lib/features/catalog/catalogSearch';
   import '$styles/layouts/mode-shared.css';
 
   type Mode = 'location' | 'all';
@@ -105,6 +110,7 @@
 
   // URL deeplinks — auto-dismiss the welcome modal when present.
   $: paramMapId = $page.url.searchParams.get('map');
+  $: paramAt = $page.url.searchParams.get('at');
   $: paramStoryId = $page.url.searchParams.get('story');
   $: hasDeeplink = !!(paramMapId || paramStoryId);
   $: if (hasDeeplink && !choseMode) {
@@ -123,12 +129,14 @@
     appliedUrl = true;
     void applyExploreUrlParams({
       mapId: paramMapId,
+      at: paramAt,
       storyId: paramStoryId,
       maps: mapList,
       stories,
       addMapOverlay,
       tallyMapOpen,
       zoomToMap,
+      setView: (v) => mapStore.setView(v),
       startStory: (story) => {
         activeStory = story;
         storyPlayer.startStory(story.id);
@@ -227,6 +235,18 @@
     tallyMapOpen(map.id);
     await zoomToMap(map);
   }
+  /** A label hit from the browse pane: stack its map, then land on the spot. */
+  function handlePickLabel(e: CustomEvent<LabelHit>) {
+    const h = e.detail;
+    const map = mapList.find((m) => m.id === h.map_id);
+    if (!map) return;
+    addMapOverlay(map);
+    syncMapParam(map.id);
+    tallyMapOpen(map.id);
+    if (h.lng != null && h.lat != null)
+      mapStore.setView({ lng: h.lng, lat: h.lat, zoom: LABEL_ZOOM });
+    else void zoomToMap(map, { force: true });
+  }
   function handleRemoveOverlay(e: CustomEvent<{ mapId: string }>) {
     layersStore.removeOverlayByMapId(e.detail.mapId);
     syncMapParam($layersStore.overlays[0]?.ref.mapId ?? null);
@@ -300,6 +320,7 @@
         forceBrowseExpanded={mode === 'all'}
         on:zoomToOverlay={handleZoomToOverlay}
         on:pickMap={handlePickMap}
+        on:pickLabel={handlePickLabel}
         on:removeOverlay={handleRemoveOverlay}
         on:pickLocation={handlePickLocation}
         on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
@@ -337,6 +358,7 @@
           {role}
           forceExpanded={mode === 'all'}
           on:pick={handlePickMap}
+          on:pickLabel={handlePickLabel}
           on:remove={handleRemoveOverlay}
         />
       </div>

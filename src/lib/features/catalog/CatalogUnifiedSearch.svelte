@@ -11,6 +11,7 @@
   import FacetRail from '$lib/ui/FacetRail.svelte';
   import CatalogTable from '$lib/features/catalog/CatalogTable.svelte';
   import CatalogDetailDrawer from '$lib/features/catalog/CatalogDetailDrawer.svelte';
+  import LabelHits from '$lib/features/catalog/LabelHits.svelte';
   import { createEventDispatcher, onMount } from 'svelte';
   import { createCatalogSearch } from '$lib/features/catalog/catalogSearch';
 
@@ -40,6 +41,7 @@
     areaChoices,
     typeChoices,
     includeScout,
+    labels,
   } = search;
 
   // Mirror the parent's search box into the engine's query store.
@@ -136,13 +138,14 @@
         {/if}
       </div>
     {/if}
-    {#if $results.length === 0 && !$loading}
+    <LabelHits hits={$labels} />
+    {#if $results.length === 0 && $labels.length === 0 && !$loading}
       <div class="state-panel">
         <div class="empty-emoji">🏜️</div>
         <h2 class="state-title">Nothing matches.</h2>
         <p class="state-desc">Try another keyword, or clear a filter and start over.</p>
       </div>
-    {:else}
+    {:else if $results.length}
       <CatalogTable
         items={$results as any}
         {compact}

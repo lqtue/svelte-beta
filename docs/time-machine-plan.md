@@ -221,3 +221,11 @@ Start only after E2 shows stable, reviewed fabric on ≥ 3 maps.
 | **E5** | after M2 is stable | — |
 
 Order: M1 → M2 → M3; M4 in parallel whenever there is human time; E5 not before M2 is reviewed.
+
+## E1 as built (2026-09-02)
+
+Diverged from the sketch above in two places, both measured:
+
+- **RPC is `security definer` with `p_public_only`**, not `security invoker`. `/api/search` runs on the service client and already knows the role; invoker would have made the RPC useless from there.
+- **No trigram index.** `<%` reads `pg_trgm.word_similarity_threshold`, which the `postgres` role gets *permission denied* setting on a function under Supabase, and its 0.6 default misses one-letter typos ("khan hoy" → "khanh hoi" = 0.55). Explicit `word_similarity() >= 0.5` instead; the upgrade path is in the migration's `ponytail:` note.
+- Bonus fix: `ocr_extractions` read policy had been `using (true)` since 040 — every draft map's labels were readable with the publishable key. Now gated like `maps` (mig 063).
