@@ -144,10 +144,10 @@ def join_argv(job: dict, python_bin: str) -> list[str]:
     return argv
 
 
-# Kinds this worker runs itself. mirror_annotation and sync_allmaps are not
-# here: they need the service key, so the server runs them (see execute()).
+# Kinds this worker runs itself. mirror_annotation, sync_allmaps and warp are
+# not here: they need the service key, so the server runs them (see execute()).
 RUNNERS = {"ocr": ocr_argv, "join": join_argv, "tile_to_r2": tile_argv}
-SERVER_KINDS = {"mirror_annotation", "sync_allmaps"}
+SERVER_KINDS = {"mirror_annotation", "sync_allmaps", "warp"}
 
 
 def run_job(job: dict, python_bin: str) -> None:

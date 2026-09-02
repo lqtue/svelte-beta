@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -93,6 +88,9 @@ export type Database = {
           confidence: number | null
           created_at: string | null
           feature_type: string
+          geom: unknown
+          geom_rmse: number | null
+          geom_src: string | null
           id: string
           iiif_canvas: string | null
           map_id: string | null
@@ -112,6 +110,9 @@ export type Database = {
           confidence?: number | null
           created_at?: string | null
           feature_type?: string
+          geom?: unknown
+          geom_rmse?: number | null
+          geom_src?: string | null
           id?: string
           iiif_canvas?: string | null
           map_id?: string | null
@@ -131,6 +132,9 @@ export type Database = {
           confidence?: number | null
           created_at?: string | null
           feature_type?: string
+          geom?: unknown
+          geom_rmse?: number | null
+          geom_src?: string | null
           id?: string
           iiif_canvas?: string | null
           map_id?: string | null
@@ -607,6 +611,9 @@ export type Database = {
           confidence: number
           created_at: string
           footprint_id: string | null
+          geom: unknown
+          geom_rmse: number | null
+          geom_src: string | null
           global_h: number | null
           global_w: number | null
           global_x: number | null
@@ -634,6 +641,9 @@ export type Database = {
           confidence?: number
           created_at?: string
           footprint_id?: string | null
+          geom?: unknown
+          geom_rmse?: number | null
+          geom_src?: string | null
           global_h?: number | null
           global_w?: number | null
           global_x?: number | null
@@ -661,6 +671,9 @@ export type Database = {
           confidence?: number
           created_at?: string
           footprint_id?: string | null
+          geom?: unknown
+          geom_rmse?: number | null
+          geom_src?: string | null
           global_h?: number | null
           global_w?: number | null
           global_x?: number | null
@@ -1172,26 +1185,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      context_at: {
+        Args: {
+          p_lat: number
+          p_limit?: number
+          p_lng: number
+          p_public_only?: boolean
+          p_radius_m?: number
+          p_year_from?: number
+          p_year_to?: number
+        }
+        Returns: Json
+      }
       f_unaccent: { Args: { "": string }; Returns: string }
-      label_key: {
-        Args: { p_text: string; p_validated: string }
-        Returns: string
-      }
-      search_labels: {
-        Args: { p_limit?: number; p_public_only?: boolean; p_q: string }
-        Returns: {
-          category: string
-          confidence: number
-          h: number
-          id: string
-          label: string
-          map_id: string
-          sim: number
-          w: number
-          x: number
-          y: number
-        }[]
-      }
       finish_job: {
         Args: {
           p_error?: string
@@ -1224,9 +1230,32 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      label_key: {
+        Args: { p_text: string; p_validated: string }
+        Returns: string
+      }
+      map_context: {
+        Args: { p_geom_src?: string; p_map_id: string; p_public_only?: boolean }
+        Returns: Json
+      }
       revert_recent_validations: {
         Args: { p_map_id: string; p_user: string; p_window_mins?: number }
         Returns: number
+      }
+      search_labels: {
+        Args: { p_limit?: number; p_public_only?: boolean; p_q: string }
+        Returns: {
+          category: string
+          confidence: number
+          h: number
+          id: string
+          label: string
+          map_id: string
+          sim: number
+          w: number
+          x: number
+          y: number
+        }[]
       }
       set_extraction_status: {
         Args: {
@@ -1253,6 +1282,9 @@ export type Database = {
           confidence: number | null
           created_at: string | null
           feature_type: string
+          geom: unknown
+          geom_rmse: number | null
+          geom_src: string | null
           id: string
           iiif_canvas: string | null
           map_id: string | null

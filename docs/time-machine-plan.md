@@ -142,11 +142,13 @@ anon call returns only the approved one, warped, with `year`.
 | Chronicling America (LoC) | US press to 1963 | JSON | Marginal for Saigon |
 | Wikidata / vi.wikipedia | street-name history | `wbsearchentities` | Feeds E1b variants |
 
-**Design — no table.** `/api/context?q=<label>&year=<Y>&window=10` → server builds the
+**Design — no table.** `/api/press?q=<label>&year=<Y>&window=10&limit=10` → server builds the
 query from `place_names` variants (or the raw label), OR's spelling forms
 (`Khanh Hoi`, `Khanh-Hoi`, `Khánh Hội`), calls Gallica, returns
 `[{ title, date, snippet, url, thumb }]`. `Cache-Control: public, max-age=86400` so the
-CF edge absorbs repeats; Gallica sees each (q, decade) once a day.
+CF edge absorbs repeats; Gallica sees each (q, decade) once a day. (The route is
+`/api/press`, not `/api/context` — that name belongs to the place-time index in
+`docs/platform-design.md` §0.)
 
 **UI.** On /explore, clicking an E1 result marker or a `LegendPointsLayer` point opens a
 compact "In the press, ±10 y" list in the sidebar. /explore only; the SSR share page must
@@ -216,7 +218,7 @@ Start only after E2 shows stable, reviewed fabric on ≥ 3 maps.
 |-|-------|------|
 | **M1** | 065 + `search_labels` · `include=labels` · catalog + explore results · `at=` deeplink · `enqueue_ocr_all` run on all georeferenced maps | Type "Khánh Hội", land on it on the 1923 plan |
 | **M2** | `seg` on Colab · `--aoi` triage · export upgrade · vectors toggle · `work/analysis/district4/` with the 8-map series | District 4 built-area % 1878→1968, slider on /explore |
-| **M3** | `/api/context` + press panel | Click "Khánh Hội" on the 1923 plan, read *L'Écho annamite* 1920s |
+| **M3** | `/api/press` + press panel | Click "Khánh Hội" on the 1923 plan, read *L'Écho annamite* 1920s |
 | **M4 (ongoing)** | Georef sprint by decade gap · new scout sources | ≥ 3 city plans per decade |
 | **E5** | after M2 is stable | — |
 

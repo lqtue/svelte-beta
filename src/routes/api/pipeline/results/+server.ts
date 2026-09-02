@@ -11,6 +11,11 @@
  *
  * There is deliberately no stage field: since migration 056 the pipeline stage
  * is a view over `pipeline_jobs`, so closing the job *is* advancing the stage.
+ *
+ * Extractions are warped into the place-time index on the way in (migration
+ * 066): the bbox centre becomes `geom`, stamped with the georeference it used.
+ * A map with no usable annotation writes a null `geom`, which is a legitimate
+ * state — the `warp` job fills it in once the map is georeferenced.
  */
 
 import { json, error } from '@sveltejs/kit';
@@ -18,6 +23,7 @@ import type { RequestHandler } from './$types';
 import { requireWorker } from '$lib/server/workerAuth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { assertUuid, dbError } from '$lib/server/http';
+import { bboxCentre, pointEwkt, resolveMapWarp, type MapWarp } from '$lib/server/warp';
 
 const MAX_ROWS = 500;
 const JOB_STATUSES = ['running', 'done', 'failed'];
@@ -35,6 +41,27 @@ export const POST: RequestHandler = async ({ request }) => {
       assertUuid(row.map_id, 'extraction map_id');
       if (!row.run_id) throw error(400, 'Every extraction needs a run_id');
     }
+    // Warp per map, not per row: a batch is normally one map's tiles, and
+    // resolving the annotation is a network fetch.
+    const warps = new Map<string, MapWarp | null>();
+    for (const row of rows) {
+      if (warps.has(row.map_id)) continue;
+      const { data: map } = await supabase
+        .from('maps')
+        .select('allmaps_id, annotation_url')
+        .eq('id', row.map_id)
+        .single();
+      warps.set(row.map_id, map ? await resolveMapWarp(map.allmaps_id, map.annotation_url) : null);
+    }
+    for (const row of rows) {
+      const warp = warps.get(row.map_id);
+      const centre = warp ? bboxCentre(row) : null;
+      const geom = warp && centre ? pointEwkt(warp, centre) : null;
+      row.geom = geom;
+      row.geom_src = geom ? warp!.src : null;
+      row.geom_rmse = geom ? warp!.rmse : null;
+    }
+
     const { error: err, count } = await supabase
       .from('ocr_extractions')
       .upsert(rows, { onConflict: 'map_id,run_id,tile_x,tile_y,text', count: 'exact' });

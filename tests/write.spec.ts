@@ -748,40 +748,170 @@ test('the footprint export defaults to approved, filters by year and by ground b
 
   const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
 
+  // Assertions are scoped to this test's own rows by name: other tests in this
+  // file leave approved footprints on the same fixture map until afterAll, so a
+  // bare row count here would depend on execution order.
+  const namesOf = async (qs: string): Promise<string[]> => {
+    const res = await anon.get(`/api/export/footprints?${qs}`);
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()).features
+      .map((f: { properties: { name: string | null } }) => f.properties.name)
+      .filter((n: string | null) => n?.startsWith('export-smoke'));
+  };
+
   // Default status: the reviewed polygon only.
-  const def = await anon.get(`/api/export/footprints?map_id=${mapId}`);
-  expect(def.ok(), await def.text()).toBe(true);
-  const names = (await def.json()).features.map(
-    (f: { properties: { name: string } }) => f.properties.name
-  );
-  expect(names).toContain('export-smoke approved');
-  expect(names).not.toContain('export-smoke submitted');
+  expect(await namesOf(`map_id=${mapId}`)).toEqual(['export-smoke approved']);
 
   // The map's year rides along, and filters.
-  const props = (await def.json()).features[0].properties;
+  const def = await anon.get(`/api/export/footprints?map_id=${mapId}`);
+  const props = (await def.json()).features.find(
+    (f: { properties: { name: string } }) => f.properties.name === 'export-smoke approved'
+  ).properties;
   expect(props.year).toBe(1900);
-  const miss = await anon.get(`/api/export/footprints?map_id=${mapId}&year=1500-1600`);
-  expect((await miss.json()).features).toEqual([]);
-  const hit = await anon.get(`/api/export/footprints?map_id=${mapId}&year=1890-1910`);
-  expect((await hit.json()).features.length).toBe(1);
+  expect(await namesOf(`map_id=${mapId}&year=1500-1600`)).toEqual([]);
+  expect(await namesOf(`map_id=${mapId}&year=1890-1910`)).toEqual(['export-smoke approved']);
 
   // bbox selects on the ground. The fixture map has no resolvable annotation,
   // so nothing can be warped and a ground query must return nothing rather
   // than falling back to pixel coordinates that look like coordinates.
   expect(props.geo_converted).toBe(false);
-  const box = await anon.get(`/api/export/footprints?map_id=${mapId}&bbox=106.6,10.7,106.8,10.9`);
-  expect((await box.json()).features).toEqual([]);
+  expect(await namesOf(`map_id=${mapId}&bbox=106.6,10.7,106.8,10.9`)).toEqual([]);
 
   // Malformed filters are ignored, not fatal.
-  const junk = await anon.get(`/api/export/footprints?map_id=${mapId}&year=nope&bbox=1,2`);
-  expect(junk.ok()).toBe(true);
-  expect((await junk.json()).features.length).toBe(1);
+  expect(await namesOf(`map_id=${mapId}&year=nope&bbox=1,2`)).toEqual(['export-smoke approved']);
 
   // A comma list is accepted; a malformed id is a 400, not a 500.
-  const csv = await anon.get(`/api/export/footprints?map_id=${mapId},${mapId}`);
-  expect(csv.ok()).toBe(true);
+  expect(await namesOf(`map_id=${mapId},${mapId}`)).toEqual(['export-smoke approved']);
   const bad = await anon.get('/api/export/footprints?map_id=not-a-uuid');
   expect(bad.status()).toBe(400);
 
   await anon.dispose();
+});
+
+test('the place-time index warps on write, gates drafts, and rewarps on demand', async () => {
+  const runId = `write-smoke-ctx-${Date.now()}`;
+  created.runIds.push(runId);
+
+  // The fixture map has no resolvable annotation, so a writer cannot warp: the
+  // honest result is a null geom, not a guessed one.
+  const post = await staffRequest.post(`/api/admin/maps/${mapId}/ocr-review`, {
+    data: {
+      run_id: runId,
+      global_x: 100,
+      global_y: 200,
+      global_w: 50,
+      global_h: 20,
+      text: 'Quai de Belgique',
+      category: 'street',
+    },
+  });
+  expect(post.ok(), await post.text()).toBe(true);
+  const { id: unwarpedId } = await post.json();
+  const { data: unwarped } = await admin
+    .from('ocr_extractions')
+    .select('geom, geom_src')
+    .eq('id', unwarpedId)
+    .single();
+  expect(unwarped!.geom).toBeNull();
+  expect(unwarped!.geom_src).toBeNull();
+
+  // Stand in for a successful warp by writing the geometry the way the warp
+  // job would, then ask the index what is there.
+  const HERE = { lng: 106.70098, lat: 10.77653 };
+  await admin
+    .from('ocr_extractions')
+    .update({
+      geom: `SRID=4326;POINT(${HERE.lng} ${HERE.lat})`,
+      geom_src: 'smoke-src',
+      geom_rmse: 4.2,
+    })
+    .eq('id', unwarpedId);
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const res = await anon.get(`/api/context?lng=${HERE.lng}&lat=${HERE.lat}&radius=200`);
+  expect(res.ok(), await res.text()).toBe(true);
+  const ctx = await res.json();
+  const hit = ctx.labels.find((l: { id: string }) => l.id === unwarpedId);
+  expect(hit, 'the warped label should be in range').toBeTruthy();
+  expect(hit.text).toBe('Quai de Belgique');
+  expect(hit.geom_rmse).toBe(4.2);
+  expect(hit.distance_m).toBeLessThan(1);
+  expect(hit.year).toBe(1900);
+
+  // A tight radius excludes it; bad coordinates are a 400, not a 500.
+  const far = await anon.get(`/api/context?lng=${HERE.lng + 0.5}&lat=${HERE.lat}&radius=100`);
+  expect((await far.json()).labels).toEqual([]);
+  expect((await anon.get('/api/context?lng=999&lat=0')).status()).toBe(400);
+
+  // A draft map's warped label is invisible to an anonymous caller.
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({ name: 'ctx-smoke draft map', status: 'draft', year: 1901 })
+    .select('id')
+    .single();
+  created.mapIds.push(draft!.id);
+  await admin.from('ocr_extractions').insert({
+    map_id: draft!.id,
+    run_id: runId,
+    tile_x: 0,
+    tile_y: 9,
+    tile_w: 100,
+    tile_h: 100,
+    global_x: 10,
+    global_y: 20,
+    global_w: 50,
+    global_h: 10,
+    text: 'draft-only street',
+    category: 'street',
+    confidence: 0.9,
+    geom: `SRID=4326;POINT(${HERE.lng} ${HERE.lat})`,
+    geom_src: 'smoke-src',
+  });
+  const gated = await anon.get(`/api/context?lng=${HERE.lng}&lat=${HERE.lat}&radius=200`);
+  const gatedTexts = (await gated.json()).labels.map((l: { text: string }) => l.text);
+  expect(gatedTexts).toContain('Quai de Belgique');
+  expect(gatedTexts).not.toContain('draft-only street');
+
+  // Staff see both.
+  const staffCtx = await staffRequest.get(
+    `/api/context?lng=${HERE.lng}&lat=${HERE.lat}&radius=200`
+  );
+  const staffTexts = (await staffCtx.json()).labels.map((l: { text: string }) => l.text);
+  expect(staffTexts).toContain('draft-only street');
+  await anon.dispose();
+
+  // map_context reports coverage and counts a row warped against another
+  // georeference as stale — the defect the warp job clears.
+  const { data: summary } = await admin.rpc('map_context', {
+    p_map_id: mapId,
+    p_geom_src: 'a-different-georeference',
+  });
+  const s = summary as unknown as {
+    labels: { total: number; warped: number; stale: number };
+  };
+  expect(s.labels.warped).toBeGreaterThan(0);
+  expect(s.labels.stale).toBeGreaterThan(0);
+
+  // A warp job is claimable and runs server-side; this map has no annotation,
+  // so it reports that rather than inventing geometry.
+  const { data: job } = await admin
+    .from('pipeline_jobs')
+    .insert({ kind: 'warp', map_id: mapId, payload: {} })
+    .select('id')
+    .single();
+  created.jobIds.push(job!.id);
+  const asWorker = await playwrightRequest.newContext({
+    baseURL: 'http://localhost:5199',
+    extraHTTPHeaders: { Authorization: `Bearer ${TEST_WORKER_TOKEN}` },
+  });
+  const claimed = await asWorker.post('/api/pipeline/claim', {
+    data: { kinds: ['warp'], worker: 'write-smoke' },
+  });
+  expect(claimed.ok(), await claimed.text()).toBe(true);
+  const ran = await asWorker.post('/api/pipeline/execute', {
+    data: { job_id: job!.id },
+  });
+  expect(ran.ok(), await ran.text()).toBe(true);
+  expect((await ran.json()).result.reason).toBe('no usable annotation');
+  await asWorker.dispose();
 });

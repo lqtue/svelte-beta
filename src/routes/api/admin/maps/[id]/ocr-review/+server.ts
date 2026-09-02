@@ -3,6 +3,40 @@ import type { RequestHandler } from './$types';
 import { requireRole } from '$lib/server/auth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { assertUuid, dbError } from '$lib/server/http';
+import { bboxCentre, pointEwkt, resolveMapWarp, type MapWarp } from '$lib/server/warp';
+
+/**
+ * The bbox centre warped into the place-time index (migration 066). Shared by
+ * the manual-box POST and the coordinate-editing PATCH, because a box that is
+ * dragged somewhere else is somewhere else on the ground too.
+ */
+async function warpFields(
+  supabase: ReturnType<typeof adminClient>,
+  mapId: string,
+  coords: {
+    global_x?: number | null;
+    global_y?: number | null;
+    global_w?: number | null;
+    global_h?: number | null;
+  }
+): Promise<{ geom: string | null; geom_src: string | null; geom_rmse: number | null }> {
+  const centre = bboxCentre(coords);
+  if (!centre) return { geom: null, geom_src: null, geom_rmse: null };
+  const { data: map } = await supabase
+    .from('maps')
+    .select('allmaps_id, annotation_url')
+    .eq('id', mapId)
+    .single();
+  const warp: MapWarp | null = map
+    ? await resolveMapWarp(map.allmaps_id, map.annotation_url)
+    : null;
+  const geom = warp ? pointEwkt(warp, centre) : null;
+  return {
+    geom,
+    geom_src: geom ? warp!.src : null,
+    geom_rmse: geom ? warp!.rmse : null,
+  };
+}
 import { bulkSetStatus, isOcrReviewStatus } from '$lib/server/ocrReview';
 import type { Database } from '$lib/data/supabase/types';
 
@@ -89,9 +123,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     prompt: 'manual',
   };
 
-  const { data, error: err } = await adminClient()
+  const supabase = adminClient();
+  const { data, error: err } = await supabase
     .from('ocr_extractions')
-    .insert(row)
+    .insert({ ...row, ...(await warpFields(supabase, mapId, row)) })
     .select('id')
     .single();
 
@@ -138,8 +173,27 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     throw error(400, 'No fields to update');
   }
 
+  const supabase = adminClient();
+
+  // A moved box is a moved place. Re-warp from the row as it will be, so a
+  // PATCH that changes only x still gets a geom built from the stored y.
+  if (
+    global_x !== undefined ||
+    global_y !== undefined ||
+    global_w !== undefined ||
+    global_h !== undefined
+  ) {
+    const { data: current } = await supabase
+      .from('ocr_extractions')
+      .select('global_x, global_y, global_w, global_h')
+      .eq('id', extractionId)
+      .eq('map_id', mapId)
+      .single();
+    Object.assign(update, await warpFields(supabase, mapId, { ...current, ...update }));
+  }
+
   if (Object.keys(update).length) {
-    const { error: err } = await adminClient()
+    const { error: err } = await supabase
       .from('ocr_extractions')
       .update(update)
       .eq('id', extractionId)

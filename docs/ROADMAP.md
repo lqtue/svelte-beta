@@ -24,7 +24,7 @@ The actionable list. Everything below this section is the reference plan and the
 - [ ] 11. **E2 step 4 — vectors toggle** per row in `LayerStackPanel`, reading that map's export. Exit: two maps' fabric visible at once, ordered by the stack the user already controls.
 - [ ] 12. **E2 step 5 — District 4 review + notebook.** Review the 8-map series in `/contribute/review`; `work/analysis/district4/` computes built-area %, block size, road density, canal length per year. Exit: a metrics table and a figure series for 1878 · 1898 · 1923 · 1942 · 1959 · 1968, and the approved polygons double as the C5 seg eval set.
 - [ ] 13. **E2b the engine.** PostGIS, `geom`/`geom_src`/`geom_rmse`, warp-on-write in the three server writers, the `warp` job kind, `context_at()` / `map_context()`. Exit: `select jsonb_array_length(context_at(106.7009, 10.7565, 200) -> 'labels')` > 0, and the write smoke covers the draft gate and a stale `geom_src`.
-- [ ] 14. **E3 period sources.** `/api/context?q&year&window` over Gallica SRU + ContentSearch, edge-cached 24 h; "In the press" panel on /explore. Exit: a clicked label on the 1923 plan lists dated clippings, and the query builder has a unit check for a diacritic'd two-word name.
+- [ ] 14. **E3 period sources.** `/api/press?q&year&window` over Gallica SRU + ContentSearch, plus the National Library of Vietnam's press archive, edge-cached 24 h; "In the press" panel on /explore. Exit: a clicked label on the 1923 plan lists dated clippings, and the query builder has a unit check for a diacritic'd two-word name.
 - [ ] 15. **Platform step 1 — `packages/basemap`.** One `pmtiles_extract.sh <bbox> <out>` + flavor overrides, referenced by both the archive style and HACW's. Exit: a Hanoi extract built with the same script the Saigon one was.
 
 **Parallel, whenever there is human time:** E4 georef sprint — the 62 drafts are all 1900–1929, so target the decade gaps first (`select year, name from maps where not georef_done order by year`).
@@ -70,7 +70,7 @@ Label search → temporal fabric → period sources, on the existing jobs + HITL
 - [ ] E1b Gazetteer view `place_names` (variants · years · maps) — after E1
 - [ ] E2 Temporal fabric — `seg` runner = worker inside Colab · `iiif_tiles.py --aoi` · export: CSV `map_id`, default `approved`, `year`, `bbox=` · "vectors" toggle per layer row on /explore · `work/analysis/district4/` notebook (metrics + figure series). B8 stays deferred; District 4 review is the C5 eval set
 - [ ] E2b The engine (B8 re-scoped) — the index E3 and the thesis both query; lands after E2's seg runner so footprints exist to warp
-- [ ] E3 Period sources — `/api/context?q&year` over Gallica SRU/ContentSearch, edge-cached 24 h · "In the press" panel on /explore from label / legend points. No table until pinning is asked for
+- [ ] E3 Period sources — `/api/press?q&year&provider` over Gallica SRU/ContentSearch + the National Library of Vietnam, edge-cached 24 h · "In the press" panel on /explore from label / legend points. No table until pinning is asked for
 - [ ] E4 Corpus growth — georef sprint by decade gap (62 drafts, all 1900–1929) · new scout sources (UT PCL, NARA, ANOM) · Hanoi/Huế basemap extracts later
 - [ ] E5 Building attributes → OSM tags → LoD2 — deferred until E2 fabric is reviewed on ≥ 3 maps; `tags jsonb` lands with its first writer
 
