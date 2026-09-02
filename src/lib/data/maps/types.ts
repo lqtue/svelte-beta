@@ -66,6 +66,9 @@ export interface MapListItem {
   bounds?: [number, number, number, number]; // Runtime-enriched in useMapList; equivalent to bbox once resolved.
   extra_metadata?: Record<string, string>;
   iiif_image?: string; // IIIF image service base URL (present once ingested)
+  georef_done?: boolean; // DB column maps.georef_done — an Allmaps annotation exists.
+  // Distinguishes a map that can be laid on the world from one that is only viewable
+  // as a scan; `allmaps_id` is not the same test, since every map carries one.
   creator?: string; // present in search results
   holding_institution?: string; // present in search results
   // Search-result-only enrichment (only set by /api/search responses)

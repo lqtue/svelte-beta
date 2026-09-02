@@ -26,6 +26,7 @@ function toMapListItem(row: DbRow): MapListItem {
     status: (row.status ?? 'draft') as MapStatus,
     bbox: (row.bbox ?? undefined) as [number, number, number, number] | undefined,
     iiif_image: row.iiif_image ?? undefined,
+    georef_done: row.georef_done ?? false,
   };
 }
 
