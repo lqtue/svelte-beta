@@ -129,6 +129,58 @@ def tile_argv(job: dict, python_bin: str) -> list[str]:
     return [str(REPO_ROOT / "scripts" / "tile_map.sh"), job["map_id"], download, iiif]
 
 
+def seg_argv(job: dict, python_bin: str) -> list[str]:
+    """Turn a `seg` job into the MapSAM2 inference command line.
+
+    This is the one runner whose machine is normally not a laptop: MapSAM2 wants
+    a GPU, so the intended host is a Colab notebook running this same worker
+    with `--kinds seg`. A GPU session becomes a worker, and nothing has to be
+    copy-pasted out of the Segmentation panel any more.
+
+    The flag set mirrors `src/lib/features/contribute/digitalize/segCommand.ts`,
+    which is what that panel shows a human — keep the two in step. With a
+    validated OCR run the model runs LoRA-prompted off those toponyms; without
+    one it falls back to automatic mode, exactly as the panel does.
+
+    ponytail: checkpoint and MapSAM2 directory come from the environment, since
+    they are properties of the machine rather than of the job. A job may still
+    override either in its payload.
+    """
+    p = job["payload"]
+    mapsam2_dir = p.get("mapsam2_dir") or os.environ.get("MAPSAM2_DIR", "/content/MapSAM2")
+    checkpoint = p.get("checkpoint") or os.environ.get(
+        "MAPSAM2_CHECKPOINT", "/content/drive/MyDrive/mapsam2_checkpoint.pth"
+    )
+    ocr_run_id = p.get("ocr_run_id")
+
+    argv = [
+        python_bin,
+        str(REPO_ROOT / "work" / "MapSAM2" / "inference_tiles_as_video.py"),
+        "--map-id", job["map_id"],
+        "--checkpoint", checkpoint,
+        "--encoder", str(p.get("encoder", "vit_s")),
+    ]
+    if ocr_run_id:
+        argv += ["--lora", "--mapsam2-dir", mapsam2_dir,
+                 "--mode", "prompted", "--ocr-run-id", str(ocr_run_id)]
+    else:
+        argv += ["--mode", "automatic"]
+    argv += [
+        "--tile-size", str(p.get("tile_size", 1024)),
+        "--overlap", str(p.get("overlap", 128)),
+        "--device", str(p.get("device", "cuda")),
+        "--out-json", "footprints.json",
+        "--write-supabase",
+    ]
+    if p.get("text_mask", True):
+        argv.append("--text-mask")
+    if p.get("watershed", True):
+        argv.append("--watershed")
+    if p.get("run_id"):
+        argv += ["--run-id", str(p["run_id"])]
+    return argv
+
+
 def join_argv(job: dict, python_bin: str) -> list[str]:
     """Turn a `join` job into the label↔footprint join command line.
 
@@ -144,10 +196,10 @@ def join_argv(job: dict, python_bin: str) -> list[str]:
     return argv
 
 
-# Kinds this worker runs itself. mirror_annotation and sync_allmaps are not
-# here: they need the service key, so the server runs them (see execute()).
-RUNNERS = {"ocr": ocr_argv, "join": join_argv, "tile_to_r2": tile_argv}
-SERVER_KINDS = {"mirror_annotation", "sync_allmaps"}
+# Kinds this worker runs itself. mirror_annotation, sync_allmaps and warp are
+# not here: they need the service key, so the server runs them (see execute()).
+RUNNERS = {"ocr": ocr_argv, "seg": seg_argv, "join": join_argv, "tile_to_r2": tile_argv}
+SERVER_KINDS = {"mirror_annotation", "sync_allmaps", "warp"}
 
 
 def run_job(job: dict, python_bin: str) -> None:

@@ -19,7 +19,7 @@
   import { resolveMapRef } from '$lib/features/stories/shared/applyPoint';
   import { createGeoMapStores } from '$lib/map/shell/geoMapSetup';
   import type { Bbox } from '$lib/core/geo/mapBounds';
-  import { layersStore } from '$lib/map/stores/layersStore';
+  import { layersStore, toHistoricalRef } from '$lib/map/stores/layersStore';
   import { fetchPublicStories } from '$lib/data/supabase/stories';
   import { fetchUserRole } from '$lib/data/supabase/role';
   import { createStoryPlayerStore } from '$lib/features/stories/shared/stores/storyStore';
@@ -30,6 +30,9 @@
   import GpsTracker from '$lib/map/shell/GpsTracker.svelte';
   import StoryMarkers from '$lib/features/stories/shared/StoryMarkers.svelte';
   import LegendPointsLayer from '$lib/features/explore/LegendPointsLayer.svelte';
+  import FocusPulse from '$lib/features/explore/FocusPulse.svelte';
+  import FootprintsLayer from '$lib/features/explore/FootprintsLayer.svelte';
+  import PressPanel from '$lib/features/explore/PressPanel.svelte';
   import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
   import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
   import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
@@ -47,7 +50,13 @@
   } from '$lib/features/explore/spatialLookup';
   import { createExploreCoverage } from '$lib/features/explore/useExploreCoverage';
   import { createExploreZoom } from '$lib/features/explore/exploreZoom';
-  import { createExploreUrl, applyExploreUrlParams } from '$lib/features/explore/exploreUrl';
+  import {
+    createExploreUrl,
+    applyExploreUrlParams,
+    LABEL_ZOOM,
+  } from '$lib/features/explore/exploreUrl';
+  import type { LabelHit } from '$lib/features/catalog/catalogSearch';
+  import { OPACITY_STEP, isTypingTarget, stepByYear } from '$lib/features/explore/exploreKeys';
   import '$styles/layouts/mode-shared.css';
 
   type Mode = 'location' | 'all';
@@ -78,7 +87,7 @@
   let appliedUrl = false;
 
   const { addMapOverlay, setViewFromBounds, zoomToMap } = createExploreZoom(mapStore);
-  const { syncMapParam, tallyMapOpen } = createExploreUrl({
+  const { syncMapParam, syncAtParam, tallyMapOpen } = createExploreUrl({
     supabase,
     role: () => role,
     markApplied: () => (appliedUrl = true),
@@ -99,12 +108,19 @@
   // Numbered-legend point overlay — gated to the active (top) overlay map.
   $: activeOverlayMapId = $layersStore.overlays[0]?.ref.mapId ?? null;
   let showLegendPoints = false;
+  /** The spot a search hit sent us to, pulsed once so it is findable. */
+  let focusPoint: { lng: number; lat: number } | null = null;
+  /** Overlay maps whose reviewed footprints are drawn on the ground. */
+  let vectorMapIds: string[] = [];
+  /** The place and year the press panel is showing, if any. */
+  let pressFor: { q: string; year: number | null } | null = null;
   $: if (!activeOverlayMapId) showLegendPoints = false;
   $: playerState = $storyPlayer;
   $: activeStoryProgress = activeStory ? (playerState.progress[activeStory.id] ?? null) : null;
 
   // URL deeplinks — auto-dismiss the welcome modal when present.
   $: paramMapId = $page.url.searchParams.get('map');
+  $: paramAt = $page.url.searchParams.get('at');
   $: paramStoryId = $page.url.searchParams.get('story');
   $: hasDeeplink = !!(paramMapId || paramStoryId);
   $: if (hasDeeplink && !choseMode) {
@@ -123,12 +139,17 @@
     appliedUrl = true;
     void applyExploreUrlParams({
       mapId: paramMapId,
+      at: paramAt,
       storyId: paramStoryId,
       maps: mapList,
       stories,
       addMapOverlay,
       tallyMapOpen,
       zoomToMap,
+      setView: (v) => {
+        mapStore.setView(v);
+        focusPoint = { lng: v.lng, lat: v.lat };
+      },
       startStory: (story) => {
         activeStory = story;
         storyPlayer.startStory(story.id);
@@ -227,7 +248,66 @@
     tallyMapOpen(map.id);
     await zoomToMap(map);
   }
+  /** A label hit from the browse pane: stack its map, then land on the spot. */
+  function handlePickLabel(e: CustomEvent<LabelHit>) {
+    const h = e.detail;
+    const map = mapList.find((m) => m.id === h.map_id);
+    if (!map) return;
+    addMapOverlay(map);
+    syncMapParam(map.id);
+    tallyMapOpen(map.id);
+    if (h.lng != null && h.lat != null) {
+      mapStore.setView({ lng: h.lng, lat: h.lat, zoom: LABEL_ZOOM });
+      focusPoint = { lng: h.lng, lat: h.lat };
+      syncAtParam(focusPoint);
+      // The label names the place, the sheet it came from dates it.
+      pressFor = { q: h.text, year: h.year ?? map.year ?? null };
+    } else {
+      void zoomToMap(map, { force: true });
+    }
+  }
+  /**
+   * Keyboard time scrubber: ← / → walk the top overlay through the years,
+   * ↑ / ↓ move its opacity. The camera deliberately stays put — holding one
+   * spot still while the years change is the point.
+   */
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+    const top = $layersStore.overlays[0];
+    if (!top) return;
+
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const next = stepByYear(mapList, top.ref.mapId, e.key === 'ArrowLeft' ? -1 : 1);
+      if (!next) return;
+      e.preventDefault();
+      // Add first, then drop the old one, so the map never renders bare. A
+      // refused add (the stack is at MAX_OVERLAY_LAYERS, or the map is already
+      // on) must not remove anything: swapping a sheet for nothing is worse
+      // than not swapping.
+      if (!layersStore.addOverlay(toHistoricalRef(next), { opacity: top.opacity })) return;
+      layersStore.removeOverlayByMapId(top.ref.mapId);
+      syncMapParam(next.id);
+      tallyMapOpen(next.id);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const delta = e.key === 'ArrowUp' ? OPACITY_STEP : -OPACITY_STEP;
+      layersStore.setOpacity(top.id, top.opacity + delta);
+    }
+  }
+
+  function handleToggleVectors(e: CustomEvent<{ mapId: string }>) {
+    const { mapId } = e.detail;
+    vectorMapIds = vectorMapIds.includes(mapId)
+      ? vectorMapIds.filter((id) => id !== mapId)
+      : [...vectorMapIds, mapId];
+  }
+
   function handleRemoveOverlay(e: CustomEvent<{ mapId: string }>) {
+    // A removed sheet takes its fabric with it.
+    vectorMapIds = vectorMapIds.filter((id) => id !== e.detail.mapId);
     layersStore.removeOverlayByMapId(e.detail.mapId);
     syncMapParam($layersStore.overlays[0]?.ref.mapId ?? null);
   }
@@ -267,6 +347,8 @@
   });
 </script>
 
+<svelte:window on:keydown={handleKeydown} />
+
 <svelte:head>
   <title>Explore — Vietnam Map Archive</title>
   <meta
@@ -292,6 +374,7 @@
       <ExploreSidebar
         {viewMode}
         {mapList}
+        {vectorMapIds}
         {gpsActive}
         {matches}
         {role}
@@ -299,7 +382,9 @@
         {showLegendPoints}
         forceBrowseExpanded={mode === 'all'}
         on:zoomToOverlay={handleZoomToOverlay}
+        on:toggleVectors={handleToggleVectors}
         on:pickMap={handlePickMap}
+        on:pickLabel={handlePickLabel}
         on:removeOverlay={handleRemoveOverlay}
         on:pickLocation={handlePickLocation}
         on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
@@ -311,7 +396,13 @@
 
     <svelte:fragment slot="mobile-layers">
       <div class="mobile-pane" data-tour="layers-mobile">
-        <LayerStackPanel {viewMode} {mapList} on:zoomToOverlay={handleZoomToOverlay} />
+        <LayerStackPanel
+          {viewMode}
+          {mapList}
+          {vectorMapIds}
+          on:zoomToOverlay={handleZoomToOverlay}
+          on:toggleVectors={handleToggleVectors}
+        />
       </div>
     </svelte:fragment>
 
@@ -337,6 +428,7 @@
           {role}
           forceExpanded={mode === 'all'}
           on:pick={handlePickMap}
+          on:pickLabel={handlePickLabel}
           on:remove={handleRemoveOverlay}
         />
       </div>
@@ -349,6 +441,8 @@
         on:error={handleGpsError}
       />
       <LegendPointsLayer mapId={activeOverlayMapId} enabled={showLegendPoints} />
+      <FocusPulse point={focusPoint} />
+      <FootprintsLayer mapIds={vectorMapIds} />
       {#if activeStory}
         <StoryMarkers
           points={activeStory.points}
@@ -390,6 +484,11 @@
       {#if gpsError}
         <div class="gps-error" role="alert">{gpsError}</div>
       {/if}
+      <PressPanel
+        q={pressFor?.q ?? null}
+        year={pressFor?.year ?? null}
+        on:close={() => (pressFor = null)}
+      />
     </svelte:fragment>
   </MapWorkspace>
 

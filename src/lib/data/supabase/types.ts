@@ -93,6 +93,9 @@ export type Database = {
           confidence: number | null
           created_at: string | null
           feature_type: string
+          geom: unknown
+          geom_rmse: number | null
+          geom_src: string | null
           id: string
           iiif_canvas: string | null
           map_id: string | null
@@ -112,6 +115,9 @@ export type Database = {
           confidence?: number | null
           created_at?: string | null
           feature_type?: string
+          geom?: unknown
+          geom_rmse?: number | null
+          geom_src?: string | null
           id?: string
           iiif_canvas?: string | null
           map_id?: string | null
@@ -131,6 +137,9 @@ export type Database = {
           confidence?: number | null
           created_at?: string | null
           feature_type?: string
+          geom?: unknown
+          geom_rmse?: number | null
+          geom_src?: string | null
           id?: string
           iiif_canvas?: string | null
           map_id?: string | null
@@ -607,6 +616,9 @@ export type Database = {
           confidence: number
           created_at: string
           footprint_id: string | null
+          geom: unknown
+          geom_rmse: number | null
+          geom_src: string | null
           global_h: number | null
           global_w: number | null
           global_x: number | null
@@ -634,6 +646,9 @@ export type Database = {
           confidence?: number
           created_at?: string
           footprint_id?: string | null
+          geom?: unknown
+          geom_rmse?: number | null
+          geom_src?: string | null
           global_h?: number | null
           global_w?: number | null
           global_x?: number | null
@@ -661,6 +676,9 @@ export type Database = {
           confidence?: number
           created_at?: string
           footprint_id?: string | null
+          geom?: unknown
+          geom_rmse?: number | null
+          geom_src?: string | null
           global_h?: number | null
           global_w?: number | null
           global_x?: number | null
@@ -1142,6 +1160,23 @@ export type Database = {
         }
         Relationships: []
       }
+      place_names: {
+        Row: {
+          category: string | null
+          first_year: number | null
+          geom_rmse: number | null
+          last_year: number | null
+          lat: number | null
+          lng: number | null
+          map_ids: string[] | null
+          mentions: number | null
+          name: string | null
+          name_key: string | null
+          variants: string[] | null
+          years: number[] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       canonicalise_category: { Args: { raw: string }; Returns: string }
@@ -1172,6 +1207,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      context_at: {
+        Args: {
+          p_lat: number
+          p_limit?: number
+          p_lng: number
+          p_public_only?: boolean
+          p_radius_m?: number
+          p_year_from?: number
+          p_year_to?: number
+        }
+        Returns: Json
+      }
+      f_unaccent: { Args: { "": string }; Returns: string }
       finish_job: {
         Args: {
           p_error?: string
@@ -1204,10 +1252,41 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      label_key: {
+        Args: { p_text: string; p_validated: string }
+        Returns: string
+      }
+      map_context: {
+        Args: { p_geom_src?: string; p_map_id: string; p_public_only?: boolean }
+        Returns: Json
+      }
+      place_key: {
+        Args: { p_text: string; p_validated: string }
+        Returns: string
+      }
       revert_recent_validations: {
         Args: { p_map_id: string; p_user: string; p_window_mins?: number }
         Returns: number
       }
+      search_labels: {
+        Args: { p_limit?: number; p_public_only?: boolean; p_q: string }
+        Returns: {
+          category: string
+          confidence: number
+          geom_rmse: number
+          h: number
+          id: string
+          label: string
+          lat: number
+          lng: number
+          map_id: string
+          sim: number
+          w: number
+          x: number
+          y: number
+        }[]
+      }
+      set_extraction_geom: { Args: { p_rows: Json }; Returns: number }
       set_extraction_status: {
         Args: {
           p_ids?: string[]
@@ -1218,6 +1297,7 @@ export type Database = {
         }
         Returns: number
       }
+      set_footprint_geom: { Args: { p_rows: Json }; Returns: number }
       set_footprint_status: {
         Args: {
           p_category?: string
@@ -1233,6 +1313,9 @@ export type Database = {
           confidence: number | null
           created_at: string | null
           feature_type: string
+          geom: unknown
+          geom_rmse: number | null
+          geom_src: string | null
           id: string
           iiif_canvas: string | null
           map_id: string | null
@@ -1310,12 +1393,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1339,11 +1422,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1364,11 +1447,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1389,11 +1472,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1406,11 +1489,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1427,4 +1510,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

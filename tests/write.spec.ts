@@ -6,6 +6,7 @@ import {
 } from '@playwright/test';
 import { createClient, type Session } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
+import { loadSchema, unsupportedKeywords, validate } from './schemaCheck';
 
 /**
  * Write-path smokes (ROADMAP A5). Unlike smoke.spec.ts these DO write rows, so
@@ -13,8 +14,9 @@ import { createServerClient } from '@supabase/ssr';
  * they create.
  *
  * Covered: the OCR-review API route (staff-gated server write), footprint
- * submission and story publishing (both RLS-gated client writes), plus the
- * negative case that an anonymous caller cannot reach the staff route.
+ * submission and story publishing (both RLS-gated client writes), the
+ * negative case that an anonymous caller cannot reach the staff route, and
+ * label search (mig 065: fuzzy hit, draft-map labels hidden from anonymous).
  *
  * ponytail: the client writes go through supabase-js on the same contract the
  * app's data layer uses, not through the drawing UI — canvas-dragging tests
@@ -48,6 +50,7 @@ const created = {
   footprintIds: [] as string[],
   storyIds: [] as string[],
   jobIds: [] as string[],
+  mapIds: [] as string[],
 };
 
 test.beforeAll(async () => {
@@ -104,6 +107,7 @@ test.afterAll(async () => {
     await admin.from('footprint_submissions').delete().eq('id', id);
   for (const id of created.storyIds) await admin.from('stories').delete().eq('id', id);
   for (const id of created.jobIds) await admin.from('pipeline_jobs').delete().eq('id', id);
+  for (const id of created.mapIds) await admin.from('maps').delete().eq('id', id);
   await staffRequest?.dispose();
 });
 
@@ -648,4 +652,531 @@ test('a draft map is invisible to an anonymous reader, visible once signed in', 
   expect(published).toHaveLength(1);
 
   await admin.from('maps').delete().eq('id', draft!.id);
+});
+
+test("label search finds a typo'd label on a public map and hides draft-map labels from anonymous", async () => {
+  const runId = `write-smoke-labels-${Date.now()}`;
+  created.runIds.push(runId);
+
+  const { data: draft, error: draftErr } = await admin
+    .from('maps')
+    .insert({ name: 'Write-smoke draft map', status: 'draft', year: 1901 })
+    .select('id')
+    .single();
+  expect(draftErr, draftErr?.message).toBeNull();
+  created.mapIds.push(draft!.id);
+
+  const row = (map_id: string, text: string, tile_y: number) => ({
+    map_id,
+    run_id: runId,
+    tile_x: 0,
+    tile_y,
+    tile_w: 100,
+    tile_h: 100,
+    global_x: 10,
+    global_y: 20,
+    global_w: 50,
+    global_h: 10,
+    text,
+    category: 'street',
+    confidence: 0.9,
+  });
+  const { error: insErr } = await admin
+    .from('ocr_extractions')
+    .insert([row(mapId, 'Rue de Khánh-Hội', 0), row(draft!.id, 'Khanh Hoi (draft)', 1)]);
+  expect(insErr, insErr?.message).toBeNull();
+
+  // Anonymous: one-letter typo still hits, the draft map's label does not appear.
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const res = await anon.get('/api/search?q=khan%20hoy&include=labels');
+  expect(res.ok(), await res.text()).toBe(true);
+  const { labels } = await res.json();
+  const texts = labels.map((l: { text: string }) => l.text);
+  expect(texts).toContain('Rue de Khánh-Hội');
+  expect(texts).not.toContain('Khanh Hoi (draft)');
+  const hit = labels.find((l: { text: string }) => l.text === 'Rue de Khánh-Hội');
+  expect(hit.map_id).toBe(mapId);
+  expect(hit.bbox).toEqual([10, 20, 50, 10]);
+  await anon.dispose();
+
+  // Staff see the draft map's label too.
+  const staff = await staffRequest.get('/api/search?q=khanh%20hoi&include=labels');
+  expect(staff.ok()).toBe(true);
+  const staffTexts = (await staff.json()).labels.map((l: { text: string }) => l.text);
+  expect(staffTexts).toContain('Khanh Hoi (draft)');
+
+  // And the raw table no longer leaks draft labels to the publishable key (mig 065 RLS).
+  const anonDb = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+  const { data: leaked } = await anonDb
+    .from('ocr_extractions')
+    .select('id')
+    .eq('run_id', runId)
+    .eq('map_id', draft!.id);
+  expect(leaked).toEqual([]);
+});
+
+test('the footprint export defaults to approved, filters by year and by ground bbox', async () => {
+  // Two polygons on the fixture map: one approved, one still in the queue.
+  const ring = (dx: number) => [
+    [10 + dx, 10],
+    [30 + dx, 10],
+    [30 + dx, 30],
+    [10 + dx, 30],
+  ];
+  const { data: made, error: mkErr } = await admin
+    .from('footprint_submissions')
+    .insert([
+      {
+        map_id: mapId,
+        pixel_polygon: ring(0),
+        name: 'export-smoke approved',
+        feature_type: 'building',
+        status: 'approved',
+        source: 'volunteer',
+      },
+      {
+        map_id: mapId,
+        pixel_polygon: ring(100),
+        name: 'export-smoke submitted',
+        feature_type: 'building',
+        status: 'submitted',
+        source: 'volunteer',
+      },
+    ])
+    .select('id, status');
+  expect(mkErr, mkErr?.message).toBeNull();
+  for (const r of made!) created.footprintIds.push(r.id);
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+
+  // Assertions are scoped to this test's own rows by name: other tests in this
+  // file leave approved footprints on the same fixture map until afterAll, so a
+  // bare row count here would depend on execution order.
+  const namesOf = async (qs: string): Promise<string[]> => {
+    const res = await anon.get(`/api/export/footprints?${qs}`);
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()).features
+      .map((f: { properties: { name: string | null } }) => f.properties.name)
+      .filter((n: string | null) => n?.startsWith('export-smoke'));
+  };
+
+  // Default status: the reviewed polygon only.
+  expect(await namesOf(`map_id=${mapId}`)).toEqual(['export-smoke approved']);
+
+  // The map's year rides along, and filters.
+  const def = await anon.get(`/api/export/footprints?map_id=${mapId}`);
+  const props = (await def.json()).features.find(
+    (f: { properties: { name: string } }) => f.properties.name === 'export-smoke approved'
+  ).properties;
+  expect(props.year).toBe(1900);
+  expect(await namesOf(`map_id=${mapId}&year=1500-1600`)).toEqual([]);
+  expect(await namesOf(`map_id=${mapId}&year=1890-1910`)).toEqual(['export-smoke approved']);
+
+  // bbox selects on the ground. The fixture map has no resolvable annotation,
+  // so nothing can be warped and a ground query must return nothing rather
+  // than falling back to pixel coordinates that look like coordinates.
+  expect(props.geo_converted).toBe(false);
+  expect(await namesOf(`map_id=${mapId}&bbox=106.6,10.7,106.8,10.9`)).toEqual([]);
+
+  // Malformed filters are ignored, not fatal.
+  expect(await namesOf(`map_id=${mapId}&year=nope&bbox=1,2`)).toEqual(['export-smoke approved']);
+
+  // A comma list is accepted; a malformed id is a 400, not a 500.
+  expect(await namesOf(`map_id=${mapId},${mapId}`)).toEqual(['export-smoke approved']);
+  const bad = await anon.get('/api/export/footprints?map_id=not-a-uuid');
+  expect(bad.status()).toBe(400);
+
+  await anon.dispose();
+});
+
+test('the place-time index warps on write, gates drafts, and rewarps on demand', async () => {
+  const runId = `write-smoke-ctx-${Date.now()}`;
+  created.runIds.push(runId);
+
+  // The fixture map has no resolvable annotation, so a writer cannot warp: the
+  // honest result is a null geom, not a guessed one.
+  const post = await staffRequest.post(`/api/admin/maps/${mapId}/ocr-review`, {
+    data: {
+      run_id: runId,
+      global_x: 100,
+      global_y: 200,
+      global_w: 50,
+      global_h: 20,
+      text: 'Quai de Belgique',
+      category: 'street',
+    },
+  });
+  expect(post.ok(), await post.text()).toBe(true);
+  const { id: unwarpedId } = await post.json();
+  const { data: unwarped } = await admin
+    .from('ocr_extractions')
+    .select('geom, geom_src')
+    .eq('id', unwarpedId)
+    .single();
+  expect(unwarped!.geom).toBeNull();
+  expect(unwarped!.geom_src).toBeNull();
+
+  // Stand in for a successful warp by writing the geometry the way the warp
+  // job would, then ask the index what is there.
+  const HERE = { lng: 106.70098, lat: 10.77653 };
+  await admin
+    .from('ocr_extractions')
+    .update({
+      geom: `SRID=4326;POINT(${HERE.lng} ${HERE.lat})`,
+      geom_src: 'smoke-src',
+      geom_rmse: 4.2,
+    })
+    .eq('id', unwarpedId);
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const res = await anon.get(`/api/context?lng=${HERE.lng}&lat=${HERE.lat}&radius=200`);
+  expect(res.ok(), await res.text()).toBe(true);
+  const ctx = await res.json();
+  const hit = ctx.labels.find((l: { id: string }) => l.id === unwarpedId);
+  expect(hit, 'the warped label should be in range').toBeTruthy();
+  expect(hit.text).toBe('Quai de Belgique');
+  expect(hit.geom_rmse).toBe(4.2);
+  expect(hit.distance_m).toBeLessThan(1);
+  expect(hit.year).toBe(1900);
+
+  // A tight radius excludes it; bad coordinates are a 400, not a 500.
+  const far = await anon.get(`/api/context?lng=${HERE.lng + 0.5}&lat=${HERE.lat}&radius=100`);
+  expect((await far.json()).labels).toEqual([]);
+  expect((await anon.get('/api/context?lng=999&lat=0')).status()).toBe(400);
+
+  // A draft map's warped label is invisible to an anonymous caller.
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({ name: 'ctx-smoke draft map', status: 'draft', year: 1901 })
+    .select('id')
+    .single();
+  created.mapIds.push(draft!.id);
+  await admin.from('ocr_extractions').insert({
+    map_id: draft!.id,
+    run_id: runId,
+    tile_x: 0,
+    tile_y: 9,
+    tile_w: 100,
+    tile_h: 100,
+    global_x: 10,
+    global_y: 20,
+    global_w: 50,
+    global_h: 10,
+    text: 'draft-only street',
+    category: 'street',
+    confidence: 0.9,
+    geom: `SRID=4326;POINT(${HERE.lng} ${HERE.lat})`,
+    geom_src: 'smoke-src',
+  });
+  const gated = await anon.get(`/api/context?lng=${HERE.lng}&lat=${HERE.lat}&radius=200`);
+  const gatedTexts = (await gated.json()).labels.map((l: { text: string }) => l.text);
+  expect(gatedTexts).toContain('Quai de Belgique');
+  expect(gatedTexts).not.toContain('draft-only street');
+
+  // Staff see both.
+  const staffCtx = await staffRequest.get(
+    `/api/context?lng=${HERE.lng}&lat=${HERE.lat}&radius=200`
+  );
+  const staffTexts = (await staffCtx.json()).labels.map((l: { text: string }) => l.text);
+  expect(staffTexts).toContain('draft-only street');
+  await anon.dispose();
+
+  // map_context reports coverage and counts a row warped against another
+  // georeference as stale — the defect the warp job clears.
+  const { data: summary } = await admin.rpc('map_context', {
+    p_map_id: mapId,
+    p_geom_src: 'a-different-georeference',
+  });
+  const s = summary as unknown as {
+    labels: { total: number; warped: number; stale: number };
+  };
+  expect(s.labels.warped).toBeGreaterThan(0);
+  expect(s.labels.stale).toBeGreaterThan(0);
+
+  // A warp job is claimable and runs server-side; this map has no annotation,
+  // so it reports that rather than inventing geometry.
+  const { data: job } = await admin
+    .from('pipeline_jobs')
+    .insert({ kind: 'warp', map_id: mapId, payload: {} })
+    .select('id')
+    .single();
+  created.jobIds.push(job!.id);
+  const asWorker = await playwrightRequest.newContext({
+    baseURL: 'http://localhost:5199',
+    extraHTTPHeaders: { Authorization: `Bearer ${TEST_WORKER_TOKEN}` },
+  });
+  const claimed = await asWorker.post('/api/pipeline/claim', {
+    data: { kinds: ['warp'], worker: 'write-smoke' },
+  });
+  expect(claimed.ok(), await claimed.text()).toBe(true);
+  const ran = await asWorker.post('/api/pipeline/execute', {
+    data: { job_id: job!.id },
+  });
+  expect(ran.ok(), await ran.text()).toBe(true);
+  expect((await ran.json()).result.reason).toBe('no usable annotation');
+  await asWorker.dispose();
+});
+
+test('the published contracts match what the API actually returns', async () => {
+  // contracts/ is the written definition consumers outside this repo rely on
+  // (docs/platform-design.md §3). This is the executable half: if a field
+  // changes shape, it fails here rather than in someone else's app.
+  const runId = `write-smoke-contract-${Date.now()}`;
+  created.runIds.push(runId);
+
+  const HERE = { lng: 106.70098, lat: 10.77653 };
+  const { data: label } = await admin
+    .from('ocr_extractions')
+    .insert({
+      map_id: mapId,
+      run_id: runId,
+      tile_x: 0,
+      tile_y: 42,
+      tile_w: 100,
+      tile_h: 100,
+      global_x: 10,
+      global_y: 20,
+      global_w: 50,
+      global_h: 10,
+      text: 'Rue Contractuelle',
+      category: 'street',
+      confidence: 0.95,
+      geom: `SRID=4326;POINT(${HERE.lng} ${HERE.lat})`,
+      geom_src: 'contract-smoke',
+      geom_rmse: 3.1,
+    })
+    .select('id')
+    .single();
+
+  const { data: print } = await admin
+    .from('footprint_submissions')
+    .insert({
+      map_id: mapId,
+      pixel_polygon: [
+        [10, 10],
+        [30, 10],
+        [30, 30],
+      ],
+      name: 'contract-smoke building',
+      feature_type: 'building',
+      status: 'approved',
+      source: 'volunteer',
+      geom: 'SRID=4326;POLYGON((106.7008 10.7764, 106.7012 10.7764, 106.7012 10.7767, 106.7008 10.7764))',
+      geom_src: 'contract-smoke',
+      geom_rmse: 3.1,
+    })
+    .select('id')
+    .single();
+  created.footprintIds.push(print!.id);
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+
+  // Every schema must stay inside the subset the checker implements; a contract
+  // that quietly asks for an unchecked keyword is worse than no contract.
+  for (const name of [
+    'context.schema.json',
+    'label-hit.schema.json',
+    'footprint-feature.schema.json',
+  ]) {
+    expect(unsupportedKeywords(loadSchema(name)), `${name} uses unchecked keywords`).toEqual([]);
+  }
+
+  const ctxRes = await anon.get(`/api/context?lng=${HERE.lng}&lat=${HERE.lat}&radius=300`);
+  expect(ctxRes.ok(), await ctxRes.text()).toBe(true);
+  const ctx = await ctxRes.json();
+  expect(validate(loadSchema('context.schema.json'), ctx)).toEqual([]);
+  expect(ctx.labels.some((l: { id: string }) => l.id === label!.id)).toBe(true);
+  expect(ctx.footprints.some((f: { id: string }) => f.id === print!.id)).toBe(true);
+
+  const search = await anon.get('/api/search?q=rue%20contractuelle&include=labels');
+  expect(search.ok()).toBe(true);
+  const hits = (await search.json()).labels;
+  const hitSchema = loadSchema('label-hit.schema.json');
+  expect(hits.length).toBeGreaterThan(0);
+  for (const h of hits) expect(validate(hitSchema, h)).toEqual([]);
+
+  const exported = await anon.get(`/api/export/footprints?map_id=${mapId}`);
+  expect(exported.ok()).toBe(true);
+  const features = (await exported.json()).features;
+  const featureSchema = loadSchema('footprint-feature.schema.json');
+  expect(features.length).toBeGreaterThan(0);
+  for (const f of features) expect(validate(featureSchema, f)).toEqual([]);
+
+  // And the checker itself has teeth: a wrong type must be reported.
+  expect(validate(hitSchema, { ...hits[0], year: 'nineteen hundred' })).toEqual([
+    '$.year: expected integer|null, got string',
+  ]);
+
+  await anon.dispose();
+});
+
+test('a place page groups every spelling and hides unpublished sheets', async () => {
+  const runId = `write-smoke-place-${Date.now()}`;
+  created.runIds.push(runId);
+
+  const HERE = { lng: 106.7009, lat: 10.7765 };
+  const row = (text: string, tile_y: number) => ({
+    map_id: mapId,
+    run_id: runId,
+    tile_x: 0,
+    tile_y,
+    tile_w: 100,
+    tile_h: 100,
+    global_x: 10,
+    global_y: 20,
+    global_w: 50,
+    global_h: 10,
+    text,
+    category: 'street',
+    confidence: 0.9,
+    geom: `SRID=4326;POINT(${HERE.lng} ${HERE.lat})`,
+    geom_src: 'place-smoke',
+    geom_rmse: 7.5,
+  });
+  // The same street written three ways: hyphenated, spaced, and accented. The
+  // gazetteer's key folds punctuation, so all three are one place.
+  const { error: insErr } = await admin
+    .from('ocr_extractions')
+    .insert([row('Rue de Cây-Mai', 51), row('Rue de Cay Mai', 52), row('Rue de Cay Mai', 53)]);
+  expect(insErr, insErr?.message).toBeNull();
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const res = await anon.get('/place/rue-de-cay-mai');
+  expect(res.ok(), `${res.status()} ${await res.text()}`).toBe(true);
+  const html = await res.text();
+
+  // Server-rendered: the crawler must see all of this without JavaScript.
+  expect(html).toContain('Rue de Cay Mai'); // the most-attested spelling wins the title
+  expect(html).toContain('Rue de Cây-Mai'); // the other spelling is listed as a variant
+  expect(html).toContain('Write-smoke fixture map');
+  expect(html).toContain('1900');
+  expect(html).toContain(`at=${HERE.lng.toFixed(6)}`); // the explore link lands on the spot
+  expect(html).toContain('8 m'); // the rounded warp error, stated rather than hidden
+
+  // The share page links to it, which is the only crawl path there is.
+  const share = await anon.get(`/map/${mapId}`);
+  expect(share.ok()).toBe(true);
+  expect(await share.text()).toContain('/place/rue-de-cay-mai');
+
+  // An unknown name is a 404, not an empty page.
+  expect((await anon.get('/place/rue-qui-nexiste-pas')).status()).toBe(404);
+
+  // A name attested only on a draft map has no public page.
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({ name: 'place-smoke draft', status: 'draft', year: 1902 })
+    .select('id')
+    .single();
+  created.mapIds.push(draft!.id);
+  await admin.from('ocr_extractions').insert({ ...row('Rue Introuvable', 54), map_id: draft!.id });
+  expect((await anon.get('/place/rue-introuvable')).status()).toBe(404);
+
+  // And a name on BOTH a published and a draft sheet must not leak the draft
+  // through the aggregate. The page loader reads the gazetteer on the service
+  // client, which bypasses RLS, so the view itself has to be the gate.
+  await admin.from('ocr_extractions').insert({ ...row('Rue de Cay Mai', 55), map_id: draft!.id });
+  const { data: agg } = await admin
+    .from('place_names')
+    .select('map_ids, years, mentions')
+    .eq('name_key', 'rue de cay mai')
+    .single();
+  expect(agg!.map_ids).not.toContain(draft!.id);
+  expect(agg!.years).not.toContain(1902);
+  expect(await (await anon.get('/place/rue-de-cay-mai')).text()).not.toContain(draft!.id);
+
+  await anon.dispose();
+});
+
+test('geometry writes are batched, capped, and ordered correctly', async () => {
+  const runId = `write-smoke-batch-${Date.now()}`;
+  created.runIds.push(runId);
+
+  // 600 rows: more than one page of the warp job's walk, and the size of
+  // problem that made the old one-update-per-row loop impossible inside a
+  // Pages Function.
+  const rows = Array.from({ length: 600 }, (_, i) => ({
+    map_id: mapId,
+    run_id: runId,
+    tile_x: 0,
+    tile_y: 1000 + i,
+    tile_w: 10,
+    tile_h: 10,
+    global_x: i,
+    global_y: 0,
+    global_w: 5,
+    global_h: 5,
+    text: `batch-${i}`,
+    category: 'street',
+    confidence: 0.5,
+  }));
+  const { error: insErr } = await admin.from('ocr_extractions').insert(rows);
+  expect(insErr, insErr?.message).toBeNull();
+
+  const { data: ids } = await admin.from('ocr_extractions').select('id').eq('run_id', runId);
+  expect(ids!.length).toBe(600);
+
+  // One call moves all of them.
+  const writes = ids!.map((r, i) => ({
+    id: r.id,
+    geom: `SRID=4326;POINT(${106.7 + i * 1e-5} 10.77)`,
+    geom_src: 'batch-smoke',
+    geom_rmse: 2.5,
+  }));
+  const { data: moved, error: rpcErr } = await admin.rpc('set_extraction_geom', {
+    p_rows: writes as never,
+  });
+  expect(rpcErr, rpcErr?.message).toBeNull();
+  expect(moved).toBe(600);
+
+  const { count } = await admin
+    .from('ocr_extractions')
+    .select('id', { count: 'exact', head: true })
+    .eq('run_id', runId)
+    .eq('geom_src', 'batch-smoke');
+  expect(count).toBe(600);
+
+  // A null geom is a legitimate write: it is how a row that cannot be warped
+  // is recorded, rather than keeping a stale position.
+  const cleared = await admin.rpc('set_extraction_geom', {
+    p_rows: [{ id: ids![0].id, geom: null, geom_src: 'batch-smoke', geom_rmse: null }] as never,
+  });
+  expect(cleared.error).toBeNull();
+  const { data: back } = await admin
+    .from('ocr_extractions')
+    .select('geom')
+    .eq('id', ids![0].id)
+    .single();
+  expect(back!.geom).toBeNull();
+
+  // The cap is enforced in the database, not trusted to the caller.
+  const tooMany = await admin.rpc('set_extraction_geom', {
+    p_rows: Array.from({ length: 1001 }, () => ({
+      id: ids![0].id,
+      geom: null,
+      geom_src: 'x',
+      geom_rmse: null,
+    })) as never,
+  });
+  expect(tooMany.error?.message).toContain('at most 1000 rows');
+
+  // An empty batch is a no-op, not an error — the walk hits this on a page
+  // where every row was already warped.
+  const none = await admin.rpc('set_extraction_geom', { p_rows: [] as never });
+  expect(none.error).toBeNull();
+  expect(none.data).toBe(0);
+
+  // Distances come back numerically ordered. Sorted as text, "104.6" would
+  // precede "12.3", which is what this had before.
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const ctx = await (await anon.get('/api/context?lng=106.7&lat=10.77&radius=2000')).json();
+  const distances = ctx.labels.map((l: { distance_m: number }) => l.distance_m);
+  expect(distances.length).toBeGreaterThan(2);
+  expect([...distances].sort((a: number, b: number) => a - b)).toEqual(distances);
+
+  // Search returns the stored position without fetching any annotation.
+  const hits = await (await anon.get('/api/search?q=batch-3&include=labels')).json();
+  const hit = hits.labels.find((l: { text: string }) => l.text === 'batch-3');
+  expect(hit).toBeTruthy();
+  expect(hit.lat).toBeCloseTo(10.77, 4);
+  await anon.dispose();
 });

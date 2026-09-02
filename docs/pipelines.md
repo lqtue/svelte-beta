@@ -26,7 +26,7 @@ VMA_WORKER_KEY=<token>
 
 The worker exports both variables into each job's subprocess, so `ocr.py … --db` posts its rows through the same endpoint — `supabase_client.py` picks its transport from them. Run by hand without those variables, it falls back to PostgREST with the service key, which is what `clean`, `join_labels` and `eval` still use.
 
-Only `ocr` has a runner; a claimed `seg` job is failed straight back with a message, since segmentation runs on Colab.
+`seg` has a runner too, but its machine is not normally a laptop: MapSAM2 wants a GPU, so the intended host is a Colab notebook running this same worker with `--kinds seg`. A GPU session becomes a worker, and the Segmentation panel's command stops being something a human copies by hand. Its flag set mirrors `segCommand.ts` — keep the two in step. `MAPSAM2_DIR` and `MAPSAM2_CHECKPOINT` come from the environment, because they describe the machine rather than the job; a job payload may override either.
 
 `--write-supabase` writes `pixel_polygon` (the outer ring, full-image source px — the same grid `ocr_extractions.global_*` uses), `confidence` from SAM2's IoU, `source='sam-auto'` and the run id. Holes are dropped: the column holds one ring. Before migration 055/057 this path could not insert at all — it posted three columns that do not exist and a `source` the check constraint refused.
 
@@ -67,7 +67,20 @@ Subcommands (11): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `preview`
 
 `--auto-priority` fills the Triage grid without a human: text density decides blank → skip and sparse → low_res, then a colour pre-pass (`compute_tile_colours`, HSV) demotes any tile that is mostly water or vegetation wash one further step. Demotion only — a misread wash costs resolution, never a tile — and a monochrome scan scores ~0, so nothing happens on grey maps. `--wash-above` (default 0.6) is the threshold.
 
-Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max-row-frames 4`), `--adaptive`, `--target-calls N`, `--smart-grid`, `--skip-sparse`, `--auto-priority`, `--wash-above`, `--tile-overrides '{"x_y_w_h":"skip|low_res"}'`, `--crop x,y,w,h`, `--prior-run <dir>`, `--legend`, `--db`.
+Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max-row-frames 4`), `--adaptive`, `--target-calls N`, `--smart-grid`, `--skip-sparse`, `--auto-priority`, `--wash-above`, `--aoi-px x0,y0,x1,y1`, `--tile-overrides '{"x_y_w_h":"skip|low_res"}'`, `--crop x,y,w,h`, `--prior-run <dir>`, `--legend`, `--db`.
+
+`--aoi-px x0,y0,x1,y1` limits a run to a study area (District 4 is the first one). It takes **source-image pixels, not lng/lat**: the Allmaps georeference lives on the JS side (`src/lib/server/transformer.ts`), so the caller warps the four WGS84 corners with `GcpTransformer.transformToResource` and passes the pixel bbox. `--aoi` exists only to fail with that instruction. The filter runs *after* `--auto-priority` / `--tile-overrides`, and only ever demotes: a tile overlapping the AOI keeps whatever priority it had, a tile outside becomes `skip`, and a tile straddling the boundary counts as inside. So an AOI covering the whole map changes nothing.
+
+`--clahe` turns on an adaptive-contrast pre-pass before a tile's bytes reach the model. Faded colonial scans lose their thin hand-lettered toponyms into the paper: locally the ink-to-paper gap is a handful of grey levels while the sheet still spans the full range, so a plain histogram stretch does nothing and CLAHE equalizes per region instead. `--clahe-clip` (default 2.0) caps the amplification so flat paper between strokes does not become noise; `--clahe-grid` (default 8, or `RxC`) sets the region grid. It runs on **luminance only** — equalizing per RGB channel would move hue and saturation, and `compute_tile_colours` scores the water and vegetation wash in HSV. It is also applied after both tile caches and after the shared overview the colour pass reads, so the caches keep raw pixels, an A/B run reuses the same cached tiles, and the wash scores are structurally out of reach.
+
+**Off by default, and it must stay off until it is measured.** The idea is borrowed from Pastmaps, which runs adaptive contrast on every sheet so computer vision can read faded copperplate, but borrowed practice is not evidence about *our* corpus. To measure it, run the eval set both ways against the ground truth in `work/ocr/EVAL-BASELINE.md`:
+
+```bash
+python work/ocr/scripts/eval.py --run-id baseline-noclahe
+python work/ocr/scripts/eval.py --run-id baseline-clahe --clahe
+```
+
+Default it on only if recall improves and precision does not fall — a pre-pass that finds two more street names while inventing three is a loss. Record the numbers in `EVAL-BASELINE.md` either way, including a null result, so nobody re-runs this experiment blind.
 
 ### Local passes (no API — run on the M-series for free)
 

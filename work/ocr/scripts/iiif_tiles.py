@@ -227,6 +227,103 @@ def adaptive_render_size(image: Image.Image, low: int = 1024, high: int = 2048, 
     return high if estimate_density(image) >= threshold else low
 
 
+# ── Adaptive-contrast pre-pass (CLAHE) ────────────────────────────────────────
+#
+# Faded French colonial scans lose their thin hand-lettered toponyms into the
+# paper: locally the ink/paper gap is a handful of grey levels, globally the
+# sheet still spans 0-255 so a plain histogram stretch does nothing. CLAHE
+# equalizes per-region instead, with a clip limit so the flat paper between
+# strokes is not amplified into noise.
+#
+# Applied to **luminance only** (LAB L). Equalizing per RGB channel would move
+# hue and saturation, and `compute_tile_colours` scores the water/vegetation
+# wash in HSV — the pre-pass must never be able to reach that signal. It cannot:
+# it runs on the per-tile render on its way to the model, long after the shared
+# overview the colour pass reads. See docs/pipelines.md.
+#
+# ponytail: pure numpy + Pillow, ~30 lines, because there is no cv2 wheel for
+# Python 3.14 and this must not add a dependency. Ceiling: a full 2048px tile
+# costs ~0.2s and four 256-entry LUT gathers of float32 (~64 MB peak), and the
+# interpolation is bilinear between tile centres exactly as cv2 does it, so
+# output is equivalent but not bit-identical. Upgrade path if it ever shows up
+# in the profile — `cv2.createCLAHE(clipLimit, tileGridSize).apply(L)` on the
+# same L channel, same flag surface, delete `_clahe_lut` and this function's
+# body. Nothing downstream sees the difference.
+
+
+def _clahe_lut(block, clip_limit: float):
+    """Clipped, excess-redistributed CDF for one grid block → a 256-entry LUT."""
+    import numpy as np
+
+    n = block.size
+    if n == 0:
+        return np.arange(256, dtype=np.float32)
+    hist = np.bincount(block.ravel(), minlength=256).astype(np.int64)
+    # Clip tall bins (flat paper) and spread what was cut back over all levels.
+    limit = max(1, int(clip_limit * n / 256.0))
+    excess = int(np.maximum(hist - limit, 0).sum())
+    hist = np.minimum(hist, limit) + excess // 256
+    cdf = np.cumsum(hist)
+    # max(...,1) is the uniform-image guard: a flat block still has a non-zero
+    # total after redistribution, but never divide by an unchecked cdf.
+    return (cdf * (255.0 / max(int(cdf[-1]), 1))).astype(np.float32)
+
+
+def apply_clahe(
+    image: Image.Image,
+    clip_limit: float = 2.0,
+    grid: int | tuple[int, int] = 8,
+) -> Image.Image:
+    """Contrast-Limited Adaptive Histogram Equalization on the LAB L channel.
+
+    clip_limit: histogram clip, as a multiple of the flat-histogram bin height.
+                1.0 ≈ no equalization, 2.0 is a safe default, >4 gets noisy.
+    grid:       grid blocks — an int for square, or (rows, cols).
+
+    Pure function: no network, no cache, no mutation of the input.
+    """
+    import numpy as np
+
+    if isinstance(grid, int):
+        grid = (grid, grid)
+    gy, gx = max(1, int(grid[0])), max(1, int(grid[1]))
+
+    lab = np.array(image.convert("LAB"), dtype=np.uint8)
+    lum = lab[:, :, 0]
+    h, w = lum.shape
+    if h == 0 or w == 0:
+        return image.copy()
+
+    ys = np.linspace(0, h, gy + 1).round().astype(int)
+    xs = np.linspace(0, w, gx + 1).round().astype(int)
+    luts = np.empty((gy, gx, 256), dtype=np.float32)
+    for i in range(gy):
+        for j in range(gx):
+            luts[i, j] = _clahe_lut(lum[ys[i]:ys[i + 1], xs[j]:xs[j + 1]], clip_limit)
+
+    # Bilinear blend between the four surrounding block centres, so block
+    # boundaries do not show up as seams the model would read as strokes.
+    def _axis(centres, length, count):
+        coord = np.arange(length, dtype=np.float32)
+        i1 = np.clip(np.searchsorted(centres, coord), 0, count - 1)
+        i0 = np.clip(i1 - 1, 0, count - 1)
+        span = np.where(i1 > i0, centres[i1] - centres[i0], 1.0)
+        t = np.clip((coord - centres[i0]) / span, 0.0, 1.0).astype(np.float32)
+        return i0, i1, t
+
+    iy0, iy1, ty = _axis((ys[:-1] + ys[1:] - 1) * 0.5, h, gy)
+    jx0, jx1, tx = _axis((xs[:-1] + xs[1:] - 1) * 0.5, w, gx)
+
+    Iy0, Iy1 = iy0[:, None], iy1[:, None]
+    Jx0, Jx1 = jx0[None, :], jx1[None, :]
+    TY, TX = ty[:, None], tx[None, :]
+    top = luts[Iy0, Jx0, lum] * (1.0 - TX) + luts[Iy0, Jx1, lum] * TX
+    bot = luts[Iy1, Jx0, lum] * (1.0 - TX) + luts[Iy1, Jx1, lum] * TX
+
+    lab[:, :, 0] = np.rint(top * (1.0 - TY) + bot * TY).clip(0, 255).astype(np.uint8)
+    return Image.fromarray(lab, mode="LAB").convert("RGB")
+
+
 def detect_neatline(image: Image.Image) -> tuple[int, int, int, int] | None:
     """Detect map content bounding box (neatline) from a low-res overview.
 
@@ -363,6 +460,59 @@ def auto_tile_overrides(
             out[key] = "skip" if wash >= wash_above else "low_res"
         elif wash >= wash_above:
             out[key] = "low_res"
+    return out
+
+
+AOI_GEO_HINT = (
+    "--aoi takes WGS84 lng/lat, and this pipeline has no georeferencer: the "
+    "Allmaps transform lives on the JS side (src/lib/server/transformer.ts), "
+    "not in Python. Warp the study area to source-image pixels first "
+    "(GcpTransformer.transformToResource on the map's annotation) and pass "
+    "--aoi-px x0,y0,x1,y1."
+)
+
+
+def parse_aoi_px(spec: str) -> tuple[int, int, int, int]:
+    """Parse "x0,y0,x1,y1" source-image pixels into a corner-ordered rect.
+
+    Corners may arrive in any order — the caller warped four geo corners and
+    a rotated map does not keep them sorted.
+    """
+    try:
+        x0, y0, x1, y1 = (int(round(float(v))) for v in spec.split(","))
+    except ValueError:
+        raise ValueError("--aoi-px must be x0,y0,x1,y1 in source image pixels") from None
+    return min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)
+
+
+def aoi_tile_overrides(
+    tiles: list[tuple[int, int, int, int]],
+    aoi_px: tuple[int, int, int, int],
+    overrides: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Mark every tile outside the AOI "skip", leaving the rest untouched.
+
+    A study area (District 4 is the first one) is a filter, not a priority
+    signal: a tile that overlaps it keeps whatever --auto-priority or the
+    Triage grid decided, and a tile that does not becomes "skip" so the
+    existing override machinery drops it. This never promotes — the AOI can
+    only take tiles away.
+
+    Rectangles are half-open, so a tile whose edge merely touches the AOI
+    boundary counts as outside; a tile straddling it counts as inside.
+
+    # ponytail: the AOI is an axis-aligned rectangle in pixel space. A
+    # rotated or badly-skewed map means the caller's pixel bbox over-covers
+    # the true geo polygon, so a few extra tiles survive. Over-covering costs
+    # API calls; under-covering would lose labels, so the ceiling is the safe
+    # side of the trade.
+    """
+    ax0, ay0, ax1, ay1 = aoi_px
+    out = dict(overrides or {})
+    for tx, ty, tw, th in tiles:
+        inside = tx < ax1 and tx + tw > ax0 and ty < ay1 and ty + th > ay0
+        if not inside:
+            out[f"{tx}_{ty}_{tw}_{th}"] = "skip"
     return out
 
 
@@ -524,7 +674,7 @@ def choose_scale_levels(
 
 
 def _self_check() -> None:
-    """Colour pre-pass + override rules, with no network and no real map.
+    """Colour pre-pass, CLAHE, override rules and AOI triage — no network, no real map.
 
     Run: python work/ocr/scripts/iiif_tiles.py --self-check
     """
@@ -565,6 +715,106 @@ def _self_check() -> None:
     assert auto_tile_overrides(sparse, colours={tiles[0]: 0.9}) == {"0_0_100_100": "skip"}
     blank = {tiles[0]: 0.0}
     assert auto_tile_overrides(blank, colours={tiles[0]: 0.0}) == {"0_0_100_100": "skip"}
+
+    # ── CLAHE pre-pass ──────────────────────────────────────────────────────
+    import numpy as _np
+
+    def _std(i) -> float:
+        return float(_np.asarray(i.convert("L"), dtype=_np.float32).std())
+
+    def _grey(a) -> "_Image.Image":
+        return _Image.fromarray(_np.dstack([a.astype(_np.uint8)] * 3))
+
+    rng = _np.random.default_rng(7)
+
+    # A faded scan: full texture squeezed into a 20-level band. This is the
+    # case the flag exists for, so require a real gain, not a nudge.
+    faded = _grey(118 + rng.random((512, 512)) * 20)
+    faded_bytes = faded.tobytes()
+    faded_std = _std(faded)
+    lifted = apply_clahe(faded, 2.0, 8)
+    assert lifted.size == faded.size and lifted.mode == "RGB"
+    assert _std(lifted) > 2.0 * faded_std, (faded_std, _std(lifted))
+
+    # Pure function: the caller's image is not mutated in place.
+    assert faded.tobytes() == faded_bytes
+
+    # An already-crisp ink-on-paper tile must not be wrecked. CLAHE's clip is
+    # what buys this; a plain histogram equalization would not.
+    crisp = _grey(_np.where(rng.random((512, 512)) > 0.8, 20, 235))
+    before, after = _std(crisp), _std(apply_clahe(crisp, 2.0, 8))
+    assert 0.9 * before < after < 1.1 * before, (before, after)
+
+    # A uniform image has one occupied bin: no divide-by-zero, no NaN, and it
+    # stays uniform (a blank margin tile must not become noise).
+    for flat in (_Image.new("RGB", (64, 64), (128, 128, 128)),
+                 _Image.new("RGB", (64, 64), (0, 0, 0)),
+                 _Image.new("RGB", (64, 64), (255, 255, 255))):
+        out = apply_clahe(flat, 2.0, 8)
+        assert _std(out) == 0.0, (flat.getpixel((0, 0)), _std(out))
+
+    # Degenerate geometry: 1x1, a single global block, a non-square grid.
+    assert apply_clahe(_Image.new("RGB", (1, 1), (40, 40, 40)), 2.0, 8).size == (1, 1)
+    assert _std(apply_clahe(faded, 2.0, 1)) > faded_std
+    assert apply_clahe(faded, 2.0, (4, 16)).size == (512, 512)
+
+    # Luminance only: a saturated wash keeps its hue, so the water/vegetation
+    # score compute_tile_colours reads cannot move even if the pre-pass were
+    # ever misplaced upstream of it.
+    wash = _Image.new("RGB", (200, 100), (70, 110, 200))
+    for x in range(100, 200):
+        for y in range(100):
+            wash.putpixel((x, y), (245, 240, 230))
+    wash_tiles = [(0, 0, 100, 100), (100, 0, 100, 100)]
+    plain = compute_tile_colours(wash, wash_tiles, 200, 100)
+    equalized = compute_tile_colours(apply_clahe(wash, 2.0, 8), wash_tiles, 200, 100)
+    assert plain[(0, 0, 100, 100)] > 0.9 and equalized[(0, 0, 100, 100)] > 0.9, (plain, equalized)
+    assert plain[(100, 0, 100, 100)] < 0.1 and equalized[(100, 0, 100, 100)] < 0.1, (plain, equalized)
+
+    # ── AOI triage ──────────────────────────────────────────────────────────
+    # Corners in any order normalise to a corner-ordered rect.
+    assert parse_aoi_px("300,80,100,20") == (100, 20, 300, 80)
+    assert parse_aoi_px(" 10 , 10 , 20.6 , 20.4 ") == (10, 10, 21, 20)
+    try:
+        parse_aoi_px("106.7,10.7")
+    except ValueError as e:
+        assert "--aoi-px" in str(e), e
+    else:
+        raise AssertionError("parse_aoi_px accepted a 2-value spec")
+
+    # One row of three 100px tiles; the AOI covers the middle one and clips
+    # 20px into the first, leaving the third untouched by it.
+    row = [(0, 0, 100, 100), (100, 0, 100, 100), (200, 0, 100, 100)]
+    assert aoi_tile_overrides(row, (80, 0, 200, 100)) == {"200_0_100_100": "skip"}
+
+    # Fully inside → untouched; fully outside → skip; straddling → untouched.
+    assert aoi_tile_overrides(row, (100, 0, 200, 100)) == {
+        "0_0_100_100": "skip", "200_0_100_100": "skip"
+    }
+
+    # Touching the boundary is outside: tile 1 ends exactly where the AOI starts.
+    assert aoi_tile_overrides(row, (100, 0, 150, 50)) == {
+        "0_0_100_100": "skip", "200_0_100_100": "skip"
+    }
+
+    # An AOI covering everything changes nothing.
+    assert aoi_tile_overrides(row, (0, 0, 300, 100)) == {}
+    assert aoi_tile_overrides(row, (-1000, -1000, 5000, 5000)) == {}
+
+    # An AOI covering nothing skips every tile.
+    assert aoi_tile_overrides(row, (9000, 9000, 9100, 9100)) == {
+        "0_0_100_100": "skip", "100_0_100_100": "skip", "200_0_100_100": "skip"
+    }
+
+    # Never promotes: an existing skip/low_res inside the AOI is left alone,
+    # and an existing low_res outside it is demoted, not preserved.
+    prior = {"0_0_100_100": "skip", "100_0_100_100": "low_res",
+             "200_0_100_100": "low_res"}
+    assert aoi_tile_overrides(row, (0, 0, 200, 100), prior) == prior | {
+        "200_0_100_100": "skip"
+    }
+    # The caller's dict is not mutated.
+    assert prior["200_0_100_100"] == "low_res"
 
     print("[ok] iiif_tiles self-check passed")
 

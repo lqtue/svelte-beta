@@ -9,6 +9,13 @@
 
   export let data;
   $: map = data.map;
+  /** Places this sheet names, from the gazetteer. Empty until the map is OCR'd. */
+  $: places = (data.places ?? []) as Array<{
+    name_key: string;
+    name: string;
+    mentions: number;
+  }>;
+  const placeHref = (key: string) => `/place/${key.replace(/\s+/g, '-')}`;
 
   // The R2 worker advertises level2 but is really level0 plus a proxy, so an
   // arbitrary width can 404. `thumbnail` is a size we know exists; the derived
@@ -72,6 +79,21 @@
     <a class="pill-btn" href="/catalog">Browse the archive</a>
   </div>
 
+  {#if places.length}
+    <section class="share-places">
+      <h2>Places named on this sheet</h2>
+      <ul>
+        {#each places as p (p.name_key)}
+          <li><a href={placeHref(p.name_key)}>{p.name}</a></li>
+        {/each}
+      </ul>
+      <p class="share-places-note">
+        Read by optical character recognition from the sheet itself, then corrected by hand where a
+        reviewer has reached it.
+      </p>
+    </section>
+  {/if}
+
   {#if facts(map).length}
     <dl class="share-facts">
       {#each facts(map) as [label, value] (label)}
@@ -85,6 +107,41 @@
 </main>
 
 <style>
+  .share-places {
+    margin: var(--space-6) 0 0;
+    text-align: left;
+  }
+  .share-places h2 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-base);
+  }
+  .share-places ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+  }
+  .share-places a {
+    display: inline-block;
+    padding: 2px var(--space-2);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-pill);
+    background: var(--color-white);
+    color: inherit;
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+  .share-places a:hover {
+    background: var(--color-gray-50);
+  }
+  .share-places-note {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-xs);
+    color: var(--color-gray-500);
+  }
+
   .share-page {
     max-width: 56rem;
     margin: 0 auto;

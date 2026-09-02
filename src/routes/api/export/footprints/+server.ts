@@ -4,9 +4,18 @@
  * Exports volunteer-traced and SAM-generated building footprints.
  *
  * Query params:
- *   map_id   — required for coco format, optional for geojson
- *   status   — default 'submitted'
+ *   map_id   — one uuid or a comma-separated list. Required for coco format.
+ *   status   — default 'approved'. A reviewed polygon is the only kind an
+ *              anonymous consumer should be handed; pass status=submitted
+ *              explicitly when you want the raw queue.
+ *   year     — 'from-to' (e.g. 1878-1968) filtering on the source map's year
+ *   bbox     — 'minLng,minLat,maxLng,maxLat', applied AFTER the warp, so it
+ *              selects by where the feature is on the ground (the District 4
+ *              study area is one such box). Features that could not be warped
+ *              are dropped when bbox is given, since they have no position.
  *   format   — 'geojson' (default) | 'coco'
+ *   limit    — row cap, default 5000, max 20000. Without map_id this endpoint
+ *              would otherwise stream the whole archive on one request.
  *   pad      — COCO only: pixel padding around each crop bbox (default 128)
  *   size     — COCO only: IIIF output size for image crops (default 1024)
  *
@@ -27,7 +36,51 @@ import { createClient } from '@supabase/supabase-js';
 import type { GcpTransformer } from '@allmaps/transform';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { allmapsAnnotationUrl, getTransformer } from '$lib/server/transformer';
-import { dbError } from '$lib/server/http';
+import { assertUuid, dbError } from '$lib/server/http';
+
+/** `1878-1968` → inclusive bounds. Null when absent or unparseable. */
+function parseYearRange(raw: string | null): { from: number; to: number } | null {
+  if (!raw) return null;
+  const [from, to] = raw.split('-').map((s) => parseInt(s, 10));
+  if (!Number.isFinite(from) || !Number.isFinite(to) || from > to) return null;
+  return { from, to };
+}
+
+/** `minLng,minLat,maxLng,maxLat` → tuple. Null when absent or unparseable. */
+function parseBbox(raw: string | null): [number, number, number, number] | null {
+  if (!raw) return null;
+  const p = raw.split(',').map(Number);
+  if (p.length !== 4 || p.some((n) => !Number.isFinite(n))) return null;
+  const [minLng, minLat, maxLng, maxLat] = p;
+  if (minLng > maxLng || minLat > maxLat) return null;
+  if (Math.abs(minLat) > 90 || Math.abs(maxLat) > 90) return null;
+  return [minLng, minLat, maxLng, maxLat];
+}
+
+/**
+ * Envelope overlap, not true intersection.
+ *
+ * ponytail: a polygon whose bounding box clips the study area but whose ring
+ * does not is included. For an AOI query that is the generous, safe direction —
+ * the notebook clips precisely anyway. Swap in a real predicate only if an
+ * export ever has to be exact without post-processing.
+ */
+function ringIntersectsBbox(
+  ring: [number, number][],
+  [minLng, minLat, maxLng, maxLat]: [number, number, number, number]
+): boolean {
+  let loMinLng = Infinity,
+    loMinLat = Infinity,
+    loMaxLng = -Infinity,
+    loMaxLat = -Infinity;
+  for (const [lng, lat] of ring) {
+    if (lng < loMinLng) loMinLng = lng;
+    if (lng > loMaxLng) loMaxLng = lng;
+    if (lat < loMinLat) loMinLat = lat;
+    if (lat > loMaxLat) loMaxLat = lat;
+  }
+  return loMinLng <= maxLng && loMaxLng >= minLng && loMinLat <= maxLat && loMaxLat >= minLat;
+}
 
 interface AnnotationData {
   transformer: GcpTransformer;
@@ -69,15 +122,25 @@ const CATEGORY_IDS: Record<string, number> = {
 
 export const GET: RequestHandler = async ({ url }) => {
   const annotationCache: AnnotationCache = new Map();
-  const mapId = url.searchParams.get('map_id');
-  const status = url.searchParams.get('status') || 'submitted';
+  const mapIds = (url.searchParams.get('map_id') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const status = url.searchParams.get('status') || 'approved';
   const format = url.searchParams.get('format') || 'geojson';
   const pad = parseInt(url.searchParams.get('pad') ?? '128', 10);
   const cropSize = parseInt(url.searchParams.get('size') ?? '1024', 10);
+  const rowLimit = Math.min(
+    Math.max(parseInt(url.searchParams.get('limit') ?? '5000', 10) || 5000, 1),
+    20000
+  );
+  const years = parseYearRange(url.searchParams.get('year'));
+  const bbox = parseBbox(url.searchParams.get('bbox'));
 
-  if (format === 'coco' && !mapId) {
-    throw error(400, 'map_id is required for coco format');
+  if (format === 'coco' && mapIds.length !== 1) {
+    throw error(400, 'coco format needs exactly one map_id');
   }
+  for (const id of mapIds) assertUuid(id, 'map_id');
 
   // Deliberately the anon key, not $lib/server/supabaseAdmin: this endpoint is
   // public and unauthenticated, so it must stay behind RLS.
@@ -85,13 +148,24 @@ export const GET: RequestHandler = async ({ url }) => {
 
   let fpQuery = supabase
     .from('footprint_submissions')
-    .select('*, maps(allmaps_id)')
+    .select('*, maps(allmaps_id, name, year)')
     .eq('status', status);
 
-  if (mapId) fpQuery = fpQuery.eq('map_id', mapId);
+  if (mapIds.length === 1) fpQuery = fpQuery.eq('map_id', mapIds[0]);
+  else if (mapIds.length > 1) fpQuery = fpQuery.in('map_id', mapIds);
+  fpQuery = fpQuery.limit(rowLimit);
 
-  const { data: rows, error: err } = await fpQuery;
+  const { data: allRows, error: err } = await fpQuery;
   if (err) dbError(err, 'Could not load footprints');
+
+  // The map's year is the year the feature was *observed*, which is the only
+  // temporal claim a single sheet supports. Filtering here rather than in the
+  // query keeps the join shape simple and the row count is small.
+  const rows = (allRows ?? []).filter((r) => {
+    if (!years) return true;
+    const y = (r as { maps?: { year?: number | null } }).maps?.year;
+    return y != null && y >= years.from && y <= years.to;
+  });
 
   // ── GeoJSON ──────────────────────────────────────────────────────────────
 
@@ -116,12 +190,20 @@ export const GET: RequestHandler = async ({ url }) => {
         coordinates = pixelRing.map(([x, y]) => [x, y] as [number, number]);
       }
 
+      // bbox selects on the ground, so an unwarped ring cannot satisfy it.
+      if (bbox) {
+        if (!annData) continue;
+        if (!ringIntersectsBbox(coordinates, bbox)) continue;
+      }
+
       features.push({
         type: 'Feature',
         geometry: { type: 'Polygon', coordinates: [coordinates] },
         properties: {
           id: row.id,
           map_id: row.map_id,
+          map_name: (row.maps as any)?.name ?? null,
+          year: (row.maps as any)?.year ?? null,
           allmaps_id: resolvedAllmapsId,
           name: row.name,
           category: row.category,
@@ -131,6 +213,9 @@ export const GET: RequestHandler = async ({ url }) => {
           confidence: row.confidence,
           status: row.status,
           pixel_polygon: pixelRing,
+          // The source map's GCP residual in metres, when the row has been
+          // warped. The analysis notebook reports it beside every figure.
+          geom_rmse: row.geom_rmse ?? null,
           geo_converted: !!annData,
           created_at: row.created_at,
         },
@@ -141,6 +226,9 @@ export const GET: RequestHandler = async ({ url }) => {
       headers: {
         'Content-Type': 'application/geo+json',
         'Content-Disposition': 'attachment; filename="vma-footprints.geojson"',
+        // Reviewed polygons change when a reviewer acts, not by the minute, and
+        // /explore's fabric layer refetches this on every toggle.
+        'Cache-Control': 'public, max-age=300',
       },
     });
   }
@@ -242,7 +330,7 @@ export const GET: RequestHandler = async ({ url }) => {
       year: new Date().getFullYear(),
       contributor: 'VMA Community',
       url: 'https://vietnammaps.org',
-      export_params: { status, pad, crop_size: cropSize },
+      export_params: { status, pad, crop_size: cropSize, map_id: mapIds[0] },
     },
     categories: [
       { id: 1, name: 'building', supercategory: 'structure' },

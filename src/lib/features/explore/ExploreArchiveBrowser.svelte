@@ -8,15 +8,19 @@
   server-side by role, so this doesn't need its own status filter.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { createCatalogSearch } from '$lib/features/catalog/catalogSearch';
+  import { createEventDispatcher, onMount } from 'svelte';
+  import { createCatalogSearch, type LabelHit } from '$lib/features/catalog/catalogSearch';
+  import LabelHits from '$lib/features/catalog/LabelHits.svelte';
   import ExploreMapRows from './ExploreMapRows.svelte';
+
+  const dispatch = createEventDispatcher<{ pickLabel: LabelHit }>();
 
   /** Oldest → newest comparator, supplied by the parent so both modes sort alike. */
   export let sortRows: (a: any, b: any) => number;
 
   const search = createCatalogSearch({ requireGeoref: true });
-  const { query, results, loading, areaChoices, typeChoices, periodChoices, selected } = search;
+  const { query, results, loading, areaChoices, typeChoices, periodChoices, selected, labels } =
+    search;
   onMount(() => search.start());
 
   $: shownRows = [...$results].sort(sortRows);
@@ -106,9 +110,11 @@
   {/if}
 </div>
 
+<LabelHits hits={$labels} mode="pick" on:pick={(e) => dispatch('pickLabel', e.detail)} />
+
 {#if shownRows.length}
   <ExploreMapRows rows={shownRows} on:pick on:remove />
-{:else}
+{:else if !$labels.length}
   <p class="empty">No maps match those filters.</p>
 {/if}
 
