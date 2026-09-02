@@ -26,7 +26,7 @@ VMA_WORKER_KEY=<token>
 
 The worker exports both variables into each job's subprocess, so `ocr.py … --db` posts its rows through the same endpoint — `supabase_client.py` picks its transport from them. Run by hand without those variables, it falls back to PostgREST with the service key, which is what `clean`, `join_labels` and `eval` still use.
 
-Only `ocr` has a runner; a claimed `seg` job is failed straight back with a message, since segmentation runs on Colab.
+`seg` has a runner too, but its machine is not normally a laptop: MapSAM2 wants a GPU, so the intended host is a Colab notebook running this same worker with `--kinds seg`. A GPU session becomes a worker, and the Segmentation panel's command stops being something a human copies by hand. Its flag set mirrors `segCommand.ts` — keep the two in step. `MAPSAM2_DIR` and `MAPSAM2_CHECKPOINT` come from the environment, because they describe the machine rather than the job; a job payload may override either.
 
 `--write-supabase` writes `pixel_polygon` (the outer ring, full-image source px — the same grid `ocr_extractions.global_*` uses), `confidence` from SAM2's IoU, `source='sam-auto'` and the run id. Holes are dropped: the column holds one ring. Before migration 055/057 this path could not insert at all — it posted three columns that do not exist and a `source` the check constraint refused.
 
