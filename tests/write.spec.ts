@@ -713,3 +713,75 @@ test("label search finds a typo'd label on a public map and hides draft-map labe
     .eq('map_id', draft!.id);
   expect(leaked).toEqual([]);
 });
+
+test('the footprint export defaults to approved, filters by year and by ground bbox', async () => {
+  // Two polygons on the fixture map: one approved, one still in the queue.
+  const ring = (dx: number) => [
+    [10 + dx, 10],
+    [30 + dx, 10],
+    [30 + dx, 30],
+    [10 + dx, 30],
+  ];
+  const { data: made, error: mkErr } = await admin
+    .from('footprint_submissions')
+    .insert([
+      {
+        map_id: mapId,
+        pixel_polygon: ring(0),
+        name: 'export-smoke approved',
+        feature_type: 'building',
+        status: 'approved',
+        source: 'volunteer',
+      },
+      {
+        map_id: mapId,
+        pixel_polygon: ring(100),
+        name: 'export-smoke submitted',
+        feature_type: 'building',
+        status: 'submitted',
+        source: 'volunteer',
+      },
+    ])
+    .select('id, status');
+  expect(mkErr, mkErr?.message).toBeNull();
+  for (const r of made!) created.footprintIds.push(r.id);
+
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+
+  // Default status: the reviewed polygon only.
+  const def = await anon.get(`/api/export/footprints?map_id=${mapId}`);
+  expect(def.ok(), await def.text()).toBe(true);
+  const names = (await def.json()).features.map(
+    (f: { properties: { name: string } }) => f.properties.name
+  );
+  expect(names).toContain('export-smoke approved');
+  expect(names).not.toContain('export-smoke submitted');
+
+  // The map's year rides along, and filters.
+  const props = (await def.json()).features[0].properties;
+  expect(props.year).toBe(1900);
+  const miss = await anon.get(`/api/export/footprints?map_id=${mapId}&year=1500-1600`);
+  expect((await miss.json()).features).toEqual([]);
+  const hit = await anon.get(`/api/export/footprints?map_id=${mapId}&year=1890-1910`);
+  expect((await hit.json()).features.length).toBe(1);
+
+  // bbox selects on the ground. The fixture map has no resolvable annotation,
+  // so nothing can be warped and a ground query must return nothing rather
+  // than falling back to pixel coordinates that look like coordinates.
+  expect(props.geo_converted).toBe(false);
+  const box = await anon.get(`/api/export/footprints?map_id=${mapId}&bbox=106.6,10.7,106.8,10.9`);
+  expect((await box.json()).features).toEqual([]);
+
+  // Malformed filters are ignored, not fatal.
+  const junk = await anon.get(`/api/export/footprints?map_id=${mapId}&year=nope&bbox=1,2`);
+  expect(junk.ok()).toBe(true);
+  expect((await junk.json()).features.length).toBe(1);
+
+  // A comma list is accepted; a malformed id is a 400, not a 500.
+  const csv = await anon.get(`/api/export/footprints?map_id=${mapId},${mapId}`);
+  expect(csv.ok()).toBe(true);
+  const bad = await anon.get('/api/export/footprints?map_id=not-a-uuid');
+  expect(bad.status()).toBe(400);
+
+  await anon.dispose();
+});
