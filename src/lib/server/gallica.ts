@@ -55,12 +55,14 @@ export function unaccent(s: string): string {
  * ("Khanh-Hoi", the colonial press's own house style), and the modern accented
  * form ("Khánh Hội"). The unaccented form is always first and always present.
  *
- * ponytail: three fixed forms off the raw label. The gazetteer (E1b
- * `place_names.variants[]`) is what should eventually feed this — historical
- * renamings ("rue de Canton" → "Triệu Quang Phục") are not derivable from
- * spelling and this function does not pretend otherwise.
+ * `extra` is where real, attested spellings arrive: the gazetteer
+ * (`place_names.variants[]`, migration 067) records how a place was actually
+ * written across the corpus, which beats guessing. Historical *renamings*
+ * ("rue de Canton" → "Triệu Quang Phục") are still not derivable from spelling
+ * and this function does not pretend otherwise — those come from the gazetteer
+ * too, once someone links them.
  */
-export function spellingVariants(name: string): string[] {
+export function spellingVariants(name: string, extra: string[] = []): string[] {
   // A quote would terminate the CQL phrase and a bracket would confuse its
   // grouping, so neither ever reaches the query — no place name needs them.
   // A hyphen comes back below as a variant rather than staying as typed.
@@ -73,7 +75,19 @@ export function spellingVariants(name: string): string[] {
   const out = [plain];
   if (plain.includes(' ')) out.push(plain.replace(/ /g, '-'));
   if (clean !== plain) out.push(clean);
-  return [...new Set(out)];
+  // Attested forms after the guessed ones, cleaned the same way, so a
+  // gazetteer entry cannot smuggle a quote into the CQL either. Capped: every
+  // form is another OR clause, and Gallica slows down with a long query.
+  for (const e of extra) {
+    const c = e
+      .replace(/["()[\]{}\\-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!c) continue;
+    out.push(unaccent(c));
+    if (c !== unaccent(c)) out.push(c);
+  }
+  return [...new Set(out)].slice(0, 8);
 }
 
 /**
@@ -86,8 +100,13 @@ export function spellingVariants(name: string): string[] {
  * `adj` is Gallica's phrase operator: adjacent words in order, which is what
  * keeps a two-word name from matching every page holding either word.
  */
-export function buildGallicaQuery(q: string, year: number, windowYears: number): string {
-  const variants = spellingVariants(q);
+export function buildGallicaQuery(
+  q: string,
+  year: number,
+  windowYears: number,
+  extra: string[] = []
+): string {
+  const variants = spellingVariants(q, extra);
   if (!variants.length) throw new Error('buildGallicaQuery: empty query');
   const phrases = variants.map((v) => `(gallica adj "${v}")`).join(' or ');
   const from = Math.trunc(year) - Math.trunc(windowYears);
@@ -202,12 +221,14 @@ function get(url: string, signal: AbortSignal): Promise<Response> {
  * back as `{ items: [], reason }` so the caller can still answer 200.
  */
 export async function fetchGallicaPress(opts: {
+  /** Attested spellings from the gazetteer, added to the guessed forms. */
+  extra?: string[];
   q: string;
   year: number;
   windowYears: number;
   limit: number;
 }): Promise<GallicaResult> {
-  const cql = buildGallicaQuery(opts.q, opts.year, opts.windowYears);
+  const cql = buildGallicaQuery(opts.q, opts.year, opts.windowYears, opts.extra ?? []);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEADLINE_MS);
   try {

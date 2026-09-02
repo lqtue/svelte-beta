@@ -176,6 +176,13 @@ export function mergeByDate(lists: PressItem[][], limit: number): PressItem[] {
  */
 export async function fetchPress(opts: {
   q: string;
+  /**
+   * Attested spellings from the gazetteer (`place_names.variants[]`), if the
+   * caller has them. Only Gallica uses them: its full text is OCR'd and its
+   * house style hyphenates, so more real forms means more hits. The NLV proxy
+   * takes a single query string, so it still gets the label as typed.
+   */
+  extra?: string[];
   year: number;
   windowYears: number;
   limit: number;

@@ -17,6 +17,13 @@
   /** The year to centre the window on, normally the source map's year. */
   export let year: number | null = null;
   export let window_ = 10;
+  /**
+   * Attested spellings from the gazetteer, when the caller has them. Gallica's
+   * text is OCR'd and its house style hyphenates, so real forms beat guesses.
+   */
+  export let variants: string[] = [];
+  /** Inline in a page rather than floating over a map. */
+  export let inline = false;
 
   const dispatch = createEventDispatcher<{ close: void }>();
 
@@ -40,7 +47,7 @@
   let loadedKey = '';
 
   async function load(name: string, y: number | null) {
-    const key = `${name}|${y ?? ''}`;
+    const key = `${name}|${y ?? ''}|${variants.join('|')}`;
     if (key === loadedKey) return;
     loadedKey = key;
     items = [];
@@ -49,6 +56,7 @@
     try {
       const sp = new URLSearchParams({ q: name, window: String(window_) });
       if (y != null) sp.set('year', String(y));
+      if (variants.length) sp.set('variants', variants.slice(0, 6).join(','));
       const res = await fetch(`/api/press?${sp}`);
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -68,7 +76,7 @@
 </script>
 
 {#if q}
-  <aside class="press" aria-label="Press clippings">
+  <aside class="press" class:inline aria-label="Press clippings">
     <header>
       <div class="head">
         <h3>In the press</h3>
@@ -76,9 +84,11 @@
           “{q}”{#if year}, {year - window_}–{year + window_}{/if}
         </p>
       </div>
-      <button type="button" class="close" on:click={() => dispatch('close')} aria-label="Close"
-        >×</button
-      >
+      {#if !inline}
+        <button type="button" class="close" on:click={() => dispatch('close')} aria-label="Close"
+          >×</button
+        >
+      {/if}
     </header>
 
     {#if loading}
@@ -110,6 +120,16 @@
 {/if}
 
 <style>
+  .press.inline {
+    position: static;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    border: none;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+  }
   .press {
     position: absolute;
     top: var(--space-3);

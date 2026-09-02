@@ -1,5 +1,6 @@
 /**
  * GET /api/press?q=<place name>&year=<YYYY>&window=<years>&limit=<n>&provider=<both|gallica|nlv>
+ *                &variants=<csv of attested spellings>
  *
  * Public, no auth, no database — "in the press, ±10 years" for a label on a map
  * (time-machine plan, E3). Nothing is stored: the query is built from the label,
@@ -15,6 +16,8 @@ import type { RequestHandler } from './$types';
 import { fetchPress, type PressSource } from '$lib/server/press';
 
 const MAX_Q = 80;
+/** Attested spellings a caller may supply; each becomes another OR clause. */
+const MAX_VARIANTS = 6;
 const YEAR_MIN = 1400;
 const YEAR_MAX = 2100;
 
@@ -45,10 +48,19 @@ export const GET: RequestHandler = async ({ url }) => {
   const sources = PROVIDERS[provider];
   if (!sources) throw error(400, 'provider must be one of: both, gallica, nlv');
 
+  // The gazetteer knows how a place was actually written; a caller holding
+  // those forms (the /place page does) passes them rather than making the
+  // query builder guess. Capped and length-checked like `q` itself.
+  const variants = (url.searchParams.get('variants') ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter((v) => v && v.length <= MAX_Q)
+    .slice(0, MAX_VARIANTS);
+
   const windowYears = clamped(url.searchParams.get('window'), 0, 50, 10);
   const limit = clamped(url.searchParams.get('limit'), 1, 25, 10);
 
-  const result = await fetchPress({ q, year, windowYears, limit, sources });
+  const result = await fetchPress({ q, year, windowYears, limit, sources, extra: variants });
 
   return json(result, {
     headers: {

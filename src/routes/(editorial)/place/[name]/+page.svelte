@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import PageHero from '$lib/ui/PageHero.svelte';
+  import PressPanel from '$lib/features/explore/PressPanel.svelte';
   import type { PageData } from './$types';
 
   export let data: PageData;
@@ -89,6 +90,18 @@
     </p>
   {/if}
 
+  <!-- Client-side: the archives take seconds to answer and this page should
+       render without waiting for them. -->
+  <section class="press-section">
+    <PressPanel
+      inline
+      q={place.name}
+      year={place.first_year ?? place.last_year}
+      variants={place.variants ?? []}
+      window_={20}
+    />
+  </section>
+
   <h2>On these maps</h2>
   <ul class="maps">
     {#each maps as m (m.id)}
@@ -145,6 +158,10 @@
     color: var(--color-gray-500);
     max-width: 42rem;
   }
+  .press-section {
+    margin: var(--space-8) 0 0;
+  }
+
   h2 {
     margin: var(--space-8) 0 var(--space-3);
     font-size: var(--text-lg);

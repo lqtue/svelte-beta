@@ -158,3 +158,25 @@ test('mergeByDate interleaves providers chronologically, undated last', () => {
   expect(merged.map((i) => i.title)).toEqual(['n1', 'g1', 'g2']);
   expect(mergeByDate([[merged[0]], [merged[1]]], 1)).toHaveLength(1);
 });
+
+test('attested spellings from the gazetteer join the guessed ones, cleaned and capped', () => {
+  // The gazetteer records how a place was really written; those forms are added
+  // after the guesses, not instead of them.
+  const withExtra = spellingVariants('Khánh Hội', ['Khanh-Hoi (Q.4)', 'Cầu Ông Lãnh']);
+  expect(withExtra[0]).toBe('Khanh Hoi'); // unaccented guess still leads
+  expect(withExtra).toContain('Cau Ong Lanh');
+  expect(withExtra).toContain('Cầu Ông Lãnh');
+
+  // A quote or bracket in an attested form cannot reach the CQL.
+  const cql = buildGallicaQuery('Khánh Hội', 1923, 10, ['bad" or (gallica adj "anything']);
+  expect(cql).not.toContain('bad"');
+  expect(cql.match(/"/g)!.length % 2).toBe(0);
+
+  // Capped, so a name with a dozen recorded spellings cannot build a query
+  // Gallica will choke on.
+  const many = spellingVariants(
+    'Rue Test',
+    Array.from({ length: 20 }, (_, i) => `Form ${i}`)
+  );
+  expect(many.length).toBeLessThanOrEqual(8);
+});
