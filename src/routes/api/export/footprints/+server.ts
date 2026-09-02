@@ -14,6 +14,8 @@
  *              study area is one such box). Features that could not be warped
  *              are dropped when bbox is given, since they have no position.
  *   format   — 'geojson' (default) | 'coco'
+ *   limit    — row cap, default 5000, max 20000. Without map_id this endpoint
+ *              would otherwise stream the whole archive on one request.
  *   pad      — COCO only: pixel padding around each crop bbox (default 128)
  *   size     — COCO only: IIIF output size for image crops (default 1024)
  *
@@ -128,6 +130,10 @@ export const GET: RequestHandler = async ({ url }) => {
   const format = url.searchParams.get('format') || 'geojson';
   const pad = parseInt(url.searchParams.get('pad') ?? '128', 10);
   const cropSize = parseInt(url.searchParams.get('size') ?? '1024', 10);
+  const rowLimit = Math.min(
+    Math.max(parseInt(url.searchParams.get('limit') ?? '5000', 10) || 5000, 1),
+    20000
+  );
   const years = parseYearRange(url.searchParams.get('year'));
   const bbox = parseBbox(url.searchParams.get('bbox'));
 
@@ -147,6 +153,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
   if (mapIds.length === 1) fpQuery = fpQuery.eq('map_id', mapIds[0]);
   else if (mapIds.length > 1) fpQuery = fpQuery.in('map_id', mapIds);
+  fpQuery = fpQuery.limit(rowLimit);
 
   const { data: allRows, error: err } = await fpQuery;
   if (err) dbError(err, 'Could not load footprints');
@@ -206,6 +213,9 @@ export const GET: RequestHandler = async ({ url }) => {
           confidence: row.confidence,
           status: row.status,
           pixel_polygon: pixelRing,
+          // The source map's GCP residual in metres, when the row has been
+          // warped. The analysis notebook reports it beside every figure.
+          geom_rmse: row.geom_rmse ?? null,
           geo_converted: !!annData,
           created_at: row.created_at,
         },
@@ -216,6 +226,9 @@ export const GET: RequestHandler = async ({ url }) => {
       headers: {
         'Content-Type': 'application/geo+json',
         'Content-Disposition': 'attachment; filename="vma-footprints.geojson"',
+        // Reviewed polygons change when a reviewer acts, not by the minute, and
+        // /explore's fabric layer refetches this on every toggle.
+        'Cache-Control': 'public, max-age=300',
       },
     });
   }

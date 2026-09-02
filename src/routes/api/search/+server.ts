@@ -19,8 +19,14 @@ import { dbError } from '$lib/server/http';
 import { tally } from '$lib/server/facets';
 import { getTransformer } from '$lib/server/transformer';
 
-/** Distinct maps whose annotation we will fetch to warp label hits, per request. */
-const MAX_LABEL_MAPS = 20;
+/**
+ * Distinct maps whose annotation we will fetch to warp label hits that have no
+ * stored position yet. Small on purpose: since migration 066 the position is a
+ * column, so this is a fallback for rows written before the warp reached them,
+ * and an anonymous endpoint must not fan out to twenty upstream fetches per
+ * keystroke-group. Hits beyond the cap still list, without coordinates.
+ */
+const MAX_UNWARPED_MAPS = 4;
 const LABEL_LIMIT = 60;
 
 export interface LabelHit {
@@ -139,31 +145,43 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     });
     if (err) dbError(err, 'Label search failed');
 
-    const mapIds = [...new Set((hits ?? []).map((h) => h.map_id))].slice(0, MAX_LABEL_MAPS);
+    const mapIds = [...new Set((hits ?? []).map((h) => h.map_id))];
     if (mapIds.length) {
       const { data: labelMaps } = await supabase
         .from('maps')
         .select('id, name, year, allmaps_id, annotation_url')
         .in('id', mapIds);
       const byId = new Map((labelMaps ?? []).map((m) => [m.id, m]));
+
+      // The RPC returns the stored position where one exists. Only the maps
+      // that returned none need their annotation fetched, and only a few of
+      // those — the rest list without coordinates rather than costing a
+      // request each.
+      const unwarped = [
+        ...new Set((hits ?? []).filter((h) => h.lng === null).map((h) => h.map_id)),
+      ].slice(0, MAX_UNWARPED_MAPS);
       const transformers = new Map(
         await Promise.all(
-          [...byId.values()].map(
-            async (m) => [m.id, await getTransformer(m.allmaps_id, m.annotation_url)] as const
-          )
+          unwarped.map(async (id) => {
+            const m = byId.get(id);
+            return [id, m ? await getTransformer(m.allmaps_id, m.annotation_url) : null] as const;
+          })
         )
       );
+
       for (const h of hits ?? []) {
         const m = byId.get(h.map_id);
-        if (!m) continue; // past the MAX_LABEL_MAPS cut
-        const t = transformers.get(h.map_id);
-        let lng: number | null = null;
-        let lat: number | null = null;
-        if (t) {
-          try {
-            [lng, lat] = t.transformer.transformToGeo([h.x + h.w / 2, h.y + h.h / 2]);
-          } catch {
-            /* a GCP set that cannot warp this point: leave null, the hit still lists */
+        if (!m) continue;
+        let lng = h.lng;
+        let lat = h.lat;
+        if (lng === null) {
+          const t = transformers.get(h.map_id);
+          if (t) {
+            try {
+              [lng, lat] = t.transformer.transformToGeo([h.x + h.w / 2, h.y + h.h / 2]);
+            } catch {
+              /* a GCP set that cannot warp this point: leave null, the hit still lists */
+            }
           }
         }
         labels.push({

@@ -8,8 +8,8 @@ The actionable list. Everything below it is the reference plan and the record; r
 
 **Blocked on the user's shell** (classifier-blocked for the agent — see the memory note on outward actions). Production has none of the three migrations and no OCR beyond one map, so nothing in Track E is live until these run:
 
-- [ ] 1. `supabase db push` — lands migrations **065** (label search), **066** (the place-time index) and **067** (the gazetteer). Exit: `select proname from pg_proc where proname in ('search_labels','context_at','map_context','place_key')` returns four rows, and `select count(*) from place_names` answers.
-- [ ] 2. `supabase gen types typescript --linked > src/lib/data/supabase/types.ts` then `npm run check`. The committed types were generated from the **local** stack, which is ahead of production until step 1. Exit: 0 errors and no unrelated churn in `git diff`.
+- [x] 1. `supabase db push` — **065, 066 and 067 are live on production** (067 needed a fix first: a view cannot pin its own `search_path`, so every PostGIS name had to be schema-qualified). **068 still needs pushing before the merge** — it carries the review fixes below.
+- [x] 2. Types regenerated against production. Re-run it once 068 lands, since 068 changes `search_labels`'s return type.
 - [ ] 3. `node --env-file=.env scripts/enqueue_ocr_all.mjs --dry`, then without `--dry` — queues OCR for the ~38 georeferenced maps that have none. Exit: `select count(*) from pipeline_jobs where kind='ocr' and status='queued'` matches the script's own count.
 - [ ] 4. `source work/ocr/.venv/bin/activate && python work/worker/vma_worker.py --worker $(hostname)` — drain it (Gemini Flash, cents per map, hours not minutes). Exit: `select count(distinct map_id) from ocr_extractions` > 30.
 - [ ] 5. Backfill the index for maps whose rows predate it: enqueue one `warp` job per georeferenced map, then let the worker hand them to `/api/pipeline/execute`. Exit: `select count(*) from ocr_extractions where geom is not null` > 0 on more than one map.

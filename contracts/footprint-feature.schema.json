@@ -2,44 +2,88 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://maparchive.vn/contracts/footprint-feature.schema.json",
   "title": "Footprint feature",
-  "description": "One traced or segmented feature from GET /api/export/footprints, as a GeoJSON Feature. Coordinates are WGS84 when geo_converted is true and source-image pixels when it is false — check the flag before treating them as degrees.",
+  "description": "One traced or segmented feature from GET /api/export/footprints, as a GeoJSON Feature. Coordinates are WGS84 when geo_converted is true and source-image pixels when it is false \u2014 check the flag before treating them as degrees.",
   "type": "object",
   "required": ["type", "geometry", "properties"],
   "properties": {
-    "type": { "type": "string", "enum": ["Feature"] },
+    "type": {
+      "type": "string",
+      "enum": ["Feature"]
+    },
     "geometry": {
       "type": "object",
       "required": ["type", "coordinates"],
       "properties": {
-        "type": { "type": "string", "enum": ["Polygon"] },
-        "coordinates": { "type": "array", "items": { "type": "array" } }
+        "type": {
+          "type": "string",
+          "enum": ["Polygon"]
+        },
+        "coordinates": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          }
+        }
       }
     },
     "properties": {
       "type": "object",
       "required": ["id", "map_id", "year", "feature_type", "status", "source", "geo_converted"],
       "properties": {
-        "id": { "type": "string" },
-        "map_id": { "type": "string" },
-        "map_name": { "type": ["string", "null"] },
+        "id": {
+          "type": "string"
+        },
+        "map_id": {
+          "type": "string"
+        },
+        "map_name": {
+          "type": ["string", "null"]
+        },
         "year": {
           "type": ["integer", "null"],
-          "description": "The source map's year — the year the feature was observed, not a validity range."
+          "description": "The source map's year \u2014 the year the feature was observed, not a validity range."
         },
-        "allmaps_id": { "type": ["string", "null"] },
-        "name": { "type": ["string", "null"] },
-        "category": { "type": ["string", "null"] },
-        "feature_type": { "type": "string" },
-        "source": { "type": "string" },
-        "valid_from": { "type": ["string", "null"] },
-        "confidence": { "type": ["number", "null"] },
-        "status": { "type": "string" },
-        "pixel_polygon": { "type": "array", "items": { "type": "array" } },
+        "allmaps_id": {
+          "type": ["string", "null"]
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "category": {
+          "type": ["string", "null"]
+        },
+        "feature_type": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "valid_from": {
+          "type": ["string", "null"]
+        },
+        "confidence": {
+          "type": ["number", "null"]
+        },
+        "status": {
+          "type": "string"
+        },
+        "pixel_polygon": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          }
+        },
         "geo_converted": {
           "type": "boolean",
           "description": "False means the warp failed and coordinates are still pixels."
         },
-        "created_at": { "type": ["string", "null"] }
+        "created_at": {
+          "type": ["string", "null"]
+        },
+        "geom_rmse": {
+          "type": ["number", "null"],
+          "description": "The source map's GCP residual in metres, when the row has been warped. Report it beside any figure taken from these polygons."
+        }
       }
     }
   }

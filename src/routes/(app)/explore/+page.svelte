@@ -280,8 +280,11 @@
       const next = stepByYear(mapList, top.ref.mapId, e.key === 'ArrowLeft' ? -1 : 1);
       if (!next) return;
       e.preventDefault();
-      // Add first, then drop the old one, so the map never renders bare.
-      layersStore.addOverlay(toHistoricalRef(next), { opacity: top.opacity });
+      // Add first, then drop the old one, so the map never renders bare. A
+      // refused add (the stack is at MAX_OVERLAY_LAYERS, or the map is already
+      // on) must not remove anything: swapping a sheet for nothing is worse
+      // than not swapping.
+      if (!layersStore.addOverlay(toHistoricalRef(next), { opacity: top.opacity })) return;
       layersStore.removeOverlayByMapId(top.ref.mapId);
       syncMapParam(next.id);
       tallyMapOpen(next.id);

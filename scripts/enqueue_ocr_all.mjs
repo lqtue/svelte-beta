@@ -54,7 +54,9 @@ let queued = 0;
 for (const m of todo) {
   console.log(`  ${m.year ?? '????'}  ${m.name}`);
   if (dry) continue;
-  const run_id = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+  // Per map, not per second: a shared run_id would collapse every map's run
+  // summary into one and break `--ocr-run-id` seeding for segmentation.
+  const run_id = `${new Date().toISOString().replace(/[:.]/g, '').slice(0, 15)}-${m.id.slice(0, 8)}`;
   const { error: insErr } = await db.from('pipeline_jobs').insert({
     kind: 'ocr',
     map_id: m.id,

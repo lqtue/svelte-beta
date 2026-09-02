@@ -1071,5 +1071,112 @@ test('a place page groups every spelling and hides unpublished sheets', async ()
   await admin.from('ocr_extractions').insert({ ...row('Rue Introuvable', 54), map_id: draft!.id });
   expect((await anon.get('/place/rue-introuvable')).status()).toBe(404);
 
+  // And a name on BOTH a published and a draft sheet must not leak the draft
+  // through the aggregate. The page loader reads the gazetteer on the service
+  // client, which bypasses RLS, so the view itself has to be the gate.
+  await admin.from('ocr_extractions').insert({ ...row('Rue de Cay Mai', 55), map_id: draft!.id });
+  const { data: agg } = await admin
+    .from('place_names')
+    .select('map_ids, years, mentions')
+    .eq('name_key', 'rue de cay mai')
+    .single();
+  expect(agg!.map_ids).not.toContain(draft!.id);
+  expect(agg!.years).not.toContain(1902);
+  expect(await (await anon.get('/place/rue-de-cay-mai')).text()).not.toContain(draft!.id);
+
+  await anon.dispose();
+});
+
+test('geometry writes are batched, capped, and ordered correctly', async () => {
+  const runId = `write-smoke-batch-${Date.now()}`;
+  created.runIds.push(runId);
+
+  // 600 rows: more than one page of the warp job's walk, and the size of
+  // problem that made the old one-update-per-row loop impossible inside a
+  // Pages Function.
+  const rows = Array.from({ length: 600 }, (_, i) => ({
+    map_id: mapId,
+    run_id: runId,
+    tile_x: 0,
+    tile_y: 1000 + i,
+    tile_w: 10,
+    tile_h: 10,
+    global_x: i,
+    global_y: 0,
+    global_w: 5,
+    global_h: 5,
+    text: `batch-${i}`,
+    category: 'street',
+    confidence: 0.5,
+  }));
+  const { error: insErr } = await admin.from('ocr_extractions').insert(rows);
+  expect(insErr, insErr?.message).toBeNull();
+
+  const { data: ids } = await admin.from('ocr_extractions').select('id').eq('run_id', runId);
+  expect(ids!.length).toBe(600);
+
+  // One call moves all of them.
+  const writes = ids!.map((r, i) => ({
+    id: r.id,
+    geom: `SRID=4326;POINT(${106.7 + i * 1e-5} 10.77)`,
+    geom_src: 'batch-smoke',
+    geom_rmse: 2.5,
+  }));
+  const { data: moved, error: rpcErr } = await admin.rpc('set_extraction_geom', {
+    p_rows: writes as never,
+  });
+  expect(rpcErr, rpcErr?.message).toBeNull();
+  expect(moved).toBe(600);
+
+  const { count } = await admin
+    .from('ocr_extractions')
+    .select('id', { count: 'exact', head: true })
+    .eq('run_id', runId)
+    .eq('geom_src', 'batch-smoke');
+  expect(count).toBe(600);
+
+  // A null geom is a legitimate write: it is how a row that cannot be warped
+  // is recorded, rather than keeping a stale position.
+  const cleared = await admin.rpc('set_extraction_geom', {
+    p_rows: [{ id: ids![0].id, geom: null, geom_src: 'batch-smoke', geom_rmse: null }] as never,
+  });
+  expect(cleared.error).toBeNull();
+  const { data: back } = await admin
+    .from('ocr_extractions')
+    .select('geom')
+    .eq('id', ids![0].id)
+    .single();
+  expect(back!.geom).toBeNull();
+
+  // The cap is enforced in the database, not trusted to the caller.
+  const tooMany = await admin.rpc('set_extraction_geom', {
+    p_rows: Array.from({ length: 1001 }, () => ({
+      id: ids![0].id,
+      geom: null,
+      geom_src: 'x',
+      geom_rmse: null,
+    })) as never,
+  });
+  expect(tooMany.error?.message).toContain('at most 1000 rows');
+
+  // An empty batch is a no-op, not an error — the walk hits this on a page
+  // where every row was already warped.
+  const none = await admin.rpc('set_extraction_geom', { p_rows: [] as never });
+  expect(none.error).toBeNull();
+  expect(none.data).toBe(0);
+
+  // Distances come back numerically ordered. Sorted as text, "104.6" would
+  // precede "12.3", which is what this had before.
+  const anon = await playwrightRequest.newContext({ baseURL: 'http://localhost:5199' });
+  const ctx = await (await anon.get('/api/context?lng=106.7&lat=10.77&radius=2000')).json();
+  const distances = ctx.labels.map((l: { distance_m: number }) => l.distance_m);
+  expect(distances.length).toBeGreaterThan(2);
+  expect([...distances].sort((a: number, b: number) => a - b)).toEqual(distances);
+
+  // Search returns the stored position without fetching any annotation.
+  const hits = await (await anon.get('/api/search?q=batch-3&include=labels')).json();
+  const hit = hits.labels.find((l: { text: string }) => l.text === 'batch-3');
+  expect(hit).toBeTruthy();
+  expect(hit.lat).toBeCloseTo(10.77, 4);
   await anon.dispose();
 });

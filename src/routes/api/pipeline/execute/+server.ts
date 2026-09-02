@@ -60,10 +60,15 @@ export const POST: RequestHandler = async ({ request }) => {
       fromAllmaps: job.kind === 'sync_allmaps',
     });
     // The georeference just moved (or arrived), so every warped row on this map
-    // is stale. One job, deduped by the one-live-job index.
-    await supabase
+    // is stale. One job; 23505 is the one-live-job index saying there is
+    // already one queued, which is the intended outcome. Anything else is a
+    // real failure and must not vanish behind a job that reports done.
+    const { error: qErr } = await supabase
       .from('pipeline_jobs')
       .insert({ kind: 'warp', map_id: job.map_id, payload: { after: job.kind } });
+    if (qErr && qErr.code !== '23505') {
+      console.error('could not enqueue the warp job:', qErr.message);
+    }
     await supabase.rpc('finish_job', {
       p_id: job.id,
       p_status: 'done',

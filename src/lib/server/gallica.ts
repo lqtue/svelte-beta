@@ -32,7 +32,19 @@ const UA = 'VietnamMapArchive/1.0 (+https://maparchive.vn; period press lookup)'
 /** One deadline for the whole lookup — search plus snippets. */
 const DEADLINE_MS = 6_000;
 /** ContentSearch costs a request per record, so only the top few get a snippet. */
-const SNIPPET_ITEMS = 5;
+/**
+ * How many hits get a page-level snippet, each costing one extra ContentSearch
+ * call. /api/press is public and unauthenticated, so one request must not fan
+ * out to seven upstream calls: three snippets plus the SRU search plus the NLV
+ * lookup is five, and the first three hits are the ones a reader looks at.
+ *
+ * ponytail: no per-IP rate limit, because the platform has no shared counter
+ * to keep one in — the existing helper counts rows per signed-in user. The
+ * defences are this cap, the 24 h edge cache, and no retries. If either
+ * archive ever complains, the fix is a real limiter (a KV or D1 counter),
+ * not a smaller number here.
+ */
+const SNIPPET_ITEMS = 3;
 const SNIPPET_CHARS = 240;
 
 /* ------------------------------------------------------------------ query */
