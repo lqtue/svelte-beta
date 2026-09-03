@@ -22,7 +22,7 @@
   import { layersStore, toHistoricalRef } from '$lib/map/stores/layersStore';
   import { fetchPublicStories } from '$lib/data/supabase/stories';
   import { fetchUserRole } from '$lib/data/supabase/role';
-  import { createStoryPlayerStore } from '$lib/features/stories/shared/stores/storyStore';
+  import { createStoryPlayerStore } from '$lib/features/stories/shared/storyStore';
   import type { Story, StoryPoint } from '$lib/features/stories/shared/types';
 
   import MapWorkspace from '$lib/map/shell/MapWorkspace.svelte';

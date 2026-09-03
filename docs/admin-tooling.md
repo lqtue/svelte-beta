@@ -32,7 +32,6 @@ Spreadsheet-style page for batch-creating draft `maps` rows. Admin pastes file p
 
 Companion CLI scripts:
 - `scripts/bulk_upload_local.sh <file-list.txt> [--collection ...]` — tiles + inserts `maps` + `map_iiif_sources` rows in one pass. Logs to `scripts/bulk_upload_<timestamp>.log`.
-- `scripts/backfill_r2_names_thumbs.sh` — for R2-hosted maps: strips leading `<sheet#>` from the name (preserves it in `extra_metadata.sheet_number`), sets `thumbnail` to the smallest pyramid level. `DRY_RUN=1` supported. Idempotent.
 
 ## R2 / IIIF worker
 
@@ -130,16 +129,15 @@ open https://<host>/admin/scout
 | `source_url` | URL of the item page at the holder | `https://gallica.bnf.fr/ark:/12148/btv1b530291797` |
 | `source_type` | How VMA serves the image | `bnf` / `ia` / `self` / `rumsey` / `humazur` / `other` |
 
-### Standardization scripts
+### Metadata standardisation
 
-- `scripts/audit_map_metadata.mjs` — DB-only field-coverage audit. Completeness, distinct-value counts, year/year_label mismatches, suspicious values.
-- `scripts/peek_hosted_urls.mjs` — inspect iiif_manifest/source_url for hosted maps (debug helper).
-- `scripts/fetch_hosted_metadata.mjs` — online verification: pulls authoritative metadata from BnF (IIIF manifests), Humazur (Omeka pages + IIIF), UT Austin (URL pattern). Read-only. 2.5s/req for BnF. `NODE_TLS_REJECT_UNAUTHORIZED=0` for Humazur.
-- `scripts/apply_metadata_backfill.mjs` — consumes the diff report + SGI hardcoded constants, PATCHes the maps table. Fills empty fields only. Dry-run by default; `--apply` to write.
+The one-off backfills that filled these columns (an audit, an online
+verification pass against BnF and Humazur, and the PATCH script that consumed
+their diff) were deleted once they had run — git history has them if a second
+corpus ever needs the same treatment. `/admin/bulk` and the scout pipeline
+cover new maps.
+
 
 ## Other admin scripts
 
-- `scripts/backfill_map_metadata.mjs` — fetches Allmaps annotations → populates `maps.iiif_image`, `thumbnail`, `source_type`, `collection`; inserts `map_iiif_sources` rows. `--dry-run`, `--map-id <uuid>` supported.
 - `scripts/aws/ec2-setup.sh` — bootstrap g4dn.xlarge GPU instance for SAM2.
-- `scripts/backfill_allmaps_ids.mjs` — backfills `maps.allmaps_id` from existing IIIF sources.
-- `scripts/sync_allmaps_georef.mjs` — syncs georeference state from Allmaps; the UI counterpart is `src/lib/features/admin/GeorefSyncPanel.svelte`.

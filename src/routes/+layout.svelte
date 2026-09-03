@@ -5,7 +5,6 @@
   import { onMount } from 'svelte';
   import { createSupabaseBrowserClient } from '$lib/data/supabase/client';
   import { setSupabaseContext } from '$lib/data/supabase/context';
-  import { registerServiceWorker } from '$lib/core/utils/pwa';
 
   export let data;
 
@@ -26,8 +25,13 @@
       currentSession = newSession;
     });
 
-    // Register service worker for PWA support and offline caching
-    registerServiceWorker();
+    // Service worker, for offline caching. Fire and forget: a registration
+    // failure is a console line, never a broken page.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .catch((e) => console.error('Service worker registration failed:', e));
+    }
 
     return () => subscription.unsubscribe();
   });

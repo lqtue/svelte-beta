@@ -27,7 +27,7 @@
   import { createGeoMapStores } from '$lib/map/shell/geoMapSetup';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { syncStoryToSupabase } from '$lib/data/supabase/stories';
-  import { createStoryLibraryStore } from '$lib/features/stories/shared/stores/storyStore';
+  import { createStoryLibraryStore } from '$lib/features/stories/shared/storyStore';
   import { fetchGeoreferencedMaps } from '$lib/data/maps/service';
   import { layersStore } from '$lib/map/stores/layersStore';
   import {

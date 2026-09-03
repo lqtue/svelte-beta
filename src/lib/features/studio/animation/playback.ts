@@ -7,7 +7,7 @@
  *      target frame doesn't have.)
  *   2. In parallel, tween:
  *        • camera     — OL `view.animate()`
- *        • opacities  — animejs over a proxy object → `layersStore.setOpacity()`
+ *        • opacities  — one rAF tween per layer → `layersStore.setOpacity()`
  *   3. Wait `hold_ms`.
  *
  * `stop()` cancels in-flight tweens and the OL view animation.
@@ -15,7 +15,7 @@
 import OLMap from 'ol/Map';
 import { fromLonLat } from 'ol/proj';
 import { get } from 'svelte/store';
-import { animate, type JSAnimation } from 'animejs';
+import { easeInOutCubic, tweenValue } from '$lib/core/utils/tween';
 import { layersStore } from '$lib/map/stores/layersStore';
 import type { Keyframe } from './timelineStore';
 
@@ -95,7 +95,7 @@ export function playTimeline(
 ): PlaybackHandle {
   const controller = new AbortController();
   const signal = controller.signal;
-  let active: JSAnimation[] = [];
+  let active: Tween[] = [];
   let playing = true;
   let cancelled = false;
 
@@ -104,11 +104,7 @@ export function playTimeline(
     cancelled = true;
     playing = false;
     controller.abort();
-    for (const a of active) {
-      try {
-        a.pause();
-      } catch {}
-    }
+    for (const a of active) a.pause();
     active = [];
     try {
       map.getView().cancelAnimations();
@@ -139,14 +135,9 @@ export function playTimeline(
             layersStore.setOpacity(id, to);
             continue;
           }
-          const proxy = { v: o.opacity };
-          const anim = animate(proxy, {
-            v: to,
-            duration: frame.duration_ms,
-            ease: 'inOutCubic',
-            onUpdate: () => layersStore.setOpacity(id, proxy.v),
-          });
-          active.push(anim);
+          active.push(
+            tween(o.opacity, to, frame.duration_ms, (v) => layersStore.setOpacity(id, v))
+          );
         }
 
         // Camera tween via OL.
@@ -188,8 +179,38 @@ export function playTimeline(
   return { stop, isPlaying: () => playing };
 }
 
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+interface Tween {
+  pause(): void;
+}
+
+/**
+ * Tween one number over `ms`, easing, on the animation frame clock.
+ *
+ * ponytail: replaces animejs, which was pulled in for exactly this — a proxy
+ * object with one numeric property — while the file already carried the easing
+ * curve below for the OpenLayers camera. Ceiling: no stagger, no keyframes, no
+ * spring. If the timeline ever needs those, take the dependency back rather
+ * than growing this.
+ */
+function tween(from: number, to: number, ms: number, onUpdate: (v: number) => void): Tween {
+  let raf = 0;
+  let stopped = false;
+  const started = performance.now();
+
+  const step = (now: number) => {
+    if (stopped) return;
+    const t = ms > 0 ? Math.min(1, (now - started) / ms) : 1;
+    onUpdate(tweenValue(from, to, t));
+    if (t < 1) raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+
+  return {
+    pause() {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    },
+  };
 }
 
 /** Apply a keyframe instantly (no tween). Used for "Jump to". */
