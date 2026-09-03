@@ -205,3 +205,23 @@
   color: white;
   border: none;
 }
+
+/* Staff-only shortcuts, shown on /profile when the role is admin or mod.
+   The admin pages have no nav entry by design; this is how they are found. */
+.staff-blurb {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  opacity: 0.75;
+  max-width: 60ch;
+  line-height: 1.5;
+}
+
+.staff-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.staff-links .pill-btn {
+  text-decoration: none;
+}

@@ -99,7 +99,7 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `home.css` | `/` | home page layout |
 | `create-mode.css` | `CreateMode`, `StudioMode` | story/annotation editor layout |
 | **pages/** | | one per editorial page |
-| `about.css`, `blog.css`, `blog-post.css`, `profile.css`, `admin-scout.css`, `admin-bulk.css` | their route (`admin-bulk.css` also by `GeorefSyncPanel`) | page-specific |
+| `about.css`, `blog.css`, `blog-post.css`, `profile.css`, `admin-scout.css`, `admin-bulk.css`, `admin-status.css`, `screens.css` | their route (`admin-bulk.css` also by `GeorefSyncPanel`) | page-specific |
 
 `layouts/admin.css` and `components/label.css` were deleted in Aug 2026 — the three surviving `label.css` classes moved into `tool-page.css`. Do not reintroduce either name.
 
@@ -115,26 +115,52 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 
 ## Components
 
-The shared editorial classes live in `src/styles/components/editorial.css` and are global. Use them without redefining the CSS.
+**Reach for one of these before writing markup.** Every one already exists in `src/lib/ui/`;
+re-implementing what they do is how the codebase grew twenty different card patterns.
+See them all rendered together at **`/screens`**.
+
+| Component | Use it for |
+|---|---|
+| `PageHero` | **The hero on every editorial page.** Props `eyebrow` · `title` · `sub` · `badges`; slots `title` (wins over the prop, for `.text-highlight` markup), `sub`, `actions`, `eyebrow`. Do not hand-roll `.editorial-hero`. |
+| `NavBar` · `EditorialFooter` | Mounted once by `(editorial)/+layout.svelte`. A page never renders either. |
+| `AuthGate` | The signed-out "sign in to continue" card. |
+| `CatalogGrid` · `CatalogCard` · `MapCard` | Map listings. |
+| `LibraryGrid` | Project / story library grids. |
+| `ChunkyTabs` | The tab strip. Use it instead of a row of buttons that toggle a variable. |
+| `FacetRail` | Faceted filter column. |
+| `LocationSearch` | Nominatim place lookup with results dropdown. |
+| `SnapSheet` | Mobile bottom sheet. |
+| `NameDialog` · `InlineRename` | Naming and renaming flows. |
+| `NavDropdown` | Nav menu disclosure. |
+
+`ui/` is leaf-level by the layering rule: these import nothing from `features/`, `map/` or `data/`,
+so any page or feature may use them.
+
+The shared editorial **classes** live in `src/styles/components/editorial.css` and are global. Use them without redefining the CSS.
 
 `.top-nav` `.nav-logo` `.nav-links` `.nav-link` `.nav-auth` · `.editorial-hero` `.hero-inner` `.label-chip` `.text-highlight` · `.editorial-main` `.section-card` `.section-card-header` `.section-title` `.section-title-sm` `.section-desc` `.icon-blob` · `.badge-chip` with `.chip-blue` / `.chip-green` / `.chip-yellow` · `.action-btn` `.pill-btn` · `.editorial-footer`.
 
 ### Hero
 
-```html
-<header class="editorial-hero">
-  <div class="hero-inner">
-    <div class="label-chip">Page context</div>
-    <h1 class="hero-title">
-      Bold headline<br />
-      <span class="text-highlight">highlighted word.</span>
-    </h1>
-    <p class="hero-sub">Supporting paragraph. Max ~500px wide.</p>
-    <span class="badge-chip chip-green">Fact one</span>
-    <span class="badge-chip chip-blue">Fact two</span>
-  </div>
-</header>
+Use the component. The classes below are what it renders — you should not be typing them.
+
+```svelte
+<script lang="ts">
+  import PageHero from '$lib/ui/PageHero.svelte';
+</script>
+
+<PageHero
+  eyebrow="Page context"
+  sub="Supporting paragraph. Max ~500px wide."
+  badges={[{ label: 'Fact one' }, { label: 'Fact two' }]}
+>
+  <svelte:fragment slot="title">
+    Bold headline<br /><span class="text-highlight">highlighted word.</span>
+  </svelte:fragment>
+</PageHero>
 ```
+
+Plain-text title and no highlight? Then the prop is enough: `<PageHero title="Bold headline" />`.
 
 `.text-highlight` (white fill, black stroke, offset shadow) belongs on one or two words of a hero title — never in body text. Only `.chip-blue`, `.chip-green` and `.chip-yellow` exist; the orange/purple/red chip classes were removed.
 
@@ -168,6 +194,7 @@ Nav and footer come once from `src/routes/(editorial)/+layout.svelte`. A new edi
 ```svelte
 <script lang="ts">
   import { onMount } from 'svelte';
+  import PageHero from '$lib/ui/PageHero.svelte';
   import '$styles/pages/my-page.css';
 
   let mounted = false;
@@ -182,13 +209,11 @@ Nav and footer come once from `src/routes/(editorial)/+layout.svelte`. A new edi
 </svelte:head>
 
 <div class="page my-page" class:mounted>
-  <header class="editorial-hero">
-    <div class="hero-inner">
-      <div class="label-chip">Section label</div>
-      <h1 class="hero-title">Page headline<br /><span class="text-highlight">key phrase.</span></h1>
-      <p class="hero-sub">Supporting sentence.</p>
-    </div>
-  </header>
+  <PageHero eyebrow="Section label" sub="Supporting sentence.">
+    <svelte:fragment slot="title">
+      Page headline<br /><span class="text-highlight">key phrase.</span>
+    </svelte:fragment>
+  </PageHero>
 
   <main class="editorial-main">
     <!-- .section-card blocks -->
@@ -221,6 +246,8 @@ Nav and footer come once from `src/routes/(editorial)/+layout.svelte`. A new edi
 - Left-align editorial hero content.
 - Add `class:mounted` with the `opacity: 0 → 1` fade-in on the root `.page`.
 - `aria-expanded` on any toggle or disclosure; collapsible regions use `{#if}`, not `display: none`.
+- **Check `/screens` before writing a component or a card style.** If something close already exists, extend it. Twenty distinct card patterns exist — four reusable, sixteen locked to a single page — because this step kept getting skipped.
+- **Keep controls few.** A surface needing more than ~6 buttons, selects and inputs is a design question, not a layout one — decide what matters most and put the rest behind a disclosure. `MapEditPipelineTab` (23 controls) is the example not to follow.
 
 **Never**
 
@@ -233,7 +260,7 @@ Nav and footer come once from `src/routes/(editorial)/+layout.svelte`. A new edi
 
 **Adding a new public page**
 
-1. Copy the template above into `src/routes/(editorial)/<page>/+page.svelte`.
+1. Copy the template above into `src/routes/(editorial)/<page>/+page.svelte` — including its `PageHero`, which is not optional.
 2. Add its stylesheet at `src/styles/pages/<page>.css` and import it in the page.
 3. Add the link to `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
 4. Add a row to the route map in `docs/system-guidelines.md` §2.

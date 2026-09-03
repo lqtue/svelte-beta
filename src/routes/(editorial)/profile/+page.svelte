@@ -126,6 +126,23 @@
         {/if}
       </div>
 
+      {#if role === 'admin' || role === 'mod'}
+        <div class="settings-section">
+          <h3 class="section-title">Staff tools</h3>
+          <p class="staff-blurb">
+            Pages only staff can open. Start at System status — it says what the archive holds and
+            what is currently blocked.
+          </p>
+          <div class="staff-links">
+            <a class="pill-btn" href="/admin/status">System status</a>
+            <a class="pill-btn" href="/screens">Design system</a>
+            <a class="pill-btn" href="/contribute/review">Review queue</a>
+            <a class="pill-btn" href="/admin/scout">Scout review</a>
+            <a class="pill-btn" href="/admin/bulk">Bulk upload</a>
+          </div>
+        </div>
+      {/if}
+
       <div class="settings-section">
         <h3 class="section-title">Preferences</h3>
         <div class="settings-grid">
