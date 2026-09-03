@@ -3,8 +3,8 @@
 
 import { createPersistedStore } from '$lib/core/utils/persistence/createPersistedStore';
 import { randomId } from '$lib/core/utils/id';
-import type { Story, StoryPoint, StoryProgress, StoryPlayerState } from '../types';
-import * as pointOps from '../pointOps';
+import type { Story, StoryPoint, StoryProgress, StoryPlayerState } from './types';
+import * as pointOps from './pointOps';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/data/supabase/types';
 

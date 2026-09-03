@@ -9,20 +9,12 @@ import Text from 'ol/style/Text';
 
 import { DEFAULT_ANNOTATION_COLOR } from '../constants';
 import type { AnnotationSummary } from '../types';
-import { randomId as coreRandomId } from '$lib/core/utils/id';
-
-/**
- * Generates a random ID for annotations
- * Uses the core randomId utility with 'anno' prefix
- */
-export function randomId(prefix = 'anno') {
-  return coreRandomId(prefix);
-}
+import { randomId } from '$lib/core/utils/id';
 
 export function ensureAnnotationDefaults(feature: Feature<Geometry>) {
   let id = feature.getId() as string | undefined;
   if (!id) {
-    id = randomId();
+    id = randomId('anno');
     feature.setId(id);
   }
   if (!feature.get('label')) {

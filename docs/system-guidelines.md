@@ -68,8 +68,8 @@ The group in parentheses is the SvelteKit layout group, not part of the URL. Bot
 | Route | Group | Entry component | Auth |
 |-------|-------|-----------------|------|
 | `/` | (editorial) | `+page.svelte` | none |
-| `/about` | (editorial) | `+page.svelte` + `data/about/content.ts` | none |
-| `/blog`, `/blog/[slug]` | (editorial) | `+page.svelte` + `data/blog/posts.ts` | none |
+| `/about` | (editorial) | `+page.svelte` + `content.ts` beside it | none |
+| `/blog`, `/blog/[slug]` | (editorial) | `+page.svelte` + `posts.ts` beside it | none |
 | `/catalog` | (editorial) | `+page.svelte` → `CatalogUnifiedSearch` (+ `MapEditModal` for admin/mod) | none |
 | `/contribute` | (editorial) | `+page.svelte` | none (mod cards gated) |
 | `/contribute/georef` | (editorial) | `+page.svelte` → Allmaps Editor | none |
@@ -288,4 +288,3 @@ Role lives in `profiles.role`, read on the client via `fetchUserRole` (`data/sup
 | `footprints.ts` mixes two concerns | `data/supabase/footprints.ts` holds both map-selector queries and footprint CRUD | split into `maps/labelMaps.ts` + a contribute-scoped module |
 | `CatalogUnifiedSearch` still queries Supabase directly | `features/catalog/CatalogUnifiedSearch.svelte` | move the read into `data/maps/service.ts` |
 | Mixed error conventions | throw vs `console` → `[]` vs `console` → `false` across `data/` | pick one |
-| `system-map.excalidraw` is stale | generated 2026-08-02, predates the restructure | regenerate |

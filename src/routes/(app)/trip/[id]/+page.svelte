@@ -21,7 +21,7 @@
   import type { MapListItem } from '$lib/data/maps/types';
 
   import { getSupabaseContext } from '$lib/data/supabase/context';
-  import { createStoryPlayerStore } from '$lib/features/stories/shared/stores/storyStore';
+  import { createStoryPlayerStore } from '$lib/features/stories/shared/storyStore';
   import { createGeoMapStores } from '$lib/map/shell/geoMapSetup';
   import { fetchMaps } from '$lib/data/maps/service';
   import { fetchStoryById } from '$lib/data/supabase/stories';

@@ -9,7 +9,7 @@
 import type { MapListItem } from '$lib/data/maps/types';
 import type { PointChallenge, Story } from '$lib/features/stories/shared/types';
 import { createStoryDraft } from '$lib/features/stories/shared/pointOps';
-import type { StoryLibraryStore } from '$lib/features/stories/shared/stores/storyStore';
+import type { StoryLibraryStore } from '$lib/features/stories/shared/storyStore';
 
 export const SAIGON_SEED_KEY = 'vma-create-saigon-seeded-v2';
 export const SAIGON_SEED_TITLE = 'Walk around central Saigon';

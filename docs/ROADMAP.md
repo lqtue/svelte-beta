@@ -43,7 +43,7 @@ The actionable list. Everything below it is the reference plan and the record; r
 **Deliberately not now:** E5 (needs reviewed E2 fabric on ≥ 3 maps), the monorepo import (platform steps 4–5, after a contract has two real consumers), vector tiles / `build_pmtiles`, the runes migration. Reopen conditions in `docs/platform-design.md` §6.
 
 ## Done — August cleanup (branch `chore/cleanup`, 24 commits, not yet merged)
-Record: `docs/cleanup-2026-08.md`. History: `work/cleanup/{PLAN,MODULES,ORGANIZATION}.md` + 6 `review-*.md`.
+Record: `docs/cleanup-2026-08.md`. The working material under `work/cleanup/` was deleted once the pass closed; git history has it.
 Layout now `core → data → map → features → routes`, `ui` primitives, `server` guarded (rule in `CLAUDE.md`). check 0/0, lint 0 err, smoke 7/7, build green.
 
 ## Track A — Ship + harden (done)
@@ -53,7 +53,7 @@ Layout now `core → data → map → features → routes`, `ui` primitives, `se
 - [x] A4 eslint `import/no-restricted-paths` encoding the layering rule (ui/core ↛ features; client ↛ server)
 - [x] A5 Local Supabase stack + seeded staff user → 4 write-path smokes (`npm run test:write`). Found and fixed a real bug: mig 021's `populate_footprint_map_id` trigger outlived the `task_id` column 038 dropped, so **every** footprint insert failed — mig 052 drops it.
 
-## Track B — Architecture (`docs/architecture-target.md`, decisions locked)
+## Track B — Architecture (design archived at `docs/archive/architecture-target.md`; decisions now in `CLAUDE.md`)
 - [x] B1 mig 053 (`pipeline_jobs`, `worker_keys`, `claim_job`/`finish_job` RPCs) · `work/worker/vma_worker.py` · `/api/…/ocr` enqueues (202/409) · `cli_only` deleted. Verified end to end on the local stack.
 - [x] B2 `/api/pipeline/{claim,results}` + `worker_keys` bearer auth (`$lib/server/workerAuth.ts`), `scripts/mint-worker-key.mjs`; worker and `ocr.py --db` hold no DB creds
 - [x] B3 RPCs (mig 054 `set_extraction_status`, `revert_recent_validations`, `set_footprint_status`; `claim_job`/`finish_job` from 053) with every API writer calling them · mig 055 widens the footprint `status`/`source` checks that rejected every SAM2 write · mig 056 turns `map_pipeline_status` into a view over `pipeline_jobs` + the new `map_review_marks`, so the stage has one writer per fact.
@@ -90,7 +90,7 @@ Label search → temporal fabric → period sources, on the existing jobs + HITL
 - ~~43 maps `georef_done` but 404 upstream~~ — **not true as of 2026-09-01**. Measured against production: every one of the 39 `georef_done` maps has a mirrored `annotation_url`, and the 62 that 404 on allmaps.org all have `georef_done = false`, correctly, because they were never georeferenced. `sync-georef` has nothing to fix.
 - `/contribute/review` back-link: the round icon button overlaps the "Contribute" label
 - `/explore` Display row: the "Side-by-side" button label is clipped
-- API response shapes → `{ ok, data }` (inventory: `work/cleanup/review-admin-api-editorial.md`)
+- API response shapes → `{ ok, data }`
 - tokens.css grey ramp → fold the `color-mix` hacks
 - 69 eslint warnings (mostly unkeyed `{#each}`)
 - Files >400 L: MapEditHostingTab 584, CreateMode 583, OcrSidebar 562 (→ OcrTable, needs OCR test data), MapEditPipelineTab 467, TripPlayback 462, CatalogTable 450, StudioAnimationPanel 412, explore/+page 407, TriageSidebar 407, trip/[id]/+page 405, StudioMode 405

@@ -28,11 +28,11 @@ A whole-repo pass over `src/`, `scripts/`, `docs/` and the build config, run as 
 
 ## Where the review reports live
 
-`work/cleanup/` (untracked) holds the working material: `MODULES.md` (the per-module tracker), `ORGANIZATION.md` (current-vs-proposed layout and the rationale), `PLAN.md`, and five scope reviews — `review-shell-stores-explore.md`, `review-studio-create-trip.md`, `review-contribute.md`, `review-admin-api-editorial.md`, `review-repo-wide.md`, plus `review-docs.md` (the docs audit that drove this doc pass). Delete the directory once the follow-ups below are closed.
+`work/cleanup/` held the working material — a per-module tracker, a current-versus-proposed layout doc, and six scope reviews. It was deleted on 2026-09-02 once the follow-ups closed; git history has it.
 
 ## Open follow-ups
 
-Carried over unticked from `work/cleanup/MODULES.md`:
+Carried over unticked from that tracker:
 
 - **`data/supabase/footprints.ts` mixes two concerns** — map-selector queries (`fetchLabelMaps`) and footprint CRUD. Split into `data/maps/labelMaps.ts` + a contribute-scoped module.
 - **`CatalogUnifiedSearch` still queries Supabase directly.** Move the read into `data/maps/service.ts` so the component is presentational. (The `ui → features/admin` half of this is done: `/catalog`'s page owns `MapEditModal` now.)
@@ -40,6 +40,5 @@ Carried over unticked from `work/cleanup/MODULES.md`:
 - **One error convention.** `data/` still mixes throw, `console` → `[]` and `console` → `false`.
 - **a11y stragglers** — `CatalogDetailDrawer:56`, `ReviewSidebar:104`, `login/+page.svelte:45` (`onclick=` instead of `on:click`), two `line-clamp` cases.
 - **Mobile gaps in contribute** — `OcrSidebar` bind/`on:filter` and the Segmentation tab are desktop-only.
-- **Regenerate `docs/system-map.excalidraw`** — generated 2026-08-02, so it predates the restructure.
 
 See also the debt tables in `docs/system-guidelines.md` §11 and `docs/db-guidelines.md`, and the shortcut ledger in `PONYTAIL-DEBT.md`.

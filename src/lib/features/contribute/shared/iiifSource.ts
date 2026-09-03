@@ -7,7 +7,7 @@
  * Lives here for now; belongs in `$lib/data/maps` once that module owns tool types.
  */
 
-import { resolveIiifInfoUrl } from '$lib/core/iiif/iiifImageInfo';
+import { annotationUrlForSource } from '$lib/core/iiif/annotationUrl';
 
 export type IiifSourceRef = {
   iiifImage?: string | null;
@@ -18,5 +18,17 @@ export async function resolveMapIiifInfoUrl(map: IiifSourceRef | null): Promise<
   if (!map) return null;
   if (map.iiifImage) return `${map.iiifImage}/info.json`;
   if (!map.allmapsId) return null;
-  return resolveIiifInfoUrl(map.allmapsId);
+
+  // Fallback: walk the annotation for the image service it targets.
+  try {
+    const res = await fetch(annotationUrlForSource(map.allmapsId));
+    if (!res.ok) throw new Error(`Allmaps fetch failed: ${res.status}`);
+    const annotation = await res.json();
+    const sourceId = annotation.items?.[0]?.target?.source?.id;
+    if (!sourceId) throw new Error('No source ID in annotation');
+    return `${sourceId}/info.json`;
+  } catch (err) {
+    console.error('[resolveMapIiifInfoUrl] annotation walk failed:', err);
+    return null;
+  }
 }

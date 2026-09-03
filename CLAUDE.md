@@ -10,13 +10,11 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 - `docs/system-guidelines.md` — layering rule, page structure, component patterns, route map, known debt
 - `docs/design-system.md` — tokens, the CSS file map, page template
 - `docs/ROADMAP.md` — **the one tracker**: ship/harden · architecture steps · OCR↔SAM2 product · burn-down
-- `docs/architecture-target.md` — target architecture design (Track B detail)
 - `docs/time-machine-plan.md` — label search · temporal fabric · period sources (Track E detail)
 - `docs/platform-design.md` — one workspace for VMA + HACW: what is shared (contracts, basemap, deploy, docs) and what stays per-app, with sequencing
 - `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker, holding-institution model
 - `docs/cleanup-2026-08.md` — what the August 2026 cleanup changed, and the open follow-ups
-- `docs/system-map.excalidraw` — architecture diagram, generated 2026-08-02. **Predates the `src/lib` restructure**; regenerate before trusting it. Drag onto excalidraw.com.
 - `docs/archive/` — frozen historical plans and personal application material. Do not cite as current.
 - `work/MapSAM2/` — fine-tuned SAM2 fork (LoRA, training notes) in `TECHNICAL.md` + `VMA_SETUP.md`. Runs on Colab, not locally.
 - `work/ocr/` — OCR pipeline, its own venv at `work/ocr/.venv`, plus `EVAL-BASELINE.md` (measured quality gate).
@@ -45,7 +43,7 @@ npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 
 Never import a Node builtin bare (`import('path')`); the CF Functions bundle errors with `Could not resolve "path"` and publishes nothing. Use the `node:` prefix.
 
-`npm run test` starts a dev server on 5173, or reuses one already running. It runs **25** tests: the **seven** smokes in `tests/smoke.spec.ts`, which are **read-only** (they hit the real Supabase project but never write), plus 18 browser-less pure checks that ride the same runner — `tests/press.spec.ts` (the Gallica CQL builder and the NLV year window) and `tests/explore-keys.spec.ts` (the /explore time scrubber). Pure checks live here rather than in a second framework because Playwright is already installed.
+`npm run test` starts a dev server on 5173, or reuses one already running. It runs **29** tests: the **seven** smokes in `tests/smoke.spec.ts`, which are **read-only** (they hit the real Supabase project but never write), plus 22 browser-less pure checks that ride the same runner — `tests/press.spec.ts` (the Gallica CQL builder and the NLV year window), `tests/explore-keys.spec.ts` (the /explore time scrubber) and `tests/tween.spec.ts` (the studio easing that replaced animejs). Pure checks live here rather than in a second framework because Playwright is already installed.
 
 **Write paths** are covered separately by `npm run test:write` (`tests/write.spec.ts`, 21 tests) against a **local** stack, never production: `npm run db:test` runs `supabase start -x vector -x logflare` and seeds one staff user + one map via `scripts/seed-test-db.mjs`. The suite throws unless `PUBLIC_SUPABASE_URL` is a loopback address, and deletes every row it writes. Credentials come from `.env.test` (the CLI's published demo keys, committed on purpose) which Vite loads for the `--mode test` dev server on port 5199. Server-route auth is done by letting `@supabase/ssr` mint the session cookies, so chunking and encoding match the app exactly.
 
@@ -53,7 +51,7 @@ Local ports are **54421** for the API and **54420** for the shadow DB, not the C
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **065**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **068**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -68,7 +66,7 @@ A directory may import only from directories to its **left**. Routes stay thin: 
 ```
 src/lib/
 ├─ core/      pure — no OL, no Supabase        geo/ iiif/ utils/ (+ utils/persistence/)
-├─ data/      DB/HTTP access + canonical types  supabase/ maps/ admin/ blog/ about/
+├─ data/      DB/HTTP access + canonical types  supabase/ maps/ admin/
 ├─ server/    $lib/server — SvelteKit blocks client import
 │             auth.ts supabaseAdmin.ts http.ts storage.ts ia.ts mapFields.ts
 │             facets.ts transformer.ts allmaps.ts ocrReview.ts
@@ -88,15 +86,13 @@ IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY   # Internet Archive upload
 VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 ```
 
-(`.env.example` also lists `PUBLIC_PROTOMAPS_KEY`; nothing in `src/` reads it since MapLibre was removed.)
-
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 065, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 068, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
-**Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block — the `vma-theme` boot script in `src/app.html` is vestigial (nothing writes the key, no CSS consumes it). Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
+**Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block, and the `vma-theme` boot script that used to sit in `src/app.html` is gone — nothing wrote the key and no CSS consumed it. Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
 
 ## Architecture
 
@@ -206,13 +202,12 @@ Admin client functions: `src/lib/data/admin/adminApi.ts` (map CRUD, image upload
 
 ### IIIF utilities (`src/lib/core/iiif/`)
 
-- `iiifImageInfo.ts` — `resolveIiifInfoUrl(allmapsId)`: Allmaps image ID → its `info.json` URL.
 - `allmapsId.ts` — `deriveAllmapsId(iiifImageUrl)`.
 - `annotationUrl.ts` — `annotationUrlForSource(source)`: bare ID or full URL → annotation URL.
 
 ### Map libraries
 
-**The basemap is self-hosted.** `/explore`'s street basemap is one ~37 MB PMTiles archive of the Saigon region (Protomaps' daily OpenStreetMap build, bbox `106.3,10.3,107.1,11.2`, z0–15) in the `vma-tiles` R2 bucket at key `basemap/saigon.pmtiles`, served by `worker/` at `iiif.maparchive.vn/basemap/*` with byte-range support. No API key, no quota, no third-party usage policy. `src/lib/map/basemapStyle.ts` holds the source and a deliberately quiet OpenLayers style over the Protomaps v4 schema (`earth`, `landcover`, `landuse`, `water`, `roads`, `buildings`, `boundaries`, `places`); it carries the rebuild commands. Predecessors, both abandoned: CARTO's keyless raster endpoint began stamping "API KEY REQUIRED" over every tile, and the OSM Foundation's own tiles have a usage policy that does not cover a busy site. `PUBLIC_PROTOMAPS_KEY` in `.env.example` is now doubly unused — nothing reads it and nothing needs it.
+**The basemap is self-hosted.** `/explore`'s street basemap is one ~37 MB PMTiles archive of the Saigon region (Protomaps' daily OpenStreetMap build, bbox `106.3,10.3,107.1,11.2`, z0–15) in the `vma-tiles` R2 bucket at key `basemap/saigon.pmtiles`, served by `worker/` at `iiif.maparchive.vn/basemap/*` with byte-range support. No API key, no quota, no third-party usage policy. `src/lib/map/basemapStyle.ts` holds the source and a deliberately quiet OpenLayers style over the Protomaps v4 schema (`earth`, `landcover`, `landuse`, `water`, `roads`, `buildings`, `boundaries`, `places`); it carries the rebuild commands. Predecessors, both abandoned: CARTO's keyless raster endpoint began stamping "API KEY REQUIRED" over every tile, and the OSM Foundation's own tiles have a usage policy that does not cover a busy site. `PUBLIC_PROTOMAPS_KEY` is gone from `.env.example` too — nothing read it and nothing needs it.
 
 **OpenLayers is the only map engine** (MapShell + ImageShell); `@allmaps/openlayers` warps historical tiles. MapLibre GL was removed (Aug 2026) along with `@allmaps/maplibre`, `@protomaps/basemaps` and `ol-mapbox-style`.
 
@@ -264,7 +259,7 @@ Public / other:
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **065**). Key tables:
+Schema lives in `supabase/migrations/` (head **068**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
@@ -343,7 +338,7 @@ Both halves of that were learned the expensive way:
   `Error: supabaseKey is required.` — `wrangler pages secret put` had reported success,
   but the config file had displaced the secret store too.
 
-So: `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY` and `PUBLIC_PROTOMAPS_KEY` are
+So: `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` are
 plain **Text** variables in Settings → Variables and Secrets; `SUPABASE_SERVICE_KEY`,
 `IA_S3_ACCESS_KEY` and `IA_S3_SECRET_KEY` are **Secret** there. Build command, output
 directory (`.svelte-kit/cloudflare`) and `nodejs_compat` are dashboard settings too.

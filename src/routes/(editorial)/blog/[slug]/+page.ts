@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { getPost } from '$lib/data/blog/posts';
+import { getPost } from '../posts';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = ({ params }) => {
