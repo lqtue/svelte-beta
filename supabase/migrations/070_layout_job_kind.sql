@@ -16,13 +16,24 @@
 -- column: the triage is still one object per map, overwritten rather than
 -- accumulated.
 
+-- `warp` is in this list because production already has it and no migration
+-- ever said so. The warp backfill (commit 8a723df) queued two `warp` jobs, and
+-- the kind check must have been widened by hand in the Dashboard SQL Editor to
+-- let them in — 061 is the last migration to touch the constraint and it has no
+-- `warp`. Rebuilding the list from the migrations alone therefore fails with
+-- `check constraint "pipeline_jobs_kind_check" ... is violated by some row`,
+-- which is exactly what happened on the first attempt at this migration.
+-- Recorded here rather than fixed quietly: the lesson is that a constraint
+-- edited outside `supabase/migrations/` is invisible until the next one rebuilds
+-- it, and `vma_worker.py` has claimed `warp` as a server kind all along.
+
 alter table public.pipeline_jobs drop constraint if exists pipeline_jobs_kind_check;
 
 alter table public.pipeline_jobs
   add constraint pipeline_jobs_kind_check
     check (kind in (
       'ingest_map', 'tile_to_r2', 'mirror_annotation', 'sync_allmaps',
-      'ocr', 'seg', 'join', 'layout', 'render_preview', 'build_pmtiles'
+      'ocr', 'seg', 'join', 'warp', 'layout', 'render_preview', 'build_pmtiles'
     ));
 
 comment on column public.maps.triage is
