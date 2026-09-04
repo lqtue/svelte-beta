@@ -27,7 +27,7 @@
 // Needs `maps.bbox` — run scripts/backfill_map_bbox.mjs first.
 //
 // Flags: --min-cov 0.15 · --max-mpp 3 · --pad-px 100 · --limit N · --dry
-//        --tile-size 2048 · --render-size <tile> · --overlap <tile/4>
+//        --tile-metres 1400  (ground per Gemini call; the tile is derived)
 //        --force · --json · --selftest
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -68,17 +68,38 @@ const maxMpp = Number(flag('max-mpp', 3));
 // whose study area sits well inside the neatline.
 const padPx = Number(flag('pad-px', 100));
 const limit = Number(flag('limit', Infinity));
-// Tiles are `tileSize` source pixels rendered to `renderSize` before the model
-// sees them, so the resolution that matters is the sheet's m/px times
-// tileSize/renderSize. Equal values are 1:1 — the scan's own ceiling, and the
-// only setting that does not throw away detail we already paid to crop for.
-// The stock 2400/1024 is a 2.34x downsample: it put the 1959 sheet in front of
-// Gemini at 6.5 m/px, which is unreadable for a street name. Cropping to the
-// district is what makes 1:1 affordable.
-const tileSize = Number(flag('tile-size', 2048));
-const renderSize = Number(flag('render-size', tileSize));
-const overlapPx = Number(flag('overlap', Math.round(tileSize / 4)));
-const downsample = tileSize / renderSize;
+// How much *ground* one Gemini call is asked to read, in metres. This is the
+// knob that matters, and it is not pixels.
+//
+// Measured on the 1959 sheet (2.80 m/px), same crop, same 1:1 rendering, only
+// the tile size changed:
+//
+//     2048 px tile = 5.7 km of ground per call ->  5 labels,  0 street names
+//     1024 px tile = 2.9 km                    -> 10 labels,  1 street name
+//      512 px tile = 1.4 km                    -> 15 labels,  4 street names
+//
+// Three times the labels off an unchanged scan, and only the 512 px run found
+// the district's own name on the sheet. Rendering did not cause it: 1024 px
+// rendered 1:1 and rendered at 2x gave byte-identical output, so upsampling
+// past the scan buys nothing. What starves the read is one call covering too
+// much ground.
+//
+// A fixed pixel tile therefore means something different on every sheet - 2048
+// px is 1.7 km on the 1923 sheet and 5.7 km on the 1959 one, which is why the
+// coarse sheets looked empty and got blamed on their scans. Fixing the ground
+// footprint makes sheets comparable, which a time series needs anyway.
+const tileMetres = Number(flag('tile-metres', 1400));
+// At least 1024 px reaches the model even for a small tile: upsampling adds no
+// information, but a very small image is not what these prompts expect.
+const MIN_RENDER = 1024;
+// The pixel ceiling exists so the rule can only ever make a sheet finer. A
+// sharp sheet needs a huge tile to reach 1400 m — 1882 at 0.34 m/px wants 4118
+// px — and raising it there did measurable harm: that sheet went from 0.70 km
+// per call to 1.39 km and its District 4 label count fell 11 -> 10, the only
+// regression in the collection. Every sheet the change made *much* finer
+// improved (1895 9 -> 11, 1942 13 -> 23, 1959 1 -> 5). So cap at 2048 px and
+// let sharp sheets keep the smaller ground footprint they already had.
+const TILE_PX_RANGE = [384, 2048];
 
 // Metres per degree at District 4's latitude (10.76N). Good to ~0.1% over a
 // study area this size; a full projection would be false precision.
@@ -384,14 +405,18 @@ const picked = rows
 const rejected = rows.filter((r) => !picked.includes(r));
 
 const sheetShare = (r) => (r.rect[2] * r.rect[3]) / (r.w * r.h);
-/** Tiles the crop needs — one Gemini call each. Mirrors `tile_grid`. */
-const tileCount = (r) => {
-  const step = tileSize - overlapPx;
-  return (
-    Math.ceil(Math.max(r.rect[2] - overlapPx, 1) / step) *
-    Math.ceil(Math.max(r.rect[3] - overlapPx, 1) / step)
-  );
-};
+
+/** Tile geometry for one sheet, sized so each call reads `tileMetres` of ground. */
+function tiling(r) {
+  const raw = Math.round(tileMetres / r.mpp);
+  const tile = Math.min(TILE_PX_RANGE[1], Math.max(TILE_PX_RANGE[0], raw));
+  const overlap = Math.round(tile / 4);
+  const step = tile - overlap;
+  const tiles =
+    Math.ceil(Math.max(r.rect[2] - overlap, 1) / step) *
+    Math.ceil(Math.max(r.rect[3] - overlap, 1) / step);
+  return { tile, overlap, render: Math.max(tile, MIN_RENDER), tiles, ground: tile * r.mpp };
+}
 
 if (asJson) {
   console.log(JSON.stringify({ aoi: aoiBbox, minCov, maxMpp, padPx, picked, rejected }, null, 2));
@@ -405,34 +430,31 @@ if (asJson) {
     `${maps.length} maps with a bbox · ${touching.length} touch the AOI · gates: coverage >= ${(minCov * 100).toFixed(0)}%, <= ${maxMpp} m/px · crop pad ${padPx}px\n`
   );
   console.log(`=== COLLECTION — ${picked.length} maps ===`);
-  console.log(
-    `tiles ${tileSize}px source → ${renderSize}px rendered ` +
-      `(${downsample === 1 ? '1:1, the scan ceiling' : `${downsample.toFixed(2)}x downsample`})\n`
-  );
-  console.log('year   cov   source     to model     tiles   crop x,y,w,h          sheet %  name');
+  console.log(`each call reads ~${tileMetres} m of ground, so the tile is sized per sheet\n`);
+  console.log('year   cov   m/px    tile px   ground/call   tiles   crop x,y,w,h          name');
   for (const r of picked) {
     console.log(
       [
         String(r.year ?? '????').padEnd(5),
         `${(r.cov * 100).toFixed(0).padStart(3)}%`,
-        `${r.mpp.toFixed(2).padStart(5)} m/px`,
-        `${(r.mpp * downsample).toFixed(2).padStart(5)} m/px`,
-        String(tileCount(r)).padStart(5),
+        `${r.mpp.toFixed(2).padStart(5)}`,
+        `${String(tiling(r).tile).padStart(6)}px`,
+        `${(tiling(r).ground / 1000).toFixed(2).padStart(9)} km`,
+        String(tiling(r).tiles).padStart(5),
         r.rect.join(',').padEnd(21),
-        `${(sheetShare(r) * 100).toFixed(1).padStart(5)}%`,
-        r.name.slice(0, 34),
+        r.name.slice(0, 30),
       ].join('  ')
     );
   }
   const totalPx = picked.reduce((s, r) => s + r.w * r.h, 0);
   const cropPx = picked.reduce((s, r) => s + r.rect[2] * r.rect[3], 0);
-  const calls = picked.reduce((s, r) => s + tileCount(r), 0);
+  const calls = picked.reduce((s, r) => s + tiling(r).tiles, 0);
   console.log(
     `\nwhole sheets ${(totalPx / 1e6).toFixed(0)} Mpx → District 4 crops ${(cropPx / 1e6).toFixed(0)} Mpx ` +
       `(${((cropPx / totalPx) * 100).toFixed(0)}% of the paper, ${(totalPx / cropPx).toFixed(1)}x less to read)`
   );
   console.log(
-    `${calls} tiles total at ${renderSize}px — the crop is what pays for reading them at 1:1`
+    `${calls} Gemini calls total — the crop is what pays for reading the district this finely`
   );
   console.log(`\n=== REJECTED — ${rejected.length} ===`);
   for (const r of rejected) {
@@ -492,8 +514,10 @@ for (const r of picked) {
     );
     continue;
   }
+  const t = tiling(r);
   console.log(
-    `  ${dry ? '(dry) ' : ''}${r.year}  ${r.rect.join(',').padEnd(22)}  ${r.name.slice(0, 38)}`
+    `  ${dry ? '(dry) ' : ''}${r.year}  ${r.rect.join(',').padEnd(22)}  ` +
+      `${t.tile}px x${t.tiles}  ${r.name.slice(0, 30)}`
   );
   if (dry) continue;
   // Per map, not per second: a shared run_id would collapse every map's run
@@ -504,9 +528,9 @@ for (const r of picked) {
     map_id: r.id,
     payload: {
       run_id,
-      tile_size: tileSize,
-      overlap: overlapPx,
-      render_size: renderSize,
+      tile_size: t.tile,
+      overlap: t.overlap,
+      render_size: t.render,
       concurrency: 3,
       min_confidence: 0.5,
       auto: true,

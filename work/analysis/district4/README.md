@@ -116,26 +116,63 @@ The two thin scans are **1959** (5000x3790, Virtual Saigon/IRD, 2.80 m/px) and
 those means a new digitization or a different holding copy, not a re-download —
 an acquisition question, not a pipeline one.
 
-The first 1:1 run puts a number on where that ceiling bites. Street names are
-the small type on any of these sheets, so their yield is the readable measure:
+The first run made that ceiling look closer than it is, and the diagnosis is
+worth carrying because it nearly cost a re-digitization.
 
-| Year | m/px | Labels | Street names |
-|------|------|--------|--------------|
-| 1882 | 0.34 | 36 | 9 |
-| 1923 | 0.85 | 35 | 20 |
-| 1968 | 1.27 | 22 | 10 |
-| 1895 | 1.68 | 21 | 1 |
-| 1942 | 1.69 | 21 | 10 |
-| 1959 | 2.80 | 5 | **0** |
+At 2048 px tiles the 1959 sheet (2.80 m/px) returned 5 labels and no street
+name, against 1942 (1.69 m/px) returning 21 with ten street names. The obvious
+reading was that 2.80 m/px is below the floor for street type and the scan
+needs replacing. That was wrong. Holding the crop and the 1:1 rendering fixed
+and changing only the tile, counting **distinct labels that warp back inside
+the district**:
 
-Read the 1895 row as history, not optics: the peninsula was still largely rural
-in 1895 and had almost no named streets to find. The clean comparison is 1942
-against 1959 — both dense urban sheets of the same ground, 1.69 m/px returning
-ten street names and 2.80 m/px returning none, only the large type (*KINH BẾN
-NGHÉ*, *KINH TẺ*, *Xóm Thủ Thiêm*). The 1959 sheet visibly carries dozens of
-named streets through District 4, so that is the scan failing rather than the
-map. **The floor sits between 1.7 and 2.8 m/px, and 1959 is the sheet to
-re-acquire first.**
+| Tile | Ground per call | Distinct D4 labels |
+|------|----------------|--------------------|
+| 2048 px | 5.7 km | 1 |
+| 1024 px | 2.9 km | 2 |
+| ~500 px | 1.4 km | 6, and 5 on a repeat |
+
+Five to six times the yield off an unchanged scan, and only the finest runs
+found *QUẬN 4* — the district's own name, printed on the sheet. Rendering was
+ruled out separately: 1024 px rendered 1:1 and at 2x gave byte-identical
+output, so upsampling past the scan buys nothing. **What starves the read is
+one call being asked to cover too much ground.**
+
+Two cautions, both learned by over-claiming first. Repeat the same
+configuration and you get 6 labels one time and 5 the next, and the
+disagreement is mostly the same feature transcribed differently (*KINH BẾN
+NGHÉ* against *Kinh Bến Nghé*) — so single-run differences of one or two mean
+nothing, and the `category` a label is given is noisier still than its text.
+And a single sheet does not generalise: applied across the whole collection the
+same change gave **+19%**, not 5x, because the gain only appears where the
+ground per call actually drops a lot:
+
+| Year | Ground/call before → after | D4 labels |
+|------|---------------------------|-----------|
+| 1942 | 3.46 → 1.40 km | 13 → **23** |
+| 1959 | 5.73 → 1.40 km | 1 → **5** |
+| 1895 | 3.44 → 1.40 km | 9 → **11** |
+| 1923 | 1.74 → 1.40 km | 15 → 13 |
+| 1968 | 2.60 → 1.40 km | 9 → 7 |
+| 1882 | 0.70 → 1.39 km | 11 → 10 |
+
+The three sheets made much finer all improved; the two barely changed drifted
+within noise; and 1882 — the only sheet the rule made *coarser*, because a
+0.34 m/px sheet needs a 4118 px tile to reach 1400 m — was the only regression.
+Hence the 2048 px cap in `collection_aoi.mjs`: the rule may make a sheet finer,
+never coarser. The numbers above predate that cap, so 1882 should recover.
+
+A fixed pixel tile means a different thing on every sheet — 2048 px is 1.7 km
+on the 1923 sheet and 5.7 km on the 1959 one. So the knob is ground, not
+pixels: `--tile-metres` (default 1400) sizes each sheet's tile from its own
+m/px, which also makes sheets comparable to each other, which a time series
+needs anyway. 1400 m is a working default from thin evidence, not a tuned
+optimum.
+
+The honest remaining statement about scans: 1959 (5000x3790) and 1942
+(7479x6314) are still the two thin ones, and a better scan would still help.
+But that is a marginal gain, not the blocker it appeared to be, and nothing
+should be re-acquired before a sheet has been read at a sane tile size.
 
 One expected artefact: a label falling in the 512 px tile overlap is extracted
 twice, once per tile. `ocr_extractions` is unique on
