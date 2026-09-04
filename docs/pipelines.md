@@ -65,6 +65,14 @@ python work/ocr/scripts/ocr.py clean \
 
 Subcommands (11): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `preview`, `list-models`, `detect-layout`, `numerals`, `legend`.
 
+**Model.** `gemini_client.DEFAULT_MODEL` is `gemini-3.8-flash` ($0.75/$3.75 per 1M in/out) since 2026-09-04; it was `gemini-3-flash-preview`, which still answers but is absent from Google's pricing page — no published rate, no stated support window. `--model` overrides per run, an `ocr` job payload's `model` overrides per job (the worker passes it through), and `scripts/enqueue_ocr_all.mjs --model NAME` sets it for a whole batch. Measured on this corpus at 5,156 in / 1,810 out tokens per call and 30–60 calls per sheet, that is roughly $0.50 a map, or $0.06 on `gemini-2.5-flash-lite`. Rate limits are no longer published per model — read them at <https://aistudio.google.com/rate-limit>. `GEMINI_API_KEYS` (comma-separated) rotates keys when one hits its daily cap; `GEMINI_API_KEY` is the single-key fallback.
+
+**Reading an R2-hosted map.** `fetch_crop` asks for an arbitrary region at an arbitrary scale; `worker/` renders nothing and serves only the tiles `vips dzsave` wrote, so every such request 404s and, until 2026-09-04, OCR failed on its first tile for all 39 georeferenced maps. `fetch_crop_level0` composes the region from the pyramid instead: scale factor from `scaleFactors` (degrading if the top one was advertised but never written), origin a multiple of `tile_size · sf`, region clipped to the image, and rendered `size = ceil(region_w / sf)` — a constant `256,` 404s on clipped edge tiles. `info.json` claims `profile: level2`; it is not, do not trust that field. `iiif_tiles.py --self-check` covers the addressing.
+
+**Overview resolution matters more than it looks.** `compute_tile_densities` measures local 8×8 std-dev, which at a heavy downscale reads dense city hatching as *smooth*. Measured on the 1882 Saigon cadastral, centre-tile vs edge-tile mean density was inverted at 600, 1024, 1513 and 1700px and only correct at 2048 — so `--auto-priority` on the old 1024px overview demoted the densest, most label-rich tiles. `OVERVIEW_WIDTH = 2048` in `ocr.py`; do not lower it. The companion colour/wash pass scored 0.000 on every tile of that sheet at every saturation gate, because its hue bands (60–260°) miss a warm-toned scan entirely — treat it as unmeasured.
+
+**Queueing a batch.** `scripts/enqueue_ocr_all.mjs` queues only sheets with a saved triage in `maps.triage` (migration 069) — the neatline, tile size, overlap and per-tile priorities someone set in `/contribute/digitalize` and pressed **Save triage** on — and spreads them into the payload unchanged. A triaged sheet therefore runs with `--crop` and no scout pass, because there is nothing left to guess. `--untriaged` also queues the rest, which fall back to `--scout` and the defaults; `--dry` prints the split first.
+
 `--auto-priority` fills the Triage grid without a human: text density decides blank → skip and sparse → low_res, then a colour pre-pass (`compute_tile_colours`, HSV) demotes any tile that is mostly water or vegetation wash one further step. Demotion only — a misread wash costs resolution, never a tile — and a monochrome scan scores ~0, so nothing happens on grey maps. `--wash-above` (default 0.6) is the threshold.
 
 Useful `batch` flags: `--row-sequence` / `--no-row-sequence` (default on, `--max-row-frames 4`), `--adaptive`, `--target-calls N`, `--smart-grid`, `--skip-sparse`, `--auto-priority`, `--wash-above`, `--aoi-px x0,y0,x1,y1`, `--tile-overrides '{"x_y_w_h":"skip|low_res"}'`, `--crop x,y,w,h`, `--prior-run <dir>`, `--legend`, `--db`.
@@ -106,6 +114,17 @@ work/ocr/.venv/bin/python work/ocr/scripts/ocr.py numerals \
 - `legend` (Gemini) reads a numbered legend region into `{n, name, grid}` rows: `--region x,y,w,h` required; `--bilingual`, `--consensus N` (cross-check across N models and flag disagreements), `--db` → `category='legend_entry'`.
 - All three accept `--local-image <path>` to skip IIIF entirely. Self-check: `work/ocr/.venv/bin/python work/ocr/scripts/local_vision.py`.
 - **Known limit:** Tesseract single-digit recall is mediocre (rotated glyphs missed). Upgrade path if recall is too low — swap `spot_numerals()` for a PaddleOCR detector in a Python 3.11 venv, keeping the same `[{text, bbox, confidence}]` shape.
+
+### Name dictionary
+
+```bash
+python work/ocr/scripts/dictionary.py            # → outputs/dictionary.{json,md}
+python work/ocr/scripts/dictionary.py --self-check   # asserts only, no DB
+```
+
+One entry per distinct name across the whole corpus, with every sighting (map, year, run, confidence, source pixel). An offline artefact for review: OCR errors that are invisible one bbox at a time are obvious in an alphabetical list. `--min-confidence`, `--category` (repeatable), `--include-rejected`, `--include-furniture` (title/legend/other, excluded by default).
+
+Diacritics are **not** folded — "Sài Gòn" and "Sai Gon" are different readings and the difference is the point. Entries whose only difference is accents are cross-linked in a "Same name, other accents" column instead, because a French label printed in caps loses its accents on the sheet itself. The `place_names` view (mig 067) makes the opposite call and folds them; it is the gazetteer of record, and ROADMAP item 4b is to rebuild this script on top of it rather than keep two normalisation rules.
 
 ### Label ↔ footprint join
 
@@ -223,7 +242,9 @@ Spatial ordering on the Gemini side is the cheap analogue of the paper's self-so
 
 ## Coarse → fine
 
-`scout` reads the whole map at low resolution to find the neatline and the dense regions; `batch` then tiles only the content area (`--smart-grid`, `--crop`, `--auto-priority`, `--wash-above`, `--skip-sparse`) at full resolution. Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
+`scout` reads the whole map at low resolution to find the neatline and the dense regions; `batch` then tiles only the content area (`--smart-grid`, `--crop`, `--auto-priority`, `--wash-above`, `--skip-sparse`) at full resolution.
+
+**"Full resolution" is `tile_size / render_size`, and the default is not 1:1.** A tile is `--tile-size` source pixels rendered to `--render-size` before the model sees it, so what Gemini reads is the sheet's own ground resolution times that ratio. The stock 2400/1024 is a 2.34x downsample *on top of* the scan: on the 1959 Đô thành Sài Gòn sheet (2.80 m/px source) it delivers 6.5 m/px, which cannot resolve a street name. Until 2026-09-04 `vma_worker.py` did not pass `--render-size` at all, so **every queued OCR job ran at that ratio regardless of payload** — set `render_size` in the payload now, equal to `tile_size` for 1:1. Nothing above 1:1 buys real detail; past it the scan is the ceiling. Rendering 1:1 costs tiles, which is what cropping to a study area pays for — see `work/analysis/district4/README.md` for the worked case (8% of the paper, 25 tiles, 2.34x more resolution). Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
 
 ## Coordinate contract
 

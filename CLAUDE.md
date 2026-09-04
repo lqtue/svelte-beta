@@ -43,15 +43,15 @@ npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 
 Never import a Node builtin bare (`import('path')`); the CF Functions bundle errors with `Could not resolve "path"` and publishes nothing. Use the `node:` prefix.
 
-`npm run test` starts a dev server on 5173, or reuses one already running. It runs **29** tests: the **seven** smokes in `tests/smoke.spec.ts`, which are **read-only** (they hit the real Supabase project but never write), plus 22 browser-less pure checks that ride the same runner — `tests/press.spec.ts` (the Gallica CQL builder and the NLV year window), `tests/explore-keys.spec.ts` (the /explore time scrubber) and `tests/tween.spec.ts` (the studio easing that replaced animejs). Pure checks live here rather than in a second framework because Playwright is already installed.
+`npm run test` starts a dev server on 5173, or reuses one already running. It runs **41** tests: the **seven** smokes in `tests/smoke.spec.ts`, which are **read-only** (they hit the real Supabase project but never write), plus 34 browser-less pure checks that ride the same runner — `tests/press.spec.ts` (the Gallica CQL builder and the NLV year window), `tests/explore-keys.spec.ts` (the /explore time scrubber), `tests/tween.spec.ts` (the studio easing that replaced animejs), `tests/search-fold.spec.ts` (diacritic folding in the map picker) and `tests/triage-suggest.spec.ts` (level0 tile addressing and the triage proposal). Pure checks live here rather than in a second framework because Playwright is already installed.
 
-**Write paths** are covered separately by `npm run test:write` (`tests/write.spec.ts`, 21 tests) against a **local** stack, never production: `npm run db:test` runs `supabase start -x vector -x logflare` and seeds one staff user + one map via `scripts/seed-test-db.mjs`. The suite throws unless `PUBLIC_SUPABASE_URL` is a loopback address, and deletes every row it writes. Credentials come from `.env.test` (the CLI's published demo keys, committed on purpose) which Vite loads for the `--mode test` dev server on port 5199. Server-route auth is done by letting `@supabase/ssr` mint the session cookies, so chunking and encoding match the app exactly.
+**Write paths** are covered separately by `npm run test:write` (`tests/write.spec.ts`, 23 tests) against a **local** stack, never production: `npm run db:test` runs `supabase start -x vector -x logflare` and seeds one staff user + one map via `scripts/seed-test-db.mjs`. The suite throws unless `PUBLIC_SUPABASE_URL` is a loopback address, and deletes every row it writes. Credentials come from `.env.test` (the CLI's published demo keys, committed on purpose) which Vite loads for the `--mode test` dev server on port 5199. Server-route auth is done by letting `@supabase/ssr` mint the session cookies, so chunking and encoding match the app exactly.
 
 Local ports are **54421** for the API and **54420** for the shadow DB, not the CLI defaults — 54321/54320 collide with another local project. `-x vector -x logflare` is needed under colima: those containers bind-mount `/var/run/docker.sock`, which colima cannot provide.
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **068**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **069**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -89,7 +89,7 @@ VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 068, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 069, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block, and the `vma-theme` boot script that used to sit in `src/app.html` is gone — nothing wrote the key and no CSS consumed it. Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
@@ -164,7 +164,7 @@ In dual mode, OL attribution + scale live on the **secondary** pane (right on de
 
 **Digitalize (`/contribute/digitalize`)** — two-phase HITL on a single `ImageShell`, tabs via `PhaseTabs.svelte`:
 
-- **Triage**: `TriageTool.svelte` (neatline rect + tile priority grid; click cycles normal → low-res amber → skip gray) and `TriageSidebar.svelte` (tile params + Run OCR). "Run OCR" **enqueues a `pipeline_jobs` row** and returns 202; nothing runs until a worker claims it. Same behaviour in dev and on Cloudflare — the old `child_process` spawn and its `{ cli_only, cli_command }` fallback are gone. `CliCommandBlock` now only serves the segmentation panel.
+- **Triage**: `TriageTool.svelte` (neatline rect + tile priority grid; click cycles normal → low-res amber → skip gray) and `TriageSidebar.svelte` (tile params + Run OCR). **Save triage** writes the neatline, tile grid and per-tile priorities to `maps.triage` (mig 069) — localStorage stays the working draft, but only a saved triage is visible to `scripts/enqueue_ocr_all.mjs`, which by default queues **only** triaged sheets (`--untriaged` includes the rest in auto mode). "Run OCR" **enqueues a `pipeline_jobs` row** and returns 202; nothing runs until a worker claims it. Same behaviour in dev and on Cloudflare — the old `child_process` spawn and its `{ cli_only, cli_command }` fallback are gone. `CliCommandBlock` now only serves the segmentation panel.
 - **OCR Review**: `OcrBboxTool.svelte` renders + edits `ocr_extractions` bboxes and supports `drawMode` for manual bboxes (POSTs with `model: 'manual'`). `OcrSidebar.svelte` is a filterable table with inline text/category edit and auto-save on blur, split into `OcrFilterBar.svelte` + `OcrRunBar.svelte`, with state in `ocrReviewController.ts`. `BboxPanel.svelte` is the floating selected-bbox editor.
 - **Segmentation**: `SegSidebar.svelte` + `segCommand.ts` emit the MapSAM2 CLI command.
 
@@ -252,18 +252,18 @@ Public / other:
 
 - `/api/maps/[id]/legend-points/` — **public** GET. Numbered-legend references placed on the ground: each body numeral (`category = 'legend_ref'`) warped to lng/lat via the map's Allmaps georeference, joined to its `legend_entry` for a name. Legend-internal numbers are dropped. Rendered by `src/lib/features/explore/LegendPointsLayer.svelte`.
 - `/api/admin/scout/`, `/api/admin/scout/[id]/` — see `docs/admin-tooling.md`.
-- `/api/search/` — unified GET over `maps` + (admin/mod) `scout_candidates`. Postgres tsvector via `.textSearch('search_vector', q, { config: 'simple' })`. Query: `q, institution, type, period, source, scoutSource, category, georef, include=maps,scout,labels, limit, offset`. Returns `{ maps, scout, labels, total, facets, periods, role }`; facet tallies are declarative via `$lib/server/facets.ts` ("all-but-this-dimension"). Public users get `status IN ('public','featured')` server-enforced; `include=scout` is silently dropped for non-admin/mod. **`include=labels`** searches *inside* the maps: the `search_labels` RPC (mig 065, `pg_trgm` word-similarity ≥ 0.5 over unaccented `ocr_extractions` text, one row per map × label, drafts gated by role) and each hit's bbox centre warped to lng/lat via `$lib/server/transformer.ts`. Rendered by `LabelHits.svelte` on /catalog (links to `/explore?map=<id>&at=<lng>,<lat>`) and in /explore's browse pane (stacks the map, lands on the spot). Only maps that have been OCR'd can hit — `scripts/enqueue_ocr_all.mjs` queues the rest.
+- `/api/search/` — unified GET over `maps` + (admin/mod) `scout_candidates`. Postgres tsvector via `.textSearch('search_vector', q, { config: 'simple' })`. Query: `q, institution, type, period, source, scoutSource, category, georef, include=maps,scout,labels, limit, offset`. Returns `{ maps, scout, labels, total, facets, periods, role }`; facet tallies are declarative via `$lib/server/facets.ts` ("all-but-this-dimension"). Public users get `status IN ('public','featured')` server-enforced; `include=scout` is silently dropped for non-admin/mod. **`include=labels`** searches *inside* the maps: the `search_labels` RPC (mig 065, `pg_trgm` word-similarity ≥ 0.5 over unaccented `ocr_extractions` text, one row per map × label, drafts gated by role) and each hit's bbox centre warped to lng/lat via `$lib/server/transformer.ts`. Rendered by `LabelHits.svelte` on /catalog (links to `/explore?map=<id>&at=<lng>,<lat>`) and in /explore's browse pane (stacks the map, lands on the spot). Only maps that have been OCR'd can hit — `scripts/enqueue_ocr_all.mjs` queues the rest — triaged sheets only, unless `--untriaged`.
 - `/auth/callback/`.
 
 `/api/admin/upload-image` and `/api/admin/labels/*` were deleted (Aug 2026) — do not reintroduce references.
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **068**). Key tables:
+Schema lives in `supabase/migrations/` (head **069**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
-| `maps` | Map catalogue | `id` (uuid), `allmaps_id`, `annotation_url` (mig 047), `iiif_image`, `iiif_manifest`, `source_type`, `holding_institution` (mig 044), `collection`, `map_type`, `bbox`, `status`, `thumbnail`, full DC fields, plus `georef_done`, `is_public`, `is_featured`, `help_needed`, `legend_done`, `priority`, `label_config` |
+| `maps` | Map catalogue | `id` (uuid), `allmaps_id`, `annotation_url` (mig 047), `iiif_image`, `iiif_manifest`, `source_type`, `holding_institution` (mig 044), `collection`, `map_type`, `bbox`, `status`, `thumbnail`, full DC fields, plus `georef_done`, `is_public`, `is_featured`, `help_needed`, `legend_done`, `priority`, `label_config`, `triage` (mig 069) |
 | `profiles` | Per-user role | `user`, `mod`, `admin`; read via `fetchUserRole` |
 | `scout_candidates` | External discoveries (mig 045) | `source`, `external_id` (unique with source), `manifest_url`, `score`, `category`, `status` (`pending/approved/rejected/ingested`), `map_id` on ingest, `raw` JSONB |
 | `map_iiif_sources` | Multiple IIIF sources per map | `map_id → maps.id`, `source_type`, `is_primary`, `sort_order`. Partial unique index = one primary per map; trigger syncs primary to `maps.iiif_image` |
