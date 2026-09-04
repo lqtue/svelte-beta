@@ -15,9 +15,18 @@ export interface AnnotationTransform {
   iiifBaseUrl: string | null;
 }
 
-/** Public Allmaps annotation URL for a map-level Allmaps ID. */
+/**
+ * Public Allmaps annotation URL for a `maps.allmaps_id`.
+ *
+ * `/images/`, not `/maps/`. `allmaps_id` holds Allmaps' **image** id (the
+ * 16-char hex derived by `deriveAllmapsId`), and the `/maps/` endpoint keys on
+ * a different id entirely — measured 2026-09-04 it returned 404 for all 101
+ * rows in the catalogue, while `/images/` returned 200 for exactly the 40 that
+ * are georeferenced. This fallback had therefore never resolved once.
+ * `annotationUrlForSource` in $lib/core/iiif had it right all along.
+ */
 export function allmapsAnnotationUrl(allmapsId: string): string {
-  return `https://annotations.allmaps.org/maps/${allmapsId}`;
+  return `https://annotations.allmaps.org/images/${allmapsId}`;
 }
 
 /**

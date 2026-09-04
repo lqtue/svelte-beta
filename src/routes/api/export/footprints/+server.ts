@@ -84,23 +84,43 @@ function ringIntersectsBbox(
 
 interface AnnotationData {
   transformer: GcpTransformer;
-  iiifBaseUrl: string; // IIIF image service base URL (for region crop requests)
+  /** IIIF image service base URL. Needed for COCO crops; null is fine for GeoJSON. */
+  iiifBaseUrl: string | null;
 }
 
 type AnnotationCache = Map<string, AnnotationData>;
 
-// Cache is per-request: module scope is shared across concurrent requests in a CF isolate.
+/**
+ * Resolve a map's transformer, mirror first.
+ *
+ * Two bugs lived here, and together they meant this endpoint had never warped
+ * a single footprint — every export was pixel coordinates with
+ * `geo_converted: false`, which reads downstream as "nobody has traced this
+ * area yet" rather than "the warp is broken":
+ *
+ * 1. It called `getTransformer(allmapsId)` and dropped `annotation_url`, so it
+ *    only ever tried the public Allmaps endpoint. Every georeferenced map here
+ *    is self-hosted, and the mirror is the copy that resolves.
+ * 2. It bailed on a missing `iiifBaseUrl`. That URL builds COCO crop requests;
+ *    GeoJSON warping does not need it, so requiring it threw away a working
+ *    transformer. COCO checks for it separately, where it actually matters.
+ *
+ * Cache is per-request: module scope is shared across concurrent requests in a
+ * CF isolate. Keyed on the URL actually used, so a mirror and a public
+ * annotation cannot collide.
+ */
 async function getAnnotationData(
-  allmapsId: string,
+  allmapsId: string | null,
+  annotationUrl: string | null,
   annotationCache: AnnotationCache
 ): Promise<AnnotationData | null> {
-  const key = allmapsAnnotationUrl(allmapsId);
+  const key = annotationUrl || (allmapsId ? allmapsAnnotationUrl(allmapsId) : null);
+  if (!key) return null;
   const cached = annotationCache.get(key);
   if (cached) return cached;
 
-  const resolved = await getTransformer(allmapsId);
-  // Without the IIIF base URL we cannot build crop requests, so treat it as a miss.
-  if (!resolved?.iiifBaseUrl) return null;
+  const resolved = await getTransformer(allmapsId, annotationUrl);
+  if (!resolved) return null;
 
   const data: AnnotationData = {
     transformer: resolved.transformer,
@@ -148,7 +168,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
   let fpQuery = supabase
     .from('footprint_submissions')
-    .select('*, maps(allmaps_id, name, year)')
+    // `annotation_url` is the self-hosted mirror, and for this catalogue it is
+    // the only annotation that resolves — see `getAnnotationData`.
+    .select('*, maps(allmaps_id, annotation_url, name, year)')
     .eq('status', status);
 
   if (mapIds.length === 1) fpQuery = fpQuery.eq('map_id', mapIds[0]);
@@ -174,9 +196,14 @@ export const GET: RequestHandler = async ({ url }) => {
 
     for (const row of rows as any[]) {
       const resolvedAllmapsId = (row.maps as any)?.allmaps_id ?? null;
-      if (!resolvedAllmapsId) continue;
+      const resolvedAnnotationUrl = (row.maps as any)?.annotation_url ?? null;
+      if (!resolvedAllmapsId && !resolvedAnnotationUrl) continue;
 
-      const annData = await getAnnotationData(resolvedAllmapsId, annotationCache);
+      const annData = await getAnnotationData(
+        resolvedAllmapsId,
+        resolvedAnnotationUrl,
+        annotationCache
+      );
       const pixelRing: [number, number][] = row.pixel_polygon;
       let coordinates: [number, number][];
 
@@ -241,10 +268,17 @@ export const GET: RequestHandler = async ({ url }) => {
 
   for (const row of rows as any[]) {
     const resolvedAllmapsId = (row.maps as any)?.allmaps_id ?? null;
-    if (!resolvedAllmapsId) continue;
+    const resolvedAnnotationUrl = (row.maps as any)?.annotation_url ?? null;
+    if (!resolvedAllmapsId && !resolvedAnnotationUrl) continue;
 
-    const annData = await getAnnotationData(resolvedAllmapsId, annotationCache);
-    if (!annData) continue; // can't build crop URL without IIIF base
+    const annData = await getAnnotationData(
+      resolvedAllmapsId,
+      resolvedAnnotationUrl,
+      annotationCache
+    );
+    // COCO is where the IIIF base actually matters — every row carries a crop
+    // URL built from it. GeoJSON does not need it and no longer demands it.
+    if (!annData?.iiifBaseUrl) continue;
 
     const pixelRing: [number, number][] = row.pixel_polygon;
     if (!pixelRing?.length) continue;

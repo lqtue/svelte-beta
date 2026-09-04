@@ -33,6 +33,7 @@ from pathlib import Path
 
 from pyproj import CRS, Transformer
 from shapely.geometry import shape, box
+from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform as shapely_transform, unary_union
 
 # What counts as what. `feature_type` comes from footprint_submissions and is
@@ -74,13 +75,26 @@ def _to_metres(lng: float, lat: float) -> Transformer:
     return Transformer.from_crs(CRS.from_epsg(4326), crs, always_xy=True)
 
 
-def measure(features: list[dict], aoi: tuple[float, float, float, float]) -> Metrics:
-    """Metrics for `features` clipped to `aoi` (minLng, minLat, maxLng, maxLat)."""
-    min_lng, min_lat, max_lng, max_lat = aoi
-    tf = _to_metres((min_lng + max_lng) / 2, (min_lat + max_lat) / 2)
+def measure(features: list[dict], aoi: BaseGeometry | tuple[float, float, float, float]) -> Metrics:
+    """Metrics for `features` clipped to `aoi`, a WGS84 geometry.
+
+    A 4-tuple is still accepted and boxed, but a box is the wrong shape for a
+    real study area. District 4 is a diagonal peninsula: its bounding box is
+    7.62 km2 against 4.46 km2 of actual land, reaching across the Ben Nghe
+    canal into District 1 and across the Te into District 7. Since
+    `built_share` and `road_density` both divide by the AOI's area, measuring
+    the box understates every ratio by nearly half *and* clips in features
+    that were never in the district. Pass the polygon instead:
+
+        parse_aoi(Path(__file__).with_name("district4.geojson"))
+    """
+    if isinstance(aoi, (tuple, list)):
+        aoi = box(*aoi)
+    centre = aoi.centroid
+    tf = _to_metres(centre.x, centre.y)
     project = lambda g: shapely_transform(tf.transform, g)  # noqa: E731
 
-    aoi_geom = project(box(min_lng, min_lat, max_lng, max_lat))
+    aoi_geom = project(aoi)
     aoi_area = aoi_geom.area
 
     built, plots, water_polys, greens = [], [], [], []
@@ -156,14 +170,40 @@ def measure(features: list[dict], aoi: tuple[float, float, float, float]) -> Met
     )
 
 
-def parse_aoi(spec: str) -> tuple[float, float, float, float]:
-    parts = [float(p) for p in spec.split(",")]
+def parse_aoi(spec: str | Path) -> BaseGeometry:
+    """`minLng,minLat,maxLng,maxLat`, or the path to a GeoJSON polygon.
+
+    The bbox form is for a quick look. A study area you intend to publish
+    numbers for should be a polygon file, so that the denominator is land and
+    not the river — see `measure()`.
+    """
+    text = str(spec)
+    if text.lower().endswith((".json", ".geojson")):
+        path = Path(text)
+        if not path.exists():
+            raise ValueError(f"no such AOI file: {path}")
+        obj = json.loads(path.read_text())
+        kind = obj.get("type")
+        if kind == "FeatureCollection":
+            geoms = [shape(f["geometry"]) for f in obj.get("features", [])]
+            if not geoms:
+                raise ValueError(f"{path} has no features")
+            geom = unary_union(geoms)
+        elif kind == "Feature":
+            geom = shape(obj["geometry"])
+        else:
+            geom = shape(obj)
+        if geom.is_empty or geom.area <= 0:
+            raise ValueError(f"{path} encloses no area")
+        return geom
+
+    parts = [float(p) for p in text.split(",")]
     if len(parts) != 4:
-        raise ValueError("aoi must be minLng,minLat,maxLng,maxLat")
+        raise ValueError("aoi must be minLng,minLat,maxLng,maxLat, or a .geojson path")
     min_lng, min_lat, max_lng, max_lat = parts
     if min_lng >= max_lng or min_lat >= max_lat:
         raise ValueError(f"aoi corners are out of order: {spec}")
-    return min_lng, min_lat, max_lng, max_lat
+    return box(min_lng, min_lat, max_lng, max_lat)
 
 
 # ── self-check ────────────────────────────────────────────────────────────────
@@ -247,8 +287,17 @@ def self_check() -> None:
     empty = measure([], aoi)
     assert empty.features == 0 and empty.built_share == 0.0 and empty.road_density_m_per_km2 == 0.0
 
+    # The shipped District 4 polygon is land, not a rectangle. If these two
+    # ever converge, someone has quietly replaced the polygon with its bbox
+    # and every built_share in the series has silently halved.
+    d4 = parse_aoi(Path(__file__).with_name("district4.geojson"))
+    poly_m2 = measure([], d4).aoi_area_m2
+    bbox_m2 = measure([], parse_aoi(",".join(str(v) for v in d4.bounds))).aoi_area_m2
+    assert 4.3e6 < poly_m2 < 4.6e6, poly_m2
+    assert bbox_m2 / poly_m2 > 1.5, (bbox_m2, poly_m2)
+
     # A malformed AOI is refused.
-    for bad in ("1,2,3", "106.71,10.77,106.70,10.78"):
+    for bad in ("1,2,3", "106.71,10.77,106.70,10.78", "nope.geojson"):
         try:
             parse_aoi(bad)
             raise AssertionError(f"parse_aoi accepted {bad!r}")
@@ -262,7 +311,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--self-check", action="store_true", help="run the assertions and exit")
     ap.add_argument("--geojson", type=Path, help="a FeatureCollection from /api/export/footprints")
-    ap.add_argument("--aoi", help="minLng,minLat,maxLng,maxLat")
+    ap.add_argument("--aoi", help="minLng,minLat,maxLng,maxLat, or a path to a GeoJSON polygon")
     args = ap.parse_args()
 
     if args.self_check:

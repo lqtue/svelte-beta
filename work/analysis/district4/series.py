@@ -6,8 +6,11 @@
 
     # The real thing, against production:
     python work/analysis/district4/series.py \
-      --aoi 106.695,10.752,106.715,10.772 \
-      --maps <uuid>,<uuid>,<uuid> --out district4.csv
+      --maps $(cat work/analysis/district4/maps.txt) --out district4.csv
+
+The default AOI is `district4.geojson` — the peninsula, not its bounding box.
+`--maps` takes the sheets that actually resolve the district; build that list
+with `node --env-file=.env scripts/collection_aoi.mjs --aoi district4`.
 
 One row per map, oldest first, so the columns read as a time series. Pulls
 `/api/export/footprints`, which returns **approved** polygons already warped to
@@ -28,21 +31,35 @@ import sys
 from dataclasses import asdict, fields
 from pathlib import Path
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from metrics import Metrics, measure, parse_aoi, _square  # noqa: E402
 
 DEFAULT_API = "https://maparchive.vn"
-# District 4 is the peninsula between the Bến Nghé and Tẻ canals. Rough
-# envelope, deliberately generous: metrics.py clips to it, and a slightly wide
-# box costs nothing while a tight one silently drops the waterfront.
-DISTRICT_4 = "106.695,10.752,106.715,10.772"
+# District 4 is the peninsula between the Bến Nghé and Tẻ canals, and it is
+# shipped as a polygon rather than a box on purpose. A wide box does *not*
+# cost nothing: `metrics.py` divides by the AOI's area, so the old envelope
+# below measured 7.62 km² of box against 4.46 km² of land and halved every
+# built ratio, while clipping in features from District 1 across the Bến Nghé
+# and District 7 across the Tẻ. It also clipped ~940 m off the western apex
+# and ~790 m off the river frontage, so the sheets' best-covered ground was
+# the part being thrown away.
+#     the old value, kept only as a warning: "106.695,10.752,106.715,10.772"
+DISTRICT_4 = str(Path(__file__).with_name("district4.geojson"))
+
+
+# Cloudflare in front of maparchive.vn 403s the default `Python-urllib/3.x`
+# user-agent, so every request from this script was Forbidden and every row was
+# dropped as "export failed" — a transport problem wearing the costume of "no
+# data reviewed yet". Identify the script instead.
+USER_AGENT = "vma-district4-series/1.0 (+https://maparchive.vn)"
 
 
 def fetch(api: str, map_id: str, timeout: float = 30.0) -> list[dict]:
     url = f"{api.rstrip('/')}/api/export/footprints?" + urlencode({"map_id": map_id})
-    with urlopen(url, timeout=timeout) as r:  # noqa: S310 — a URL we construct
+    req = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(req, timeout=timeout) as r:  # noqa: S310 — a URL we construct
         return json.loads(r.read()).get("features", [])
 
 
@@ -56,12 +73,18 @@ def write_csv(rows: list[Metrics], out: Path) -> None:
 
 
 def show(rows: list[Metrics]) -> None:
-    print(f"{'year':>6} {'built %':>8} {'bldgs':>6} {'mean m²':>9} {'road m/km²':>11} {'water m²':>10} {'rmse':>6}")
+    print(
+        f"{'year':>6} {'built %':>8} {'bldgs':>6} {'mean m²':>9} {'road m/km²':>11} "
+        f"{'water m²':>10} {'rmse':>6}  sheet"
+    )
     for r in rows:
+        # Without a year the map id is the only handle on the row; show enough
+        # of it to match against `maps.txt`.
+        label = "" if r.year else f"  {r.map_ids.split(',')[0][:8]}"
         print(
             f"{(r.year or '?'):>6} {r.built_share * 100:>7.2f}% {r.building_count:>6} "
             f"{r.mean_building_m2:>9.0f} {r.road_density_m_per_km2:>11.0f} "
-            f"{r.water_area_m2:>10.0f} {(r.max_geom_rmse_m or 0):>6.1f}"
+            f"{r.water_area_m2:>10.0f} {(r.max_geom_rmse_m or 0):>6.1f}{label}"
         )
     if all(r.features == 0 for r in rows):
         print("\nEvery row is empty. That is the expected state until footprints are")
@@ -93,12 +116,14 @@ def demo() -> list[Metrics]:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--demo", action="store_true", help="synthetic series; no network, no data")
-    ap.add_argument("--aoi", default=DISTRICT_4, help=f"minLng,minLat,maxLng,maxLat (default: District 4, {DISTRICT_4})")
+    ap.add_argument("--aoi", default=DISTRICT_4,
+                    help="minLng,minLat,maxLng,maxLat, or a GeoJSON polygon path (default: district4.geojson)")
     ap.add_argument("--maps", help="comma-separated map ids, any order")
     ap.add_argument("--api", default=DEFAULT_API, help=f"API origin (default {DEFAULT_API})")
     ap.add_argument("--out", type=Path, help="write the table here as CSV")
     args = ap.parse_args()
 
+    failed: list[str] = []
     if args.demo:
         rows = demo()
         print("DEMO — synthetic geometry, invented numbers, real code path.\n")
@@ -111,9 +136,19 @@ def main() -> None:
             try:
                 feats = fetch(args.api, map_id)
             except Exception as e:
-                print(f"  {map_id}: export failed ({e}) — skipped", file=sys.stderr)
+                # Not a zero row: a zero row means "nobody has reviewed this
+                # sheet yet", which is a fact about the data. This is a fact
+                # about the network, and reading one as the other is how you
+                # conclude a district was empty in 1923.
+                print(f"  {map_id}: export FAILED ({e})", file=sys.stderr)
+                failed.append(map_id)
                 continue
             m = measure(feats, aoi)
+            # An empty sheet has no features, so it has no year and no map id
+            # either — and six rows all labelled "?" name nothing. Stamp the id
+            # we asked for, so "which year is missing" stays answerable.
+            if not m.map_ids:
+                m.map_ids = map_id
             note = "" if m.features else "  (no reviewed footprints in the study area yet)"
             print(f"  {map_id}  year={m.year or '?'}  features={m.features}{note}")
             rows.append(m)
@@ -124,6 +159,15 @@ def main() -> None:
     if args.out:
         write_csv(rows, args.out)
         print(f"\nwrote {args.out} ({len(rows)} rows)")
+
+    if not args.demo and failed:
+        print(
+            f"\n{len(failed)} of {len(failed) + len(rows)} sheets could not be fetched at all. "
+            "The table above is incomplete for a network reason, not a data one — "
+            "do not read it as a result.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":
