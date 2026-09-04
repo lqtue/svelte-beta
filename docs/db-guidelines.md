@@ -162,6 +162,8 @@ All tables must have `alter table ... enable row level security`.
 - Never amend a pushed migration. Add a new one.
 - Number files as `NNN_short_description.sql`. Gaps in numbering are fine.
 - After dropping a column or table, delete or stub the corresponding TypeScript types in the same PR.
+- **Never change schema in the Dashboard SQL Editor.** An object edited there is invisible to `supabase/migrations/`, and the cost lands on whoever writes the next migration that rebuilds it, not on whoever made the edit. Learned on 070: production's `pipeline_jobs_kind_check` had been widened by hand to allow `warp`, no migration recorded it, and 070 rebuilt the list from the migrations — dropping a kind that was in use and failing on existing rows (`check constraint "pipeline_jobs_kind_check" ... is violated by some row`). It rolled back cleanly, but only because a check constraint is the *gentle* version of this: the same mistake on a policy or a trigger silently removes protection instead of refusing. If a hotfix in the Dashboard is genuinely unavoidable, write the matching migration the same day.
+- A migration that rebuilds an enumerated constraint should therefore assert against reality first, not against the previous migration: `select distinct kind from pipeline_jobs` costs nothing and would have caught this.
 
 ---
 
@@ -171,4 +173,5 @@ All tables must have `alter table ... enable row level security`.
 |------|---------|-----|
 | Two visibility models on `maps` | the `status` enum (`draft \| public \| featured`, mig 038) and the `is_public` / `is_featured` booleans both exist, and different code paths gate on different ones — `data/maps/georef.ts` selects the georef queue with `.eq('is_public', false)` while `/api/search` enforces `status IN ('public','featured')`, and `MapEditModal` exposes both | Pick one as authoritative, migrate the other to a generated column or drop it. **Do not add a third.** |
 | `label_pins` outlives its feature | `label_tasks` was dropped in mig 038 but `label_pins` remains, now written only by `POST /api/admin/maps/[id]/ocr/apply` | Either fold into `ocr_extractions` or document it as the OCR-applied point layer |
-| Migration head is 051 | `supabase/migrations/` | Regenerate `src/lib/data/supabase/types.ts` after every push: `supabase gen types typescript --linked` |
+| Migration head is 070 | `supabase/migrations/` | Regenerate `src/lib/data/supabase/types.ts` after every push: `supabase gen types typescript --linked` |
+| Production drifted from the migrations once | `pipeline_jobs_kind_check` allowed `warp` with no migration saying so; corrected in 070 | Nothing to fix now — but it means the migrations are not provably the whole schema. A `db pull` diff would settle it, and needs the direct DB password |
