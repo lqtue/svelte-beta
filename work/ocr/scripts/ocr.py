@@ -1973,6 +1973,7 @@ def cmd_scout(args: argparse.Namespace) -> None:
             system_prompt=SYSTEM_PROMPT,
             schema=schema,
             model=args.model,
+            user_prompt=multi_prompt,
         )
         # Discard frame_idx — scout results are always global (full-map coords)
         for ext in res.get("extractions", []):

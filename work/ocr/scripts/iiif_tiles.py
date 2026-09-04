@@ -111,8 +111,11 @@ def fetch_crop(
     # server). Cheaper than the full-image download below and the only path
     # that works for a mirrored map, so it goes first.
     try:
-        img = fetch_crop_level0(iiif_base, x, y, w, h, size, quality)
-        img.save(cache_path)
+        stats: dict = {}
+        img = fetch_crop_level0(iiif_base, x, y, w, h, size, quality, stats=stats)
+        # Only a complete assembly is cacheable — see fetch_crop_level0.
+        if stats.get("coverage", 0) >= 1.0:
+            img.save(cache_path)
         return img
     except Exception:
         pass
@@ -161,6 +164,10 @@ def fetch_crop(
 #   * rendered size = ceil(region_w / sf) — NOT a constant `256,`. A clipped
 #     edge tile is narrower, and asking for 256 there 404s.
 
+# Below this share of tiles, an assembled region is not worth returning: the
+# caller cannot tell a white hole from blank paper.
+MIN_LEVEL0_COVERAGE = 0.9
+
 _INFO_CACHE: dict[str, dict] = {}
 
 
@@ -194,13 +201,18 @@ def _pick_scale_factor(info: dict, region_w: int, size: int) -> int:
 
 def fetch_crop_level0(
     iiif_base: str, x: int, y: int, w: int, h: int, size: int,
-    quality: str = "default",
+    quality: str = "default", stats: dict | None = None,
 ) -> Image.Image:
     """Compose an arbitrary region out of a fixed tile pyramid.
 
     Fetches every tile overlapping (x, y, w, h) at the coarsest scale factor
     that still satisfies `size`, pastes them, then crops and resizes exactly as
     a level2 server would have. Raises if no tile could be fetched at all.
+
+    `stats`, when given, receives {"coverage": float} — 1.0 when every tile
+    landed. The caller must not cache anything below 1.0: a hole is
+    indistinguishable from blank paper once written to disk, and one bad run
+    would otherwise poison every later one.
     """
     info = _cached_info(iiif_base)
     full_w, full_h = info["width"], info["height"]
@@ -213,21 +225,48 @@ def fetch_crop_level0(
         x0, y0 = (x // step) * step, (y // step) * step
         canvas = Image.new("RGB", (math.ceil((full_w - x0) / sf), math.ceil((full_h - y0) / sf)), "white")
         got = 0
+        wanted = 0
         for ty in range(y0, min(y + h, full_h), step):
             for tx in range(x0, min(x + w, full_w), step):
+                wanted += 1
                 tw, th = min(step, full_w - tx), min(step, full_h - ty)
                 url = level0_tile_url(iiif_base, tx, ty, tw, th, sf, quality)
-                try:
-                    resp = requests.get(url, timeout=30)
-                    if not resp.ok:
+                # Retry: measured 2026-09-04, some tiles of a mirrored map hang
+                # rather than 404 — 3 of 8 timed out on an idle host for map
+                # 3a446d85 while 8 of 8 succeeded for 0e02b9d9. A short timeout
+                # with two retries turns most of those into hits; a 30s one just
+                # made a 108-tile overview take twenty minutes.
+                for attempt in range(3):
+                    try:
+                        resp = requests.get(url, timeout=10)
+                        if not resp.ok:
+                            break  # a real 404 will not become a 200 on retry
+                        canvas.paste(Image.open(BytesIO(resp.content)).convert("RGB"),
+                                     ((tx - x0) // sf, (ty - y0) // sf))
+                        got += 1
+                        break
+                    except Exception:
                         continue
-                    canvas.paste(Image.open(BytesIO(resp.content)).convert("RGB"),
-                                 ((tx - x0) // sf, (ty - y0) // sf))
-                    got += 1
-                except Exception:
-                    continue
         if got:
+            # A hole is white paper to everything downstream: the density pass
+            # reads it as blank and the model reads it as nothing there. Silence
+            # here cost a third of the 1968 sheet before anyone noticed, so a
+            # partial assembly says so, and a mostly-empty one refuses.
+            missing = wanted - got
+            coverage = got / wanted
+            if stats is not None:
+                stats["coverage"] = coverage
+            if missing:
+                msg = (f"  level0: {missing} of {wanted} tiles unreadable "
+                       f"({coverage:.0%} coverage) for {iiif_base}")
+                if coverage < MIN_LEVEL0_COVERAGE:
+                    raise RuntimeError(
+                        msg + f" — below {MIN_LEVEL0_COVERAGE:.0%}; re-run tile_to_r2 for this map"
+                    )
+                print(msg + " — proceeding with gaps", flush=True)
             # Crop in canvas space, then scale to the width the caller asked for.
+            if stats is not None:
+                stats.setdefault("coverage", 1.0)
             cx, cy = (x - x0) // sf, (y - y0) // sf
             cw, ch = max(1, w // sf), max(1, h // sf)
             region = canvas.crop((cx, cy, cx + cw, cy + ch))

@@ -295,6 +295,7 @@ def extract_labels_sequence(
     model: str = DEFAULT_MODEL,
     log_path: Path | None = None,
     cache_dir: Path | None = None,
+    user_prompt: str | None = None,
 ) -> dict:
     """Send a sequence of overlapping tile images in ONE call (MapSAM2-style).
 
@@ -303,6 +304,13 @@ def extract_labels_sequence(
 
     Returns extractions with a 'frame_idx' field indicating which tile the
     bbox coordinates belong to (0-indexed).
+
+    `user_prompt` overrides the built-in tile-seam instructions. It exists
+    because the scout pass sends the *same map at several resolutions* rather
+    than adjacent tiles, and its own prompt carries the layout vocabulary. Until
+    2026-09-04 this function ignored the caller's prompt entirely: `cmd_scout`
+    built a `multi_prompt` and passed nothing, so PROMPT_SCOUT never reached the
+    model and every scout run returned zero regions and a null neatline.
     """
     import io, re as _re
     from cache import get as cache_get, put as cache_put
@@ -319,7 +327,7 @@ def extract_labels_sequence(
         )
         parts.append(f"[Frame {i}]")
 
-    sequence_prompt = (
+    sequence_prompt = user_prompt or (
         f"You are given {len(images)} sequential overlapping tile images from the same "
         f"1882 Saigon cadastral map, ordered left-to-right (or along the street axis). "
         f"Labels — especially diagonal street names — may begin in one frame and end in another.\n\n"
@@ -344,10 +352,15 @@ def extract_labels_sequence(
     if cached is not None:
         return cached
 
-    # Extend schema to include frame_idx
+    # Extend schema to include frame_idx, keeping every other property the
+    # caller declared. Rebuilding it with only `extractions` — as this did until
+    # 2026-09-04 — silently drops SCOUT_SCHEMA's `regions`, `map_content_bbox`,
+    # `cartouche_bbox` and `metadata`, so the model has no slot to answer in and
+    # the layout pass can never return anything.
     seq_schema = {
-        "type": "object",
+        **schema,
         "properties": {
+            **schema["properties"],
             "extractions": {
                 "type": "array",
                 "items": {
@@ -357,9 +370,8 @@ def extract_labels_sequence(
                         "frame_idx": {"type": "integer"},
                     },
                 },
-            }
+            },
         },
-        "required": ["extractions"],
     }
 
     config_kwargs: dict = {
