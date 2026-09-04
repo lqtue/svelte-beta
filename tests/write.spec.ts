@@ -266,6 +266,59 @@ test('running OCR enqueues one job, and only one at a time', async () => {
   await admin.from('pipeline_jobs').delete().eq('map_id', mapId).eq('kind', 'ocr');
 });
 
+test('a saved triage round-trips and steers the queued job', async () => {
+  const triage = {
+    neatline: [10, 20, 3000, 2000],
+    tile_size: 1800,
+    overlap: 200,
+    tile_overrides: { '0_0_1800_1800': 'skip' },
+    saved_at: new Date().toISOString(),
+  };
+
+  const patch = await staffRequest.patch(`/api/admin/maps/${mapId}`, { data: { triage } });
+  expect(patch.status(), await patch.text()).toBe(200);
+
+  const { data: saved } = await admin.from('maps').select('triage').eq('id', mapId).single();
+  expect(saved!.triage).toMatchObject(triage);
+
+  // A non-object must drop rather than land: `asObject` in mapFields.ts is what
+  // stops a stray string becoming a payload the worker then splices into argv.
+  // With nothing left to write the PATCH is a bad request, not a server fault.
+  const bad = await staffRequest.patch(`/api/admin/maps/${mapId}`, { data: { triage: 'nope' } });
+  expect(bad.status()).toBe(400);
+  const { data: still } = await admin.from('maps').select('triage').eq('id', mapId).single();
+  expect(still!.triage).toMatchObject(triage);
+
+  // The point of saving it: the neatline and grid reach the job the worker runs.
+  const post = await staffRequest.post(`/api/admin/maps/${mapId}/ocr`, {
+    data: {
+      run_id: `triage-smoke-${Date.now()}`,
+      neatline: triage.neatline,
+      tile_size: triage.tile_size,
+      overlap: triage.overlap,
+      tile_overrides: triage.tile_overrides,
+      model: 'gemini-2.5-flash-lite',
+    },
+  });
+  expect(post.status(), await post.text()).toBe(202);
+  const { job_id } = await post.json();
+  created.jobIds.push(job_id);
+
+  const { data: job } = await admin
+    .from('pipeline_jobs')
+    .select('payload')
+    .eq('id', job_id)
+    .single();
+  const payload = job!.payload as Record<string, unknown>;
+  expect(payload.neatline).toEqual(triage.neatline);
+  expect(payload.tile_size).toBe(1800);
+  expect(payload.tile_overrides).toEqual(triage.tile_overrides);
+  expect(payload.model).toBe('gemini-2.5-flash-lite');
+
+  await admin.from('pipeline_jobs').delete().eq('id', job_id);
+  await admin.from('maps').update({ triage: {} }).eq('id', mapId);
+});
+
 test('a worker key claims a job and reports back through /api/pipeline', async () => {
   const runId = `worker-smoke-${Date.now()}`;
   created.runIds.push(runId);

@@ -1,13 +1,22 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import type { FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/data/maps/footprintTypes';
+import type { StoredTriage } from '$lib/data/maps/types';
 
 type Json = Database['public']['Tables']['footprint_submissions']['Row']['pixel_polygon'];
 type FootprintUpdate = Database['public']['Tables']['footprint_submissions']['Update'];
 
 type LabelMapRow = Pick<
 	Database['public']['Tables']['maps']['Row'],
-	'id' | 'name' | 'allmaps_id' | 'iiif_image' | 'label_config'
+	| 'id'
+	| 'name'
+	| 'allmaps_id'
+	| 'iiif_image'
+	| 'label_config'
+	| 'triage'
+	| 'year'
+	| 'location'
+	| 'dc_description'
 >;
 
 // ── Label Maps ────────────────────────────────────────────────────────────────
@@ -19,17 +28,30 @@ export interface LabelMapInfo {
 	iiifImage?: string;
 	legend: LegendItem[];
 	categories: string[];
+	/** `maps.triage` (migration 069) — null when this sheet has never been triaged. */
+	triage: StoredTriage | null;
+	/** The three fields the picker filters and badges on. */
+	year?: number;
+	location?: string;
+	description?: string;
+	/** True once this sheet has any `ocr_extractions` row. */
+	hasOcr?: boolean;
 }
 
 export async function fetchLabelMaps(supabase: SupabaseClient<Database>): Promise<LabelMapInfo[]> {
 	const { data, error } = await supabase
 		.from('maps')
-		.select('id, name, allmaps_id, iiif_image, label_config')
+		.select('id, name, allmaps_id, iiif_image, label_config, triage, year, location, dc_description')
 		.eq('georef_done', true)
 		.order('priority', { ascending: false })
 		.order('name');
 
 	if (error) { console.error('Failed to fetch label maps:', error); return []; }
+
+	// One extra round trip for the whole pass, rather than a count per row: the
+	// picker only needs to know *whether* a sheet has been read, not how much.
+	const { data: done } = await supabase.from('ocr_extractions').select('map_id');
+	const ocrd = new Set((done ?? []).map((r) => r.map_id));
 
 	return ((data ?? []) as LabelMapRow[])
 		.filter((r) => r.allmaps_id)
@@ -42,6 +64,13 @@ export async function fetchLabelMaps(supabase: SupabaseClient<Database>): Promis
 				iiifImage:  r.iiif_image ?? undefined,
 				legend:     Array.isArray(cfg.legend)     ? cfg.legend     : [],
 				categories: Array.isArray(cfg.categories) ? cfg.categories : [],
+				// The default is `{}`, so "has a neatline" is what distinguishes a saved
+				// triage from a map nobody has opened.
+				triage:     (r.triage as StoredTriage | null)?.neatline ? (r.triage as StoredTriage) : null,
+				year:        r.year ?? undefined,
+				location:    r.location ?? undefined,
+				description: r.dc_description ?? undefined,
+				hasOcr:      ocrd.has(r.id),
 			};
 		});
 }

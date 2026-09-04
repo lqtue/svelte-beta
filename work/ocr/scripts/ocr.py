@@ -371,13 +371,22 @@ def cmd_batch(args: argparse.Namespace) -> None:
 
     clahe = clahe_prep(args)
 
-    # Shared 1024px full-image overview — neatline, skip-sparse, and
-    # auto-priority all want the same downscale; fetch it at most once.
+    # Shared full-image overview — neatline, skip-sparse and auto-priority all
+    # want the same downscale; fetch it at most once.
+    #
+    # 2048, not the 1024 this used until 2026-09-04. `compute_tile_densities`
+    # is resolution-critical: measured on the 1882 Saigon cadastral, the mean
+    # density of centre tiles versus edge tiles ran 0.019 vs 0.134 at 600px,
+    # 0.044 vs 0.129 at 1024px and 0.106 vs 0.140 at 1513px — inverted every
+    # time, i.e. the dense city centre scored *below* the margins and
+    # --auto-priority would have skipped exactly the tiles worth reading. Only
+    # at 2048 does it come right (0.166 vs 0.139). Do not lower this.
+    OVERVIEW_WIDTH = 2048
     _ov_cache: dict = {}
     def _overview():
         if "img" not in _ov_cache:
             _ov_cache["img"] = fetch_crop(iiif_base, 0, 0, img_w, img_h,
-                                          size=1024, quality=iiif_quality)
+                                          size=OVERVIEW_WIDTH, quality=iiif_quality)
         return _ov_cache["img"]
 
     # 3. Local neatline detection as fallback (no API call, pure image processing)

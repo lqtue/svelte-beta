@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import time
 from pathlib import Path
@@ -106,7 +107,17 @@ def fetch_crop(
     except Exception:
         pass
 
-    # Fallback: download full image and crop locally (works when IIIF region is broken)
+    # Fallback 1: a fixed tile pyramid (our R2 host, and any other level0
+    # server). Cheaper than the full-image download below and the only path
+    # that works for a mirrored map, so it goes first.
+    try:
+        img = fetch_crop_level0(iiif_base, x, y, w, h, size, quality)
+        img.save(cache_path)
+        return img
+    except Exception:
+        pass
+
+    # Fallback 2: download full image and crop locally (works when IIIF region is broken)
     direct_url = _ia_direct_url(iiif_base)
     if direct_url:
         full_cache = CACHE_DIR / f"full_{hashlib.md5(direct_url.encode()).hexdigest()}.jpg"
@@ -130,6 +141,108 @@ def fetch_crop(
         f"fetch_crop failed: IIIF region returned error and no IA direct URL found.\n"
         f"IIIF base: {iiif_base}"
     )
+
+
+# ── Level0 tile assembly ──────────────────────────────────────────────────────
+#
+# Our own R2 host (`worker/`) renders nothing: it maps a IIIF path straight onto
+# an R2 key, serving only the tiles `vips dzsave` wrote. An arbitrary region at
+# an arbitrary scale — which is every request fetch_crop makes — is a 404, so
+# without this every OCR run against a mirrored map failed on its first tile.
+# Its info.json advertises `profile: level2`, which is untrue and is why this
+# went unnoticed; do not trust that field, try the region and fall back.
+#
+# The addressing rule, established against the live host:
+#   * scale factor from info.json's scaleFactors, but only those that exist —
+#     the top factor is often advertised and absent (64 is listed, 32 is the
+#     largest served on ours), so a missing level degrades to the next one down
+#   * tile origin a multiple of tile_size * sf
+#   * region width/height clipped to the image bounds
+#   * rendered size = ceil(region_w / sf) — NOT a constant `256,`. A clipped
+#     edge tile is narrower, and asking for 256 there 404s.
+
+_INFO_CACHE: dict[str, dict] = {}
+
+
+def _cached_info(iiif_base: str) -> dict:
+    if iiif_base not in _INFO_CACHE:
+        _INFO_CACHE[iiif_base] = get_image_info(iiif_base)
+    return _INFO_CACHE[iiif_base]
+
+
+def level0_tile_url(iiif_base: str, tx: int, ty: int, tw: int, th: int, sf: int,
+                    quality: str = "default") -> str:
+    """The one URL a dzsave pyramid actually holds for this tile."""
+    return f"{iiif_base}/{tx},{ty},{tw},{th}/{math.ceil(tw / sf):d},/0/{quality}.jpg"
+
+
+def _pick_scale_factor(info: dict, region_w: int, size: int) -> int:
+    """Largest downscale that still delivers at least `size` pixels across.
+
+    Bigger factor = fewer tiles. Going past the requested width would upscale,
+    so stop at the last factor whose rendered region is still wide enough.
+    """
+    factors = sorted(info.get("scale_factors") or [1])
+    chosen = factors[0]
+    for f in factors:
+        if region_w / f >= size:
+            chosen = f
+        else:
+            break
+    return chosen
+
+
+def fetch_crop_level0(
+    iiif_base: str, x: int, y: int, w: int, h: int, size: int,
+    quality: str = "default",
+) -> Image.Image:
+    """Compose an arbitrary region out of a fixed tile pyramid.
+
+    Fetches every tile overlapping (x, y, w, h) at the coarsest scale factor
+    that still satisfies `size`, pastes them, then crops and resizes exactly as
+    a level2 server would have. Raises if no tile could be fetched at all.
+    """
+    info = _cached_info(iiif_base)
+    full_w, full_h = info["width"], info["height"]
+    ts = info.get("tile_size", 256)
+    if not full_w or not full_h:
+        raise RuntimeError(f"level0 assembly needs width/height in info.json: {iiif_base}")
+
+    for sf in _descending_from(_pick_scale_factor(info, w, size), info):
+        step = ts * sf
+        x0, y0 = (x // step) * step, (y // step) * step
+        canvas = Image.new("RGB", (math.ceil((full_w - x0) / sf), math.ceil((full_h - y0) / sf)), "white")
+        got = 0
+        for ty in range(y0, min(y + h, full_h), step):
+            for tx in range(x0, min(x + w, full_w), step):
+                tw, th = min(step, full_w - tx), min(step, full_h - ty)
+                url = level0_tile_url(iiif_base, tx, ty, tw, th, sf, quality)
+                try:
+                    resp = requests.get(url, timeout=30)
+                    if not resp.ok:
+                        continue
+                    canvas.paste(Image.open(BytesIO(resp.content)).convert("RGB"),
+                                 ((tx - x0) // sf, (ty - y0) // sf))
+                    got += 1
+                except Exception:
+                    continue
+        if got:
+            # Crop in canvas space, then scale to the width the caller asked for.
+            cx, cy = (x - x0) // sf, (y - y0) // sf
+            cw, ch = max(1, w // sf), max(1, h // sf)
+            region = canvas.crop((cx, cy, cx + cw, cy + ch))
+            return region.resize((size, max(1, round(size * h / w))), Image.LANCZOS)
+
+    raise RuntimeError(
+        f"level0 assembly fetched no tiles. IIIF base: {iiif_base} "
+        f"region={x},{y},{w},{h} scale_factors={info.get('scale_factors')}"
+    )
+
+
+def _descending_from(sf: int, info: dict) -> list[int]:
+    """`sf` and every smaller factor — a level advertised but not written 404s."""
+    factors = sorted((info.get("scale_factors") or [1]), reverse=True)
+    return [f for f in factors if f <= sf] or [1]
 
 
 def tile_grid(
@@ -402,6 +515,16 @@ def compute_tile_colours(
     the pixel is saturated enough to be a deliberate wash rather than aged
     paper. A monochrome scan returns ~0 everywhere, which is the point — the
     caller must not act on a signal that is not there.
+
+    **Measured null result, 1882 Saigon cadastral, 2026-09-04.** This scores
+    0.000 on every tile of that sheet, and not because of the saturation gate:
+    dropping it from 0.25 to 0.10 changes nothing. Every saturated pixel on the
+    sheet sits in hue 0–60° — warm aged paper and the pink parcel tints — and
+    nothing at all falls in the 60–260° band this looks for. Its blue river and
+    green parks are pale enough to read as warm paper in HSV. So on a
+    warm-toned colonial scan the wash demotion is a no-op. Do not rely on it
+    until it has been measured on a sheet where it fires; see
+    `docs/pipelines.md` and `EVAL-BASELINE.md`.
     """
     try:
         import numpy as np
@@ -602,8 +725,10 @@ def get_image_info(iiif_base: str, retries: int = 3) -> dict:
             # Tile pyramid scale factors (tiles[0].scaleFactors)
             tiles_arr = data.get("tiles", [])
             scale_factors: list[int] = []
+            tile_size = 256
             if tiles_arr and isinstance(tiles_arr[0], dict):
                 scale_factors = [int(f) for f in tiles_arr[0].get("scaleFactors", [])]
+                tile_size = int(tiles_arr[0].get("width", 256))
 
             return {
                 "width": int(data.get("width", 0)),
@@ -612,6 +737,7 @@ def get_image_info(iiif_base: str, retries: int = 3) -> dict:
                 "quality": quality,
                 "sizes": sizes,
                 "scale_factors": scale_factors,
+                "tile_size": tile_size,
             }
         except Exception as e:
             if attempt < retries - 1:
@@ -815,6 +941,27 @@ def _self_check() -> None:
     }
     # The caller's dict is not mutated.
     assert prior["200_0_100_100"] == "low_res"
+
+    # ── level0 addressing ────────────────────────────────────────────────────
+    info = {"width": 12102, "height": 8982, "scale_factors": [1, 2, 4, 8, 16, 32, 64],
+            "tile_size": 256}
+    B = "https://x/iiif/m"
+
+    # size = ceil(region_w / sf), not a constant 256 — a clipped edge tile is
+    # narrower, and asking for 256 there is the 404 that hid this bug.
+    assert level0_tile_url(B, 0, 0, 8192, 8192, 32).endswith("/0,0,8192,8192/256,/0/default.jpg")
+    assert level0_tile_url(B, 8192, 8192, 3910, 790, 32).endswith(
+        "/8192,8192,3910,790/123,/0/default.jpg"), "a clipped tile must round its width up"
+
+    # Coarsest factor that still delivers the width the caller asked for.
+    assert _pick_scale_factor(info, 12102, 1024) == 8
+    assert _pick_scale_factor(info, 2400, 1024) == 2
+    assert _pick_scale_factor(info, 512, 1024) == 1, "never upscale to reach `size`"
+
+    # A factor the server advertises but never wrote must degrade, not fail.
+    assert _descending_from(64, info) == [64, 32, 16, 8, 4, 2, 1]
+    assert _descending_from(1, info) == [1]
+    assert _descending_from(4, {"scale_factors": []}) == [1]
 
     print("[ok] iiif_tiles self-check passed")
 

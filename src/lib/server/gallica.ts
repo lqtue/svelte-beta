@@ -49,17 +49,11 @@ const SNIPPET_CHARS = 240;
 
 /* ------------------------------------------------------------------ query */
 
-/**
- * Strip diacritics the way a 1920s French typesetter would have: NFD-decompose
- * and drop the combining marks, then handle `đ`, which has no decomposition.
- */
-export function unaccent(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D');
-}
+// One copy, in `core`, because the map picker needs it too and cannot import
+// from `$lib/server`. Imported for local use and re-exported so existing
+// callers keep their import path.
+import { unaccent } from '$lib/core/utils/unaccent';
+export { unaccent };
 
 /**
  * The spellings one Vietnamese place name takes in a French OCR corpus:

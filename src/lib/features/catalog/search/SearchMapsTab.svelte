@@ -7,6 +7,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import type { MapListItem } from '$lib/data/maps/types';
   import { layersStore, MAX_OVERLAY_LAYERS, toHistoricalRef } from '$lib/map/stores/layersStore';
+  import { matchesAllTerms } from '$lib/core/utils/unaccent';
 
   const dispatch = createEventDispatcher<{
     selectMap: { map: MapListItem };
@@ -14,6 +15,8 @@
 
   export let maps: MapListItem[] = [];
   export let selectedMapId: string | null = null;
+  /** When false, hide the layer-stack compare button. */
+  export let showCompare = true;
 
   let mapsQuery = '';
   let searchInputEl: HTMLInputElement | null = null;
@@ -37,19 +40,19 @@
   }
 
   $: filteredMaps = (() => {
-    const q = mapsQuery.trim().toLowerCase();
+    const q = mapsQuery.trim();
     if (!q) return maps;
-    return maps.filter((m) => {
-      const haystack = [
-        m.name,
-        m.location ?? '',
-        m.dc_description ?? '',
-        m.year != null ? String(m.year) : '',
-      ]
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(q);
-    });
+    return maps.filter((m) =>
+      matchesAllTerms(
+        [
+          m.name,
+          m.location ?? '',
+          m.dc_description ?? '',
+          m.year != null ? String(m.year) : '',
+        ].join(' '),
+        q
+      )
+    );
   })();
 
   function handleMapResultClick(map: MapListItem) {
@@ -64,6 +67,10 @@
     bind:value={mapsQuery}
     bind:this={searchInputEl}
   />
+</div>
+<div class="results-count">
+  {filteredMaps.length} of {maps.length}
+  {maps.length === 1 ? 'map' : 'maps'}
 </div>
 <div class="results-list custom-scrollbar">
   {#if filteredMaps.length}
@@ -89,9 +96,14 @@
           <div class="result-meta">
             {#if map.year}<span class="badge year-badge">{map.year}</span>{/if}
             {#if map.location}<span class="badge type-badge">{map.location}</span>{/if}
+            {#if map._ocrd}
+              <span class="badge done-badge" title="Has OCR extractions">OCR'd</span>
+            {:else if map._triaged}
+              <span class="badge triaged-badge" title="Triage saved, not yet OCR'd">Triaged</span>
+            {/if}
           </div>
         </div>
-        {#if map.allmaps_id}
+        {#if showCompare && map.allmaps_id}
           <button
             type="button"
             class="compare-row-btn"
@@ -116,3 +128,26 @@
     <p class="empty-msg">No maps loaded yet.</p>
   {/if}
 </div>
+
+<style>
+  .results-count {
+    padding: 0.25rem 0.75rem 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--color-text);
+    opacity: 0.55;
+  }
+
+  /* Progress over a long pass reads better as one strong mark than two weak
+     ones, so OCR'd wins and Triaged only shows on sheets not yet read. */
+  .done-badge {
+    background: var(--color-green);
+    color: var(--color-text);
+  }
+
+  .triaged-badge {
+    background: var(--color-yellow);
+    color: var(--color-text);
+  }
+</style>

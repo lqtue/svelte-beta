@@ -12,6 +12,7 @@
   import '$styles/components/tool-sidebar.css';
   import type { TileOverrides } from './tileParams';
   import { buildTileGrid } from './tileParams';
+  import type { StoredTriage } from './triagePrefs';
 
   export let imgWidth: number = 0;
   export let imgHeight: number = 0;
@@ -35,8 +36,17 @@
   export let queuedJobId: string | null = null;
   export let runs: Record<string, { n: number; categories: Record<string, number> }> = {};
 
+  /** What `maps.triage` holds for this map — null until someone saves one. */
+  export let savedTriage: (StoredTriage & { saved_at?: string }) | null = null;
+  export let savingTriage: boolean = false;
+  export let saveTriageError: string = '';
+  export let suggesting: boolean = false;
+  export let suggestError: string = '';
+
   const dispatch = createEventDispatcher<{
     runOcr: void;
+    saveTriage: void;
+    suggestTriage: void;
     loadRun: { runId: string };
   }>();
 
@@ -80,6 +90,17 @@
     neatline && tileSize > 0 ? buildTileGrid(...neatline, tileSize, overlap).length : 0;
 
   // Tile priority counts
+  // Compared field by field rather than by JSON.stringify: tileOverrides key order
+  // is insertion order, so two identical grids built by different click paths
+  // stringify differently and would read as unsaved for ever.
+  $: triageDirty =
+    !savedTriage ||
+    String(savedTriage.neatline) !== String(neatline) ||
+    savedTriage.tile_size !== tileSize ||
+    savedTriage.overlap !== overlap ||
+    Object.keys(savedTriage.tile_overrides ?? {}).length !== Object.keys(tileOverrides).length ||
+    Object.entries(tileOverrides).some(([k, v]) => savedTriage?.tile_overrides?.[k] !== v);
+
   $: lowResCount = Object.values(tileOverrides).filter((v) => v === 'low_res').length;
   $: skipCount = Object.values(tileOverrides).filter((v) => v === 'skip').length;
   $: normalCount = tileCount - lowResCount - skipCount;
@@ -117,7 +138,14 @@
   <!-- Neatline -->
   <div class="tool-section">
     <div class="tool-section-header">
-      <div class="tool-section-title">Neatline crop</div>
+      <div class="tool-section-title"><span class="ts-step">1</span> Neatline crop</div>
+      <button
+        class="tool-ghost-btn"
+        on:click={() => dispatch('suggestTriage')}
+        disabled={suggesting || !imgWidth}
+      >
+        {suggesting ? 'Reading…' : 'Suggest'}
+      </button>
       <button class="tool-ghost-btn" on:click={resetFullImage} disabled={!imgWidth}
         >Full image</button
       >
@@ -171,6 +199,9 @@
     {#if !neatlineValid}
       <div class="tool-error">Neatline exceeds image bounds.</div>
     {/if}
+    {#if suggestError}
+      <div class="tool-error">{suggestError}</div>
+    {/if}
     <div class="tool-hint">
       Drag the amber rectangle on the canvas to adjust, or type coords. From the HTML neatline tool:
       paste x,y,w,h above.
@@ -181,7 +212,8 @@
   <div class="tool-section">
     <div class="tool-section-header">
       <div class="tool-section-title">
-        Tile config <span class="tool-hint-inline tool-mono">({tileCount} tiles)</span>
+        <span class="ts-step">2</span> Tiles
+        <span class="tool-hint-inline tool-mono">({tileCount})</span>
       </div>
       <button class="tool-ghost-btn" on:click={suggestTileParams} disabled={!neatline}
         >Suggest</button
@@ -211,13 +243,7 @@
         />
       </label>
     </div>
-  </div>
-
-  <!-- Tile priority legend -->
-  <div class="tool-section">
-    <div class="tool-section-title">
-      Tile priority <span class="tool-hint-inline">— click tiles on the map</span>
-    </div>
+    <div class="ts-priority-caption">Priority — click tiles on the map</div>
     <div class="ts-priority-legend">
       <div class="ts-priority-row">
         <span class="ts-swatch ts-swatch--normal"></span>
@@ -241,9 +267,38 @@
     <div class="tool-hint">Click a tile once → Low-res · twice → Skip · three times → Normal</div>
   </div>
 
+  <!-- Save triage -->
+  <div class="tool-section">
+    <div class="tool-section-title"><span class="ts-step">3</span> Save triage</div>
+    {#if saveTriageError}
+      <div class="tool-error">{saveTriageError}</div>
+    {/if}
+    <div class="tool-hint">
+      {#if !savedTriage}
+        Not saved yet. Until you save, this triage lives only in this browser and the enqueue script
+        cannot see it.
+      {:else if triageDirty}
+        Changed since you saved{savedTriage.saved_at
+          ? ` (${savedTriage.saved_at.slice(0, 16).replace('T', ' ')})`
+          : ''}.
+      {:else}
+        Saved{savedTriage.saved_at ? ` ${savedTriage.saved_at.slice(0, 16).replace('T', ' ')}` : ''} —
+        ready to queue.
+      {/if}
+    </div>
+    <button
+      class:tool-run-btn={triageDirty}
+      class:tool-ghost-btn={!triageDirty}
+      on:click={() => dispatch('saveTriage')}
+      disabled={savingTriage || !neatlineValid || !neatline}
+    >
+      {savingTriage ? 'Saving…' : savedTriage ? 'Update saved triage' : 'Save triage'}
+    </button>
+  </div>
+
   <!-- Run config -->
   <div class="tool-section">
-    <div class="tool-section-title">Run</div>
+    <div class="tool-section-title"><span class="ts-step">4</span> Run OCR</div>
     <label class="tool-field">
       <span class="tool-label">Run ID</span>
       <input
@@ -276,8 +331,11 @@
       </div>
     {/if}
 
+    <!-- Exactly one primary button at a time, and it is whichever step is next:
+         Save while the triage is unsaved, Run once it is on the server. -->
     <button
-      class="tool-run-btn"
+      class:tool-run-btn={!triageDirty}
+      class:tool-ghost-btn={triageDirty}
       on:click={() => dispatch('runOcr')}
       disabled={ocrRunning || !neatlineValid || !imgWidth}
     >
@@ -310,6 +368,29 @@
 </div>
 
 <style>
+  /* A small ordinal, so the panel reads as four steps rather than seven
+     equally-weighted boxes of readouts and controls. */
+  .ts-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin-right: 0.3rem;
+    border-radius: 50%;
+    background: var(--color-text);
+    color: var(--color-white);
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .ts-priority-caption {
+    margin: 0.6rem 0 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.6;
+  }
+
   /* Section / field / button primitives live in $styles/components/tool-sidebar.css
      (`.tool-*`). Only the triage-specific pieces are declared here. */
   .triage-sidebar {

@@ -21,8 +21,14 @@ try:
 except ImportError:
     GENAI_AVAILABLE = False
 
-# Default model — run `ocr.py list-models` to verify this is current
-DEFAULT_MODEL = "gemini-3-flash-preview"
+# Default model — run `ocr.py list-models` to verify this is current.
+#
+# Was `gemini-3-flash-preview` until 2026-09-04. That name still answers, but it
+# is absent from Google's pricing page entirely, which is what a preview looks
+# like on its way out: no published rate, no stated support window. 3.8-flash is
+# the current Flash line at $0.75/$3.75 per 1M in/out — measured against this
+# corpus at ~30-60 calls per sheet, that is roughly $0.50 a map.
+DEFAULT_MODEL = "gemini-3.8-flash"
 
 
 def _load_keys() -> list[str]:

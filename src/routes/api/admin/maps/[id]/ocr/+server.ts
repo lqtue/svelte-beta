@@ -33,6 +33,9 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     ...(Array.isArray(body.neatline) && body.neatline.length === 4
       ? { neatline: body.neatline }
       : {}),
+    // Absent = the worker's own default. Named here so a run can be pinned to a
+    // model for comparison without redeploying the worker.
+    ...(typeof body.model === 'string' && body.model ? { model: body.model } : {}),
     ...(body.target_calls ? { target_calls: Number(body.target_calls) } : {}),
     ...(body.prior_run ? { prior_run: body.prior_run } : {}),
     ...(body.tile_overrides && typeof body.tile_overrides === 'object'

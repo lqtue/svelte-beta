@@ -478,6 +478,7 @@ export type Database = {
           source_url: string | null
           status: string | null
           thumbnail: string | null
+          triage: Json
           updated_at: string | null
           year: number | null
           year_label: string | null
@@ -518,6 +519,7 @@ export type Database = {
           source_url?: string | null
           status?: string | null
           thumbnail?: string | null
+          triage?: Json
           updated_at?: string | null
           year?: number | null
           year_label?: string | null
@@ -558,6 +560,7 @@ export type Database = {
           source_url?: string | null
           status?: string | null
           thumbnail?: string | null
+          triage?: Json
           updated_at?: string | null
           year?: number | null
           year_label?: string | null

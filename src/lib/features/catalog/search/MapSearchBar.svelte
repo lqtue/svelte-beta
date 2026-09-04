@@ -22,6 +22,8 @@
   export let showAddAsPoint = false;
   /** When true, hide the Location tab — maps only */
   export let mapsOnly = false;
+  /** When false, hide the layer-stack compare button (no geo map to stack onto). */
+  export let showCompare = true;
 
   let searchOpen = false;
   let toolbarWidth = 0;
@@ -78,6 +80,7 @@
     {selectedMapId}
     {showAddAsPoint}
     {mapsOnly}
+    {showCompare}
     on:close={() => (searchOpen = false)}
     on:navigate={(e) => {
       dispatch('navigate', e.detail);

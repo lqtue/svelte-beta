@@ -56,6 +56,7 @@ export const MAP_WRITABLE_FIELDS: Record<string, Coerce> = {
   status: asIs,
   extra_metadata: asObject,
   label_config: asIs,
+  triage: asObject,
   // contribution flags
   priority: asCount,
   georef_done: asBool,

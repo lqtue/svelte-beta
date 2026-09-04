@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireRole } from '$lib/server/auth';
 import { adminClient } from '$lib/server/supabaseAdmin';
@@ -14,6 +14,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
   const body = await request.json();
   const updateData = pickMapFields(body);
+
+  // Every field the caller sent was dropped by the allow-list — an unknown
+  // column, or a value the coercion refused (a string where `asObject` wants an
+  // object). PostgREST answers an empty update with a 500, which reads as a
+  // server fault for what is squarely a bad request.
+  if (Object.keys(updateData).length === 0) {
+    throw error(400, 'No writable map fields in the request');
+  }
 
   // Auto-derive allmaps_id when iiif_image is being set and caller didn't
   // provide an explicit allmaps_id. Look up the existing row to see whether

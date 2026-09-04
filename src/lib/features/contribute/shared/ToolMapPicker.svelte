@@ -33,11 +33,20 @@
   let maps: LabelMapInfo[] = [];
 
   // LabelMapInfo → the MapListItem fields MapSearchBar actually reads.
+  // `year`, `location` and `dc_description` are what SearchMapsTab filters and
+  // badges on; leaving them out (as this did until 2026-09-04) made the
+  // "Filter by title, city, or year" box silently unable to match two of the
+  // three, and meant no badge ever drew.
   $: listItems = maps.map((m): MapListItem => ({
     id: m.id,
     name: m.name,
     allmaps_id: m.allmapsId,
     iiif_image: m.iiifImage,
+    year: m.year,
+    location: m.location,
+    dc_description: m.description,
+    _triaged: !!m.triage,
+    _ocrd: m.hasOcr,
   }));
 
   function handleSelect(e: CustomEvent<{ map: MapListItem }>) {
@@ -55,4 +64,13 @@
   });
 </script>
 
-<MapSearchBar maps={listItems} {selectedMapId} mapsOnly on:selectMap={handleSelect} />
+<!-- showCompare={false}: the ⇄ button adds to `layersStore`, the /explore layer
+     stack. These tools run on an ImageShell and have no geo map, so it was a
+     dead control taking a third of every row. -->
+<MapSearchBar
+  maps={listItems}
+  {selectedMapId}
+  mapsOnly
+  showCompare={false}
+  on:selectMap={handleSelect}
+/>

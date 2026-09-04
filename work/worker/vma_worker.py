@@ -95,10 +95,23 @@ def ocr_argv(job: dict, python_bin: str) -> list[str]:
         "--run-id", p["run_id"],
         "--tile-size", str(p.get("tile_size", 2400)),
         "--overlap", str(p.get("overlap", 600)),
+        # The one that decides whether a street name is legible. Each tile is
+        # `tile_size` source pixels rendered down to `render_size` before the
+        # model sees it, so the effective ground resolution is the sheet's
+        # own m/px times tile_size/render_size. The defaults are 2400/1024 —
+        # a 2.34x downsample on top of the scan, which put the 1959 Saigon
+        # sheet in front of Gemini at ~6.5 m/px. Equal values are 1:1, the
+        # source ceiling; larger only upsamples and buys nothing.
+        "--render-size", str(p.get("render_size", 1024)),
         "--concurrency", str(p.get("concurrency", 3)),
         "--min-confidence", str(p.get("min_confidence", 0.5)),
         "--db",
     ]
+    # Left unset, every queued job silently inherits gemini_client.DEFAULT_MODEL,
+    # which is invisible from the job row. Passing it explicitly means the run's
+    # calls.jsonl and the payload agree about what was used.
+    if p.get("model"):
+        argv += ["--model", str(p["model"])]
     neatline = p.get("neatline")
     if neatline:
         argv += ["--crop", ",".join(str(n) for n in neatline)]

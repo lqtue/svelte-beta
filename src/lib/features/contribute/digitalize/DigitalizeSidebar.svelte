@@ -16,7 +16,7 @@
   import SegSidebar from './SegSidebar.svelte';
   import PhaseTabs from './PhaseTabs.svelte';
   import type { SegConfig } from './segCommand';
-  import type { TriageState } from './triagePrefs';
+  import type { TriageState, StoredTriage } from './triagePrefs';
   import type { PipelineStatus } from '$lib/features/contribute/pipelineApi';
 
   export let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
@@ -26,6 +26,12 @@
   export let iiifInfoUrl: string | null = null;
   /** Two-way: TriageSidebar and the canvas edit the same neatline / tile grid. */
   export let triage: TriageState;
+  /** What `maps.triage` holds for the selected map, and the state of saving it. */
+  export let savedTriage: StoredTriage | null = null;
+  export let savingTriage = false;
+  export let saveTriageError = '';
+  export let suggesting = false;
+  export let suggestError = '';
   /** Run status for the Triage panel. */
   export let run: {
     running: boolean;
@@ -67,7 +73,14 @@
       ocrError={run.error}
       queuedJobId={run.queuedJobId}
       runs={run.runs}
+      {savedTriage}
+      {savingTriage}
+      {saveTriageError}
+      {suggesting}
+      {suggestError}
       on:runOcr
+      on:saveTriage
+      on:suggestTriage
       on:loadRun
     />
   {:else if phase === 'ocr'}

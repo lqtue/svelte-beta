@@ -29,6 +29,8 @@
   export let showAddAsPoint = false;
   /** When true, hide the Location tab and only show map list */
   export let mapsOnly = false;
+  /** When false, hide the layer-stack compare button. */
+  export let showCompare = true;
 
   let activeTab: 'maps' | 'location' = 'maps';
 
@@ -112,6 +114,7 @@
       <SearchMapsTab
         {maps}
         {selectedMapId}
+        {showCompare}
         on:selectMap={(e) => {
           dispatch('selectMap', e.detail);
           dispatch('close');

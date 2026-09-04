@@ -9,11 +9,18 @@
  * existing per-map state survives this refactor. (They predate the `vma-*-v1`
  * convention; renaming them is a separate migration.) `runId` and
  * `minConfidence` are per-run choices and stay out of storage, as before.
+ *
+ * localStorage is the working draft — it autosaves on every edit and never
+ * leaves the browser. `maps.triage` (migration 069) is the deliberate save: a
+ * person pressing the button is asserting "this sheet is triaged", and that is
+ * what `scripts/enqueue_ocr_all.mjs` reads when it decides what to queue. Both
+ * carry the same `StoredTriage` shape so neither has to translate.
  */
 
 import { readJson, writeJson } from '$lib/core/utils/persistence/storage';
 import type { TileOverrides } from './tileParams';
 import { DEFAULT_SEG_CONFIG, type SegConfig } from './segCommand';
+import type { StoredTriage } from '$lib/data/maps/types';
 
 /** Everything the Triage phase edits, shared between its sidebar and the canvas. */
 export type TriageState = {
@@ -36,20 +43,26 @@ export function defaultTriageState(): TriageState {
   };
 }
 
-/** The on-disk shape — snake_case, matching what the OCR API takes. */
-type StoredTriage = {
-  neatline: [number, number, number, number];
-  tile_size: number;
-  overlap: number;
-  tile_overrides: TileOverrides;
-};
+// The on-disk shape is domain, not screen — it lives in `data/maps/types.ts`
+// because `fetchLabelMaps` and the enqueue script both read it.
+export type { StoredTriage };
 
-const triageKey = (mapId: string) => `digitalize-triage-${mapId}`;
-const segKey = (mapId: string) => `digitalize-seg-${mapId}`;
+/** The saved shape, from whichever store it came out of. */
+export function toStoredTriage(state: TriageState): StoredTriage | null {
+  if (!state.neatline) return null;
+  return {
+    neatline: state.neatline,
+    tile_size: state.tileSize,
+    overlap: state.overlap,
+    tile_overrides: state.tileOverrides,
+  };
+}
 
-/** `base` with any well-formed stored fields applied over it. */
-export function loadTriageState(mapId: string, base: TriageState): TriageState {
-  const data = readJson<Partial<StoredTriage> | null>(triageKey(mapId), null);
+/** `base` with a stored record applied over it. Shared by both stores. */
+export function applyStoredTriage(
+  data: Partial<StoredTriage> | null,
+  base: TriageState
+): TriageState {
   if (!data) return base;
   return {
     ...base,
@@ -62,14 +75,35 @@ export function loadTriageState(mapId: string, base: TriageState): TriageState {
   };
 }
 
+const triageKey = (mapId: string) => `digitalize-triage-${mapId}`;
+const segKey = (mapId: string) => `digitalize-seg-${mapId}`;
+
+/** `base` with any well-formed stored fields applied over it. */
+export function loadTriageState(mapId: string, base: TriageState): TriageState {
+  return applyStoredTriage(readJson<Partial<StoredTriage> | null>(triageKey(mapId), null), base);
+}
+
 export function saveTriageState(mapId: string, state: TriageState): void {
-  if (!state.neatline) return;
-  writeJson(triageKey(mapId), {
-    neatline: state.neatline,
-    tile_size: state.tileSize,
-    overlap: state.overlap,
-    tile_overrides: state.tileOverrides,
-  } satisfies StoredTriage);
+  const stored = toStoredTriage(state);
+  if (stored) writeJson(triageKey(mapId), stored);
+}
+
+/**
+ * Write the triage to `maps.triage`, so the enqueue script can see it.
+ * Throws with the server's message, which the sidebar shows verbatim.
+ */
+export async function saveTriageToServer(mapId: string, state: TriageState): Promise<void> {
+  const stored = toStoredTriage(state);
+  if (!stored) throw new Error('Draw a neatline before saving.');
+  const res = await fetch(`/api/admin/maps/${mapId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ triage: { ...stored, saved_at: new Date().toISOString() } }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? res.statusText);
+  }
 }
 
 /** `base` with any stored MapSAM2 config applied over it. */

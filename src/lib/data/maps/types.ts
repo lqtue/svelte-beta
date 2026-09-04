@@ -71,6 +71,11 @@ export interface MapListItem {
   // as a scan; `allmaps_id` is not the same test, since every map carries one.
   creator?: string; // present in search results
   holding_institution?: string; // present in search results
+  // Contribute-pass progress, set only by ToolMapPicker. Over a 39-sheet pass
+  // "which have I already done?" is the column that decides what to open next,
+  // so the picker shows it; nothing else sets or reads these.
+  _triaged?: boolean;
+  _ocrd?: boolean;
   // Search-result-only enrichment (only set by /api/search responses)
   _table?: 'maps' | 'scout';
   _score?: number;
@@ -105,3 +110,20 @@ export interface IIIFManifestMeta {
   imageServiceUrl?: string; // IIIF image service base URL
   manifestVersion: 2 | 3;
 }
+
+/**
+ * Saved OCR triage for one sheet — `maps.triage` (migration 069).
+ *
+ * Lives here rather than beside the digitalize UI because `data` cannot import
+ * from `features`: `fetchLabelMaps` returns it, and the enqueue script spreads
+ * it straight into a job payload, so the shape is domain, not screen. Keys are
+ * snake_case to match what `POST /api/admin/maps/[id]/ocr` already takes.
+ */
+export type StoredTriage = {
+  neatline: [number, number, number, number];
+  tile_size: number;
+  overlap: number;
+  /** Keyed `"x_y_w_h"` in source pixels; absent means normal (full-res). */
+  tile_overrides: Record<string, 'skip' | 'low_res'>;
+  saved_at?: string;
+};

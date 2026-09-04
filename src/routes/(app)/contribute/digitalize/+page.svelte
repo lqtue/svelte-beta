@@ -38,10 +38,15 @@
     defaultTriageState,
     loadSegConfig,
     loadTriageState,
+    applyStoredTriage,
+    toStoredTriage,
     saveSegConfig,
     saveTriageState,
+    saveTriageToServer,
     type TriageState,
+    type StoredTriage,
   } from '$lib/features/contribute/digitalize/triagePrefs';
+  import { suggestTriage as computeTriageProposal } from '$lib/features/contribute/digitalize/suggestTriage';
   import {
     fetchPipelineStatus,
     advancePipelineStage,
@@ -77,6 +82,13 @@
     loading: false,
     error: '',
   };
+  /** `maps.triage` for the selected map: what the enqueue script would use. */
+  let savedTriage: StoredTriage | null = null;
+  let savingTriage = false;
+  let saveTriageError = '';
+  let suggesting = false;
+  let suggestError = '';
+
   let segConfig: SegConfig = { ...DEFAULT_SEG_CONFIG };
 
   // ── OCR review ────────────────────────────────────────────────────────────────
@@ -119,7 +131,14 @@
     pipeline = { status: null, loading: false, error: '' };
     // new map: the grid-key watcher must not wipe the restored tileOverrides
     prevGridKey = '';
-    triage = loadTriageState(m.id, { ...triage, neatline: null, runId: '' });
+    savedTriage = m.triage;
+    saveTriageError = '';
+    // A saved triage is the record; localStorage is only this browser's draft.
+    // Preferring the server keeps two people (or two machines) from silently
+    // triaging the same sheet differently.
+    triage = savedTriage
+      ? applyStoredTriage(savedTriage, { ...triage, neatline: null, runId: '' })
+      : loadTriageState(m.id, { ...triage, neatline: null, runId: '' });
     segConfig = loadSegConfig(m.id, segConfig);
 
     iiifInfoUrl = await resolveMapIiifInfoUrl(currentMap);
@@ -158,6 +177,56 @@
   }
 
   // ── Triage actions ────────────────────────────────────────────────────────────
+  /**
+   * Fill the neatline and priority grid from the image itself, for the person
+   * to correct. A proposal, never a save — the Save button is still theirs.
+   */
+  async function suggestTriage() {
+    if (!currentMap || !iiifInfoUrl || !imgWidth || suggesting) return;
+    suggesting = true;
+    suggestError = '';
+    try {
+      const base = iiifInfoUrl.replace(/\/info\.json$/, '');
+      const info = await fetch(iiifInfoUrl).then((r) => r.json());
+      const proposal = await computeTriageProposal(
+        base,
+        imgWidth,
+        imgHeight,
+        info?.tiles?.[0]?.scaleFactors ?? [1],
+        info?.tiles?.[0]?.width ?? 256,
+        triage.tileSize,
+        triage.overlap
+      );
+      // The grid-key watcher clears overrides whenever the neatline changes, so
+      // the neatline has to land first and the overrides after it settles.
+      triage.neatline = proposal.neatline;
+      await tick();
+      triage.tileOverrides = proposal.tileOverrides;
+    } catch (e: any) {
+      suggestError = e?.message ?? 'Could not read the image';
+    } finally {
+      suggesting = false;
+    }
+  }
+
+  /** Promote this browser's draft to `maps.triage`, where the enqueue script reads it. */
+  async function saveTriage() {
+    if (!currentMap || savingTriage) return;
+    savingTriage = true;
+    saveTriageError = '';
+    try {
+      await saveTriageToServer(currentMap.id, triage);
+      savedTriage = { ...toStoredTriage(triage)!, saved_at: new Date().toISOString() };
+      // The picker list is the copy selectMap reads back, so keep it in step
+      // rather than re-fetching every map to learn one column.
+      currentMap.triage = savedTriage;
+    } catch (e: any) {
+      saveTriageError = e.message;
+    } finally {
+      savingTriage = false;
+    }
+  }
+
   async function runOcr() {
     if (!currentMap || !triage.neatline || run.running) return;
     run = { ...run, running: true, error: '', queuedJobId: null };
@@ -220,7 +289,14 @@
         selectedId={$review.selectedId}
         onCollapse={() => (sidebarCollapsed = true)}
         on:phaseChange={setPhase}
+        {savedTriage}
+        {savingTriage}
+        {saveTriageError}
+        {suggesting}
+        {suggestError}
         on:runOcr={runOcr}
+        on:saveTriage={saveTriage}
+        on:suggestTriage={suggestTriage}
         on:loadRun={loadRun}
         on:advance={(e) => advanceStage(e.detail.stage)}
         on:refresh={loadPipeline}
@@ -320,7 +396,14 @@
         selectedId={$review.selectedId}
         onCollapse={() => (sidebarCollapsed = true)}
         on:phaseChange={setPhase}
+        {savedTriage}
+        {savingTriage}
+        {saveTriageError}
+        {suggesting}
+        {suggestError}
         on:runOcr={runOcr}
+        on:saveTriage={saveTriage}
+        on:suggestTriage={suggestTriage}
         on:loadRun={loadRun}
         on:advance={(e) => advanceStage(e.detail.stage)}
         on:refresh={loadPipeline}
