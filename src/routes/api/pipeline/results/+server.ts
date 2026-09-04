@@ -3,6 +3,7 @@
  *
  * Body (all parts optional, applied in this order):
  *   extractions:     ocr_extractions rows to upsert (max 500 per request)
+ *   map_id + triage_regions: the layout pass's answer, merged into maps.triage
  *   job_id + status: closes the job out via finish_job (done | failed | running)
  *
  * Bundling them means a worker can report "rows written, job done" in one round
@@ -24,6 +25,7 @@ import { requireWorker } from '$lib/server/workerAuth';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { assertUuid, dbError } from '$lib/server/http';
 import { bboxCentre, pointEwkt, resolveMapWarp, type MapWarp } from '$lib/server/warp';
+import { parseRegion, type SavedTriage } from '$lib/data/maps/triageTypes';
 
 const MAX_ROWS = 500;
 const JOB_STATUSES = ['running', 'done', 'failed'];
@@ -67,6 +69,32 @@ export const POST: RequestHandler = async ({ request }) => {
       .upsert(rows, { onConflict: 'map_id,run_id,tile_x,tile_y,text', count: 'exact' });
     if (err) dbError(err, 'Could not write extractions');
     applied.extractions = count ?? rows.length;
+  }
+
+  // The layout job's output. Merged, not replaced: the neatline and tile grid
+  // beside it belong to whoever drew them, and a re-run of the layout pass must
+  // not silently discard a person's triage.
+  if (Array.isArray(body.triage_regions)) {
+    const mapId = assertUuid(body.map_id, 'map_id');
+    const regions = body.triage_regions
+      .map(parseRegion)
+      .filter((r: ReturnType<typeof parseRegion>) => r !== null);
+
+    const { data: row, error: readErr } = await supabase
+      .from('maps')
+      .select('triage')
+      .eq('id', mapId)
+      .single();
+    if (readErr) dbError(readErr, 'Could not read the triage');
+    if (!row) throw error(404, 'No such map');
+
+    const triage: SavedTriage = { ...((row.triage as SavedTriage) ?? {}) };
+    triage.regions = regions;
+    triage.regions_at = new Date().toISOString();
+
+    const { error: writeErr } = await supabase.from('maps').update({ triage }).eq('id', mapId);
+    if (writeErr) dbError(writeErr, 'Could not write the triage');
+    applied.regions = regions.length;
   }
 
   if (body.job_id) {

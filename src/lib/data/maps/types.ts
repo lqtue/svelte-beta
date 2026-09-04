@@ -119,11 +119,17 @@ export interface IIIFManifestMeta {
  * it straight into a job payload, so the shape is domain, not screen. Keys are
  * snake_case to match what `POST /api/admin/maps/[id]/ocr` already takes.
  */
+import type { LayoutRegion } from './triageTypes';
+
 export type StoredTriage = {
   neatline: [number, number, number, number];
   tile_size: number;
   overlap: number;
   /** Keyed `"x_y_w_h"` in source pixels; absent means normal (full-res). */
   tile_overrides: Record<string, 'skip' | 'low_res'>;
+  /** The layout pass (migration 070): what the sheet is made of. Written by the
+   *  `layout` job and corrected on the digitalize canvas. */
+  regions?: LayoutRegion[];
+  regions_at?: string;
   saved_at?: string;
 };

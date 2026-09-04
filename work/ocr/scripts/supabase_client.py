@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -213,6 +214,47 @@ def link_extractions_to_footprints(assignments: dict[str, str]) -> int:
             total += len(chunk)
 
     return total
+
+
+def save_triage_regions(map_id: str, regions: list[dict[str, Any]]) -> int:
+    """Write the layout pass into maps.triage.regions.
+
+    Same two transports as every other write here: through /api/pipeline/results
+    when the process holds worker credentials (which is the normal case — the
+    worker deliberately has no database key), and straight at PostgREST with the
+    service key when someone runs the script by hand.
+
+    Merges rather than replaces the triage object, because the neatline and the
+    tile grid beside it belong to whoever drew them.
+    """
+    api = _api_config()
+    if api:
+        out = _post_results({"map_id": map_id, "triage_regions": regions})
+        return int(out.get("regions", len(regions)))
+
+    url, key = _load_config()
+    cur = requests.get(
+        f"{url}/rest/v1/maps",
+        headers=_headers(key),
+        params={"id": f"eq.{map_id}", "select": "triage"},
+        timeout=30,
+    )
+    cur.raise_for_status()
+    rows = cur.json()
+    if not rows:
+        raise SystemExit(f"No map {map_id}")
+    triage = rows[0].get("triage") or {}
+    triage["regions"] = regions
+    triage["regions_at"] = datetime.now(timezone.utc).isoformat()
+    resp = requests.patch(
+        f"{url}/rest/v1/maps",
+        headers=_headers(key),
+        params={"id": f"eq.{map_id}"},
+        data=json.dumps({"triage": triage}),
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return len(regions)
 
 
 def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:

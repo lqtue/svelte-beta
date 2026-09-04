@@ -79,6 +79,14 @@ const inFlight = new Set((live ?? []).map((r) => r.map_id));
 // `triage` defaults to `{}`, so a neatline is what tells a saved triage from a
 // map nobody has opened.
 const triageOf = (m) => (m.triage?.neatline ? m.triage : null);
+
+// The crop the tile pass should cover. A `main_map` region is the layout pass's
+// answer to "where is the terrain", which beats the neatline: the neatline is
+// the printed border, and a legend or an index printed inside it is inside the
+// neatline too. Mirrors `tilingCrop()` in src/lib/data/maps/triageTypes.ts —
+// this file is plain .mjs and cannot import the TS.
+const cropOf = (t) =>
+  (t?.regions ?? []).find((r) => r.category === 'main_map')?.bbox ?? t?.neatline ?? null;
 const nTriaged = maps.filter(triageOf).length;
 
 const todo = maps
@@ -100,7 +108,11 @@ if (!untriaged && nTriaged < maps.length) {
 let queued = 0;
 for (const m of todo) {
   const t = triageOf(m);
-  console.log(`  ${m.year ?? '????'}  ${m.name}${t ? '' : '   (no triage — auto mode)'}`);
+  const usingMainMap = (t?.regions ?? []).some((r) => r.category === 'main_map');
+  console.log(
+    `  ${m.year ?? '????'}  ${m.name}` +
+      (t ? (usingMainMap ? '   (cropped to main_map)' : '') : '   (no triage — auto mode)')
+  );
   if (dry) continue;
   // Per map, not per second: a shared run_id would collapse every map's run
   // summary into one and break `--ocr-run-id` seeding for segmentation.
@@ -117,7 +129,7 @@ for (const m of todo) {
       // A saved neatline is the whole point of triaging: with one, the scout
       // pass has nothing left to guess, so `auto` only still runs the legend.
       auto: true,
-      ...(t?.neatline ? { neatline: t.neatline } : {}),
+      ...(cropOf(t) ? { neatline: cropOf(t) } : {}),
       ...(t?.tile_overrides && Object.keys(t.tile_overrides).length
         ? { tile_overrides: t.tile_overrides }
         : {}),

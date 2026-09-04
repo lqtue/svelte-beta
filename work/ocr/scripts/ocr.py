@@ -2010,6 +2010,30 @@ def cmd_scout(args: argparse.Namespace) -> None:
         global_cartouche = (cx, cy, cw, ch)
         print(f"  Cartouche bound:  {tuple(int(v) for v in global_cartouche)}")
 
+    # ── Layout regions ────────────────────────────────────────────────────────
+    # The model answers on the 0-1000 normalized scale; everything downstream —
+    # maps.triage, the tile grid, the digitalize canvas — works in source pixels.
+    regions = []
+    for r in res.get("regions") or []:
+        bb = r.get("bbox")
+        if not bb or len(bb) != 4:
+            continue
+        rx, ry, rw, rh = ((bb[0] * full_w) / 1000, (bb[1] * full_h) / 1000,
+                          (bb[2] * full_w) / 1000, (bb[3] * full_h) / 1000)
+        if rw < 1 or rh < 1:
+            continue  # a zero-area box is the model filling a slot, not a region
+        regions.append({
+            "category": r["category"],
+            "bbox": [int(rx), int(ry), int(rw), int(rh)],
+            "confidence": float(r.get("confidence", 0)),
+            "source": "model",
+            **({"notes": r["notes"]} if r.get("notes") else {}),
+        })
+    if regions:
+        print(f"  Layout: {len(regions)} region(s)")
+        for r in regions:
+            print(f"    {r['category']:12s} {tuple(r['bbox'])}  conf={r['confidence']:.2f}")
+
     # ── Metadata ──────────────────────────────────────────────────────────────
     metadata = res.get("metadata") or {}
     if metadata:
@@ -2043,6 +2067,7 @@ def cmd_scout(args: argparse.Namespace) -> None:
         "n_features": len(items),
         "map_content_bbox": list(global_bound) if global_bound else None,
         "cartouche_bbox": list(global_cartouche) if global_cartouche else None,
+        "regions": regions,
         "metadata": metadata,
         "extractions": [{**e, "global_bbox": list(e["global_bbox"])} for e in items],
     }, indent=2, ensure_ascii=False))
@@ -2066,10 +2091,28 @@ def cmd_scout(args: argparse.Namespace) -> None:
                 "bbox_px": cartouche_norm,
                 "confidence": 1.0,
             })
+        for r in regions:
+            preview_extractions.append({
+                "text": r["category"].upper(),
+                "category": "other",
+                "bbox_px": [r["bbox"][0] * 1000 / full_w, r["bbox"][1] * 1000 / full_h,
+                            r["bbox"][2] * 1000 / full_w, r["bbox"][3] * 1000 / full_h],
+                "confidence": r["confidence"],
+            })
         render_preview(image, preview_extractions, prev_path)
         print(f"  Preview saved to {prev_path}")
 
-    return {"content": global_bound, "cartouche": global_cartouche}
+    # The proposal is only useful where a person can correct it, which is the
+    # digitalize canvas, which reads maps.triage. Off by default: a hand-run
+    # scout should not overwrite someone's saved triage.
+    if getattr(args, "save_triage", False):
+        if not args.map_id:
+            raise SystemExit("--save-triage needs --map-id")
+        from supabase_client import save_triage_regions
+        n = save_triage_regions(args.map_id, regions)
+        print(f"  Wrote {n} region(s) to maps.triage.regions")
+
+    return {"content": global_bound, "cartouche": global_cartouche, "regions": regions}
 
 
 def cmd_list_models(args: argparse.Namespace) -> None:
@@ -2485,6 +2528,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_scout.add_argument("--prompt", default="scout", help="Prompt version key (default 'scout')")
     p_scout.add_argument("--run-id", help="Run identifier")
     p_scout.add_argument("--preview", action="store_true", help="Save PNG preview with bbox overlay")
+    p_scout.add_argument("--save-triage", action="store_true",
+                         help="Write the detected regions to maps.triage.regions (needs --map-id)")
     p_scout.set_defaults(func=cmd_scout)
 
     # preview

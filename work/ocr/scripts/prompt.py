@@ -299,6 +299,14 @@ and note "continues outside [edge] edge".
 Return ONLY the JSON object. If no text is visible, return {"extractions": []}.
 """
 
+# The layout vocabulary. `sheet` is the whole printed object and `main_map` the
+# cartographic body inside it — they differ by exactly the furniture, which is
+# the point: tiling the sheet reads the legend as if it were terrain.
+LAYOUT_CATEGORIES = [
+    "sheet", "main_map", "title", "legend", "name_list",
+    "inset", "scale_bar", "north_arrow", "stamp",
+]
+
 SCOUT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -311,6 +319,29 @@ SCOUT_SCHEMA = {
             "type": "array",
             "items": {"type": "number"},
             "description": "The [x, y, width, height] of the cartouche / title block. 0-1000 normalized scale. Omit if not present."
+        },
+        "regions": {
+            "type": "array",
+            "description": (
+                "Layout of the sheet: one entry per distinct area. A sheet is not one "
+                "thing, and each of these areas wants a different pass — the main map is "
+                "tiled and read at full resolution, a legend is one structured call, "
+                "furniture is skipped entirely."
+            ),
+            "items": {
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "enum": LAYOUT_CATEGORIES},
+                    "bbox": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "[x, y, width, height] on the 0-1000 normalized scale.",
+                    },
+                    "confidence": {"type": "number"},
+                    "notes": {"type": "string", "description": "What identified it, if not obvious."},
+                },
+                "required": ["category", "bbox", "confidence"],
+            },
         },
         "metadata": {
             "type": "object",
@@ -374,7 +405,30 @@ formal information. Return its location as `cartouche_bbox` and populate the `me
 Omit `metadata` fields that are not present. If no cartouche is visible at this resolution, \
 return an empty `metadata` object and omit `cartouche_bbox`.
 
-**3. Extract Major Spanning Features:**
+**3. Map the Layout (`regions`):**
+Return one entry per distinct area of the sheet, each with a `category`, a `bbox` \
+on the 0-1000 scale, and a `confidence`. Categories:
+- **sheet**: the whole printed object, edge to edge of the paper, excluding scanner \
+  background. Exactly one.
+- **main_map**: the cartographic body — the terrain itself, inside the neatline and \
+  excluding every block of text or furniture laid over or beside it. Exactly one. \
+  This is usually, but not always, most of `map_content_bbox`.
+- **title**: the cartouche or title block. Same area as `cartouche_bbox`.
+- **legend**: the key explaining symbols, hatching or colours. Often a ruled box, \
+  often headed "Légende", "Nomenclature" or "Signes conventionnels".
+- **name_list**: an index or table of street or place names printed on the sheet, \
+  usually alphabetical and in columns. This is NOT the legend: a legend explains \
+  symbols, a name list enumerates places. Return one entry per column block.
+- **inset**: a smaller separate map drawn within the sheet, at its own scale.
+- **scale_bar**, **north_arrow**: furniture. Return them so they can be skipped.
+- **stamp**: archival stamps, accession numbers, handwritten inventory marks.
+
+Return only what you can actually see. Omit a category entirely rather than \
+guessing at it, and never return a zero-area or full-sheet box just to fill a slot. \
+Regions may overlap; a title block printed over the terrain belongs to `title`, and \
+`main_map` should exclude it.
+
+**4. Extract Major Spanning Features:**
 Extract ONLY the large features within the map content area:
 - **Hydrology**: Major canals, rivers, arroyos spanning large areas
 - **Major streets**: Boulevard / Quai / Rue labels defining the primary road skeleton
@@ -387,8 +441,8 @@ Group words belonging to the same spanning label into ONE extraction \
 - Library/archival stamps or handwritten marks
 - Scale bar tick-mark numbers
 
-Return `map_content_bbox`, `cartouche_bbox` (if found), `metadata`, and `extractions`. \
-Use the 0-1000 normalized scale for all bounding boxes.
+Return `map_content_bbox`, `cartouche_bbox` (if found), `regions`, `metadata`, and \
+`extractions`. Use the 0-1000 normalized scale for all bounding boxes.
 """
 
 # ── User prompt V6 — transcription-only + edge-zone + row-sequence aware ──────

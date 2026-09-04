@@ -12,7 +12,7 @@
   `$lib/features/contribute/ocr/ocrReviewController.ts`.
 -->
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, onDestroy } from 'svelte';
   import OlMap from 'ol/Map';
   import ToolLayout from '$lib/map/shell/ToolLayout.svelte';
   import ImageShell from '$lib/map/shell/ImageShell.svelte';
@@ -20,6 +20,7 @@
   import OcrBboxTool from '$lib/features/contribute/ocr/OcrBboxTool.svelte';
   import BboxPanel from '$lib/features/contribute/ocr/BboxPanel.svelte';
   import TriageTool from '$lib/features/contribute/digitalize/TriageTool.svelte';
+  import RegionsTool from '$lib/features/contribute/digitalize/RegionsTool.svelte';
   import DigitalizeSidebar from '$lib/features/contribute/digitalize/DigitalizeSidebar.svelte';
   import ToolMapPicker from '$lib/features/contribute/shared/ToolMapPicker.svelte';
   import DigitalizeBottomBar from '$lib/features/contribute/digitalize/DigitalizeBottomBar.svelte';
@@ -47,6 +48,7 @@
     type StoredTriage,
   } from '$lib/features/contribute/digitalize/triagePrefs';
   import { suggestTriage as computeTriageProposal } from '$lib/features/contribute/digitalize/suggestTriage';
+  import type { LayoutRegion } from '$lib/data/maps/triageTypes';
   import {
     fetchPipelineStatus,
     advancePipelineStage,
@@ -88,6 +90,14 @@
   let saveTriageError = '';
   let suggesting = false;
   let suggestError = '';
+
+  // ── Layout pass ───────────────────────────────────────────────────────────────
+  let selectedRegion: number | null = null;
+  let showRegions = true;
+  let detectingLayout = false;
+  let layoutError = '';
+  let layoutJob: { status: string; error?: string | null } | null = null;
+  let layoutPoll: ReturnType<typeof setInterval> | null = null;
 
   let segConfig: SegConfig = { ...DEFAULT_SEG_CONFIG };
 
@@ -133,6 +143,10 @@
     prevGridKey = '';
     savedTriage = m.triage;
     saveTriageError = '';
+    selectedRegion = null;
+    layoutError = '';
+    layoutJob = null;
+    stopLayoutPoll();
     // A saved triage is the record; localStorage is only this browser's draft.
     // Preferring the server keeps two people (or two machines) from silently
     // triaging the same sheet differently.
@@ -208,6 +222,63 @@
       suggesting = false;
     }
   }
+
+  // ── Layout pass ───────────────────────────────────────────────────────────────
+  function stopLayoutPoll() {
+    if (layoutPoll) clearInterval(layoutPoll);
+    layoutPoll = null;
+  }
+
+  /** Pull the saved regions back, and whatever the job is doing. */
+  async function refreshLayout(): Promise<void> {
+    if (!currentMap) return;
+    const res = await fetch(`/api/admin/maps/${currentMap.id}/layout`);
+    if (!res.ok) return;
+    const data = await res.json();
+    layoutJob = data.job ?? null;
+
+    const live = layoutJob && ['queued', 'claimed', 'running'].includes(layoutJob.status);
+    if (!live) {
+      detectingLayout = false;
+      stopLayoutPoll();
+      // Only adopt the server's answer once the job is finished; mid-run it is
+      // still whatever was there before, and overwriting a person's in-progress
+      // corrections with it would be the worst possible moment.
+      if (Array.isArray(data.regions) && data.regions.length) {
+        triage.regions = data.regions as LayoutRegion[];
+      }
+      if (layoutJob?.status === 'failed') {
+        layoutError = layoutJob.error ?? 'The layout job failed.';
+      }
+    }
+  }
+
+  /**
+   * Ask the model what the sheet is made of. Enqueues a job — the Gemini key
+   * lives on the worker, deliberately not here — and polls until it closes.
+   */
+  async function detectLayout() {
+    if (!currentMap || detectingLayout) return;
+    detectingLayout = true;
+    layoutError = '';
+    try {
+      const res = await fetch(`/api/admin/maps/${currentMap.id}/layout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message ?? res.statusText);
+      layoutJob = { status: body.status ?? 'queued' };
+      stopLayoutPoll();
+      layoutPoll = setInterval(refreshLayout, 5000);
+    } catch (e: any) {
+      layoutError = e?.message ?? 'Could not enqueue the layout job';
+      detectingLayout = false;
+    }
+  }
+
+  onDestroy(stopLayoutPoll);
 
   /** Promote this browser's draft to `maps.triage`, where the enqueue script reads it. */
   async function saveTriage() {
@@ -294,9 +365,17 @@
         {saveTriageError}
         {suggesting}
         {suggestError}
+        bind:selectedRegion
+        bind:showRegions
+        {detectingLayout}
+        {layoutError}
+        {layoutJob}
         on:runOcr={runOcr}
         on:saveTriage={saveTriage}
         on:suggestTriage={suggestTriage}
+        on:detectLayout={detectLayout}
+        on:regionsChange={(e) => (triage.regions = e.detail)}
+        on:selectRegion={(e) => (selectedRegion = e.detail)}
         on:loadRun={loadRun}
         on:advance={(e) => advanceStage(e.detail.stage)}
         on:refresh={loadPipeline}
@@ -326,6 +405,14 @@
             tileOverrides={triage.tileOverrides}
             on:neatlineChange={(e) => (triage.neatline = e.detail)}
             on:tileOverridesChange={(e) => (triage.tileOverrides = e.detail)}
+          />
+          <RegionsTool
+            {imgWidth}
+            {imgHeight}
+            regions={triage.regions}
+            bind:selected={selectedRegion}
+            visible={showRegions}
+            on:regionsChange={(e) => (triage.regions = e.detail)}
           />
         {:else}
           <OcrBboxTool
@@ -401,9 +488,17 @@
         {saveTriageError}
         {suggesting}
         {suggestError}
+        bind:selectedRegion
+        bind:showRegions
+        {detectingLayout}
+        {layoutError}
+        {layoutJob}
         on:runOcr={runOcr}
         on:saveTriage={saveTriage}
         on:suggestTriage={suggestTriage}
+        on:detectLayout={detectLayout}
+        on:regionsChange={(e) => (triage.regions = e.detail)}
+        on:selectRegion={(e) => (selectedRegion = e.detail)}
         on:loadRun={loadRun}
         on:advance={(e) => advanceStage(e.detail.stage)}
         on:refresh={loadPipeline}

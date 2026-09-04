@@ -43,7 +43,7 @@ npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 
 Never import a Node builtin bare (`import('path')`); the CF Functions bundle errors with `Could not resolve "path"` and publishes nothing. Use the `node:` prefix.
 
-`npm run test` starts a dev server on 5173, or reuses one already running. It runs **41** tests: the **seven** smokes in `tests/smoke.spec.ts`, which are **read-only** (they hit the real Supabase project but never write), plus 34 browser-less pure checks that ride the same runner — `tests/press.spec.ts` (the Gallica CQL builder and the NLV year window), `tests/explore-keys.spec.ts` (the /explore time scrubber), `tests/tween.spec.ts` (the studio easing that replaced animejs), `tests/search-fold.spec.ts` (diacritic folding in the map picker) and `tests/triage-suggest.spec.ts` (level0 tile addressing and the triage proposal). Pure checks live here rather than in a second framework because Playwright is already installed.
+`npm run test` starts a dev server on 5173, or reuses one already running. It runs **51** tests: the **seven** smokes in `tests/smoke.spec.ts`, which are **read-only** (they hit the real Supabase project but never write), plus 44 browser-less pure checks that ride the same runner — `tests/press.spec.ts` (the Gallica CQL builder and the NLV year window), `tests/explore-keys.spec.ts` (the /explore time scrubber), `tests/tween.spec.ts` (the studio easing that replaced animejs), `tests/search-fold.spec.ts` (diacritic folding in the map picker), `tests/triage-suggest.spec.ts` (level0 tile addressing and the triage proposal) and `tests/layout-regions.spec.ts` (the layout vocabulary and which rectangle steers the tile grid). Pure checks live here rather than in a second framework because Playwright is already installed.
 
 **Write paths** are covered separately by `npm run test:write` (`tests/write.spec.ts`, 23 tests) against a **local** stack, never production: `npm run db:test` runs `supabase start -x vector -x logflare` and seeds one staff user + one map via `scripts/seed-test-db.mjs`. The suite throws unless `PUBLIC_SUPABASE_URL` is a loopback address, and deletes every row it writes. Credentials come from `.env.test` (the CLI's published demo keys, committed on purpose) which Vite loads for the `--mode test` dev server on port 5199. Server-route auth is done by letting `@supabase/ssr` mint the session cookies, so chunking and encoding match the app exactly.
 
@@ -51,7 +51,7 @@ Local ports are **54421** for the API and **54420** for the shadow DB, not the C
 
 Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
-**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **069**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
+**Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **070**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
 ## Conventions
 
@@ -89,7 +89,7 @@ VMA_API_URL, VMA_WORKER_KEY     # worker machines only — never the web app
 **Supabase types:**
 
 - Insert/Update types: use `?:` optional fields — **not** `Partial<{...}>` (resolves as `never`).
-- `src/lib/data/supabase/types.ts` is current against migration head 069, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
+- `src/lib/data/supabase/types.ts` is current against migration head 070, verified identical to the linked project. Prefer the real types over `as any`; ~25 casts remain, mostly in Svelte components.
 - The generic belongs on the client: `createClient<Database>(...)`. A bare `createClient(...)` is what forces most `as any` casts downstream.
 
 **Styling:** all CSS in `src/styles/`, imported via the `$styles` alias. Root entry is `src/styles/global.css`, which imports `tokens.css` plus the always-on component sheets; layout and page sheets are imported by the component or route that needs them. **One theme.** `tokens.css` has no `[data-theme]` block, and the `vma-theme` boot script that used to sit in `src/app.html` is gone — nothing wrote the key and no CSS consumed it. Component `<style>` blocks carry layout/positioning; every colour, border and shadow goes through a `var(--token)`. New pages use the template in `docs/design-system.md`; nav and footer come once from `src/routes/(editorial)/+layout.svelte`, so a new editorial page only needs the links added in `src/lib/ui/NavBar.svelte` and `src/lib/ui/EditorialFooter.svelte`.
@@ -164,7 +164,7 @@ In dual mode, OL attribution + scale live on the **secondary** pane (right on de
 
 **Digitalize (`/contribute/digitalize`)** — two-phase HITL on a single `ImageShell`, tabs via `PhaseTabs.svelte`:
 
-- **Triage**: `TriageTool.svelte` (neatline rect + tile priority grid; click cycles normal → low-res amber → skip gray) and `TriageSidebar.svelte` (tile params + Run OCR). **Save triage** writes the neatline, tile grid and per-tile priorities to `maps.triage` (mig 069) — localStorage stays the working draft, but only a saved triage is visible to `scripts/enqueue_ocr_all.mjs`, which by default queues **only** triaged sheets (`--untriaged` includes the rest in auto mode). "Run OCR" **enqueues a `pipeline_jobs` row** and returns 202; nothing runs until a worker claims it. Same behaviour in dev and on Cloudflare — the old `child_process` spawn and its `{ cli_only, cli_command }` fallback are gone. `CliCommandBlock` now only serves the segmentation panel.
+- **Triage**: `TriageTool.svelte` (neatline rect + tile priority grid; click cycles normal → low-res amber → skip gray), `RegionsTool.svelte` (the layout regions — one labelled rect per part of the sheet, click to select, drag to correct; a dashed edge is the model's proposal and a solid one a person's) and `TriageSidebar.svelte`, whose five steps are **Layout · Neatline · Tiles · Save triage · Run OCR**. **Detect** on step 1 enqueues a `layout` job: one low-resolution look at the whole sheet asking the model where the main map, title block, legend, name list, inset and furniture are. It is a job and not a route because the Gemini key lives on the worker and deliberately not in the web app. The answer lands in `maps.triage.regions` and the page polls for it. **Save triage** writes the neatline, tile grid and per-tile priorities to `maps.triage` (mig 069) — localStorage stays the working draft, but only a saved triage is visible to `scripts/enqueue_ocr_all.mjs`, which by default queues **only** triaged sheets (`--untriaged` includes the rest in auto mode) and crops to the `main_map` region when the layout pass found one, falling back to the neatline. "Run OCR" **enqueues a `pipeline_jobs` row** and returns 202; nothing runs until a worker claims it. Same behaviour in dev and on Cloudflare — the old `child_process` spawn and its `{ cli_only, cli_command }` fallback are gone. `CliCommandBlock` now only serves the segmentation panel.
 - **OCR Review**: `OcrBboxTool.svelte` renders + edits `ocr_extractions` bboxes and supports `drawMode` for manual bboxes (POSTs with `model: 'manual'`). `OcrSidebar.svelte` is a filterable table with inline text/category edit and auto-save on blur, split into `OcrFilterBar.svelte` + `OcrRunBar.svelte`, with state in `ocrReviewController.ts`. `BboxPanel.svelte` is the floating selected-bbox editor.
 - **Segmentation**: `SegSidebar.svelte` + `segCommand.ts` emit the MapSAM2 CLI command.
 
@@ -180,6 +180,7 @@ Canonical types live in **`src/lib/data/maps/`**:
 
 - `types.ts` — `MapRecord`, `MapListItem`, `MapSourceType`, `MapStatus`, `IIIFManifestMeta`. **This is the only home** — `src/lib/map/types.ts` no longer re-exports them.
 - `footprintTypes.ts` — `FeatureType`, `FootprintSubmission`, `PixelCoord`, `LegendItem`, `geometryKind`.
+- `triageTypes.ts` — the saved triage and the layout vocabulary: `LAYOUT_CATEGORIES` (sheet · main_map · title · legend · name_list · inset · scale_bar · north_arrow · stamp), `LayoutRegion`, `SavedTriage`, `parseRegion` (untrusted model output in, valid region or null out) and `tilingCrop` (**`main_map` beats the neatline**, because the neatline is the printed border and a legend inside it is inside the neatline too). Lives in `data` so `$lib/server` and the digitalize UI share one vocabulary.
 - `service.ts` — `fetchMaps`, `fetchFeaturedMaps`, `fetchGeoreferencedMaps`, `fetchMapRow`.
 - `iiifManifest.ts` — `fetchIIIFManifest(url)`; handles IIIF v2 + v3.
 - `georef.ts` — `fetchGeorefQueue`, `annotationStorageUrl`, `allmapsEditorUrl`.
@@ -230,6 +231,7 @@ Admin map CRUD:
 
 Pipeline:
 
+- `/api/admin/maps/[id]/layout/` — POST enqueues a `layout` job (202, or 409 when one is in flight); GET the saved regions plus the latest layout job. The worker runs `ocr.py scout --save-triage`.
 - `/api/admin/maps/[id]/ocr/` — GET run summaries + the latest `pipeline_jobs` row for the map; POST enqueues an `ocr` job (202 `{ job_id, run_id, status }`, or 409 when one is already in flight).
 - `/api/admin/maps/[id]/ocr/apply/` — POST: turn `ocr_extractions` above a confidence threshold into `label_pins` (bbox centre in source-image px). Body `{ run_id?, min_confidence? }`.
 - `/api/admin/maps/[id]/ocr-review/` — GET extractions + runs; POST manual bbox; PATCH update text/category/status/coords; PUT batch status (`?window=` reverts the last N minutes).
@@ -242,7 +244,7 @@ Pipeline:
 Worker-authenticated (`Authorization: Bearer <worker_keys token>`, **not** a user session — see `$lib/server/workerAuth.ts`):
 
 - `/api/pipeline/claim/` — POST `{ kinds, worker }` → the claimed job or `{ job: null }`. A key scoped to certain kinds cannot claim outside them.
-- `/api/pipeline/results/` — POST `extractions` (≤500 rows, upserted) and/or `job_id` + `status` (→ `finish_job`). There is no stage field: closing the job advances the stage.
+- `/api/pipeline/results/` — POST `extractions` (≤500 rows, upserted), `map_id` + `triage_regions` (the layout pass, **merged** into `maps.triage` so it cannot clobber a hand-drawn neatline), and/or `job_id` + `status` (→ `finish_job`). There is no stage field: closing the job advances the stage.
 - `/api/pipeline/execute/` — POST `{ job_id }` for the kinds whose work belongs on the server (`mirror_annotation`, `sync_allmaps`): they need the service key, which a worker deliberately lacks. The handler runs the mirror and closes the job itself. Kinds with real compute (`ocr`, `seg`, `tile_to_r2`) are rejected with a 400 — those run on the worker.
 
 Mint a token with `node --env-file=.env scripts/mint-worker-key.mjs <name> [kinds]`; it prints once and only the sha256 is stored. Revoke by setting `worker_keys.revoked_at`.
@@ -259,11 +261,11 @@ Public / other:
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **069**). Key tables:
+Schema lives in `supabase/migrations/` (head **070**). Key tables:
 
 | Table | Purpose | Notes |
 |-------|---------|-------|
-| `maps` | Map catalogue | `id` (uuid), `allmaps_id`, `annotation_url` (mig 047), `iiif_image`, `iiif_manifest`, `source_type`, `holding_institution` (mig 044), `collection`, `map_type`, `bbox`, `status`, `thumbnail`, full DC fields, plus `georef_done`, `is_public`, `is_featured`, `help_needed`, `legend_done`, `priority`, `label_config`, `triage` (mig 069) |
+| `maps` | Map catalogue | `id` (uuid), `allmaps_id`, `annotation_url` (mig 047), `iiif_image`, `iiif_manifest`, `source_type`, `holding_institution` (mig 044), `collection`, `map_type`, `bbox`, `status`, `thumbnail`, full DC fields, plus `georef_done`, `is_public`, `is_featured`, `help_needed`, `legend_done`, `priority`, `label_config`, `triage` (mig 069, `regions` added by 070) |
 | `profiles` | Per-user role | `user`, `mod`, `admin`; read via `fetchUserRole` |
 | `scout_candidates` | External discoveries (mig 045) | `source`, `external_id` (unique with source), `manifest_url`, `score`, `category`, `status` (`pending/approved/rejected/ingested`), `map_id` on ingest, `raw` JSONB |
 | `map_iiif_sources` | Multiple IIIF sources per map | `map_id → maps.id`, `source_type`, `is_primary`, `sort_order`. Partial unique index = one primary per map; trigger syncs primary to `maps.iiif_image` |
@@ -272,7 +274,7 @@ Schema lives in `supabase/migrations/` (head **069**). Key tables:
 | `footprint_submissions` | Polygon traces + SAM2 output | `map_id → maps.id`; status ∈ `draft/submitted/needs_review/approved/rejected`, source ∈ `volunteer/sam-auto/sam-corrected/import` (both widened in mig 055 — 038's lists rejected every SAM2 write); `pixel_polygon`; `run_id` (mig 057) pins a segmentation run so the OCR join cannot mix runs |
 | `annotation_sets` | User GeoJSON | `map_id → maps.id` nullable, `user_id → auth.users` |
 | `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join. Read policy inherits the map's gate since mig 065 (published, or any signed-in user) |
-| `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (9 values incl. `join`, mig 061) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs |
+| `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (10 values incl. `join` mig 061, `layout` mig 070) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs |
 | `worker_keys` | Per-machine revocable worker credentials (mig 053) | `token_hash` (sha256), `kinds`, `revoked_at`. Written in step 2; the table exists now |
 | `map_pipeline_status` | Per-map pipeline state — **a view since mig 056** | Machine stages derived from `pipeline_jobs`, human stages from `map_review_marks`. Read-only; nothing writes it |
 | `map_review_marks` | The three stages a person asserts (mig 056) | `reviewed_at`, `seg_reviewed_at`, `exported_at`. Written only by the `set_review_mark` RPC |
@@ -312,7 +314,7 @@ Full command reference and design rationale in `docs/pipelines.md`:
   python work/worker/vma_worker.py --once                 # drain one job
   ```
 
-  `--kinds` decides what it takes: `ocr`/`join` (the default pair) and `tile_to_r2` run locally (the latter needs vips + rclone for `scripts/tile_map.sh`); `seg` runs where a GPU is, which means a Colab notebook running this same worker with `--kinds seg`; `mirror_annotation`, `sync_allmaps` and `warp` are claimed and then handed to `/api/pipeline/execute`. It needs `VMA_API_URL` + `VMA_WORKER_KEY` and **no database credentials** — claim and results both go through `/api/pipeline/*`. The worker exports both into the job's subprocess, so `ocr.py --db` writes the same way (`supabase_client.py` switches transport on those two variables; the analysis-only subcommands still use the service key when run by hand). The `seg` runner's flags mirror `segCommand.ts`, and `MAPSAM2_DIR` / `MAPSAM2_CHECKPOINT` come from the machine's environment rather than the job.
+  `--kinds` decides what it takes: `ocr`/`join`/`layout` (the default trio) and `tile_to_r2` run locally (the latter needs vips + rclone for `scripts/tile_map.sh`); `seg` runs where a GPU is, which means a Colab notebook running this same worker with `--kinds seg`; `mirror_annotation`, `sync_allmaps` and `warp` are claimed and then handed to `/api/pipeline/execute`. It needs `VMA_API_URL` + `VMA_WORKER_KEY` and **no database credentials** — claim and results both go through `/api/pipeline/*`. The worker exports both into the job's subprocess, so `ocr.py --db` writes the same way (`supabase_client.py` switches transport on those two variables; the analysis-only subcommands still use the service key when run by hand). The `seg` runner's flags mirror `segCommand.ts`, and `MAPSAM2_DIR` / `MAPSAM2_CHECKPOINT` come from the machine's environment rather than the job.
 - **OCR** (`work/ocr/`) — Gemini Flash → `ocr_extractions`; `join_labels.py` writes the `footprint_id` join (mig 050). Venv: `work/ocr/.venv`.
 - **MapSAM2 inference** (`work/MapSAM2/`) — IIIF tiles → polygons → `footprint_submissions`. `--mode prompted --ocr-run-id <run>` seeds SAM2 from OCR boxes via `to_sam2_seeds.py` (area categories only, one owner per seed by centroid, clipped to the tile); those polygons are written with the label already attached. Runs on Colab against an upstream clone; there is no local venv for it. Its polygons and `ocr_extractions.global_*` share **one full-image pixel grid** (both scale tile-render → source px and offset by the tile origin, off the same `info.json`), which is what makes the C1 join possible; tile sizes differ and do not matter.
 

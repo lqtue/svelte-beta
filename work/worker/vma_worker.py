@@ -128,6 +128,33 @@ def ocr_argv(job: dict, python_bin: str) -> list[str]:
     return argv
 
 
+def layout_argv(job: dict, python_bin: str) -> list[str]:
+    """Turn a `layout` job into the scout command line.
+
+    The layout pass is scout with `--save-triage`: one low-resolution look at the
+    whole sheet, asking the model where the main map, title, legend, name list
+    and furniture are, written to maps.triage.regions for a person to correct on
+    the digitalize canvas. It is a job rather than a route because the Gemini key
+    lives here and deliberately not in the web app.
+    """
+    p = job["payload"]
+    argv = [
+        python_bin,
+        str(OCR_SCRIPT),
+        "scout",
+        "--map-id", job["map_id"],
+        "--render-size", str(p.get("render_size", 2048)),
+        "--save-triage",
+    ]
+    if p.get("run_id"):
+        argv += ["--run-id", str(p["run_id"])]
+    if p.get("model"):
+        argv += ["--model", str(p["model"])]
+    if p.get("preview"):
+        argv.append("--preview")
+    return argv
+
+
 def tile_argv(job: dict, python_bin: str) -> list[str]:
     """Turn a `tile_to_r2` job into the tiling script's command line.
 
@@ -211,7 +238,8 @@ def join_argv(job: dict, python_bin: str) -> list[str]:
 
 # Kinds this worker runs itself. mirror_annotation, sync_allmaps and warp are
 # not here: they need the service key, so the server runs them (see execute()).
-RUNNERS = {"ocr": ocr_argv, "seg": seg_argv, "join": join_argv, "tile_to_r2": tile_argv}
+RUNNERS = {"ocr": ocr_argv, "seg": seg_argv, "join": join_argv, "layout": layout_argv,
+           "tile_to_r2": tile_argv}
 SERVER_KINDS = {"mirror_annotation", "sync_allmaps", "warp"}
 
 
@@ -273,8 +301,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Claim and run VMA pipeline jobs.")
     ap.add_argument(
         "--kinds",
-        default="ocr,join",
-        help="comma-separated job kinds to claim: ocr, join, tile_to_r2, mirror_annotation, sync_allmaps (default: ocr,join)",
+        default="ocr,join,layout",
+        help="comma-separated job kinds to claim: ocr, join, layout, tile_to_r2, mirror_annotation, sync_allmaps (default: ocr,join,layout)",
     )
     ap.add_argument("--worker", default=os.uname().nodename, help="name recorded on the claim")
     ap.add_argument("--interval", type=float, default=10.0, help="seconds between polls when idle")

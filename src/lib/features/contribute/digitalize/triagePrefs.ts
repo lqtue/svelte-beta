@@ -21,6 +21,7 @@ import { readJson, writeJson } from '$lib/core/utils/persistence/storage';
 import type { TileOverrides } from './tileParams';
 import { DEFAULT_SEG_CONFIG, type SegConfig } from './segCommand';
 import type { StoredTriage } from '$lib/data/maps/types';
+import type { LayoutRegion } from '$lib/data/maps/triageTypes';
 
 /** Everything the Triage phase edits, shared between its sidebar and the canvas. */
 export type TriageState = {
@@ -30,6 +31,9 @@ export type TriageState = {
   runId: string;
   minConfidence: number;
   tileOverrides: TileOverrides;
+  /** What the sheet is made of. Empty until the layout pass runs or someone
+   *  draws one by hand. */
+  regions: LayoutRegion[];
 };
 
 export function defaultTriageState(): TriageState {
@@ -40,6 +44,7 @@ export function defaultTriageState(): TriageState {
     runId: '',
     minConfidence: 0.5,
     tileOverrides: {},
+    regions: [],
   };
 }
 
@@ -55,6 +60,7 @@ export function toStoredTriage(state: TriageState): StoredTriage | null {
     tile_size: state.tileSize,
     overlap: state.overlap,
     tile_overrides: state.tileOverrides,
+    ...(state.regions.length ? { regions: state.regions } : {}),
   };
 }
 
@@ -72,6 +78,7 @@ export function applyStoredTriage(
     ...(data.tile_size ? { tileSize: data.tile_size } : {}),
     ...(data.overlap ? { overlap: data.overlap } : {}),
     ...(data.tile_overrides ? { tileOverrides: data.tile_overrides } : {}),
+    ...(Array.isArray(data.regions) ? { regions: data.regions } : {}),
   };
 }
 

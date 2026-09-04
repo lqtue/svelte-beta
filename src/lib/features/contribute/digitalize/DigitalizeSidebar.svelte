@@ -32,6 +32,12 @@
   export let saveTriageError = '';
   export let suggesting = false;
   export let suggestError = '';
+  /** The layout pass, bound so the canvas and the list share a selection. */
+  export let selectedRegion: number | null = null;
+  export let showRegions = true;
+  export let detectingLayout = false;
+  export let layoutError = '';
+  export let layoutJob: { status: string; error?: string | null } | null = null;
   /** Run status for the Triage panel. */
   export let run: {
     running: boolean;
@@ -78,9 +84,18 @@
       {saveTriageError}
       {suggesting}
       {suggestError}
+      layoutRegions={triage.regions}
+      bind:selectedRegion
+      bind:showRegions
+      {detectingLayout}
+      {layoutError}
+      {layoutJob}
       on:runOcr
       on:saveTriage
       on:suggestTriage
+      on:detectLayout
+      on:regionsChange
+      on:selectRegion
       on:loadRun
     />
   {:else if phase === 'ocr'}

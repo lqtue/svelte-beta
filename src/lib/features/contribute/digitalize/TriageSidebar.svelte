@@ -13,6 +13,13 @@
   import type { TileOverrides } from './tileParams';
   import { buildTileGrid } from './tileParams';
   import type { StoredTriage } from './triagePrefs';
+  import {
+    LAYOUT_CATEGORIES,
+    LAYOUT_COLORS,
+    LAYOUT_LABELS,
+    type LayoutCategory,
+    type LayoutRegion,
+  } from '$lib/data/maps/triageTypes';
 
   export let imgWidth: number = 0;
   export let imgHeight: number = 0;
@@ -43,12 +50,63 @@
   export let suggesting: boolean = false;
   export let suggestError: string = '';
 
+  /** The layout pass: what the sheet is made of, for a person to correct. */
+  export let layoutRegions: LayoutRegion[] = [];
+  export let selectedRegion: number | null = null;
+  export let showRegions: boolean = true;
+  export let detectingLayout: boolean = false;
+  export let layoutError: string = '';
+  /** The `layout` pipeline_jobs row, while one is in flight. */
+  export let layoutJob: { status: string; error?: string | null } | null = null;
+
   const dispatch = createEventDispatcher<{
     runOcr: void;
     saveTriage: void;
     suggestTriage: void;
+    detectLayout: void;
+    regionsChange: LayoutRegion[];
+    selectRegion: number | null;
     loadRun: { runId: string };
   }>();
+
+  function setCategory(idx: number, category: LayoutCategory) {
+    dispatch(
+      'regionsChange',
+      layoutRegions.map((r, i) => (i === idx ? { ...r, category, source: 'human' as const } : r))
+    );
+  }
+
+  function removeRegion(idx: number) {
+    dispatch(
+      'regionsChange',
+      layoutRegions.filter((_, i) => i !== idx)
+    );
+    if (selectedRegion === idx) dispatch('selectRegion', null);
+  }
+
+  /** A new region starts as the middle half of the sheet — big enough to grab,
+   *  small enough that it is obviously a placeholder to be dragged. */
+  function addRegion() {
+    const w = Math.round(imgWidth / 2);
+    const h = Math.round(imgHeight / 2);
+    const next: LayoutRegion[] = [
+      ...layoutRegions,
+      {
+        category: 'legend',
+        bbox: [Math.round(w / 2), Math.round(h / 2), w, h],
+        confidence: 1,
+        source: 'human',
+      },
+    ];
+    dispatch('regionsChange', next);
+    dispatch('selectRegion', next.length - 1);
+  }
+
+  function useAsNeatline(r: LayoutRegion) {
+    neatline = [...r.bbox] as [number, number, number, number];
+  }
+
+  $: mainMap = layoutRegions.find((r) => r.category === 'main_map') ?? null;
 
   // Local neatline inputs (separate vars to avoid array reactivity issues)
   let nx = 0,
@@ -135,10 +193,94 @@
     {/if}
   </div>
 
+  <!-- Layout -->
+  <div class="tool-section">
+    <div class="tool-section-header">
+      <div class="tool-section-title"><span class="ts-step">1</span> Layout</div>
+      <button
+        class="tool-ghost-btn"
+        on:click={() => dispatch('detectLayout')}
+        disabled={detectingLayout || !imgWidth}
+      >
+        {detectingLayout ? 'Queued…' : layoutRegions.length ? 'Re-detect' : 'Detect'}
+      </button>
+    </div>
+
+    <p class="ts-hint">
+      What the sheet is made of. A worker asks the model once, at low resolution; the answer lands
+      here for you to correct. Dashed edges are its proposal, solid ones yours.
+    </p>
+
+    {#if layoutJob && ['queued', 'claimed', 'running'].includes(layoutJob.status)}
+      <p class="ts-note">
+        Layout job {layoutJob.status} — nothing happens until a worker claims it.
+      </p>
+    {:else if layoutJob?.status === 'failed'}
+      <p class="tool-error">Layout job failed: {layoutJob.error ?? 'no reason recorded'}</p>
+    {/if}
+    {#if layoutError}<p class="tool-error">{layoutError}</p>{/if}
+
+    {#if layoutRegions.length}
+      <label class="ts-toggle">
+        <input type="checkbox" bind:checked={showRegions} />
+        <span>Show on the map</span>
+      </label>
+
+      <ul class="ts-regions">
+        {#each layoutRegions as r, i (i)}
+          <li class:selected={selectedRegion === i}>
+            <button
+              class="ts-region-row"
+              on:click={() => dispatch('selectRegion', selectedRegion === i ? null : i)}
+            >
+              <span class="ts-swatch" style="background: {LAYOUT_COLORS[r.category]}"></span>
+              <select
+                value={r.category}
+                on:click|stopPropagation
+                on:change={(e) => setCategory(i, e.currentTarget.value as LayoutCategory)}
+                class="ts-region-cat"
+              >
+                {#each LAYOUT_CATEGORIES as c}
+                  <option value={c}>{LAYOUT_LABELS[c]}</option>
+                {/each}
+              </select>
+              <span class="ts-region-size">{r.bbox[2]}×{r.bbox[3]}</span>
+              {#if r.source === 'model'}
+                <span class="ts-region-conf" title="model confidence"
+                  >{Math.round(r.confidence * 100)}%</span
+                >
+              {/if}
+            </button>
+            <button
+              class="ts-region-del"
+              title="Remove this region"
+              on:click={() => removeRegion(i)}>×</button
+            >
+          </li>
+        {/each}
+      </ul>
+
+      <div class="ts-region-actions">
+        <button class="tool-ghost-btn" on:click={addRegion} disabled={!imgWidth}>Add region</button>
+        {#if mainMap}
+          <button class="tool-ghost-btn" on:click={() => useAsNeatline(mainMap)}>
+            Main map → neatline
+          </button>
+        {/if}
+      </div>
+    {:else if !detectingLayout}
+      <div class="ts-region-actions">
+        <button class="tool-ghost-btn" on:click={addRegion} disabled={!imgWidth}
+          >Add one by hand</button
+        >
+      </div>
+    {/if}
+  </div>
+
   <!-- Neatline -->
   <div class="tool-section">
     <div class="tool-section-header">
-      <div class="tool-section-title"><span class="ts-step">1</span> Neatline crop</div>
+      <div class="tool-section-title"><span class="ts-step">2</span> Neatline crop</div>
       <button
         class="tool-ghost-btn"
         on:click={() => dispatch('suggestTriage')}
@@ -212,7 +354,7 @@
   <div class="tool-section">
     <div class="tool-section-header">
       <div class="tool-section-title">
-        <span class="ts-step">2</span> Tiles
+        <span class="ts-step">3</span> Tiles
         <span class="tool-hint-inline tool-mono">({tileCount})</span>
       </div>
       <button class="tool-ghost-btn" on:click={suggestTileParams} disabled={!neatline}
@@ -269,7 +411,7 @@
 
   <!-- Save triage -->
   <div class="tool-section">
-    <div class="tool-section-title"><span class="ts-step">3</span> Save triage</div>
+    <div class="tool-section-title"><span class="ts-step">4</span> Save triage</div>
     {#if saveTriageError}
       <div class="tool-error">{saveTriageError}</div>
     {/if}
@@ -298,7 +440,7 @@
 
   <!-- Run config -->
   <div class="tool-section">
-    <div class="tool-section-title"><span class="ts-step">4</span> Run OCR</div>
+    <div class="tool-section-title"><span class="ts-step">5</span> Run OCR</div>
     <label class="tool-field">
       <span class="tool-label">Run ID</span>
       <input
@@ -368,7 +510,7 @@
 </div>
 
 <style>
-  /* A small ordinal, so the panel reads as four steps rather than seven
+  /* A small ordinal, so the panel reads as five steps rather than eight
      equally-weighted boxes of readouts and controls. */
   .ts-step {
     display: inline-flex;
@@ -382,6 +524,107 @@
     color: var(--color-white);
     font-size: 0.68rem;
     font-weight: 700;
+  }
+
+  /* ── Layout regions ───────────────────────────────────────────────────── */
+  .ts-hint {
+    margin: 0 0 0.5rem;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    opacity: 0.65;
+  }
+  .ts-note {
+    margin: 0 0 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-gray-100);
+    font-size: 0.72rem;
+  }
+  .ts-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.74rem;
+    cursor: pointer;
+  }
+  .ts-regions {
+    list-style: none;
+    margin: 0 0 0.5rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ts-regions li {
+    display: flex;
+    align-items: center;
+    border-radius: var(--radius-sm);
+  }
+  .ts-regions li.selected {
+    background: var(--color-gray-100);
+  }
+  .ts-region-row {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    padding: 0.25rem 0.3rem;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .ts-swatch {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+  }
+  .ts-region-cat {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 0.74rem;
+    cursor: pointer;
+  }
+  .ts-region-cat:hover {
+    border-color: var(--color-border);
+  }
+  .ts-region-size,
+  .ts-region-conf {
+    flex: none;
+    font-size: 0.66rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.55;
+  }
+  .ts-region-del {
+    flex: none;
+    width: 1.4rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.4;
+    cursor: pointer;
+  }
+  .ts-region-del:hover {
+    opacity: 1;
+    color: var(--color-error-600);
+  }
+  .ts-region-actions {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
   }
 
   .ts-priority-caption {
