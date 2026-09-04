@@ -3,6 +3,7 @@
 //
 //   node --env-file=.env scripts/enqueue_ocr_all.mjs [--dry] [--force] [--limit N]
 //                                                    [--untriaged] [--model NAME]
+//                                                    [--tile-metres M]
 //
 // Label search (`/api/search?include=labels`, mig 065) is only as good as the
 // share of the corpus that has extractions, and measured on 2026-09-02 that was
@@ -21,6 +22,8 @@
 // scout pass guess the neatline; that is the old behaviour and it is worse.
 
 import { createClient } from '@supabase/supabase-js';
+import { GcpTransformer } from '@allmaps/transform';
+import { parseAnnotation } from '@allmaps/annotation';
 
 const args = process.argv.slice(2);
 const dry = args.includes('--dry');
@@ -31,13 +34,34 @@ const untriaged = args.includes('--untriaged');
 const modelIdx = args.indexOf('--model');
 const model = modelIdx > -1 ? args[modelIdx + 1] : null;
 
+// Ground per Gemini call, in metres. Opt-in, and it only ever makes a tile
+// FINER.
+//
+// What starves an OCR read is one call covering too much ground, and a fixed
+// pixel tile is a different amount of ground on every sheet: 2048 px is 1.7 km
+// on the 1923 sheet and 5.7 km on the 1959 one. Measured on the 1959 sheet,
+// same crop and same 1:1 rendering, changing only the tile: 5.7 km/call found 1
+// label inside the study area, 2.9 km found 2, 1.4 km found 6. Corpus-wide the
+// same change is +19%, concentrated entirely in the sheets whose ground-per-call
+// actually dropped a long way — see docs/pipelines.md.
+//
+// Off by default for two reasons. A saved triage carries the tile size a person
+// chose, and overriding that silently would defeat the point of saving one. And
+// the first version of this rule made a sheet WORSE: at 0.34 m/px the 1882
+// cadastral needs a 4118 px tile to reach 1400 m, so a fixed ground target
+// coarsened it. Hence `Math.min` against the tile we would otherwise have used —
+// the rule may make a sheet finer, never coarser.
+const tmIdx = args.indexOf('--tile-metres');
+const tileMetres = tmIdx > -1 ? Number(args[tmIdx + 1]) : null;
+const TILE_PX_MIN = 384;
+
 const db = createClient(process.env.PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
   auth: { persistSession: false },
 });
 
 const { data: maps, error } = await db
   .from('maps')
-  .select('id, name, year, iiif_image, triage')
+  .select('id, name, year, iiif_image, allmaps_id, annotation_url, triage')
   .eq('georef_done', true)
   .not('iiif_image', 'is', null)
   .order('year');
@@ -105,13 +129,100 @@ if (!untriaged && nTriaged < maps.length) {
   );
 }
 
+/**
+ * Ground metres per source pixel over the rectangle we are about to tile.
+ *
+ * Measured through the sheet's own georeference — warp the crop's four corners
+ * to lng/lat and compare the real area with the pixel area. Rotation- and
+ * skew-invariant, unlike a bbox-to-width ratio, which read 0.33 m/px on the
+ * 1912 sheet where the truth is nearer 1.8.
+ *
+ * Returns null when there is nothing to measure with; the caller then keeps the
+ * tile it already had rather than guessing.
+ */
+/** `[x, y, w, h]` bounding the GCPs in source pixels, or null if unusable. */
+function gcpPixelBox(gcps) {
+  const pts = (gcps ?? []).map((g) => g.resource ?? g.pixel).filter(Boolean);
+  if (pts.length < 3) return null;
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  const w = Math.max(...xs) - Math.min(...xs);
+  const h = Math.max(...ys) - Math.min(...ys);
+  return w > 1 && h > 1 ? [Math.min(...xs), Math.min(...ys), w, h] : null;
+}
+
+const M_PER_DEG_LAT = 110574;
+const M_PER_DEG_LON = 111320 * Math.cos((10.78 * Math.PI) / 180);
+
+function ringAreaM2(lonlats) {
+  let a = 0;
+  for (let i = 0, j = lonlats.length - 1; i < lonlats.length; j = i++) {
+    a += lonlats[j][0] * lonlats[i][1] - lonlats[i][0] * lonlats[j][1];
+  }
+  return (Math.abs(a) / 2) * M_PER_DEG_LON * M_PER_DEG_LAT;
+}
+
+async function cropMpp(m, crop) {
+  const url =
+    m.annotation_url ||
+    (m.allmaps_id ? `https://annotations.allmaps.org/images/${m.allmaps_id}` : null);
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const parsed = parseAnnotation(await res.json());
+    if (!parsed.length) return null;
+    const t = new GcpTransformer(parsed[0].gcps, parsed[0].transformation?.type ?? 'polynomial');
+    // No crop means nobody has triaged this sheet — which is the majority, and
+    // the ones this rule exists for. Fall back to the pixel hull of the GCPs
+    // themselves: they sit on identifiable ground features, so their hull is
+    // inside the map content, and warping its corners interpolates rather than
+    // extrapolating. Warping the *image* corners instead would run a polynomial
+    // out past its control points and into the margins, which is how the naive
+    // bbox-to-width ratio read 0.33 m/px on the 1912 sheet.
+    const rect = crop ?? gcpPixelBox(parsed[0].gcps);
+    if (!rect) return null;
+    const [x, y, w, h] = rect;
+    const ground = [
+      [x, y],
+      [x + w, y],
+      [x + w, y + h],
+      [x, y + h],
+    ].map((p) => t.transformToGeo(p));
+    const area = ringAreaM2(ground);
+    return area > 0 && w * h > 0 ? Math.sqrt(area / (w * h)) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The tile to use, never coarser than `current`. */
+function groundTile(mpp, current) {
+  if (!mpp || !tileMetres) return current;
+  const raw = Math.round(tileMetres / mpp);
+  return Math.max(TILE_PX_MIN, Math.min(raw, current));
+}
+
 let queued = 0;
 for (const m of todo) {
   const t = triageOf(m);
   const usingMainMap = (t?.regions ?? []).some((r) => r.category === 'main_map');
+  const crop = cropOf(t);
+  const baseTile = t?.tile_size ?? 2400;
+  const mpp = tileMetres ? await cropMpp(m, crop) : null;
+  const tile = groundTile(mpp, baseTile);
+  // Equal to the tile is 1:1, the source ceiling. Left unset this fell through
+  // to the worker's own 1024 default, which on a 2400 px tile is the 2.34x
+  // downsample that put the 1959 sheet in front of the model at ~6.5 m/px.
+  // Nothing above 1:1 buys detail, but a very small image is not what these
+  // prompts expect, hence the 1024 floor.
+  const render = Math.max(tile, 1024);
+  const ground = mpp ? `   ${((tile * mpp) / 1000).toFixed(2)} km/call` : '';
   console.log(
     `  ${m.year ?? '????'}  ${m.name}` +
-      (t ? (usingMainMap ? '   (cropped to main_map)' : '') : '   (no triage — auto mode)')
+      (t ? (usingMainMap ? '   (cropped to main_map)' : '') : '   (no triage — auto mode)') +
+      (tile !== baseTile ? `   tile ${baseTile} → ${tile}` : '') +
+      ground
   );
   if (dry) continue;
   // Per map, not per second: a shared run_id would collapse every map's run
@@ -122,14 +233,15 @@ for (const m of todo) {
     map_id: m.id,
     payload: {
       run_id,
-      tile_size: t?.tile_size ?? 2400,
-      overlap: t?.overlap ?? 600,
+      tile_size: tile,
+      render_size: render,
+      overlap: t?.overlap ?? Math.round(tile / 4),
       concurrency: 3,
       min_confidence: 0.5,
       // A saved neatline is the whole point of triaging: with one, the scout
       // pass has nothing left to guess, so `auto` only still runs the legend.
       auto: true,
-      ...(cropOf(t) ? { neatline: cropOf(t) } : {}),
+      ...(crop ? { neatline: crop } : {}),
       ...(t?.tile_overrides && Object.keys(t.tile_overrides).length
         ? { tile_overrides: t.tile_overrides }
         : {}),
