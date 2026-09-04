@@ -12,6 +12,7 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 - `docs/ROADMAP.md` — **the one tracker**: ship/harden · architecture steps · OCR↔SAM2 product · burn-down
 - `docs/time-machine-plan.md` — label search · temporal fabric · period sources (Track E detail)
 - `docs/platform-design.md` — one workspace for VMA + HACW: what is shared (contracts, basemap, deploy, docs) and what stays per-app, with sequencing
+- `docs/digitalize-guide.md` — **operator guide** for `/contribute/digitalize`: the five triage steps, what each layout category means, the ground-per-call target, and the failure modes that return plausible output while dropping data
 - `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker, holding-institution model
 - `docs/cleanup-2026-08.md` — what the August 2026 cleanup changed, and the open follow-ups

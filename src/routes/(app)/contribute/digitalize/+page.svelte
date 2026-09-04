@@ -3,8 +3,10 @@
 
   Three phases share one ImageShell canvas:
 
-  Triage       — set the neatline (amber drag rect) and per-tile priority, then
-                 start an OCR batch.
+  Triage       — five steps: ask the model what the sheet is made of (Layout),
+                 set the neatline, size the tile grid and per-tile priority,
+                 save the triage to `maps.triage`, then queue an OCR batch.
+                 Operator guide: docs/digitalize-guide.md.
   OCR Review   — validate / reject / redraw OCR bboxes (OcrBboxTool + OcrSidebar).
   Segmentation — pipeline stage readout + the MapSAM2 command to run in Colab.
 
