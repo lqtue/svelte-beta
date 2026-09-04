@@ -48,6 +48,11 @@ export const GET: RequestHandler = async ({ locals }) => {
     /* 13 */ db.from('pipeline_jobs').select('*', head).eq('status', 'queued'),
     /* 14 */ db.from('pipeline_jobs').select('*', head).in('status', ['claimed', 'running']),
     /* 15 */ db.from('pipeline_jobs').select('*', head).eq('status', 'failed'),
+    // A sheet counts as triaged when it has a saved neatline — the same
+    // predicate `scripts/enqueue_ocr_all.mjs` uses (`triageOf`), so this row
+    // answers "how many sheets would a plain enqueue run actually queue?".
+    /* 16 */ db.from('maps').select('*', head).not('triage->>neatline', 'is', null),
+    /* 17 */ db.from('maps').select('*', head).not('triage->>regions', 'is', null),
   ]);
 
   const broken = results.find((r) => r.error);
@@ -70,6 +75,8 @@ export const GET: RequestHandler = async ({ locals }) => {
     jobsQueued,
     jobsRunning,
     jobsFailed,
+    mapsTriaged,
+    mapsWithLayout,
   ] = results.map((r) => r.count ?? 0);
 
   // Only fetched when there is something to show, so the normal case is free.
@@ -95,6 +102,8 @@ export const GET: RequestHandler = async ({ locals }) => {
       georeferenced: mapsGeoreferenced,
       withBbox: mapsWithBbox,
       read: mapsRead,
+      triaged: mapsTriaged,
+      withLayout: mapsWithLayout,
     },
     words: { total: words, placed: wordsPlaced, placeNames },
     footprints: {

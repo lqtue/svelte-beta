@@ -28,6 +28,8 @@
       georeferenced: number;
       withBbox: number;
       read: number;
+      triaged: number;
+      withLayout: number;
     };
     words: { total: number; placed: number; placeNames: number };
     footprints: { total: number; byMachine: number; approved: number; awaitingReview: number };
@@ -117,6 +119,37 @@
             next:
               m.withBbox < m.georeferenced
                 ? 'Needs a one-off backfill script, same shape as the warp job.'
+                : undefined,
+          },
+        ],
+      },
+      {
+        title: 'Getting sheets ready to read',
+        blurb:
+          'Before the AI reads a sheet, someone marks where the map actually is on the paper — the border, and which squares are blank or water. Nothing queues without it.',
+        rows: [
+          {
+            label: 'Sheets triaged by a person',
+            value: of(m.triaged, m.georeferenced),
+            detail:
+              m.triaged === 0
+                ? 'None. This is the blocker: the queueing script only takes triaged sheets, so running it right now would queue nothing at all and look like it worked.'
+                : 'These have a saved border and tile grid, so the queueing script will take them.',
+            tone: m.triaged === 0 ? 'bad' : m.triaged < m.georeferenced ? 'warn' : 'good',
+            next:
+              m.triaged < m.georeferenced
+                ? 'Draw the border and press Save triage at /contribute/digitalize. One sheet at a time.'
+                : undefined,
+          },
+          {
+            label: 'Sheets the AI has mapped out',
+            value: of(m.withLayout, m.georeferenced),
+            detail:
+              'The layout pass guesses what each part of the sheet is — the map itself, the title, the legend, insets — so a person corrects boxes instead of drawing them.',
+            tone: m.withLayout === 0 ? 'warn' : 'good',
+            next:
+              m.withLayout === 0
+                ? 'Run the Layout step at /contribute/digitalize, then a worker with --kinds layout.'
                 : undefined,
           },
         ],

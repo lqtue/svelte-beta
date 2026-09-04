@@ -297,6 +297,56 @@ def run_job(job: dict, python_bin: str) -> None:
         print(f"[{kind}] {job['id']} FAILED rc={proc.returncode}\n{err[-500:]}")
 
 
+def _self_check() -> None:
+    """
+    Run: python work/worker/vma_worker.py --self-check
+
+    Guards ROADMAP 5c. Patches claim() rather than the network, so this needs
+    no worker key, no server and no database.
+    """
+    import contextlib
+    import io
+
+    mod = sys.modules[__name__]
+    original_claim, original_argv = mod.claim, sys.argv[:]
+
+    def run(claim_impl, argv):
+        mod.claim = claim_impl
+        sys.argv = ["vma_worker.py", *argv]
+        out, err, code = io.StringIO(), io.StringIO(), 0
+        try:
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                main()
+        except SystemExit as e:
+            code = e.code if isinstance(e.code, int) else 1
+        return code, out.getvalue(), err.getvalue()
+
+    def unreachable(kinds, worker):
+        raise requests.ConnectionError("Failed to resolve 'maparchive.vn'")
+
+    try:
+        # 1. The network is down. This must not look like success.
+        code, out, err = run(unreachable, ["--once", "--kinds", "ocr"])
+        assert code != 0, f"a claim that raises must exit non-zero, got {code}"
+        assert "queue empty" not in out, "a transport error must not report an empty queue"
+        assert "claim failed" in err, "the transport error must be reported on stderr"
+
+        # 2. The API answered and had no job. That is success.
+        code, out, err = run(lambda kinds, worker: None, ["--once", "--kinds", "ocr"])
+        assert code == 0, f"an empty queue is success, got {code}"
+        assert "queue empty" in out, "an empty queue must say so"
+
+        # 3. The two outcomes must not be confusable on the exit code alone,
+        #    which is the whole point: a drain loop reads exactly that.
+        down, _, _ = run(unreachable, ["--once"])
+        empty, _, _ = run(lambda kinds, worker: None, ["--once"])
+        assert down != empty, "unreachable and empty must differ in exit code"
+    finally:
+        mod.claim, sys.argv = original_claim, original_argv
+
+    print("[ok] vma_worker self-check passed")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Claim and run VMA pipeline jobs.")
     ap.add_argument(
@@ -317,21 +367,34 @@ def main() -> None:
         try:
             job = claim(kinds, args.worker)
         except requests.RequestException as e:
-            print(f"claim failed: {e}")
-            job = None
+            # A transport error is not an empty queue. Conflating the two is how
+            # ocr job 107182d6 sat stranded in `running` with a dead subprocess
+            # while an unattended drain reported success (ROADMAP 5c). Under
+            # --once the caller is a shell loop reading the exit code, so fail
+            # there; when polling, keep going — a blip should not kill a worker
+            # that is meant to run for hours.
+            print(f"claim failed: {e}", file=sys.stderr)
+            if args.once:
+                sys.exit(1)
+            time.sleep(args.interval)
+            continue
 
         if job:
             run_job(job, args.python)
             if args.once:
                 return
+        elif args.once:
+            # Reached only when the API answered and had nothing to give.
+            print("queue empty")
+            return
         else:
-            if args.once:
-                print("queue empty")
-                return
             time.sleep(args.interval)
 
 
 if __name__ == "__main__":
+    if "--self-check" in sys.argv:
+        _self_check()
+        sys.exit(0)
     try:
         main()
     except KeyboardInterrupt:
