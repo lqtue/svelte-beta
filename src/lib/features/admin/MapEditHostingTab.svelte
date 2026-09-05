@@ -25,6 +25,7 @@
     type MirrorR2Result,
   } from '$lib/data/admin/adminApi';
   import NeatlineEditor from './NeatlineEditor.svelte';
+  import { allmapsEditorSourceUrl } from '$lib/core/iiif/annotationUrl';
 
   export let map: MapRow;
 
@@ -287,21 +288,10 @@
   // Effective annotation URL: override wins, else build from bare allmaps_id.
   $: annotationUrl =
     annotation_url || (allmaps_id ? `https://annotations.allmaps.org/images/${allmaps_id}` : '');
-  // Allmaps Editor needs a IIIF manifest or image-service URL — not a self-hosted annotation URL.
-  // Prefer: iiif_manifest → non-R2 source iiif_image → fall back to the public annotation URL when
-  // there's no override (i.e. allmaps_id alone resolves it).
-  $: editorIiifUrl =
-    map.iiif_manifest ||
-    iiifSources.find((s) => s.source_type !== 'r2' && s.iiif_image)?.iiif_image ||
-    (!annotation_url && allmaps_id ? annotationUrl : '');
-
-  // Allmaps Editor's ?url= param needs an info.json or manifest URL, not a bare
-  // image-service base. Append /info.json when the URL has no .json suffix.
-  $: editorAllmapsUrl = editorIiifUrl
-    ? /\.json($|\?)/.test(editorIiifUrl)
-      ? editorIiifUrl
-      : `${editorIiifUrl.replace(/\/$/, '')}/info.json`
-    : '';
+  // Shared with the share page's "Fix georeference" link — see
+  // $lib/data/maps/georef.ts for why an R2 source is skipped and why an
+  // annotation URL must not take /info.json.
+  $: editorAllmapsUrl = allmapsEditorSourceUrl({ ...map, annotation_url, allmaps_id }, iiifSources);
 </script>
 
 <div class="hosting-section">

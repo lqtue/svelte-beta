@@ -6,7 +6,11 @@
 -->
 <script lang="ts">
   import PageHero from '$lib/ui/PageHero.svelte';
-  import { allmapsTileUrl } from '$lib/core/iiif/annotationUrl';
+  import { onMount } from 'svelte';
+  import { allmapsTileUrl, allmapsEditorSourceUrl } from '$lib/core/iiif/annotationUrl';
+
+  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { fetchUserRole, type UserRole } from '$lib/data/supabase/role';
 
   export let data;
   $: map = data.map;
@@ -45,6 +49,20 @@
       (bbox?.length === 4
         ? `&map=${Math.max(10, Math.min(18, Math.round(Math.log2(360 / Math.max(bbox[2] - bbox[0], 1e-4)))))}/${((bbox[1] + bbox[3]) / 2).toFixed(5)}/${((bbox[0] + bbox[2]) / 2).toFixed(5)}`
         : '');
+
+  // Reopening a published sheet's control points. Staff only: an edit in the
+  // Allmaps Editor lands on annotations.allmaps.org, which is what every map
+  // without its own `annotation_url` renders from — so it moves a live map.
+  const { supabase, session } = getSupabaseContext();
+  let role: UserRole = 'user';
+  onMount(async () => {
+    role = (await fetchUserRole(supabase, session?.user?.id)) ?? 'user';
+  });
+  $: canFixGeoref = role === 'admin' || role === 'mod';
+  $: editorSource = allmapsEditorSourceUrl(map, map.map_iiif_sources ?? []);
+  $: editorUrl = editorSource
+    ? `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(editorSource)}`
+    : null;
 
   let copied = false;
   async function copyTileUrl() {
@@ -117,7 +135,24 @@
         <button class="pill-btn" type="button" on:click={copyTileUrl}>
           {copied ? 'Copied' : 'Copy tile URL'}
         </button>
+        {#if canFixGeoref && editorUrl}
+          <a class="pill-btn" href={editorUrl} target="_blank" rel="noopener">
+            Fix georeference in Allmaps →
+          </a>
+        {/if}
       </div>
+      {#if canFixGeoref && !editorUrl}
+        <p class="share-georef-warn">
+          No IIIF manifest or original image source on this map, so the Allmaps Editor has nothing
+          to open. Add one in the catalog edit modal first.
+        </p>
+      {/if}
+      {#if canFixGeoref && map.annotation_url}
+        <p class="share-georef-warn">
+          This map renders from our own mirrored annotation, so an edit in Allmaps will not show
+          here until someone runs <strong>Fetch latest from Allmaps</strong> in the catalog edit modal.
+        </p>
+      {/if}
       <code class="share-tile-url">{tileUrl}</code>
     </section>
   {/if}
@@ -161,6 +196,11 @@
   .share-trace p {
     margin: 0 0 var(--space-3);
     font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .share-georef-warn {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-xs);
     color: var(--color-text-muted);
   }
   .share-tile-url {

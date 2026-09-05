@@ -31,3 +31,36 @@ export function annotationUrlForSource(source: string): string {
 export function allmapsTileUrl(source: string): string {
   return `https://allmaps.xyz/{z}/{x}/{y}.png?url=${encodeURIComponent(annotationUrlForSource(source))}`;
 }
+
+function withInfoJson(url: string): string {
+  return /\.json($|\?)/.test(url) ? url : `${url.replace(/\/$/, '')}/info.json`;
+}
+
+/**
+ * The URL to hand Allmaps Editor so it reopens an existing map's control points.
+ *
+ * The editor keys a map off its IIIF resource, not off an annotation, so the
+ * source has to be the manifest or image service the map was georeferenced
+ * from. An R2 source is deliberately skipped: `allmaps_id` derives from the
+ * image URL, so opening our mirror would derive a different id and start a
+ * blank map instead of loading the points already placed.
+ *
+ * Returns '' when the map carries nothing the editor can open.
+ */
+export function allmapsEditorSourceUrl(
+  map: {
+    iiif_manifest?: string | null;
+    annotation_url?: string | null;
+    allmaps_id?: string | null;
+  },
+  sources: { iiif_image?: string | null; source_type?: string | null }[] = []
+): string {
+  if (map.iiif_manifest) return withInfoJson(map.iiif_manifest);
+  const original = sources.find((s) => s.source_type !== 'r2' && s.iiif_image)?.iiif_image;
+  if (original) return withInfoJson(original);
+  // An annotation URL is not a IIIF resource, so it never takes /info.json —
+  // appending one 404s. The editor resolves the image from the annotation itself.
+  if (!map.annotation_url && map.allmaps_id)
+    return `https://annotations.allmaps.org/images/${map.allmaps_id}`;
+  return '';
+}
