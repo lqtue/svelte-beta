@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ params }) => {
   const { data: map } = await adminClient()
     .from('maps')
     .select(
-      'id, name, dc_description, year, year_label, creator, dc_publisher, holding_institution, collection, map_type, location, thumbnail, iiif_image, allmaps_id, annotation_url, georef_done, status'
+      'id, name, dc_description, year, year_label, creator, dc_publisher, holding_institution, collection, map_type, location, thumbnail, iiif_image, allmaps_id, annotation_url, georef_done, status, bbox'
     )
     .eq('id', id)
     .in('status', ['public', 'featured'])

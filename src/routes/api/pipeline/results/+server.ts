@@ -4,6 +4,7 @@
  * Body (all parts optional, applied in this order):
  *   extractions:     ocr_extractions rows to upsert (max 500 per request)
  *   map_id + triage_regions: the layout pass's answer, merged into maps.triage
+ *   map_id + triage_grid:    the sheet's printed reference grid, likewise merged
  *   job_id + status: closes the job out via finish_job (done | failed | running)
  *
  * Bundling them means a worker can report "rows written, job done" in one round
@@ -26,6 +27,7 @@ import { adminClient } from '$lib/server/supabaseAdmin';
 import { assertUuid, dbError } from '$lib/server/http';
 import { bboxCentre, pointEwkt, resolveMapWarp, type MapWarp } from '$lib/server/warp';
 import { parseRegion, type SavedTriage } from '$lib/data/maps/triageTypes';
+import { parseGrid } from '$lib/core/geo/mapGrid';
 
 const MAX_ROWS = 500;
 const JOB_STATUSES = ['running', 'done', 'failed'];
@@ -95,6 +97,30 @@ export const POST: RequestHandler = async ({ request }) => {
     const { error: writeErr } = await supabase.from('maps').update({ triage }).eq('id', mapId);
     if (writeErr) dbError(writeErr, 'Could not write the triage');
     applied.regions = regions.length;
+  }
+
+  // The sheet's printed reference grid. Merged for the same reason the regions
+  // are: everything else in the triage belongs to whoever put it there.
+  if (body.triage_grid) {
+    const mapId = assertUuid(body.map_id, 'map_id');
+    const grid = parseGrid(body.triage_grid);
+    if (!grid) throw error(400, 'triage_grid needs a bbox and at least two columns and rows');
+
+    const { data: row, error: readErr } = await supabase
+      .from('maps')
+      .select('triage')
+      .eq('id', mapId)
+      .single();
+    if (readErr) dbError(readErr, 'Could not read the triage');
+    if (!row) throw error(404, 'No such map');
+
+    const triage: SavedTriage = { ...((row.triage as SavedTriage) ?? {}) };
+    triage.grid = grid;
+    triage.grid_at = new Date().toISOString();
+
+    const { error: writeErr } = await supabase.from('maps').update({ triage }).eq('id', mapId);
+    if (writeErr) dbError(writeErr, 'Could not write the triage');
+    applied.grid = `${grid.columns.length}x${grid.rows.length}`;
   }
 
   if (body.job_id) {

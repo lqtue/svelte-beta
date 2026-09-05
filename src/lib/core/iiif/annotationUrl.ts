@@ -19,3 +19,15 @@ export function annotationUrlForSource(source: string): string {
   }
   return `https://annotations.allmaps.org/images/${trimmed}`;
 }
+
+/**
+ * XYZ tile template for a georeferenced map, served warped by the Allmaps
+ * tile server. Paste-able into any editor that takes `{z}/{x}/{y}` — iD on
+ * OpenHistoricalMap, JOSM, QGIS.
+ *
+ * ponytail: leans on allmaps.xyz, a free public service. Self-host
+ * @allmaps/tileserver on the R2 worker if it ever rate-limits us.
+ */
+export function allmapsTileUrl(source: string): string {
+  return `https://allmaps.xyz/{z}/{x}/{y}.png?url=${encodeURIComponent(annotationUrlForSource(source))}`;
+}

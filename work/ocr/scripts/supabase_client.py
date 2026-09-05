@@ -257,6 +257,42 @@ def save_triage_regions(map_id: str, regions: list[dict[str, Any]]) -> int:
     return len(regions)
 
 
+def save_triage_grid(map_id: str, grid: dict[str, Any]) -> None:
+    """Write the sheet's printed reference grid into maps.triage.grid.
+
+    Merged into the triage object rather than replacing it, for the same reason
+    the regions are: the neatline and tile grid beside it belong to whoever drew
+    them.
+    """
+    api = _api_config()
+    if api:
+        _post_results({"map_id": map_id, "triage_grid": grid})
+        return
+
+    url, key = _load_config()
+    cur = requests.get(
+        f"{url}/rest/v1/maps",
+        headers=_headers(key),
+        params={"id": f"eq.{map_id}", "select": "triage"},
+        timeout=30,
+    )
+    cur.raise_for_status()
+    rows = cur.json()
+    if not rows:
+        raise SystemExit(f"No map {map_id}")
+    triage = rows[0].get("triage") or {}
+    triage["grid"] = grid
+    triage["grid_at"] = datetime.now(timezone.utc).isoformat()
+    resp = requests.patch(
+        f"{url}/rest/v1/maps",
+        headers=_headers(key),
+        params={"id": f"eq.{map_id}"},
+        data=json.dumps({"triage": triage}),
+        timeout=30,
+    )
+    resp.raise_for_status()
+
+
 def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:
     """No-op since migration 056.
 

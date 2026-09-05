@@ -60,6 +60,8 @@ export const LAYOUT_COLORS: Record<LayoutCategory, string> = {
   stamp: '#ef4444',
 };
 
+import type { MapGrid } from '$lib/core/geo/mapGrid';
+
 /** `[x, y, width, height]` in source pixels. */
 export type RegionBox = [number, number, number, number];
 
@@ -76,6 +78,10 @@ export type SavedTriage = {
   neatline?: RegionBox;
   regions?: LayoutRegion[];
   regions_at?: string;
+  /** The sheet's printed reference grid, so an index entry's "J 6" becomes a
+   *  position without spotting a single numeral on the map body. */
+  grid?: MapGrid;
+  grid_at?: string;
   tile_size?: number;
   overlap?: number;
   tile_overrides?: Record<string, 'skip' | 'low_res'>;

@@ -463,6 +463,66 @@ _LEGEND_SCHEMA = {
 }
 
 
+_GRID_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "bbox": {
+            "type": "array",
+            "items": {"type": "number"},
+            "description": "[x, y, width, height] of the gridded area on a 0-1000 scale.",
+        },
+        "columns": {"type": "array", "items": {"type": "string"}},
+        "rows": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["bbox", "columns", "rows"],
+}
+
+
+def extract_grid(image: Image.Image, model: str = DEFAULT_MODEL) -> dict:
+    """Read a sheet's printed reference grid as {bbox, columns, rows}.
+
+    The labels are returned as printed rather than as an A-Z range on purpose:
+    sheets skip `I` to keep it apart from `1`, start at `0`, or run past `Z`.
+    Deriving the sequence instead of reading it puts every later column one cell
+    out, which on a city sheet is a few hundred metres and looks perfectly
+    plausible on the map.
+    """
+    from io import BytesIO
+    buf = BytesIO()
+    image.save(buf, format="JPEG", quality=92)
+    image_bytes = buf.getvalue()
+
+    prompt = (
+        "This is a historical map sheet carrying a printed reference grid — the "
+        "ruled squares an index refers to with codes like 'J 6'.\n\n"
+        "Return three things.\n"
+        "1. `bbox`: the gridded area, [x, y, width, height] on a 0-1000 normalized "
+        "scale. Its edges are the OUTER edges of the outermost cells, not the "
+        "neatline and not the paper.\n"
+        "2. `columns`: every column label, left to right, exactly as printed in the "
+        "margin.\n"
+        "3. `rows`: every row label, top to bottom, exactly as printed.\n\n"
+        "Read the labels off the sheet. Do NOT assume they run A, B, C… — many "
+        "sheets skip the letter I so it cannot be confused with the digit 1, and "
+        "some begin at 0. Report exactly the sequence printed, including any gap. "
+        "If the sheet has no reference grid, return an empty `columns` and `rows`."
+    )
+
+    client, _ = _load_client()
+    config = genai_types.GenerateContentConfig(
+        temperature=0,
+        response_mime_type="application/json",
+        response_schema=_GRID_SCHEMA,
+    )
+    resp = client.models.generate_content(
+        model=model,
+        contents=[genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"), prompt],
+        config=config,
+    )
+    import json as _json
+    return _json.loads(resp.text)
+
+
 def extract_legend(image: Image.Image, model: str = DEFAULT_MODEL,
                    bilingual: bool = False) -> list[dict]:
     """Extract a numbered map legend as [{n, name, name_vn?, grid}].

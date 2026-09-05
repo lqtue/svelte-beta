@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
   import PageHero from '$lib/ui/PageHero.svelte';
+  import { allmapsTileUrl } from '$lib/core/iiif/annotationUrl';
 
   export let data;
   $: map = data.map;
@@ -30,6 +31,28 @@
   $: blurb =
     map.dc_description ??
     `${map.name} — a historical map of ${map.location ?? 'Vietnam'} in the Vietnam Map Archive.`;
+
+  // Tracing this sheet into OpenHistoricalMap needs the warped map as XYZ
+  // tiles. Allmaps' tile server does the warping from the annotation we
+  // already host, so there is nothing to generate here — only a URL to hand over.
+  $: tileSource = map.annotation_url ?? map.allmaps_id;
+  $: tileUrl = map.georef_done && tileSource ? allmapsTileUrl(tileSource) : null;
+  $: bbox = (map.bbox ?? null) as number[] | null;
+  $: ohmUrl =
+    tileUrl &&
+    'https://www.openhistoricalmap.org/edit#background=custom:' +
+      tileUrl +
+      (bbox?.length === 4
+        ? `&map=${Math.max(10, Math.min(18, Math.round(Math.log2(360 / Math.max(bbox[2] - bbox[0], 1e-4)))))}/${((bbox[1] + bbox[3]) / 2).toFixed(5)}/${((bbox[0] + bbox[2]) / 2).toFixed(5)}`
+        : '');
+
+  let copied = false;
+  async function copyTileUrl() {
+    if (!tileUrl) return;
+    await navigator.clipboard.writeText(tileUrl);
+    copied = true;
+    setTimeout(() => (copied = false), 1500);
+  }
 
   const facts = (m: typeof map) =>
     [
@@ -79,6 +102,26 @@
     <a class="pill-btn" href="/catalog">Browse the archive</a>
   </div>
 
+  {#if tileUrl}
+    <section class="share-trace">
+      <h2>Trace this sheet in OpenHistoricalMap</h2>
+      <p>
+        The sheet is served as warped map tiles, so it can sit under the OpenHistoricalMap editor
+        while you draw. The button opens the editor with it already set as the background; if the
+        editor does not pick it up, add it by hand under Background → Custom with this URL.
+      </p>
+      <div class="share-actions">
+        <a class="pill-btn" href={ohmUrl} target="_blank" rel="noopener"
+          >Open in OpenHistoricalMap →</a
+        >
+        <button class="pill-btn" type="button" on:click={copyTileUrl}>
+          {copied ? 'Copied' : 'Copy tile URL'}
+        </button>
+      </div>
+      <code class="share-tile-url">{tileUrl}</code>
+    </section>
+  {/if}
+
   {#if places.length}
     <section class="share-places">
       <h2>Places named on this sheet</h2>
@@ -107,6 +150,30 @@
 </main>
 
 <style>
+  .share-trace {
+    margin: 0 0 var(--space-6);
+    text-align: left;
+  }
+  .share-trace h2 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-base);
+  }
+  .share-trace p {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .share-tile-url {
+    display: block;
+    overflow-x: auto;
+    padding: var(--space-2);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+
   .share-places {
     margin: var(--space-6) 0 0;
     text-align: left;

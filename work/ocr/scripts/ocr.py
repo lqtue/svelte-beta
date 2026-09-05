@@ -10,6 +10,7 @@ Subcommands:
   stitch       Composite multiple tiles into one preview image
   list-models  List available Gemini models
   detect-layout  Local (scipy): find legend/cartouche boxes — no API
+  grid           Read the printed reference grid an index refers to
   numerals       Local (Tesseract): spot legend-ref numerals — no API
 """
 
@@ -2196,6 +2197,55 @@ def cmd_detect_layout(args: argparse.Namespace) -> None:
     print(f"→ {out_path}")
 
 
+def cmd_grid(args: argparse.Namespace) -> None:
+    """Read the sheet's printed reference grid into maps.triage.grid.
+
+    A printed index already knows roughly where everything is — "Bệnh Viện Chợ
+    Rẫy ... J 5,6" is a position, at cell accuracy, that cost nothing extra to
+    obtain. This reads the grid those codes refer to, so they can be turned into
+    points without spotting a single numeral on the map body.
+    """
+    base, W, H = _resolve_base_and_dims(args)
+    local_image = getattr(args, "local_image", None)
+    overview = fetch_crop(base, 0, 0, W, H, size=args.render_size, fit=True,
+                          local_image=local_image)
+    print(f"  Overview {overview.size[0]}×{overview.size[1]} of {W}×{H}")
+
+    from gemini_client import extract_grid
+    res = extract_grid(overview, model=args.model)
+
+    cols = [str(c) for c in (res.get("columns") or []) if str(c).strip()]
+    rows = [str(r) for r in (res.get("rows") or []) if str(r).strip()]
+    bb = res.get("bbox") or []
+    if len(cols) < 2 or len(rows) < 2 or len(bb) != 4:
+        print("  No usable reference grid on this sheet.")
+        return
+
+    grid = {
+        "bbox": [int(bb[0] * W / 1000), int(bb[1] * H / 1000),
+                 int(bb[2] * W / 1000), int(bb[3] * H / 1000)],
+        "columns": cols,
+        "rows": rows,
+    }
+    cw = grid["bbox"][2] / len(cols)
+    ch = grid["bbox"][3] / len(rows)
+    print(f"  Grid {len(cols)}×{len(rows)} at {tuple(grid['bbox'])}, cell ≈ {cw:.0f}×{ch:.0f} px")
+    print(f"    columns: {' '.join(cols)}")
+    print(f"    rows:    {' '.join(rows)}")
+
+    map_label = args.map_id or "unknown"
+    out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
+    (out_dir / "grid.json").write_text(json.dumps(grid, indent=2, ensure_ascii=False))
+    print(f"→ {out_dir / 'grid.json'}")
+
+    if getattr(args, "save_triage", False):
+        if not args.map_id:
+            raise SystemExit("--save-triage needs --map-id")
+        from supabase_client import save_triage_grid
+        save_triage_grid(args.map_id, grid)
+        print("  Wrote maps.triage.grid")
+
+
 def cmd_numerals(args: argparse.Namespace) -> None:
     """Local Tesseract pass: spot standalone numerals (legend refs) across the map body.
 
@@ -2572,6 +2622,20 @@ def build_parser() -> argparse.ArgumentParser:
                       help="Max box area as fraction of image (default 0.6)")
     p_dl.add_argument("--run-id", help="Run identifier (default: timestamp)")
     p_dl.set_defaults(func=cmd_detect_layout)
+
+    # ── grid (the printed reference grid an index refers to) ───────────────────
+    p_grid = sub.add_parser("grid",
+        help="Read the sheet's printed reference grid into maps.triage.grid")
+    p_grid.add_argument("--map-id", help="Supabase maps.id UUID")
+    p_grid.add_argument("--iiif-base", help="IIIF image service base URL")
+    p_grid.add_argument("--local-image", help="Read from a local file instead of IIIF")
+    p_grid.add_argument("--render-size", type=int, default=2048,
+                        help="Overview width (default 2048)")
+    p_grid.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
+    p_grid.add_argument("--run-id", help="Run identifier")
+    p_grid.add_argument("--save-triage", action="store_true",
+                        help="Write the grid to maps.triage.grid (needs --map-id)")
+    p_grid.set_defaults(func=cmd_grid)
 
     # ── numerals (local Tesseract — legend-ref digit spotting) ─────────────────
     p_num = sub.add_parser("numerals",
