@@ -35,7 +35,45 @@ export function createWarpedLayer(
   const cast = layer as unknown as { setMap?: (m: unknown) => void };
   cast.setMap?.(map as unknown);
 
+  clearBeforeEachFrame(layer);
+
   return layer;
+}
+
+/**
+ * Wipe the WebGL canvas before every frame the layer draws.
+ *
+ * @allmaps/render's WebGL2Renderer.render() does not clear: the only
+ * gl.clear(COLOR_BUFFER_BIT) it owns sits in clear(), a teardown path that also
+ * empties the tile cache. Per frame it relies on the implicit clear a browser
+ * performs when it composites a canvas whose context was created with
+ * preserveDrawingBuffer false (WarpedMapLayer.ts does not pass the flag, so it
+ * is false). When the compositor coalesces or skips that step — its choice, not
+ * ours, which is why this reproduces on one profile and not another on the same
+ * GPU — the previous frames survive and each new one draws over them. Panning
+ * ghosts along the drag; zooming leaves a scaled fan of copies.
+ *
+ * #renderInternal redraws every map in the viewport each frame, so an explicit
+ * clear first can never leave a gap. Where the browser was already clearing,
+ * this is a no-op.
+ *
+ * ponytail: monkey-patch over a fork. It is six lines against an upstream beta
+ * that may well fix this; drop it when @allmaps/render clears for itself.
+ */
+function clearBeforeEachFrame(layer: WarpedMapLayer): void {
+  const host = layer as unknown as {
+    render: (frameState: unknown) => unknown;
+    renderer?: { gl?: WebGL2RenderingContext };
+  };
+  const inner = host.render.bind(layer);
+  host.render = (frameState: unknown) => {
+    const gl = host.renderer?.gl;
+    if (gl) {
+      gl.clearColor(0, 0, 0, 0); // transparent, so the basemap still shows through
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    }
+    return inner(frameState);
+  };
 }
 
 /**
