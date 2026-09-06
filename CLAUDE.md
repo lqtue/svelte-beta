@@ -13,11 +13,13 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 - `docs/time-machine-plan.md` — label search · temporal fabric · period sources (Track E detail)
 - `docs/platform-design.md` — one workspace for VMA + HACW: what is shared (contracts, basemap, deploy, docs) and what stays per-app, with sequencing
 - `docs/digitalize-guide.md` — **operator guide** for `/contribute/digitalize`: the five triage steps, what each layout category means, the ground-per-call target, and the failure modes that return plausible output while dropping data
+- `docs/api.md` — every server route, its auth class and its contract
+- `docs/deploy.md` — Cloudflare Pages: env in the dashboard, no root `wrangler.toml`, the blank-page-after-deploy effect
 - `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale. `scripts/` holds the living operator scripts; `scripts/oneoff/` the backfills that have already run and stay only as a record.
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker, holding-institution model
 - `docs/strategy.md` (funder-facing), `docs/theory.md`, `docs/user-guide.md` — vision and outward-facing prose, not engineering reference. `docs/journals/` holds dated research notes (`YYMMDD-slug.md`).
 - `contracts/` — JSON Schemas for the shapes VMA shares with other apps (`context`, `label-hit`, `footprint-feature`); checked by `tests/schemaCheck.ts`.
-- `PONYTAIL-DEBT.md` — generated ledger of `ponytail:` shortcuts. Regenerate with `/ponytail-debt`; never hand-edit.
+- `docs/ponytail-debt.md` — generated ledger of `ponytail:` shortcuts. Regenerate with `/ponytail-debt`; never hand-edit.
 - `docs/archive/` — frozen: historical plans, personal application material, and the record of the August 2026 cleanup (`cleanup-2026-08.md`). Do not cite as current; the live debt table is `docs/system-guidelines.md` §11.
 - `work/MapSAM2/` — fine-tuned SAM2 fork (LoRA, training notes) in `TECHNICAL.md` + `VMA_SETUP.md`. Runs on Colab, not locally.
 - `work/ocr/` — OCR pipeline, its own venv at `work/ocr/.venv`, plus `EVAL-BASELINE.md` (measured quality gate).
@@ -38,9 +40,9 @@ npm run deploy       # Build + deploy to Cloudflare Pages via wrangler
 npx wrangler pages dev .svelte-kit/cloudflare  # Local CF preview
 ```
 
-`wrangler.toml` at the repo root configures the Pages project (`pages_build_output_dir = .svelte-kit/cloudflare`, `nodejs_compat`). The R2 tile worker has its own `worker/wrangler.toml`.
+There is no root `wrangler.toml` on purpose — see Deployment. The R2 tile worker has its own `worker/wrangler.toml`.
 
-**Blank page right after a deploy is expected, and self-heals.** Cloudflare Pages serves the new HTML + `entry/app.<hash>.js` before every `_app/immutable/` chunk is reachable at the edge; individual chunks 404 for a minute or two, and which one is missing moves between requests. Because every route sets `ssr = false`, one unreachable chunk means a fully blank document whose only symptom is `Failed to fetch dynamically imported module` (WebKit says `Importing a module script failed`). Wait for propagation and hard-reload before debugging — verify with `curl -o /dev/null -w "%{http_code}"` against the chunk the console names, and retry a few times to see it flip to 200.
+**A blank page right after a deploy is edge propagation, not a bug** — chunks 404 for a minute or two, and with `ssr = false` one missing chunk is a blank document. Wait and hard-reload first; details and the `curl` check in `docs/deploy.md`.
 
 `build` wipes `.svelte-kit/output` and runs `scripts/check-bundle.mjs`, which fails the build if an emitted chunk imports one that wasn't written. That guards against a genuinely inconsistent bundle — it does **not** address the propagation lag above, which no build-time check can see.
 
@@ -221,92 +223,23 @@ Admin client functions: `src/lib/data/admin/adminApi.ts` (map CRUD, image upload
 
 ## API routes (`src/routes/api/`)
 
-Every handler follows the same shape: `requireRole → adminClient → query → json`, using the `$lib/server` helpers `requireRole`/`getRole` (`auth.ts`), `adminClient` (`supabaseAdmin.ts`), and `assertUuid`/`dbError` (`http.ts` — 400 on a malformed id, and no raw Postgres message ever reaches the client).
+Per-route reference: **`docs/api.md`**. The rules:
 
-Admin map CRUD:
-
-- `/api/admin/maps/` — POST create (accepts all DC columns). **No GET** — the list comes from the client via `data/maps/service.ts`.
-- `/api/admin/maps/[id]/` — PATCH update, DELETE.
-- `/api/admin/maps/[id]/image/` — POST upload to Internet Archive.
-- `/api/admin/maps/[id]/annotation/` — PATCH update Allmaps GCPs.
-- `/api/admin/maps/[id]/iiif-sources/` — GET, POST. `.../[sourceId]/` — PATCH (incl. `is_primary`), DELETE.
-- `/api/admin/maps/[id]/mirror-r2/` — POST: fetch the annotation we already have → rewrite source URL to R2 (`iiif.maparchive.vn`) → Supabase Storage → upsert R2 row as primary → return `tile_command`.
-- `/api/admin/maps/[id]/sync-allmaps/` — POST: same, but re-reads from allmaps.org first ("Fetch latest from Allmaps" in MapEditHostingTab). Both share `$lib/server/annotationMirror.ts`, which writes **twice**: `annotations/{mapId}.json` (what the app reads) and `annotations/{mapId}/{ISO}.json` as history, since Storage has no versioning.
-- `/api/admin/maps/fetch-iiif-metadata/` — POST `{ manifestUrl }` → parsed IIIF metadata + Allmaps probe.
-- `/api/admin/maps/lookup-allmaps-id/` — POST `{ iiifImage }` → derive Allmaps image ID + probe.
-- `/api/admin/maps/sync-georef/` — POST: probe the Allmaps annotation server for every map with `allmaps_id` and `georef_done = false`, flip on hits. Idempotent; cron-safe. Returns `{ checked, flipped, ids }`.
-
-Pipeline:
-
-- `/api/admin/maps/[id]/layout/` — POST enqueues a `layout` job (202, or 409 when one is in flight); GET the saved regions plus the latest layout job. The worker runs `ocr.py scout --save-triage`.
-- `/api/admin/maps/[id]/ocr/` — GET run summaries + the latest `pipeline_jobs` row for the map; POST enqueues an `ocr` job (202 `{ job_id, run_id, status }`, or 409 when one is already in flight).
-- `/api/admin/maps/[id]/ocr/apply/` — POST: turn `ocr_extractions` above a confidence threshold into `label_pins` (bbox centre in source-image px). Body `{ run_id?, min_confidence? }`.
-- `/api/admin/maps/[id]/ocr-review/` — GET extractions + runs; POST manual bbox; PATCH update text/category/status/coords; PUT batch status (`?window=` reverts the last N minutes).
-- `/api/admin/maps/[id]/ocr-review/revert-recent/` — GET count, POST undo the current reviewer's recent validations (thin wrapper over `$lib/server/ocrReview.ts`).
-- `/api/admin/maps/[id]/pipeline/` — GET the composed stage + timestamps; PATCH records a **human** stage (`reviewed`, `seg_reviewed`, `exported`, `idle`) via `set_review_mark`. The machine stages come from `pipeline_jobs` and are rejected with a 400.
-- `/api/admin/footprints/` — GET/PATCH SAM2 review (staff only).
-- `/api/admin/stories/` — GET the `submitted` queue, PATCH a decision (`approved` / `rejected` / `draft`) via `set_story_status`. Admin **or mod**.
-- `/api/contribute/footprints/` — POST a hand-traced polygon. Any signed-in user; `user_id` comes from the session, never the body, and `assertUnderRateLimit` caps it at 300/hour. `data/supabase/footprints.ts:createFootprint` posts here rather than inserting directly.
-
-Worker-authenticated (`Authorization: Bearer <worker_keys token>`, **not** a user session — see `$lib/server/workerAuth.ts`):
-
-- `/api/pipeline/claim/` — POST `{ kinds, worker }` → the claimed job or `{ job: null }`. A key scoped to certain kinds cannot claim outside them.
-- `/api/pipeline/results/` — POST `extractions` (≤500 rows, upserted), `map_id` + `triage_regions` (the layout pass, **merged** into `maps.triage` so it cannot clobber a hand-drawn neatline), and/or `job_id` + `status` (→ `finish_job`). There is no stage field: closing the job advances the stage.
-- `/api/pipeline/execute/` — POST `{ job_id }` for the kinds whose work belongs on the server (`mirror_annotation`, `sync_allmaps`): they need the service key, which a worker deliberately lacks. The handler runs the mirror and closes the job itself. Kinds with real compute (`ocr`, `seg`, `tile_to_r2`) are rejected with a 400 — those run on the worker.
-
-Mint a token with `node --env-file=.env scripts/mint-worker-key.mjs <name> [kinds]`; it prints once and only the sha256 is stored. Revoke by setting `worker_keys.revoked_at`.
-- `/api/export/footprints/` — data export (`?format=coco&map_id=`).
-
-Public / other:
-
-- `/api/maps/[id]/legend-points/` — **public** GET. Numbered-legend references placed on the ground: each body numeral (`category = 'legend_ref'`) warped to lng/lat via the map's Allmaps georeference, joined to its `legend_entry` for a name. Legend-internal numbers are dropped. Rendered by `src/lib/features/explore/LegendPointsLayer.svelte`.
-- `/api/admin/scout/`, `/api/admin/scout/[id]/` — see `docs/admin-tooling.md`.
-- `/api/admin/status/` — GET the tallies behind `/admin/status` (`head: true` counts, plus the small failed-job list). Admin or mod.
-- `/api/context/` — **public** GET `?lng=&lat=&radius=&year_from=&year_to=&limit=`: everything the archive knows about a spot — covering maps, nearby OCR labels and reviewed footprints, story points — via the `context_at` RPC (mig 066). Every item carries `distance_m` and `geom_rmse`; ungeoreferenced maps are absent by construction. Design in `docs/platform-design.md` §0.
-- `/api/press/` — **public** GET `?q=&year=&window=&limit=&provider=&variants=`: newspaper hits ±N years for a label, from Gallica and the National Library of Vietnam. No auth, no database, edge-cached a day; always 200 so a provider outage thins the /explore panel instead of erroring.
-- `/api/search/` — unified GET over `maps` + (admin/mod) `scout_candidates`. Postgres tsvector via `.textSearch('search_vector', q, { config: 'simple' })`. Query: `q, institution, type, period, source, scoutSource, category, georef, include=maps,scout,labels, limit, offset`. Returns `{ maps, scout, labels, total, facets, periods, role }`; facet tallies are declarative via `$lib/server/facets.ts` ("all-but-this-dimension"). Public users get `status IN ('public','featured')` server-enforced; `include=scout` is silently dropped for non-admin/mod. **`include=labels`** searches *inside* the maps: the `search_labels` RPC (mig 065, `pg_trgm` word-similarity ≥ 0.5 over unaccented `ocr_extractions` text, one row per map × label, drafts gated by role) and each hit's bbox centre warped to lng/lat via `$lib/server/transformer.ts`. Rendered by `LabelHits.svelte` on /catalog (links to `/explore?map=<id>&at=<lng>,<lat>`) and in /explore's browse pane (stacks the map, lands on the spot). Only maps that have been OCR'd can hit — `scripts/enqueue_ocr_all.mjs` queues the rest — triaged sheets only, unless `--untriaged`.
-- `/auth/callback/`.
+- Every handler is `requireRole → adminClient → query → json`, using the `$lib/server` helpers `requireRole`/`getRole` (`auth.ts`), `adminClient` (`supabaseAdmin.ts`) and `assertUuid`/`dbError` (`http.ts` — 400 on a malformed id, and no raw Postgres message ever reaches the client).
+- Three auth classes: **admin/mod session** (`/api/admin/*`), **any signed-in user** (`/api/contribute/*`, `user_id` from the session, rate-limited by `assertUnderRateLimit`), and **worker token** (`/api/pipeline/*`, `Authorization: Bearer <worker_keys token>` via `$lib/server/workerAuth.ts`; mint with `scripts/mint-worker-key.mjs`). `/api/search`, `/api/context`, `/api/press`, `/api/maps/[id]/legend-points` are public and enforce `status IN ('public','featured')` server-side.
+- Enqueue, never execute: routes that start pipeline work insert a `pipeline_jobs` row and return 202 (409 if one is in flight). Nothing runs until a worker claims it. `/api/pipeline/execute` is the one exception, for kinds that need the service key.
+- Human pipeline stages (`reviewed`, `seg_reviewed`, `exported`, `idle`) are the only ones PATCHable; machine stages derive from jobs and are rejected with 400.
 
 `/api/admin/upload-image` and `/api/admin/labels/*` were deleted (Aug 2026) — do not reintroduce references.
 
 ## Database
 
-Schema lives in `supabase/migrations/` (head **070**). Key tables:
+Schema: `supabase/migrations/` (head **070**). Table-by-table reference and the rules behind each constraint: **`docs/db-guidelines.md`** §11. The rules in one breath:
 
-| Table | Purpose | Notes |
-|-------|---------|-------|
-| `maps` | Map catalogue | `id` (uuid), `allmaps_id`, `annotation_url` (mig 047), `iiif_image`, `iiif_manifest`, `source_type`, `holding_institution` (mig 044), `collection`, `map_type`, `bbox`, `status`, `thumbnail`, full DC fields, plus `georef_done`, `help_needed`, `legend_done`, `priority`, `label_config`, `triage` (mig 069, `regions` added by 070) |
-| `profiles` | Per-user role | `user`, `mod`, `admin`; read via `fetchUserRole` |
-| `scout_candidates` | External discoveries (mig 045) | `source`, `external_id` (unique with source), `manifest_url`, `score`, `category`, `status` (`pending/approved/rejected/ingested`), `map_id` on ingest, `raw` JSONB |
-| `map_iiif_sources` | Multiple IIIF sources per map | `map_id → maps.id`, `source_type`, `is_primary`, `sort_order`. Partial unique index = one primary per map; trigger syncs primary to `maps.iiif_image` |
-| `map_opens` | Per-map open tally (mig 049) | Fire-and-forget insert from /explore |
-| `label_pins` | Point annotations | `map_id → maps.id`, pixel coords. `label_tasks` was dropped in mig 038 |
-| `footprint_submissions` | Polygon traces + SAM2 output | `map_id → maps.id`; status ∈ `draft/submitted/needs_review/approved/rejected`, source ∈ `volunteer/sam-auto/sam-corrected/import` (both widened in mig 055 — 038's lists rejected every SAM2 write); `pixel_polygon`; `run_id` (mig 057) pins a segmentation run so the OCR join cannot mix runs |
-| `annotation_sets` | User GeoJSON | `map_id → maps.id` nullable, `user_id → auth.users` |
-| `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join. Read policy inherits the map's gate since mig 065 (published, or any signed-in user) |
-| `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (10 values incl. `join` mig 061, `layout` mig 070) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs |
-| `worker_keys` | Per-machine revocable worker credentials (mig 053) | `token_hash` (sha256), `kinds`, `revoked_at`. Written in step 2; the table exists now |
-| `map_pipeline_status` | Per-map pipeline state — **a view since mig 056** | Machine stages derived from `pipeline_jobs`, human stages from `map_review_marks`. Read-only; nothing writes it |
-| `map_review_marks` | The three stages a person asserts (mig 056) | `reviewed_at`, `seg_reviewed_at`, `exported_at`. Written only by the `set_review_mark` RPC |
-| `stories`, `story_points`, `story_progress` | Stories/tours | `hunts` / `hunt_stops` were dropped in mig 034. Since mig 059 a story has `status` (`draft/submitted/approved/rejected`) + `reviewed_by`/`reviewed_at`, and **`is_public` is gone** — publishing submits for review, and only `approved` is publicly readable |
-| `user_favorites` | Saved maps | via `data/supabase/favorites.ts` |
-| `legend_submissions`, `map_help_requests`, `metadata_submissions` | Community contributions | write paths only; no dedicated UI review screen yet |
-
-`maps.status` (mig 038): `draft | public | featured`. Inserts default to `draft`. The older `pending_georef → georeferenced → processing → published` values fail `maps_status_check`.
-
-**Status transitions live in Postgres** (mig 054), not in the API: `set_extraction_status(status, user, ids?, map_id?, run_id?)` applies the `validated_at`/`validated_by` stamp, `revert_recent_validations(map_id, user, window_mins)` undoes one reviewer's recent work, and `set_footprint_status(id, status, user, …)` moves a polygon out of `needs_review` exactly once and marks a reshaped one `sam-corrected`; `set_review_mark(map_id, stage, user)` (mig 056) records a human pipeline stage. With `claim_job`/`finish_job` (mig 053) these are the write paths the API, the workers and any future direct client all share. All are `security definer`, granted to `service_role` only.
-
-**One visibility model on `maps`** (mig 060): the `status` enum. `is_public` / `is_featured` were dropped and the four RLS policies that read them rewritten onto `status`. The only `is_public` left is `annotation_sets.is_public`, a per-user sharing flag, not map visibility. Do not add a second model.
-
-`source_type` (mig 027, extended by mig 041): `ia | bnf | efeo | gallica | rumsey | self | other | r2`.
-
-**Draft maps are not anonymously readable** (mig 063): `maps_select_all … using (true)` had stood since migration 001, so the publishable key — which ships in every client bundle — returned every draft row. The gate is authentication, not role: `status in ('public','featured') or auth.uid() is not null`. Restricting to admin/mod would break open contribution, because `fetchGeorefQueue` selects drafts by status and the digitalize/trace pickers are mostly unpublished maps. Covered by a write smoke that fails against the old policy.
-
-**A published map must be georeferenceable** (mig 062): `status in ('public','featured')` requires `annotation_url` **or** `allmaps_id`. Not `annotation_url NOT NULL` as originally planned — that deadlocks, since publishing is what enqueues `mirror_annotation`. Full self-hosting is the queue's job, not the constraint's.
-
-**Publishing enqueues hosting work** (mig 058): moving a map to `public`/`featured` fires `enqueue_publish_jobs()`, which queues `mirror_annotation` (when `annotation_url` is null) and `tile_to_r2` (when `source_type` isn't already `r2`). `on conflict do nothing` rides the one-live-job index, so re-publishing never duplicates. **No worker runs those two kinds yet** — the rows queue up, and `annotation_url NOT NULL` for public maps waits until the queue can drain.
-
-**Full-text search** (mig 046): both `maps` and `scout_candidates` have a `search_vector tsvector GENERATED STORED` column + GIN index. `simple` config (not `english`) is intentional — the corpus is multilingual French/Vietnamese/English. Query via `.textSearch('search_vector', q, { config: 'simple', type: 'plain' })`.
+- `maps.status` is `draft | public | featured` and is the **only** visibility model (mig 060). Draft maps are readable by any signed-in user, never anonymously (mig 063). A published map must carry `annotation_url` **or** `allmaps_id` (mig 062), and publishing enqueues `mirror_annotation` + `tile_to_r2` (mig 058).
+- **Status transitions live in Postgres**, not the API: `set_extraction_status`, `revert_recent_validations`, `set_footprint_status`, `set_review_mark`, `claim_job`, `finish_job`. All `security definer`, `service_role` only. New write paths reuse them.
+- `pipeline_jobs` is the queue (one live job per kind × map); `map_pipeline_status` is a **view**; `map_review_marks` holds the three human stages.
+- Full-text search uses the `simple` tsvector config on purpose — the corpus is French/Vietnamese/English.
 
 ## Admin tooling
 
@@ -332,39 +265,10 @@ Full command reference and design rationale in `docs/pipelines.md`:
 
 ## Deployment
 
-Cloudflare Pages adapter. Build output: `.svelte-kit/cloudflare`. Config: `wrangler.toml`.
+Cloudflare Pages adapter, output `.svelte-kit/cloudflare`, deployed by `npm run deploy` (`wrangler pages deploy .svelte-kit/cloudflare --project-name vmabeta`). The full story, including the ten dead builds: **`docs/deploy.md`**. The rules:
 
-**Environment lives in the Cloudflare dashboard, and `wrangler.toml` must not exist.**
-A root `wrangler.toml` carrying `pages_build_output_dir` makes the Wrangler file the
-source of truth for the Pages project, and Cloudflare then replaces the dashboard's
-entire environment with what that file declares — build variables *and* runtime
-secrets. Secrets cannot live in a committed file, so the file cannot be used here.
-
-Both halves of that were learned the expensive way:
-
-- With the file present and no `[vars]`, the build logged `Build environment variables:
-  (none found)` and rollup failed on the first `$env/static/public` import
-  (`"PUBLIC_SUPABASE_URL" is not exported by "virtual:env/static/public"`). Ten
-  consecutive preview builds died this way while `npm run build` stayed green locally.
-- Adding `[vars]` fixed the build, and the deploy then failed at runtime instead:
-  `Error: supabaseKey is required.` — `wrangler pages secret put` had reported success,
-  but the config file had displaced the secret store too.
-
-So: `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` are
-plain **Text** variables in Settings → Variables and Secrets; `SUPABASE_SERVICE_KEY`,
-`IA_S3_ACCESS_KEY` and `IA_S3_SECRET_KEY` are **Secret** there. Build command, output
-directory (`.svelte-kit/cloudflare`) and `nodejs_compat` are dashboard settings too.
-Each environment (Production, Preview) holds its own copy — a preview deployment with
-no secrets returns 500 from every route that needs one, and nothing inherits.
-
-`npm run deploy` therefore passes the directory explicitly:
-`wrangler pages deploy .svelte-kit/cloudflare --project-name vmabeta`.
-
-Secrets are read through `$env/static/private`, which resolves them at **build** time.
-`$env/dynamic/private` was tried and does not work here — the three secrets came back
-undefined in Pages Functions (`Error: supabaseKey is required.` on every route using
-`adminClient()`), both with and without a Wrangler config. Consequence: every environment
-that builds needs all three present, Preview included, or the build fails on the first
-import. CI has no dashboard, so
-`.github/workflows` does `cp .env.test .env` before `check` and `build` — which is why CI
-stayed green through all ten build failures.
+- **No root `wrangler.toml`.** One that carries `pages_build_output_dir` replaces the dashboard's whole environment, secrets included. The R2 worker's `worker/wrangler.toml` is separate and fine.
+- **Environment lives in the Cloudflare dashboard**, per environment (Production and Preview each hold their own copy; nothing inherits). `PUBLIC_*` are Text variables; `SUPABASE_SERVICE_KEY`, `IA_S3_*` are Secrets. Build command, output dir and `nodejs_compat` are dashboard settings too.
+- **Secrets resolve at build time** via `$env/static/private`. `$env/dynamic/private` returns undefined in Pages Functions. So every environment that builds needs all three present, or the build fails on the first import. CI copies `.env.test` to `.env` before `check` and `build`.
+- Never import a Node builtin bare; use the `node:` prefix or the Functions bundle publishes nothing.
+- A blank page right after a deploy is edge propagation, not a bug. Wait, hard-reload, then debug.

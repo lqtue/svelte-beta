@@ -41,4 +41,4 @@ Carried over unticked from that tracker:
 - **a11y stragglers** — `CatalogDetailDrawer:56`, `ReviewSidebar:104`, `login/+page.svelte:45` (`onclick=` instead of `on:click`), two `line-clamp` cases.
 - **Mobile gaps in contribute** — `OcrSidebar` bind/`on:filter` and the Segmentation tab are desktop-only.
 
-See also the debt tables in `docs/system-guidelines.md` §11 and `docs/db-guidelines.md`, and the shortcut ledger in `PONYTAIL-DEBT.md`.
+See also the debt tables in `docs/system-guidelines.md` §11 and `docs/db-guidelines.md`, and the shortcut ledger in `docs/ponytail-debt.md`.

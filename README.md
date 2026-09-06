@@ -130,7 +130,9 @@ Start with `CLAUDE.md` — it is the map of the repo and the rules, written for 
 | --- | --- |
 | `docs/ROADMAP.md` | The one tracker. Ship/harden, architecture steps, OCR↔SAM2 product, burn-down |
 | `docs/system-guidelines.md` | Layering rule, page structure, component patterns, known debt (§11) |
-| `docs/db-guidelines.md` | Schema conventions every migration follows |
+| `docs/db-guidelines.md` | Schema conventions every migration follows, plus the table-by-table reference (§11) |
+| `docs/api.md` | Every server route, its auth class and its contract |
+| `docs/deploy.md` | Cloudflare Pages: env in the dashboard, no root `wrangler.toml`, the blank-page effect |
 | `docs/design-system.md` | Tokens, the CSS file map, page template |
 | `docs/digitalize-guide.md` | Operator guide for `/contribute/digitalize` |
 | `docs/pipelines.md` | OCR + MapSAM2 command reference and rationale |

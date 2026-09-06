@@ -98,6 +98,23 @@ python work/ocr/scripts/eval.py --run-id baseline-clahe --clahe
 
 Default it on only if recall improves and precision does not fall — a pre-pass that finds two more street names while inventing three is a loss. Record the numbers in `EVAL-BASELINE.md` either way, including a null result, so nobody re-runs this experiment blind.
 
+### Files (`work/ocr/scripts/`)
+
+| File | One line |
+| --- | --- |
+| `ocr.py` | The CLI: `scout`, `batch`, `layout`, the local passes, `--db` writes. Everything below is a helper it imports |
+| `gemini_client.py` | Gemini wrapper: key rotation across `GEMINI_API_KEYS`, retries, model default |
+| `prompt.py` | Versioned prompts `v1`–`v8` + scout, the JSON schemas, and the canonical coordinate contract |
+| `iiif_tiles.py` | IIIF tile fetcher and grid utilities: scale levels, level0 addressing, colour pre-pass, CLAHE. `--self-check` |
+| `local_vision.py` | Offline passes with no API call (geometry, digits) that run free on the M-series |
+| `cache.py` | Disk cache for Gemini results keyed by SHA256(image + prompt + model + schema version) |
+| `supabase_client.py` | DB access with two transports: worker API (`VMA_API_URL` + key) or service key when run by hand |
+| `join_labels.py` | Level-aware label ↔ footprint join (writes `footprint_id`). `--self-check` |
+| `dictionary.py` | Offline gazetteer of every name read so far → `outputs/dictionary.{json,md}`. `--self-check` |
+| `eval.py`, `eval_metrics.py` | The quality gate: score an OCR or seg run against reviewed ground truth. Baseline in `EVAL-BASELINE.md` |
+| `backfill_full800.py` | One-off: store the `full/800,` derivative in R2 for every published map. `--self-check` |
+| `fix_info_scalefactors.py` | One-off: drop scale factors a stored `info.json` advertises but the pyramid does not hold. `--self-check` |
+
 ### Local passes (no API — run on the M-series for free)
 
 Two subcommands offload the geometry/digit parts of map OCR to local tools, keeping Gemini for semantic text (place names, legend descriptions). Both live in `work/ocr/scripts/local_vision.py`.
