@@ -55,10 +55,20 @@ matching an edge-cached Pages asset from the same location) and 1.9 s for the
 same twelve. The `immutable` header we had always sent only ever reached the one
 browser that asked for the tile.
 
-`info.json` is deliberately excluded — the worker rewrites it per request so its
-`id` names this service — as is `HEAD` (`cache.match` keys on GET) and anything
-with `?force_proxy`. Only `response.ok` is stored, because a 404 means the tile
-is absent from R2 *and* refused by the origin, and either can change.
+`info.json` is cached too, at `s-maxage=3600`. The rewrite it goes through is a
+pure function of the request URL — the `id` it injects is that URL minus
+`/info.json` — so a URL-keyed cache cannot serve a wrong answer, and it is worth
+caching because it is head-of-line: the renderer needs the image's dimensions
+before it can ask for one tile. 300-600 ms → ~130 ms. The hour (rather than a
+year) is because a re-tiled map can change size; **after re-running
+`tile_map.sh` on a map that is already live, wait the hour or purge that URL**.
+`HEAD` is excluded (`cache.match` keys on GET), as is anything with
+`?force_proxy`. Only `response.ok` is stored, because a 404 means the tile is
+absent from R2 *and* refused by the origin, and either can change.
+
+The app also preconnects to `iiif.maparchive.vn` and the Supabase host in
+`src/app.html`: both handshakes measured 70-180 ms and neither began until the
+bundle asked for something.
 
 Two things this does not cover, in the order they are worth doing:
 
@@ -69,8 +79,13 @@ Two things this does not cover, in the order they are worth doing:
 - **Misses still cost a full R2 trip per edge machine.** A colo's cache is not
   shared between its machines; repeat requests measured ~130 ms with occasional
   420 ms outliers, which is a machine that had not seen the tile. Tiered Cache
-  (dashboard → Caching → Tiered Cache) gives the colo one upstream to ask
-  instead of each machine asking R2.
+  does **not** fix this, despite being free on this plan: it works on `fetch()`
+  to an origin, and this worker reads R2 over a binding, so there is no origin
+  request for it to tier. The version that would work is reading R2 over an
+  **R2 custom domain** with `fetch(url, { cf: { cacheEverything: true } })`
+  instead of the binding — that puts the read on the normal CDN path, which
+  Tiered Cache and range requests both understand, and would fix the basemap in
+  the same move. Costs one extra hop on a miss.
 
 ### Why pre-tiled
 

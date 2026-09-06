@@ -7,6 +7,12 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#faf6f0" />
+    <!-- Every map view fetches its rows from Supabase and then dozens of tiles
+         from the IIIF worker. Both handshakes measured 70-180ms and neither
+         starts until the bundle asks, so they sit at the head of the critical
+         path. Warming them costs one connection each. -->
+    <link rel="preconnect" href="https://iiif.maparchive.vn" crossorigin />
+    <link rel="preconnect" href="https://trioykjhhwrruwjsklfo.supabase.co" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

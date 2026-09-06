@@ -86,11 +86,19 @@ export default {
     // colo's cache; the `immutable` header we already send only ever reached
     // the one browser that asked.
     //
-    // info.json is excluded: the worker rewrites it per request (the `id` has
-    // to name this service) and it is already sent max-age=0. HEAD is excluded
-    // because cache.match keys on GET.
-    const cacheable =
-      request.method === 'GET' && !rest.endsWith('.json') && !url.searchParams.has('force_proxy');
+    // info.json is cached too. The rewrite it goes through is a pure function
+    // of the request URL — the `id` it injects is that URL minus /info.json —
+    // so a cache keyed on the URL cannot serve a wrong answer. It is worth
+    // caching because it is head-of-line: the renderer needs the image's
+    // dimensions before it can ask for a single tile, so its latency is added
+    // to every map view rather than overlapped with anything.
+    //
+    // Its s-maxage is an hour rather than a year because a re-tiled map can
+    // change size. After running tile_map.sh again on a map that is already
+    // live, either wait the hour or purge that URL from the dashboard.
+    //
+    // HEAD is excluded because cache.match keys on GET.
+    const cacheable = request.method === 'GET' && !url.searchParams.has('force_proxy');
     const cache = caches.default;
 
     if (cacheable) {
@@ -164,7 +172,9 @@ export default {
         return new Response(text, {
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=0',
+            // max-age for the browser, s-maxage for the colo. The old
+            // max-age=0 meant the edge would not hold this at all.
+            'Cache-Control': 'public, max-age=60, s-maxage=3600',
             ...CORS_HEADERS,
           },
         });
@@ -231,10 +241,12 @@ export default {
       }
 
       return new Response(text, {
-        // Cache info.json for 1 hour in browser to avoid hammering upstream (Gallica rate limits)
+        // An hour in the browser and at the colo. Upstream here is Gallica or
+        // archive.org, both of which rate-limit, so a shared cache in front of
+        // them is worth more than a private one.
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=3600',
+          'Cache-Control': 'public, max-age=3600, s-maxage=3600',
           ...CORS_HEADERS,
         },
       });
