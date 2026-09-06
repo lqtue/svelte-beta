@@ -50,7 +50,7 @@ async function serveRange(env: Env, key: string, request: Request): Promise<Resp
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
@@ -62,6 +62,10 @@ export default {
 
     // /basemap/{file}.pmtiles — the OpenStreetMap basemap, self-hosted so the
     // app depends on no third-party tile server. Range requests only.
+    //
+    // Not edge-cached: cache.put() rejects a 206, and every read here is a
+    // range read. Putting this file behind an R2 custom domain would let
+    // Cloudflare's CDN serve the ranges itself — see docs/admin-tooling.md.
     const basemap = url.pathname.match(/^\/basemap\/([A-Za-z0-9._-]+)$/);
     if (basemap) return serveRange(env, `basemap/${basemap[1]}`, request);
 
@@ -72,6 +76,46 @@ export default {
     const mapId = match[1];
     const rest = decodeURIComponent(match[2] || '');
     const key = `tiles/${mapId}${rest}`;
+
+    // ── Edge cache ────────────────────────────────────────────────────────
+    // A Worker response is not cached unless we cache it, so before this every
+    // tile request — including one for a tile another visitor had already
+    // fetched through the same colo — went to R2 storage: measured 310-950ms
+    // TTFB from HKG, no cf-cache-status header at all, 7.1s for 12 sequential
+    // tiles. A derivative of a scanned map never changes, so it belongs in the
+    // colo's cache; the `immutable` header we already send only ever reached
+    // the one browser that asked.
+    //
+    // info.json is excluded: the worker rewrites it per request (the `id` has
+    // to name this service) and it is already sent max-age=0. HEAD is excluded
+    // because cache.match keys on GET.
+    const cacheable =
+      request.method === 'GET' && !rest.endsWith('.json') && !url.searchParams.has('force_proxy');
+    const cache = caches.default;
+
+    if (cacheable) {
+      const hit = await cache.match(request);
+      if (hit) return hit;
+    }
+
+    const response = await this.serveIiif(request, env, url, mapId, rest, key);
+
+    // Only success: a 404 here means the tile is missing from R2 *and* the
+    // origin refused it, and both of those can stop being true.
+    if (cacheable && response.ok) {
+      ctx.waitUntil(cache.put(request, response.clone()));
+    }
+    return response;
+  },
+
+  async serveIiif(
+    request: Request,
+    env: Env,
+    url: URL,
+    mapId: string,
+    rest: string,
+    key: string
+  ): Promise<Response> {
 
     // ── R2 cache hit ──────────────────────────────────────────────────────
     let obj = null;

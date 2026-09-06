@@ -45,6 +45,33 @@ Self-hosted IIIF tile serving via Cloudflare R2 + Worker at `https://iiif.maparc
 
 Deploy: `cd worker && npx wrangler deploy --env production`. A bare `wrangler deploy` updates only the default env (orphan worker on `workers.dev`) and does NOT update the production route.
 
+**Edge cache (2026-09-06):** the worker stores every successful tile response in
+`caches.default` and checks it before touching R2. A Worker response is not
+cached unless the Worker caches it, so until this landed every tile request —
+including one for a tile the same colo had already served to someone else — was
+a round trip to R2 storage: 310-950 ms TTFB from HKG, no `cf-cache-status`
+header at all, 7.1 s for 12 sequential tiles. After: ~130 ms warm (the floor,
+matching an edge-cached Pages asset from the same location) and 1.9 s for the
+same twelve. The `immutable` header we had always sent only ever reached the one
+browser that asked for the tile.
+
+`info.json` is deliberately excluded — the worker rewrites it per request so its
+`id` names this service — as is `HEAD` (`cache.match` keys on GET) and anything
+with `?force_proxy`. Only `response.ok` is stored, because a 404 means the tile
+is absent from R2 *and* refused by the origin, and either can change.
+
+Two things this does not cover, in the order they are worth doing:
+
+- **The basemap is still uncached.** `cache.put()` rejects a 206 and every
+  PMTiles read is a range read. The fix is an R2 custom domain for
+  `basemap/*`, where Cloudflare's CDN serves ranges natively with no Worker in
+  the path — a dashboard change plus `BASEMAP_PMTILES_URL`.
+- **Misses still cost a full R2 trip per edge machine.** A colo's cache is not
+  shared between its machines; repeat requests measured ~130 ms with occasional
+  420 ms outliers, which is a machine that had not seen the tile. Tiered Cache
+  (dashboard → Caching → Tiered Cache) gives the colo one upstream to ask
+  instead of each machine asking R2.
+
 ### Why pre-tiled
 
 Historical scans never change, so tiling once means zero compute at request time and no dependency on Internet Archive or Gallica staying up. `vips dzsave` takes any JPEG/PNG/TIFF directly — no pyramidal TIFF step. R2 egress is free, so tile serving costs storage only (~$0.15/mo at 20 maps × ~500 MB; ~$1.50/mo at 200).
