@@ -68,7 +68,11 @@ if [[ -n "$ORIGINAL_IIIF" ]]; then echo "→ Proxy Target: $ORIGINAL_IIIF"; fi
 # Download if URL, copy if local path
 if [[ "$SOURCE" == http* ]]; then
   echo "→ Downloading source image..."
-  curl -L --progress-bar "$SOURCE" -o "$TMPDIR/source.jpg"
+  # --fail so an upstream error page never lands in source.jpg and dies later as
+  # a confusing vips error; --retry because both IA and Gallica flake on
+  # full-resolution fetches (504s, truncated transfers, momentary DNS misses)
+  # and one flake should not cost the whole map.
+  curl -L --fail --retry 5 --retry-all-errors --retry-delay 5 --progress-bar "$SOURCE" -o "$TMPDIR/source.jpg"
 else
   cp "$SOURCE" "$TMPDIR/source.jpg"
 fi
