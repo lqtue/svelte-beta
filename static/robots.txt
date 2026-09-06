@@ -1,3 +1,8 @@
 # allow crawling everything by default
 User-agent: *
 Disallow:
+
+# /map/<id> and /place/<slug> render without JavaScript, but the catalog fills
+# its table from /api/search on the client, so there is no in-page path to them.
+# The sitemap is that path.
+Sitemap: https://maparchive.vn/sitemap.xml

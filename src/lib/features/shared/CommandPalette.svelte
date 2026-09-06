@@ -19,12 +19,8 @@
   import { goto } from '$app/navigation';
   import { paletteOpen, closePalette } from '$lib/core/utils/commandPalette';
   import { debounce } from '$lib/core/utils/debounce';
-  import {
-    destinationsFor,
-    matchDestinations,
-    placeHref,
-    type Destination,
-  } from './paletteDestinations';
+  import { destinationsFor, matchDestinations, type Destination } from './paletteDestinations';
+  import { placeHref } from '$lib/core/utils/placeKey';
 
   /** Role of the signed-in visitor, or null. Gates which pages are offered. */
   export let role: string | null = null;
@@ -66,6 +62,8 @@
   let searchError = '';
   let input: HTMLInputElement | undefined;
   let listEl: HTMLDivElement | undefined;
+  /** Whatever had focus when the palette opened, so Escape gives it back. */
+  let opener: HTMLElement | null = null;
 
   let maps: MapHit[] = [];
   let places: PlaceRow[] = [];
@@ -97,9 +95,13 @@
     })),
     ...labels.map((l): Row => ({
       kind: 'label',
+      // `?at=<lng>,<lat>`, not a `#@…` camera hash: /explore force-zooms to the
+      // sheet's bounds when it applies `?map=`, which lands *after* a hash the
+      // browser set on load and silently overwrites it. `?at=` is applied after
+      // that zoom, and is what pulses the spot. LabelHits and /place both use it.
       href:
         l.lng != null && l.lat != null
-          ? `/explore?map=${l.map_id}#@${l.lat},${l.lng},17z,0r`
+          ? `/explore?map=${l.map_id}&at=${l.lng.toFixed(6)},${l.lat.toFixed(6)}`
           : `/explore?map=${l.map_id}`,
       title: l.text,
       sub: l.map_name ?? 'On a map',
@@ -119,7 +121,7 @@
     }
     try {
       const res = await fetch(
-        `/api/search?q=${encodeURIComponent(q)}&include=maps,places,labels&limit=6`
+        `/api/search?q=${encodeURIComponent(q)}&include=maps,places,labels&limit=6&fields=slim`
       );
       if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();
@@ -144,15 +146,25 @@
   }
 
   async function open() {
+    opener = document.activeElement as HTMLElement | null;
     await tick();
     input?.focus();
     input?.select();
   }
   $: if ($paletteOpen) open();
 
+  /** Close and hand focus back to whatever opened us. */
+  function dismiss() {
+    closePalette();
+    opener?.focus?.();
+    opener = null;
+  }
+
   function choose(row: Row | undefined) {
     if (!row) return;
+    // Navigating away is its own focus change, so don't restore the opener here.
     closePalette();
+    opener = null;
     query = '';
     maps = [];
     places = [];
@@ -172,7 +184,11 @@
   function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       e.preventDefault();
-      closePalette();
+      dismiss();
+    } else if (e.key === 'Tab') {
+      // The dialog holds exactly one focusable control; results are reached with
+      // the arrows. Swallowing Tab is the whole focus trap.
+      e.preventDefault();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       move(1);
@@ -199,8 +215,7 @@
 </script>
 
 {#if $paletteOpen}
-  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-  <div class="cp-scrim" on:click={closePalette}></div>
+  <button type="button" class="cp-scrim" aria-label="Close search" on:click={dismiss}></button>
   <div class="cp" role="dialog" aria-modal="true" aria-label="Search the archive">
     <div class="cp-field">
       <svg
@@ -226,6 +241,11 @@
         aria-label="Search maps, places and pages"
         autocomplete="off"
         spellcheck="false"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={rows.length > 0}
+        aria-controls="cp-results"
+        aria-activedescendant={rows.length ? `cp-row-${active}` : undefined}
       />
       {#if loading}
         <span class="spinner" style="--spinner-size: 15px; --spinner-thickness: 2px"></span>
@@ -233,7 +253,23 @@
       <kbd class="cp-esc">esc</kbd>
     </div>
 
-    <div class="cp-list" bind:this={listEl}>
+    <!-- Arrow keys move a highlight while focus stays in the input, so without
+         this the whole result list is silent to a screen reader. -->
+    <p class="sr-only" aria-live="polite">
+      {rows.length
+        ? `${rows.length} result${rows.length === 1 ? '' : 's'}`
+        : query.trim()
+          ? 'No results'
+          : ''}
+    </p>
+
+    <div
+      class="cp-list"
+      id="cp-results"
+      role="listbox"
+      aria-label="Search results"
+      bind:this={listEl}
+    >
       {#if !rows.length}
         <p class="cp-empty">
           {query.trim() ? `Nothing matches “${query.trim()}”.` : 'Type to search.'}
@@ -241,12 +277,17 @@
       {:else}
         {#each rows as row, i (row.kind + row.href + i)}
           {#if firstOfKind[row.kind] === i}
-            <div class="cp-heading">{GROUPS.find((g) => g.kind === row.kind)?.heading}</div>
+            <div class="cp-heading" role="presentation">
+              {GROUPS.find((g) => g.kind === row.kind)?.heading}
+            </div>
           {/if}
           <a
             class="cp-row"
             class:is-active={i === active}
             data-active={i === active}
+            id="cp-row-{i}"
+            role="option"
+            aria-selected={i === active}
             href={row.href}
             on:click|preventDefault={() => choose(row)}
             on:mouseenter={() => (active = i)}
@@ -278,6 +319,9 @@
     inset: 0;
     z-index: 2000;
     background: rgba(17, 17, 17, 0.35);
+    border: none;
+    padding: 0;
+    cursor: default;
   }
 
   .cp {
@@ -321,6 +365,19 @@
   }
   .cp-esc {
     flex-shrink: 0;
+  }
+
+  /* Announced, never drawn. The design system has no sr-only utility yet. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .cp-list {

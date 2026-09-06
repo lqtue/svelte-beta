@@ -32,35 +32,27 @@
     <h3 class="title">On the map <span class="n">{hits.length}</span></h3>
     <ul>
       {#each hits as h (h.id)}
+        {@const place = placeHrefFor(h.text, h.category)}
         <li>
-          {#if mode === 'pick'}
-            <button type="button" class="hit" on:click={() => dispatch('pick', h)}>
-              <span class="dot" style:background={CAT_COLORS[h.category] ?? CAT_COLORS.other}
-              ></span>
-              <span class="text">{h.text}</span>
-              <span class="map">{h.year ?? '—'} · {h.map_name ?? 'Untitled'}</span>
-            </button>
-            {#if placeHrefFor(h.text, h.category)}
-              <a
-                class="place-link"
-                href={placeHrefFor(h.text, h.category)}
-                title="Every map that names {h.text}">Place</a
-              >
-            {/if}
-          {:else}
-            <a class="hit" href={href(h)}>
-              <span class="dot" style:background={CAT_COLORS[h.category] ?? CAT_COLORS.other}
-              ></span>
-              <span class="text">{h.text}</span>
-              <span class="map">{h.year ?? '—'} · {h.map_name ?? 'Untitled'}</span>
-            </a>
-            {#if placeHrefFor(h.text, h.category)}
-              <a
-                class="place-link"
-                href={placeHrefFor(h.text, h.category)}
-                title="Every map that names {h.text}">Place</a
-              >
-            {/if}
+          <!--
+            One element, two behaviours. The button and the anchor carried
+            identical innards and an identical place link beside them, so a
+            change to a row had to be made twice.
+          -->
+          <svelte:element
+            this={mode === 'pick' ? 'button' : 'a'}
+            role={mode === 'pick' ? 'button' : 'link'}
+            class="hit"
+            type={mode === 'pick' ? 'button' : undefined}
+            href={mode === 'pick' ? undefined : href(h)}
+            on:click={mode === 'pick' ? () => dispatch('pick', h) : undefined}
+          >
+            <span class="dot" style:background={CAT_COLORS[h.category] ?? CAT_COLORS.other}></span>
+            <span class="text">{h.text}</span>
+            <span class="map">{h.year ?? '—'} · {h.map_name ?? 'Untitled'}</span>
+          </svelte:element>
+          {#if place}
+            <a class="place-link" href={place} title="Every map that names {h.text}">Place</a>
           {/if}
         </li>
       {/each}

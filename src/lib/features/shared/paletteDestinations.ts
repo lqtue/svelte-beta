@@ -182,6 +182,3 @@ export function matchDestinations(list: Destination[], q: string, limit = 6): De
   scored.sort((a, b) => a.score - b.score || a.d.label.localeCompare(b.d.label));
   return scored.slice(0, limit).map((s) => s.d);
 }
-
-/** Gazetteer key → the slug `/place/[name]` expects. */
-export const placeHref = (key: string) => `/place/${key.replace(/\s+/g, '-')}`;

@@ -108,6 +108,35 @@ test('only the five gazetteer categories get a place link', () => {
   expect(placeHrefFor('Plan de Saigon', 'title')).toBeNull();
 });
 
+test('a folded key carries nothing PostgREST reads as syntax', () => {
+  // /api/search matches the gazetteer with `ilike('name_key', '%' + placeKey(q) + '%')`.
+  // It used to pass the raw query into `.or()`, which splits on commas: typing
+  // "rue catinat, saigon" became three malformed conditions and 500'd the whole
+  // search — maps and labels with it. Folding is now the escaping, so nothing
+  // that ends up in the pattern may be PostgREST punctuation or an ilike wildcard.
+  for (const q of [
+    'rue catinat, saigon',
+    'Chợ Lớn (Cholon)',
+    'boulevard "charner"',
+    "quai de l'arroyo",
+    '100% de la ville',
+    'a_b\\c',
+    'rue.catinat',
+  ]) {
+    expect(placeKey(q)).toMatch(/^[a-z0-9 ]*$/);
+  }
+});
+
+test('places and labels agree on one spelling of a name', () => {
+  // search_labels unaccents its query in Postgres; the place lookup folds here.
+  // Every way a reader might type the street has to land on the same key, or a
+  // label hit shows with no place page behind it.
+  const want = 'khanh hoi';
+  for (const typed of ['Khánh Hội', 'khanh-hoi', 'KHANH  HOI', 'Khánh-Hội']) {
+    expect(placeKey(typed)).toBe(want);
+  }
+});
+
 // ── the shortcut ────────────────────────────────────────────────────────────
 
 const key = (init: Partial<KeyboardEvent>) => init as KeyboardEvent;

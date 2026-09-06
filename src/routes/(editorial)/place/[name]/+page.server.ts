@@ -15,25 +15,13 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { adminClient } from '$lib/server/supabaseAdmin';
-
-/** URL slug → the gazetteer's `name_key`: lowercase, unaccented, single spaces. */
-function slugToKey(slug: string): string {
-  return decodeURIComponent(slug)
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/gi, 'd')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-/** The gazetteer's `name_key` → the slug used in URLs. */
-function keyToSlug(key: string): string {
-  return key.replace(/\s+/g, '-');
-}
+// `placeKey` *is* this route's slug→key rule (unaccent, lowercase, punctuation
+// to single spaces) and is the client twin of Postgres's `place_key`. It used
+// to be reimplemented here, which is one more copy to drift.
+import { placeKey, keyToSlug } from '$lib/core/utils/placeKey';
 
 export const load: PageServerLoad = async ({ params }) => {
-  const key = slugToKey(params.name);
+  const key = placeKey(decodeURIComponent(params.name));
   if (!key || key.length < 2) throw error(404, 'No such place');
 
   const supabase = adminClient();

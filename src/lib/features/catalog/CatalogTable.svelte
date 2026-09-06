@@ -138,6 +138,10 @@
           {#each g.rows as item (item.id)}
             {@const isScout = (item as any)._table === 'scout'}
             {@const isOverlay = overlayMapIds.has(item.id)}
+            {@const shareHref =
+              !isScout && ((item as any).status === 'public' || (item as any).status === 'featured')
+                ? `/map/${item.id}`
+                : null}
             <tr
               class:scout-row={isScout}
               class:active-row={item.id === activeId}
@@ -152,7 +156,25 @@
               </td>
               <td class="title-col">
                 <div class="title-row">
-                  <span class="title-link">{item.name || '—'}</span>
+                  {#if shareHref}
+                    <!--
+                      A real link, not a span: the row's on:click still opens the
+                      drawer (a plain click is swallowed here and bubbles), but a
+                      crawler, a middle-click and ⌘-click now all reach the share
+                      page. /map/<id> and /place/<slug> only linked to each other,
+                      so the whole server-rendered half of the site had no entry.
+                    -->
+                    <a
+                      class="title-link"
+                      href={shareHref}
+                      on:click={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                        e.preventDefault();
+                      }}>{item.name || '—'}</a
+                    >
+                  {:else}
+                    <span class="title-link">{item.name || '—'}</span>
+                  {/if}
                   {#if showLayerActions && !isScout && (item as any).georef_done}
                     <button
                       type="button"
@@ -243,6 +265,8 @@
     font-weight: var(--font-bold);
     color: var(--color-text);
     font-size: 1rem;
+    /* An anchor now; keep the row-hover underline as the only one. */
+    text-decoration: none;
   }
   .ct tbody tr:hover .title-link {
     text-decoration: underline;

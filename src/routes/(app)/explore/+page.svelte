@@ -84,13 +84,27 @@
   let stories: Story[] = [];
   let activeStory: Story | null = null;
   let role: 'user' | 'mod' | 'admin' = 'user';
-  let appliedUrl = false;
+  /**
+   * The deeplink this page has already acted on, as `map|at|story`.
+   *
+   * It was a boolean, which latched: once anything had been applied — a shared
+   * link on load, or just the first `syncMapParam` from tapping a row — the
+   * guard below never opened again. So a command-palette pick made from /explore
+   * itself changed the URL and nothing else, because SvelteKit reuses the
+   * component for a same-route `goto`. Keying on the value means our own writes
+   * still mark themselves applied (via `markApplied`), while a genuinely new
+   * `?map=`/`?at=` re-opens the guard.
+   */
+  let appliedUrl = '';
 
   const { addMapOverlay, setViewFromBounds, zoomToMap } = createExploreZoom(mapStore);
   const { syncMapParam, syncAtParam, tallyMapOpen } = createExploreUrl({
     supabase,
     role: () => role,
-    markApplied: () => (appliedUrl = true),
+    // Pin whatever $page.url currently holds, so our own shallow write is never
+    // mistaken for a new inbound link. `syncMapParam` uses pushState, which
+    // leaves $page.url alone — a real navigation is the only thing that moves it.
+    markApplied: () => (appliedUrl = deeplinkKey),
   });
   const coverage = createExploreCoverage({
     getMapList: () => mapList,
@@ -131,12 +145,13 @@
   // Reactive deeplink application — both `mapList` (from MapWorkspace) and
   // `stories` (from onMount fetch) arrive async, so a one-shot in onMount
   // races with whichever finishes second. Run once when both are ready.
+  $: deeplinkKey = [paramMapId ?? '', paramAt ?? '', paramStoryId ?? ''].join('|');
   $: if (
-    !appliedUrl &&
+    appliedUrl !== deeplinkKey &&
     mapList.length > 0 &&
     (paramMapId || (paramStoryId && stories.length > 0))
   ) {
-    appliedUrl = true;
+    appliedUrl = deeplinkKey;
     void applyExploreUrlParams({
       mapId: paramMapId,
       at: paramAt,

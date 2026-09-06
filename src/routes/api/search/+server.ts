@@ -23,6 +23,7 @@ import { adminClient } from '$lib/server/supabaseAdmin';
 import { dbError } from '$lib/server/http';
 import { tally } from '$lib/server/facets';
 import { getTransformer } from '$lib/server/transformer';
+import { placeKey } from '$lib/core/utils/placeKey';
 
 /**
  * Distinct maps whose annotation we will fetch to warp label hits that have no
@@ -104,11 +105,20 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const category = csvParam(url.searchParams.get('category')); // scout category
   const georef = url.searchParams.get('georef'); // 'yes' | 'no' | null
   const includeReq = csvParam(url.searchParams.get('include'));
-  const limit = Math.min(
-    parseInt(url.searchParams.get('limit') || String(DEFAULT_LIMIT)),
-    MAX_LIMIT
-  );
-  const offset = parseInt(url.searchParams.get('offset') || '0');
+  // parseInt('abc') is NaN, and a NaN limit slices to an empty page with a 200 —
+  // a bad param should fall back to the default, not look like an empty archive.
+  const intParam = (name: string, fallback: number) => {
+    const n = parseInt(url.searchParams.get(name) ?? '');
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  };
+  const limit = Math.min(intParam('limit', DEFAULT_LIMIT), MAX_LIMIT);
+  const offset = intParam('offset', 0);
+  // `fields=slim` is the command palette: it shows a title and a year for six
+  // rows and has no facet rail to feed, so Postgres can apply the limit instead
+  // of us fetching up to 2000 rows per keystroke-group to tally facets nobody
+  // reads. (The column list stays whole — the PostgREST types parse that string
+  // literally, and the row count was the expensive half.)
+  const slim = url.searchParams.get('fields') === 'slim';
 
   const includeScout = (role === 'admin' || role === 'mod') && includeReq.includes('scout');
   const includeMaps = !includeReq.length || includeReq.includes('maps');
@@ -131,7 +141,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
       qMaps = qMaps.in('status', ['public', 'featured']);
     }
     if (q) qMaps = qMaps.textSearch('search_vector', q, { config: 'simple', type: 'plain' });
-    qMaps = qMaps.limit(2000); // safety ceiling
+    // Slim callers get no facets, so there is nothing to tally the broad set
+    // for — Postgres can do the cutting. Everyone else fetches broadly and
+    // filters in JS, because a facet count needs the unfiltered set.
+    qMaps = qMaps.limit(slim ? Math.min(limit + offset, MAX_LIMIT) : 2000);
     const { data, error: err } = await qMaps;
     if (err) dbError(err, 'Map search failed');
     mapsRows = (data as Record<string, unknown>[]) || [];
@@ -154,15 +167,26 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   }
 
   // ---------- PLACES ----------
-  // The gazetteer already groups spellings, so an `ilike` on the display name
-  // plus the variants array is enough — no RPC, and the view is small.
+  // Match on `name_key` only, with the query folded through the *same* rule that
+  // built it (`place_key`, migration 067 — unaccent, lowercase, punctuation to
+  // single spaces). Two reasons this is not an `.or()` across the display name:
+  //
+  //   1. A raw `q` inside `.or()` is a parse hazard. PostgREST splits that
+  //      string on commas, so "rue catinat, saigon" became three malformed
+  //      conditions and 500'd the whole search — maps and labels with it.
+  //   2. Folding is what makes places agree with labels. `search_labels`
+  //      unaccents its query; matching the display name did not, so
+  //      "Khanh-Hoi" found the label on the sheet but not its place page.
+  //
+  // `placeKey` strips every character PostgREST treats as syntax, so the
+  // pattern needs no further escaping.
   const places: PlaceHit[] = [];
-  if (includePlaces) {
-    const pattern = `%${q.replace(/[%_]/g, '')}%`;
+  const placeNeedle = includePlaces ? placeKey(q) : '';
+  if (placeNeedle.length >= 2) {
     const { data, error: err } = await supabase
       .from('place_names')
       .select('name_key,name,mentions,first_year,last_year,lng,lat')
-      .or(`name.ilike.${pattern},name_key.ilike.${pattern}`)
+      .ilike('name_key', `%${placeNeedle}%`)
       .order('mentions', { ascending: false })
       .limit(PLACE_LIMIT);
     if (err) dbError(err, 'Place search failed');

@@ -124,7 +124,6 @@ export default {
     rest: string,
     key: string
   ): Promise<Response> {
-
     // ── R2 cache hit ──────────────────────────────────────────────────────
     let obj = null;
     if (!url.searchParams.has('force_proxy')) {

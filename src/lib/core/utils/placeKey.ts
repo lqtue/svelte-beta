@@ -26,6 +26,13 @@ export function placeKey(text: string): string {
 export const keyToSlug = (key: string) => key.replace(/\s+/g, '-');
 
 /**
+ * `/place/<slug>` for a gazetteer key. The one-liner had four copies — here,
+ * `paletteDestinations`, the share page and the place loader — which is three
+ * places for the URL shape to drift away from the route that parses it.
+ */
+export const placeHref = (key: string) => `/place/${keyToSlug(key)}`;
+
+/**
  * `/place/<slug>` for a label, or null when it cannot have a page — the
  * category is not one the gazetteer groups, or the key is too short for the
  * loader, which 404s under two characters.
@@ -33,5 +40,5 @@ export const keyToSlug = (key: string) => key.replace(/\s+/g, '-');
 export function placeHrefFor(text: string, category: string): string | null {
   if (!GAZETTEER_CATEGORIES.includes(category)) return null;
   const key = placeKey(text);
-  return key.length >= 2 ? `/place/${keyToSlug(key)}` : null;
+  return key.length >= 2 ? placeHref(key) : null;
 }

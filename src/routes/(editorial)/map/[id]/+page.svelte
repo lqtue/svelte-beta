@@ -8,6 +8,7 @@
   import PageHero from '$lib/ui/PageHero.svelte';
   import { onMount } from 'svelte';
   import { allmapsTileUrl, allmapsEditorSourceUrl } from '$lib/core/iiif/annotationUrl';
+  import { placeHref } from '$lib/core/utils/placeKey';
 
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { fetchUserRole, type UserRole } from '$lib/data/supabase/role';
@@ -20,7 +21,6 @@
     name: string;
     mentions: number;
   }>;
-  const placeHref = (key: string) => `/place/${key.replace(/\s+/g, '-')}`;
 
   // The R2 worker advertises level2 but is really level0 plus a proxy, so an
   // arbitrary width can 404. `thumbnail` is a size we know exists; the derived
