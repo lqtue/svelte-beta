@@ -4,11 +4,17 @@
 
   mode="link" (default) navigates to /explore?map=<id>&at=<lng>,<lat>.
   mode="pick" dispatches `pick` instead, for a caller already on /explore.
+
+  A label in one of the gazetteer's five categories also gets a link to its
+  /place/<slug> page. Those pages are server-rendered so search engines index
+  them, and until Sept 2026 the only link to one anywhere in the app sat on
+  /map/<id> — which is itself one link deep inside a drawer.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { LabelHit } from './catalogSearch';
   import { CAT_COLORS } from '$lib/features/contribute/shared/constants';
+  import { placeHrefFor } from '$lib/core/utils/placeKey';
 
   export let hits: LabelHit[] = [];
   export let mode: 'link' | 'pick' = 'link';
@@ -34,6 +40,13 @@
               <span class="text">{h.text}</span>
               <span class="map">{h.year ?? '—'} · {h.map_name ?? 'Untitled'}</span>
             </button>
+            {#if placeHrefFor(h.text, h.category)}
+              <a
+                class="place-link"
+                href={placeHrefFor(h.text, h.category)}
+                title="Every map that names {h.text}">Place</a
+              >
+            {/if}
           {:else}
             <a class="hit" href={href(h)}>
               <span class="dot" style:background={CAT_COLORS[h.category] ?? CAT_COLORS.other}
@@ -41,6 +54,13 @@
               <span class="text">{h.text}</span>
               <span class="map">{h.year ?? '—'} · {h.map_name ?? 'Untitled'}</span>
             </a>
+            {#if placeHrefFor(h.text, h.category)}
+              <a
+                class="place-link"
+                href={placeHrefFor(h.text, h.category)}
+                title="Every map that names {h.text}">Place</a
+              >
+            {/if}
           {/if}
         </li>
       {/each}
@@ -71,6 +91,16 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+  li {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    min-width: 0;
+  }
+  li > :global(:first-child) {
+    flex: 1;
+    min-width: 0;
   }
   .hit {
     display: grid;
@@ -108,5 +138,25 @@
     font-size: var(--text-xs);
     color: var(--color-gray-500);
     white-space: nowrap;
+  }
+  /* The gazetteer door: every map that names this place, on one page. */
+  .place-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-2);
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    background: var(--color-white);
+    color: var(--color-gray-500);
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
+    text-decoration: none;
+    white-space: nowrap;
+    flex: none;
+  }
+  .place-link:hover {
+    background: var(--color-green);
+    color: var(--color-white);
+    text-decoration: none;
   }
 </style>

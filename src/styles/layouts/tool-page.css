@@ -191,32 +191,6 @@
   flex-shrink: 0;
   z-index: 20;
 }
-.tool-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.7rem;
-  border: var(--border-thin, 1px solid #2b2520);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--color-bg, #f5f0ea);
-  color: var(--color-text, #2b2520);
-  font-family: var(--font-family-base, 'Be Vietnam Pro', sans-serif);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s;
-}
-.tool-btn:hover {
-  background: var(--color-yellow, #f4d47d);
-}
-.tool-btn.active {
-  background: var(--color-blue, #2563eb);
-  color: #fff;
-  border-color: var(--color-blue, #2563eb);
-}
-.tool-btn span {
-  white-space: nowrap;
-}
 .bar-divider {
   flex: 1;
 }

@@ -80,8 +80,9 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `tokens.css` | `global.css` | every custom property |
 | `global.css` | root layout | entry point |
 | **components/** | | shared widgets |
-| `buttons.css` | `global.css` | `.chip` and the `.btn` family, with their variants |
+| `buttons.css` | `global.css` | **every button**: the `.chip` / `.action-btn` / `.pill-btn` / `.btn` pill family, `.tool-btn`, `.ctrl-btn` |
 | `feedback.css` | `global.css` | `.spinner` (the only one) and `.state-msg` |
+| `table.css` | `global.css` | `.data-table` and its two densities |
 | `nav-buttons.css` | `global.css` | nav-bar button chrome |
 | `editorial.css` | `global.css` | hero, section-card, chips, footer, nav |
 | `modal.css` | `global.css` | generic modal scaffolding |
@@ -89,7 +90,7 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome only — the `.btn` family moved to `buttons.css` in Sept 2026, because six components outside the modals used it without importing it |
 | `catalog.css` | `CatalogGrid`, `CatalogCard`, `/catalog` | map card grid |
 | `search-panel.css` | `features/shared/search/SearchPanel` + its two tabs | unified search overlay |
-| `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the shared contribute data table |
+| `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the toolbar and cell editors around that table |
 | `tool-sidebar.css` | `TriageSidebar`, `SegSidebar` | tool sidebar form controls |
 | `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate |
 | `library.css` | `LibraryGrid`, `StudioMode`, `CreateMode` | project/story library grid |
@@ -112,6 +113,10 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `900px` | the tool split: `ToolLayout` swaps the desktop rail for the mobile drawer stack, matched by `mode-shared.css` and `tool-page.css` |
 
 `ToolLayout` also reads `1400px` in JS for `isCompact`. CSS custom properties do not work inside `@media`, so these are literals on purpose — `--bp-*` tokens existed until Sept 2026, matched nothing and were deleted.
+
+**One button.** Four names — `.action-btn` (large CTA), `.chip` (default), `.pill-btn` (lighter chrome), `.btn` (admin and dialogs) — share one base rule in `buttons.css` and differ only in the `--btn-*` properties each sets. They are kept as separate names because ~60 files use them and a rename would be a diff nobody could review; prefer `.chip` in new markup. `.tool-btn` is the dense square toolbar variant and `.ctrl-btn` the 48px round map control. `.sb-btn` stays in `sidebar.css` because it runs on the `--sb-*` token scope. Before Sept 2026 the `.btn` family lived in `admin-modals.css`, which six of its eleven users never imported.
+
+**One table.** Every `<table>` wears `.data-table` and picks a density: `.is-dense` (sidebar) or `.is-card` (a table that is its own card, on /catalog). Nine custom properties define a density, so a new one is a short block and never a second copy of the base. Before Sept 2026 there were four unrelated implementations across three stylesheets.
 
 **One spinner.** `.spinner` in `feedback.css` is the whole system: size and colour tune through `--spinner-size`, `--spinner-thickness`, `--spinner-track` and `--spinner-ink`, and `.spinner.on-ink` covers a spinner on a solid coloured button. There is exactly one `@keyframes spin` in the tree — it replaced nine near-identical definitions in Sept 2026. Never write a second one. `.home-page .globe-spin` is a different thing: the rotating 🌎 emoji on the home page.
 

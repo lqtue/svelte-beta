@@ -75,7 +75,7 @@
     </label>
   </div>
 
-  <table class="ct">
+  <table class="ct data-table is-card">
     <thead>
       <tr>
         <th class="thumb-col"></th>
@@ -234,64 +234,10 @@
     border-radius: var(--sb-radius-sm);
     background: var(--color-white);
   }
-  .ct {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    background: var(--color-white);
-    border: var(--border-thin);
-    border-radius: 10px;
-    box-shadow: 3px 3px 0 var(--color-border);
-    font-family: var(--font-family-base);
-    font-size: 0.95rem;
-    overflow: hidden;
-  }
-  .ct thead th {
-    text-align: left;
-    padding: 0.85rem 0.8rem;
-    background: var(--sb-head-bg);
-    border-bottom: var(--border-thin);
-    font-family: var(--font-family-display);
-    font-weight: var(--font-extrabold);
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-  }
-  .ct .sortable {
-    cursor: pointer;
-    user-select: none;
-  }
-  .ct .sortable:hover {
-    background: var(--sb-head-hover);
-  }
-  .sort-ind {
-    display: inline-flex;
-    flex-direction: column;
-    margin-left: 0.35rem;
-    line-height: 0.75;
-    font-size: 0.55rem;
-    vertical-align: middle;
-  }
-  .sort-ind span {
-    color: var(--sb-sort-idle);
-  }
-  .sort-ind span.on {
-    color: var(--color-text);
-  }
-  .ct tbody td {
-    padding: 0.9rem 0.8rem;
-    border-bottom: 1px dashed var(--color-gray-300);
-    vertical-align: middle;
-  }
-  .ct tbody tr:last-child td {
-    border-bottom: none;
-  }
+  /* Shape, header, row rules and the sort indicator come from
+     `.data-table.is-card` in components/table.css. */
   .ct tbody tr {
     cursor: pointer;
-  }
-  .ct tbody tr:hover td {
-    background: var(--sb-row-hover);
   }
   .ct .title-link {
     font-weight: var(--font-bold);
@@ -319,10 +265,6 @@
   .collection-col {
     color: var(--sb-text-meta);
     font-size: 0.85rem;
-  }
-  .ct .num {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
   }
   .ct .thumb-col {
     width: 96px;

@@ -90,21 +90,12 @@
   overflow-x: auto;
   border: 1.5px solid var(--color-border);
 }
+/* Base from `.data-table`; the bulk grid is denser still and boxes inputs. */
 .admin-bulk-page .grid {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.78rem;
-}
-.admin-bulk-page .grid th {
-  text-align: left;
-  background: var(--color-gray-50);
-  padding: var(--space-2) 0.6rem;
-  border-bottom: 1.5px solid var(--color-border);
-  font-weight: var(--font-bold);
-}
-.admin-bulk-page .grid td {
-  padding: var(--space-1) 0.3rem;
-  border-bottom: 1px solid var(--color-gray-300);
+  --table-text: 0.78rem;
+  --table-head-bg: var(--color-gray-50);
+  --table-head-pad: var(--space-2) 0.6rem;
+  --table-cell-pad: var(--space-1) 0.3rem;
 }
 .admin-bulk-page .grid input {
   border: 1px solid transparent;

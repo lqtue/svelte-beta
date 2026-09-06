@@ -312,8 +312,8 @@
     </div>
 
     <!-- GCP table -->
-    <div class="gcp-table-wrap">
-      <table class="gcp-table">
+    <div class="gcp-table-wrap table-wrap">
+      <table class="gcp-table data-table">
         <thead>
           <tr>
             <th>Corner</th>

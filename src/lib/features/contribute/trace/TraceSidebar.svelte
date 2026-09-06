@@ -153,8 +153,8 @@
     >
   </div>
 
-  <div class="shapes-table-wrap custom-scrollbar">
-    <table class="shapes-table">
+  <div class="table-wrap custom-scrollbar">
+    <table class="data-table is-dense">
       <thead>
         <tr>
           <th class="col-dot"></th>

@@ -333,11 +333,11 @@
   {/if}
 
   <!-- Table -->
-  <div class="shapes-table-wrap custom-scrollbar">
+  <div class="table-wrap custom-scrollbar">
     {#if loading}
       <p class="empty-state table-empty">Loading…</p>
     {:else}
-      <table class="shapes-table">
+      <table class="data-table is-dense">
         <thead>
           <tr>
             <th class="col-dot"></th>

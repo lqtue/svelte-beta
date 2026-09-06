@@ -86,39 +86,6 @@
   box-shadow: none;
 }
 
-/* Control Buttons */
-.ctrl-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: var(--border-thick);
-  background: var(--color-white);
-  color: var(--color-text);
-  cursor: pointer;
-  box-shadow: var(--shadow-solid-sm);
-  transition: all 0.1s;
-}
-
-.ctrl-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-solid);
-}
-
-.ctrl-btn:active {
-  transform: translate(0, 0);
-  box-shadow: 0 0 0 var(--color-border);
-}
-
-.ctrl-btn.active {
-  background: var(--color-blue);
-  color: white;
-}
-
 /* Top Controls */
 .top-controls {
   position: absolute;

@@ -1038,23 +1038,11 @@ code.detail-value {
 }
 
 /* GCP table */
-.neatline-editor .gcp-table-wrap {
-  overflow-x: auto;
-}
-.neatline-editor .gcp-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
+/* Base from `.data-table`; a GCP grid boxes every cell and centres it. */
 .neatline-editor .gcp-table th,
 .neatline-editor .gcp-table td {
-  padding: 0.4rem 0.5rem;
   border: 1px solid var(--color-border);
   text-align: center;
-}
-.neatline-editor .gcp-table th {
-  background: var(--color-gray-100);
-  font-weight: var(--font-semibold);
 }
 
 .neatline-editor .corner-badge {

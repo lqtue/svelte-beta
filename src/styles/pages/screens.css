@@ -143,9 +143,15 @@
 }
 
 .screens-page .sc-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+/* Dashed frames so three placeholders read as three list slots, not as one
+   run of centred text with a lot of air. */
+.screens-page .sc-stack > * {
+  border: 1px dashed var(--color-gray-300);
+  border-radius: var(--radius-sm);
 }
 
 /* ── component entries ───────────────────────────────────────────────────── */

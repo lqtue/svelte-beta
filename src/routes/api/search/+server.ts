@@ -1,7 +1,12 @@
 // Unified search across `maps` and (admin-only) `scout_candidates`.
 // Powers the upgraded /catalog search bar + facet rail.
 //
-// GET /api/search?q=<text>&institution=<csv>&type=<csv>&period=<csv>&georef=<bool>&source=<csv>&include=maps,scout,labels&limit=60&offset=0
+// GET /api/search?q=<text>&institution=<csv>&type=<csv>&period=<csv>&georef=<bool>&source=<csv>&include=maps,scout,labels,places&limit=60&offset=0
+//
+// `include=places` searches the gazetteer (mig 067's `place_names` view), so a
+// place name resolves to its own /place/<slug> page. Added Sept 2026 with the
+// command palette: the gazetteer is server-rendered for search engines, and
+// until then the only link to it in the whole app sat on /map/<id>.
 //
 // `include=labels` searches *inside* the maps: OCR'd labels via the
 // `search_labels` RPC (mig 065, trigram word-similarity), each warped to lng/lat
@@ -28,6 +33,20 @@ import { getTransformer } from '$lib/server/transformer';
  */
 const MAX_UNWARPED_MAPS = 4;
 const LABEL_LIMIT = 60;
+const PLACE_LIMIT = 20;
+
+/** One gazetteer entry — `/api/search?include=places`. */
+export interface PlaceHit {
+  /** The gazetteer key; the URL slug is this with spaces turned into hyphens. */
+  key: string;
+  name: string;
+  /** How many times the archive's maps name it. */
+  mentions: number;
+  first_year: number | null;
+  last_year: number | null;
+  lng: number | null;
+  lat: number | null;
+}
 
 export interface LabelHit {
   id: string;
@@ -94,6 +113,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   const includeScout = (role === 'admin' || role === 'mod') && includeReq.includes('scout');
   const includeMaps = !includeReq.length || includeReq.includes('maps');
   const includeLabels = !!q && includeReq.includes('labels');
+  const includePlaces = !!q && includeReq.includes('places');
 
   // ---------- MAPS ----------
   // We fetch a broad set (search applied; facet filters NOT applied) so we can tally facets,
@@ -131,6 +151,33 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     const { data, error: err } = await qScout;
     if (err) dbError(err, 'Scout search failed');
     scoutRows = (data as Record<string, unknown>[]) || [];
+  }
+
+  // ---------- PLACES ----------
+  // The gazetteer already groups spellings, so an `ilike` on the display name
+  // plus the variants array is enough — no RPC, and the view is small.
+  const places: PlaceHit[] = [];
+  if (includePlaces) {
+    const pattern = `%${q.replace(/[%_]/g, '')}%`;
+    const { data, error: err } = await supabase
+      .from('place_names')
+      .select('name_key,name,mentions,first_year,last_year,lng,lat')
+      .or(`name.ilike.${pattern},name_key.ilike.${pattern}`)
+      .order('mentions', { ascending: false })
+      .limit(PLACE_LIMIT);
+    if (err) dbError(err, 'Place search failed');
+    for (const r of data ?? []) {
+      if (!r.name_key || !r.name) continue;
+      places.push({
+        key: r.name_key,
+        name: r.name,
+        mentions: r.mentions ?? 0,
+        first_year: r.first_year,
+        last_year: r.last_year,
+        lng: r.lng,
+        lat: r.lat,
+      });
+    }
   }
 
   // ---------- LABELS ----------
@@ -354,7 +401,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     maps: mapsOut,
     scout: scoutOut,
     labels,
-    total: { maps: filteredMaps.length, scout: filteredScout.length, labels: labels.length },
+    places,
+    total: {
+      maps: filteredMaps.length,
+      scout: filteredScout.length,
+      labels: labels.length,
+      places: places.length,
+    },
     limit,
     offset,
     facets,

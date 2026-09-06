@@ -1,10 +1,14 @@
 <!--
   NavBar.svelte — Shared top navigation for editorial pages.
 
-  Desktop: VMA | Catalog ▾  Tools ▾  Contribute ▾  About  Blog | [avatar/signin] [theme]
+  Desktop: VMA | Catalog ▾  Tools ▾  Contribute ▾  About  Blog | [search] [avatar/signin]
   Catalog ▾:    Browse Catalog /catalog | Map Viewer /explore | View Image /image
   Tools ▾:      Story /create | Studio /studio
-  Contribute ▾: Digitalize /contribute/digitalize | Trace Maps /contribute/trace | Georeference /contribute/georef
+  Contribute ▾: the hub /contribute, then Digitalize | Trace | Georeference
+
+  The search button opens the app-wide command palette (⌘K). NavBar is in `ui`,
+  which may not import `features`, so it only flips the store in core/utils —
+  the palette itself is mounted by the root layout.
 
   Mobile (<=640px): hamburger → bottom-anchored drawer with flat link list.
 
@@ -18,6 +22,7 @@
 
   import NavDropdown from './NavDropdown.svelte';
   import { page } from '$app/stores';
+  import { openPalette } from '$lib/core/utils/commandPalette';
 
   // ui/ is domain-free (layering rule): the layout that mounts NavBar passes the session in.
   export let session: Session | null = null;
@@ -80,6 +85,9 @@
     </NavDropdown>
 
     <NavDropdown label="Contribute" active={activeContribute}>
+      <a href="/contribute" class="dropdown-item is-lead" on:click={closeDrawer}
+        >Start here — which job suits you</a
+      >
       <a href="/contribute/digitalize" class="dropdown-item" on:click={closeDrawer}
         >OCR &amp; Triage</a
       >
@@ -93,6 +101,22 @@
 
   <!-- Auth + utils -->
   <div class="nav-auth">
+    <button type="button" class="nav-search" on:click={openPalette} title="Search (⌘K)">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
+      </svg>
+      <span class="nav-search-label">Search</span>
+      <kbd class="nav-search-kbd">⌘K</kbd>
+    </button>
     {#if session}
       <a href="/profile" class="avatar-pill" title="Your profile">
         {#if avatarUrl}
@@ -150,6 +174,7 @@
       <a href="/studio" class="drawer-link" on:click={closeDrawer}>Annotate</a>
 
       <p class="drawer-section-label">Contribute</p>
+      <a href="/contribute" class="drawer-link" on:click={closeDrawer}>Where to start</a>
       <a href="/contribute/digitalize" class="drawer-link" on:click={closeDrawer}
         >OCR &amp; Triage</a
       >
@@ -172,6 +197,58 @@
 {/if}
 
 <style>
+  /* Search opener. Reads as a field on desktop so people look for it there,
+     and collapses to the icon before the nav links start wrapping. */
+  .nav-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.6rem;
+    background: var(--color-bg);
+    border: var(--border-thin);
+    border-radius: var(--radius-pill);
+    font-family: var(--font-family-base);
+    font-size: 0.8rem;
+    color: var(--color-text);
+    cursor: pointer;
+    opacity: 0.75;
+    transition:
+      opacity 0.1s,
+      background-color 0.1s;
+  }
+  .nav-search:hover {
+    opacity: 1;
+    background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
+  }
+  .nav-search-label {
+    padding-right: 0.15rem;
+  }
+  .nav-search-kbd {
+    font-family: var(--font-family-display);
+    font-size: 0.62rem;
+    font-weight: var(--font-bold);
+    padding: 0.05rem 0.28rem;
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+    opacity: 0.6;
+  }
+  @media (max-width: 900px) {
+    .nav-search-label,
+    .nav-search-kbd {
+      display: none;
+    }
+    .nav-search {
+      padding: 0.35rem;
+    }
+  }
+
+  /* The first item in a dropdown that is itself a page, not a tool. */
+  .dropdown-item.is-lead {
+    font-weight: var(--font-bold);
+    border-bottom: 1px solid var(--color-gray-300);
+  }
+
   /* ── Dropdown item (inside NavDropdown panel) ── */
   .dropdown-item {
     display: block;

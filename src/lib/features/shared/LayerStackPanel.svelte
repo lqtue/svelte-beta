@@ -8,6 +8,9 @@
     • Reorder via ▲ / ▼ buttons (works on touch and mouse).
     • Remove (×) only — no hide/show.
     • Display mode + Base picker live in LayerControlsPanel, not here.
+    • A "this map" strip under the list links out to the sheet's other pages.
+      /explore had zero outbound links until Sept 2026: someone could open a
+      map here and be offered no way to read its scan, share it or annotate it.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
@@ -30,6 +33,13 @@
 
   $: state = $layersStore;
   $: isSideBySide = viewMode === 'dual';
+
+  /** The sheet the strip talks about: whatever is on top of the stack. */
+  $: topMapId = state.overlays[0]?.ref.mapId ?? null;
+  $: topMap = topMapId ? (mapList.find((m) => m.id === topMapId) ?? null) : null;
+  $: topName = state.overlays[0]?.ref.name ?? topMap?.name ?? 'this map';
+  /** A draft has no share page — /map/[id] 404s on anything unpublished. */
+  $: topIsPublished = topMap?.status === 'public' || topMap?.status === 'featured';
 
   $: yearByMapId = (() => {
     const m = new Map<string, number | string>();
@@ -164,6 +174,17 @@
         </li>
       {/each}
     </ul>
+
+    {#if topMapId}
+      <div class="lsp-links">
+        <span class="lsp-links-label" title={topName}>{topName}</span>
+        <a class="lsp-link" href="/image?map={topMapId}">Scan</a>
+        <a class="lsp-link" href="/studio?map={topMapId}">Annotate</a>
+        {#if topIsPublished}
+          <a class="lsp-link" href="/map/{topMapId}">Share</a>
+        {/if}
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -196,6 +217,41 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  /* Way out of the viewer, for the sheet currently on top. */
+  .lsp-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+    padding-top: 0.55rem;
+    border-top: var(--sb-border-soft);
+  }
+  .lsp-links-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.66rem;
+    color: var(--sb-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lsp-link {
+    padding: 0.15rem 0.5rem;
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-pill);
+    background: var(--sb-card-bg);
+    color: var(--sb-text);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .lsp-link:hover {
+    background: var(--sb-accent-yellow);
+    text-decoration: none;
   }
 
   .lsp-row {

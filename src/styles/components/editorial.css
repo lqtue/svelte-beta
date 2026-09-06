@@ -222,66 +222,8 @@
   color: white;
 }
 
-/* ----------------------------------------
-   ACTION BUTTONS — pill CTAs
-   ---------------------------------------- */
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1.75rem;
-  font-family: var(--font-family-display);
-  font-size: 1rem;
-  font-weight: var(--font-extrabold);
-  border: var(--border-thick);
-  border-radius: var(--radius-pill);
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: var(--shadow-solid-sm);
-  transition:
-    transform 0.1s,
-    box-shadow 0.1s;
-  width: max-content;
-}
-.action-btn:hover {
-  transform: translate(-3px, -3px);
-  box-shadow: var(--shadow-solid);
-  text-decoration: none;
-}
-.action-btn.primary-btn {
-  background: var(--color-primary);
-  color: white;
-}
-.action-btn.secondary-btn {
-  background: var(--color-white);
-  color: var(--color-text);
-}
-
-/* ----------------------------------------
-   PILL BUTTONS — smaller auth/util buttons
-   ---------------------------------------- */
-.pill-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: var(--border-thin);
-  border-radius: var(--radius-pill);
-  font-family: var(--font-family-display);
-  font-size: 0.875rem;
-  font-weight: var(--font-bold);
-  background: var(--color-white);
-  color: var(--color-text);
-  cursor: pointer;
-  box-shadow: 2px 2px 0 var(--color-border);
-  transition:
-    transform 0.1s,
-    box-shadow 0.1s;
-}
-.pill-btn:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 4px 4px 0 var(--color-border);
-}
+/* Action buttons, pill buttons and every other button now live in
+   components/buttons.css — one file owns the system. */
 
 /* ----------------------------------------
    EDITORIAL MAIN — page content wrapper

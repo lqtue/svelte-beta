@@ -254,7 +254,7 @@
         }}></textarea>
 
       <div class="grid-wrap">
-        <table class="grid">
+        <table class="grid data-table">
           <thead>
             <tr>
               <th style="width:32%">Local path</th>
