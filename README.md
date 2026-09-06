@@ -124,16 +124,21 @@ See `docs/pipelines.md` for the command reference, `work/MapSAM2/TECHNICAL.md` f
 
 ## Documentation
 
-- `CLAUDE.md` — architecture, conventions, layering rule, route/API/schema map
-- `docs/system-guidelines.md` — layering rule, page structure, component patterns, known debt
-- `docs/db-guidelines.md` — schema conventions and migration rules
-- `docs/design-system.md` — design tokens, the CSS file map, page template
-- `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker
-- `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale
-- `docs/user-guide.md` — end-user manual by role
-- `docs/theory.md`, `docs/strategy.md` — the intellectual framework and the funder-facing roadmap
-- `docs/cleanup-2026-08.md` — what the August 2026 repo cleanup changed
-- `docs/archive/` — frozen historical plans; not current
+Start with `CLAUDE.md` — it is the map of the repo and the rules, written for both people and coding agents. Then:
+
+| Doc | What it is |
+| --- | --- |
+| `docs/ROADMAP.md` | The one tracker. Ship/harden, architecture steps, OCR↔SAM2 product, burn-down |
+| `docs/system-guidelines.md` | Layering rule, page structure, component patterns, known debt (§11) |
+| `docs/db-guidelines.md` | Schema conventions every migration follows |
+| `docs/design-system.md` | Tokens, the CSS file map, page template |
+| `docs/digitalize-guide.md` | Operator guide for `/contribute/digitalize` |
+| `docs/pipelines.md` | OCR + MapSAM2 command reference and rationale |
+| `docs/admin-tooling.md` | MapEditModal, Bulk Upload, Scout, R2 worker |
+| `docs/time-machine-plan.md`, `docs/platform-design.md` | Track E engineering plan; the shared-platform proposal |
+| `docs/strategy.md`, `docs/theory.md`, `docs/user-guide.md` | Vision and outward-facing prose |
+| `docs/archive/` | Frozen. Historical plans, application material, the August 2026 cleanup record |
+| `work/MapSAM2/TECHNICAL.md`, `work/ocr/EVAL-BASELINE.md` | Model notes and the measured OCR quality gate |
 
 ## License
 

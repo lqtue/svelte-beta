@@ -81,7 +81,7 @@ External-source discovery + curate + bulk-ingest pipeline. Surfaces candidates f
 | `scripts/scout_humazur.mjs` | Humazur Omeka S API (sets 59 Cartothèque ASEMI + 519 Indochine française). `--merge <existing>.json` to combine. |
 | `scripts/categorize_scout_results.mjs` | Scores + categorizes candidates. Outputs `scripts/scout_review.csv`. |
 | `scripts/load_scout_to_db.mjs` | Loads merged scout JSON into `scout_candidates`. Fixes Humazur manifest URLs (must use `iiif/{item_id}/manifest`, NOT media_id). Derives Gallica thumbnails from ARK pattern. |
-| `scripts/backfill_humazur_thumbs.mjs` | Backfills Humazur thumbnails (Omeka stores them on the media object, not the item — needs `/api/media/{id}`). Throttled 150ms/req. |
+| `scripts/oneoff/backfill_humazur_thumbs.mjs` | Backfills Humazur thumbnails (Omeka stores them on the media object, not the item — needs `/api/media/{id}`). Throttled 150ms/req. |
 
 ### Source patterns (for adding new sources)
 
@@ -103,7 +103,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/scout_humazur.mjs --merge scripts/sc
 node scripts/load_scout_to_db.mjs
 
 # 3. (Optional) Backfill Humazur thumbnails
-NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/backfill_humazur_thumbs.mjs --min-score 40
+NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/oneoff/backfill_humazur_thumbs.mjs --min-score 40
 
 # 4. Review + ingest via UI
 open https://<host>/admin/scout
@@ -140,4 +140,3 @@ cover new maps.
 
 ## Other admin scripts
 
-- `scripts/aws/ec2-setup.sh` — bootstrap g4dn.xlarge GPU instance for SAM2.

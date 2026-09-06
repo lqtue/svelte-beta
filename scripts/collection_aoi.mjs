@@ -24,7 +24,7 @@
 //    The trade: a legend, title or scale bar outside the AOI is not read. For a
 //    study-area pass that is the point; a whole-sheet run is a separate job.
 //
-// Needs `maps.bbox` — run scripts/backfill_map_bbox.mjs first.
+// Needs `maps.bbox` — run scripts/oneoff/backfill_map_bbox.mjs first.
 //
 // Flags: --min-cov 0.15 · --max-mpp 3 · --pad-px 100 · --limit N · --dry
 //        --tile-metres 1400  (ground per Gemini call; the tile is derived)

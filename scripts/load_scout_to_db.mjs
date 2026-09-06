@@ -4,7 +4,7 @@
 //   - Gallica/BnF: https://gallica.bnf.fr/{ark}/f1.thumbnail
 //   - David Rumsey: urlSize2 (already in scout payload)
 //   - LoC: image_url (already in scout payload)
-//   - Humazur: deferred — needs per-item media fetch (see backfill_humazur_thumbs.mjs)
+//   - Humazur: deferred — needs per-item media fetch (see oneoff/backfill_humazur_thumbs.mjs)
 //
 // Fixes Humazur manifest URL bug (was using media_id, should be item_id).
 //

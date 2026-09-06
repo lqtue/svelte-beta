@@ -287,3 +287,5 @@ Role lives in `profiles.role`, read on the client via `fetchUserRole` (`data/sup
 | `footprints.ts` mixes two concerns | `data/supabase/footprints.ts` holds both map-selector queries and footprint CRUD | split into `maps/labelMaps.ts` + a contribute-scoped module |
 | `CatalogUnifiedSearch` still queries Supabase directly | `features/catalog/CatalogUnifiedSearch.svelte` | move the read into `data/maps/service.ts` |
 | Mixed error conventions | throw vs `console` → `[]` vs `console` → `false` across `data/` | pick one |
+| Mobile gaps in contribute | `OcrSidebar` bind/`on:filter` and the Segmentation tab are desktop-only (carried from the Aug 2026 cleanup, not re-verified since) | decide whether these tools are desktop-only by design, then either say so or fix |
+| Fat route pages | `/explore` (334 script lines) and `/contribute/digitalize` (322) are controllers, not wiring | pull into `features/<x>/<x>Controller.ts` when next touching them — the `ocrReviewController.ts` pattern |

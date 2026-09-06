@@ -13,10 +13,12 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 - `docs/time-machine-plan.md` — label search · temporal fabric · period sources (Track E detail)
 - `docs/platform-design.md` — one workspace for VMA + HACW: what is shared (contracts, basemap, deploy, docs) and what stays per-app, with sequencing
 - `docs/digitalize-guide.md` — **operator guide** for `/contribute/digitalize`: the five triage steps, what each layout category means, the ground-per-call target, and the failure modes that return plausible output while dropping data
-- `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale
+- `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale. `scripts/` holds the living operator scripts; `scripts/oneoff/` the backfills that have already run and stay only as a record.
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker, holding-institution model
-- `docs/cleanup-2026-08.md` — what the August 2026 cleanup changed, and the open follow-ups
-- `docs/archive/` — frozen historical plans and personal application material. Do not cite as current.
+- `docs/strategy.md` (funder-facing), `docs/theory.md`, `docs/user-guide.md` — vision and outward-facing prose, not engineering reference. `docs/journals/` holds dated research notes (`YYMMDD-slug.md`).
+- `contracts/` — JSON Schemas for the shapes VMA shares with other apps (`context`, `label-hit`, `footprint-feature`); checked by `tests/schemaCheck.ts`.
+- `PONYTAIL-DEBT.md` — generated ledger of `ponytail:` shortcuts. Regenerate with `/ponytail-debt`; never hand-edit.
+- `docs/archive/` — frozen: historical plans, personal application material, and the record of the August 2026 cleanup (`cleanup-2026-08.md`). Do not cite as current; the live debt table is `docs/system-guidelines.md` §11.
 - `work/MapSAM2/` — fine-tuned SAM2 fork (LoRA, training notes) in `TECHNICAL.md` + `VMA_SETUP.md`. Runs on Colab, not locally.
 - `work/ocr/` — OCR pipeline, its own venv at `work/ocr/.venv`, plus `EVAL-BASELINE.md` (measured quality gate).
 
