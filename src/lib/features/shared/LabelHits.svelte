@@ -8,7 +8,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { LabelHit } from './catalogSearch';
-  import { CAT_COLORS } from '$lib/features/contribute/ocr/constants';
+  import { CAT_COLORS } from '$lib/features/contribute/shared/constants';
 
   export let hits: LabelHit[] = [];
   export let mode: 'link' | 'pick' = 'link';

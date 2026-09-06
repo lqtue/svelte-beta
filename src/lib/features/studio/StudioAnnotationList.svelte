@@ -6,7 +6,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { AnnotationSummary, DrawingMode } from '$lib/map/types';
-  import SidebarCard from '$lib/features/catalog/SidebarCard.svelte';
+  import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
 
   const dispatch = createEventDispatcher<{
     setDrawingMode: { mode: DrawingMode | null };

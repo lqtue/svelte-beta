@@ -15,7 +15,7 @@
   This replaces the old OL Modify + getModifiedRect() approach.
 -->
 <script lang="ts">
-  import { CAT_COLORS } from './constants';
+  import { CAT_COLORS } from '../shared/constants';
   import { onDestroy, createEventDispatcher } from 'svelte';
   import { get } from 'svelte/store';
   import VectorSource from 'ol/source/Vector';
@@ -32,7 +32,7 @@
   import Draw, { createBox } from 'ol/interaction/Draw';
   import { click } from 'ol/events/condition';
   import { getImageShellStore } from '$lib/map/shell/imageContext';
-  import type { OcrExtraction } from './types';
+  import type { OcrExtraction } from '../shared/types';
   import { toOlRing, fromOlExtent, type Rect } from '$lib/core/geo/rectUtils';
   import { createRectEditor, type RectEditor } from '../shared/bboxHandles';
 

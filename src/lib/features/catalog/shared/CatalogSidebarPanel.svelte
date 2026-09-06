@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import CatalogUnifiedSearch from './CatalogUnifiedSearch.svelte';
+  import CatalogUnifiedSearch from '../CatalogUnifiedSearch.svelte';
   import LocationSearch from '$lib/ui/LocationSearch.svelte';
 
   export let role: 'user' | 'mod' | 'admin' = 'user';

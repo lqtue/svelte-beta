@@ -13,7 +13,7 @@
   import { page } from '$app/stores';
   import ToolLayout from '$lib/map/shell/ToolLayout.svelte';
   import ImageShell from '$lib/map/shell/ImageShell.svelte';
-  import CatalogSidebarPanel from '$lib/features/catalog/CatalogSidebarPanel.svelte';
+  import CatalogSidebarPanel from '$lib/features/catalog/shared/CatalogSidebarPanel.svelte';
   import '$styles/layouts/tool-page.css';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { fetchUserRole } from '$lib/data/supabase/role';

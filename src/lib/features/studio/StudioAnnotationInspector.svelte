@@ -5,7 +5,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { AnnotationSummary } from '$lib/map/types';
-  import SidebarCard from '$lib/features/catalog/SidebarCard.svelte';
+  import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
 
   const dispatch = createEventDispatcher<{
     rename: { id: string; label: string };

@@ -57,6 +57,7 @@ src/lib/
 - `core/` must not import `@allmaps/openlayers` or `ol` — that is what keeps the OL bundle off `/explore`'s data path.
 - `ui/` must not import from `features/`. When a primitive needs domain behaviour, the **route page** wires it: `/catalog` renders `MapEditModal` itself, `CatalogUnifiedSearch` only dispatches `edit`.
 - Routes are thin — load, wire, render. Business logic belongs in a `features/` module so it stays importable and testable.
+- Features are isolated from each other. Cross-feature imports go through `features/shared/` (cross-cutting UI) or `features/<x>/shared/` (a feature's public API); anything else under another feature is private. Lint-enforced by the regex rule in `eslint.config.js` — `catalog/` had been a shared layer by accident, imported by four features, before the seam was declared.
 - One Svelte component per file. No barrel `index.ts` re-exports for components.
 
 ---
@@ -243,7 +244,7 @@ The Aug-2026 sweep took component hex literals from ~900 to 116; the survivors a
 
 **Scoping.** `<style>` is component-scoped by default — use it freely for layout. Never redefine a shared global class per component. Use `:global()` only for third-party DOM (OL controls). Inline `style=` is for dynamic values only (`style="--sidebar-width: {w}px"`).
 
-**One theme.** `tokens.css` has no `[data-theme]` block. The `vma-theme` boot script in `src/app.html` is vestigial — nothing writes the key and no CSS consumes it. Either implement the switcher or delete the script; do not write docs or code that assume two themes.
+**One theme.** `tokens.css` has no `[data-theme]` block, and the `vma-theme` boot script that used to sit in `src/app.html` is gone. Do not write docs or code that assume two themes.
 
 ---
 
@@ -282,8 +283,6 @@ Role lives in `profiles.role`, read on the client via `fetchUserRole` (`data/sup
 
 | Item | Location | Fix |
 |------|----------|-----|
-| Dead theme switcher | `src/app.html` boot script reads `vma-theme`; nothing writes it, no CSS consumes it | implement or delete |
-| Two visibility models on `maps` | `status` enum vs `is_public` / `is_featured` booleans; different code paths gate on different ones | pick one, document in `db-guidelines.md` |
 | ~25 `as any` casts | mostly Svelte components | pass `<Database>` to `createClient` at each call site |
 | `footprints.ts` mixes two concerns | `data/supabase/footprints.ts` holds both map-selector queries and footprint CRUD | split into `maps/labelMaps.ts` + a contribute-scoped module |
 | `CatalogUnifiedSearch` still queries Supabase directly | `features/catalog/CatalogUnifiedSearch.svelte` | move the read into `data/maps/service.ts` |

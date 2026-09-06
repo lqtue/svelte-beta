@@ -9,7 +9,7 @@
   import type { MapListItem } from '$lib/data/maps/types';
   import LayerStackPanel from './LayerStackPanel.svelte';
   import LayerControlsPanel from './LayerControlsPanel.svelte';
-  import CatalogSidebarPanel from './CatalogSidebarPanel.svelte';
+  import CatalogSidebarPanel from '$lib/features/catalog/shared/CatalogSidebarPanel.svelte';
   import SidebarCard from './SidebarCard.svelte';
   import '$styles/layouts/tool-page.css';
 

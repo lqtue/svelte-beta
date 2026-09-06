@@ -49,13 +49,13 @@
 
   import MapWorkspace from '$lib/map/shell/MapWorkspace.svelte';
   import MapClickCapture from './MapClickCapture.svelte';
-  import MapViewerSidebar from '$lib/features/catalog/MapViewerSidebar.svelte';
+  import MapViewerSidebar from '$lib/features/shared/MapViewerSidebar.svelte';
   import CreateRightPane from './CreateRightPane.svelte';
   import StoryMarkers from '$lib/features/stories/shared/StoryMarkers.svelte';
   import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
-  import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
-  import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
-  import CatalogSidebarPanel from '$lib/features/catalog/CatalogSidebarPanel.svelte';
+  import LayerStackPanel from '$lib/features/shared/LayerStackPanel.svelte';
+  import LayerControlsPanel from '$lib/features/shared/LayerControlsPanel.svelte';
+  import CatalogSidebarPanel from '$lib/features/catalog/shared/CatalogSidebarPanel.svelte';
   import AuthGate from '$lib/ui/AuthGate.svelte';
   import LibraryGrid from '$lib/ui/LibraryGrid.svelte';
 

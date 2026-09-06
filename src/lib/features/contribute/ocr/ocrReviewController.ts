@@ -13,8 +13,8 @@
  */
 
 import { get, writable } from 'svelte/store';
-import { createManualBbox, patchExtraction, type OcrStatus } from './ocrApi';
-import type { OcrExtraction } from './types';
+import { createManualBbox, patchExtraction, type OcrStatus } from '../shared/ocrApi';
+import type { OcrExtraction } from '../shared/types';
 
 export type OcrReviewState = {
   extractions: OcrExtraction[];

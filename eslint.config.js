@@ -70,6 +70,35 @@ export default ts.config(
       ],
     },
   })),
+  // Feature isolation. A feature may reach into another feature only through a declared
+  // seam: `$lib/features/shared/**` (cross-cutting UI: layer panels, SidebarCard, search) or
+  // `$lib/features/<x>/shared/**` (that feature's public API). Everything else under
+  // another feature is private. Before this rule, `features/catalog` was a shared layer
+  // nobody had declared — four features imported its panels.
+  // `regex`, not `group`: gitignore-style `!` negation is not honoured by this rule.
+  ...['admin', 'catalog', 'contribute', 'explore', 'stories', 'studio', 'shared'].map((feat) => ({
+    files: [`src/lib/features/${feat}/**`],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: `^\\$lib/features/(?!(${feat}|shared)/|[^/]+/shared/)`,
+              message: `Feature isolation (CLAUDE.md): ${feat} may import another feature only via $lib/features/shared or $lib/features/<x>/shared.`,
+              allowTypeImports: true,
+            },
+            // the layering rule still applies inside features
+            {
+              group: ['$lib/server', '$lib/server/*'],
+              message: 'Layering rule (CLAUDE.md): features may not import $lib/server.',
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  })),
   {
     ignores: [
       '.svelte-kit/',

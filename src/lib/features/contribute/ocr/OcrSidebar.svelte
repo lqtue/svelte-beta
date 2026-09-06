@@ -7,20 +7,20 @@
   pipeline, and the table itself.
 -->
 <script lang="ts">
-  import { OCR_CATEGORIES, STATUS_COLORS } from './constants';
+  import { OCR_CATEGORIES, STATUS_COLORS } from '../shared/constants';
   import { createEventDispatcher, tick } from 'svelte';
   import '$styles/layouts/tool-page.css';
   import '$styles/components/shapes-table.css';
   import OcrFilterBar from './OcrFilterBar.svelte';
   import OcrRunBar from './OcrRunBar.svelte';
-  import type { EditableOcrExtraction } from './types';
+  import type { EditableOcrExtraction } from '../shared/types';
   import {
     fetchExtractions,
     patchExtraction,
     revertRecent,
     withEditState,
     type OcrStatus,
-  } from './ocrApi';
+  } from '../shared/ocrApi';
   import {
     toggleSort as nextSort,
     sortIcon as iconFor,

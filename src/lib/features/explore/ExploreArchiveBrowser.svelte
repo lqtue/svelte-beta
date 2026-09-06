@@ -2,15 +2,15 @@
   ExploreArchiveBrowser.svelte — the "Browse the full archive" branch of
   ExploreBrowsePanel.
 
-  Driven by the shared catalog engine (`$lib/features/catalog/catalogSearch`) — the same
+  Driven by the shared catalog engine (`$lib/features/shared/catalogSearch`) — the same
   full-text search + facet logic that powers /catalog — restricted to
   georeferenced maps since only those can overlay. Draft visibility is enforced
   server-side by role, so this doesn't need its own status filter.
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { createCatalogSearch, type LabelHit } from '$lib/features/catalog/catalogSearch';
-  import LabelHits from '$lib/features/catalog/LabelHits.svelte';
+  import { createCatalogSearch, type LabelHit } from '$lib/features/shared/catalogSearch';
+  import LabelHits from '$lib/features/shared/LabelHits.svelte';
   import ExploreMapRows from './ExploreMapRows.svelte';
 
   const dispatch = createEventDispatcher<{ pickLabel: LabelHit }>();

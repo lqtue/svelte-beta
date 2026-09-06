@@ -64,6 +64,8 @@ Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabas
 
 A directory may import only from directories to its **left**. Routes stay thin: load + wire, no business logic.
 
+**Feature isolation (also lint-enforced):** a feature may import another feature only through a declared seam — `src/lib/features/shared/` (cross-cutting UI: the layer panels, `SidebarCard`, `MapViewerSidebar`, `LabelHits`, the `catalogSearch` client and the `search/` widgets) or `src/lib/features/<x>/shared/` (that feature's public API — `stories/shared`, `contribute/shared`, `catalog/shared`). Everything else under another feature is private. Routes may import anything under `features/`.
+
 ```
 src/lib/
 ├─ core/      pure — no OL, no Supabase        geo/ iiif/ utils/ (+ utils/persistence/)
@@ -148,12 +150,12 @@ Code shared across the story lifecycle (markers, playback state, point ops) live
 
 ### /explore sidebar + mobile pattern
 
-Same components drive both viewports. The reusable panels are in `src/lib/features/catalog/`:
+Same components drive both viewports. The reusable panels are in `src/lib/features/shared/` (moved out of `catalog/` in Sept 2026, when four features turned out to import them):
 
 - **`LayerStackPanel.svelte`** — the layer stack. Whole row is the opacity slider (pointer drag, 6px threshold so clean taps still register as zoom-to-overlay). Reorder via ▲/▼. **Remove (×) only** — no hide/show toggle. Shows year + name; in side-by-side the top 2 get **Top** / **Bottom** badges (mobile dual splits vertically).
 - **`LayerControlsPanel.svelte`** — Display mode (Stacked / Lens / Side-by-side) · Base map (Maps / Satellite / None) · Location search (Nominatim, via `src/lib/ui/LocationSearch.svelte`) · "My location" GPS toggle. Single source of GPS on both viewports.
-- **`CatalogSidebarPanel.svelte`** — compact catalog browser used by tool pages other than /explore.
-- **`CatalogTable.svelte`** / **`CatalogTableCompact.svelte`** — full and sidebar variants. Compact shows **Year + Name only**. Above the full table, **Show maps of** and **Type** render as two native `<select>` dropdowns (respecting `requireGeoref`). Year and Area row chips are **not** clickable filters.
+- **`CatalogSidebarPanel.svelte`** (`features/catalog/shared/`) — compact catalog browser used by tool pages other than /explore. It composes the whole catalog feature, so it is catalog's public entry point, not a shared primitive.
+- **`CatalogTable.svelte`** / **`CatalogTableCompact.svelte`** (`features/catalog/`) — full and sidebar variants. Compact shows **Year + Name only**. Above the full table, **Show maps of** and **Type** render as two native `<select>` dropdowns (respecting `requireGeoref`). Year and Area row chips are **not** clickable filters.
 
 `/explore`'s own desktop sidebar is `src/lib/features/explore/ExploreSidebar.svelte`, which stacks **Browse → Layers → Controls** (default 40/40/20, draggable splitters, ratios persisted). Its Browse pane is `ExploreBrowsePanel.svelte` + `ExploreArchiveBrowser.svelte`, not `CatalogSidebarPanel`.
 
@@ -163,7 +165,7 @@ In dual mode, OL attribution + scale live on the **secondary** pane (right on de
 
 ### Contribute tools
 
-**Shared (`src/lib/features/contribute/shared/`):** `ToolSidebarShell.svelte` + `ToolMapPicker.svelte` (the sidebar frame and map selector all three tools use), `ToolPanelHeader.svelte`, `EmptyPanel.svelte`, `SidebarToggleButton.svelte`, `CliCommandBlock.svelte` (copy-paste CLI block), `bboxHandles.ts` (flip helpers live in `$lib/core/geo/rectUtils.ts`), `tableSort.ts` (`createTableSort<T>`), `iiifSource.ts` (`resolveMapIiifInfoUrl`). Data clients: `src/lib/features/contribute/ocr/ocrApi.ts` and `src/lib/features/contribute/pipelineApi.ts`. Category/colour/status constants have one home: `src/lib/features/contribute/ocr/constants.ts`. Footprint geometry types live in `src/lib/data/maps/footprintTypes.ts`.
+**Shared (`src/lib/features/contribute/shared/`):** `ToolSidebarShell.svelte` + `ToolMapPicker.svelte` (the sidebar frame and map selector all three tools use), `ToolPanelHeader.svelte`, `EmptyPanel.svelte`, `SidebarToggleButton.svelte`, `CliCommandBlock.svelte` (copy-paste CLI block), `bboxHandles.ts` (flip helpers live in `$lib/core/geo/rectUtils.ts`), `tableSort.ts` (`createTableSort<T>`), `iiifSource.ts` (`resolveMapIiifInfoUrl`). Data clients: `src/lib/features/contribute/shared/ocrApi.ts` and `src/lib/features/contribute/pipelineApi.ts`. Category/colour/status constants have one home: `src/lib/features/contribute/shared/constants.ts` (with `types.ts` beside it — all three moved from `ocr/` because `MapEditPipelineTab` and `LabelHits` import them). Footprint geometry types live in `src/lib/data/maps/footprintTypes.ts`.
 
 **Digitalize (`/contribute/digitalize`)** — two-phase HITL on a single `ImageShell`, tabs via `PhaseTabs.svelte`:
 

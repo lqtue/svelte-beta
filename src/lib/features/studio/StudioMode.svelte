@@ -28,7 +28,7 @@
 
   import MapWorkspace from '$lib/map/shell/MapWorkspace.svelte';
   import DrawTool from '$lib/map/shell/DrawTool.svelte';
-  import MapViewerSidebar from '$lib/features/catalog/MapViewerSidebar.svelte';
+  import MapViewerSidebar from '$lib/features/shared/MapViewerSidebar.svelte';
   import StudioRightPane from './StudioRightPane.svelte';
   import StudioOverpassController from './StudioOverpassController.svelte';
   import BboxSelector from './BboxSelector.svelte';

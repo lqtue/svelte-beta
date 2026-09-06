@@ -11,7 +11,8 @@
  */
 const url = process.env.PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_KEY;
-if (!url || !key) throw new Error('Set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY (node --env-file=.env)');
+if (!url || !key)
+  throw new Error('Set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY (node --env-file=.env)');
 
 const apply = process.argv.includes('--apply');
 const h = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
@@ -39,7 +40,10 @@ for (const m of maps) {
       headers: h,
       body: JSON.stringify({ thumbnail: next }),
     });
-    if (!res.ok) { console.log(`FAIL ${m.id} ${res.status} ${await res.text()}`); continue; }
+    if (!res.ok) {
+      console.log(`FAIL ${m.id} ${res.status} ${await res.text()}`);
+      continue;
+    }
   }
   console.log(`${apply ? 'SET ' : 'WOULD SET'} ${m.id} ${m.name}`);
   ok++;

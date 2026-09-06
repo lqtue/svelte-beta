@@ -12,11 +12,11 @@
   import { browser } from '$app/environment';
   import type { ViewMode } from '$lib/map/types';
   import type { MapListItem } from '$lib/data/maps/types';
-  import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
-  import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
-  import SidebarCard from '$lib/features/catalog/SidebarCard.svelte';
+  import LayerStackPanel from '$lib/features/shared/LayerStackPanel.svelte';
+  import LayerControlsPanel from '$lib/features/shared/LayerControlsPanel.svelte';
+  import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
   import ExploreBrowsePanel from './ExploreBrowsePanel.svelte';
-  import type { LabelHit } from '$lib/features/catalog/catalogSearch';
+  import type { LabelHit } from '$lib/features/shared/catalogSearch';
   import type { ResolvedMap } from './spatialLookup';
   import { readJson, writeJson } from '$lib/core/utils/persistence/storage';
 

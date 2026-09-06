@@ -7,9 +7,9 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { OCR_CATEGORIES, CAT_COLORS } from './constants';
-  import type { OcrExtraction } from './types';
-  import type { OcrStatus } from './ocrApi';
+  import { OCR_CATEGORIES, CAT_COLORS } from '../shared/constants';
+  import type { OcrExtraction } from '../shared/types';
+  import type { OcrStatus } from '../shared/ocrApi';
 
   export let extraction: OcrExtraction;
   export let saving = false;

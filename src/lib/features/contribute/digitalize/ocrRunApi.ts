@@ -1,6 +1,6 @@
 /**
  * ocrRunApi.ts — the client for `/api/admin/maps/[id]/ocr` (batch OCR runs).
- * Sibling of `$lib/features/contribute/ocr/ocrApi.ts`, which owns the review endpoint.
+ * Sibling of `$lib/features/contribute/shared/ocrApi.ts`, which owns the review endpoint.
  */
 
 import type { TileOverrides } from './tileParams';

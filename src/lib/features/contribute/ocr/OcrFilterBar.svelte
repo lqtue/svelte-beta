@@ -4,7 +4,7 @@
   back to the sidebar rather than round-tripping through the API.
 -->
 <script lang="ts">
-  import { OCR_CATEGORIES, CAT_COLORS } from './constants';
+  import { OCR_CATEGORIES, CAT_COLORS } from '../shared/constants';
 
   /** Minimum confidence, 0–1. */
   export let minConf = 0;

@@ -2,7 +2,7 @@
  * catalogTableModel.ts — sort / group / label logic shared by CatalogTable
  * (full) and CatalogTableCompact (year + name rows).
  */
-import { statusOf } from '$lib/features/catalog/catalogSearch';
+import { statusOf } from '$lib/features/shared/catalogSearch';
 
 export type SortKey = 'name' | 'year' | 'location' | 'map_type' | 'collection' | 'status';
 export type GroupKey = 'none' | SortKey;

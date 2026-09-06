@@ -171,7 +171,6 @@ All tables must have `alter table ... enable row level security`.
 
 | Item | Location | Fix |
 |------|---------|-----|
-| Two visibility models on `maps` | the `status` enum (`draft \| public \| featured`, mig 038) and the `is_public` / `is_featured` booleans both exist, and different code paths gate on different ones — `data/maps/georef.ts` selects the georef queue with `.eq('is_public', false)` while `/api/search` enforces `status IN ('public','featured')`, and `MapEditModal` exposes both | Pick one as authoritative, migrate the other to a generated column or drop it. **Do not add a third.** |
 | `label_pins` outlives its feature | `label_tasks` was dropped in mig 038 but `label_pins` remains, now written only by `POST /api/admin/maps/[id]/ocr/apply` | Either fold into `ocr_extractions` or document it as the OCR-applied point layer |
 | Migration head is 070 | `supabase/migrations/` | Regenerate `src/lib/data/supabase/types.ts` after every push: `supabase gen types typescript --linked` |
 | Production drifted from the migrations once | `pipeline_jobs_kind_check` allowed `warp` with no migration saying so; corrected in 070 | Nothing to fix now — but it means the migrations are not provably the whole schema. A `db pull` diff would settle it, and needs the direct DB password |

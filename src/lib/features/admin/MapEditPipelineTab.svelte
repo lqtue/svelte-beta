@@ -4,15 +4,15 @@
   Label Studio config back to the parent so they flow into the save payload.
 -->
 <script lang="ts">
-  import { OCR_CATEGORIES } from '$lib/features/contribute/ocr/constants';
-  import type { EditableOcrExtraction } from '$lib/features/contribute/ocr/types';
+  import { OCR_CATEGORIES } from '$lib/features/contribute/shared/constants';
+  import type { EditableOcrExtraction } from '$lib/features/contribute/shared/types';
   import {
     fetchExtractions,
     patchExtraction,
     batchSetStatus,
     withEditState,
     type OcrStatus,
-  } from '$lib/features/contribute/ocr/ocrApi';
+  } from '$lib/features/contribute/shared/ocrApi';
   export let mapId: string;
   export let iiifImage: string | null | undefined = '';
 

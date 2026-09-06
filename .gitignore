@@ -38,3 +38,6 @@ work/ocr/.venv/
 # Claude Code local session state
 .claude/
 worker/.wrangler
+
+# PMTiles basemap extracts are built by scripts/pmtiles_extract.sh and live in R2, never in git
+*.pmtiles

@@ -16,7 +16,7 @@
   import StoryHeaderPanel from './StoryHeaderPanel.svelte';
   import StoryPointsPanel from './StoryPointsPanel.svelte';
   import PointInspector from './PointInspector.svelte';
-  import SidebarCard from '$lib/features/catalog/SidebarCard.svelte';
+  import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
 
   const dispatch = createEventDispatcher<{
     toggleCollapse: void;

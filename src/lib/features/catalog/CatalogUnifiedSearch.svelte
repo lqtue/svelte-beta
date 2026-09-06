@@ -1,6 +1,6 @@
 <!--
   CatalogUnifiedSearch.svelte — the catalog page / sidebar view over the shared
-  search engine (`$lib/features/catalog/catalogSearch`). The engine owns the /api/search
+  search engine (`$lib/features/shared/catalogSearch`). The engine owns the /api/search
   fetch, caching, facet tallying, and filtering; this component only renders.
 
   Inputs:
@@ -11,9 +11,9 @@
   import FacetRail from '$lib/ui/FacetRail.svelte';
   import CatalogTable from '$lib/features/catalog/CatalogTable.svelte';
   import CatalogDetailDrawer from '$lib/features/catalog/CatalogDetailDrawer.svelte';
-  import LabelHits from '$lib/features/catalog/LabelHits.svelte';
+  import LabelHits from '$lib/features/shared/LabelHits.svelte';
   import { createEventDispatcher, onMount } from 'svelte';
-  import { createCatalogSearch } from '$lib/features/catalog/catalogSearch';
+  import { createCatalogSearch } from '$lib/features/shared/catalogSearch';
 
   export let searchQuery: string = '';
   export let role: 'user' | 'mod' | 'admin' = 'user';

@@ -34,8 +34,8 @@
   import FootprintsLayer from '$lib/features/explore/FootprintsLayer.svelte';
   import PressPanel from '$lib/features/explore/PressPanel.svelte';
   import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
-  import LayerStackPanel from '$lib/features/catalog/LayerStackPanel.svelte';
-  import LayerControlsPanel from '$lib/features/catalog/LayerControlsPanel.svelte';
+  import LayerStackPanel from '$lib/features/shared/LayerStackPanel.svelte';
+  import LayerControlsPanel from '$lib/features/shared/LayerControlsPanel.svelte';
 
   import ExploreSidebar from '$lib/features/explore/ExploreSidebar.svelte';
   import ExploreBrowsePanel from '$lib/features/explore/ExploreBrowsePanel.svelte';
@@ -55,7 +55,7 @@
     applyExploreUrlParams,
     LABEL_ZOOM,
   } from '$lib/features/explore/exploreUrl';
-  import type { LabelHit } from '$lib/features/catalog/catalogSearch';
+  import type { LabelHit } from '$lib/features/shared/catalogSearch';
   import { OPACITY_STEP, isTypingTarget, stepByYear } from '$lib/features/explore/exploreKeys';
   import '$styles/layouts/mode-shared.css';
 
