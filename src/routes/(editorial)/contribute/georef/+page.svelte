@@ -2,22 +2,44 @@
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import PageHero from '$lib/ui/PageHero.svelte';
-  import { allmapsEditorUrl, fetchGeorefQueue, type GeorefMapItem } from '$lib/data/maps/georef';
+  import { fetchUserRole } from '$lib/data/supabase/role';
+  import {
+    allmapsEditorUrl,
+    fetchGeorefQueue,
+    fetchGeorefFixList,
+    type GeorefMapItem,
+    type GeorefFixItem,
+  } from '$lib/data/maps/georef';
 
-  const { supabase } = getSupabaseContext();
+  const { supabase, session } = getSupabaseContext();
 
   let maps: GeorefMapItem[] = [];
+  let fixable: GeorefFixItem[] = [];
+  let role: 'user' | 'mod' | 'admin' = 'user';
   let loading = true;
   let mounted = false;
+  let fixSearch = '';
 
   onMount(async () => {
     mounted = true;
-    maps = await fetchGeorefQueue(supabase);
+    [maps, role] = await Promise.all([
+      fetchGeorefQueue(supabase),
+      fetchUserRole(supabase, session?.user?.id).then((r) => r ?? 'user'),
+    ]);
+    // Same gate as the share page's "Fix georeference" button.
+    if (role === 'admin' || role === 'mod') fixable = await fetchGeorefFixList(supabase);
     loading = false;
   });
 
   $: pending = maps.filter((m) => !m.georef_done);
-  $: done = maps.filter((m) => m.georef_done);
+  $: canFix = role === 'admin' || role === 'mod';
+  $: fixShown = (() => {
+    const q = fixSearch.trim().toLowerCase();
+    if (!q) return fixable;
+    return fixable.filter(
+      (m) => m.name.toLowerCase().includes(q) || String(m.year ?? '').includes(q)
+    );
+  })();
 </script>
 
 <svelte:head>
@@ -56,8 +78,8 @@
           modern world.
         </li>
         <li>
-          Copy the annotation URL Allmaps gives you and send it to us (Discord or email). An admin
-          records it on the map.
+          Save in Allmaps. Nothing to send back: the archive checks Allmaps for finished maps and
+          marks them georeferenced by itself.
         </li>
       </ol>
     </section>
@@ -98,22 +120,54 @@
         {/if}
       </section>
 
-      {#if done.length > 0}
+      {#if canFix}
         <section class="section-card">
           <h2 class="section-label">
-            Already done <span class="count-badge chip-green">{done.length}</span>
+            Fix an existing georeference <span class="count-badge chip-green">{fixable.length}</span
+            >
           </h2>
-          <ul class="map-list done-list">
-            {#each done as map (map.id)}
-              <li class="map-row done">
-                <div class="map-meta">
-                  <span class="map-name">{map.name}</span>
-                  {#if map.year}<span class="map-year">{map.year}</span>{/if}
-                </div>
-                <span class="badge-chip chip-green done-chip">✓ Done</span>
-              </li>
-            {/each}
-          </ul>
+          <p class="fix-help">
+            Reopens the map's control points in Allmaps so you correct them rather than start over.
+            Same button as the share page, without having to know the map's id.
+          </p>
+          <input
+            class="fix-search"
+            type="search"
+            placeholder="Find by name or year…"
+            bind:value={fixSearch}
+            aria-label="Find a georeferenced map"
+          />
+          {#if fixShown.length === 0}
+            <p class="empty-msg">No georeferenced map matches.</p>
+          {:else}
+            <ul class="map-list done-list">
+              {#each fixShown as map (map.id)}
+                <li class="map-row done">
+                  <div class="map-meta">
+                    <span class="map-name">{map.name}</span>
+                    {#if map.year}<span class="map-year">{map.year}</span>{/if}
+                    {#if map.status === 'draft'}<span class="map-year">draft</span>{/if}
+                  </div>
+                  {#if map.editorUrl}
+                    <a
+                      class="action-btn secondary-btn map-btn"
+                      href={map.editorUrl}
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      Fix in Allmaps →
+                    </a>
+                  {:else}
+                    <span
+                      class="badge-chip done-chip"
+                      title="R2-only source and no manifest: the editor has nothing to open"
+                      >no source</span
+                    >
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
         </section>
       {/if}
     {/if}
@@ -121,6 +175,22 @@
 </div>
 
 <style>
+  .fix-help {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    opacity: 0.75;
+  }
+  .fix-search {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    font: inherit;
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-white);
+    color: var(--color-text);
+  }
   :global(body) {
     margin: 0;
     background-color: var(--color-bg);

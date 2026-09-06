@@ -3,6 +3,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/data/supabase/types';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { allmapsEditorSourceUrl } from '$lib/core/iiif/annotationUrl';
 
 export interface GeorefMapItem {
   id: string;
@@ -12,6 +13,51 @@ export interface GeorefMapItem {
   iiif_manifest: string | null;
   georef_done: boolean;
   year: number | null;
+}
+
+/** A georeferenced map together with the editor link that reopens its control points. */
+export interface GeorefFixItem {
+  id: string;
+  name: string;
+  year: number | null;
+  status: string;
+  /** '' when the map carries nothing the Allmaps Editor can open (R2-only, no manifest). */
+  editorUrl: string;
+}
+
+const EDITOR = 'https://editor.allmaps.org/#/collection?url=';
+
+/**
+ * Every georeferenced map, published or not, with the link that reopens its
+ * existing control points — the same link the share page builds, so nobody has
+ * to find a map id to correct a georeference. Sources come along because an
+ * R2 mirror must not be handed to the editor (see allmapsEditorSourceUrl).
+ */
+export async function fetchGeorefFixList(
+  supabase: SupabaseClient<Database>
+): Promise<GeorefFixItem[]> {
+  const { data, error } = await supabase
+    .from('maps')
+    .select(
+      'id, name, year, status, iiif_manifest, annotation_url, allmaps_id, map_iiif_sources(iiif_image, source_type)'
+    )
+    .eq('georef_done', true)
+    .order('name');
+
+  if (error) {
+    console.error('fetchGeorefFixList:', error);
+    return [];
+  }
+  return (data ?? []).map((m) => {
+    const source = allmapsEditorSourceUrl(m, m.map_iiif_sources ?? []);
+    return {
+      id: m.id,
+      name: m.name,
+      year: m.year,
+      status: m.status ?? 'draft',
+      editorUrl: source ? EDITOR + encodeURIComponent(source) : '',
+    };
+  });
 }
 
 /** The georeferencing queue: maps not yet published, highest priority first. */
