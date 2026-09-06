@@ -996,11 +996,12 @@ def _self_check() -> None:
             "tile_size": 256}
     B = "https://x/iiif/m"
 
-    # size = ceil(region_w / sf), not a constant 256 — a clipped edge tile is
-    # narrower, and asking for 256 there is the 404 that hid this bug.
-    assert level0_tile_url(B, 0, 0, 8192, 8192, 32).endswith("/0,0,8192,8192/256,/0/default.jpg")
+    # size = ceil(region / sf) on both axes, written `w,h` — that is the key the
+    # tiler wrote to R2, and `w,` alone misses it and falls through to the
+    # upstream proxy (2cf6dd0). A clipped edge tile is smaller on both axes.
+    assert level0_tile_url(B, 0, 0, 8192, 8192, 32).endswith("/0,0,8192,8192/256,256/0/default.jpg")
     assert level0_tile_url(B, 8192, 8192, 3910, 790, 32).endswith(
-        "/8192,8192,3910,790/123,/0/default.jpg"), "a clipped tile must round its width up"
+        "/8192,8192,3910,790/123,25/0/default.jpg"), "a clipped tile must round both sides up"
 
     # Coarsest factor that still delivers the width the caller asked for.
     assert _pick_scale_factor(info, 12102, 1024) == 8
@@ -1011,6 +1012,14 @@ def _self_check() -> None:
     assert _descending_from(64, info) == [64, 32, 16, 8, 4, 2, 1]
     assert _descending_from(1, info) == [1]
     assert _descending_from(4, {"scale_factors": []}) == [1]
+
+    # A sheet narrower than every target yields no level at all — the caller
+    # (ocr.py cmd_scout) must refuse it with a message, not index an empty list.
+    thumb = {"width": 800, "height": 628, "sizes": [{"width": 800, "height": 628}]}
+    assert choose_scale_levels(thumb, targets=(1024, 2048, 4096)) == []
+    assert choose_scale_levels({"width": 800, "height": 628}, targets=(1024, 2048)) == []
+    real = {"width": 7561, "height": 5601, "sizes": [{"width": 7561, "height": 5601}, {"width": 1890, "height": 1400}]}
+    assert [l["width"] for l in choose_scale_levels(real, targets=(1024, 2048, 4096))] == [1890], "every target rounds to the 1890 level; dedup keeps one"
 
     print("[ok] iiif_tiles self-check passed")
 

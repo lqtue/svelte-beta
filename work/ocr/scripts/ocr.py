@@ -851,6 +851,10 @@ def cmd_preview(args: argparse.Namespace) -> None:
 # Per-category minimum confidence floors (applied before dedup).
 # Streets and hydrology use a lower floor since spatial anchoring matters even
 # for uncertain fragments. Legend/other noise warrants a higher bar.
+# Narrowest full-sheet render the scout will look at. Below this a street name is
+# a few pixels tall and the layout/OCR passes return plausible nothing.
+SCOUT_MIN_WIDTH = 1024
+
 CATEGORY_MIN_CONF: dict[str, float] = {
     "street":      0.40,
     "hydrology":   0.40,
@@ -1932,7 +1936,17 @@ def cmd_scout(args: argparse.Namespace) -> None:
 
     # Choose scale levels from info.json — prefers server pre-rendered sizes
     render_size = args.render_size
-    levels = choose_scale_levels(info, targets=(1024, 2048, render_size))
+    levels = choose_scale_levels(info, targets=(SCOUT_MIN_WIDTH, 2048, render_size))
+    if not levels:
+        # Two published Huế plans are 800×628 and 754×877 px at the source. The
+        # picker returns nothing when every target exceeds the sheet, and the
+        # old code then crashed on `images[-1]`, so the job's error was a
+        # traceback rather than the fact. Say the fact.
+        raise SystemExit(
+            f"Sheet is {full_w}×{full_h} px, under the {SCOUT_MIN_WIDTH} px the scout "
+            "needs to read a label. That is the scan itself, not the mirror: find a "
+            "larger source (map_iiif_sources) before running layout or OCR on this map."
+        )
     print(f"  Using {len(levels)} scale level(s): "
           + ", ".join(f"{l['width']}×{l['height']}" for l in levels))
 
