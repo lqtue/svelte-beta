@@ -50,7 +50,7 @@
     type StoredTriage,
   } from '$lib/features/contribute/digitalize/triagePrefs';
   import { suggestTriage as computeTriageProposal } from '$lib/features/contribute/digitalize/suggestTriage';
-  import type { LayoutRegion } from '$lib/data/maps/triageTypes';
+  import { createLayoutJob } from '$lib/features/contribute/digitalize/layoutJob';
   import {
     fetchPipelineStatus,
     advancePipelineStage,
@@ -96,10 +96,8 @@
   // ── Layout pass ───────────────────────────────────────────────────────────────
   let selectedRegion: number | null = null;
   let showRegions = true;
-  let detectingLayout = false;
-  let layoutError = '';
-  let layoutJob: { status: string; error?: string | null } | null = null;
-  let layoutPoll: ReturnType<typeof setInterval> | null = null;
+  const layout = createLayoutJob((regions) => (triage.regions = regions));
+  onDestroy(layout.stop);
 
   let segConfig: SegConfig = { ...DEFAULT_SEG_CONFIG };
 
@@ -146,9 +144,7 @@
     savedTriage = m.triage;
     saveTriageError = '';
     selectedRegion = null;
-    layoutError = '';
-    layoutJob = null;
-    stopLayoutPoll();
+    layout.reset();
     // A saved triage is the record; localStorage is only this browser's draft.
     // Preferring the server keeps two people (or two machines) from silently
     // triaging the same sheet differently.
@@ -225,63 +221,6 @@
     }
   }
 
-  // ── Layout pass ───────────────────────────────────────────────────────────────
-  function stopLayoutPoll() {
-    if (layoutPoll) clearInterval(layoutPoll);
-    layoutPoll = null;
-  }
-
-  /** Pull the saved regions back, and whatever the job is doing. */
-  async function refreshLayout(): Promise<void> {
-    if (!currentMap) return;
-    const res = await fetch(`/api/admin/maps/${currentMap.id}/layout`);
-    if (!res.ok) return;
-    const data = await res.json();
-    layoutJob = data.job ?? null;
-
-    const live = layoutJob && ['queued', 'claimed', 'running'].includes(layoutJob.status);
-    if (!live) {
-      detectingLayout = false;
-      stopLayoutPoll();
-      // Only adopt the server's answer once the job is finished; mid-run it is
-      // still whatever was there before, and overwriting a person's in-progress
-      // corrections with it would be the worst possible moment.
-      if (Array.isArray(data.regions) && data.regions.length) {
-        triage.regions = data.regions as LayoutRegion[];
-      }
-      if (layoutJob?.status === 'failed') {
-        layoutError = layoutJob.error ?? 'The layout job failed.';
-      }
-    }
-  }
-
-  /**
-   * Ask the model what the sheet is made of. Enqueues a job — the Gemini key
-   * lives on the worker, deliberately not here — and polls until it closes.
-   */
-  async function detectLayout() {
-    if (!currentMap || detectingLayout) return;
-    detectingLayout = true;
-    layoutError = '';
-    try {
-      const res = await fetch(`/api/admin/maps/${currentMap.id}/layout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message ?? res.statusText);
-      layoutJob = { status: body.status ?? 'queued' };
-      stopLayoutPoll();
-      layoutPoll = setInterval(refreshLayout, 5000);
-    } catch (e: any) {
-      layoutError = e?.message ?? 'Could not enqueue the layout job';
-      detectingLayout = false;
-    }
-  }
-
-  onDestroy(stopLayoutPoll);
-
   /** Promote this browser's draft to `maps.triage`, where the enqueue script reads it. */
   async function saveTriage() {
     if (!currentMap || savingTriage) return;
@@ -347,8 +286,9 @@
 
 <div class="tool-page">
   <ToolLayout bind:sidebarCollapsed bind:isMobile>
-    <svelte:fragment slot="sidebar">
+    <svelte:fragment slot="sidebar" let:compact>
       <DigitalizeSidebar
+        {compact}
         {phase}
         mapId={currentMap?.id ?? null}
         {imgWidth}
@@ -369,13 +309,13 @@
         {suggestError}
         bind:selectedRegion
         bind:showRegions
-        {detectingLayout}
-        {layoutError}
-        {layoutJob}
+        detectingLayout={$layout.detecting}
+        layoutError={$layout.error}
+        layoutJob={$layout.job}
         on:runOcr={runOcr}
         on:saveTriage={saveTriage}
         on:suggestTriage={suggestTriage}
-        on:detectLayout={detectLayout}
+        on:detectLayout={() => currentMap && layout.detect(currentMap.id)}
         on:regionsChange={(e) => (triage.regions = e.detail)}
         on:selectRegion={(e) => (selectedRegion = e.detail)}
         on:loadRun={loadRun}
@@ -468,47 +408,6 @@
         <span>Loading map…</span>
       </div>
     {/if}
-
-    <svelte:fragment slot="mobile-sidebar">
-      <DigitalizeSidebar
-        compact
-        {phase}
-        mapId={currentMap?.id ?? null}
-        {imgWidth}
-        {imgHeight}
-        {iiifInfoUrl}
-        bind:triage
-        {run}
-        {pipeline}
-        bind:segConfig
-        bind:ocrSidebar
-        selectedId={$review.selectedId}
-        onCollapse={() => (sidebarCollapsed = true)}
-        on:phaseChange={setPhase}
-        {savedTriage}
-        {savingTriage}
-        {saveTriageError}
-        {suggesting}
-        {suggestError}
-        bind:selectedRegion
-        bind:showRegions
-        {detectingLayout}
-        {layoutError}
-        {layoutJob}
-        on:runOcr={runOcr}
-        on:saveTriage={saveTriage}
-        on:suggestTriage={suggestTriage}
-        on:detectLayout={detectLayout}
-        on:regionsChange={(e) => (triage.regions = e.detail)}
-        on:selectRegion={(e) => (selectedRegion = e.detail)}
-        on:loadRun={loadRun}
-        on:advance={(e) => advanceStage(e.detail.stage)}
-        on:refresh={loadPipeline}
-        on:loaded={review.loaded}
-        on:filter={review.filter}
-        on:zoomToExtraction={review.zoom}
-      />
-    </svelte:fragment>
   </ToolLayout>
 
   {#if currentMap}

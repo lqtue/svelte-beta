@@ -117,7 +117,7 @@
 }
 .shapes-table td {
   padding: 0.2rem 0.4rem;
-  border-bottom: 1px solid var(--color-gray-200, #eee);
+  border-bottom: 1px solid var(--color-gray-300);
   vertical-align: middle;
 }
 .shape-tr:hover td {
@@ -160,7 +160,7 @@
 }
 .cell-select {
   width: 100%;
-  border: 1px solid var(--color-gray-200, #ddd);
+  border: 1px solid var(--color-gray-300);
   border-radius: 3px;
   background: var(--color-bg);
   font-family: var(--font-family-base);

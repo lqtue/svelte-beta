@@ -111,19 +111,6 @@
   margin-top: 2rem;
 }
 
-.catalog-page .spinner {
-  font-size: 4rem;
-  display: inline-block;
-  animation: catalog-spin 2s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes catalog-spin {
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 .catalog-page .empty-emoji {
   font-size: 5rem;
   margin-bottom: 1rem;

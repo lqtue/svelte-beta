@@ -5,6 +5,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { SamFootprint } from '$lib/data/supabase/footprints';
+  import { FEATURE_TYPE_COLORS, FEATURE_TYPE_LABELS } from '$lib/data/maps/footprintTypes';
 
   export let footprints: SamFootprint[] = [];
   export let selectedId: string | null = null;
@@ -23,18 +24,15 @@
     markReviewed: void;
   }>();
 
-  /** Class swatches — data, not theme: they identify a feature class on the canvas. */
+  /** The cadastral classes this queue also sees, on top of the feature types.
+      Swatches are data, not theme: they identify a class on the canvas. */
   const CLASS_COLORS: Record<string, string> = {
     particulier: '#d2956e',
     communal: '#7cb87c',
     militaire: '#7ba0c8',
     local_svc: '#9c9c9c',
     non_affect: '#e8e0d0',
-    building: '#2563eb',
-    land_plot: '#a78bfa',
-    road: '#64748b',
-    waterway: '#38bdf8',
-    other: '#888888',
+    ...FEATURE_TYPE_COLORS,
   };
 
   const ALL_TYPE_LABELS: Record<string, string> = {
@@ -43,11 +41,7 @@
     militaire: 'Militaire',
     local_svc: 'Service Local',
     non_affect: 'Non Affecté',
-    building: 'Building',
-    land_plot: 'Land Plot',
-    road: 'Road',
-    waterway: 'Waterway',
-    other: 'Other',
+    ...FEATURE_TYPE_LABELS,
   };
 
   function classColor(ft: string) {

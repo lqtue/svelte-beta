@@ -227,7 +227,7 @@
 
   {#if loadingImage}
     <div class="shell-overlay">
-      <div class="loading-spinner"></div>
+      <div class="spinner"></div>
       <span>Loading IIIF image…</span>
     </div>
   {/if}
@@ -281,20 +281,5 @@
   }
   .empty-msg {
     color: var(--is-canvas-text-dim);
-  }
-
-  .loading-spinner {
-    width: 28px;
-    height: 28px;
-    border: 3px solid var(--is-canvas-gold-dim);
-    border-top-color: var(--is-canvas-gold);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
 </style>

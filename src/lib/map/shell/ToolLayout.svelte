@@ -17,6 +17,11 @@
     mobile-controls   — mobile drawer 2 body  (label: "Controls")
     mobile-browse     — mobile drawer 3 body  (label: "Browse")
     mobile-sidebar    — legacy fallback (single drawer, label: "Tools")
+
+  A tool that only fills `sidebar` gets that same slot in the mobile drawer,
+  with `let:compact` true — one component instance, since the desktop rail and
+  the drawer are never mounted at the same time. Fill `mobile-sidebar` only
+  when mobile genuinely needs different content.
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
@@ -115,7 +120,10 @@
   $: hasMobileControls = !!$$slots['mobile-controls'];
   $: hasMobileBrowse = !!$$slots['mobile-browse'];
   $: hasMobileSidebar = !!$$slots['mobile-sidebar'];
-  $: hasAnyDrawer = hasMobileLayers || hasMobileControls || hasMobileBrowse || hasMobileSidebar;
+  /** No `mobile-sidebar` of its own: the drawer reuses the `sidebar` slot. */
+  $: mobileUsesSidebar = hasSidebar && !hasMobileSidebar;
+  $: hasLegacyDrawer = hasMobileSidebar || mobileUsesSidebar;
+  $: hasAnyDrawer = hasMobileLayers || hasMobileControls || hasMobileBrowse || hasLegacyDrawer;
   $: showDesktopSidebar = hasSidebar && !sidebarCollapsed && !isMobile;
   $: showRightSidebar = hasRightSidebar && !rightSidebarCollapsed && !isMobile;
 </script>
@@ -130,7 +138,7 @@
 >
   {#if showDesktopSidebar}
     <div class="sidebar-slot">
-      <slot name="sidebar" />
+      <slot name="sidebar" compact={false} />
     </div>
     <div class="resize-handle" on:mousedown={startResizingLeft} role="presentation"></div>
   {/if}
@@ -209,12 +217,18 @@
       hasLayers={hasMobileLayers}
       hasControls={hasMobileControls}
       hasBrowse={hasMobileBrowse}
-      hasLegacy={hasMobileSidebar}
+      hasLegacy={hasLegacyDrawer}
     >
       <slot name="mobile-layers" slot="layers" />
       <slot name="mobile-controls" slot="controls" />
       <slot name="mobile-browse" slot="browse" />
-      <slot name="mobile-sidebar" slot="legacy" />
+      <svelte:fragment slot="legacy">
+        {#if hasMobileSidebar}
+          <slot name="mobile-sidebar" />
+        {:else}
+          <slot name="sidebar" compact={true} />
+        {/if}
+      </svelte:fragment>
     </MobileDrawerStack>
   {/if}
 </div>

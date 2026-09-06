@@ -79,7 +79,7 @@
     gap: var(--space-2);
     width: 100%;
     padding: var(--space-1) var(--space-2);
-    border: var(--border-thin) solid var(--color-border);
+    border: var(--border-thin);
     border-radius: var(--radius-sm);
     background: var(--color-white);
     color: var(--color-text);

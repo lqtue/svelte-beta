@@ -113,7 +113,7 @@
     align-items: flex-start;
     justify-content: space-between;
     padding: var(--space-4);
-    border: var(--border-width) solid var(--color-border);
+    border: var(--border-thin);
     border-radius: var(--radius-md);
     background: var(--color-white);
   }
@@ -131,13 +131,13 @@
   }
 
   .story-sub {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    color: var(--color-gray-500);
   }
 
   .story-desc {
     margin: var(--space-1) 0 0;
-    font-size: var(--font-size-sm);
+    font-size: var(--text-sm);
     color: var(--color-text);
   }
 
@@ -149,7 +149,7 @@
 
   .story-actions button {
     padding: var(--space-2) var(--space-3);
-    border: var(--border-width) solid var(--color-border);
+    border: var(--border-thin);
     border-radius: var(--radius-sm);
     background: var(--color-white);
     font: inherit;
@@ -163,15 +163,5 @@
   .story-actions button:disabled {
     opacity: 0.5;
     cursor: default;
-  }
-
-  .state-msg {
-    padding: var(--space-6) 0;
-    text-align: center;
-    color: var(--color-text-muted);
-  }
-
-  .state-msg.error {
-    color: var(--color-primary);
   }
 </style>

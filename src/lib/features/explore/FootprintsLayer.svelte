@@ -19,22 +19,12 @@
   import type Map from 'ol/Map';
 
   import { getShellContext } from '$lib/map/shell/context';
+  import { featureTypeFill } from '$lib/data/maps/footprintTypes';
 
   /** Map ids whose fabric should be drawn. Empty means the layer sits idle. */
   export let mapIds: string[] = [];
 
   const { map: mapWritable } = getShellContext();
-
-  /** One colour per feature type, matching the contribute tools' palette. */
-  const FILL: Record<string, string> = {
-    building: 'rgba(34, 197, 94, 0.35)',
-    land_plot: 'rgba(234, 179, 8, 0.25)',
-    road: 'rgba(239, 68, 68, 0.30)',
-    waterway: 'rgba(59, 130, 246, 0.35)',
-    water_body: 'rgba(59, 130, 246, 0.30)',
-    green_space: 'rgba(132, 204, 22, 0.30)',
-    other: 'rgba(148, 163, 184, 0.30)',
-  };
 
   let olMap: Map | null = null;
   let source: VectorSource | null = null;
@@ -45,7 +35,7 @@
   const styleFor = (f: FeatureLike) => {
     const type = String(f.get('feature_type') ?? 'other');
     return new Style({
-      fill: new Fill({ color: FILL[type] ?? FILL.other }),
+      fill: new Fill({ color: featureTypeFill(type) }),
       stroke: new Stroke({ color: 'rgba(17, 17, 17, 0.55)', width: 1 }),
     });
   };

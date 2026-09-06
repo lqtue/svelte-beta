@@ -179,20 +179,6 @@
   color: var(--color-text, #2b2520);
   opacity: 0.6;
 }
-.spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(212, 175, 55, 0.3);
-  border-top-color: #d4af37;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* ── Bottom toolbar (contribute/trace) ───────────────────────────────────── */
 .bottom-bar {
   display: flex;

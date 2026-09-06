@@ -144,7 +144,7 @@
   .cta {
     display: inline-block;
     padding: var(--space-2) var(--space-4);
-    border: var(--border-thick) solid var(--color-border);
+    border: var(--border-thick);
     border-radius: var(--radius-pill);
     background: var(--color-primary);
     color: var(--color-white);
@@ -178,7 +178,7 @@
     display: grid;
     gap: var(--space-1);
     padding: var(--space-2);
-    border: var(--border-thin) solid var(--color-border);
+    border: var(--border-thin);
     border-radius: var(--radius-md);
     background: var(--color-white);
     color: inherit;

@@ -73,19 +73,20 @@ Aliases `--shadow-sm/md/lg` map onto the solid set. Spacing scale: `--space-1…
 
 ## CSS files
 
-All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `global.css` imports `tokens.css` plus the five always-on component sheets; everything else is imported by the component or route that needs it, so a page only pays for what it uses.
+All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `global.css` imports `tokens.css` plus the six always-on component sheets; everything else is imported by the component or route that needs it, so a page only pays for what it uses.
 
 | File | Loaded by | Scope |
 |---|---|---|
 | `tokens.css` | `global.css` | every custom property |
 | `global.css` | root layout | entry point |
 | **components/** | | shared widgets |
-| `buttons.css` | `global.css` | `.action-btn`, `.pill-btn` and variants |
+| `buttons.css` | `global.css` | `.chip` and the `.btn` family, with their variants |
+| `feedback.css` | `global.css` | `.spinner` (the only one) and `.state-msg` |
 | `nav-buttons.css` | `global.css` | nav-bar button chrome |
 | `editorial.css` | `global.css` | hero, section-card, chips, footer, nav |
 | `modal.css` | `global.css` | generic modal scaffolding |
 | `sidebar.css` | `global.css` + `SidebarCard` | sidebar card frame |
-| `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome |
+| `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome only — the `.btn` family moved to `buttons.css` in Sept 2026, because six components outside the modals used it without importing it |
 | `catalog.css` | `CatalogGrid`, `CatalogCard`, `/catalog` | map card grid |
 | `search-panel.css` | `features/shared/search/SearchPanel` + its two tabs | unified search overlay |
 | `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the shared contribute data table |
@@ -100,6 +101,19 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `create-mode.css` | `CreateMode`, `StudioMode` | story/annotation editor layout |
 | **pages/** | | one per editorial page |
 | `about.css`, `blog.css`, `blog-post.css`, `profile.css`, `admin-scout.css`, `admin-bulk.css`, `admin-status.css`, `screens.css` | their route (`admin-bulk.css` also by `GeorefSyncPanel`) | page-specific |
+
+**Breakpoints.** Four, and no others — a fifth value invented for one page is how the set got to seventeen before Sept 2026:
+
+| Width | Meaning |
+|---|---|
+| `600px` | small phone — editorial pages drop to one column |
+| `640px` | dense chrome (nav, modals, admin tables) gets its compact form |
+| `768px` | tablet — `global.css` shrinks body type and pins inputs to 16px so iOS stops zooming |
+| `900px` | the tool split: `ToolLayout` swaps the desktop rail for the mobile drawer stack, matched by `mode-shared.css` and `tool-page.css` |
+
+`ToolLayout` also reads `1400px` in JS for `isCompact`. CSS custom properties do not work inside `@media`, so these are literals on purpose — `--bp-*` tokens existed until Sept 2026, matched nothing and were deleted.
+
+**One spinner.** `.spinner` in `feedback.css` is the whole system: size and colour tune through `--spinner-size`, `--spinner-thickness`, `--spinner-track` and `--spinner-ink`, and `.spinner.on-ink` covers a spinner on a solid coloured button. There is exactly one `@keyframes spin` in the tree — it replaced nine near-identical definitions in Sept 2026. Never write a second one. `.home-page .globe-spin` is a different thing: the rotating 🌎 emoji on the home page.
 
 `layouts/admin.css` and `components/label.css` were deleted in Aug 2026 — the three surviving `label.css` classes moved into `tool-page.css`. Do not reintroduce either name.
 

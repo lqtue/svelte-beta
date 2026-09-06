@@ -482,7 +482,7 @@
       disabled={ocrRunning || !neatlineValid || !imgWidth}
     >
       {#if ocrRunning}
-        <span class="tool-spinner"></span> Queueing…
+        <span class="spinner on-ink"></span> Queueing…
       {:else}
         Run OCR
       {/if}

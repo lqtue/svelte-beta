@@ -91,7 +91,7 @@
   <main class="editorial-main">
     {#if loading}
       <div class="library-loading">
-        <div class="loading-spinner"></div>
+        <div class="spinner"></div>
         <span>Loading…</span>
       </div>
     {:else if items.length === 0}

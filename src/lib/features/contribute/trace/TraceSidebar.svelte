@@ -12,7 +12,7 @@
     applySort,
   } from '$lib/features/contribute/shared/tableSort';
   import type { FootprintSubmission, FeatureType } from '$lib/data/maps/footprintTypes';
-  import { FEATURE_TYPE_LABELS } from '$lib/data/maps/footprintTypes';
+  import { FEATURE_TYPE_LABELS, FEATURE_TYPE_COLORS } from '$lib/data/maps/footprintTypes';
 
   const dispatch = createEventDispatcher<{
     removeFootprint: { footprintId: string };
@@ -29,17 +29,8 @@
   export let drawMode: 'trace' | 'select' = 'trace';
   export let newFootprintId: string | null = null;
 
-  const FEATURE_COLORS: Record<FeatureType, string> = {
-    building: '#d4af37',
-    land_plot: '#61afef',
-    road: '#e06c75',
-    waterway: '#56b6c2',
-    green_space: '#98c379',
-    water_body: '#4db8c8',
-    other: '#abb2bf',
-  };
   function featureColor(ft: FeatureType) {
-    return FEATURE_COLORS[ft] ?? FEATURE_COLORS.other;
+    return FEATURE_TYPE_COLORS[ft] ?? FEATURE_TYPE_COLORS.other;
   }
   const FEATURE_TYPES = Object.keys(FEATURE_TYPE_LABELS) as FeatureType[];
 

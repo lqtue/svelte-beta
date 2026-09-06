@@ -161,15 +161,6 @@
   cursor: default;
 }
 
-.tool-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid color-mix(in srgb, var(--color-white) 40%, transparent);
-  border-top-color: var(--color-white);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
 /* ── Messages ────────────────────────────────────────────────────────────── */
 .tool-error {
   font-size: 0.72rem;

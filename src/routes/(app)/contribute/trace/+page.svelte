@@ -178,11 +178,13 @@
 <div class="tool-page">
   <ToolLayout bind:sidebarCollapsed bind:isMobile>
     <!-- Sidebar -->
-    <svelte:fragment slot="sidebar">
-      <ToolSidebarShell title="Trace" onCollapse={() => (sidebarCollapsed = true)}>
-        {#if !currentMap}
-          <EmptyPanel message="Select a map to start tracing." />
-        {:else}
+    <!-- One instance; ToolLayout puts it in the desktop rail or the mobile drawer. -->
+    <svelte:fragment slot="sidebar" let:compact>
+      <ToolSidebarShell
+        title={compact ? (currentMap?.name ?? 'Trace') : 'Trace'}
+        onCollapse={() => (sidebarCollapsed = true)}
+      >
+        {#if currentMap}
           <TraceSidebar
             {traceCategories}
             placedFootprints={myFootprints}
@@ -191,6 +193,8 @@
             on:removeFootprint={handleRemoveFootprint}
             on:updateFootprintMeta={handleUpdateFootprintMeta}
           />
+        {:else}
+          <EmptyPanel showIcon={!compact} message="Select a map to start tracing." />
         {/if}
       </ToolSidebarShell>
     </svelte:fragment>
@@ -242,27 +246,6 @@
         <span>Loading map…</span>
       </div>
     {/if}
-
-    <!-- Mobile sidebar -->
-    <svelte:fragment slot="mobile-sidebar">
-      <ToolSidebarShell
-        title={currentMap?.name ?? 'Trace'}
-        onCollapse={() => (sidebarCollapsed = true)}
-      >
-        {#if currentMap}
-          <TraceSidebar
-            {traceCategories}
-            placedFootprints={myFootprints}
-            {drawMode}
-            {newFootprintId}
-            on:removeFootprint={handleRemoveFootprint}
-            on:updateFootprintMeta={handleUpdateFootprintMeta}
-          />
-        {:else}
-          <EmptyPanel showIcon={false} />
-        {/if}
-      </ToolSidebarShell>
-    </svelte:fragment>
   </ToolLayout>
 
   <!-- ── Tool mode bottom bar ───────────────────────────────────────────────── -->

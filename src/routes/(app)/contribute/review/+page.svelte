@@ -146,7 +146,7 @@
 
   .queue-tabs button {
     padding: 0.4rem 0.9rem;
-    border: var(--border-width) solid var(--color-border);
+    border: var(--border-thin);
     border-radius: var(--radius-sm);
     background: var(--color-white);
     font: inherit;
@@ -180,19 +180,6 @@
   p {
     color: var(--color-gray-500);
     margin: 0;
-  }
-
-  .state-msg {
-    padding: 2rem;
-    text-align: center;
-    color: var(--color-gray-500);
-    border: 1px solid var(--color-gray-300);
-    border-radius: var(--radius-sm);
-  }
-
-  .state-msg.error {
-    color: var(--color-error-600);
-    border-color: var(--color-error-600);
   }
 
   .review-map-list {

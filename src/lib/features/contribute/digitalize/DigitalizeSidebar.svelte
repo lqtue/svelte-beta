@@ -2,10 +2,11 @@
   DigitalizeSidebar.svelte — the whole /contribute/digitalize left panel:
   the phase-appropriate body plus the phase tabs in the footer.
 
-  One component for both viewports. `compact` is the mobile drawer variant —
-  it shortens the OCR tab label and trims the Segmentation panel to its badge
-  and command. ToolLayout only ever mounts one of the two slots, so the
-  `bind:ocrSidebar` handle the page keeps is never contested.
+  One component and one instance for both viewports: the page fills ToolLayout's
+  `sidebar` slot, and ToolLayout renders it in the desktop rail or the mobile
+  drawer, never both. `compact` (the slot prop) is the drawer variant — it
+  shortens the OCR tab label and trims the Segmentation panel to its badge and
+  command. So the `bind:ocrSidebar` handle the page keeps is never contested.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';

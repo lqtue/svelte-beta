@@ -139,7 +139,7 @@
     max-height: min(28rem, 60vh);
     overflow-y: auto;
     padding: var(--space-3);
-    border: var(--border-thick) solid var(--color-border);
+    border: var(--border-thick);
     border-radius: var(--radius-md);
     background: var(--color-white);
     box-shadow: var(--shadow-md);
@@ -198,7 +198,7 @@
     width: 64px;
     height: 64px;
     object-fit: cover;
-    border: var(--border-thin) solid var(--color-border);
+    border: var(--border-thin);
     border-radius: var(--radius-sm);
     flex: none;
   }

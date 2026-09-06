@@ -62,6 +62,17 @@ Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabas
 
 **Svelte syntax — legacy, NOT runes.** Use `$:`, `export let`, `createEventDispatcher`, `$store`. Do not use `$state`, `$derived`, `$effect`.
 
+**Svelte MCP server** (plugin `svelte`, from `sveltejs/ai-tools` — see https://svelte.dev/docs/ai/skills). Available tools:
+
+- `list-sections` — call first to discover documentation sections; pick by the `use_cases` field.
+- `get-documentation` — fetch the full text of every section relevant to the task.
+- `svelte-autofixer` — run on any Svelte code before showing it; re-run until it reports no issues.
+- `playground-link` — offer a playground link after a standalone component (not for project-file edits).
+
+Delegate `.svelte` / `.svelte.ts` work to the `svelte-file-editor` agent when it is more than a small edit; it iterates with the autofixer in its own context.
+
+**Caveat for this repo:** the autofixer and the Svelte skills assume runes, and their "avoid legacy features" list is exactly this repo's house style (line above) — `$:`, `export let`, `on:click`, `<slot>`/`<svelte:fragment>`, `<svelte:component>`, `<svelte:self>`, `createEventDispatcher`, stores, `use:action`, `class:`. Ignore every suggestion to modernise those; act only on the rest (missing `{#each}` keys, effect cleanup, scoped-CSS and a11y findings, real bugs).
+
 **Layering rule (enforced by `@typescript-eslint/no-restricted-imports` in `eslint.config.js`; type-only imports are exempt):**
 
 > `core → data → map → features → routes`; `ui` is leaf primitives with zero domain imports; `server` is `$lib/server` only.
@@ -163,7 +174,7 @@ Same components drive both viewports. The reusable panels are in `src/lib/featur
 
 `/explore`'s own desktop sidebar is `src/lib/features/explore/ExploreSidebar.svelte`, which stacks **Browse → Layers → Controls** (default 40/40/20, draggable splitters, ratios persisted). Its Browse pane is `ExploreBrowsePanel.svelte` + `ExploreArchiveBrowser.svelte`, not `CatalogSidebarPanel`.
 
-Mobile (`< 900px`): `ToolLayout.svelte` shows a full-bleed map with a horizontal 3-tab bottom bar — Layers · Controls · Browse — backed by `MobileDrawerStack.svelte`, one shared drawer body sliding up. Slots: `mobile-layers`, `mobile-controls`, `mobile-browse`; `mobile-sidebar` is the legacy single-drawer fallback other tool pages still use. Desktop slots: `sidebar`, `right-sidebar`, `floating`, default.
+Mobile (`< 900px`): `ToolLayout.svelte` shows a full-bleed map with a horizontal 3-tab bottom bar — Layers · Controls · Browse — backed by `MobileDrawerStack.svelte`, one shared drawer body sliding up. Slots: `mobile-layers`, `mobile-controls`, `mobile-browse`; `mobile-sidebar` is the legacy single-drawer fallback other tool pages still use. A tool that fills only `sidebar` gets **that same slot** in the mobile drawer, with `let:compact` true — one component instance, since the desktop rail and the drawer are never mounted together. `/contribute/digitalize` and `/contribute/trace` did carry two copies of their sidebar (39 and 20 lines of duplicated wiring) until Sept 2026. Desktop slots: `sidebar`, `right-sidebar`, `floating`, default.
 
 In dual mode, OL attribution + scale live on the **secondary** pane (right on desktop, bottom on mobile) — hidden on the primary via CSS. Map-bounds resolution goes through `resolveBounds()` in `src/lib/core/geo/mapBounds.ts` (`bounds → bbox → annotation_url → allmaps_id`) so R2-mirrored maps and `?map=<id>` deep-links both zoom correctly.
 
@@ -177,6 +188,8 @@ In dual mode, OL attribution + scale live on the **secondary** pane (right on de
 - **OCR Review**: `OcrBboxTool.svelte` renders + edits `ocr_extractions` bboxes and supports `drawMode` for manual bboxes (POSTs with `model: 'manual'`). `OcrSidebar.svelte` is a filterable table with inline text/category edit and auto-save on blur, split into `OcrFilterBar.svelte` + `OcrRunBar.svelte`, with state in `ocrReviewController.ts`. `BboxPanel.svelte` is the floating selected-bbox editor.
 - **Segmentation**: `SegSidebar.svelte` + `segCommand.ts` emit the MapSAM2 CLI command.
 
+The layout job — enqueue, poll, adopt the regions once it closes — lives in `digitalize/layoutJob.ts` (`createLayoutJob`), beside `ocrRunApi.ts` and `triagePrefs.ts`, so the route keeps only layout.
+
 Pipeline stage (idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported) is polled via `GET /api/admin/maps/[id]/pipeline`. Four of those stages are **derived** from the map's latest `ocr`/`seg` job; PATCH accepts only `reviewed`, `seg_reviewed`, `exported` and `idle` — anything else is a 400.
 
 **Trace (`/contribute/trace`)** — `TraceTool.svelte` (OL Draw + Select + Modify) + `TraceSidebar.svelte`. Polygon for closed footprints, line for roads/waterways. Submits through `POST /api/contribute/footprints` (rate-limited, author stamped server-side).
@@ -188,7 +201,7 @@ Pipeline stage (idle → ocr_queued → ocr_done → reviewed → seg_queued →
 Canonical types live in **`src/lib/data/maps/`**:
 
 - `types.ts` — `MapRecord`, `MapListItem`, `MapSourceType`, `MapStatus`, `IIIFManifestMeta`. **This is the only home** — `src/lib/map/types.ts` no longer re-exports them.
-- `footprintTypes.ts` — `FeatureType`, `FootprintSubmission`, `PixelCoord`, `LegendItem`, `geometryKind`.
+- `footprintTypes.ts` — `FeatureType`, `FootprintSubmission`, `PixelCoord`, `LegendItem`, `geometryKind`, plus `FEATURE_TYPE_LABELS` / `FEATURE_TYPE_COLORS` / `featureTypeFill()`. The colours are the **one** palette for footprints: `FootprintsLayer`, `TraceSidebar` and `ReviewSidebar` each had their own until Sept 2026, so a building was green on /explore, gold in the trace list and blue in the review list.
 - `triageTypes.ts` — the saved triage and the layout vocabulary: `LAYOUT_CATEGORIES` (sheet · main_map · title · legend · name_list · inset · scale_bar · north_arrow · stamp), `LayoutRegion`, `SavedTriage`, `parseRegion` (untrusted model output in, valid region or null out) and `tilingCrop` (**`main_map` beats the neatline**, because the neatline is the printed border and a legend inside it is inside the neatline too). Lives in `data` so `$lib/server` and the digitalize UI share one vocabulary.
 - `service.ts` — `fetchMaps`, `fetchFeaturedMaps`, `fetchGeoreferencedMaps`, `fetchMapRow`.
 - `iiifManifest.ts` — `fetchIIIFManifest(url)`; handles IIIF v2 + v3.

@@ -241,6 +241,51 @@
           <button class="pill-btn">Pill button</button>
           <button class="action-btn primary-btn" disabled>Disabled</button>
         </div>
+        <h3 class="sc-h3">.chip — the pill button</h3>
+        <div class="sc-row">
+          <button class="chip">Default</button>
+          <button class="chip primary">Primary</button>
+          <button class="chip add">Add</button>
+          <button class="chip danger">Danger</button>
+          <button class="chip ghost">Ghost</button>
+          <button class="chip active">Active</button>
+          <button class="chip" disabled>Disabled</button>
+        </div>
+        <h3 class="sc-h3">.btn — the squarer sibling, for admin and dialogs</h3>
+        <div class="sc-row">
+          <button class="btn btn-primary">Primary</button>
+          <button class="btn btn-outline">Outline</button>
+          <button class="btn btn-success">Success</button>
+          <button class="btn btn-danger">Danger</button>
+          <button class="btn btn-ghost">Ghost</button>
+          <button class="btn btn-outline btn-sm">Small</button>
+          <button class="btn btn-outline btn-xs">Extra small</button>
+          <button class="btn btn-primary" disabled>Disabled</button>
+        </div>
+      </section>
+
+      <section class="sc-section">
+        <h2 class="sc-h2">Loading and empty states</h2>
+        <p class="sc-blurb">
+          One spinner for the whole app, in <code>components/feedback.css</code>. Size and colour
+          tune through <code>--spinner-size</code>, <code>--spinner-thickness</code>,
+          <code>--spinner-track</code> and <code>--spinner-ink</code> — a variant is three
+          declarations, never a second <code>@keyframes</code>.
+        </p>
+        <div class="sc-row">
+          <span class="spinner"></span>
+          <span class="spinner" style="--spinner-size: 14px; --spinner-thickness: 2.5px"></span>
+          <span class="spinner" style="--spinner-size: 40px; --spinner-ink: var(--color-primary)"
+          ></span>
+          <button class="btn btn-primary"><span class="spinner on-ink"></span>&nbsp;Running…</button
+          >
+        </div>
+        <h3 class="sc-h3">.state-msg</h3>
+        <div class="sc-stack">
+          <p class="state-msg">Loading maps…</p>
+          <p class="state-msg">No results.</p>
+          <p class="state-msg error">Couldn't reach the archive.</p>
+        </div>
       </section>
 
       <section class="sc-section">

@@ -159,21 +159,6 @@
 
 /* Loading spinner (ImageShell, Studio library) */
 
-.loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid var(--color-gray-300);
-  border-top-color: var(--color-blue);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .mobile-sidebar {
   position: absolute;
   top: 0;
@@ -322,12 +307,9 @@
 }
 
 .explore-mode .spinner {
-  width: 14px;
-  height: 14px;
-  border: 2.5px solid var(--color-gray-300);
-  border-top-color: var(--sb-accent-warm);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  --spinner-size: 14px;
+  --spinner-thickness: 2.5px;
+  --spinner-ink: var(--sb-accent-warm);
 }
 
 .explore-mode .gps-error {

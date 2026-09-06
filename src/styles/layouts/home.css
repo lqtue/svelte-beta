@@ -293,12 +293,12 @@
   font-size: 1.25rem;
 }
 
-.home-page .spinner {
+.home-page .globe-spin {
   font-size: 3rem;
-  animation: home-spin 2s linear infinite;
+  animation: globe-spin 2s linear infinite;
 }
 
-@keyframes home-spin {
+@keyframes globe-spin {
   100% {
     transform: rotate(360deg);
   }

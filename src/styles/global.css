@@ -1,5 +1,6 @@
 @import './tokens.css';
 @import './components/buttons.css';
+@import './components/feedback.css';
 @import './components/nav-buttons.css';
 @import './components/editorial.css';
 @import './components/sidebar.css';
@@ -102,7 +103,7 @@ a:hover {
   color: var(--color-white);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   body {
     font-size: var(--text-sm);
   }

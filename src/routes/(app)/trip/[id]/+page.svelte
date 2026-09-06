@@ -334,20 +334,6 @@
     color: var(--sb-text-meta, #555);
   }
 
-  .spinner {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 3px solid #11111122;
-    border-top-color: var(--sb-accent, #ea580c);
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
   .back-btn {
     margin-top: 0.5rem;
     padding: 0.55rem 1rem;

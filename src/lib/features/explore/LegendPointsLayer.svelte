@@ -152,7 +152,7 @@
 
 <style>
   .legend-popup {
-    background: var(--color-surface, #fff);
+    background: var(--color-white);
     color: var(--color-text, #111);
     border: 1.5px solid #111;
     border-radius: 4px;

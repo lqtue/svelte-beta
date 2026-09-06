@@ -211,7 +211,7 @@
 
           {#if loading}
             <div class="maps-loading">
-              <div class="spinner">🌎</div>
+              <div class="globe-spin">🌎</div>
               <span>Opening the archive…</span>
             </div>
           {:else if filterCollection === 'favorites' && !session}

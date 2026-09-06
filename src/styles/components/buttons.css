@@ -94,3 +94,86 @@
   color: var(--color-white);
   box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.2);
 }
+
+/* ── .btn family ──────────────────────────────────────────────────────────
+   The squarer, quieter sibling of .chip, used by the admin surfaces and the
+   dialogs. Lived in admin-modals.css until Sept 2026, where six components
+   outside the modals used it without importing it and only rendered because
+   MapEditModal happened to have loaded first. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  border: var(--border-thin);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-family-base);
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  transition: all 0.1s;
+  white-space: nowrap;
+  box-shadow: var(--shadow-solid-xs);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-solid-sm);
+}
+
+.btn:active:not(:disabled) {
+  transform: translate(0, 0);
+  box-shadow: 0 0 0 var(--color-border);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.btn-sm {
+  padding: 0.25rem 0.6rem !important;
+  font-size: var(--text-xs) !important;
+}
+
+.btn-xs {
+  padding: 0.15rem 0.4rem !important;
+  font-size: 0.72rem !important;
+  line-height: 1.2 !important;
+}
+
+/* Variants */
+.btn-primary {
+  background: var(--color-blue);
+  color: var(--color-white);
+  border: var(--border-thick);
+}
+
+.btn-outline {
+  background: var(--color-white);
+  color: var(--color-text);
+}
+
+.btn-success {
+  background: var(--color-green);
+  color: var(--color-white);
+}
+
+.btn-danger {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text);
+  opacity: 0.7;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--color-bg);
+}

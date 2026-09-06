@@ -159,7 +159,7 @@
   Custom fields <span class="field-hint">e.g. sheet_number</span>
 </div>
 <div class="extra-meta-section">
-  {#each extraPairs as pair, i}
+  {#each extraPairs as pair, i (pair)}
     <div class="extra-pair">
       <input class="form-input extra-key" bind:value={pair.key} placeholder="Field name" />
       <input class="form-input extra-val" bind:value={pair.value} placeholder="Value" />

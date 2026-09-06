@@ -86,7 +86,7 @@
 
     {#if loading}
       <section class="state-card">
-        <div class="loading-spinner"></div>
+        <div class="spinner"></div>
         <span>Loading maps…</span>
       </section>
     {:else}
@@ -333,21 +333,5 @@
     border-radius: var(--radius-md);
     color: var(--color-text);
     opacity: 0.6;
-  }
-
-  .loading-spinner {
-    width: 20px;
-    height: 20px;
-    border: 3px solid var(--color-border);
-    border-top-color: var(--color-blue);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    flex-shrink: 0;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
 </style>
