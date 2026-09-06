@@ -114,7 +114,7 @@ export async function mirrorAnnotation(
     .update({
       iiif_image: newIiifBase,
       annotation_url: publicAnnotationUrl,
-      thumbnail: `${newIiifBase}/full/256,/0/default.jpg`,
+      thumbnail: `${newIiifBase}/full/800,/0/default.jpg`,
       collection: 'Vietnam Map Archive',
     })
     .eq('id', mapId);
@@ -139,7 +139,7 @@ export async function mirrorAnnotation(
     iiif_image: newIiifBase,
     annotation_url: publicAnnotationUrl,
     history_url: historyUrl,
-    thumbnail: `${newIiifBase}/full/256,/0/default.jpg`,
+    thumbnail: `${newIiifBase}/full/800,/0/default.jpg`,
     old_source_url: originalIiifImage,
     download_url: downloadUrl,
     // Third arg makes tile_map.sh write sources/{mapId} to R2.
