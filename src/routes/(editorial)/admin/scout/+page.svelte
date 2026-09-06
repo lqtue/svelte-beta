@@ -150,8 +150,50 @@
     }
   }
 
+  // ── keyboard review ─────────────────────────────────────────────────────
+  // 3,369 pending candidates will never be reviewed one mouse click at a time.
+  // j/k walk the grid, a/r decide, x selects for the bulk buttons, u reverts.
+  let focusIdx = -1;
+
+  function onKey(e: KeyboardEvent) {
+    const tag = (e.target as HTMLElement | null)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.metaKey || e.ctrlKey) return;
+    if (!rows.length) return;
+    const c = rows[focusIdx];
+    switch (e.key) {
+      case 'j':
+      case 'ArrowDown':
+        focusIdx = Math.min(focusIdx + 1, rows.length - 1);
+        break;
+      case 'k':
+      case 'ArrowUp':
+        focusIdx = Math.max(focusIdx - 1, 0);
+        break;
+      case 'a':
+        if (c?.status === 'pending') setStatus(c.id, 'approved');
+        break;
+      case 'r':
+        if (c?.status === 'pending') setStatus(c.id, 'rejected');
+        break;
+      case 'u':
+        if (c && c.status !== 'pending') setStatus(c.id, 'pending');
+        break;
+      case 'x':
+        if (c) toggle(c.id);
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    // A decision in the pending view removes the row, so the cursor lands on
+    // the next card by itself; only clamp the end.
+    if (focusIdx >= rows.length) focusIdx = rows.length - 1;
+  }
+
   onMount(checkRole);
 </script>
+
+<svelte:window on:keydown={onKey} />
 
 <svelte:head><title>Scout · VMA Admin</title></svelte:head>
 
@@ -161,6 +203,10 @@
     <p>
       External map candidates discovered via Gallica, Humazur, Rumsey, LoC. Approve → bulk-ingest as
       draft maps.
+    </p>
+    <p class="kbd-hint">
+      Keyboard: <kbd>j</kbd>/<kbd>k</kbd> move · <kbd>a</kbd> approve · <kbd>r</kbd> reject ·
+      <kbd>x</kbd> select · <kbd>u</kbd> revert
     </p>
   </header>
 
@@ -275,10 +321,11 @@
       <p>No candidates match these filters.</p>
     {:else}
       <section class="grid">
-        {#each rows as c (c.id)}
+        {#each rows as c, i (c.id)}
           <ScoutCard
             candidate={c}
             selected={selected.has(c.id)}
+            focused={i === focusIdx}
             on:toggle={(e) => toggle(e.detail)}
             on:status={(e) => setStatus(e.detail.id, e.detail.status)}
           />

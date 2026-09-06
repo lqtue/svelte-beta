@@ -17,6 +17,7 @@
   import {
     fetchExtractions,
     patchExtraction,
+    batchSetStatus,
     revertRecent,
     withEditState,
     type OcrStatus,
@@ -82,6 +83,37 @@
 
   $: {
     if (visible) dispatch('filter', { extractions: visible });
+  }
+  $: pendingShown = visible.filter((e) => e.status === 'pending').length;
+
+  /**
+   * Validate every pending row the filters currently show. The confidence
+   * slider and category chips are the selection; sort by confidence, drag the
+   * floor up until the rows look right, accept the lot. One PUT, one RPC call.
+   * The 15-minute ⟲ is the undo, so a confirm() is enough here.
+   */
+  async function validateShown() {
+    const ids = visible.filter((e) => e.status === 'pending').map((e) => e.id);
+    if (!ids.length) return;
+    const floor = Math.round(filterMinConf * 100);
+    if (
+      !confirm(
+        `Validate ${ids.length} shown label${ids.length === 1 ? '' : 's'} (confidence ≥ ${floor}%)? Undo with ⟲ within 15 minutes.`
+      )
+    )
+      return;
+    loading = true;
+    error = '';
+    try {
+      const count = await batchSetStatus(mapId, ids, 'validated');
+      notice = `Validated ${count} label${count === 1 ? '' : 's'}.`;
+      setTimeout(() => (notice = ''), 4000);
+      await load();
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      loading = false;
+    }
   }
 
   export async function load() {
@@ -278,10 +310,12 @@
     runs={availableRuns}
     bind:runId={filterRunId}
     {dirtyCount}
+    {pendingShown}
     {loading}
     {revertArmed}
     on:change={load}
     on:save={saveAllEdits}
+    on:validateShown={validateShown}
     on:revert={emergencyRevert}
     on:reload={load}
   />

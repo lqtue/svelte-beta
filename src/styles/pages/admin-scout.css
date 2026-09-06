@@ -89,6 +89,20 @@
   flex-direction: column;
   overflow: hidden;
 }
+.scout-page .card.focused {
+  outline: 3px solid var(--color-border);
+  outline-offset: 2px;
+}
+.scout-page .kbd-hint {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+.scout-page .kbd-hint kbd {
+  font-family: ui-monospace, monospace;
+  border: var(--border-thin);
+  border-radius: 3px;
+  padding: 0 0.3em;
+}
 .scout-page .card.selected {
   outline: 3px solid var(--color-blue);
 }

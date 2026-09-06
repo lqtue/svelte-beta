@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -159,7 +160,8 @@ def tile_argv(job: dict, python_bin: str) -> list[str]:
     """Turn a `tile_to_r2` job into the tiling script's command line.
 
     scripts/tile_map.sh needs vips and rclone with R2 credentials, so this only
-    runs on a machine set up for it — `--kinds ocr` (the default) skips it.
+    runs on a machine set up for it — the default kinds include it only when
+    both tools are on PATH (see default_kinds()).
     """
     iiif = job["payload"].get("iiif_image", "").rstrip("/")
     if not iiif:
@@ -241,6 +243,17 @@ def join_argv(job: dict, python_bin: str) -> list[str]:
 RUNNERS = {"ocr": ocr_argv, "seg": seg_argv, "join": join_argv, "layout": layout_argv,
            "tile_to_r2": tile_argv}
 SERVER_KINDS = {"mirror_annotation", "sync_allmaps", "warp"}
+
+
+def default_kinds() -> str:
+    """Every kind this machine can run, so a worker left running finishes what
+    publishing enqueues (mirror_annotation, tile_to_r2 — mig 058) instead of
+    leaving those rows queued until someone remembers `--kinds`. `seg` stays
+    opt-in: it wants a GPU. `tile_to_r2` needs vips + rclone on PATH."""
+    kinds = ["ocr", "join", "layout", *sorted(SERVER_KINDS)]
+    if shutil.which("vips") and shutil.which("rclone"):
+        kinds.append("tile_to_r2")
+    return ",".join(kinds)
 
 
 def run_job(job: dict, python_bin: str) -> None:
@@ -351,8 +364,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Claim and run VMA pipeline jobs.")
     ap.add_argument(
         "--kinds",
-        default="ocr,join,layout",
-        help="comma-separated job kinds to claim: ocr, join, layout, tile_to_r2, mirror_annotation, sync_allmaps (default: ocr,join,layout)",
+        default=default_kinds(),
+        help=f"comma-separated job kinds to claim; seg is opt-in, tile_to_r2 needs vips + rclone (default here: {default_kinds()})",
     )
     ap.add_argument("--worker", default=os.uname().nodename, help="name recorded on the claim")
     ap.add_argument("--interval", type=float, default=10.0, help="seconds between polls when idle")

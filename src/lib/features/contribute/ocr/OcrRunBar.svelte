@@ -13,6 +13,8 @@
   /** Two-way: '' means every run. */
   export let runId = '';
   export let dirtyCount = 0;
+  /** Pending rows the current filters show — what "Validate shown" would accept. */
+  export let pendingShown = 0;
   export let loading = false;
   /** True while the revert button is waiting for its confirming second click. */
   export let revertArmed = false;
@@ -20,6 +22,7 @@
   const dispatch = createEventDispatcher<{
     change: void;
     save: void;
+    validateShown: void;
     revert: void;
     reload: void;
   }>();
@@ -61,6 +64,14 @@
     title="Save all pending text/category edits"
   >
     Save{dirtyCount > 0 ? ` (${dirtyCount})` : ''}
+  </button>
+  <button
+    class="save-btn validate-btn"
+    on:click={() => dispatch('validateShown')}
+    disabled={loading || pendingShown === 0}
+    title="Validate every pending row the filters currently show. Undo with ⟲ within 15 minutes."
+  >
+    Validate shown{pendingShown > 0 ? ` (${pendingShown})` : ''}
   </button>
   <div class="run-bar-spacer"></div>
   <button
@@ -143,6 +154,10 @@
     flex-shrink: 0;
     box-shadow: var(--shadow-solid-xs);
     transition: all 0.1s;
+  }
+  .validate-btn {
+    background: var(--color-success-600);
+    color: var(--color-white);
   }
   .save-btn:hover:not(:disabled) {
     transform: translate(-1px, -1px);

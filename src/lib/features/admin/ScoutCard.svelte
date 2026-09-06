@@ -30,6 +30,11 @@
 
   export let candidate: ScoutCandidate;
   export let selected = false;
+  /** The keyboard cursor is on this card (page-level j/k). */
+  export let focused = false;
+
+  let el: HTMLElement | undefined;
+  $: if (focused && el) el.scrollIntoView({ block: 'nearest' });
 
   const dispatch = createEventDispatcher<{
     toggle: string;
@@ -53,7 +58,7 @@
           : 'neg';
 </script>
 
-<article class="card" class:selected>
+<article class="card" class:selected class:focused bind:this={el}>
   <label class="card-select">
     <input
       type="checkbox"
