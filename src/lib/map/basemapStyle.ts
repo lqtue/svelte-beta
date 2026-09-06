@@ -1,18 +1,21 @@
 /**
  * The self-hosted vector basemap.
  *
- * One ~37 MB PMTiles archive of the Saigon region (Protomaps' daily OpenStreetMap
- * build, bbox 106.3,10.3 → 107.1,11.2, z0–15) living in our own R2 bucket and
- * served by `worker/` at `iiif.maparchive.vn/basemap/`. No API key, no quota, no
+ * One ~348 MB PMTiles archive (Protomaps' daily OpenStreetMap build, bbox
+ * 105.5,8.5 → 108.5,21.6, z0–15) living in our own R2 bucket and served by
+ * `worker/` at `iiif.maparchive.vn/basemap/`. No API key, no quota, no
  * third-party usage policy — the same independence the map imagery already has.
+ *
+ * The bbox spans Hanoi to the Mekong because the archive does. Its Saigon-only
+ * predecessor (37 MB, 106.3,10.3 → 107.1,11.2) left 21 of 40 georeferenced
+ * maps — every Huế and Hanoi sheet, two of them featured — floating on the
+ * bare `earth` fill with no roads or water beneath them.
  *
  * Rebuild when OSM has moved on enough to matter:
  *
- *   pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles saigon.pmtiles \
- *     --bbox=106.3,10.3,107.1,11.2
- *   rclone copyto saigon.pmtiles r2:vma-tiles/basemap/saigon.pmtiles --s3-no-check-bucket
+ *   scripts/pmtiles_extract.sh vietnam 105.5,8.5,108.5,21.6 15 --upload
  *
- * Builds are retained for about a week, so take the date from a recent one.
+ * Builds are retained for about a week; the script walks back from today.
  *
  * The styling is deliberately quiet. This is the backdrop a georeferenced
  * historical map is laid over, so it reads as reference, not as content: muted
@@ -30,7 +33,7 @@ import Stroke from 'ol/style/Stroke';
 import Text from 'ol/style/Text';
 import type { FeatureLike } from 'ol/Feature';
 
-export const BASEMAP_PMTILES_URL = 'https://iiif.maparchive.vn/basemap/saigon.pmtiles';
+export const BASEMAP_PMTILES_URL = 'https://iiif.maparchive.vn/basemap/vietnam.pmtiles';
 
 const C = {
   earth: '#f4f1ea',
