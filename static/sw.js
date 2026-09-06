@@ -1,5 +1,14 @@
 // Service Worker for caching map tiles and data
-const CACHE_VERSION = 'v1';
+//
+// Bump CACHE_VERSION whenever what a tile URL *returns* changes, not just when
+// this file changes. `activate` deletes every allmaps-cache-* that is not the
+// current name, so a bump is the only thing that evicts a stale tile: TILES is
+// cache-first for 7 days, so without one a client keeps its old copy of a URL
+// forever. v1 outlived the fix that stopped mirrored pyramids falling through
+// to archive.org, and tabs went on drawing pre-fix tiles — stretched, because
+// the renderer scaled them to fill a slot they no longer matched — while a
+// fresh incognito window rendered the same map correctly.
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `allmaps-cache-${CACHE_VERSION}`;
 
 // Cache strategies
@@ -22,6 +31,9 @@ const CACHE_MAX_AGE = {
 // URL patterns
 const PATTERNS = {
   IIIF_IMAGE: /\/(full|square|pct:|[0-9]+,).*\/(full|max|pct:|[0-9]+,).*\/[0-9]+\/(default|color|gray|bitonal)\.(jpg|png|webp|gif)/,
+  // The pattern above matches a path shape, which any host can happen to have.
+  // Cache-first for a week is only ours to promise about our own tiles.
+  IIIF_HOST: /(^|\.)maparchive\.vn$/,
   ALLMAPS_ANNOTATION: /annotations\.allmaps\.org/,
   DATASET_CSV: /docs\.google\.com\/spreadsheets/
 };
@@ -58,7 +70,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Determine caching strategy
-  if (PATTERNS.IIIF_IMAGE.test(url.pathname)) {
+  if (PATTERNS.IIIF_HOST.test(url.hostname) && PATTERNS.IIIF_IMAGE.test(url.pathname)) {
     // IIIF image tiles - cache first
     event.respondWith(cacheFirst(request, CACHE_MAX_AGE.TILES));
   } else if (PATTERNS.ALLMAPS_ANNOTATION.test(url.hostname)) {
