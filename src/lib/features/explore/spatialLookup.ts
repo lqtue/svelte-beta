@@ -84,6 +84,11 @@ export function unresolvedBoundsSources(mapList: MapListItem[], includeDrafts = 
     .filter(
       (m) =>
         (includeDrafts || m.status === 'public' || m.status === 'featured') &&
+        // A map with no annotation cannot yield a bbox, so asking for one is
+        // 61 guaranteed 404s at annotations.allmaps.org on every page load.
+        // `annotation_url` overrides the flag: having a mirror means it is
+        // georeferenced whatever `georef_done` happens to say.
+        !(m.georef_done === false && !m.annotation_url) &&
         !looksValidBbox(m.bbox) &&
         !looksValidBbox(m.bounds)
     )
