@@ -96,6 +96,36 @@ vips dzsave "$TMPDIR/source.jpg" "$OUTPUT_DIR/source" \
 # We must rename it to the Map ID so the worker can find it at tiles/{id}/info.json
 mv "$OUTPUT_DIR/source" "$OUTPUT_DIR/$MAP_ID"
 
+# ── Close the two gaps that make the worker proxy upstream ──────────────────
+# The worker renders nothing: a IIIF path it has no key for is fetched from the
+# originating library instead. So anything we advertise but do not write becomes
+# a silent dependency on that library, and breaks when the library does.
+#
+# 1. dzsave lists one more scaleFactor than it emits — the top level's single
+#    tile is never written. Drop any factor whose origin tile is absent.
+MAP_DIR="$OUTPUT_DIR/$MAP_ID"
+if [[ -f "$MAP_DIR/info.json" ]]; then
+  W=$(jq -r '.width' "$MAP_DIR/info.json")
+  H=$(jq -r '.height' "$MAP_DIR/info.json")
+  KEPT=$(for sf in $(jq -r '.tiles[0].scaleFactors[]' "$MAP_DIR/info.json"); do
+           span=$((256 * sf))
+           tw=$(( span < W ? span : W )); th=$(( span < H ? span : H ))
+           [[ -d "$MAP_DIR/$tw,$th" || -d "$MAP_DIR/0,0,$tw,$th" ]] && echo "$sf"
+         done | jq -sc '.')
+  if [[ "$KEPT" != "[]" ]]; then
+    echo "→ Advertised scale factors trimmed to $KEPT"
+    jq --argjson k "$KEPT" '.tiles[0].scaleFactors = $k | del(.sizes)' \
+      "$MAP_DIR/info.json" > "$MAP_DIR/info.json.tmp" && mv "$MAP_DIR/info.json.tmp" "$MAP_DIR/info.json"
+  fi
+fi
+
+# 2. The only full/ derivative dzsave writes is a ~200px thumbnail, but the share
+#    page's OG image asks for full/800,. Write it so social previews never
+#    depend on the upstream library.
+echo "→ Rendering full/800, derivative..."
+mkdir -p "$MAP_DIR/full/800,/0"
+vips thumbnail "$TMPDIR/source.jpg" "$MAP_DIR/full/800,/0/default.jpg[Q=88]" 800
+
 echo "→ Uploading to R2 bucket: $BUCKET/tiles/$MAP_ID ..."
 rclone copy "$OUTPUT_DIR/$MAP_ID" "r2:$BUCKET/tiles/$MAP_ID" \
   --progress \

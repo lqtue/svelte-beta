@@ -27,8 +27,15 @@ export type Level0Plan = {
 /**
  * The one URL a dzsave pyramid actually holds for this tile.
  *
- * The rendered width is `ceil(regionW / sf)`, **not** a constant tile size: a
- * clipped edge tile is narrower, and asking for the full width there 404s.
+ * The rendered size is `ceil(regionW / sf),ceil(regionH / sf)` — both halves,
+ * and not a constant tile size. Two separate traps:
+ *
+ *  - A clipped edge tile is narrower, so asking for the full width there 404s.
+ *  - `--layout iiif3` names every size segment `w,h`; the bare `w,` form IIIF
+ *    also allows is never written. Requesting `w,` misses R2 and the worker
+ *    then proxies the tile to the originating library — so the whole pyramid we
+ *    mirrored went unused, and a parallel run failed as upstream rate-limiting.
+ *    Verified against the live bucket: `256,256`, `82,256`, `256,167`.
  */
 export function level0TileUrl(
   base: string,
@@ -39,7 +46,7 @@ export function level0TileUrl(
   sf: number,
   quality = 'default'
 ): string {
-  return `${base}/${x},${y},${w},${h}/${Math.ceil(w / sf)},/0/${quality}.jpg`;
+  return `${base}/${x},${y},${w},${h}/${Math.ceil(w / sf)},${Math.ceil(h / sf)}/0/${quality}.jpg`;
 }
 
 /** Coarsest advertised factor that still delivers at least `targetWidth` across. */

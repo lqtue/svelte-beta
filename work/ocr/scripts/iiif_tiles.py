@@ -179,8 +179,18 @@ def _cached_info(iiif_base: str) -> dict:
 
 def level0_tile_url(iiif_base: str, tx: int, ty: int, tw: int, th: int, sf: int,
                     quality: str = "default") -> str:
-    """The one URL a dzsave pyramid actually holds for this tile."""
-    return f"{iiif_base}/{tx},{ty},{tw},{th}/{math.ceil(tw / sf):d},/0/{quality}.jpg"
+    """The one URL a dzsave pyramid actually holds for this tile.
+
+    Both halves of the size segment are required. `--layout iiif3` names every
+    size `w,h`; the bare `w,` form IIIF also allows is never written, so asking
+    for it misses R2 and the worker proxies the tile to the originating library
+    instead — the mirrored pyramid goes unused and parallel runs fail as
+    upstream rate-limiting. Verified live: `256,256`, `82,256`, `256,167`.
+    """
+    return (
+        f"{iiif_base}/{tx},{ty},{tw},{th}/"
+        f"{math.ceil(tw / sf):d},{math.ceil(th / sf):d}/0/{quality}.jpg"
+    )
 
 
 def _pick_scale_factor(info: dict, region_w: int, size: int) -> int:

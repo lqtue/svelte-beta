@@ -20,11 +20,15 @@ import {
 
 const FACTORS = [1, 2, 4, 8, 16, 32, 64];
 
-test('a clipped edge tile rounds its rendered width up', () => {
-  // The constant `256,` that a naive port would use is the 404 that hid the bug.
-  expect(level0TileUrl('B', 0, 0, 8192, 8192, 32)).toBe('B/0,0,8192,8192/256,/0/default.jpg');
+test('a clipped edge tile rounds both rendered dimensions up', () => {
+  // Two separate traps, both of which silently sent the request upstream:
+  //  - a constant `256` instead of ceil(regionW / sf) 404s on a clipped tile;
+  //  - the bare `w,` form is never written by `dzsave --layout iiif3`, which
+  //    names every size `w,h`. Asking for `w,` misses R2 and the worker proxies
+  //    the tile to the originating library, leaving the mirror unused.
+  expect(level0TileUrl('B', 0, 0, 8192, 8192, 32)).toBe('B/0,0,8192,8192/256,256/0/default.jpg');
   expect(level0TileUrl('B', 8192, 8192, 3910, 790, 32)).toBe(
-    'B/8192,8192,3910,790/123,/0/default.jpg'
+    'B/8192,8192,3910,790/123,25/0/default.jpg'
   );
 });
 
