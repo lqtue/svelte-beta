@@ -8,6 +8,9 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/view': '/explore',
   '/annotate': '/studio',
   '/contribute/label': '/contribute/digitalize',
+  '/admin/bulk': '/admin?tab=bulk',
+  '/admin/scout': '/admin?tab=scout',
+  '/admin/status': '/admin?tab=status',
 };
 
 /**

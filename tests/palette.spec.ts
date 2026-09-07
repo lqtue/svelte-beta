@@ -25,7 +25,7 @@ test('a signed-out visitor is offered only public pages', () => {
   expect(hrefs).toContain('/contribute');
   expect(hrefs).not.toContain('/profile');
   expect(hrefs).not.toContain('/contribute/review');
-  expect(hrefs).not.toContain('/admin/status');
+  expect(hrefs).not.toContain('/admin?tab=status');
 });
 
 test('each role adds the tier below it and nothing above', () => {
@@ -36,8 +36,8 @@ test('each role adds the tier below it and nothing above', () => {
 
   const mod = destinationsFor('mod', true).map((d) => d.href);
   expect(mod).toContain('/contribute/review');
-  expect(mod).toContain('/admin/status');
-  expect(mod).not.toContain('/admin/bulk');
+  expect(mod).toContain('/admin?tab=status');
+  expect(mod).not.toContain('/admin?tab=bulk');
 
   const admin = destinationsFor('admin', true).map((d) => d.href);
   expect(admin).toHaveLength(DESTINATIONS.length);

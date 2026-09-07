@@ -1,7 +1,7 @@
 <!--
   GeorefSyncPanel.svelte — "Sync georef status from Allmaps" maintenance action.
 
-  Nothing to do with bulk upload; it only lives on /admin/bulk because that was
+  Nothing to do with bulk upload; it only lives on the bulk-upload tab because that was
   the nearest admin page when it was written. It belongs with the catalog admin
   bar (or a future /admin/maintenance). Styling still comes from the host page's
   stylesheet (`$styles/pages/admin-bulk.css`, scoped under .admin-bulk-page) —

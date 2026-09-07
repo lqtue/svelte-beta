@@ -118,7 +118,7 @@
     ['.subscribe-card', 'pages/blog.css', '.blog-page'],
     ['.profile-card', 'pages/profile.css', '.profile-page'],
     ['.stat-card', 'pages/profile.css', '.profile-page'],
-    ['.status-row', 'pages/admin-status.css', 'global — /admin/status'],
+    ['.status-row', 'pages/admin-status.css', 'global — /admin?tab=status'],
   ];
 
   const TABS = [
@@ -532,7 +532,7 @@
       <section class="sc-section">
         <h2 class="sc-h2">Status tones</h2>
         <p class="sc-blurb">
-          The <code>.status-row</code> variants from <code>/admin/status</code>. Colour never
+          The <code>.status-row</code> variants from <code>/admin?tab=status</code>. Colour never
           carries meaning alone — the sentence on the card says the same thing.
         </p>
         <div class="sc-grid3">
