@@ -41,10 +41,35 @@
 
   $: otherSpellings = (place.variants ?? []).filter((v) => v !== place.name);
 
-  $: exploreHref =
+  /**
+   * `at=` is the pin; without coordinates there is nothing to point at.
+   * The loader guarantees `maps` is non-empty (it 404s otherwise).
+   */
+  /*
+    Reactive, not `const`: `place` above is itself a `$:` assignment, so a
+    `const` here evaluates during component init — before that statement has
+    run — and reads `undefined`. Type-checking cannot see the ordering; the
+    page just 500s on render.
+  */
+  $: atParam =
     place.lng != null && place.lat != null
-      ? `/explore?map=${maps[0].id}&at=${place.lng.toFixed(6)},${place.lat.toFixed(6)}`
-      : `/explore?map=${maps[0].id}`;
+      ? `&at=${place.lng.toFixed(6)},${place.lat.toFixed(6)}`
+      : '';
+
+  /*
+    The primary button used to open `maps[0]`, which under the loader's
+    `.order('year')` is simply the oldest sheet — an artifact of the order the
+    grid below wanted, not a choice, and on most places the oldest sheet is the
+    widest-area one and so the worst for finding a neighbourhood on.
+
+    It opens the latest sheet now: the pin is drawn over the modern basemap,
+    later surveys warp closest to it, and its geography is the one a reader can
+    orient against. Whichever sheet it is, the button says so, and every card
+    below opens its own — so nothing here is privileged in a way the reader
+    cannot override.
+  */
+  $: primary = maps[maps.length - 1];
+  $: primaryYear = primary.year_label ?? primary.year ?? null;
 
   $: description = `“${place.name}” appears on ${maps.length} historical map${
     maps.length === 1 ? '' : 's'
@@ -85,7 +110,9 @@
     </p>
   {/if}
 
-  <a class="cta" href={exploreHref}>Open on the map</a>
+  <a class="cta" href="/explore?map={primary.id}{atParam}">
+    {primaryYear ? `Open the ${primaryYear} sheet on the map` : 'Open on the map'}
+  </a>
 
   {#if place.geom_rmse != null}
     <p class="caveat">
@@ -111,7 +138,7 @@
   <ul class="maps">
     {#each maps as m (m.id)}
       <li>
-        <a href={`/catalog/${m.id}`}>
+        <a class="card" href={`/catalog/${m.id}`}>
           {#if m.thumbnail}<img src={m.thumbnail} alt="" loading="lazy" />{/if}
           <span class="year">{m.year_label ?? m.year ?? '—'}</span>
           <span class="title">{m.name ?? 'Untitled'}</span>
@@ -119,6 +146,7 @@
             <span class="holder">{m.holding_institution}</span>
           {/if}
         </a>
+        <a class="card-open" href="/explore?map={m.id}{atParam}"> Open this sheet on the map </a>
       </li>
     {/each}
   </ul>
@@ -179,7 +207,12 @@
     grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
     gap: var(--space-3);
   }
-  .maps a {
+  .maps li {
+    display: grid;
+    gap: var(--space-1);
+    align-content: start;
+  }
+  .maps .card {
     display: grid;
     gap: var(--space-1);
     padding: var(--space-2);
@@ -189,8 +222,23 @@
     color: inherit;
     text-decoration: none;
   }
-  .maps a:hover {
+  .maps .card:hover {
     box-shadow: var(--shadow-sm);
+  }
+  /* Secondary by weight, not by being hidden until hover: on a touch screen
+     there is no hover to reveal it with. */
+  .maps .card-open {
+    justify-self: start;
+    padding: 0 var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
+    color: var(--color-gray-500);
+    text-decoration: none;
+  }
+  .maps .card-open:hover,
+  .maps .card-open:focus-visible {
+    color: var(--color-primary);
+    text-decoration: underline;
   }
   .maps img {
     width: 100%;
