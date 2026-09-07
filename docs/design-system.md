@@ -11,7 +11,7 @@ The visual language for Vietnam Map Archive. Applies to every public page and to
 Two registers coexist:
 
 - **Editorial** (`/`, `/about`, `/blog`, `/contribute`, `/login`, `/profile`, `/admin/*`) — clean, left-aligned, information-dense.
-- **Tool** (`/explore`, `/studio`, `/create`, `/trip/[id]`, `/image`, `/contribute/*`) — full-bleed map under the nav, sidebar chrome, compact controls.
+- **Tool** (`/explore`, `/explore?mode=annotate`, `/explore?mode=story`, `/trip/[id]`, `/scan`, `/contribute/*`) — full-bleed map under the nav, sidebar chrome, compact controls.
 
 New public pages default to the **editorial** register.
 
@@ -95,7 +95,7 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate |
 | `library.css` | `LibraryGrid`, `StudioMode`, `CreateMode` | project/story library grid |
 | **layouts/** | | page shells |
-| `tool-page.css` | every IIIF-canvas tool + `/image` | tool page frame, panels, toolbars |
+| `tool-page.css` | every IIIF-canvas tool + `/scan` | tool page frame, panels, toolbars |
 | `mode-shared.css` | `ToolLayout`, `ImageShell`, `MapModeOverlays`, `/explore` | map-mode chrome + the z-index scale |
 | `catalog.css` | `/catalog` | catalog page layout |
 | `home.css` | `/` | home page layout |

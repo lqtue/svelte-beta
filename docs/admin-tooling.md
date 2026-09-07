@@ -26,7 +26,7 @@ Admin controls live inline in `/catalog` (gated by `role === 'admin' | 'mod'`). 
 
 Supporting modules in `src/lib/features/admin/`: `NeatlineEditor.svelte`, `neatlineDatum.ts`, `neatlineViewport.ts`, `GeorefSyncPanel.svelte`, `ScoutCard.svelte`. The admin API client is `src/lib/data/admin/adminApi.ts`; the PATCH body is assembled in `src/lib/data/admin/mapEditPayload.ts`.
 
-## Bulk upload (`/admin/bulk`)
+## Bulk upload (`/admin?tab=bulk`)
 
 Spreadsheet-style page for batch-creating draft `maps` rows. Admin pastes file paths (one per line, tab/CSV optional for per-row `name`/`year`/`collection`/`map_type`/`location`); names auto-parse from filenames matching `<sheet#> <Place> <YYYY>.jpg`. "Create batch" inserts via `POST /api/admin/maps` and outputs a copy-paste shell script of `./scripts/tile_map.sh <uuid> '<path>'` lines. Tiling still runs locally (vips constraint). After tiling, "Backfill thumbnails" fetches each map's info.json and PATCHes `thumbnail` + `iiif_image`.
 
@@ -38,7 +38,7 @@ Companion CLI scripts:
 Self-hosted IIIF tile serving via Cloudflare R2 + Worker at `https://iiif.maparchive.vn/iiif`.
 
 - `worker/` — Cloudflare Worker source + `wrangler.toml`; proxies IIIF tile requests to R2.
-- `scripts/tile_map.sh <map-uuid> <source-image-url-or-path> [original-iiif-base]` — downloads (or copies a local file), tiles with `vips dzsave --layout iiif3 --tile-size 256`, uploads to R2 at `tiles/<map-uuid>/`. The mirror-r2 API and `/admin/bulk` return the exact command.
+- `scripts/tile_map.sh <map-uuid> <source-image-url-or-path> [original-iiif-base]` — downloads (or copies a local file), tiles with `vips dzsave --layout iiif3 --tile-size 256`, uploads to R2 at `tiles/<map-uuid>/`. The mirror-r2 API and `/admin?tab=bulk` return the exact command.
 - After mirroring: `maps.iiif_image` and the primary `map_iiif_sources` row point to `https://iiif.maparchive.vn/iiif/<map-uuid>`; `maps.annotation_url` becomes the Supabase Storage public URL of the updated annotation JSON (mig 047 — earlier code overloaded `allmaps_id` for this; the column now holds only bare image IDs).
 
 **info.json patching:** the worker patches `vips dzsave`'s info.json on the fly — injects `tiles[0].height` (defaults to width per spec but required by OL's IIIFInfo parser) and a `sizes` array computed from scaleFactors. Without these, OpenLayers renders stretched/seamy tiles. Served with `Cache-Control: public, max-age=0`.
@@ -109,7 +109,7 @@ Historical scans never change, so tiling once means zero compute at request time
 
 Full historical plan (phases, worker source draft, cost table): `docs/archive/iiif-r2-plan.md`.
 
-## Scout & ingest (`/admin/scout`)
+## Scout & ingest (`/admin?tab=scout`)
 
 External-source discovery + curate + bulk-ingest pipeline. Surfaces candidates from Gallica, Humazur, David Rumsey, Library of Congress as a reviewable grid. Admin approves rows → bulk-ingest as `draft` `maps` rows with full DC + `holding_institution`.
 
@@ -148,7 +148,7 @@ node scripts/load_scout_to_db.mjs
 NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/oneoff/backfill_humazur_thumbs.mjs --min-score 40
 
 # 4. Review + ingest via UI
-open https://<host>/admin/scout
+open https://<host>/admin?tab=scout
 ```
 
 ### API endpoints (admin/mod only)
@@ -176,7 +176,7 @@ open https://<host>/admin/scout
 The one-off backfills that filled these columns (an audit, an online
 verification pass against BnF and Humazur, and the PATCH script that consumed
 their diff) were deleted once they had run — git history has them if a second
-corpus ever needs the same treatment. `/admin/bulk` and the scout pipeline
+corpus ever needs the same treatment. `/admin?tab=bulk` and the scout pipeline
 cover new maps.
 
 
