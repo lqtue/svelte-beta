@@ -275,7 +275,7 @@
   }
   .act:hover {
     transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--color-border);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
   }
   .act.primary {
     background: var(--color-text);

@@ -43,7 +43,7 @@
 .admin-bulk-page .panel {
   background: var(--color-white);
   border: var(--border-thin);
-  box-shadow: 5px 5px 0 var(--color-border);
+  box-shadow: 5px 5px 0 var(--shadow-ink);
   padding: var(--space-6);
   margin-bottom: var(--space-6);
 }

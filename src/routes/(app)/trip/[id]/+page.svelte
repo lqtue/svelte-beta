@@ -342,13 +342,13 @@
     background: var(--sb-card-bg, var(--color-white));
     border: 2px solid var(--color-border);
     border-radius: var(--sb-radius, 10px);
-    box-shadow: 3px 3px 0 var(--color-border);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
     font-weight: 700;
     cursor: pointer;
   }
   .back-btn:active {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 var(--color-border);
+    box-shadow: 1px 1px 0 var(--shadow-ink);
   }
 
   .gps-toggle {
@@ -363,7 +363,7 @@
     background: var(--color-white);
     border: 2px solid var(--color-border);
     border-radius: 50%;
-    box-shadow: 3px 3px 0 var(--color-border);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
     font-size: 1.1rem;
     cursor: pointer;
     z-index: 110;
@@ -374,7 +374,7 @@
   }
   .gps-toggle:active {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 var(--color-border);
+    box-shadow: 1px 1px 0 var(--shadow-ink);
   }
 
   .gps-error {

@@ -133,7 +133,7 @@
     background: var(--sb-card-bg);
     border: var(--border-thin);
     border-radius: var(--sb-radius-sm);
-    box-shadow: 1px 1px 0 var(--color-border);
+    box-shadow: 1px 1px 0 var(--shadow-ink);
   }
   .search input {
     flex: 1;
@@ -159,7 +159,7 @@
     background: var(--sb-card-bg);
     border: var(--border-thin);
     border-radius: var(--sb-radius-sm);
-    box-shadow: 1px 1px 0 var(--color-border);
+    box-shadow: 1px 1px 0 var(--shadow-ink);
     cursor: pointer;
   }
 

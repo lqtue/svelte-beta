@@ -54,7 +54,7 @@
   background: var(--sb-card-bg, #fff);
   border: var(--sb-border, 1.5px solid #111);
   border-radius: var(--sb-radius, 10px);
-  box-shadow: 6px 6px 0 #111;
+  box-shadow: var(--shadow-solid);
   overflow: hidden;
   font-family: var(--sb-font-base, 'Outfit', sans-serif);
 }

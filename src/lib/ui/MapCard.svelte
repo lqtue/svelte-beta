@@ -142,7 +142,7 @@
     background: var(--color-white);
     border: var(--border-thin);
     border-radius: var(--radius-sm);
-    box-shadow: 2px 2px 0px var(--color-border);
+    box-shadow: 2px 2px 0px var(--shadow-ink);
   }
 
   .year-badge {

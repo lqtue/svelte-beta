@@ -262,7 +262,7 @@
     text-decoration: none;
     border: 1.5px solid var(--color-border);
     border-radius: var(--sb-radius-sm);
-    box-shadow: 1.5px 1.5px 0 var(--color-border);
+    box-shadow: 1.5px 1.5px 0 var(--shadow-ink);
     font: inherit;
     font-size: 0.75rem;
     font-weight: var(--font-bold);

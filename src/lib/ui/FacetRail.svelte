@@ -100,7 +100,7 @@
     background: var(--color-white);
     border: var(--border-thin);
     border-radius: 10px;
-    box-shadow: 3px 3px 0 var(--color-border);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
     font-family: var(--font-family-base);
     min-width: 240px;
     max-width: 280px;
@@ -138,7 +138,7 @@
   .chip:hover:not(:disabled) {
     background: var(--color-white);
     transform: translate(-1px, -1px);
-    box-shadow: 1.5px 1.5px 0 var(--color-border);
+    box-shadow: 1.5px 1.5px 0 var(--shadow-ink);
   }
   .chip.on {
     background: var(--color-text);

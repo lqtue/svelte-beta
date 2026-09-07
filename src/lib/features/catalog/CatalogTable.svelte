@@ -284,7 +284,7 @@
   .tag-chip:hover {
     background: var(--color-white);
     border-color: var(--color-border);
-    box-shadow: 1.5px 1.5px 0 var(--color-border);
+    box-shadow: 1.5px 1.5px 0 var(--shadow-ink);
   }
   .collection-col {
     color: var(--sb-text-meta);

@@ -63,7 +63,7 @@
   font-weight: 700;
   font-size: 0.875rem;
   margin-bottom: 1.5rem;
-  box-shadow: 2px 2px 0 var(--color-border);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 
 .home-page .hero-title {
@@ -110,7 +110,7 @@
   padding: 0.4rem 0.9rem;
   border-radius: var(--radius-pill);
   border: var(--border-thin);
-  box-shadow: 2px 2px 0 var(--color-border);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 
 .home-page .chip-green {
@@ -192,7 +192,7 @@
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-pill);
   border: var(--border-thin);
-  box-shadow: 2px 2px 0px var(--color-border);
+  box-shadow: 2px 2px 0px var(--shadow-ink);
   text-transform: uppercase;
   transform: rotate(5deg);
 }
@@ -232,7 +232,7 @@
 }
 .home-page .action-btn:active {
   transform: translate(0, 0);
-  box-shadow: 0px 0px 0px var(--color-border);
+  box-shadow: 0px 0px 0px var(--shadow-ink);
 }
 .home-page .primary-btn {
   background: var(--color-primary);
@@ -360,7 +360,7 @@
 .home-page .micro-link:hover {
   background: var(--color-yellow);
   transform: translateX(4px);
-  box-shadow: 2px 2px 0px var(--color-border);
+  box-shadow: 2px 2px 0px var(--shadow-ink);
 }
 
 .home-page .micro-link-card {

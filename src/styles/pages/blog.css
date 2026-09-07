@@ -41,7 +41,7 @@ body {
   font-weight: 700;
   font-size: 0.875rem;
   margin-bottom: 1.25rem;
-  box-shadow: 2px 2px 0 var(--color-border);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 
 .blog-page .hero-title {
@@ -131,7 +131,7 @@ body {
   border: var(--border-thin);
   border-radius: var(--radius-pill);
   padding: 0.2rem 0.6rem;
-  box-shadow: 2px 2px 0 var(--color-border);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 
 .blog-page .featured-title {

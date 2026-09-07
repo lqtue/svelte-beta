@@ -103,7 +103,7 @@
 
 .profile-page .sign-out-btn:hover {
   transform: translate(-2px, -2px);
-  box-shadow: 4px 4px 0 var(--color-border);
+  box-shadow: 4px 4px 0 var(--shadow-ink);
 }
 
 .profile-page .stats-section {

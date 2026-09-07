@@ -161,14 +161,14 @@
     font-weight: 800;
     font-family: inherit;
     cursor: pointer;
-    box-shadow: 3px 3px 0 var(--color-border);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
     transition:
       transform 0.06s ease,
       box-shadow 0.06s ease;
   }
   .cta:active {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 var(--color-border);
+    box-shadow: 1px 1px 0 var(--shadow-ink);
   }
   .cta.is-primary {
     background: var(--sb-accent);

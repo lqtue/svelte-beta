@@ -71,7 +71,7 @@
 .search-panel .tb:hover {
   background: var(--color-yellow);
   transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0px var(--color-border);
+  box-shadow: 3px 3px 0px var(--shadow-ink);
 }
 
 .search-panel .tb.active {
@@ -230,7 +230,7 @@
 .search-panel .result-item:focus-within {
   background: var(--color-yellow);
   transform: translate(-2px, -2px);
-  box-shadow: 3px 3px 0px var(--color-border);
+  box-shadow: 3px 3px 0px var(--shadow-ink);
 }
 
 .search-panel .result-item.active-map {
@@ -372,7 +372,7 @@
   font-family: var(--font-family-base);
   background: var(--color-white);
   color: var(--color-text);
-  box-shadow: 1px 1px 0px var(--color-border);
+  box-shadow: 1px 1px 0px var(--shadow-ink);
 }
 
 .search-panel .chip:hover {

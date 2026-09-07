@@ -128,7 +128,7 @@
   font-weight: var(--font-bold);
   font-size: 0.875rem;
   margin-bottom: 1.5rem;
-  box-shadow: 2px 2px 0 var(--color-border);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 
 /* ----------------------------------------
@@ -141,7 +141,7 @@
   padding: 0.4rem 0.9rem;
   border-radius: var(--radius-pill);
   border: var(--border-thin);
-  box-shadow: 2px 2px 0 var(--color-border);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 .chip-green {
   background: var(--color-green);

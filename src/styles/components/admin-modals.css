@@ -77,13 +77,13 @@
   align-items: center;
   justify-content: center;
   transition: all 0.1s;
-  box-shadow: 1px 1px 0px var(--color-border);
+  box-shadow: 1px 1px 0px var(--shadow-ink);
 }
 
 .close-btn:hover {
   background: var(--color-yellow);
   transform: translate(-1px, -1px);
-  box-shadow: 2px 2px 0px var(--color-border);
+  box-shadow: 2px 2px 0px var(--shadow-ink);
 }
 
 .tabs {
@@ -116,7 +116,7 @@
 .tab.active {
   opacity: 1;
   background: var(--color-yellow);
-  box-shadow: 1px 1px 0px var(--color-border);
+  box-shadow: 1px 1px 0px var(--shadow-ink);
 }
 
 .modal-body {
@@ -175,7 +175,7 @@
 .form-textarea:focus {
   border-color: var(--color-primary);
   background: var(--color-white);
-  box-shadow: 3px 3px 0px var(--color-border);
+  box-shadow: 3px 3px 0px var(--shadow-ink);
   transform: translate(-1px, -1px);
 }
 
@@ -217,13 +217,13 @@
   cursor: pointer;
   transition: all 0.1s;
   align-self: flex-start;
-  box-shadow: 2px 2px 0px var(--color-border);
+  box-shadow: 2px 2px 0px var(--shadow-ink);
 }
 
 .upload-btn:hover {
   background: var(--color-yellow);
   transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0px var(--color-border);
+  box-shadow: 3px 3px 0px var(--shadow-ink);
 }
 
 .upload-btn.disabled {
@@ -287,13 +287,13 @@ code.detail-value {
   border-radius: var(--radius-pill);
   transition: all 0.1s;
   background: var(--color-white);
-  box-shadow: 1px 1px 0px var(--color-border);
+  box-shadow: 1px 1px 0px var(--shadow-ink);
 }
 
 .link-btn:hover {
   background: var(--color-yellow);
   transform: translate(-1px, -1px);
-  box-shadow: 2px 2px 0px var(--color-border);
+  box-shadow: 2px 2px 0px var(--shadow-ink);
 }
 
 .link-btn.disabled {

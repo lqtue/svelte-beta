@@ -45,7 +45,7 @@
 
   .chunky-tab:hover {
     transform: translateY(-2px);
-    box-shadow: 4px 4px 0px var(--color-border);
+    box-shadow: 4px 4px 0px var(--shadow-ink);
   }
 
   .chunky-tab.active {

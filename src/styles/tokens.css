@@ -72,10 +72,21 @@
   --border-thick: 3px solid var(--color-border);
   --border-thin: 2px solid var(--color-border);
 
-  --shadow-solid: 6px 6px 0px var(--color-border);
-  --shadow-solid-sm: 4px 4px 0px var(--color-border);
-  --shadow-solid-xs: 2px 2px 0px var(--color-border);
-  --shadow-solid-hover: 10px 10px 0px var(--color-border);
+  /* The offset shadow is the one piece of chrome the plate-tone pass left
+     alone. It keeps its shape — a hard offset, no blur, which on a sheet reads
+     as a second plate a hair out of register — but not its ink: at full
+     `--color-border` a 6px drop is a poster effect, and 190 of them made every
+     card shout. `--shadow-ink` is the ink thinned to about 65% over the page,
+     so the border stays the hard edge and the drop sits behind it.
+
+     Change this one value to re-weight every shadow in the app; the literal
+     offsets in the component sheets all point at it. */
+  --shadow-ink: #63615a;
+
+  --shadow-solid: 6px 6px 0px var(--shadow-ink);
+  --shadow-solid-sm: 4px 4px 0px var(--shadow-ink);
+  --shadow-solid-xs: 2px 2px 0px var(--shadow-ink);
+  --shadow-solid-hover: 8px 8px 0px var(--shadow-ink);
 
   /* Legacy shadow mappings */
   --shadow-sm: var(--shadow-solid-sm);

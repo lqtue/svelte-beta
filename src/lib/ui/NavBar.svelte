@@ -280,7 +280,7 @@
     border-radius: 50%;
     border: var(--border-thin);
     overflow: hidden;
-    box-shadow: 2px 2px 0 var(--color-border);
+    box-shadow: 2px 2px 0 var(--shadow-ink);
     transition:
       transform 0.1s,
       box-shadow 0.1s;
@@ -288,7 +288,7 @@
   }
   .avatar-pill:hover {
     transform: translate(-2px, -2px);
-    box-shadow: 4px 4px 0 var(--color-border);
+    box-shadow: 4px 4px 0 var(--shadow-ink);
   }
   .avatar-img {
     width: 100%;
@@ -318,7 +318,7 @@
     border-radius: var(--radius-sm);
     padding: 6px 8px;
     cursor: pointer;
-    box-shadow: 2px 2px 0 var(--color-border);
+    box-shadow: 2px 2px 0 var(--shadow-ink);
   }
   .hamburger span {
     display: block;
@@ -366,7 +366,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 2px 2px 0 var(--color-border);
+    box-shadow: 2px 2px 0 var(--shadow-ink);
   }
   .drawer-nav {
     display: flex;

@@ -161,7 +161,7 @@
   }
   .save-btn:hover:not(:disabled) {
     transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--color-border);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
   }
   .save-btn:active:not(:disabled) {
     transform: none;

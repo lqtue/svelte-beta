@@ -162,7 +162,7 @@
     font-size: 0.95rem;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 3px 3px 0 var(--color-border);
+    box-shadow: 3px 3px 0 var(--shadow-ink);
   }
   .trip-btn.is-primary {
     background: var(--sb-accent);
@@ -174,6 +174,6 @@
   }
   .trip-btn:active {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 var(--color-border);
+    box-shadow: 1px 1px 0 var(--shadow-ink);
   }
 </style>

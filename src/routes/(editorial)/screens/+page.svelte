@@ -65,8 +65,9 @@
     ['--color-bg', 'Page background'],
     ['--color-white', 'Card and element backgrounds'],
     ['--color-text', 'Primary text; also the footer background'],
-    ['--color-border', 'Every border and shadow'],
+    ['--color-border', 'Every border'],
     ['--rule', 'Hairlines and printed rules'],
+    ['--shadow-ink', 'Every offset shadow'],
     ['--color-primary', 'CTAs, links, active states, errors'],
     ['--color-yellow', 'Hero backgrounds, highlights, hover fills'],
     ['--color-blue', 'Info, in progress, research'],
@@ -96,7 +97,7 @@
     ['--shadow-solid-xs', '2px 2px 0', 'Chips, dense controls'],
     ['--shadow-solid-sm', '4px 4px 0', 'Smaller cards, badges, secondary buttons'],
     ['--shadow-solid', '6px 6px 0', 'Feature cards, primary CTAs'],
-    ['--shadow-solid-hover', '10px 10px 0', 'Hover lift only — never static'],
+    ['--shadow-solid-hover', '8px 8px 0', 'Hover lift only — never static'],
   ];
 
   const RADII = [

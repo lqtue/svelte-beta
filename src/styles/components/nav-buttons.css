@@ -10,14 +10,14 @@
   transition: all 0.1s;
   border: var(--border-thin);
   background: var(--color-white);
-  box-shadow: 1px 1px 0px var(--color-border);
+  box-shadow: 1px 1px 0px var(--shadow-ink);
 }
 
 .back-link:hover {
   background: var(--color-yellow);
   color: var(--color-text-on-yellow);
   transform: translate(-1px, -1px);
-  box-shadow: 2px 2px 0px var(--color-border);
+  box-shadow: 2px 2px 0px var(--shadow-ink);
 }
 
 .back-link.small {
