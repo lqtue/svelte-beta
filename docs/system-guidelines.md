@@ -250,7 +250,9 @@ Everything shared lives in `src/styles/`, reached via the `$styles` alias. `glob
 /* right */ border: var(--border-thick);
 ```
 
-The Aug-2026 sweep took component hex literals from ~900 to 116; the survivors are OpenLayers JS palettes (which cannot read CSS variables) and brand SVG fills.
+The Aug-2026 sweep took component hex literals from ~900 to 116. The Sept-2026 plate-tone pass took the rest: canvas colours moved to `INK` in `src/lib/core/ink.ts` (an OpenLayers style is a draw call and cannot read a CSS variable), stale `var(--token, #old-value)` fallbacks became `var(--token, var(--other-token))`, and ink-at-alpha scrims became `color-mix`. Four literals survive in the tree and each says why where it sits: `ink.ts` itself, the offscreen analysis canvas in `suggestTriage.ts`, the Google logo paths, and `ReviewSidebar`'s cadastral class swatches.
+
+**One button system.** Every button is in `components/buttons.css` except `.sb-btn` (token-scoped) and `tool-sidebar.css`'s two dense helpers. A component that needs a near-`.chip` adds the class and overrides `--btn-*`; it never rebuilds the shape, and it never redefines a global button class in its own `<style>` block — Svelte scoping makes that win silently.
 
 **Scoping.** `<style>` is component-scoped by default — use it freely for layout. Never redefine a shared global class per component. Use `:global()` only for third-party DOM (OL controls). Inline `style=` is for dynamic values only (`style="--sidebar-width: {w}px"`).
 
@@ -293,10 +295,9 @@ Role lives in `profiles.role`, read on the client via `fetchUserRole` (`data/sup
 
 | Item | Location | Fix |
 |------|----------|-----|
-| ~25 `as any` casts | mostly Svelte components | pass `<Database>` to `createClient` at each call site |
+| ~30 `as any` casts | mostly Svelte components | pass `<Database>` to `createClient` at each call site |
 | `footprints.ts` mixes two concerns | `data/supabase/footprints.ts` holds both map-selector queries and footprint CRUD | split into `maps/labelMaps.ts` + a contribute-scoped module |
 | `CatalogUnifiedSearch` still queries Supabase directly | `features/catalog/CatalogUnifiedSearch.svelte` | move the read into `data/maps/service.ts` |
 | Mixed error conventions | throw vs `console` → `[]` vs `console` → `false` across `data/` | pick one |
 | Mobile gaps in contribute | `OcrSidebar` bind/`on:filter` and the Segmentation tab are desktop-only (carried from the Aug 2026 cleanup, not re-verified since) | decide whether these tools are desktop-only by design, then either say so or fix |
 | Fat page components | `ExplorePage.svelte` (336 script lines) and `DigitalizePage.svelte` (263, down from 322 — the layout job left in Sept 2026) are controllers, not wiring. The Sept 2026 route merge moved them out of `src/routes` into `features/`, which fixed where they live, not how big they are | pull into `features/<x>/<x>Controller.ts` when next touching them — the `ocrReviewController.ts` / `layoutJob.ts` pattern |
-| Four button systems | `.chip` and `.btn` (`components/buttons.css`), `.action-btn` / `.pill-btn` (`components/editorial.css`), and the tool-chrome set `.tool-btn` / `.ctrl-btn` / `.sb-btn` / `.tool-run-btn` / `.auth-gate-btn`, plus ~15 one-offs in component `<style>` blocks | decide which two survive, then fold the rest in; `/screens` shows `.chip` and `.btn` side by side |

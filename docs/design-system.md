@@ -6,16 +6,18 @@ The visual language for Vietnam Map Archive. Applies to every public page and to
 
 ## Philosophy
 
-**Neo-brutalist editorial.** Bold borders, offset shadows, flat fills — applied with editorial restraint. Not a playful toy, not a generic SaaS dashboard. A serious archive made legible and memorable.
+**Ink on an aged sheet.** The palette, the type and the chrome are taken off the maps themselves: a grey-buff ground, a warm lithographic black, and accents pulled from candy saturation down to a printable ink. Flat fills, a hard border, and an offset shadow that reads as a second plate a hair out of register. Not a playful toy, not a generic SaaS dashboard, and — since Sept 2026 — not the neo-brutalist poster it started as either.
+
+**There is no icon set.** No emoji in the chrome, no illustrative blobs. Where a glyph survives it is because the glyph *is* the content: the favourite heart, the GPS toggle, the placeholder for a map with no thumbnail. Everywhere else the label already says the word.
 
 Two registers coexist:
 
-- **Editorial** (`/`, `/about`, `/blog`, `/contribute`, `/login`, `/profile`, `/admin/*`) — clean, left-aligned, information-dense.
-- **Tool** (`/explore`, `/explore?mode=annotate`, `/explore?mode=story`, `/trip/[id]`, `/scan`, `/contribute/*`) — full-bleed map under the nav, sidebar chrome, compact controls.
+- **Editorial** (`/`, `/about`, `/blog`, `/catalog`, `/contribute`, `/login`, `/profile`, `/admin?tab=`) — clean, left-aligned, information-dense.
+- **Tool** (`/explore?mode=`, `/scan?mode=`, `/trip/[id]`) — full-bleed map or canvas under the nav, sidebar chrome, compact controls.
 
 New public pages default to the **editorial** register.
 
-**There is one theme.** `tokens.css` has no `[data-theme]` block; no component reads `data-theme`; there is no `ThemeToggle` component. The `vma-theme` boot script in `src/app.html` is vestigial — nothing writes the key. Do not write CSS that assumes a second theme.
+**There is one theme.** `tokens.css` has no `[data-theme]` block; no component reads `data-theme`; there is no `ThemeToggle` component, and no `vma-theme` boot script — `app.html` carries only a `theme-color` meta matching the page ground. Do not write CSS that assumes a second theme.
 
 ---
 
@@ -25,21 +27,27 @@ Defined in `src/styles/tokens.css`, imported first by `src/styles/global.css`. *
 
 ### Colours
 
+The plate-tone palette (Sept 2026), taken off the sheets rather than from a UI kit. Every value was checked against both surfaces before it went in; the ratios below are quoted where they are the reason for the value. White on each accent: red 6.4, blue 7.1, green 6.2, orange 4.8, purple 7.6 — all clear AA for normal text.
+
 | Variable | Value | Role |
 |---|---|---|
-| `--color-bg` | `#faf6f0` | Page background (warm off-white) |
-| `--color-white` | `#ffffff` | Card and element backgrounds |
-| `--color-text` | `#111111` | Primary text; also the footer background |
-| `--color-border` | `#111111` | All borders and shadows |
-| `--color-primary` | `#ff4d4d` | CTAs, links, active states, errors |
-| `--color-yellow` | `#ffd23f` | Hero backgrounds, highlights, hover fills |
-| `--color-blue` | `#4d94ff` | Info, in-progress, research |
-| `--color-green` | `#00cc99` | Done / complete |
-| `--color-orange` | `#ff8c42` | Community / building now |
-| `--color-purple` | `#9d4edd` | Future / announcement |
-| `--color-text-on-yellow` | `#111111` | Text on a yellow surface |
+| `--color-bg` | `#eae7e0` | Page background — the sheet. Cooler and darker than a cream, which is what stops the page reading as a wellness brand |
+| `--color-white` | `#f7f5f0` | Card stock, a shade lighter than the page — a mounted sheet on a backing board |
+| `--color-text` | `#1a1a17` | Lithographic black, warm, never `#000`. 14.1 on the page |
+| `--color-border` | `#1a1a17` | Every border. **Not** the shadow — that is `--shadow-ink` |
+| `--rule` | `#7d7869` | Hairlines, for a rule that reads as printed rather than as a UI divider. 3.6 on the page |
+| `--shadow-ink` | `#63615a` | Every offset shadow. The ink thinned to ~65% over the page |
+| `--color-primary` | `#a63a2b` | The administrative overprint — CTAs, danger, errors. Use it once per screen |
+| `--color-blue` | `#2f5d78` | Ink blue — active, selected, info |
+| `--color-yellow` | `#e0b544` | Ochre — hover fills, highlights. A **light** surface: pair with `--color-text-on-yellow` |
+| `--color-green` | `#3d6b4a` | Plate green — done / complete |
+| `--color-orange` | `#a85f2b` | Burnt sienna — community, warning |
+| `--color-purple` | `#5a4b80` | Indigo — the fifth thing |
+| `--color-text-on-yellow` | `#1a1a17` | Text on a yellow surface. 9.0 |
 
-Legacy aliases also exist and are still referenced: `--color-primary-600/700`, `--color-gray-50/100/300/400/500/900`, `--color-success-600`, `--color-warning-600`, `--color-error-600`.
+Legacy aliases also exist and are still referenced, all warmed into the same paper family: `--color-primary-600/700`, `--color-gray-50/100/300/400/500/900`, `--color-success-600`, `--color-warning-600`, `--color-error-600`. `--color-gray-500` (`#66614f`) is the meta-text grey — 5.0 on the page, 5.7 on a card.
+
+**Canvas colours are a separate file.** An OpenLayers style is a canvas draw call and cannot read a CSS variable, so `src/lib/core/ink.ts` holds the same inks as TypeScript constants — ten mirroring the tokens above, plus `teal`, `plum`, `olive` and `slate` for the categorical maps (ten OCR categories, nine layout regions, seven footprint types) that need more hues than six page accents can give. Everything OL paints reads `INK`; nothing else does.
 
 ### Typography
 
@@ -53,7 +61,9 @@ Weights: `--font-normal` 400 · `--font-medium` 500 · `--font-semibold` 600 · 
 
 Use `800` for page and section titles, `700` for nav and sub-headings, `500` for body copy, `400` for long-form blog reading. Hero titles use `clamp(2.5rem, 6vw, 4rem)` — always fluid.
 
-**The Google Fonts link lives once in `src/app.html`.** Do not add a `<link>` to a page or component; the per-page copies were removed in Aug 2026.
+**The Google Fonts link lives once in `src/app.html`**, and asks for exactly the three faces `tokens.css` names — Space Grotesk, Outfit, Be Vietnam Pro. Do not add a `<link>` to a page or component: three tool pages each carried a second render-blocking stylesheet (for Spectral and Noto Serif, which appear in no font stack) until Sept 2026.
+
+**Map labels set themselves.** `components/lettering.css` with `core/utils/mapLettering.ts` gives a label the role its own sheet would have given it — `.lettering-hydronym` italic for rivers and canals, `.lettering-area` letterspaced capitals for quarters and districts, roman for everything else. Use them wherever a transcribed name is shown, not a generic italic.
 
 ### Borders, shadows, radii, spacing
 
@@ -61,30 +71,33 @@ Use `800` for page and section titles, `700` for nav and sub-headings, `500` for
 |---|---|---|
 | `--border-thick` | `3px solid var(--color-border)` | Cards, nav, hero, structural elements |
 | `--border-thin` | `2px solid var(--color-border)` | Inline labels, progress tracks, dividers |
-| `--shadow-solid` | `6px 6px 0 var(--color-border)` | Feature cards, primary CTAs |
+| `--shadow-solid` | `6px 6px 0 var(--shadow-ink)` | Feature cards, primary CTAs |
 | `--shadow-solid-sm` | `4px 4px 0` | Smaller cards, badges, secondary buttons |
 | `--shadow-solid-xs` | `2px 2px 0` | Chips, dense controls |
-| `--shadow-solid-hover` | `10px 10px 0` | Hover lift only — never on a static element |
+| `--shadow-solid-hover` | `8px 8px 0` | Hover lift only — never on a static element |
 | `--radius-sm / md / lg / pill` | `8px / 16px / 24px / 999px` | Tags · cards, inputs · feature cards · buttons, chips |
 
-Aliases `--shadow-sm/md/lg` map onto the solid set. Spacing scale: `--space-1…16` (`0.25rem` → `4rem`). Layout: `--nav-height: 56px` — tool pages inset from the top by this. Breakpoints: `--bp-tablet 768px`, `--bp-desktop 1024px` (the tool shells use a hard `900px` mobile cut-off).
+Aliases `--shadow-sm/md/lg` map onto the solid set.
+
+**The shadow is never blurred and never the border ink.** A hard offset in `--shadow-ink` sits behind a border in `--color-border`; that separation is what keeps 190 shadows from shouting. Some component sheets write the offset out by hand at 1, 1.5, 3 or 5px because the four sizes above do not cover dense chrome — those are fine, but they must end in `var(--shadow-ink)`, so the whole system re-weights from one line. The exceptions, all deliberate: `0 0 0` (the pressed state), `inset` row markers, and single-axis edge rules like `0 -4px 0` which are borders drawn as shadows and want `--color-border`. Spacing scale: `--space-1…16` (`0.25rem` → `4rem`). Layout: `--nav-height: 56px` — tool pages inset from the top by this. Breakpoints: `--bp-tablet 768px`, `--bp-desktop 1024px` (the tool shells use a hard `900px` mobile cut-off).
 
 ---
 
 ## CSS files
 
-All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `global.css` imports `tokens.css` plus the six always-on component sheets; everything else is imported by the component or route that needs it, so a page only pays for what it uses.
+All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `global.css` imports `tokens.css` plus the eight always-on component sheets — `buttons`, `feedback`, `table`, `nav-buttons`, `editorial`, `lettering`, `sidebar`, `modal`; everything else is imported by the component or route that needs it, so a page only pays for what it uses.
 
 | File | Loaded by | Scope |
 |---|---|---|
 | `tokens.css` | `global.css` | every custom property |
 | `global.css` | root layout | entry point |
 | **components/** | | shared widgets |
-| `buttons.css` | `global.css` | **every button**: the `.chip` / `.action-btn` / `.pill-btn` / `.btn` pill family, `.tool-btn`, `.ctrl-btn` |
+| `buttons.css` | `global.css` | **every button**: the `.chip` / `.action-btn` / `.pill-btn` / `.btn` pill family, `.tool-btn`, `.ctrl-btn`, `.cmp-btn` |
 | `feedback.css` | `global.css` | `.spinner` (the only one) and `.state-msg` |
 | `table.css` | `global.css` | `.data-table` and its two densities |
 | `nav-buttons.css` | `global.css` | nav-bar button chrome |
 | `editorial.css` | `global.css` | hero, section-card, chips, footer, nav |
+| `lettering.css` | `global.css` | `.lettering-hydronym` / `.lettering-area` — how a printed sheet sets its own names, paired with `core/utils/mapLettering.ts` |
 | `modal.css` | `global.css` | generic modal scaffolding |
 | `sidebar.css` | `global.css` + `SidebarCard` | sidebar card frame |
 | `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome only — the `.btn` family moved to `buttons.css` in Sept 2026, because six components outside the modals used it without importing it |
@@ -92,7 +105,7 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `search-panel.css` | `features/shared/search/SearchPanel` + its two tabs | unified search overlay |
 | `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the toolbar and cell editors around that table |
 | `tool-sidebar.css` | `TriageSidebar`, `SegSidebar` | tool sidebar form controls |
-| `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate |
+| `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate — the card only; its button is a `.chip` |
 | `library.css` | `LibraryGrid`, `StudioMode`, `CreateMode` | project/story library grid |
 | **layouts/** | | page shells |
 | `tool-page.css` | every IIIF-canvas tool + `/scan` | tool page frame, panels, toolbars |
@@ -114,11 +127,17 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 
 `ToolLayout` also reads `1400px` in JS for `isCompact`. CSS custom properties do not work inside `@media`, so these are literals on purpose — `--bp-*` tokens existed until Sept 2026, matched nothing and were deleted.
 
-**One button.** Four names — `.action-btn` (large CTA), `.chip` (default), `.pill-btn` (lighter chrome), `.btn` (admin and dialogs) — share one base rule in `buttons.css` and differ only in the `--btn-*` properties each sets. They are kept as separate names because ~60 files use them and a rename would be a diff nobody could review; prefer `.chip` in new markup. `.tool-btn` is the dense square toolbar variant and `.ctrl-btn` the 48px round map control. `.sb-btn` stays in `sidebar.css` because it runs on the `--sb-*` token scope. Before Sept 2026 the `.btn` family lived in `admin-modals.css`, which six of its eleven users never imported.
+**One button.** Three shapes.
+
+*Pill* — four names, `.action-btn` (large CTA), `.chip` (default), `.pill-btn` (lighter chrome), `.btn` (admin and dialogs) — share one base rule in `buttons.css` and differ only in the six `--btn-*` properties each sets. They are kept as separate names because ~60 files use them and a rename would be a diff nobody could review; prefer `.chip` in new markup. *Dense* — `.tool-btn`, the small flat square for toolbars inside the IIIF tools. *Icon* — `.ctrl-btn`, the 48px round map control, and `.cmp-btn`, the 22px round row toggle.
+
+Three live outside `buttons.css` on purpose: `.sb-btn` (`sidebar.css`, because it runs on the `--sb-*` token scope) and `.tool-run-btn` / `.tool-ghost-btn` (`tool-sidebar.css`, flat dense chrome where a pill would eat the sidebar). **Everything else is in `buttons.css`.** If a component needs a button that is nearly a `.chip`, add the class and override the `--btn-*` properties in the component — do not rebuild the shape. Before Sept 2026 the `.btn` family lived in `admin-modals.css`, which six of its eleven users never imported; `.auth-gate-btn`, the login page's `.auth-btn`, and two copies of `.cmp-btn` were each a hand-rebuilt pill until they were folded in.
+
+**Never redefine a global button class in a component `<style>` block.** Svelte's scoping means the local rule silently wins, so nothing looks broken while `.btn primary` means two different things in two files. `ExploreSheet`, `TripComplete` and `TripPlayback` each did this until Sept 2026.
 
 **One table.** Every `<table>` wears `.data-table` and picks a density: `.is-dense` (sidebar) or `.is-card` (a table that is its own card, on /catalog). Nine custom properties define a density, so a new one is a short block and never a second copy of the base. Before Sept 2026 there were four unrelated implementations across three stylesheets.
 
-**One spinner.** `.spinner` in `feedback.css` is the whole system: size and colour tune through `--spinner-size`, `--spinner-thickness`, `--spinner-track` and `--spinner-ink`, and `.spinner.on-ink` covers a spinner on a solid coloured button. There is exactly one `@keyframes spin` in the tree — it replaced nine near-identical definitions in Sept 2026. Never write a second one. `.home-page .globe-spin` is a different thing: the rotating 🌎 emoji on the home page.
+**One spinner.** `.spinner` in `feedback.css` is the whole system: size and colour tune through `--spinner-size`, `--spinner-thickness`, `--spinner-track` and `--spinner-ink`, and `.spinner.on-ink` covers a spinner on a solid coloured button. There is exactly one `@keyframes spin` in the tree — it replaced nine near-identical definitions in Sept 2026. Never write a second one.
 
 `layouts/admin.css` and `components/label.css` were deleted in Aug 2026 — the three surviving `label.css` classes moved into `tool-page.css`. Do not reintroduce either name.
 
@@ -157,7 +176,9 @@ so any page or feature may use them.
 
 The shared editorial **classes** live in `src/styles/components/editorial.css` and are global. Use them without redefining the CSS.
 
-`.top-nav` `.nav-logo` `.nav-links` `.nav-link` `.nav-auth` · `.editorial-hero` `.hero-inner` `.label-chip` `.text-highlight` · `.editorial-main` `.section-card` `.section-card-header` `.section-title` `.section-title-sm` `.section-desc` `.icon-blob` · `.badge-chip` with `.chip-blue` / `.chip-green` / `.chip-yellow` · `.action-btn` `.pill-btn` · `.editorial-footer`.
+`.top-nav` `.nav-logo` `.nav-links` `.nav-link` `.nav-auth` · `.editorial-hero` `.hero-inner` `.label-chip` `.text-highlight` · `.editorial-main` `.section-card` `.section-card-header` `.section-title` `.section-title-sm` `.section-desc` · `.badge-chip` with `.chip-blue` / `.chip-green` / `.chip-yellow` · `.action-btn` `.pill-btn` · `.editorial-footer`.
+
+`.icon-blob` and its five `color-*` fills were **deleted** in Sept 2026 — a 72–80px organic blob holding a pictorial emoji, and the single most templated thing on the site. Do not reintroduce it or anything shaped like it.
 
 ### Hero
 
@@ -188,7 +209,6 @@ Plain-text title and no highlight? Then the prop is enough: `<PageHero title="Bo
 ```html
 <div class="section-card">
   <div class="section-card-header">
-    <div class="icon-blob color-blue">📊</div>
     <div>
       <h2 class="section-title-sm">Section heading</h2>
       <p class="section-desc">One or two sentences.</p>
@@ -198,11 +218,11 @@ Plain-text title and no highlight? Then the prop is enough: `<PageHero title="Bo
 </div>
 ```
 
-`.icon-blob` modifiers: `.color-green`, `.color-blue`, `.color-orange`, `.color-yellow`, `.color-purple`.
+The header carries no icon. The heading is the identifier.
 
 ### Buttons
 
-`.action-btn.primary-btn` (red, white text) and `.action-btn.secondary-btn` (white, dark text) for CTAs — both lift on hover with `translate(-3px,-3px)` plus the larger shadow. `.pill-btn` for small utility actions (sign out, toggles).
+`.action-btn.primary-btn` (the overprint red, white text) and `.action-btn.secondary-btn` (card stock, dark text) for CTAs — both lift on hover with `translate(-3px,-3px)` plus the larger shadow. `.pill-btn` for small utility actions (sign out, toggles). `.chip` hovers to the ochre; that is the system's hover fill, not a per-page choice.
 
 ---
 
@@ -259,7 +279,8 @@ Nav and footer come once from `src/routes/(editorial)/+layout.svelte`. A new edi
 
 **Always**
 
-- Use `var(--color-*)`, `var(--border-*)`, `var(--shadow-*)`, `var(--radius-*)` — a hex literal in a component `<style>` block is a bug. (The two legitimate exceptions are OpenLayers JS style objects, which cannot read CSS variables, and brand SVG fills.)
+- Use `var(--color-*)`, `var(--border-*)`, `var(--shadow-*)`, `var(--radius-*)` — a hex literal in a component `<style>` block is a bug. For a tint, `color-mix(in srgb, var(--token) N%, var(--color-white))`; never a new literal.
+- A canvas colour comes from `INK` in `src/lib/core/ink.ts`, never from a literal in the component. The whole list of remaining literals in the tree, each documented where it sits: `ink.ts` itself, the offscreen analysis canvas in `suggestTriage.ts`, the Google logo paths, and `ReviewSidebar`'s cadastral class swatches, which name what the sheet itself printed and so are data rather than theme.
 - `border: var(--border-thick)` on every card and structural container.
 - `--font-family-display` for headings and labels; `--font-family-base` for body.
 - Left-align editorial hero content.
@@ -271,10 +292,11 @@ Nav and footer come once from `src/routes/(editorial)/+layout.svelte`. A new edi
 **Never**
 
 - `transform: rotate()` on an editorial page.
-- Emoji in `<h1>`/`<h2>` — they go inside `.icon-blob` or inline in body copy.
+- Emoji or a pictorial icon anywhere in the chrome. The only glyphs that stay are the ones that *are* the content — the favourite heart, the GPS toggle, the no-thumbnail placeholder.
 - Hardcoded font sizes — `clamp()` for headlines, tokens for everything else.
 - A per-page Google Fonts `<link>` — it is in `app.html`.
 - `--shadow-solid-hover` on a static element; it is a hover state.
+- Redefining `.btn`, `.chip`, `.action-btn` or `.pill-btn` in a component `<style>` block.
 - A new page without nav + footer links.
 
 **Adding a new public page**
@@ -289,12 +311,15 @@ Nav and footer come once from `src/routes/(editorial)/+layout.svelte`. A new edi
 
 ## Colour × state reference
 
-| State | Token | Example |
-|---|---|---|
-| Complete / done | `--color-green` | finished pipeline stage, milestone check |
-| Active / in progress | `--color-blue` | current phase, research chips |
-| Community / people | `--color-orange` | contributor cards, low-res tile priority |
-| Future | `--color-purple` | roadmap items |
-| Hero / highlight | `--color-yellow` | hero background, hover fill |
-| CTA / danger | `--color-primary` | primary buttons, error messages |
-| Neutral | `--color-text` / `--color-bg` | body, cards, footer |
+| State | Token | `INK` twin | Example |
+|---|---|---|---|
+| Complete / done | `--color-green` | `INK.green` | finished pipeline stage, approved footprint |
+| Active / in progress | `--color-blue` | `INK.blue` | current phase, selected region, hydrology |
+| Community / people | `--color-orange` | `INK.orange` | contributor cards, institutions, pending review |
+| Future | `--color-purple` | `INK.purple` | roadmap items, legend regions |
+| Hero / highlight | `--color-yellow` | `INK.yellow` | hero background, hover fill, the neatline |
+| CTA / danger | `--color-primary` | `INK.red` | primary buttons, error messages, streets |
+| Neutral | `--color-text` / `--color-bg` | `INK.ink` / `INK.paper` | body, cards, footer |
+| Hairline | `--rule` | `INK.rule` | printed rules, the tile grid |
+
+The four inks with no token — `INK.teal`, `INK.plum`, `INK.olive`, `INK.slate` — exist only on canvas, where ten OCR categories need more hues than seven roles provide. Do not invent a CSS token for one; if a page needs a seventh colour, the answer is usually that it needs fewer things on it.
