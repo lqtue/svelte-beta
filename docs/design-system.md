@@ -17,7 +17,7 @@ Two registers coexist:
 
 New public pages default to the **editorial** register.
 
-**There is one theme.** `tokens.css` has no `[data-theme]` block; no component reads `data-theme`; there is no `ThemeToggle` component, and no `vma-theme` boot script — `app.html` carries only a `theme-color` meta matching the page ground. Do not write CSS that assumes a second theme.
+**There are two themes, one value each.** `tokens.css` writes every ink as `light-dark(light, dark)` and lets the used `color-scheme` pick — there is no second `[data-theme]` palette to drift out of step. `:root[data-theme='light'|'dark']` pins the scheme, and that attribute is the only thing the toggle in `NavBar` writes; `src/lib/core/utils/theme.ts` owns the choice (`light | dark`, stored under `vma-theme`, seeded once from the OS for a reader who has never chosen) and `src/app.html` replays it before first paint. Write both faces of any colour you add, and never hardcode one.
 
 ---
 

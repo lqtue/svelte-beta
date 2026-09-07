@@ -161,7 +161,7 @@ Label search → temporal fabric → period sources, on the existing jobs + HITL
 - tokens.css grey ramp → fold the `color-mix` hacks
 - 69 eslint warnings (mostly unkeyed `{#each}`)
 - Files >400 L: MapEditHostingTab 584, CreateMode 583, OcrSidebar 562 (→ OcrTable, needs OCR test data), MapEditPipelineTab 467, TripPlayback 462, CatalogTable 450, StudioAnimationPanel 412, explore/+page 407, TriageSidebar 407, trip/[id]/+page 405, StudioMode 405
-- Dead theme switcher (`vma-theme` read, never written, no `[data-theme]` CSS) — finish archival theme or delete
+- ~~Dead theme switcher~~ — **done 2026-09-07**: `tokens.css` carries both faces via `light-dark()`, `NavBar` writes `data-theme`, `app.html` replays it before first paint, and `tests/theme.spec.ts` asserts the contrast of both. Narrowed 2026-09-08 from three states to two — the toggle is light ⇄ dark, and the OS is consulted only to seed a first visit.
 - ~~`scripts/tile_map.sh` → B4's `tile_to_r2` job~~ — **done**: `work/worker/vma_worker.py` claims the job and shells out to the script, so it is the job's implementation rather than something to retire. First real run 2026-09-01: 4,625 objects, 64.9 MB.
 
 ## Open, as of 2026-09-01

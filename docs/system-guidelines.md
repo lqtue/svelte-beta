@@ -256,7 +256,7 @@ The Aug-2026 sweep took component hex literals from ~900 to 116. The Sept-2026 p
 
 **Scoping.** `<style>` is component-scoped by default — use it freely for layout. Never redefine a shared global class per component. Use `:global()` only for third-party DOM (OL controls). Inline `style=` is for dynamic values only (`style="--sidebar-width: {w}px"`).
 
-**One theme.** `tokens.css` has no `[data-theme]` block, and the `vma-theme` boot script that used to sit in `src/app.html` is gone. Do not write docs or code that assume two themes.
+**Two themes.** `tokens.css` writes each ink as `light-dark(light, dark)`; `:root[data-theme='light'|'dark']` pins which face is used, and the `vma-theme` boot script in `src/app.html` replays the reader's choice before first paint. A new colour needs both faces — `tests/theme.spec.ts` asserts the contrast of each. Anything that paints to a canvas rather than reading CSS (the OL basemap, annotation ink) subscribes to `isDarkTheme` instead.
 
 ---
 
