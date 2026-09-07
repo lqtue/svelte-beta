@@ -114,17 +114,32 @@
   // The highlight must never point past the end when results shrink.
   $: if (active >= rows.length) active = Math.max(0, rows.length - 1);
 
+  /** The request that owns the results right now; older ones are aborted. */
+  let searchCtrl: AbortController | null = null;
+
   const search = debounce(async (q: string) => {
     if (!q.trim()) {
+      searchCtrl?.abort();
+      searchCtrl = null;
       maps = [];
       places = [];
       labels = [];
       loading = false;
       return;
     }
+    /*
+      Typing faster than one keystroke per 180ms leaves several of these in
+      flight at once, and they can come back in any order — a slow response for
+      "19" landing after the one for "1955" would overwrite the results for what
+      was actually typed. Abort the previous one and let only the current
+      request write to the UI. Same shape as LocationSearch.
+    */
+    searchCtrl?.abort();
+    const ctrl = (searchCtrl = new AbortController());
     try {
       const res = await fetch(
-        `/api/search?q=${encodeURIComponent(q)}&include=maps,places,labels&limit=6&fields=slim`
+        `/api/search?q=${encodeURIComponent(q)}&include=maps,places,labels&limit=6&fields=slim`,
+        { signal: ctrl.signal }
       );
       if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();
@@ -132,13 +147,18 @@
       places = (data.places ?? []).slice(0, 5);
       labels = (data.labels ?? []).slice(0, 5);
       searchError = '';
-    } catch {
+    } catch (e: unknown) {
+      // An abort is not a failure: a newer query took over and owns the UI.
+      if ((e as { name?: string })?.name === 'AbortError') return;
       searchError = "Couldn't reach the archive. Page results still work.";
       maps = [];
       places = [];
       labels = [];
     } finally {
-      loading = false;
+      // Only the request that is still current may clear the spinner —
+      // otherwise an aborted one turns it off while its replacement is still
+      // running, and the panel flashes "nothing matches".
+      if (searchCtrl === ctrl) loading = false;
     }
   }, 180);
 
@@ -169,6 +189,11 @@
     closePalette();
     opener = null;
     query = '';
+    // Nothing is waiting on this result any more.
+    search.cancel();
+    searchCtrl?.abort();
+    searchCtrl = null;
+    loading = false;
     maps = [];
     places = [];
     labels = [];
