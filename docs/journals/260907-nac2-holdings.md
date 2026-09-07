@@ -39,6 +39,68 @@ One near-miss worth eyes: NAC2 #15 is a 1882 topographic of *hạt 20* at
 
 **Forty-seven of the fifty are maps the archive does not hold.**
 
+## Visual check: five sheets are the same document, not three (2026-09-08)
+
+The title-and-year comparison above found three overlaps. Downloading all fifty
+images and all twenty-two of ours, laying both out as labelled contact sheets,
+and then putting eight candidate pairs side by side at full size found **five**
+— and one of them is a map NAC2 has attributed to the wrong century.
+
+| NAC2 | VMA | Verdict |
+|---|---|---|
+| #1, captioned *De Larclause, 1/3/1859* | 1799 `Plan de la ville de Saigon` | **Same plate.** Their caption is wrong |
+| #5 `Đồ án thành phố Sài Gòn 500.000 dân` | 1862 Coffyn | Same map, confirmed on the cartouche |
+| #6 `Bản đồ cảng Sài Gòn đo đạc năm 1863` | 1863 `Plan du port de Saigon` | Same plate |
+| #15 `Bản đồ địa hình hạt 20…` | 1882 `Saigon & Surroundings` | Same plate — see the naming note below |
+| #38 `Đô thành Sài Gòn, 1959` | 1959 `Đô thành Sài Gòn` | Same edition; theirs is a folded copy shot in two halves |
+
+**NAC2 #1 is not De Larclause.** The cartouche reads *"Plan de la Ville de
+Saigon, fortifiée en 1790 par le Colonel Victor Olivier. Réduit du Grand Plan
+levé par Ordre du Roi, en 1795, par Mr Brun, Ingénieur de sa Majesté ; par Jn M.
+Dayot"* — the 1799 Brun–Dayot reduction, and the sheet carries a Bibliothèque
+nationale stamp and the plate number `N° 3`. Their #2 carries the same title and
+a different, genuinely 1859-looking sketch, so the likeliest explanation is that
+the wrong image is attached to #1. Their caption for it — which describes the
+citadel days after Gia Định fell — was therefore **not** copied into our record;
+the record notes the discrepancy instead.
+
+Checked and **not** matches, despite adjacent years: their #25 (1900 `Plan de
+Saigon`, a city plan) against our 1900 `Environs de Saïgon` (a topographic
+sheet); their #17 (1891 `Ville de Saigon`) against our 1898 `Plan cadastral`;
+their #33 (1935) against our 1923 `Plan de Saigon-Cholon` — the same *series* of
+municipal plans, successive editions, different plates. Also checked our own
+1863 `Plan du port de Saigon` against our 1864 `Ville et port de Saigon`, in case
+they were one map entered twice: they are two distinct Vidalin & Héraud plates,
+the 1864 one carrying the `Passage de Vénus` mission heading and shelfmark
+`Ge D 230`. No internal duplicate.
+
+### What was written to the database
+
+Their captions are real scholarship — dating arguments, decree numbers and
+dates, street-by-street identifications — so a shortened Vietnamese version of
+each now sits in `dc_description` on the four maps we hold, crediting the page
+it came from. Vietnamese was kept deliberately: it is the language of the
+scholarship and of most of the place names in it.
+
+| Map | Field | Note |
+|---|---|---|
+| 1862 Coffyn | `dc_description` | replaced a one-line English restatement of the title |
+| 1863 port | `dc_description` | was empty |
+| 1882 20e arrondissement | `dc_description` | was empty |
+| 1959 Đô thành Sài Gòn | `dc_description` | appended after the Virtual Saigon note, not over it |
+| 1799 Brun–Dayot | `dc_description` | written from the cartouche, with the NAC2 mismatch flagged |
+| 1799, 1882 | `original_title` | both held placeholders (`01. 1799`, `1882`); now the full cartouche text |
+
+### One naming decision left open
+
+Our 1882 sheet is catalogued as **`Saigon & Surroundings`**. Its cartouche says
+*Cochinchine française. Plan topographique. 20ème Arrondissement et ses
+environs.* NAC2's Vietnamese title is a literal translation of the real one and
+ours is a loose English invention — theirs is better. The `original_title` is
+now correct either way, but `name` is what a reader sees and what the share URL
+titles, so changing it is a call to make deliberately rather than as a side
+effect of this pass.
+
 ## The gaps, grouped
 
 Ordered by how much they would change what the archive can answer.
