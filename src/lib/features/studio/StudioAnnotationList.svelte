@@ -294,15 +294,18 @@
     border: var(--sb-border);
     flex-shrink: 0;
   }
-  /* Feature-type badges: gold / green / violet, matching the OSM import palette. */
+  /* Feature-type badges. The three inks are the same ones `overpass.ts` hands
+     OpenLayers, so a badge and its shape on the map agree. Yellow is a light
+     surface, so that one badge takes dark type. */
   .type-point {
-    background: #d4af37;
+    background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
   }
   .type-line {
-    background: #5b8a72;
+    background: var(--color-green);
   }
   .type-polygon {
-    background: #7b6b9e;
+    background: var(--color-purple);
   }
 
   .empty {

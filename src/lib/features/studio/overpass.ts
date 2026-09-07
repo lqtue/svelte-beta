@@ -90,6 +90,7 @@ interface OverpassResponse {
 }
 
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
+import { INK } from '$lib/core/ink';
 
 /** Convert an Overpass JSON response to a GeoJSON FeatureCollection. */
 export function overpassToGeoJson(data: OverpassResponse): FeatureCollection {
@@ -158,13 +159,13 @@ function wayLooksLikeArea(tags?: Record<string, string>): boolean {
 }
 
 function colorForTags(tags: Record<string, string>): string {
-  if (tags.building) return '#7b6b9e';
-  if (tags.highway) return '#5b8a72';
-  if (tags.waterway) return '#2563eb';
-  if (tags.railway) return '#7c3a3a';
-  if (tags.leisure || tags.natural) return '#3f8a3f';
-  if (tags.amenity) return '#d4af37';
-  return '#2563eb';
+  if (tags.building) return INK.purple;
+  if (tags.highway) return INK.green;
+  if (tags.waterway) return INK.blue;
+  if (tags.railway) return INK.plum;
+  if (tags.leisure || tags.natural) return INK.olive;
+  if (tags.amenity) return INK.yellow;
+  return INK.blue;
 }
 
 /** POST a built Overpass query and return the parsed JSON. */

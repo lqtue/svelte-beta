@@ -159,7 +159,7 @@
   }
   .pt-row.selected {
     background: var(--sb-accent-yellow);
-    box-shadow: 0 0 0 2px #2563eb33;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-blue) 20%, transparent);
   }
   .pt-reorder {
     flex-shrink: 0;

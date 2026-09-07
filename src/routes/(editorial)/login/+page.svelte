@@ -100,8 +100,7 @@
     letter-spacing: -0.02em;
   }
 
-  /* #fee2e2 / #ef4444 / #b91c1c have no exact tokens — nearest is the
-     --color-error-600 family, tinted for the surface. */
+  /* Tinted from the error ink rather than given its own three literals. */
   .auth-error {
     padding: var(--space-3) var(--space-4);
     background: color-mix(in srgb, var(--color-error-600) 15%, var(--color-white));

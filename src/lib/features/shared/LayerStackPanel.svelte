@@ -380,7 +380,7 @@
   }
   .lsp-vec.is-on {
     opacity: 1;
-    color: var(--sb-success, #16a34a);
+    color: var(--sb-success, var(--color-green));
   }
 
   .lsp-x {

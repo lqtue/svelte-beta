@@ -132,7 +132,7 @@
     text-align: left;
     padding: 0.7rem 0.85rem;
     margin-bottom: 0.85rem;
-    background: #fef3c7;
+    background: color-mix(in srgb, var(--color-yellow) 35%, var(--color-white));
     border: var(--border-thin);
     border-radius: 12px;
     box-shadow: var(--shadow-solid-xs);

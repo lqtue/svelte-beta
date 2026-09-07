@@ -27,8 +27,8 @@
 <style>
   .panel-footer {
     padding: 0.75rem;
-    background: var(--color-white, #fff);
-    border-top: var(--border-thick, 2px solid #2b2520);
+    background: var(--color-white);
+    border-top: var(--border-thick);
     flex-shrink: 0;
     display: flex;
     justify-content: center;

@@ -202,8 +202,8 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--color-bg, #f5f0ea);
-    border-right: var(--border-thick, 2px solid #2b2520);
+    background: var(--color-bg);
+    border-right: var(--border-thick);
     overflow: hidden;
     min-width: 0;
   }
@@ -231,7 +231,7 @@
     width: 36px;
     height: 3px;
     border-radius: 999px;
-    background: #1112;
+    background: color-mix(in srgb, var(--color-text) 8%, transparent);
     transition: background 0.15s;
   }
   .splitter:hover::before,

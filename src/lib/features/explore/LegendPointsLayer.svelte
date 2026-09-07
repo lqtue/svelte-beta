@@ -8,6 +8,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import Feature from 'ol/Feature';
   import Point from 'ol/geom/Point';
   import VectorSource from 'ol/source/Vector';
@@ -49,13 +50,13 @@
     new Style({
       image: new CircleStyle({
         radius: 9,
-        fill: new Fill({ color: '#eab308' }),
-        stroke: new Stroke({ color: '#111', width: 1.5 }),
+        fill: new Fill({ color: INK.yellow }),
+        stroke: new Stroke({ color: INK.ink, width: 1.5 }),
       }),
       text: new Text({
         text: String(n),
         font: "700 10px 'Space Grotesk', sans-serif",
-        fill: new Fill({ color: '#111' }),
+        fill: new Fill({ color: INK.ink }),
       }),
       zIndex: 5,
     });
@@ -163,8 +164,8 @@
 <style>
   .legend-popup {
     background: var(--color-white);
-    color: var(--color-text, #111);
-    border: 1.5px solid #111;
+    color: var(--color-text);
+    border: 1.5px solid var(--color-border);
     border-radius: 4px;
     padding: 3px 7px;
     font:

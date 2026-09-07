@@ -116,7 +116,7 @@
     background: var(--sb-card-bg);
     border-top: var(--border-thin);
     border-radius: 18px 18px 0 0;
-    box-shadow: 0 -6px 0 #1a1a1718;
+    box-shadow: 0 -6px 0 color-mix(in srgb, var(--color-text) 9%, transparent);
     z-index: 100;
     color: var(--sb-text);
     font-family: var(--sb-font-base);
@@ -130,7 +130,7 @@
   .sheet-head {
     flex-shrink: 0;
     padding: 0.45rem 1rem 0.7rem;
-    border-bottom: 1px solid #1a1a171a;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-text) 10%, transparent);
     cursor: pointer;
     user-select: none;
     touch-action: none; /* let pointermove on the grip work on touch */
@@ -139,7 +139,7 @@
     width: 38px;
     height: 4px;
     margin: 0.25rem auto 0.55rem;
-    background: #1a1a1733;
+    background: color-mix(in srgb, var(--color-text) 20%, transparent);
     border-radius: 99px;
   }
 

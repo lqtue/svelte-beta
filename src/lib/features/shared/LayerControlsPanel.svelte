@@ -257,9 +257,9 @@
     padding: 0.2rem 0.5rem;
     font-size: 0.74rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    border: 1px solid var(--sb-border, #ccc);
+    border: 1px solid var(--sb-border, var(--color-border));
     border-radius: 4px;
-    background: var(--sb-bg-input, #fff);
-    color: var(--sb-text, #000);
+    background: var(--sb-bg-input, var(--color-white));
+    color: var(--sb-text, var(--color-text));
   }
 </style>

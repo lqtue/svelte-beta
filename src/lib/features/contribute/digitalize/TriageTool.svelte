@@ -16,6 +16,7 @@
 -->
 <script lang="ts">
   import { onDestroy, createEventDispatcher } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import { get } from 'svelte/store';
   import VectorSource from 'ol/source/Vector';
   import VectorLayer from 'ol/layer/Vector';
@@ -60,7 +61,7 @@
 
   // ── Styles ─────────────────────────────────────────────────────────────────
   const neatlineStyle = new Style({
-    stroke: new Stroke({ color: '#f59e0b', width: 2.5, lineDash: [8, 4] }),
+    stroke: new Stroke({ color: INK.yellow, width: 2.5, lineDash: [8, 4] }),
     fill: new Fill({ color: 'rgba(245,158,11,0.05)' }),
   });
   const handleStyle = new Style({
@@ -68,8 +69,8 @@
       points: 4,
       radius: 7,
       angle: Math.PI / 4,
-      fill: new Fill({ color: '#fff' }),
-      stroke: new Stroke({ color: '#f59e0b', width: 2 }),
+      fill: new Fill({ color: INK.paper }),
+      stroke: new Stroke({ color: INK.yellow, width: 2 }),
     }),
   });
   const normalStyle = new Style({
@@ -77,11 +78,11 @@
     fill: new Fill({ color: 'rgba(0,0,0,0.01)' }),
   });
   const lowResStyle = new Style({
-    stroke: new Stroke({ color: '#f59e0b', width: 2 }),
+    stroke: new Stroke({ color: INK.yellow, width: 2 }),
     fill: new Fill({ color: 'rgba(245,158,11,0.18)' }),
   });
   const skipStyle = new Style({
-    stroke: new Stroke({ color: '#6b7280', width: 1.5 }),
+    stroke: new Stroke({ color: INK.rule, width: 1.5 }),
     fill: new Fill({ color: 'rgba(107,114,128,0.32)' }),
   });
 

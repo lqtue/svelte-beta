@@ -16,6 +16,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import { get } from 'svelte/store';
   import Draw from 'ol/interaction/Draw';
   import Snap from 'ol/interaction/Snap';
@@ -77,9 +78,9 @@
 
   // Style used while drawing (dashed amber preview)
   const DRAW_STYLE = new Style({
-    stroke: new Stroke({ color: '#f59e0b', width: 2, lineDash: [6, 4] }),
+    stroke: new Stroke({ color: INK.yellow, width: 2, lineDash: [6, 4] }),
     fill: new Fill({ color: 'rgba(245, 158, 11, 0.15)' }),
-    image: new CircleStyle({ radius: 5, fill: new Fill({ color: '#f59e0b' }) }),
+    image: new CircleStyle({ radius: 5, fill: new Fill({ color: INK.yellow }) }),
   });
 
   // Style for selected footprint
@@ -87,12 +88,12 @@
     const geomType = feature.getGeometry()?.getType();
     const isLine = geomType === 'LineString';
     return new Style({
-      stroke: new Stroke({ color: '#ff6b35', width: isLine ? 3 : 2.5 }),
+      stroke: new Stroke({ color: INK.red, width: isLine ? 3 : 2.5 }),
       fill: isLine ? undefined : new Fill({ color: 'rgba(255, 107, 53, 0.2)' }),
       image: new CircleStyle({
         radius: 6,
-        fill: new Fill({ color: '#ff6b35' }),
-        stroke: new Stroke({ color: '#fff', width: 2 }),
+        fill: new Fill({ color: INK.red }),
+        stroke: new Stroke({ color: INK.paper, width: 2 }),
       }),
     });
   }
@@ -174,8 +175,8 @@
         style: new Style({
           image: new CircleStyle({
             radius: 7,
-            fill: new Fill({ color: '#ff6b35' }),
-            stroke: new Stroke({ color: '#fff', width: 2 }),
+            fill: new Fill({ color: INK.red }),
+            stroke: new Stroke({ color: INK.paper, width: 2 }),
           }),
         }),
       });
@@ -310,8 +311,8 @@
   }
 
   .trace-status.drawing {
-    background: rgba(245, 158, 11, 0.93);
-    color: #451a03;
+    background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
     top: auto;
     bottom: 0;
     left: 0;
@@ -322,19 +323,15 @@
   }
 
   .trace-status.idle {
-    background: linear-gradient(
-      160deg,
-      rgba(244, 232, 216, 0.95) 0%,
-      rgba(232, 213, 186, 0.95) 100%
-    );
-    border: 1px solid #d4af37;
-    color: #4a3f35;
+    background: var(--color-white);
+    border: 1px solid var(--rule);
+    color: var(--color-text);
   }
 
   .trace-status.select-mode {
-    background: linear-gradient(160deg, rgba(255, 107, 53, 0.12) 0%, rgba(255, 107, 53, 0.08) 100%);
-    border: 1px solid #ff6b35;
-    color: #7c2d12;
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-white));
+    border: 1px solid var(--color-primary);
+    color: var(--color-text);
   }
 
   .pts-badge {

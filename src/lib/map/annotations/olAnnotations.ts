@@ -1,4 +1,5 @@
 import Feature from 'ol/Feature';
+import { INK } from '$lib/core/ink';
 import type { FeatureLike } from 'ol/Feature';
 import type { Geometry } from 'ol/geom';
 import Style from 'ol/style/Style';
@@ -71,7 +72,7 @@ export function createAnnotationStyle(featureLike: FeatureLike): Style | undefin
       ? new Text({
           text: textLabel,
           font: '600 13px "Inter", system-ui, sans-serif',
-          fill: new Fill({ color: '#111827' }),
+          fill: new Fill({ color: INK.ink }),
           padding: [3, 6, 2, 6],
           backgroundFill: new Fill({ color: 'rgba(255,255,255,0.85)' }),
           overflow: true,
@@ -83,7 +84,7 @@ export function createAnnotationStyle(featureLike: FeatureLike): Style | undefin
     return new Style({
       image: new CircleStyle({
         radius: 7,
-        fill: new Fill({ color: '#ffffff' }),
+        fill: new Fill({ color: INK.paper }),
         stroke: new Stroke({ color, width: 3 }),
       }),
       text,
@@ -100,9 +101,9 @@ export function createAnnotationStyle(featureLike: FeatureLike): Style | undefin
 export const searchResultStyle = new Style({
   image: new CircleStyle({
     radius: 6,
-    fill: new Fill({ color: '#06b6d4' }),
-    stroke: new Stroke({ color: '#0e7490', width: 2 }),
+    fill: new Fill({ color: INK.teal }),
+    stroke: new Stroke({ color: INK.ink, width: 2 }),
   }),
-  stroke: new Stroke({ color: '#06b6d4', width: 2 }),
+  stroke: new Stroke({ color: INK.teal, width: 2 }),
   fill: new Fill({ color: 'rgba(6, 182, 212, 0.18)' }),
 });

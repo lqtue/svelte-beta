@@ -28,8 +28,8 @@
 
 <style>
   .cli-block {
-    background: #f0f9ff;
-    border: 1px solid #bae6fd;
+    background: color-mix(in srgb, var(--color-blue) 8%, var(--color-white));
+    border: 1px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
     border-radius: 4px;
     padding: 0.5rem 0.6rem;
     display: flex;
@@ -45,26 +45,26 @@
   .cli-label {
     font-size: 0.68rem;
     font-weight: 700;
-    color: #0369a1;
+    color: var(--color-blue);
   }
   .cli-copy-btn {
     font-size: 0.68rem;
     font-weight: 700;
     padding: 0.15rem 0.45rem;
-    border: 1px solid #0369a1;
+    border: 1px solid var(--color-blue);
     border-radius: 3px;
     background: transparent;
-    color: #0369a1;
+    color: var(--color-blue);
     cursor: pointer;
     flex-shrink: 0;
   }
   .cli-copy-btn:hover {
-    background: #e0f2fe;
+    background: color-mix(in srgb, var(--color-blue) 15%, var(--color-white));
   }
   .cli-code {
     font-family: var(--font-mono, ui-monospace, monospace);
     font-size: 0.65rem;
-    color: #0c4a6e;
+    color: var(--color-text);
     white-space: pre-wrap;
     word-break: break-all;
     line-height: 1.5;

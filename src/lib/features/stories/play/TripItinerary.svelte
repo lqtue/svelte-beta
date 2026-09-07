@@ -57,7 +57,7 @@
     gap: 0.55rem;
     padding: 0.5rem 0.65rem;
     background: var(--color-white);
-    border: 1.5px solid #1a1a1733;
+    border: 1.5px solid color-mix(in srgb, var(--color-text) 20%, transparent);
     border-radius: 10px;
     font-size: 0.9rem;
   }
@@ -83,7 +83,7 @@
     font-size: 0.72rem;
   }
   .li-num.done {
-    background: var(--marker-done, #16a34a);
+    background: var(--marker-done, var(--color-green));
   }
   .li-num.current {
     background: var(--sb-accent);

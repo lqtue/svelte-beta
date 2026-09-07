@@ -17,6 +17,7 @@
 -->
 <script lang="ts">
   import { onDestroy, createEventDispatcher } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import { get } from 'svelte/store';
   import VectorSource from 'ol/source/Vector';
   import VectorLayer from 'ol/layer/Vector';
@@ -62,8 +63,8 @@
       points: 4,
       radius: 7,
       angle: Math.PI / 4,
-      fill: new Fill({ color: '#ffffff' }),
-      stroke: new Stroke({ color: '#111827', width: 1.5 }),
+      fill: new Fill({ color: INK.paper }),
+      stroke: new Stroke({ color: INK.ink, width: 1.5 }),
     }),
   });
 
@@ -76,7 +77,7 @@
   function styleFor(feat: Feature): Style {
     const region = feat.get('region') as LayoutRegion;
     const isSelected = feat.get('idx') === selected;
-    const color = LAYOUT_COLORS[region.category] ?? '#64748b';
+    const color = LAYOUT_COLORS[region.category] ?? INK.slate;
     return new Style({
       stroke: new Stroke({
         color,

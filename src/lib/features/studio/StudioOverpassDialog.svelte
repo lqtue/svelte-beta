@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import type { Bbox4, OverpassPreset } from './overpass';
   import { presetLabel } from './overpass';
   import LocationSearch from '$lib/ui/LocationSearch.svelte';
@@ -49,7 +50,7 @@
 
     // Queue a preview feature. Prefer the real Nominatim geometry (polygon /
     // multipolygon / line); fall back to a bbox rectangle or a point.
-    const props = { label, color: '#d97706', hidden: false, source: 'nominatim' };
+    const props = { label, color: INK.orange, hidden: false, source: 'nominatim' };
     let geometry: import('geojson').Geometry;
     if (geojson) {
       geometry = geojson;

@@ -8,6 +8,7 @@
 -->
 <script lang="ts">
   import { onDestroy, createEventDispatcher } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import VectorLayer from 'ol/layer/Vector';
   import VectorSource from 'ol/source/Vector';
   import Feature from 'ol/Feature';
@@ -34,12 +35,12 @@
   let translate: Translate | null = null;
 
   const style = new Style({
-    stroke: new Stroke({ color: '#2563eb', width: 2.5, lineDash: [6, 4] }),
+    stroke: new Stroke({ color: INK.blue, width: 2.5, lineDash: [6, 4] }),
     fill: new Fill({ color: 'rgba(37, 99, 235, 0.08)' }),
     image: new CircleStyle({
       radius: 6,
-      fill: new Fill({ color: '#fff' }),
-      stroke: new Stroke({ color: '#2563eb', width: 2 }),
+      fill: new Fill({ color: INK.paper }),
+      stroke: new Stroke({ color: INK.blue, width: 2 }),
     }),
   });
 

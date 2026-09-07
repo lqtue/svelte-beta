@@ -105,7 +105,7 @@
     white-space: nowrap;
   }
   .sh-title:hover {
-    background: var(--sb-accent-yellow, #fff3a3);
+    background: var(--sb-accent-yellow, var(--color-yellow));
   }
   .sh-title:focus {
     outline: 2px solid var(--sb-accent);

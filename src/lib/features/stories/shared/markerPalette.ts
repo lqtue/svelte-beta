@@ -2,9 +2,12 @@
  * markerPalette.ts — colours + label font for the numbered story markers.
  *
  * OpenLayers styles are built in JS, so they can't use CSS variables directly.
- * We read the tokens off :root once per call and fall back to the literals the
- * markers used before the two marker layers were merged.
+ * We read the tokens off :root once per call, and fall back to `INK` — the same
+ * inks tokens.css defines — for the render that happens before a stylesheet has
+ * landed.
  */
+import { INK } from '$lib/core/ink';
+
 export interface MarkerPalette {
   pending: string;
   current: string;
@@ -14,15 +17,15 @@ export interface MarkerPalette {
   font: string;
 }
 
-// Last-resort literals, used only during SSR / before the stylesheet lands.
-// They mirror --sb-accent, --sb-accent-warm, --color-border and --color-white;
-// `done` green has no token of its own (see --marker-done above).
+// Used only during SSR / before the stylesheet lands. These stand in for
+// --sb-accent, --sb-accent-warm, --color-border and --color-white; `done` green
+// has no token of its own (see --marker-done below).
 const FALLBACK: MarkerPalette = {
-  pending: '#2563eb',
-  current: '#f59e0b',
-  done: '#16a34a',
-  border: '#1a1a17',
-  label: '#ffffff',
+  pending: INK.blue,
+  current: INK.yellow,
+  done: INK.green,
+  border: INK.ink,
+  label: INK.paper,
   font: "'Space Grotesk', system-ui, sans-serif",
 };
 

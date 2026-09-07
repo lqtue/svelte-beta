@@ -17,6 +17,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { INK, INK_CYCLE } from '$lib/core/ink';
   import '$styles/layouts/mode-shared.css';
   import OlMap from 'ol/Map';
   import View from 'ol/View';
@@ -62,18 +63,7 @@
 
   // ── Color palette ─────────────────────────────────────────────────────────
   const labelColors: Record<string, string> = {};
-  const palette = [
-    '#d4af37',
-    '#e06c75',
-    '#61afef',
-    '#98c379',
-    '#c678dd',
-    '#e5c07b',
-    '#56b6c2',
-    '#be5046',
-    '#d19a66',
-    '#abb2bf',
-  ];
+  const palette = INK_CYCLE;
   let colorIdx = 0;
 
   function getLabelColor(label: string): string {
@@ -97,8 +87,8 @@
         ? new Text({
             text: label,
             font: 'bold 10px "Be Vietnam Pro", sans-serif',
-            fill: new Fill({ color: '#2b2520' }),
-            stroke: new Stroke({ color: '#fff', width: 3 }),
+            fill: new Fill({ color: INK.ink }),
+            stroke: new Stroke({ color: INK.paper, width: 3 }),
             overflow: true,
           })
         : undefined,

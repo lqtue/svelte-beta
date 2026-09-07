@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import VectorLayer from 'ol/layer/Vector';
   import VectorSource from 'ol/source/Vector';
   import GeoJSON from 'ol/format/GeoJSON';
@@ -20,12 +21,12 @@
 
   const fmt = new GeoJSON();
   const style = new Style({
-    stroke: new Stroke({ color: '#d97706', width: 2, lineDash: [4, 4] }),
+    stroke: new Stroke({ color: INK.orange, width: 2, lineDash: [4, 4] }),
     fill: new Fill({ color: 'rgba(217, 119, 6, 0.12)' }),
     image: new CircleStyle({
       radius: 5,
       fill: new Fill({ color: 'rgba(217, 119, 6, 0.6)' }),
-      stroke: new Stroke({ color: '#92400e', width: 1.5 }),
+      stroke: new Stroke({ color: INK.ink, width: 1.5 }),
     }),
   });
 

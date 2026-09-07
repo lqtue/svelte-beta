@@ -678,19 +678,20 @@
     flex-shrink: 0;
   }
 
-  /* Swatch colours mirror TriageTool's OpenLayers tile styles verbatim —
-     they are canvas parity, not theme, so they stay literal. */
+  /* Swatches mirror TriageTool's OpenLayers tile styles. Both sides now read
+     the same inks — the tool through `INK`, this through the tokens — so the
+     swatch cannot drift from the tile it stands for. */
   .ts-swatch--normal {
     background: transparent;
-    border-color: rgba(245, 158, 11, 0.35);
+    border-color: color-mix(in srgb, var(--color-yellow) 35%, transparent);
   }
   .ts-swatch--low-res {
-    background: rgba(245, 158, 11, 0.18);
-    border-color: #f59e0b;
+    background: color-mix(in srgb, var(--color-yellow) 18%, transparent);
+    border-color: var(--color-yellow);
   }
   .ts-swatch--skip {
-    background: rgba(107, 114, 128, 0.28);
-    border-color: #6b7280;
+    background: color-mix(in srgb, var(--rule) 28%, transparent);
+    border-color: var(--rule);
   }
 
   .ts-priority-label {

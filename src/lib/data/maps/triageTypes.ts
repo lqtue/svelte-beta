@@ -12,6 +12,8 @@
  * space `ocr_extractions.global_*` uses.
  */
 
+import { INK } from '$lib/core/ink';
+
 /** `sheet` is the whole printed object; `main_map` the cartographic body inside
  *  it. They differ by exactly the furniture, which is the useful part. */
 export const LAYOUT_CATEGORIES = [
@@ -49,15 +51,15 @@ export const LAYOUT_LABELS: Record<LayoutCategory, string> = {
 
 /** Distinct hues so nine overlapping boxes stay tellable apart on one canvas. */
 export const LAYOUT_COLORS: Record<LayoutCategory, string> = {
-  sheet: '#94a3b8',
-  main_map: '#2563eb',
-  title: '#d946ef',
-  legend: '#f59e0b',
-  name_list: '#10b981',
-  inset: '#6366f1',
-  scale_bar: '#64748b',
-  north_arrow: '#64748b',
-  stamp: '#ef4444',
+  sheet: INK.slate,
+  main_map: INK.blue,
+  title: INK.plum,
+  legend: INK.orange,
+  name_list: INK.green,
+  inset: INK.purple,
+  scale_bar: INK.grey,
+  north_arrow: INK.grey,
+  stamp: INK.red,
 };
 
 import type { MapGrid } from '$lib/core/geo/mapGrid';

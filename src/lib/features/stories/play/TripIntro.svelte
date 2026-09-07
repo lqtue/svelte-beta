@@ -78,7 +78,7 @@
     background: var(--sb-card-bg);
     border-top: var(--border-thin);
     border-radius: 18px 18px 0 0;
-    box-shadow: 0 -6px 0 #1a1a1718;
+    box-shadow: 0 -6px 0 color-mix(in srgb, var(--color-text) 9%, transparent);
     padding: 0.5rem 1.1rem calc(env(safe-area-inset-bottom) + 1.25rem);
     color: var(--sb-text);
     font-family: var(--sb-font-base);
@@ -89,7 +89,7 @@
     width: 38px;
     height: 4px;
     margin: 0.4rem auto 0.6rem;
-    background: #1a1a1733;
+    background: color-mix(in srgb, var(--color-text) 20%, transparent);
     border-radius: 99px;
   }
   .intro-eyebrow {
@@ -128,7 +128,8 @@
     font-weight: 800;
   }
   .chip-walk {
-    background: #fde68a;
+    background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
   }
   .desc {
     margin: 0 0 0.85rem;

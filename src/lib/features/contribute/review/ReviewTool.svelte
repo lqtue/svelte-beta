@@ -12,6 +12,7 @@
 -->
 <script lang="ts">
   import { onDestroy, createEventDispatcher } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import { get } from 'svelte/store';
   import VectorSource from 'ol/source/Vector';
   import VectorLayer from 'ol/layer/Vector';
@@ -49,11 +50,11 @@
 
   // Canvas colours, matching the legend below.
   const styleDefault = new Style({
-    stroke: new Stroke({ color: '#f97316', width: 1.5 }),
+    stroke: new Stroke({ color: INK.orange, width: 1.5 }),
     fill: new Fill({ color: 'rgba(249,115,22,0.12)' }),
   });
   const styleSelected = new Style({
-    stroke: new Stroke({ color: '#eab308', width: 2.5 }),
+    stroke: new Stroke({ color: INK.yellow, width: 2.5 }),
     fill: new Fill({ color: 'rgba(234,179,8,0.22)' }),
   });
 
@@ -110,8 +111,8 @@
       style: new Style({
         image: new Circle({
           radius: 5,
-          fill: new Fill({ color: '#22c55e' }),
-          stroke: new Stroke({ color: '#fff', width: 1.5 }),
+          fill: new Fill({ color: INK.green }),
+          stroke: new Stroke({ color: INK.paper, width: 1.5 }),
         }),
       }),
     });
@@ -191,14 +192,15 @@
     margin-left: 0.75rem;
   }
 
-  /* Literal, because these mirror the OpenLayers styles above exactly. */
+  /* The same three inks the OpenLayers styles above use, reached through the
+     tokens rather than copied. */
   .legend-dot.orange {
-    background: #f97316;
+    background: var(--color-orange);
   }
   .legend-dot.yellow {
-    background: #eab308;
+    background: var(--color-yellow);
   }
   .legend-dot.green {
-    background: #22c55e;
+    background: var(--color-green);
   }
 </style>

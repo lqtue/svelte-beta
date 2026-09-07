@@ -16,6 +16,7 @@
 -->
 <script lang="ts">
   import { CAT_COLORS } from '../shared/constants';
+  import { INK } from '$lib/core/ink';
   import { onDestroy, createEventDispatcher } from 'svelte';
   import { get } from 'svelte/store';
   import VectorSource from 'ol/source/Vector';
@@ -69,13 +70,13 @@
   function handleStyleFn(feat: Feature): Style {
     const bboxId = feat.get('bboxId') as string;
     const ext = extractions.find((e) => e.id === bboxId);
-    const color = CAT_COLORS[ext?.category ?? ''] ?? '#9ca3af';
+    const color = CAT_COLORS[ext?.category ?? ''] ?? INK.grey;
     return new Style({
       image: new RegularShape({
         points: 4,
         radius: 6,
         angle: Math.PI / 4,
-        fill: new Fill({ color: '#fff' }),
+        fill: new Fill({ color: INK.paper }),
         stroke: new Stroke({ color, width: 2 }),
       }),
     });
@@ -94,7 +95,7 @@
 
     if (opacity === 0) return [];
 
-    const color = CAT_COLORS[ext.category] ?? '#9ca3af';
+    const color = CAT_COLORS[ext.category] ?? INK.grey;
     const dash = STATUS_DASH[ext.status] ?? [];
     const label = ext.text_validated ?? ext.text;
 
@@ -110,8 +111,8 @@
           ? new TextStyle({
               text: label.length > 28 ? label.slice(0, 28) + '…' : label,
               font: '10px "Be Vietnam Pro", sans-serif',
-              fill: new Fill({ color: '#fff' }),
-              stroke: new Stroke({ color: '#2b2520', width: 2.5 }),
+              fill: new Fill({ color: INK.paper }),
+              stroke: new Stroke({ color: INK.ink, width: 2.5 }),
               overflow: true,
             })
           : undefined,

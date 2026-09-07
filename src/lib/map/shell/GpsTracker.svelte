@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { INK } from '$lib/core/ink';
   import Feature from 'ol/Feature';
   import LineString from 'ol/geom/LineString';
   import Point from 'ol/geom/Point';
@@ -48,7 +49,7 @@
 
   function createTrackStyle(): Style {
     return new Style({
-      stroke: new Stroke({ color: '#ea580c', width: 4, lineCap: 'round', lineJoin: 'round' }),
+      stroke: new Stroke({ color: INK.orange, width: 4, lineCap: 'round', lineJoin: 'round' }),
     });
   }
 
@@ -56,8 +57,8 @@
     return new Style({
       image: new CircleStyle({
         radius: 8,
-        fill: new Fill({ color: '#ffffff' }),
-        stroke: new Stroke({ color: '#ea580c', width: 3 }),
+        fill: new Fill({ color: INK.paper }),
+        stroke: new Stroke({ color: INK.orange, width: 3 }),
       }),
     });
   }

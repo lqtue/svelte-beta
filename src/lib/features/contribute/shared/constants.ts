@@ -1,3 +1,5 @@
+import { INK } from '$lib/core/ink';
+
 /** Single source of truth for OCR categories and their swatches. */
 export const OCR_CATEGORIES = [
   'street',
@@ -14,20 +16,20 @@ export const OCR_CATEGORIES = [
 export type OcrCategory = (typeof OCR_CATEGORIES)[number];
 
 export const CAT_COLORS: Record<string, string> = {
-  street: '#ef4444',
-  hydrology: '#3b82f6',
-  place: '#60a5fa',
-  building: '#22c55e',
-  institution: '#f97316',
-  legend: '#a855f7',
-  legend_entry: '#a855f7',
-  legend_ref: '#eab308',
-  title: '#06b6d4',
-  other: '#9ca3af',
+  street: INK.red,
+  hydrology: INK.blue,
+  place: INK.teal,
+  building: INK.green,
+  institution: INK.orange,
+  legend: INK.purple,
+  legend_entry: INK.purple,
+  legend_ref: INK.yellow,
+  title: INK.plum,
+  other: INK.grey,
 };
 
 export const STATUS_COLORS: Record<string, string> = {
-  pending: '#ca8a04',
-  validated: '#16a34a',
-  rejected: '#dc2626',
+  pending: INK.yellow,
+  validated: INK.green,
+  rejected: INK.red,
 };

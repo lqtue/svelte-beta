@@ -1,4 +1,5 @@
 import TileLayer from 'ol/layer/Tile';
+import { INK } from '$lib/core/ink';
 import XYZ from 'ol/source/XYZ';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
@@ -13,7 +14,7 @@ import Stroke from 'ol/style/Stroke';
 import type BaseLayer from 'ol/layer/Base';
 import { buildPmtilesBasemapLayer } from './basemapStyle';
 
-export const DEFAULT_ANNOTATION_COLOR = '#2563eb';
+export const DEFAULT_ANNOTATION_COLOR = INK.blue;
 
 export const DRAW_TYPE_MAP = {
   point: 'Point',
@@ -49,8 +50,8 @@ function buildVnClaimsLayer(): VectorLayer<VectorSource> {
         text: new Text({
           text: feature.get('name'),
           font: '600 13px "Inter", system-ui, -apple-system, sans-serif',
-          fill: new Fill({ color: '#b91c1c' }),
-          stroke: new Stroke({ color: '#ffffff', width: 3 }),
+          fill: new Fill({ color: INK.red }),
+          stroke: new Stroke({ color: INK.paper, width: 3 }),
           textAlign: 'center',
           textBaseline: 'middle',
           overflow: true,

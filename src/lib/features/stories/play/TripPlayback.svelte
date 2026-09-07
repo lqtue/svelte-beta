@@ -254,7 +254,7 @@
     font-size: 0.85rem;
   }
   .num.done {
-    background: var(--marker-done, #16a34a);
+    background: var(--marker-done, var(--color-green));
   }
   .head-text {
     min-width: 0;
@@ -308,8 +308,8 @@
   .bar {
     margin-top: 0.55rem;
     height: 5px;
-    background: #1a1a170d;
-    border: 1px solid #1a1a1722;
+    background: color-mix(in srgb, var(--color-text) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-text) 13%, transparent);
     border-radius: 99px;
     overflow: hidden;
   }
@@ -329,7 +329,8 @@
     margin: 0;
     padding: 0.55rem 0.7rem;
     font-size: 0.85rem;
-    background: #fde68a;
+    background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
     border: var(--sb-border);
     border-radius: 8px;
   }
@@ -402,10 +403,10 @@
     font-size: 0.9rem;
   }
   .status-banner.is-correct {
-    background: #bbf7d0;
+    background: color-mix(in srgb, var(--color-green) 30%, var(--color-white));
   }
   .status-banner.is-visited {
-    background: #dbeafe;
+    background: color-mix(in srgb, var(--color-blue) 25%, var(--color-white));
   }
   .status-banner strong {
     display: block;

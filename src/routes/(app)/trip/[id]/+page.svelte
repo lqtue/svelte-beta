@@ -310,7 +310,7 @@
     position: fixed;
     inset: 0;
     top: 56px; /* leave room for the (app) NavBar */
-    background: var(--sb-bg, #faf8f3);
+    background: var(--sb-bg, var(--color-bg));
     overflow: hidden;
   }
 
@@ -323,7 +323,7 @@
     height: 100%;
     padding: 1.5rem;
     text-align: center;
-    color: var(--sb-text, #111);
+    color: var(--sb-text, var(--color-text));
   }
   .state h2 {
     margin: 0;
@@ -333,22 +333,22 @@
   .state p {
     margin: 0;
     font-size: 0.95rem;
-    color: var(--sb-text-meta, #555);
+    color: var(--sb-text-meta, var(--color-gray-500));
   }
 
   .back-btn {
     margin-top: 0.5rem;
     padding: 0.55rem 1rem;
-    background: var(--sb-card-bg, #fff);
-    border: 2px solid #111;
+    background: var(--sb-card-bg, var(--color-white));
+    border: 2px solid var(--color-border);
     border-radius: var(--sb-radius, 10px);
-    box-shadow: 3px 3px 0 #111;
+    box-shadow: 3px 3px 0 var(--color-border);
     font-weight: 700;
     cursor: pointer;
   }
   .back-btn:active {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 #111;
+    box-shadow: 1px 1px 0 var(--color-border);
   }
 
   .gps-toggle {
@@ -360,21 +360,21 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: #fff;
-    border: 2px solid #111;
+    background: var(--color-white);
+    border: 2px solid var(--color-border);
     border-radius: 50%;
-    box-shadow: 3px 3px 0 #111;
+    box-shadow: 3px 3px 0 var(--color-border);
     font-size: 1.1rem;
     cursor: pointer;
     z-index: 110;
   }
   .gps-toggle.is-on {
-    background: var(--sb-accent, #ea580c);
-    color: #fff;
+    background: var(--sb-accent, var(--color-orange));
+    color: var(--color-white);
   }
   .gps-toggle:active {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 #111;
+    box-shadow: 1px 1px 0 var(--color-border);
   }
 
   .gps-error {
@@ -384,8 +384,8 @@
     transform: translateX(-50%);
     max-width: 80%;
     padding: 0.5rem 0.75rem;
-    background: #fff3cd;
-    border: 2px solid #111;
+    background: color-mix(in srgb, var(--color-yellow) 35%, var(--color-white));
+    border: 2px solid var(--color-border);
     border-radius: var(--sb-radius-sm, 6px);
     font-size: 0.8rem;
     z-index: 110;

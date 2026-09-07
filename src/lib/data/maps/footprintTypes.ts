@@ -1,3 +1,5 @@
+import { INK } from '$lib/core/ink';
+
 // Legend items: simple string ("Building") or transcription object ({val: "1", label: "Abattoir Municipal"})
 export type LegendItem = string | { val: string; label: string };
 
@@ -35,13 +37,13 @@ export const FEATURE_TYPE_LABELS: Record<FeatureType, string> = {
  * values, because that is the public surface.
  */
 export const FEATURE_TYPE_COLORS: Record<FeatureType, string> = {
-  building: '#22c55e',
-  land_plot: '#eab308',
-  road: '#ef4444',
-  waterway: '#3b82f6',
-  green_space: '#84cc16',
-  water_body: '#3b82f6',
-  other: '#94a3b8',
+  building: INK.green,
+  land_plot: INK.yellow,
+  road: INK.red,
+  waterway: INK.blue,
+  green_space: INK.olive,
+  water_body: INK.blue,
+  other: INK.slate,
 };
 
 /** Canvas fill opacity per type — a road wants less ink than a building. */
