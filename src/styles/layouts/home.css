@@ -249,13 +249,6 @@
   margin-bottom: 1.5rem;
 }
 
-/* Maps Grid — card styles live in MapCard.svelte's scoped <style> */
-.home-page .maps-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 2rem;
-}
-
 /* States & Micro UI */
 .home-page .maps-loading {
   display: flex;
@@ -519,9 +512,5 @@
   }
   .home-page .action-btn {
     width: 100%;
-  }
-  .home-page .maps-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1.5rem;
   }
 }

@@ -22,6 +22,8 @@ function toMapListItem(row: DbRow): MapListItem {
     year: row.year ?? undefined,
     year_label: row.year_label ?? undefined,
     collection: row.collection ?? undefined,
+    holding_institution: row.holding_institution ?? undefined,
+    source_url: row.source_url ?? undefined,
     source_type: (row.source_type ?? undefined) as MapSourceType | undefined,
     status: (row.status ?? 'draft') as MapStatus,
     bbox: (row.bbox ?? undefined) as [number, number, number, number] | undefined,

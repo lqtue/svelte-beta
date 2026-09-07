@@ -71,6 +71,7 @@ export interface MapListItem {
   // as a scan; `allmaps_id` is not the same test, since every map carries one.
   creator?: string; // present in search results
   holding_institution?: string; // present in search results
+  source_url?: string; // the holding library's own page for this sheet
   // Contribute-pass progress, set only by ToolMapPicker. Over a 39-sheet pass
   // "which have I already done?" is the column that decides what to open next,
   // so the picker shows it; nothing else sets or reads these.

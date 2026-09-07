@@ -5,7 +5,7 @@
   import { fetchMaps, fetchFeaturedMaps } from '$lib/data/maps/service';
   import { annotationUrlForSource } from '$lib/map/shell/warpedOverlay';
   import { fetchFavorites, addFavorite, removeFavorite } from '$lib/data/supabase/favorites';
-  import MapCard from '$lib/ui/MapCard.svelte';
+  import FeaturedSheet from '$lib/features/catalog/FeaturedSheet.svelte';
   import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
   import '$styles/layouts/home.css';
 
@@ -204,9 +204,9 @@
           <div class="feature-content-full">
             <h2 class="feature-title">The Catalog</h2>
             <p class="feature-description">
-              Every map in the archive. Browse the catalog, stack historical layers over today's
-              city, or inspect the high-resolution IIIF scans up close. Each record links back to
-              the library or collection that holds the scan.
+              A featured sheet, whole. Pick another below, then open it in the viewer to lay it over
+              today's city, or inspect the high-resolution IIIF scan up close. Each record links
+              back to the library or collection that holds it.
             </p>
           </div>
         </div>
@@ -234,20 +234,13 @@
               <p>Sign in from the top nav.</p>
             </div>
           {:else if displayedMaps.length > 0}
-            <div class="maps-grid">
-              {#each displayedMaps as map (map.id)}
-                <MapCard
-                  {map}
-                  href="/explore?map={map.id}{map.location
-                    ? `&city=${encodeURIComponent(map.location)}`
-                    : ''}"
-                  thumbnail={thumbnails.get(map.id) ?? map.thumbnail ?? undefined}
-                  showFavorite={!!session}
-                  isFavorited={favoriteIds.includes(map.id)}
-                  on:toggleFavorite={(e) => toggleFavorite(e.detail)}
-                />
-              {/each}
-            </div>
+            <FeaturedSheet
+              maps={displayedMaps}
+              {thumbnails}
+              {favoriteIds}
+              showFavorite={!!session}
+              on:toggleFavorite={(e) => toggleFavorite(e.detail)}
+            />
           {:else}
             <div class="empty-state">
               <h3>Nothing here yet.</h3>
