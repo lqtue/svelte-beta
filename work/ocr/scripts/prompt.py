@@ -61,6 +61,11 @@ EXTRACTION_SCHEMA = {
                         "maximum": 1.0,
                     },
                     "notes": {"type": "string"},
+                    # Optional: only the *-style prompts ask for them. Cartographic
+                    # convention sets hydrography in italic and a cool ink, streets
+                    # upright in black — evidence for the category, not a rule.
+                    "style": {"type": "string", "enum": ["roman", "italic", "caps", "script", "other"]},
+                    "ink": {"type": "string", "enum": ["black", "blue", "red", "brown", "green", "other"]},
                 },
                 "required": [
                     "text",
@@ -665,6 +670,136 @@ Return ONLY the JSON object. If no text is visible, return {"extractions": []}.
 """
 
 
+# ── Sequence prompts ──────────────────────────────────────────────────────────
+# v8 is a per-tile prompt: it asks for fragments and relies on the offline join to
+# rebuild labels. On the row-sequence path the model holds every frame, so the
+# fragment rule is pure loss — measured 2026-09-08 as −0.14 recall and −2.7 pts
+# char_acc against the old fallback. seq-v1 is v8 with whole-label assembly
+# restored; seq-v1-style adds the typography fields and nothing else.
+
+PROMPT_SEQ_V1 = """\
+Examine the map crops provided and extract every readable text label.
+
+**TRANSCRIPTION RULE (critical):**
+Transcribe ONLY text that is physically printed on the sheet. Do NOT complete, infer, or \
+reconstruct labels from prior knowledge of place names.
+
+**WHOLE LABELS (critical):**
+Return each label COMPLETE, as one extraction. Street names are printed word by word along \
+the road ("Rue" … "de" … "Genouilly"), building names across two or three lines inside a \
+parcel; all of those words are one label with one bbox enclosing every word. Only when a \
+label genuinely runs off the outermost edge of what you are shown do you return the visible \
+part, with notes "continues outside [edge] edge".
+
+**RECALL RULE (critical):**
+Err on the side of INCLUSION. If you can detect any text — even faded, rotated, or partially \
+cut off — return it. Set a low confidence score rather than omitting it. A human reviewer \
+will reject false positives. A missed label can never be recovered.
+
+
+**NUMBERED STREETS:**
+"N°29", "N° 7", "No. 12" etc. are valid street labels (category="street"), NOT parcel numbers. \
+Extract them when placed along a road centreline. Do NOT extract bare integers inside plot areas.
+
+**Classification:**
+- **street**: Roads, boulevards, quais, passages, and numbered streets (N°…)
+- **hydrology**: Canals (Rach), rivers, arroyos (e.g. "Arroyo de l'Avalanche")
+- **institution**: Public/private institutions (Abattoir, Poste de Police, Cathédrale)
+- **building**: Individual named buildings (Hôtel du Gouverneur)
+- **place**: Village names ("Vge de ..."), quarters, districts
+- **legend / title**: Map boilerplate, scale bars, cartouche text, large titles
+- **other**: Any other relevant text that does not fit the above
+
+**Normalization:**
+Transcribe abbreviations AS PRINTED — "Vge de", "R.", "Pce", "Bd" stay as they are. Do not \
+expand them: "R." is "Rue" before a French road name but "Rạch" (creek) before a Vietnamese \
+name on the water, and the sheet, not prior knowledge, decides. Preserve accents, Vietnamese \
+diacritics and the printed capitalisation.
+
+**What to skip (hard non-text only):**
+- Library/archival stamps added to the scan (BIBLIOTHÈQUE NATIONALE, handwritten inventory numbers like "A1005")
+- Scale bar tick-mark numbers (0, 100, 200 m) — numeric only, no associated text
+- North arrow compass letters (standalone "N", "S", "E", "O" next to an arrow symbol)
+- Hatching, stippling, or colour-fill patterns that only superficially resemble letters
+
+**For each label:**
+1. text: Visible text only, in reading order
+2. category: street | hydrology | place | building | institution | legend | title | other
+3. language: fr | vi | zh | mixed | other
+4. bbox_px: [x, y, width, height] (0–1000 scale, 0,0 = top-left)
+5. rotation_deg: baseline angle from horizontal (positive = counter-clockwise)
+6. confidence: 0.1–1.0. There is NO minimum threshold — include everything you detect.
+   Use low confidence (0.1–0.4) for very faded or uncertain text rather than omitting it.
+7. notes: "continues outside [edge] edge", "faded", "uncertain: <reason>", etc.
+
+Return ONLY the JSON object. If no text is visible, return {"extractions": []}.
+"""
+
+PROMPT_SEQ_V1_STYLE = """\
+Examine the map crops provided and extract every readable text label.
+
+**TRANSCRIPTION RULE (critical):**
+Transcribe ONLY text that is physically printed on the sheet. Do NOT complete, infer, or \
+reconstruct labels from prior knowledge of place names.
+
+**WHOLE LABELS (critical):**
+Return each label COMPLETE, as one extraction. Street names are printed word by word along \
+the road ("Rue" … "de" … "Genouilly"), building names across two or three lines inside a \
+parcel; all of those words are one label with one bbox enclosing every word. Only when a \
+label genuinely runs off the outermost edge of what you are shown do you return the visible \
+part, with notes "continues outside [edge] edge".
+
+**RECALL RULE (critical):**
+Err on the side of INCLUSION. If you can detect any text — even faded, rotated, or partially \
+cut off — return it. Set a low confidence score rather than omitting it. A human reviewer \
+will reject false positives. A missed label can never be recovered.
+
+
+**NUMBERED STREETS:**
+"N°29", "N° 7", "No. 12" etc. are valid street labels (category="street"), NOT parcel numbers. \
+Extract them when placed along a road centreline. Do NOT extract bare integers inside plot areas.
+
+**Classification:**
+- **street**: Roads, boulevards, quais, passages, and numbered streets (N°…)
+- **hydrology**: Canals (Rach), rivers, arroyos (e.g. "Arroyo de l'Avalanche")
+- **institution**: Public/private institutions (Abattoir, Poste de Police, Cathédrale)
+- **building**: Individual named buildings (Hôtel du Gouverneur)
+- **place**: Village names ("Vge de ..."), quarters, districts
+- **legend / title**: Map boilerplate, scale bars, cartouche text, large titles
+- **other**: Any other relevant text that does not fit the above
+
+**Normalization:**
+Transcribe abbreviations AS PRINTED — "Vge de", "R.", "Pce", "Bd" stay as they are. Do not \
+expand them: "R." is "Rue" before a French road name but "Rạch" (creek) before a Vietnamese \
+name on the water, and the sheet, not prior knowledge, decides. Preserve accents, Vietnamese \
+diacritics and the printed capitalisation.
+
+**What to skip (hard non-text only):**
+- Library/archival stamps added to the scan (BIBLIOTHÈQUE NATIONALE, handwritten inventory numbers like "A1005")
+- Scale bar tick-mark numbers (0, 100, 200 m) — numeric only, no associated text
+- North arrow compass letters (standalone "N", "S", "E", "O" next to an arrow symbol)
+- Hatching, stippling, or colour-fill patterns that only superficially resemble letters
+
+**For each label:**
+1. text: Visible text only, in reading order
+2. category: street | hydrology | place | building | institution | legend | title | other
+3. language: fr | vi | zh | mixed | other
+4. bbox_px: [x, y, width, height] (0–1000 scale, 0,0 = top-left)
+5. rotation_deg: baseline angle from horizontal (positive = counter-clockwise)
+6. confidence: 0.1–1.0. There is NO minimum threshold — include everything you detect.
+   Use low confidence (0.1–0.4) for very faded or uncertain text rather than omitting it.
+7. notes: "continues outside [edge] edge", "faded", "uncertain: <reason>", etc.
+8. style: how the label is set — roman (upright), italic (sloped or cursive), caps (all capitals), \
+script (handwriting-like), other
+9. ink: the colour the letters are printed in — black, blue, red, brown, green, other
+Read style and ink from the letterforms themselves. On most sheets water names are italic or \
+cursive and follow the water; street names are upright along the road. Report what you see \
+even when it disagrees with the category you chose.
+
+Return ONLY the JSON object. If no text is visible, return {"extractions": []}.
+"""
+
+
 # ── Prompt registry (used by ocr.py --prompt flag) ───────────────────────────
 
 PROMPTS: dict[str, str] = {
@@ -676,6 +811,8 @@ PROMPTS: dict[str, str] = {
     "v6": PROMPT_V6,
     "v7": PROMPT_V7,
     "v8": PROMPT_V8,
+    "seq-v1": PROMPT_SEQ_V1,
+    "seq-v1-style": PROMPT_SEQ_V1_STYLE,
     "scout": PROMPT_SCOUT,
 }
 

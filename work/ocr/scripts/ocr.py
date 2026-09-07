@@ -908,6 +908,11 @@ def _sanitize_extractions(result: dict, log_path: Path | None = None) -> dict:
             continue
         ext["bbox_px"] = [min(max(v, 0), 1000) for v in coords]
         ext["confidence"] = min(max(float(ext.get("confidence", 0)), 0.0), 1.0)
+        # ponytail: style/ink ride in `notes` — no column, no migration — until
+        # they prove out. Promote to ocr_extractions columns then.
+        tags = " ".join(f"{k}={ext.pop(k)}" for k in ("style", "ink") if ext.get(k))
+        if tags:
+            ext["notes"] = f"{ext['notes']} {tags}".strip() if ext.get("notes") else tags
         clean.append(ext)
     if n_dropped > 0 and log_path:
         sanitize_path = log_path.parent / "sanitize.jsonl"

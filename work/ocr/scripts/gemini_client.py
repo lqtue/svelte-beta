@@ -76,6 +76,54 @@ def _rotate_key() -> bool:
     return True
 
 
+# ── Explicit context cache ────────────────────────────────────────────────────
+# Implicit caching never hit on gemini-3-flash-preview in a 3-call sample, even
+# with the prompt as a byte-identical prefix. Explicit caching is deterministic:
+# system prompt + task prompt go into one cached content per (key, model, text),
+# and each call sends only its images against it. Set GEMINI_EXPLICIT_CACHE=0
+# to fall back to inline prompts. Create failures (prompt under the model's
+# minimum, unsupported model) are remembered per process so one failed prefix
+# costs one extra round-trip, not one per tile.
+_prefix_cache: dict[tuple, str | None] = {}
+_prefix_lock = threading.Lock()
+
+
+def _cached_prefix(client: Any, key: str, model: str, system_prompt: str, prompt: str) -> str | None:
+    if os.environ.get("GEMINI_EXPLICIT_CACHE", "1") == "0":
+        return None
+    k = (key, model, system_prompt, prompt)
+    with _prefix_lock:
+        if k in _prefix_cache:
+            return _prefix_cache[k]
+    name: str | None
+    try:
+        cc = client.caches.create(
+            model=model,
+            config=genai_types.CreateCachedContentConfig(
+                system_instruction=system_prompt,
+                contents=[prompt],
+                ttl="3600s",
+                display_name="vma-ocr-prefix",
+            ),
+        )
+        name = cc.name
+    except Exception as e:
+        print(f"  explicit cache unavailable ({str(e)[:90]}); sending prompt inline", flush=True)
+        name = None
+    with _prefix_lock:
+        _prefix_cache[k] = name
+    return name
+
+
+def _with_prefix(config_kwargs: dict, cache_name: str | None) -> dict:
+    """GenerateContentConfig kwargs for a call against a cached prefix (or not)."""
+    if not cache_name:
+        return config_kwargs
+    cfg = {k: v for k, v in config_kwargs.items() if k != "system_instruction"}
+    cfg["cached_content"] = cache_name
+    return cfg
+
+
 def _parse_response_text(text: str) -> dict:
     """Extract JSON from response text, handling thinking-mode preambles."""
     text = text.strip()
@@ -208,16 +256,14 @@ def extract_labels(
     while True:
         client, active_key = _load_client()
         try:
+            image_part = genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+            prefix = _cached_prefix(client, active_key, model, system_prompt, user_prompt)
             response = client.models.generate_content(
                 model=model,
-                # Prompt first, image last. Implicit context caching keys on a
-                # stable prefix; with the image first the prefix changes every
-                # call and the ~1.5k-token prompt is billed in full each time.
-                contents=[
-                    user_prompt,
-                    genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                ],
-                config=genai_types.GenerateContentConfig(**config_kwargs),
+                # Prompt first, image last: the prompt is the stable prefix,
+                # served from the explicit cache when one could be created.
+                contents=[image_part] if prefix else [user_prompt, image_part],
+                config=genai_types.GenerateContentConfig(**_with_prefix(config_kwargs, prefix)),
             )
             elapsed = time.monotonic() - t_start
             result = _parse_result(
@@ -381,12 +427,14 @@ def extract_labels_sequence(
     backoff = 2.0
 
     while True:
-        client, _ = _load_client()
+        client, active_key = _load_client()
         try:
+            prefix = _cached_prefix(client, active_key, model, system_prompt, sequence_prompt)
             response = client.models.generate_content(
                 model=model,
-                contents=[sequence_prompt] + parts,  # prompt first: see extract_labels
-                config=genai_types.GenerateContentConfig(**config_kwargs),
+                # Prompt first: see extract_labels.
+                contents=parts if prefix else [sequence_prompt] + parts,
+                config=genai_types.GenerateContentConfig(**_with_prefix(config_kwargs, prefix)),
             )
             elapsed = time.monotonic() - t_start
             result = _parse_result(
