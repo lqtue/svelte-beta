@@ -35,7 +35,8 @@ different documents here:
 
 One near-miss worth eyes: NAC2 #15 is a 1882 topographic of *hạt 20* at
 1/20,000, which is **not** our 1882 `Plan Cadastral` and probably not our 1882
-`Saigon & Surroundings` either. Three different 1882 documents.
+the 1882 topographic sheet either — which we hold, and which is renamed below.
+Three different 1882 documents.
 
 **Forty-seven of the fifty are maps the archive does not hold.**
 
@@ -51,7 +52,7 @@ and then putting eight candidate pairs side by side at full size found **five**
 | #1, captioned *De Larclause, 1/3/1859* | 1799 `Plan de la ville de Saigon` | **Same plate.** Their caption is wrong |
 | #5 `Đồ án thành phố Sài Gòn 500.000 dân` | 1862 Coffyn | Same map, confirmed on the cartouche |
 | #6 `Bản đồ cảng Sài Gòn đo đạc năm 1863` | 1863 `Plan du port de Saigon` | Same plate |
-| #15 `Bản đồ địa hình hạt 20…` | 1882 `Saigon & Surroundings` | Same plate — see the naming note below |
+| #15 `Bản đồ địa hình hạt 20…` | 1882 `Plan topographique du 20e Arrondissement…` | Same plate; ours was renamed off this, see below |
 | #38 `Đô thành Sài Gòn, 1959` | 1959 `Đô thành Sài Gòn` | Same edition; theirs is a folded copy shot in two halves |
 
 **NAC2 #1 is not De Larclause.** The cartouche reads *"Plan de la Ville de
@@ -90,16 +91,22 @@ scholarship and of most of the place names in it.
 | 1959 Đô thành Sài Gòn | `dc_description` | appended after the Virtual Saigon note, not over it |
 | 1799 Brun–Dayot | `dc_description` | written from the cartouche, with the NAC2 mismatch flagged |
 | 1799, 1882 | `original_title` | both held placeholders (`01. 1799`, `1882`); now the full cartouche text |
+| 1882 | `name` | `Saigon & Surroundings` → `Plan topographique du 20e Arrondissement et ses environs` |
 
-### One naming decision left open
+### The 1882 sheet is renamed
 
-Our 1882 sheet is catalogued as **`Saigon & Surroundings`**. Its cartouche says
-*Cochinchine française. Plan topographique. 20ème Arrondissement et ses
-environs.* NAC2's Vietnamese title is a literal translation of the real one and
-ours is a loose English invention — theirs is better. The `original_title` is
-now correct either way, but `name` is what a reader sees and what the share URL
-titles, so changing it is a call to make deliberately rather than as a side
-effect of this pass.
+It was catalogued as **`Saigon & Surroundings`** — a loose English invention.
+Its cartouche says *Cochinchine française. Plan topographique. 20ème
+Arrondissement et ses environs*, and NAC2's Vietnamese title is a literal
+translation of that. It is now **`Plan topographique du 20e Arrondissement et
+ses environs`**, which also matches how the 1930 `Plan topographique de la
+province de Giadinh` beside it is named.
+
+Nothing breaks: `/catalog/<id>` and every share link key off the UUID, not the
+name, and no code, test or fixture matched the old string. Two blog posts from
+2026 still call it `Saigon & Surroundings` and keep that wording — they are a
+record of what it was called then, and one of them is asking readers where the
+sheet was first scanned.
 
 ## The gaps, grouped
 
