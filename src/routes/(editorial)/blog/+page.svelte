@@ -79,7 +79,6 @@
 
     <!-- SUBSCRIBE NUDGE -->
     <div class="subscribe-card">
-      <div class="subscribe-icon">📬</div>
       <div class="subscribe-text">
         <h3>No newsletter</h3>
         <p>

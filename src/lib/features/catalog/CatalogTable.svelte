@@ -221,9 +221,9 @@
                 {#if isScout}
                   <span class="badge scout">scout</span>
                 {:else if (item as any).georef_done}
-                  <span class="badge status-map" title="Available on map">🌍 Map</span>
+                  <span class="badge status-map" title="Available on map">Map</span>
                 {:else}
-                  <span class="badge status-img" title="Static image only">🖼️ Image</span>
+                  <span class="badge status-img" title="Static image only">Image</span>
                 {/if}
               </td>
             </tr>

@@ -138,7 +138,6 @@
             </div>
           {:else}
             <div class="active-empty">
-              <span class="ae-icon" aria-hidden="true">🖼️</span>
               <div class="ae-text">
                 <span class="ae-label">Nothing loaded.</span>
                 <span class="ae-hint">Pick a map from the list below.</span>
@@ -188,10 +187,6 @@
     border-radius: 10px;
     font-family: var(--font-family-base);
     color: var(--sb-text-muted);
-  }
-  .ae-icon {
-    font-size: 1.4rem;
-    opacity: 0.6;
   }
   .ae-text {
     display: flex;

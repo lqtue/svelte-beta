@@ -358,7 +358,7 @@
 
     <!-- Datum correction panel -->
     <details class="datum-panel">
-      <summary class="datum-summary">🌐 Datum correction (Indian → WGS84)</summary>
+      <summary class="datum-summary">Datum correction (Indian → WGS84)</summary>
       <div class="datum-body">
         <p class="datum-desc">
           If GCP coordinates were read from the map's printed graticule (Indochina / UTM 48 grid),
@@ -390,7 +390,7 @@
         <span class="save-msg" class:save-error={saveMsg.startsWith('Error')}>{saveMsg}</span>
       {/if}
       <button class="btn btn-primary" on:click={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : '💾 Save GCPs'}
+        {saving ? 'Saving…' : 'Save GCPs'}
       </button>
     </div>
   {/if}

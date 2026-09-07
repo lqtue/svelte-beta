@@ -300,14 +300,6 @@
           <span class="badge-chip chip-green">Green</span>
           <span class="badge-chip chip-yellow">Yellow</span>
         </div>
-        <h3 class="sc-h3">Icon blobs</h3>
-        <div class="sc-row">
-          <div class="icon-blob color-green">🗺</div>
-          <div class="icon-blob color-blue">📊</div>
-          <div class="icon-blob color-orange">👥</div>
-          <div class="icon-blob color-yellow">⭐</div>
-          <div class="icon-blob color-purple">🔮</div>
-        </div>
       </section>
 
       <section class="sc-section">

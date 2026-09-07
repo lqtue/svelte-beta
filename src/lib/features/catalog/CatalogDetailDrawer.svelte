@@ -33,7 +33,7 @@
   function statusLabel(): string {
     if (!item) return '';
     if (isScout) return '✨ Scout queue';
-    return item.georef_done ? '🌍 Available on map' : '🖼️ Image only';
+    return item.georef_done ? 'Available on map' : 'Image only';
   }
 
   // Metadata rows in display order. Filter out empties before render.
@@ -97,16 +97,16 @@
         <button type="button" class="act" on:click={() => dispatch('edit', item)}>✎ Edit</button>
       {/if}
       {#if canMap}
-        <a class="act primary" href="/explore?map={item.id}">🌍 Map</a>
+        <a class="act primary" href="/explore?map={item.id}">Map</a>
       {/if}
       {#if canImage}
-        <a class="act" href="/scan?map={item.id}">🖼️ Image</a>
+        <a class="act" href="/scan?map={item.id}">Image</a>
       {/if}
       {#if canAnnotate}
         <a class="act" href="/explore?mode=annotate&map={item.id}">✏️ Studio</a>
       {/if}
       {#if !isScout && (item.status === 'public' || item.status === 'featured')}
-        <a class="act" href="/catalog/{item.id}">🔗 Share page</a>
+        <a class="act" href="/catalog/{item.id}">Share page</a>
       {/if}
       {#if isScout && (item._scout?.source_url || item._scout?.manifest_url)}
         <a

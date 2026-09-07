@@ -46,9 +46,9 @@
     ? ALL_DISPLAY_MODES
     : ALL_DISPLAY_MODES.filter((m) => m.mode !== 'dual');
   const BASE_CHOICES: { key: string; label: string }[] = [
-    { key: 'g-streets', label: '🗺️ Maps' },
-    { key: 'g-satellite', label: '🛰️ Satellite' },
-    { key: 'g-custom', label: '🔗 Custom' },
+    { key: 'g-streets', label: 'Maps' },
+    { key: 'g-satellite', label: 'Satellite' },
+    { key: 'g-custom', label: 'Custom' },
   ];
 
   $: state = $layersStore;

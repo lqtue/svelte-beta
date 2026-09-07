@@ -495,10 +495,6 @@ body {
   gap: 0.5rem;
 }
 
-.about-page .role-icon {
-  font-size: 2rem;
-}
-
 .about-page .cta-role h4 {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 800;

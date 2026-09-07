@@ -58,7 +58,7 @@
   >
     <svelte:fragment slot="title">The <span class="text-highlight">Archive.</span></svelte:fragment>
     <div slot="actions">
-      <a class="action-btn primary-btn" href={contributeHref}>✉️ Submit a map</a>
+      <a class="action-btn primary-btn" href={contributeHref}>Submit a map</a>
     </div>
   </PageHero>
 

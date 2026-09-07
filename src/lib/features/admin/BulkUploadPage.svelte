@@ -321,7 +321,7 @@
           URLs and thumbnails on the new map rows.
         </p>
         <div class="script-actions">
-          <button class="pill-btn" on:click={copyScript}>📋 Copy script</button>
+          <button class="pill-btn" on:click={copyScript}>Copy script</button>
           <button class="pill-btn" on:click={backfillCreated}
             >Backfill thumbnails (after tiling)</button
           >

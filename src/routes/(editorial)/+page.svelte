@@ -190,7 +190,6 @@
     <section class="mode-section" id="view-mode">
       <div class="feature-card mega-card">
         <div class="feature-header-split">
-          <div class="icon-blob color-blue">📚</div>
           <div class="feature-content-full">
             <h2 class="feature-title">The Catalog</h2>
             <p class="feature-description">
@@ -204,8 +203,8 @@
           <div class="tab-bar">
             <ChunkyTabs
               tabs={[
-                { value: 'featured', label: '🌟 Featured' },
-                { value: 'favorites', label: '❤️ Favorites' },
+                { value: 'featured', label: 'Featured' },
+                { value: 'favorites', label: 'Favorites' },
               ]}
               active={filterCollection}
               on:change={(e) => (filterCollection = e.detail as typeof filterCollection)}
@@ -214,13 +213,11 @@
 
           {#if loading}
             <div class="maps-loading">
-              <div class="globe-spin">🌎</div>
               <span>Opening the archive…</span>
             </div>
           {:else if filterCollection === 'favorites' && !session}
             <div class="empty-state">
-              <div class="empty-emoji">🙈</div>
-              <h3>No favorites yet — sign in to start a list.</h3>
+              <h3>No favorites yet.</h3>
               <p>Heart any map and it lands here, on every device you sign in from.</p>
               <p>Sign in from the top nav.</p>
             </div>
@@ -241,7 +238,6 @@
             </div>
           {:else}
             <div class="empty-state">
-              <div class="empty-emoji">🏜️</div>
               <h3>Nothing here yet.</h3>
               <p>No maps match this view — try another tab or the catalog.</p>
             </div>
@@ -252,7 +248,7 @@
               <a href="/catalog" class="text-link">Browse the catalog</a>
               <a href="/scan" class="text-link">Inspect a scan</a>
             </div>
-            <a href="/explore" class="action-btn primary-btn"> Open the map viewer 🚀 </a>
+            <a href="/explore" class="action-btn primary-btn">Open the map viewer</a>
           </div>
         </div>
       </div>
@@ -266,7 +262,6 @@
       -->
       <section class="mode-section" id="create-mode">
         <div class="feature-card hover-lift">
-          <div class="icon-blob color-green">🛠️</div>
           <h2 class="feature-title">
             Tools <span class="fun-badge">Beta</span>
           </h2>
@@ -276,7 +271,6 @@
           </p>
           <div class="micro-links">
             <a href="/explore?mode=story" class="micro-link-card">
-              <span class="mlc-icon">🎨</span>
               <span class="mlc-body">
                 <span class="mlc-title">Story Builder</span>
                 <span class="mlc-desc"
@@ -285,7 +279,6 @@
               </span>
             </a>
             <a href="/explore?mode=annotate" class="micro-link-card">
-              <span class="mlc-icon">✏️</span>
               <span class="mlc-body">
                 <span class="mlc-title">Annotate</span>
                 <span class="mlc-desc"
@@ -304,7 +297,6 @@
       -->
       <section class="mode-section" id="contribute-mode">
         <div class="feature-card hover-lift">
-          <div class="icon-blob color-orange">🤝</div>
           <h2 class="feature-title">Contribute</h2>
           <p class="feature-description">
             The archive is built by volunteers. Trace a building, crop a map for OCR, or anchor a
@@ -313,7 +305,6 @@
           </p>
           <div class="micro-links">
             <a href="/scan?mode=triage" class="micro-link-card">
-              <span class="mlc-icon">🏷️</span>
               <span class="mlc-body">
                 <span class="mlc-title">OCR &amp; Triage</span>
                 <span class="mlc-desc"
@@ -322,7 +313,6 @@
               </span>
             </a>
             <a href="/scan?mode=trace" class="micro-link-card">
-              <span class="mlc-icon">🖋️</span>
               <span class="mlc-body">
                 <span class="mlc-title">Trace buildings</span>
                 <span class="mlc-desc"
@@ -331,7 +321,6 @@
               </span>
             </a>
             <a href="/contribute/georef" class="micro-link-card">
-              <span class="mlc-icon">📍</span>
               <span class="mlc-body">
                 <span class="mlc-title">Georeference</span>
                 <span class="mlc-desc"
@@ -346,7 +335,6 @@
 
     <div class="info-row">
       <section class="info-card">
-        <div class="info-icon color-yellow">✦</div>
         <h2 class="info-title">About the project</h2>
         <p class="info-desc">
           We're pulling every building out of colonial Saigon's historical maps — automatically, in
@@ -357,7 +345,6 @@
       </section>
 
       <section class="info-card">
-        <div class="info-icon color-blue">📝</div>
         <h2 class="info-title">Latest update</h2>
         <p class="info-title-sm">April 2026 — SAM2 running on the 1882 survey</p>
         <p class="info-desc">

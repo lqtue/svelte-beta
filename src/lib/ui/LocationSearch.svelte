@@ -75,7 +75,7 @@
 
 {#if !hidden && results.length > 0}
   <div class="ls">
-    <div class="mo-results-label">📍 Places{loading ? ' …' : ''}</div>
+    <div class="mo-results-label">Places{loading ? ' …' : ''}</div>
     <ul class="mo-results">
       {#each results as r}
         <li>

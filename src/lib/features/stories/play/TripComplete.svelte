@@ -44,7 +44,6 @@
 </script>
 
 <div class="complete" data-testid="trip-complete">
-  <div class="emoji" aria-hidden="true">🎉</div>
   <h2>You made it.</h2>
   <p class="subtitle">{story.title}</p>
 
@@ -65,7 +64,6 @@
 
   {#if canSaveProgress}
     <button type="button" class="save-row" on:click={() => dispatch('save')}>
-      <span class="save-icon">💾</span>
       <span>
         <strong>Save your trip</strong><br />
         <small>Log in to keep this on your profile.</small>
@@ -83,10 +81,6 @@
   .complete {
     padding: 0.4rem 0.2rem 0.6rem;
     color: var(--sb-text);
-  }
-  .emoji {
-    font-size: 2.4rem;
-    line-height: 1;
   }
   h2 {
     margin: 0.4rem 0 0.15rem;
@@ -145,9 +139,6 @@
     cursor: pointer;
     font-family: inherit;
     color: var(--color-text);
-  }
-  .save-icon {
-    font-size: 1.3rem;
   }
   .save-row small {
     color: var(--sb-text-meta);

@@ -223,11 +223,6 @@ body {
   border-style: dashed;
 }
 
-.blog-page .subscribe-icon {
-  font-size: 2.5rem;
-  flex-shrink: 0;
-}
-
 .blog-page .subscribe-text h3 {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 800;

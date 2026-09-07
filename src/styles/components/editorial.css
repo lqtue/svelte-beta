@@ -190,38 +190,6 @@
   line-height: 1.5;
 }
 
-/* ----------------------------------------
-   ICON BLOB — decorative blob container for section icons
-   ---------------------------------------- */
-.icon-blob {
-  font-size: 2rem;
-  width: 72px;
-  height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: var(--border-thick);
-  border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
-  box-shadow: var(--shadow-solid-sm);
-  flex-shrink: 0;
-}
-.icon-blob.color-green {
-  background: var(--color-green);
-}
-.icon-blob.color-blue {
-  background: var(--color-blue);
-}
-.icon-blob.color-orange {
-  background: var(--color-orange);
-}
-.icon-blob.color-yellow {
-  background: var(--color-yellow);
-}
-.icon-blob.color-purple {
-  background: var(--color-purple);
-  color: white;
-}
-
 /* Action buttons, pill buttons and every other button now live in
    components/buttons.css — one file owns the system. */
 

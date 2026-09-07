@@ -141,7 +141,6 @@
     <LabelHits hits={$labels} />
     {#if $results.length === 0 && $labels.length === 0 && !$loading}
       <div class="state-panel">
-        <div class="empty-emoji">🏜️</div>
         <h2 class="state-title">Nothing matches.</h2>
         <p class="state-desc">Try another keyword, or clear a filter and start over.</p>
       </div>
@@ -251,9 +250,6 @@
   .state-panel {
     text-align: center;
     padding: 3rem 1rem;
-  }
-  .empty-emoji {
-    font-size: 3rem;
   }
   .state-title {
     font-family: var(--font-family-display);

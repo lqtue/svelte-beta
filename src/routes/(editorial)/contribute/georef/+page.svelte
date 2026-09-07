@@ -66,7 +66,6 @@
   <main class="editorial-main">
     <section class="section-card how-to-card">
       <div class="section-card-header">
-        <div class="icon-blob color-blue">📖</div>
         <div>
           <h2 class="section-title-sm">How it works</h2>
         </div>

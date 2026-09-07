@@ -161,7 +161,7 @@
             on:click={() => dispatch('pickOnMap')}
             disabled={isFetching}
           >
-            📐 Draw on map
+            Draw on map
           </button>
           <button
             type="button"

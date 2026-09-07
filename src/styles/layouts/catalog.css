@@ -111,11 +111,6 @@
   margin-top: 2rem;
 }
 
-.catalog-page .empty-emoji {
-  font-size: 5rem;
-  margin-bottom: 1rem;
-}
-
 .catalog-page .state-title {
   font-family: var(--font-family-display);
   font-size: 2rem;

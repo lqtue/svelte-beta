@@ -24,9 +24,9 @@
   }
 
   const STATUS_LABELS: Record<string, string> = {
-    map: '🌍 On map',
-    image: '🖼️ Image only',
-    scout: '✨ Scout',
+    map: 'On map',
+    image: 'Image only',
+    scout: 'Scout',
   };
   function labelFor(group: string, val: string): string {
     if (group === 'status') return STATUS_LABELS[val] ?? val;

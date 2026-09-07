@@ -310,7 +310,7 @@
 
     <div class="modal-footer">
       <button class="btn btn-danger" on:click={handleDelete} disabled={deleting}>
-        {deleting ? 'Deleting...' : '🗑 Delete'}
+        {deleting ? 'Deleting...' : 'Delete'}
       </button>
       <div class="footer-right">
         <button class="btn btn-outline" on:click={() => dispatch('close')}>Cancel</button>

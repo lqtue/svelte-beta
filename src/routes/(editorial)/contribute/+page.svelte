@@ -38,7 +38,6 @@
     <section class="contribute-grid">
       <a href="/scan?mode=triage" class="section-card card-link">
         <div class="section-card-header">
-          <div class="icon-blob color-orange">✏️</div>
           <div>
             <h2 class="section-title-sm">OCR &amp; Triage</h2>
             <p class="section-desc">
@@ -52,7 +51,6 @@
 
       <a href="/scan?mode=trace" class="section-card card-link">
         <div class="section-card-header">
-          <div class="icon-blob color-yellow">🖋️</div>
           <div>
             <h2 class="section-title-sm">Trace buildings</h2>
             <p class="section-desc">
@@ -66,7 +64,6 @@
 
       <a href="/contribute/georef" class="section-card card-link">
         <div class="section-card-header">
-          <div class="icon-blob color-blue">📍</div>
           <div>
             <h2 class="section-title-sm">Georeference a map</h2>
             <p class="section-desc">
@@ -81,7 +78,6 @@
       {#if role === 'admin' || role === 'mod'}
         <a href="/scan?mode=review" class="section-card card-link mod-card">
           <div class="section-card-header">
-            <div class="icon-blob color-green">✅</div>
             <div>
               <h2 class="section-title-sm">Review footprints</h2>
               <p class="section-desc">
@@ -95,7 +91,6 @@
 
         <a href="/catalog" class="section-card card-link catalog-card">
           <div class="section-card-header">
-            <div class="icon-blob color-purple">📚</div>
             <div>
               <h2 class="section-title-sm">Catalog metadata</h2>
               <p class="section-desc">

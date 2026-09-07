@@ -66,7 +66,6 @@
 
     <div class="choices">
       <button type="button" class="choice primary" on:click={chooseLocation}>
-        <span class="choice-icon" aria-hidden="true">📍</span>
         <span class="choice-body">
           <strong>Use my location</strong>
           <span>Centre on where I'm standing and surface the maps that cover it.</span>
@@ -74,7 +73,6 @@
       </button>
 
       <button type="button" class="choice" on:click={chooseAll}>
-        <span class="choice-icon" aria-hidden="true">🗂️</span>
         <span class="choice-body">
           <strong>Show all maps</strong>
           <span>Skip GPS — browse the whole archive and pick anywhere on Earth.</span>
@@ -87,7 +85,10 @@
       <ul>
         <li><strong>What:</strong> approximate device location, only while this tab is open.</li>
         <li><strong>Where:</strong> stays on your device — never sent to a server.</li>
-        <li><strong>Stop anytime:</strong> tap 📍 at the top right, or revoke in your browser.</li>
+        <li>
+          <strong>Stop anytime:</strong> switch off <strong>GPS on</strong> in the Controls panel, or
+          revoke the permission in your browser.
+        </li>
       </ul>
     </details>
 
@@ -174,11 +175,6 @@
   .choice:active {
     transform: translate(2px, 2px);
     box-shadow: var(--shadow-solid-xs);
-  }
-  .choice-icon {
-    font-size: 1.55rem;
-    line-height: 1;
-    flex-shrink: 0;
   }
   .choice-body {
     display: flex;

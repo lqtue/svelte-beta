@@ -45,7 +45,6 @@
     <section class="users-section">
       <div class="section-card">
         <div class="section-card-header">
-          <div class="icon-blob color-yellow">👥</div>
           <div>
             <h2 class="section-title-sm">Who is this for?</h2>
             <p class="section-desc">
@@ -71,7 +70,6 @@
     <section class="stack-section">
       <div class="section-card">
         <div class="section-card-header">
-          <div class="icon-blob color-blue">📊</div>
           <div>
             <h2 class="section-title-sm">What we're building</h2>
             <p class="section-desc">
@@ -171,7 +169,7 @@
             <ul class="milestone-list">
               {#each phase.milestones as m}
                 <li class="milestone" class:done={m.done}>
-                  <span class="milestone-check">{m.done ? '✅' : '○'}</span>
+                  <span class="milestone-check">{m.done ? '●' : '○'}</span>
                   <span class="milestone-id">{m.id}</span>
                   <span>{m.text}</span>
                 </li>
@@ -186,7 +184,6 @@
     <section class="funding-section">
       <div class="section-card">
         <div class="section-card-header">
-          <div class="icon-blob color-yellow">💡</div>
           <div>
             <h2 class="section-title-sm">How this stays alive</h2>
             <p class="section-desc">
@@ -245,7 +242,6 @@
         </p>
         <div class="cta-grid">
           <div class="cta-role">
-            <div class="role-icon">🗺️</div>
             <h4>Trace the city</h4>
             <p>
               Draw building outlines on historical maps — same skills as OSM tracing. Every shape
@@ -254,7 +250,6 @@
             <a href="/scan?mode=trace" class="role-btn">Start tracing</a>
           </div>
           <div class="cta-role">
-            <div class="role-icon">📖</div>
             <h4>Write the history</h4>
             <p>
               Once buildings are in the archive, each one gets a page — add what you know, cite a
@@ -265,7 +260,6 @@
             >
           </div>
           <div class="cta-role">
-            <div class="role-icon">🏛️</div>
             <h4>Adopt a building</h4>
             <p>
               Take a landmark building from flat footprint to detailed 3D model — collect archival
@@ -274,7 +268,6 @@
             <a href="mailto:vietnamma.project@gmail.com" class="role-btn">Get in touch</a>
           </div>
           <div class="cta-role">
-            <div class="role-icon">💼</div>
             <h4>Fund the work</h4>
             <p>
               No pitch deck needed. Read the roadmap. If you see a fit — university partnership,

@@ -102,8 +102,7 @@
         class:on={openDrawer === 'layers'}
         on:click={() => toggle('layers')}
         aria-pressed={openDrawer === 'layers'}
-        style="order: {orderOf('layers')}"
-        ><span aria-hidden="true">🗺️</span><span>Layers</span></button
+        style="order: {orderOf('layers')}"><span>Layers</span></button
       >
     {/if}
     {#if hasControls}
@@ -113,8 +112,7 @@
         class:on={openDrawer === 'controls'}
         on:click={() => toggle('controls')}
         aria-pressed={openDrawer === 'controls'}
-        style="order: {orderOf('controls')}"
-        ><span aria-hidden="true">⚙️</span><span>Controls</span></button
+        style="order: {orderOf('controls')}"><span>Controls</span></button
       >
     {/if}
     {#if hasBrowse}
@@ -124,8 +122,7 @@
         class:on={openDrawer === 'browse'}
         on:click={() => toggle('browse')}
         aria-pressed={openDrawer === 'browse'}
-        style="order: {orderOf('browse')}"
-        ><span aria-hidden="true">📋</span><span>Browse</span></button
+        style="order: {orderOf('browse')}"><span>Browse</span></button
       >
     {/if}
     {#if showLegacy}
@@ -134,8 +131,7 @@
         class="drawer-tab"
         class:on={openDrawer === 'legacy'}
         on:click={() => toggle('legacy')}
-        aria-pressed={openDrawer === 'legacy'}
-        ><span aria-hidden="true">📋</span><span>Tools</span></button
+        aria-pressed={openDrawer === 'legacy'}><span>Tools</span></button
       >
     {/if}
   </div>
