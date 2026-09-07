@@ -48,6 +48,10 @@
   setSupabaseContext({ supabase, session: data.session });
 
   onMount(() => {
+    // Client-side identity is for chrome only — which nav links show, whether
+    // the palette offers staff rows. Every actual gate is server-side through
+    // requireRole, which reads the getUser()-validated user. So a session off
+    // the browser's own cookie is fine here; there is nobody to impersonate.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {

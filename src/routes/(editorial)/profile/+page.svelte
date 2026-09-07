@@ -7,10 +7,11 @@
   import '$styles/pages/profile.css';
 
   export let data: PageData;
-  const session = data.session;
   const { supabase } = getSupabaseContext();
 
-  const user = session.user;
+  // From this page's own load, which redirects when there is no session — so
+  // this is the getUser()-validated user and it cannot be null.
+  const user = data.user;
   const avatarUrl = user.user_metadata?.avatar_url;
   const displayName = user.user_metadata?.full_name || user.email;
   const initials = displayName

@@ -18,14 +18,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  import type { Session } from '@supabase/supabase-js';
+  import type { ClientSession } from '$lib/data/supabase/context';
 
   import NavDropdown from './NavDropdown.svelte';
   import { page } from '$app/stores';
   import { openPalette } from '$lib/core/utils/commandPalette';
 
   // ui/ is domain-free (layering rule): the layout that mounts NavBar passes the session in.
-  export let session: Session | null = null;
+  export let session: ClientSession | null = null;
 
   let isVietnamese = false;
   let drawerOpen = false;
