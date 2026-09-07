@@ -153,7 +153,7 @@ Label search → temporal fabric → period sources, on the existing jobs + HITL
 - [ ] E5 Building attributes → OSM tags → LoD2 — deferred until E2 fabric is reviewed on ≥ 3 maps; `tags jsonb` lands with its first writer
 
 ## Track D — Burn-down (when it hurts)
-- ~~Basemap on a third-party tile server~~ — **done 2026-09-01**: self-hosted PMTiles in R2, served by the existing worker at `iiif.maparchive.vn/basemap/*`, styled in `src/lib/map/basemapStyle.ts`. No key, no quota, no usage policy. Widened 2026-09-06 from the Saigon extract (37 MB) to Hanoi–Mekong (`vietnam.pmtiles`, 348 MB) — the Saigon bbox left every Huế and Hanoi sheet floating on blank ground.
+- ~~Basemap on a third-party tile server~~ — **done 2026-09-01**: self-hosted PMTiles in R2, served by the existing worker at `iiif.maparchive.vn/basemap/*`, styled in `src/lib/map/basemapStyle.ts`. No key, no quota, no usage policy. Widened 2026-09-06 from the Saigon extract (37 MB) to Hanoi–Mekong (348 MB) — the Saigon bbox left every Huế and Hanoi sheet floating on blank ground. Moved 2026-09-08 off the worker onto `tiles.maparchive.vn`, an R2 custom domain, and the key gained its build date (`vietnam-20260906.pmtiles`) so a long edge TTL cannot strand readers on a rebuild.
 - ~~43 maps `georef_done` but 404 upstream~~ — **not true as of 2026-09-01**. Measured against production: every one of the 39 `georef_done` maps has a mirrored `annotation_url`, and the 62 that 404 on allmaps.org all have `georef_done = false`, correctly, because they were never georeferenced. `sync-georef` has nothing to fix.
 - `/scan?mode=review` back-link: the round icon button overlaps the "Contribute" label
 - `/explore` Display row: the "Side-by-side" button label is clipped

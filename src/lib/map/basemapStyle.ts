@@ -15,7 +15,14 @@
  *
  *   scripts/pmtiles_extract.sh vietnam 105.5,8.5,108.5,21.6 15 --upload
  *
- * Builds are retained for about a week; the script walks back from today.
+ * Builds are retained for about a week; the script walks back from today, and
+ * names the uploaded key after the build date it found. The date is not
+ * decoration: `tiles.maparchive.vn` is an R2 custom domain behind a cache rule
+ * with a one-month edge TTL, so a rebuild written over the same key would
+ * leave every reader on stale bytes. A new build is a new name and a new value
+ * for the constant below. The predecessor served from
+ * `iiif.maparchive.vn/basemap/*`, through the worker — one Worker invocation
+ * per byte-range read, and PMTiles is nothing but byte-range reads.
  *
  * The styling is deliberately quiet. This is the backdrop a georeferenced
  * historical map is laid over, so it reads as reference, not as content: muted
@@ -34,7 +41,7 @@ import Text from 'ol/style/Text';
 import type { FeatureLike } from 'ol/Feature';
 import { isDarkTheme } from '$lib/core/utils/theme';
 
-export const BASEMAP_PMTILES_URL = 'https://iiif.maparchive.vn/basemap/vietnam.pmtiles';
+export const BASEMAP_PMTILES_URL = 'https://tiles.maparchive.vn/basemap/vietnam-20260906.pmtiles';
 
 /**
  * Two palettes, because a canvas cannot read a CSS token: OL paints these as

@@ -7,7 +7,7 @@
 #   bbox     minLng,minLat,maxLng,maxLat
 #   maxzoom  default 15. Protomaps builds overzoom past their own max, so 15 is
 #            plenty for a city and keeps the archive small.
-#   --upload  rclone the result to r2:vma-tiles/basemap/<name>.pmtiles
+#   --upload  rclone the result to r2:vma-tiles/basemap/<name>-<build date>.pmtiles
 #
 # Examples — the two extracts that exist today, and the two the roadmap wants:
 #
@@ -28,6 +28,14 @@
 # ponytail: no date argument. Protomaps keeps daily builds for about a week, so
 # a pinned date rots faster than the script; this walks back from today until a
 # build answers. Pass PMTILES_SOURCE to override with any archive URL or path.
+#
+# The uploaded key DOES carry that date — `vietnam-20260906.pmtiles`, not
+# `vietnam.pmtiles`. The archive is served from a Cloudflare cache rule with a
+# one-month edge TTL, so overwriting one key in place would leave every reader
+# on the old bytes until someone remembered to purge. A new build is a new
+# name; the old one stays until nothing points at it. The script prints the
+# line to change in `src/lib/map/basemapStyle.ts` — nothing reads the key at
+# runtime, so that constant is the only thing that switches readers over.
 set -euo pipefail
 
 if [ $# -lt 2 ]; then
@@ -74,11 +82,29 @@ echo "extract: $OUT  bbox=$BBOX  maxzoom=$MAXZOOM"
 pmtiles extract "$SOURCE" "$OUT" --bbox="$BBOX" --maxzoom="$MAXZOOM"
 ls -lh "$OUT" | awk '{print "built:   " $9 " (" $5 ")"}'
 
+# The date the bytes came from: the Protomaps build for a normal run, today for
+# a PMTILES_SOURCE override, where there is no build date to read.
+BUILD_DATE="$(printf '%s' "$SOURCE" | sed -n 's|.*/\([0-9]\{8\}\)\.pmtiles$|\1|p')"
+[ -n "$BUILD_DATE" ] || BUILD_DATE="$(date +%Y%m%d)"
+KEY="basemap/${NAME}-${BUILD_DATE}.pmtiles"
+URL="https://tiles.maparchive.vn/${KEY}"
+
 if [ -n "$UPLOAD" ]; then
   command -v rclone >/dev/null || { echo "rclone not found; archive left at $OUT" >&2; exit 69; }
-  rclone copyto "$OUT" "r2:vma-tiles/basemap/${NAME}.pmtiles" --s3-no-check-bucket
-  echo "uploaded: iiif.maparchive.vn/basemap/${NAME}.pmtiles"
+  rclone copyto "$OUT" "r2:vma-tiles/${KEY}" --s3-no-check-bucket
+  echo "uploaded: $URL"
 else
   echo "not uploaded. Re-run with --upload, or:"
-  echo "  rclone copyto $OUT r2:vma-tiles/basemap/${NAME}.pmtiles --s3-no-check-bucket"
+  echo "  rclone copyto $OUT r2:vma-tiles/${KEY} --s3-no-check-bucket"
 fi
+
+cat <<EOF
+
+Nothing serves this yet. Point the app at it — one line in
+src/lib/map/basemapStyle.ts:
+
+  export const BASEMAP_PMTILES_URL = '${URL}';
+
+then deploy, confirm the map draws, and only then delete the previous archive
+from r2:vma-tiles/basemap/. Readers on a cached page still hold the old URL.
+EOF
