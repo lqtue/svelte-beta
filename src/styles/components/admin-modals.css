@@ -773,7 +773,7 @@ code.detail-value {
 }
 
 .section-heading {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font-family-display);
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;

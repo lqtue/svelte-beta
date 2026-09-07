@@ -34,7 +34,7 @@ body {
 }
 
 .about-page .hero-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 800;
   line-height: 1.15;
@@ -49,7 +49,7 @@ body {
 }
 
 .about-page .hero-sub {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-family-base);
   font-size: 1.2rem;
   font-weight: 500;
   line-height: 1.6;
@@ -101,7 +101,7 @@ body {
 }
 
 .about-page .user-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 1rem;
   margin: 0;
@@ -118,7 +118,7 @@ body {
 
 .about-page .user-uses {
   display: block;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-size: 0.72rem;
   font-weight: 700;
   color: color-mix(in srgb, var(--color-text) 50%, var(--color-white));
@@ -173,7 +173,7 @@ body {
 }
 
 .about-page .layer-id {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 0.85rem;
   color: var(--color-white);
@@ -204,7 +204,7 @@ body {
 }
 
 .about-page .phase-tag {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 700;
   font-size: 0.72rem;
   padding: 0.2rem 0.55rem;
@@ -215,7 +215,7 @@ body {
 }
 
 .about-page .layer-pct {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 0.9rem;
   flex-shrink: 0;
@@ -248,7 +248,7 @@ body {
 
 .about-page .detail-label {
   display: block;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 0.68rem;
   text-transform: uppercase;
@@ -351,7 +351,7 @@ body {
 }
 
 .about-page .phase-num {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 0.8rem;
   text-transform: uppercase;
@@ -360,7 +360,7 @@ body {
 }
 
 .about-page .phase-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-size: 1.25rem;
   font-weight: 800;
   margin: 0.25rem 0;
@@ -413,7 +413,7 @@ body {
 }
 
 .about-page .milestone-id {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 0.75rem;
   background: var(--color-bg);
@@ -439,7 +439,7 @@ body {
 }
 
 .about-page .model-item h4 {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 1rem;
   margin: 0 0 0.5rem 0;
@@ -464,7 +464,7 @@ body {
 }
 
 .about-page .cta-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-size: 2rem;
   font-weight: 800;
   margin: 0 0 0.75rem 0;
@@ -496,7 +496,7 @@ body {
 }
 
 .about-page .cta-role h4 {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 1rem;
   margin: 0;
@@ -513,7 +513,7 @@ body {
 
 .about-page .role-btn {
   display: inline-block;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 0.875rem;
   color: var(--color-yellow);
@@ -543,7 +543,7 @@ body {
 }
 
 .about-page .latest-chip {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 0.8rem;
   text-transform: uppercase;
@@ -556,14 +556,14 @@ body {
 }
 
 .about-page .all-updates-link {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-weight: 800;
   text-decoration: none;
   color: var(--color-text);
 }
 
 .about-page .latest-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-size: 1.5rem;
   font-weight: 800;
   margin: 0 0 0.75rem 0;
@@ -582,7 +582,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.875rem 1.75rem;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
   font-size: 1rem;
   font-weight: 800;
   border: var(--border-thick);
@@ -634,11 +634,11 @@ body {
   color: var(--color-yellow);
   text-decoration: none;
   font-weight: 700;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family-display);
 }
 
 .about-page .footer p {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-family-base);
   font-weight: 500;
   margin: 0;
   font-size: 0.95rem;

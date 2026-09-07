@@ -88,8 +88,10 @@
   --sb-text-meta: #555;
   --sb-text-muted: #888;
 
-  --sb-font-base: 'Outfit', sans-serif;
-  --sb-font-display: 'Space Grotesk', sans-serif;
+  /* Aliases, not a second opinion: the sidebar scope defers to the app's type
+     tokens so a face change is one edit in tokens.css. */
+  --sb-font-base: var(--font-family-base);
+  --sb-font-display: var(--font-family-display);
 }
 
 /* ── Top bar (crown) ─────────────────────────────────────────── */
