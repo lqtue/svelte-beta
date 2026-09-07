@@ -17,6 +17,7 @@ Subcommands:
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import math
 import re
@@ -1654,6 +1655,113 @@ def cmd_stitch(args: argparse.Namespace) -> None:
     })
 
 
+def ensemble_items(items: list[dict]) -> list[dict]:
+    """Merge the same label seen by several passes into one row.
+
+    `dedup_items` keeps the higher self-reported confidence, which is fine inside
+    one run and wrong across runs: one prompt hands out 1.00 on a box at IoU 0.06
+    and the union of four runs scored *lower* than the best single run (38/43 vs
+    39). Agreement is the signal that survives a prompt change, so here a cluster
+    is the same label (text-similar and overlapping or close), its text is the
+    spelling most passes wrote (tie → longest) and its box is the member that
+    overlaps the other members most. Measured 2026-09-08: 40/43 whether two or
+    four runs go in, where dedup_items ran 40 → 39 → 38 as runs were added.
+    Each item needs `text`, `global_bbox` and `_run`.
+    """
+    n = len(items)
+    parent = list(range(n))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            if not _text_similar(items[i]["text"], items[j]["text"]):
+                continue
+            a, b = items[i]["global_bbox"], items[j]["global_bbox"]
+            if _iou(a, b) >= 0.25 or _centroid_distance(a, b) < 0.5 * max(a[2], a[3], b[2], b[3]):
+                parent[find(i)] = find(j)
+
+    clusters: dict[int, list[dict]] = {}
+    for i in range(n):
+        clusters.setdefault(find(i), []).append(items[i])
+
+    out = []
+    for members in clusters.values():
+        texts = Counter(m["text"].strip() for m in members)
+        top = max(texts.values())
+        text = max((t for t, c in texts.items() if c == top), key=len)
+        pool = [m for m in members if m["text"].strip() == text] if len(members) > 1 else members
+        best = max(pool, key=lambda m: sum(
+            _iou(m["global_bbox"], o["global_bbox"]) for o in members if o is not m))
+        out.append({
+            **best,
+            "text": text,
+            "confidence": max(m.get("confidence", 0) for m in members),
+            "n_passes": len({m.get("_run") for m in members}),
+        })
+    return out
+
+
+def cmd_merge(args: argparse.Namespace) -> None:
+    """Vote-merge several runs of one map into a new run directory (and optionally the DB)."""
+    from supabase_client import upsert_ocr_extractions
+
+    run_ids = [r.strip() for r in args.runs.split(",") if r.strip()]
+    if len(run_ids) < 2:
+        raise SystemExit("--runs needs at least two run ids")
+    runs_dir = OUTPUTS_DIR / args.map_id / "runs"
+    items: list[dict] = []
+    for rid in run_ids:
+        path = runs_dir / rid / "all_extractions.json"
+        if not path.exists():
+            raise SystemExit(f"no all_extractions.json for run {rid!r} under {runs_dir}")
+        data = json.loads(path.read_text())
+        for e in data.get("extractions", []):
+            if not e.get("global_bbox"):
+                continue
+            items.append({**e, "global_bbox": tuple(e["global_bbox"]),
+                          "_tile_origin": tuple(e.get("_tile_origin") or (0, 0)), "_run": rid})
+    merged = ensemble_items(items)
+    agreed = sum(1 for e in merged if e.get("n_passes", 1) > 1)
+    print(f"{len(run_ids)} runs, {len(items)} labels → {len(merged)} merged ({agreed} seen by more than one pass)")
+
+    out_dir = runs_dir / args.run_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "all_extractions.json").write_text(json.dumps({
+        "map_id": args.map_id,
+        "run_id": args.run_id,
+        "merged_from": run_ids,
+        "n_raw": len(items),
+        "n_deduped": len(merged),
+        "extractions": [{**e, "global_bbox": list(e["global_bbox"]),
+                         "_tile_origin": list(e["_tile_origin"])} for e in merged],
+    }, ensure_ascii=False, indent=2))
+    print(f"Master output: {out_dir / 'all_extractions.json'}")
+
+    if args.db:
+        db_rows = []
+        for e in merged:
+            gx, gy, gw, gh = e["global_bbox"]
+            tx, ty = e["_tile_origin"]
+            db_rows.append({
+                "tile_x": tx, "tile_y": ty, "tile_w": args.tile_size, "tile_h": args.tile_size,
+                "global_x": gx, "global_y": gy, "global_w": gw, "global_h": gh,
+                "category": e.get("category", "other"),
+                "text": e.get("text", ""),
+                "confidence": e.get("confidence", 0),
+                "rotation_deg": e.get("rotation_deg"),
+                "notes": ((e.get("notes") or "") + f" merged:{e['_run']} passes={e.get('n_passes', 1)}").strip(),
+                "model": e.get("model"),
+                "prompt": e.get("prompt") or "merge",
+            })
+        n_written = upsert_ocr_extractions(args.map_id, args.run_id, db_rows)
+        print(f"DB: upserted {n_written} merged rows to ocr_extractions")
+
+
 def cmd_dedup(args: argparse.Namespace) -> None:
     """Check and deduplicate existing labels."""
     items = []
@@ -2586,6 +2694,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_dedup.add_argument("--min-confidence", type=float, default=0.4, help="Min confidence to include (default 0.4; uncertain tier = 0.4–0.7, confirmed = ≥0.7)")
     p_dedup.add_argument("--iou", type=float, default=0.15, help="IoU threshold for dedup (default 0.15)")
     p_dedup.set_defaults(func=cmd_dedup)
+
+    p_merge = sub.add_parser("merge", help="Vote-merge several runs of one map into a new run (find everything first, then agree)")
+    p_merge.add_argument("--map-id", required=True)
+    p_merge.add_argument("--runs", required=True, help="Comma-separated run ids under outputs/<map>/runs/")
+    p_merge.add_argument("--run-id", required=True, help="Name of the merged run to write")
+    p_merge.add_argument("--tile-size", type=int, default=2400, help="Recorded on the DB rows' tile_w/h (default 2400)")
+    p_merge.add_argument("--db", action="store_true", help="Upsert the merged rows to ocr_extractions")
+    p_merge.set_defaults(func=cmd_merge)
 
     # scout
     p_scout = sub.add_parser("scout", help="Run a macro-pass on the full map at low resolution")
