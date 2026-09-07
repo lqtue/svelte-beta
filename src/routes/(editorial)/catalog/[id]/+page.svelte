@@ -29,12 +29,31 @@
     map.thumbnail ??
     (map.iiif_image ? `${map.iiif_image.replace(/\/$/, '')}/full/800,/0/default.jpg` : null);
 
+  /* Falls back to the host when the row has no `holding_institution` — thirteen
+     published maps are in that state, all with a usable `source_url`. */
+  $: sourceHost = (() => {
+    try {
+      return new URL(map.source_url ?? '').hostname.replace(/^www\./, '');
+    } catch {
+      return 'the source';
+    }
+  })();
+
   $: subtitle = [map.year_label ?? map.year, map.creator, map.holding_institution]
     .filter(Boolean)
     .join(' · ');
-  $: blurb =
+  /* A description is written intro-first, with source notes and caveats after a
+     blank line. The <p> below rendered the whole thing as one run-on, and the
+     meta description carried all of it — search results cut at ~155 characters,
+     so the intro is what belongs there. */
+  $: paragraphs = (
     map.dc_description ??
-    `${map.name} — a historical map of ${map.location ?? 'Vietnam'} in the Vietnam Map Archive.`;
+    `${map.name} — a historical map of ${map.location ?? 'Vietnam'} in the Vietnam Map Archive.`
+  )
+    .split(/\n\s*\n/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  $: blurb = paragraphs[0];
 
   // Tracing this sheet into OpenHistoricalMap needs the warped map as XYZ
   // tiles. Allmaps' tile server does the warping from the annotation we
@@ -75,12 +94,17 @@
   const facts = (m: typeof map) =>
     [
       ['Year', m.year_label ?? m.year],
+      ['Original title', m.original_title],
       ['Creator', m.creator],
       ['Publisher', m.dc_publisher],
       ['Held by', m.holding_institution],
+      ['Shelfmark', m.shelfmark],
+      ['Rights', m.rights],
       ['Collection', m.collection],
       ['Place', m.location],
       ['Type', m.map_type],
+      ['Format', m.physical_description],
+      ['Subject', m.dc_subject],
     ].filter(([, v]) => v) as [string, string][];
 </script>
 
@@ -108,7 +132,9 @@
     <img class="share-image" src={shareImage} alt={map.name} loading="lazy" />
   {/if}
 
-  <p class="share-blurb">{blurb}</p>
+  {#each paragraphs as para, i (i)}
+    <p class="share-blurb">{para}</p>
+  {/each}
 
   <div class="share-actions">
     <!-- A map that has not been georeferenced cannot be laid on the world, but it
@@ -118,6 +144,11 @@
       {map.georef_done ? 'Open on the map' : 'Open in the viewer'}
     </a>
     <a class="pill-btn" href="/catalog">Browse the archive</a>
+    {#if map.source_url}
+      <a class="pill-btn" href={map.source_url} target="_blank" rel="noopener noreferrer">
+        View the original at {map.holding_institution ?? sourceHost}
+      </a>
+    {/if}
   </div>
 
   {#if tileUrl}

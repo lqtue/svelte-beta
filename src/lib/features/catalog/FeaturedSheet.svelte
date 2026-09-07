@@ -47,9 +47,16 @@
      synthesises the same one-liner rather than showing a hole; matching it keeps
      one sentence for one map across the site. */
   $: blurb = selected
-    ? (selected.dc_description ??
+    ? (firstParagraph(selected.dc_description) ??
       `${selected.name} — a historical map of ${selected.location ?? 'Vietnam'} in the Vietnam Map Archive.`)
     : '';
+
+  /* The front page wants the intro, not the whole record. A description is
+     written intro-first with the source note and the caveats after a blank
+     line, so the first paragraph is the intro; /catalog/[id] shows all of it. */
+  function firstParagraph(text: string | undefined): string | undefined {
+    return text?.split(/\n\s*\n/)[0].trim() || undefined;
+  }
 
   /** Everything we can say about the sheet without a second query.
       `collection` is deliberately not a fallback here: every row carries
@@ -239,10 +246,11 @@
     margin: 0;
     font-size: var(--text-sm);
     line-height: 1.6;
-    /* The briefs run long; the record page has the rest. */
+    /* A lede is one or two sentences (mig 074); six lines is the longest of the
+       five with room to spare. The record page has the rest. */
     display: -webkit-box;
-    -webkit-line-clamp: 11;
-    line-clamp: 11;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
