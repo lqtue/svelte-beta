@@ -138,7 +138,16 @@
   <ul class="maps">
     {#each maps as m (m.id)}
       <li>
-        <a class="card" href={`/catalog/${m.id}`}>
+        <!--
+          The card opens the place *on* this sheet. On a page headed "On these
+          maps", that is what picking a sheet means: the reader is looking at a
+          name and wants to see where it sits. It used to lead to the sheet's
+          own record, and the only way onward from there is that page's "Open
+          in the viewer" button, which carries no `at=` — so there was no route
+          anywhere from a place to that place on a chosen sheet. The record is
+          still one click away, below.
+        -->
+        <a class="card" href="/explore?map={m.id}{atParam}">
           {#if m.thumbnail}<img src={m.thumbnail} alt="" loading="lazy" />{/if}
           <span class="year">{m.year_label ?? m.year ?? '—'}</span>
           <span class="title">{m.name ?? 'Untitled'}</span>
@@ -146,7 +155,13 @@
             <span class="holder">{m.holding_institution}</span>
           {/if}
         </a>
-        <a class="card-open" href="/explore?map={m.id}{atParam}"> Open this sheet on the map </a>
+        <!-- Five links reading "Sheet details" are indistinguishable to a
+          screen reader, so each one names its sheet. -->
+        <a
+          class="card-meta"
+          href={`/catalog/${m.id}`}
+          aria-label="Details for {m.name ?? 'this sheet'}">Sheet details</a
+        >
       </li>
     {/each}
   </ul>
@@ -227,7 +242,7 @@
   }
   /* Secondary by weight, not by being hidden until hover: on a touch screen
      there is no hover to reveal it with. */
-  .maps .card-open {
+  .maps .card-meta {
     justify-self: start;
     padding: 0 var(--space-1);
     font-size: var(--text-xs);
@@ -235,8 +250,8 @@
     color: var(--color-gray-500);
     text-decoration: none;
   }
-  .maps .card-open:hover,
-  .maps .card-open:focus-visible {
+  .maps .card-meta:hover,
+  .maps .card-meta:focus-visible {
     color: var(--color-primary);
     text-decoration: underline;
   }
