@@ -47,7 +47,7 @@
             </p>
           </div>
         </div>
-        <span class="card-cta">Start triaging →</span>
+        <span class="card-cta">Start triaging</span>
       </a>
 
       <a href="/scan?mode=trace" class="section-card card-link">
@@ -61,7 +61,7 @@
             </p>
           </div>
         </div>
-        <span class="card-cta">Open the tracer →</span>
+        <span class="card-cta">Open the tracer</span>
       </a>
 
       <a href="/contribute/georef" class="section-card card-link">
@@ -75,7 +75,7 @@
             </p>
           </div>
         </div>
-        <span class="card-cta">See what needs georef →</span>
+        <span class="card-cta">See what needs georef</span>
       </a>
 
       {#if role === 'admin' || role === 'mod'}
@@ -90,7 +90,7 @@
               </p>
             </div>
           </div>
-          <span class="card-cta">Open the review queue →</span>
+          <span class="card-cta">Open the review queue</span>
         </a>
 
         <a href="/catalog" class="section-card card-link catalog-card">
@@ -104,7 +104,7 @@
               </p>
             </div>
           </div>
-          <span class="card-cta">Edit the catalog →</span>
+          <span class="card-cta">Edit the catalog</span>
         </a>
       {/if}
     </section>

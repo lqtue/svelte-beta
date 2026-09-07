@@ -53,7 +53,6 @@
         </div>
         <h2 class="featured-title">{latestPost.title}</h2>
         <p class="featured-excerpt">{latestPost.excerpt}</p>
-        <span class="read-more">Read more →</span>
       </a>
     {/if}
 
@@ -72,7 +71,6 @@
               </div>
               <h3 class="post-title">{post.title}</h3>
               <p class="post-excerpt">{post.excerpt}</p>
-              <span class="read-link">Read more →</span>
             </a>
           {/each}
         </div>

@@ -80,7 +80,7 @@
           Vietnam Map Archive is rebuilding Saigon's urban history as a georeferenced, time-layered
           city — starting with 1880–1930 French colonial Saigon.
         </p>
-        <a href="/about" class="sidebar-link">Project overview →</a>
+        <a href="/about" class="sidebar-link">Project overview</a>
       </div>
 
       {#if otherPosts.length > 0}
@@ -104,7 +104,7 @@
         <h3 class="sidebar-title">Get in touch</h3>
         <p class="sidebar-text">Funder, researcher, volunteer, or just curious?</p>
         <a href="mailto:vietnamma.project@gmail.com" class="sidebar-link">
-          vietnamma.project@gmail.com →
+          vietnamma.project@gmail.com
         </a>
       </div>
     </aside>

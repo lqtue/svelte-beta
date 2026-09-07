@@ -112,7 +112,7 @@
                   target="_blank"
                   rel="noopener"
                 >
-                  Open in Allmaps →
+                  Open in Allmaps
                 </a>
               </li>
             {/each}
@@ -155,7 +155,7 @@
                       target="_blank"
                       rel="noopener"
                     >
-                      Fix in Allmaps →
+                      Fix in Allmaps
                     </a>
                   {:else}
                     <span

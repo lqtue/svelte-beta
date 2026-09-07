@@ -446,14 +446,6 @@
   color: color-mix(in srgb, var(--color-text) 64%, var(--color-white));
   line-height: 1.3;
 }
-.home-page .mlc-arrow {
-  font-weight: 800;
-  font-size: 1.1rem;
-  color: var(--color-text);
-  opacity: 0.4;
-  flex-shrink: 0;
-}
-
 /* INFO ROW */
 .home-page .info-row {
   display: grid;

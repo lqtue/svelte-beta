@@ -151,12 +151,6 @@ body {
   margin: 0 0 1.5rem 0;
 }
 
-.blog-page .read-more {
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 1rem;
-  color: var(--color-primary);
-}
 /* POSTS GRID */
 .blog-page .section-title {
   font-family: 'Space Grotesk', sans-serif;
@@ -216,13 +210,6 @@ body {
   flex: 1;
 }
 
-.blog-page .read-link {
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 0.875rem;
-  color: var(--color-primary);
-  margin-top: auto;
-}
 /* SUBSCRIBE NUDGE */
 .blog-page .subscribe-card {
   display: flex;

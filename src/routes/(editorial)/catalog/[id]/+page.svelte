@@ -115,7 +115,7 @@
          is still a scanned map we host: /scan opens it in the IIIF viewer. The
          label already said "viewer"; only the destination was missing. -->
     <a class="pill-btn" href={map.georef_done ? `/explore?map=${map.id}` : `/scan?map=${map.id}`}>
-      {map.georef_done ? 'Open on the map' : 'Open in the viewer'} →
+      {map.georef_done ? 'Open on the map' : 'Open in the viewer'}
     </a>
     <a class="pill-btn" href="/catalog">Browse the archive</a>
   </div>
@@ -130,14 +130,14 @@
       </p>
       <div class="share-actions">
         <a class="pill-btn" href={ohmUrl} target="_blank" rel="noopener"
-          >Open in OpenHistoricalMap →</a
+          >Open in OpenHistoricalMap</a
         >
         <button class="pill-btn" type="button" on:click={copyTileUrl}>
           {copied ? 'Copied' : 'Copy tile URL'}
         </button>
         {#if canFixGeoref && editorUrl}
           <a class="pill-btn" href={editorUrl} target="_blank" rel="noopener">
-            Fix georeference in Allmaps →
+            Fix georeference in Allmaps
           </a>
         {/if}
       </div>

@@ -169,14 +169,14 @@
          that. -->
     <div id="google_translate_element" hidden></div>
     <div class="hero-content">
-      <div class="label-chip">✨ Make old maps fun again.</div>
+      <div class="label-chip">Georeferenced sheets, laid over the city that replaced them</div>
       <h1 class="hero-title">
         Vietnam<br /><span class="text-highlight">Map Archive</span>
       </h1>
       <p class="hero-subtitle">
-        A volunteer-built archive of Saigon's historical maps — georeferenced and laid over today's
-        city. We trace every building, name every street, and publish the result as open data. Open
-        data. Volunteer-built. Forkable.
+        A volunteer archive of Saigon's historical maps, georeferenced so each sheet sits over the
+        city that replaced it. Building footprints and street names are traced by hand, reviewed by
+        a person, and published as open data.
       </p>
     </div>
   </header>
@@ -249,8 +249,8 @@
 
           <div class="action-footer">
             <div class="footer-links-group">
-              <a href="/catalog" class="text-link">Browse the catalog →</a>
-              <a href="/scan" class="text-link">Inspect a scan →</a>
+              <a href="/catalog" class="text-link">Browse the catalog</a>
+              <a href="/scan" class="text-link">Inspect a scan</a>
             </div>
             <a href="/explore" class="action-btn primary-btn"> Open the map viewer 🚀 </a>
           </div>
@@ -283,7 +283,6 @@
                   >Walk readers through a place, one historical layer at a time</span
                 >
               </span>
-              <span class="mlc-arrow">→</span>
             </a>
             <a href="/explore?mode=annotate" class="micro-link-card">
               <span class="mlc-icon">✏️</span>
@@ -293,7 +292,6 @@
                   >Draw points, lines, and shapes on any map and save them as a set</span
                 >
               </span>
-              <span class="mlc-arrow">→</span>
             </a>
           </div>
         </div>
@@ -322,7 +320,6 @@
                   >Crop a map's neatline and validate the toponyms our pipeline pulls out</span
                 >
               </span>
-              <span class="mlc-arrow">→</span>
             </a>
             <a href="/scan?mode=trace" class="micro-link-card">
               <span class="mlc-icon">🖋️</span>
@@ -332,7 +329,6 @@
                   >Outline buildings, roads, and waterways on a georeferenced map</span
                 >
               </span>
-              <span class="mlc-arrow">→</span>
             </a>
             <a href="/contribute/georef" class="micro-link-card">
               <span class="mlc-icon">📍</span>
@@ -342,7 +338,6 @@
                   >Pin a historical map to real-world coordinates in the Allmaps Editor</span
                 >
               </span>
-              <span class="mlc-arrow">→</span>
             </a>
           </div>
         </div>
@@ -358,7 +353,7 @@
           the open, with volunteer review. The 1882 and 1898 surveys are where it starts. Released
           under CC-BY / ODbL.
         </p>
-        <a href="/about" class="info-link">Project overview →</a>
+        <a href="/about" class="info-link">Project overview</a>
       </section>
 
       <section class="info-card">
@@ -370,7 +365,7 @@
           out; building footprints are in progress. Volunteers are reviewing the polygons as they
           land.
         </p>
-        <a href="/blog" class="info-link">All updates →</a>
+        <a href="/blog" class="info-link">All updates</a>
       </section>
     </div>
   </main>

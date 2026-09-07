@@ -251,7 +251,7 @@
               Draw building outlines on historical maps — same skills as OSM tracing. Every shape
               goes into the open dataset.
             </p>
-            <a href="/scan?mode=trace" class="role-btn">Start tracing →</a>
+            <a href="/scan?mode=trace" class="role-btn">Start tracing</a>
           </div>
           <div class="cta-role">
             <div class="role-icon">📖</div>
@@ -261,7 +261,7 @@
               source, the same way you'd edit Wikipedia.
             </p>
             <a href="mailto:vietnamma.project@gmail.com" class="role-btn"
-              >Join the historian group →</a
+              >Join the historian group</a
             >
           </div>
           <div class="cta-role">
@@ -271,7 +271,7 @@
               Take a landmark building from flat footprint to detailed 3D model — collect archival
               photos, submit a mesh, get permanent credit.
             </p>
-            <a href="mailto:vietnamma.project@gmail.com" class="role-btn">Get in touch →</a>
+            <a href="mailto:vietnamma.project@gmail.com" class="role-btn">Get in touch</a>
           </div>
           <div class="cta-role">
             <div class="role-icon">💼</div>
@@ -280,7 +280,7 @@
               No pitch deck needed. Read the roadmap. If you see a fit — university partnership,
               heritage grant, institutional collaboration — write us.
             </p>
-            <a href="mailto:vietnamma.project@gmail.com" class="role-btn">Contact us →</a>
+            <a href="mailto:vietnamma.project@gmail.com" class="role-btn">Contact us</a>
           </div>
         </div>
       </div>
@@ -291,7 +291,7 @@
       <div class="latest-card">
         <div class="latest-header">
           <span class="latest-chip">Latest update</span>
-          <a href="/blog" class="all-updates-link">All updates →</a>
+          <a href="/blog" class="all-updates-link">All updates</a>
         </div>
         <h3 class="latest-title">March 2026 — first buildings out of the 1882 map</h3>
         <p class="latest-excerpt">
