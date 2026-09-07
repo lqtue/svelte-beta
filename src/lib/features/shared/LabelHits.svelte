@@ -15,6 +15,7 @@
   import type { LabelHit } from './catalogSearch';
   import { CAT_COLORS } from '$lib/features/contribute/shared/constants';
   import { placeHrefFor } from '$lib/core/utils/placeKey';
+  import { letteringClass } from '$lib/core/utils/mapLettering';
 
   export let hits: LabelHit[] = [];
   export let mode: 'link' | 'pick' = 'link';
@@ -48,7 +49,7 @@
             on:click={mode === 'pick' ? () => dispatch('pick', h) : undefined}
           >
             <span class="dot" style:background={CAT_COLORS[h.category] ?? CAT_COLORS.other}></span>
-            <span class="text">{h.text}</span>
+            <span class="text {letteringClass(h.category)}">{h.text}</span>
             <span class="map">{h.year ?? '—'} · {h.map_name ?? 'Untitled'}</span>
           </svelte:element>
           {#if place}

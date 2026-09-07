@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import PageHero from '$lib/ui/PageHero.svelte';
+  import { letteringClass } from '$lib/core/utils/mapLettering';
   import PressPanel from '$lib/features/explore/PressPanel.svelte';
   import type { PageData } from './$types';
 
@@ -60,7 +61,11 @@
   {/if}
 </svelte:head>
 
-<PageHero title={place.name} sub={description} />
+<PageHero sub={description}>
+  <svelte:fragment slot="title">
+    <span class={letteringClass(place.category)}>{place.name}</span>
+  </svelte:fragment>
+</PageHero>
 
 <main class="place">
   <p class="facts">

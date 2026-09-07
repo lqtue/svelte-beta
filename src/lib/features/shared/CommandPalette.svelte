@@ -18,6 +18,7 @@
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { paletteOpen, closePalette } from '$lib/core/utils/commandPalette';
+  import { letteringClass } from '$lib/core/utils/mapLettering';
   import { debounce } from '$lib/core/utils/debounce';
   import { destinationsFor, matchDestinations, type Destination } from './paletteDestinations';
   import { placeHref } from '$lib/core/utils/placeKey';
@@ -39,6 +40,7 @@
     map_id: string;
     map_name: string | null;
     text: string;
+    category: string | null;
     lng: number | null;
     lat: number | null;
   };
@@ -47,7 +49,7 @@
     | { kind: 'page'; href: string; title: string; sub: string }
     | { kind: 'map'; href: string; title: string; sub: string }
     | { kind: 'place'; href: string; title: string; sub: string }
-    | { kind: 'label'; href: string; title: string; sub: string };
+    | { kind: 'label'; href: string; title: string; sub: string; lettering: string };
 
   const GROUPS: { kind: Row['kind']; heading: string }[] = [
     { kind: 'page', heading: 'Go to' },
@@ -105,6 +107,7 @@
           : `/explore?map=${l.map_id}`,
       title: l.text,
       sub: l.map_name ?? 'On a map',
+      lettering: letteringClass(l.category),
     })),
   ];
 
@@ -294,7 +297,7 @@
           >
             <span class="cp-kind cp-kind-{row.kind}" aria-hidden="true"></span>
             <span class="cp-text">
-              <span class="cp-title">{row.title}</span>
+              <span class="cp-title {row.kind === 'label' ? row.lettering : ''}">{row.title}</span>
               <span class="cp-sub">{row.sub}</span>
             </span>
           </a>

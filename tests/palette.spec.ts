@@ -13,7 +13,13 @@ import {
   matchDestinations,
   DESTINATIONS,
 } from '../src/lib/features/shared/paletteDestinations';
-import { placeKey, keyToSlug, placeHrefFor } from '../src/lib/core/utils/placeKey';
+import {
+  placeKey,
+  keyToSlug,
+  placeHrefFor,
+  GAZETTEER_CATEGORIES,
+} from '../src/lib/core/utils/placeKey';
+import { letteringRole, letteringClass } from '../src/lib/core/utils/mapLettering';
 import { isPaletteShortcut, isTypingTarget } from '../src/lib/core/utils/commandPalette';
 
 // ── who is offered what ─────────────────────────────────────────────────────
@@ -158,4 +164,24 @@ test('"/" is left alone while someone is typing', () => {
   ).toBe(true);
   expect(isTypingTarget({ tagName: 'DIV' } as unknown as EventTarget)).toBe(false);
   expect(isTypingTarget(null)).toBe(false);
+});
+
+test('a label is lettered the way its sheet letters it', () => {
+  // The two marked cases, and the unmarked one that must stay unmarked.
+  expect(letteringRole('hydrology')).toBe('hydronym');
+  expect(letteringRole('place')).toBe('area');
+  for (const c of ['street', 'building', 'institution', 'legend', 'title', 'other'])
+    expect(letteringRole(c)).toBe('roman');
+  expect(letteringRole(null)).toBe('roman');
+  expect(letteringRole(undefined)).toBe('roman');
+
+  // Roman emits no class at all — an empty rule is an invitation to fill it.
+  expect(letteringClass('hydrology')).toBe('lettering-hydronym');
+  expect(letteringClass('place')).toBe('lettering-area');
+  expect(letteringClass('street')).toBe('');
+  expect(letteringClass(null)).toBe('');
+
+  // Every gazetteer category resolves to a role, so no label falls through
+  // with an undefined class in the markup.
+  for (const c of GAZETTEER_CATEGORIES) expect(typeof letteringClass(c)).toBe('string');
 });
