@@ -88,9 +88,9 @@ def finish(job_id: str, status: str, result: dict | None = None, err: str | None
 def ocr_argv(job: dict, python_bin: str) -> list[str] | list[list[str]]:
     """Turn an `ocr` job payload into the ocr.py batch command line.
 
-    `passes: 2` returns a plan of three commands instead: the batch on the grid,
-    the same batch with the grid moved half a tile, and `merge --db` to vote the
-    two into the payload's run_id. Measured 2026-09-08 on the 1882 sheet: 39/43
+    `passes: 2` returns a plan instead: the batch on the grid, the same batch
+    with the grid moved half a tile, and `merge --db` to vote them into the
+    payload's run_id. `passes: 3` adds a 1200 px pass for small type first. Measured 2026-09-08 on the 1882 sheet: 39/43
     for one pass, 41/43 for two — see work/ocr/EVAL-BASELINE.md.
     """
     p = job["payload"]
@@ -104,9 +104,20 @@ def _two_pass_plan(job: dict, python_bin: str) -> list[list[str]]:
     run, tile = p["run_id"], int(p.get("tile_size", 2400))
     a = _ocr_batch_argv(job, python_bin, f"{run}-a", db=False)
     b = _ocr_batch_argv(job, python_bin, f"{run}-b", db=False) + ["--grid-offset", str(tile // 2)]
+    passes = [a, b]
+    if int(p.get("passes", 2)) >= 3:
+        # A near-1:1 pass for small type. It read POSTE DE POLICE and MESSAGERIES
+        # MARITIMES, which no 2400 px pass ever returned — and fragments the long
+        # labels the 2400 passes read whole, so it only ever rides along, never
+        # alone. Twice the tokens of the other two together, ~30 min more.
+        hires = _ocr_batch_argv(job, python_bin, f"{run}-c", db=False)
+        for flag, val in (("--tile-size", "1200"), ("--overlap", "150")):
+            hires[hires.index(flag) + 1] = val
+        passes.append(hires)
+    runs = ",".join(cmd[cmd.index("--run-id") + 1] for cmd in passes)
     merge = [python_bin, str(OCR_SCRIPT), "merge", "--map-id", job["map_id"],
-             "--runs", f"{run}-a,{run}-b", "--run-id", run, "--tile-size", str(tile), "--db"]
-    return [a, b, merge]
+             "--runs", runs, "--run-id", run, "--tile-size", str(tile), "--db"]
+    return [*passes, merge]
 
 
 def _ocr_batch_argv(job: dict, python_bin: str, run_id: str, db: bool) -> list[str]:

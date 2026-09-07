@@ -76,7 +76,9 @@ the spelling most passes wrote and the box that overlaps the others most. An `oc
 `passes: 2` (what `enqueue_ocr_all.mjs` and the Run OCR button now send; `--single-pass`
 opts out) becomes three worker commands: `batch <run>-a`, `batch <run>-b --grid-offset`,
 `merge → <run> --db`. Twice the tokens of one pass, a third of the input from the prefix
-cache, ~14 min a sheet.
+cache, ~14 min a sheet. `passes: 3` adds a 1200 px pass (`<run>-c`) for small type — it read
+`POSTE DE POLICE`, which no 2400 px pass ever did, but fragments long labels, so it only
+rides along with the other two. ~45 min a sheet.
 
 **Prompt.** `DEFAULT_PROMPT` is `seq-v1` (2026-09-08): v8 with whole-label assembly for the
 row-sequence path and abbreviations transcribed as printed — `R.` is `Rue` before a French

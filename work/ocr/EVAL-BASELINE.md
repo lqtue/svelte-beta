@@ -244,3 +244,33 @@ label that reaches a reader is spelled the way the sheet spells it. The two-pass
 
 **Rule from this:** compare runs by the `model` field in their `calls.jsonl`, never by the
 prose around them. `DEFAULT_MODEL` changed on 09-04 and every run after it silently moved.
+
+## Resolution was the wall for small type — and it fragments the rest (2026-09-08)
+
+`seq-v1` at `--tile-size 1200 --overlap 150` (108 tiles → 36 calls, render 1024, so ~1.2×
+downsample instead of 2.3×): **it read `POSTE DE POLICE` (×4) and `MESSAGERIES MARITIMES`**,
+the two labels no 2400 px pass ever returned. Resolution, not prompt or pass count, was what
+stood between the model and that lettering.
+
+| | seq-v1 (2400) | seq-v1-hires (1200) | 2-pass 2400 merge | 2400 + hires merge | **3-pass merge** |
+|---|---|---|---|---|---|
+| matched / 43 | 39 | 41 | 41 | 41 | 41 |
+| char_acc | 0.9895 | 0.9737 | **0.990** | 0.9835 | 0.988 |
+| text_recall@0.3 | 40 | 38 | **42** | 41 | **42** |
+| category_acc | 0.872 | 0.854 | 0.878 | 0.878 | 0.878 |
+| diacritic_recall | 1.0 | — | 1.0 | 0.864 | 0.955 |
+| tokens in / cached / out | 54k/16k/31k | 206k/58k/46k | 110k/32k/60k | — | ~316k/90k/106k |
+| wall clock | 7 min | 30 min | 14 min | — | ~45 min |
+
+The gate cannot tell the 3-pass merge from the 2-pass one — 43 labels is at its ceiling — so
+the decision rests on what the gate cannot see. Against the 2-pass output, the hi-res pass
+holds 20 labels the 2400 passes lack (15 confident), and the 2400 passes hold **95** it lacks
+(86 confident). Its extras are the small type — and fragments: `Rue de Thuận`, `Charner`,
+`e de Thái Bình`, `S A I G O`. Small tiles chop the long labels the 2400 passes read whole.
+So the 1200 px pass is a supplement for dense small lettering, never a replacement.
+
+**Default stays two passes.** `passes: 3` in the job payload adds the 1200 px pass as `<run>-c`
+before the merge, for sheets where the 2400 passes visibly miss small type. The two-run
+merge with hi-res dropped diacritic_recall to 0.864: with two voters every disagreement is a
+tie and the tie-break is "longest", which favours the fragmentary spelling. Three voters fix
+it; if a two-run merge is ever the norm, tie-break on confidence instead.
