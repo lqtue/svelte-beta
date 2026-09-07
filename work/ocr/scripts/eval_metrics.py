@@ -132,6 +132,20 @@ def score_ocr(preds: list[dict], gts: list[dict], iou_thresh: float = 0.5) -> di
     # from a bad one at a glance — 9% of labels carrying any diacritic in one run,
     # 100% in another, on the same sheets — and no other metric here sees it.
     # `rate` needs no ground truth, so it also works on a sheet with none.
+    # Category. The gazetteer groups by it and the R./Rạch failure was one, yet
+    # nothing here scored it until 2026-09-08. Over matched pairs only — an
+    # unmatched label has no category to be wrong about.
+    pairs = [(preds[pi].get("category"), gts[gi].get("category")) for pi, gi, _ in matches
+             if gts[gi].get("category")]
+    out["n_category_scored"] = len(pairs)
+    out["category_acc"] = round(sum(p == g for p, g in pairs) / len(pairs), 4) if pairs else None
+    conf: dict[str, int] = {}
+    for p, g in pairs:
+        if p != g:
+            k = f"{g}→{p}"
+            conf[k] = conf.get(k, 0) + 1
+    out["category_confusions"] = dict(sorted(conf.items(), key=lambda kv: -kv[1])[:6])
+
     # Detection, separated from box convention. The gate at IoU 0.5 against
     # hand-drawn GT boxes loses labels whose text is exact but whose box sits at
     # IoU 0.3-0.5 (POUDRIERE, ABATTOIR, MARCHE CENTRAL on the 1882 sheet). This

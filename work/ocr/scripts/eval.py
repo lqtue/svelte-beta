@@ -54,7 +54,8 @@ def _ocr_rows_to_items(rows: list[dict], use_validated_text: bool) -> list[dict]
         if None in (gx, gy, gw, gh):
             continue
         text = (r.get("text_validated") or r.get("text")) if use_validated_text else r.get("text")
-        items.append({"bbox": (gx, gy, gw, gh), "text": text or ""})
+        cat = (r.get("category_validated") or r.get("category")) if use_validated_text else r.get("category")
+        items.append({"bbox": (gx, gy, gw, gh), "text": text or "", "category": cat})
     return items
 
 
@@ -76,7 +77,7 @@ def _run_dir_to_items(run_dir: str) -> list[dict]:
     for r in rows:
         gb = r.get("global_bbox")
         if gb and len(gb) == 4:
-            items.append({"bbox": tuple(gb), "text": r.get("text") or ""})
+            items.append({"bbox": tuple(gb), "text": r.get("text") or "", "category": r.get("category")})
     return items
 
 
@@ -146,6 +147,9 @@ def _print(kind: str, r: dict, iou: float) -> None:
     print(f"  precision {r['precision']}   recall {r['recall']}   f1 {r['f1']}   mean_iou {r['mean_iou']}")
     if "char_acc" in r:
         print(f"  char_acc {r['char_acc']}")
+    if r.get("category_acc") is not None:
+        print(f"  category_acc {r['category_acc']} (over {r['n_category_scored']} matched pairs with a GT category)"
+              + (f"   confusions: {r['category_confusions']}" if r.get("category_confusions") else ""))
     if "text_recall_03" in r:
         print(f"  text_recall@0.3 {r['text_recall_03']} ({r['n_text_found_03']}/{r['n_gt']} GT read "
               f"correctly by some prediction overlapping at IoU>=0.3 — detection, box convention aside)")
