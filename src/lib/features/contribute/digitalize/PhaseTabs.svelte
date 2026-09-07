@@ -1,6 +1,6 @@
 <!--
   PhaseTabs.svelte — the Triage / OCR / Segmentation switcher in the
-  /contribute/digitalize sidebar footer. The mobile drawer shortens the middle
+  /scan?mode=triage sidebar footer. The mobile drawer shortens the middle
   label, hence `ocrLabel`.
 -->
 <script lang="ts">

@@ -1,5 +1,5 @@
 <!--
-  /contribute/trace — Polygon + line tracing tool for map footprints.
+  /scan?mode=trace — Polygon + line tracing tool for map footprints.
 
   Uses:
     ToolLayout (responsive sidebar + map stage)

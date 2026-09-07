@@ -1,9 +1,9 @@
 <!--
-  /contribute/review — HITL review of SAM2 footprints.
+  /scan?mode=review — HITL review of SAM2 footprints.
 
   Picker first (maps that have `submitted` / `needs_review` polygons), then
   ReviewMode for the chosen map. `?map=<id>` opens that map straight away —
-  that's the link the Segmentation panel of /contribute/digitalize hands out.
+  that's the link the Segmentation panel of /scan?mode=triage hands out.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';

@@ -100,7 +100,7 @@
         <a class="act primary" href="/explore?map={item.id}">🌍 Map</a>
       {/if}
       {#if canImage}
-        <a class="act" href="/image?map={item.id}">🖼️ Image</a>
+        <a class="act" href="/scan?map={item.id}">🖼️ Image</a>
       {/if}
       {#if canAnnotate}
         <a class="act" href="/explore?mode=annotate&map={item.id}">✏️ Studio</a>

@@ -1,8 +1,8 @@
 <!--
-  /image — Read-only IIIF image viewer.
-  URL: /image?map=<uuid>
+  /scan — Read-only IIIF image viewer.
+  URL: /scan?map=<uuid>
 
-  Same shell pattern as /contribute/digitalize and /contribute/trace:
+  Same shell pattern as /scan?mode=triage and /scan?mode=trace:
     NavBar → top-bar (map picker) → ToolLayout (sidebar + ImageShell)
 
   Sidebar shows map metadata. No tools — read-only.

@@ -112,9 +112,9 @@
 
   <div class="share-actions">
     <!-- A map that has not been georeferenced cannot be laid on the world, but it
-         is still a scanned map we host: /image opens it in the IIIF viewer. The
+         is still a scanned map we host: /scan opens it in the IIIF viewer. The
          label already said "viewer"; only the destination was missing. -->
-    <a class="pill-btn" href={map.georef_done ? `/explore?map=${map.id}` : `/image?map=${map.id}`}>
+    <a class="pill-btn" href={map.georef_done ? `/explore?map=${map.id}` : `/scan?map=${map.id}`}>
       {map.georef_done ? 'Open on the map' : 'Open in the viewer'} →
     </a>
     <a class="pill-btn" href="/catalog">Browse the archive</a>

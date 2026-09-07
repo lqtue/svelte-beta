@@ -36,7 +36,7 @@
 
   <main class="editorial-main">
     <section class="contribute-grid">
-      <a href="/contribute/digitalize" class="section-card card-link">
+      <a href="/scan?mode=triage" class="section-card card-link">
         <div class="section-card-header">
           <div class="icon-blob color-orange">✏️</div>
           <div>
@@ -50,7 +50,7 @@
         <span class="card-cta">Start triaging →</span>
       </a>
 
-      <a href="/contribute/trace" class="section-card card-link">
+      <a href="/scan?mode=trace" class="section-card card-link">
         <div class="section-card-header">
           <div class="icon-blob color-yellow">🖋️</div>
           <div>
@@ -79,7 +79,7 @@
       </a>
 
       {#if role === 'admin' || role === 'mod'}
-        <a href="/contribute/review" class="section-card card-link mod-card">
+        <a href="/scan?mode=review" class="section-card card-link mod-card">
           <div class="section-card-header">
             <div class="icon-blob color-green">✅</div>
             <div>

@@ -178,7 +178,7 @@
     {#if topMapId}
       <div class="lsp-links">
         <span class="lsp-links-label" title={topName}>{topName}</span>
-        <a class="lsp-link" href="/image?map={topMapId}">Scan</a>
+        <a class="lsp-link" href="/scan?map={topMapId}">Scan</a>
         <a class="lsp-link" href="/explore?mode=annotate&map={topMapId}">Annotate</a>
         {#if topIsPublished}
           <a class="lsp-link" href="/catalog/{topMapId}">Share</a>

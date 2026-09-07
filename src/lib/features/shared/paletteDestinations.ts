@@ -37,7 +37,7 @@ export const DESTINATIONS: Destination[] = [
     keywords: 'explore view overlay layers basemap story play',
   },
   {
-    href: '/image',
+    href: '/scan',
     label: 'Scan inspector',
     hint: 'Read one sheet at full resolution',
     role: 'anyone',
@@ -76,21 +76,21 @@ export const DESTINATIONS: Destination[] = [
     keywords: 'allmaps control points warp align',
   },
   {
-    href: '/contribute/digitalize',
+    href: '/scan?mode=triage',
     label: 'Digitalize a sheet',
     hint: 'Triage, then review the OCR',
     role: 'member',
     keywords: 'ocr triage neatline tiles labels text',
   },
   {
-    href: '/contribute/trace',
+    href: '/scan?mode=trace',
     label: 'Trace footprints',
     hint: 'Draw buildings and roads',
     role: 'member',
     keywords: 'polygon shape outline building road',
   },
   {
-    href: '/contribute/review',
+    href: '/scan?mode=review',
     label: 'Review queue',
     hint: 'Approve stories and footprints',
     role: 'mod',

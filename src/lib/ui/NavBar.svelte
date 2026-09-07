@@ -2,7 +2,7 @@
   NavBar.svelte — Shared top navigation for editorial pages.
 
   Desktop: VMA | Catalog ▾  Tools ▾  Contribute ▾  About  Blog | [search] [avatar/signin]
-  Catalog ▾:    Browse Catalog /catalog | Map Viewer /explore | View Image /image
+  Catalog ▾:    Browse Catalog /catalog | Map Viewer /explore | View Image /scan
   Tools ▾:      Story /create | Studio /studio
   Contribute ▾: the hub /contribute, then Digitalize | Trace | Georeference
 
@@ -48,7 +48,7 @@
 
   $: path = $page.url.pathname;
   $: activeCatalog =
-    path.startsWith('/catalog') || path.startsWith('/explore') || path.startsWith('/image');
+    path.startsWith('/catalog') || path.startsWith('/explore') || path.startsWith('/scan');
   $: activeTools = path.startsWith('/explore');
   $: activeContribute = path.startsWith('/contribute');
   $: activeAbout = path.startsWith('/about');
@@ -76,7 +76,7 @@
     <NavDropdown label="Catalog" active={activeCatalog}>
       <a href="/catalog" class="dropdown-item" on:click={closeDrawer}>Browse the catalog</a>
       <a href="/explore" class="dropdown-item" on:click={closeDrawer}>Open the map viewer</a>
-      <a href="/image" class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
+      <a href="/scan" class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
     </NavDropdown>
 
     <NavDropdown label="Tools" active={activeTools}>
@@ -88,10 +88,8 @@
       <a href="/contribute" class="dropdown-item is-lead" on:click={closeDrawer}
         >Start here — which job suits you</a
       >
-      <a href="/contribute/digitalize" class="dropdown-item" on:click={closeDrawer}
-        >OCR &amp; Triage</a
-      >
-      <a href="/contribute/trace" class="dropdown-item" on:click={closeDrawer}>Trace buildings</a>
+      <a href="/scan?mode=triage" class="dropdown-item" on:click={closeDrawer}>OCR &amp; Triage</a>
+      <a href="/scan?mode=trace" class="dropdown-item" on:click={closeDrawer}>Trace buildings</a>
       <a href="/contribute/georef" class="dropdown-item" on:click={closeDrawer}>Georeference</a>
     </NavDropdown>
 
@@ -167,7 +165,7 @@
       <p class="drawer-section-label">Catalog</p>
       <a href="/catalog" class="drawer-link" on:click={closeDrawer}>Browse the catalog</a>
       <a href="/explore" class="drawer-link" on:click={closeDrawer}>Open the map viewer</a>
-      <a href="/image" class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
+      <a href="/scan" class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
 
       <p class="drawer-section-label">Tools</p>
       <a href="/explore?mode=story" class="drawer-link" on:click={closeDrawer}>Story Builder</a>
@@ -175,10 +173,8 @@
 
       <p class="drawer-section-label">Contribute</p>
       <a href="/contribute" class="drawer-link" on:click={closeDrawer}>Where to start</a>
-      <a href="/contribute/digitalize" class="drawer-link" on:click={closeDrawer}
-        >OCR &amp; Triage</a
-      >
-      <a href="/contribute/trace" class="drawer-link" on:click={closeDrawer}>Trace buildings</a>
+      <a href="/scan?mode=triage" class="drawer-link" on:click={closeDrawer}>OCR &amp; Triage</a>
+      <a href="/scan?mode=trace" class="drawer-link" on:click={closeDrawer}>Trace buildings</a>
       <a href="/contribute/georef" class="drawer-link" on:click={closeDrawer}>Georeference</a>
 
       <p class="drawer-section-label">Info</p>

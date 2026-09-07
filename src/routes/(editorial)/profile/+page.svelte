@@ -136,7 +136,7 @@
           <div class="staff-links">
             <a class="pill-btn" href="/admin?tab=status">System status</a>
             <a class="pill-btn" href="/screens">Design system</a>
-            <a class="pill-btn" href="/contribute/review">Review queue</a>
+            <a class="pill-btn" href="/scan?mode=review">Review queue</a>
             <a class="pill-btn" href="/admin?tab=scout">Scout review</a>
             <a class="pill-btn" href="/admin?tab=bulk">Bulk upload</a>
           </div>

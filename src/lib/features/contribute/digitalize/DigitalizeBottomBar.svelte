@@ -1,5 +1,5 @@
 <!--
-  DigitalizeBottomBar.svelte — the toolbar under the /contribute/digitalize
+  DigitalizeBottomBar.svelte — the toolbar under the /scan?mode=triage
   canvas. Triage gets a hint only; the review phases add the draw and focus
   toggles. Purely presentational: every action is an event.
 -->

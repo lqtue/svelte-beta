@@ -247,7 +247,7 @@
           <div class="action-footer">
             <div class="footer-links-group">
               <a href="/catalog" class="text-link">Browse the catalog →</a>
-              <a href="/image" class="text-link">Inspect a scan →</a>
+              <a href="/scan" class="text-link">Inspect a scan →</a>
             </div>
             <a href="/explore" class="action-btn primary-btn"> Open the map viewer 🚀 </a>
           </div>
@@ -311,7 +311,7 @@
             data.
           </p>
           <div class="micro-links">
-            <a href="/contribute/digitalize" class="micro-link-card">
+            <a href="/scan?mode=triage" class="micro-link-card">
               <span class="mlc-icon">🏷️</span>
               <span class="mlc-body">
                 <span class="mlc-title">OCR &amp; Triage</span>
@@ -321,7 +321,7 @@
               </span>
               <span class="mlc-arrow">→</span>
             </a>
-            <a href="/contribute/trace" class="micro-link-card">
+            <a href="/scan?mode=trace" class="micro-link-card">
               <span class="mlc-icon">🖋️</span>
               <span class="mlc-body">
                 <span class="mlc-title">Trace buildings</span>

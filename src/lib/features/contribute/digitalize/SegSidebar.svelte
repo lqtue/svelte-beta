@@ -1,5 +1,5 @@
 <!--
-  SegSidebar.svelte — the Segmentation phase panel of /contribute/digitalize.
+  SegSidebar.svelte — the Segmentation phase panel of /scan?mode=triage.
 
   Shows the pipeline stage, the gate to the next stage, the MapSAM2 command
   configuration, and the Colab command itself. Segmentation runs on a GPU
@@ -55,7 +55,7 @@
         <p class="seg-hint">Ready. Run the Colab command below, then come back here.</p>
       {/if}
     {:else if stage === 'seg_done' || stage === 'seg_reviewed'}
-      <a class="action-btn seg-review-link" href="/contribute/review?map={mapId}">
+      <a class="action-btn seg-review-link" href="/scan?mode=review&map={mapId}">
         Review footprints &rarr;
       </a>
     {:else if stage === 'idle'}

@@ -1,5 +1,5 @@
 <!--
-  /contribute/digitalize — Unified map digitization workflow.
+  /scan?mode=triage — Unified map digitization workflow.
 
   Three phases share one ImageShell canvas:
 

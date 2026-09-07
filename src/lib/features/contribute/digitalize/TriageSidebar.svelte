@@ -1,5 +1,5 @@
 <!--
-  TriageSidebar.svelte — Left panel for the Triage phase of /contribute/digitalize.
+  TriageSidebar.svelte — Left panel for the Triage phase of /scan?mode=triage.
 
   Shows neatline config (x/y/w/h inputs), tile config (target calls, live stats),
   per-tile priority legend, run controls, and existing run history.

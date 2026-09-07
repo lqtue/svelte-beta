@@ -6,7 +6,7 @@
   import '$styles/pages/admin-status.css';
 
   /*
-    The archive's own review queue. /contribute/review lets a person check what
+    The archive's own review queue. /scan?mode=review lets a person check what
     the machine did to a map; this page lets a person check what the machine did
     to the archive. Every number here was previously reachable only by running
     SQL by hand.
@@ -138,7 +138,7 @@
             tone: m.triaged === 0 ? 'bad' : m.triaged < m.georeferenced ? 'warn' : 'good',
             next:
               m.triaged < m.georeferenced
-                ? 'Draw the border and press Save triage at /contribute/digitalize. One sheet at a time.'
+                ? 'Draw the border and press Save triage at /scan?mode=triage. One sheet at a time.'
                 : undefined,
           },
           {
@@ -149,7 +149,7 @@
             tone: m.withLayout === 0 ? 'warn' : 'good',
             next:
               m.withLayout === 0
-                ? 'Run the Layout step at /contribute/digitalize, then a worker with --kinds layout.'
+                ? 'Run the Layout step at /scan?mode=triage, then a worker with --kinds layout.'
                 : undefined,
           },
         ],
@@ -220,7 +220,7 @@
           {
             label: 'Waiting for review',
             value: num(f.awaitingReview),
-            detail: 'Shapes a person needs to approve or reject, in /contribute/review.',
+            detail: 'Shapes a person needs to approve or reject, in /scan?mode=review.',
             tone: f.awaitingReview > 0 ? 'warn' : 'good',
           },
         ],

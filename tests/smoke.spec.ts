@@ -91,7 +91,7 @@ test('picking a map writes ?map= and tallies the open', async ({ page }) => {
 });
 
 test('the IIIF tool pages mount their ImageShell', async ({ page }) => {
-  for (const route of ['/image', '/contribute/trace', '/contribute/digitalize']) {
+  for (const route of ['/scan', '/scan?mode=trace', '/scan?mode=triage']) {
     await page.goto(route);
     await expect(page.locator('.tool-page')).toBeVisible();
 
@@ -120,7 +120,10 @@ test('auth-gated and legacy routes redirect', async ({ page }) => {
     ['/annotate', '/explore?mode=annotate'],
     ['/studio', '/explore?mode=annotate'],
     ['/create', '/explore?mode=story'],
-    ['/contribute/label', '/contribute/digitalize'],
+    ['/contribute/label', '/scan?mode=triage'],
+    ['/contribute/digitalize', '/scan?mode=triage'],
+    ['/contribute/trace', '/scan?mode=trace'],
+    ['/image', '/scan'],
     ['/admin/bulk', '/admin?tab=bulk'],
     ['/admin/status', '/admin?tab=status'],
     ['/place/rue-catinat', '/catalog/place/rue-catinat'],

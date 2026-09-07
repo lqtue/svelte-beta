@@ -1,7 +1,7 @@
 <!--
   BboxPanel.svelte — the floating editor for the selected OCR bbox.
 
-  Sits above the bottom bar of /contribute/digitalize while a bbox is selected:
+  Sits above the bottom bar of /scan?mode=triage while a bbox is selected:
   text, category, confidence, validate / reject / deselect. Owns the edit
   buffer; the parent only hears about it on `save`.
 -->
