@@ -240,7 +240,7 @@
                 on:change={(e) => setCategory(i, e.currentTarget.value as LayoutCategory)}
                 class="ts-region-cat"
               >
-                {#each LAYOUT_CATEGORIES as c}
+                {#each LAYOUT_CATEGORIES as c (c)}
                   <option value={c}>{LAYOUT_LABELS[c]}</option>
                 {/each}
               </select>

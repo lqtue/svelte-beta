@@ -118,7 +118,7 @@
           aria-label="Pinned historical layer"
         >
           <option value="">— none —</option>
-          {#each pinOptions as opt}
+          {#each pinOptions as opt (opt.mapId)}
             <option value={opt.mapId}>{opt.label}</option>
           {/each}
           {#if hasOrphanPin}

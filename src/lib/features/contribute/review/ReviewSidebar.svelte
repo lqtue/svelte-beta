@@ -89,7 +89,7 @@
                 on:change={(e) =>
                   dispatch('retype', { id: fp.id, featureType: e.currentTarget.value })}
               >
-                {#each Object.entries(ALL_TYPE_LABELS) as [value, label]}
+                {#each Object.entries(ALL_TYPE_LABELS) as [value, label] (value)}
                   <option {value}>{label}</option>
                 {/each}
               </select>

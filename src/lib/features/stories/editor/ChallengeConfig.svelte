@@ -36,7 +36,7 @@
 
 <div class="cc">
   <div class="sb-pill-row">
-    {#each TYPES as t}
+    {#each TYPES as t (t.type)}
       <button
         type="button"
         class="sb-pill"

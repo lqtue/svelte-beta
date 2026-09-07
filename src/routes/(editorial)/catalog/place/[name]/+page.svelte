@@ -39,7 +39,7 @@
       ? `${place.first_year}–${place.last_year}`
       : (place.first_year ?? place.last_year ?? null);
 
-  $: otherSpellings = (place.variants ?? []).filter((v) => v !== place.name);
+  $: otherSpellings = [...new Set(place.variants ?? [])].filter((v) => v !== place.name);
 
   /**
    * `at=` is the pin; without coordinates there is nothing to point at.
@@ -87,7 +87,7 @@
 
   {#if otherSpellings.length}
     <p class="spellings">
-      Also written {#each otherSpellings as v, i}<em>{v}</em>{i < otherSpellings.length - 1
+      Also written {#each otherSpellings as v, i (v)}<em>{v}</em>{i < otherSpellings.length - 1
           ? ', '
           : ''}{/each}. Spellings come from the maps themselves and from optical character
       recognition, so some are the sheet's own orthography and some are reading errors a reviewer

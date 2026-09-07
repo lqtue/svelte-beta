@@ -126,7 +126,7 @@
       <label class="field">
         <span class="field-label">Layer</span>
         <select bind:value={preset} disabled={isFetching}>
-          {#each PRESETS as p}
+          {#each PRESETS as p (p)}
             <option value={p}>{presetLabel(p)}</option>
           {/each}
         </select>
@@ -143,7 +143,7 @@
           <textarea
             rows="4"
             bind:value={customQuery}
-            placeholder={'way["historic"];'}
+            placeholder="way[&quot;historic&quot;];"
             disabled={isFetching}></textarea>
           <span class="field-hint">
             Bbox is applied globally — write only the filter statements.

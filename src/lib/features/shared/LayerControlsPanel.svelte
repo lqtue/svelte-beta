@@ -90,7 +90,7 @@
   <div class="mcp-row">
     <span class="mcp-leader">Display</span>
     <div class="sb-pill-row mcp-grow">
-      {#each DISPLAY_MODES as m}
+      {#each DISPLAY_MODES as m (m.mode)}
         <button
           type="button"
           class="sb-pill is-compact"
@@ -105,7 +105,7 @@
   <div class="mcp-row">
     <span class="mcp-leader">Base</span>
     <div class="sb-pill-row mcp-grow">
-      {#each BASE_CHOICES as c}
+      {#each BASE_CHOICES as c (c.key)}
         <button
           type="button"
           class="sb-pill is-compact"

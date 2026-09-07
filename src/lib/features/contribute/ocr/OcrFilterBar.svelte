@@ -37,7 +37,7 @@
         None
       </button>
     </div>
-    {#each OCR_CATEGORIES as cat}
+    {#each OCR_CATEGORIES as cat (cat)}
       <button
         type="button"
         class="cat-chip"

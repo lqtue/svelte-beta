@@ -77,7 +77,7 @@
   <div class="ls">
     <div class="mo-results-label">Places{loading ? ' …' : ''}</div>
     <ul class="mo-results">
-      {#each results as r}
+      {#each results as r (r.place_id)}
         <li>
           <button type="button" class="mo-result" on:click={() => pick(r)}>
             <span class="mo-result-title">{r.display_name.split(',')[0]}</span>

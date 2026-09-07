@@ -429,7 +429,7 @@
                     bind:value={ext._editCategory}
                     class="form-input form-input-sm ocr-review-cat"
                   >
-                    {#each OCR_CATEGORIES as cat}
+                    {#each OCR_CATEGORIES as cat (cat)}
                       <option value={cat}>{cat}</option>
                     {/each}
                   </select>

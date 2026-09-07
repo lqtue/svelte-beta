@@ -50,7 +50,7 @@
 
     {#if badges.length > 0}
       <div class="hero-badges">
-        {#each badges as badge}
+        {#each badges as badge (badge.label)}
           <span class="badge-chip" style={badge.color ? `background:${badge.color}` : ''}
             >{badge.label}</span
           >

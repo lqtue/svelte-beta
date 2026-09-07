@@ -49,7 +49,7 @@
       }}
     />
     <select class="bbox-panel-cat" bind:value={category}>
-      {#each OCR_CATEGORIES as cat}
+      {#each OCR_CATEGORIES as cat (cat)}
         <option value={cat}>{cat}</option>
       {/each}
     </select>

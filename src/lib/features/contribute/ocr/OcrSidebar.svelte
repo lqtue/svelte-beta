@@ -411,7 +411,7 @@
                     on:change={() => commitText(ext)}
                     aria-label="Category"
                   >
-                    {#each OCR_CATEGORIES as cat}
+                    {#each OCR_CATEGORIES as cat (cat)}
                       <option value={cat}>{cat}</option>
                     {/each}
                   </select>

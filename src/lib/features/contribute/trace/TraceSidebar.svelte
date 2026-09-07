@@ -142,7 +142,7 @@
     </div>
     <select class="filter-type-select" bind:value={filterType} aria-label="Filter by type">
       <option value="">All types</option>
-      {#each FEATURE_TYPES as ft}
+      {#each FEATURE_TYPES as ft (ft)}
         <option value={ft}>{FEATURE_TYPE_LABELS[ft]}</option>
       {/each}
     </select>
@@ -202,7 +202,7 @@
                   aria-label="Feature type"
                 >
                   <option value="other" disabled={fp.featureType !== 'other'}>— Type —</option>
-                  {#each FEATURE_TYPES as ft}
+                  {#each FEATURE_TYPES as ft (ft)}
                     {#if ft !== 'other'}
                       <option value={ft}>{FEATURE_TYPE_LABELS[ft]}</option>
                     {/if}
@@ -231,7 +231,7 @@
                   aria-label="Category"
                 >
                   <option value="">— Category —</option>
-                  {#each categoryOptions as opt}
+                  {#each categoryOptions as opt (opt.val)}
                     <option value={opt.val}>{opt.label}</option>
                   {/each}
                 </select>

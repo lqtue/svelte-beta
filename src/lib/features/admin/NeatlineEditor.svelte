@@ -294,7 +294,7 @@
               stroke-dasharray="{6 / view.zoom} {3 / view.zoom}"
             />
             <!-- Corner handles -->
-            {#each gcps as gcp, idx}
+            {#each gcps as gcp, idx (idx)}
               {@const [dx, dy] = toDisp(gcp.resourceCoords[0], gcp.resourceCoords[1])}
               <g
                 class="handle {CORNER_CLASS[CORNERS[idx]]}"
@@ -324,7 +324,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each gcps as gcp, idx}
+          {#each gcps as gcp, idx (idx)}
             <tr>
               <td>
                 <span class="corner-badge {CORNER_CLASS[CORNERS[idx]]}">{CORNERS[idx]}</span>
@@ -371,7 +371,7 @@
         <label class="datum-label">
           Source datum
           <select class="datum-select" bind:value={selectedDatumIdx}>
-            {#each DATUM_PRESETS as preset, i}
+            {#each DATUM_PRESETS as preset, i (preset.label)}
               <option value={i}>{preset.label}</option>
             {/each}
           </select>

@@ -54,7 +54,7 @@
           </div>
         </div>
         <div class="users-grid">
-          {#each users as user}
+          {#each users as user (user.title)}
             <div class="user-card">
               <div class="user-icon">{user.icon}</div>
               <h4 class="user-title">{user.title}</h4>
@@ -129,7 +129,7 @@
                   <div class="detail-col">
                     <span class="detail-label built-label">Done</span>
                     <ul class="detail-list">
-                      {#each layer.built as item}
+                      {#each layer.built as item (item)}
                         <li class="detail-item built-item">{item}</li>
                       {/each}
                     </ul>
@@ -137,7 +137,7 @@
                   <div class="detail-col">
                     <span class="detail-label building-label">Building now</span>
                     <ul class="detail-list">
-                      {#each layer.building as item}
+                      {#each layer.building as item (item)}
                         <li class="detail-item building-item">{item}</li>
                       {/each}
                     </ul>
@@ -158,7 +158,7 @@
     <section class="roadmap-section">
       <h2 class="section-title">The roadmap, in three phases</h2>
       <div class="phases-grid">
-        {#each phases as phase}
+        {#each phases as phase (phase.num)}
           <div class="phase-card" style="--phase-color: {phase.color}">
             <div class="phase-header">
               <span class="phase-num">Phase {phase.num}</span>
@@ -167,7 +167,7 @@
               <div class="phase-timeline">{phase.timeline}</div>
             </div>
             <ul class="milestone-list">
-              {#each phase.milestones as m}
+              {#each phase.milestones as m (m.id)}
                 <li class="milestone" class:done={m.done}>
                   <span class="milestone-check">{m.done ? '●' : '○'}</span>
                   <span class="milestone-id">{m.id}</span>
