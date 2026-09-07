@@ -162,10 +162,10 @@
 </script>
 
 <svelte:head>
-  <title>Vietnam Map Archive — Saigon's historical maps, open and georeferenced</title>
+  <title>Vietnam Map Archive — historical maps of Vietnam, open and georeferenced</title>
   <meta
     name="description"
-    content="A small volunteer archive of historical maps of Saigon, Huế and Hanoi. 39 sheets are georeferenced and readable in a browser; tracing and label work have only just started."
+    content="A small volunteer archive of historical maps of Vietnam — Saigon, Huế and Hanoi so far. 39 sheets are georeferenced and readable in a browser; tracing and label work have only just started."
   />
 </svelte:head>
 
@@ -181,10 +181,10 @@
         Vietnam<br /><span class="text-highlight">Map Archive</span>
       </h1>
       <p class="hero-subtitle">
-        A small volunteer archive of historical maps of Saigon, Huế and Hanoi. {mapCount} sheets, from
-        1791 to 1968, are georeferenced — each one sits over the city that replaced it, in a browser,
-        with no specialist software. Reading the names off them and tracing what they show is early work,
-        and mostly still ahead of us.
+        A small volunteer archive of historical maps of Vietnam — Saigon, Huế and Hanoi so far.
+        {mapCount} sheets, from 1791 to 1968, are georeferenced: each one sits over the city that replaced
+        it, in a browser, with no specialist software. Reading the names off them and tracing what they
+        show is early work, and mostly still ahead of us.
       </p>
     </div>
   </header>
@@ -347,10 +347,10 @@
       <section class="info-card">
         <h2 class="info-title">About the project</h2>
         <p class="info-desc">
-          The aim is to get the buildings and street names out of colonial Saigon's maps and into
-          open data, with a person checking the machine's work. The 1882 cadastral survey is where
-          it starts, and where most of the work so far sits. Everything published will be CC-BY /
-          ODbL.
+          The aim is to get the buildings and street names out of Vietnam's colonial-era maps and
+          into open data, with a person checking the machine's work. The 1882 cadastral survey of
+          Saigon is where it starts, and where most of the work so far sits. Everything published
+          will be CC-BY / ODbL.
         </p>
         <a href="/about" class="info-link">What's actually done</a>
       </section>

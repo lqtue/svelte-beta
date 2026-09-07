@@ -330,7 +330,7 @@
           <code>.text-highlight</code> belongs on one or two words of a hero title — never in body text.
         </p>
         <p class="sc-hero-sample">
-          Saigon <span class="text-highlight">across time.</span>
+          Vietnam <span class="text-highlight">across time.</span>
         </p>
       </section>
     {/if}

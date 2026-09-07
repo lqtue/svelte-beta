@@ -20,17 +20,17 @@
   <title>About — Vietnam Map Archive</title>
   <meta
     name="description"
-    content="Vietnam Map Archive is a small volunteer project putting historical maps of Saigon, Huế and Hanoi on real coordinates and reading what is printed on them. 39 sheets are placed; the rest of the plan is honest about being a plan."
+    content="Vietnam Map Archive is a small volunteer project putting historical maps of Vietnam on real coordinates and reading what is printed on them. 39 sheets are placed — Saigon, Huế and Hanoi so far; the rest of the plan is honest about being a plan."
   />
 </svelte:head>
 
 <div class="page about-page" class:mounted>
   <PageHero
     eyebrow="About the project"
-    sub="We started in Saigon — the city we know, live in, and have the best archives for. The 1880–1930 French colonial period is the testbed: well documented, sharply transformative, and badly served online. If the method works here it should travel, though that is a hope rather than a result. Everything below marks what is actually done and what is still a plan."
+    sub="The archive covers Vietnam — Saigon, Huế and Hanoi are in it today, and the sheets run from 1791 to 1968. The deep work starts in Saigon: the city we know, live in, and have the best archives for, in the 1880–1930 French colonial period — well documented, sharply transformative, badly served online. If the method works there it should carry to the rest, though that is a hope rather than a result. Everything below marks what is actually done and what is still a plan."
   >
     <svelte:fragment slot="title">
-      Old maps of Saigon,<br />
+      Old maps of Vietnam,<br />
       <span class="text-highlight">put back in place.</span>
     </svelte:fragment>
     <div class="hero-badges">
@@ -48,8 +48,8 @@
           <div>
             <h2 class="section-title-sm">Who is this for?</h2>
             <p class="section-desc">
-              Anyone who cares about Saigon — as a place they live, a city they left, a history they
-              study, or a dataset they need.
+              Anyone who cares about these cities — as a place they live, a city they left, a
+              history they study, or a dataset they need.
             </p>
           </div>
         </div>

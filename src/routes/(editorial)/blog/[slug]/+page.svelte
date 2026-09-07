@@ -77,8 +77,8 @@
       <div class="sidebar-card">
         <h3 class="sidebar-title">About the project</h3>
         <p class="sidebar-text">
-          Vietnam Map Archive is rebuilding Saigon's urban history as a georeferenced, time-layered
-          city — starting with 1880–1930 French colonial Saigon.
+          Vietnam Map Archive puts historical maps of Vietnam on real coordinates and reads what is
+          printed on them. Saigon in the colonial period is where the deep work starts.
         </p>
         <a href="/about" class="sidebar-link">Project overview</a>
       </div>

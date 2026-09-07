@@ -255,7 +255,7 @@ export const users = [
   },
   {
     title: 'OSM & GIS mappers',
-    desc: 'Same skills you already use — polygon tracing on a georeferenced base, open data values, community validation. Historical Saigon needs the attention OpenStreetMap gives the modern city, and right now it has almost none.',
+    desc: 'Same skills you already use — polygon tracing on a georeferenced base, open data values, community validation. Vietnam’s historical cities need the attention OpenStreetMap gives the modern ones, and right now they have almost none.',
     uses: 'Now: trace footprints, check OCR labels. Planned: GeoJSON export once a sheet is reviewed',
   },
   {

@@ -32,6 +32,7 @@
     year_label: string | null;
     thumbnail: string | null;
     holding_institution: string | null;
+    location: string | null;
   }>;
 
   $: span =
@@ -56,9 +57,19 @@
       ? `&at=${place.lng.toFixed(6)},${place.lat.toFixed(6)}`
       : '';
 
+  /* The archive spans several cities, so the description names the one this
+     place is actually attested in — and "of Vietnam" when the sheets disagree,
+     which happens for a name that appears on a regional sheet as well. */
+  $: where = (() => {
+    const set = new Set(maps.map((m) => m.location).filter(Boolean));
+    // `location` is a catalog field, not prose: "Saigon-HCMC" is how the
+    // records spell it and not how a sentence should.
+    return set.size === 1 ? [...set][0]!.replace('-HCMC', '') : 'Vietnam';
+  })();
+
   $: description = `“${place.name}” appears on ${maps.length} historical map${
     maps.length === 1 ? '' : 's'
-  } of Saigon in the Vietnam Map Archive${span ? `, ${span}` : ''}.`;
+  } of ${where} in the Vietnam Map Archive${span ? `, ${span}` : ''}.`;
 </script>
 
 <svelte:head>
