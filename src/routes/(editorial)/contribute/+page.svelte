@@ -42,7 +42,7 @@
             <h2 class="section-title-sm">OCR &amp; Triage</h2>
             <p class="section-desc">
               Crop a map's neatline, set tile priorities, and check the place names the OCR pass
-              read off the sheet. 1,767 labels are waiting; 43 have been checked so far.
+              read off the sheet. Around 950 distinct names are waiting; 43 have been checked.
             </p>
           </div>
         </div>

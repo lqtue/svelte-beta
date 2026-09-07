@@ -24,7 +24,10 @@
   // being fetched, so there is no reason to hardcode a number that goes stale.
   // The pipeline figures are a dated snapshot; refresh them when they embarrass
   // us, which is the point of putting them on the front page.
-  const STATS = { snapshot: 'September 2026', labels: 1767, labelsChecked: 43, footprints: 46 };
+  // `labels` is distinct names, not rows: the OCR pass has been re-run on some
+  // sheets and `ocr_extractions` holds 1,767 rows for 958 actual labels. Quoting
+  // the row count would inflate the number by 85%.
+  const STATS = { snapshot: 'September 2026', labels: 958, labelsChecked: 43, footprints: 46 };
   $: mapCount = maps.length || 39;
 
   // sessionStorage cache so a 404 (un-georeferenced map) isn't refetched on reload
@@ -359,10 +362,10 @@
         <h2 class="info-title">Where things stand</h2>
         <p class="info-title-sm">{STATS.snapshot}</p>
         <p class="info-desc">
-          The OCR pass has read {STATS.labels.toLocaleString('en')} labels off six sheets; {STATS.labelsChecked}
-          of them have been checked by a person, so that queue is barely started. {STATS.footprints} building
-          outlines have been traced on the 1882 cadastral survey, and none are approved yet. The last
-          written update was in May.
+          The OCR pass has read {STATS.labels} distinct place names off six sheets, of which
+          {STATS.labelsChecked} have been checked by a person — so that queue has barely started.
+          {STATS.footprints} building outlines have been traced on the 1882 cadastral survey, and none
+          are approved yet. The last written update was in May.
         </p>
         <a href="/blog" class="info-link">All updates</a>
       </section>
