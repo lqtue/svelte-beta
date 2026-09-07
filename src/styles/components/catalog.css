@@ -150,31 +150,6 @@
   opacity: 0.5;
 }
 
-.search-input {
-  width: 240px;
-  padding: 0.6rem 0.75rem 0.6rem 2.25rem;
-  font-family: var(--font-family-base);
-  font-size: 0.9rem;
-  border: var(--border-thin);
-  border-radius: var(--radius-pill);
-  background: var(--color-bg);
-  color: var(--color-text);
-  outline: none;
-  transition: all 0.1s;
-}
-
-.search-input::placeholder {
-  color: var(--color-text);
-  opacity: 0.5;
-}
-
-.search-input:focus {
-  border-color: var(--color-primary);
-  background: var(--color-white);
-  box-shadow: 2px 2px 0px var(--color-border);
-  transform: translate(-1px, -1px);
-}
-
 .catalog-page {
   min-height: 100vh;
   background-color: var(--color-bg);
