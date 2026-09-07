@@ -137,3 +137,37 @@ null on every call** including the third, whose prefix was identical to the firs
 is now cache-eligible; a hit was not observed on this model in this sample. If the saving
 matters, explicit caching (`client.caches.create` on system+prompt) is deterministic where
 implicit is not.
+
+## seq-v1 passes the gate — new default (2026-09-08)
+
+Two sequence prompts, each one full run (30 tiles → 10 row calls, 2400/300/1024,
+`gemini-3-flash-preview`, no `--db`), scored from the run dir. `seq-v1` is v8 with the
+per-tile fragment rule replaced by whole-label assembly and abbreviations transcribed as
+printed; `seq-v1-style` adds the `style` / `ink` reading guidance and nothing else.
+
+| metric | baseline (fallback) | postfix-v8 | **seq-v1** | seq-v1-style |
+|---|---|---|---|---|
+| matched / 43 @ IoU ≥ 0.5 | 33 | 27 | **39** | 38 |
+| recall | 0.7674 | 0.6279 | **0.9070** | 0.8837 |
+| char_acc | 0.9793 | 0.9519 | **0.9895** | 0.9840 |
+| mean_iou | 0.7234 | 0.7355 | **0.7739** | 0.7625 |
+| text_recall@0.3 | 33/43 | 26/43 | **40/43** | 39/43 |
+| diacritic_recall | 0.9048 | 0.9375 | **1.0** | **1.0** |
+| predictions | 145 | 204 | 210 | 222 |
+| input / cached / output tokens | 43.2k / – / 14.1k | 53.9k / – / 18.3k | 54.3k / 16.1k / 31.3k | 55.4k / 17.1k / 36.4k |
+| wall clock | — | ~35 min | 7 min | 6 min |
+
+`DEFAULT_PROMPT` is now `seq-v1`. The one-label gap to `seq-v1-style` is inside single-run
+noise on a 43-label GT and is not a finding; the gate picks the winner so nobody argues
+from taste. What *is* a finding: the optional `style`/`ink` schema fields get filled ~15% of
+the time under `seq-v1` and 100% under `seq-v1-style` — the schema alone does not make the
+model read typography; the prompt has to ask. Under `seq-v1-style`, hydrology came back
+3 italic / 3 caps, streets 92 roman / 10 italic, institutions 56 caps. The ten italic
+"streets" are the review queue that field was meant to produce. Both prompts put
+`Rach Cầu Kho` and `Rạch Cầu Chống` under hydrology without any `R.` rule — the as-printed
+normalization was enough on this sheet. Run `seq-v1-style` with `--prompt seq-v1-style`
+(or `prompt` in the job payload) when the typography fields are wanted.
+
+Output tokens roughly doubled against baseline: more predictions, longer notes
+(`spans frames 0-1`, `expanded from …`, the style tags). Cached input covers the system +
+task prompt on every call; the images are the floor.

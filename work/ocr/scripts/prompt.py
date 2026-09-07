@@ -816,7 +816,11 @@ PROMPTS: dict[str, str] = {
     "scout": PROMPT_SCOUT,
 }
 
-DEFAULT_PROMPT = "v8"
+# seq-v1 passed the gate on 2026-09-08 (39/43 vs the fallback's 33/43, char_acc
+# 0.990 vs 0.979, diacritic recall 1.0) — see EVAL-BASELINE.md. It is written
+# for the row-sequence path, which is the production default; a one-tile row
+# gets the same prompt and loses nothing by being asked for whole labels.
+DEFAULT_PROMPT = "seq-v1"
 
 
 # ── Frame rules for the row-sequence call ──────────────────────────────
