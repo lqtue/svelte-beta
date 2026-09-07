@@ -167,7 +167,7 @@ All tables must have `alter table ... enable row level security`.
 
 ---
 
-## 11. Current schema (migration head 070)
+## 11. Current schema (migration head 071)
 
 Moved here from `CLAUDE.md` in September 2026. The table lists what exists; the paragraphs after it are the rules a migration must not undo.
 
@@ -213,5 +213,5 @@ Moved here from `CLAUDE.md` in September 2026. The table lists what exists; the 
 | Item | Location | Fix |
 |------|---------|-----|
 | `label_pins` outlives its feature | `label_tasks` was dropped in mig 038 but `label_pins` remains, now written only by `POST /api/admin/maps/[id]/ocr/apply` | Either fold into `ocr_extractions` or document it as the OCR-applied point layer |
-| Migration head is 070 | `supabase/migrations/` | Regenerate `src/lib/data/supabase/types.ts` after every push: `supabase gen types typescript --linked` |
+| Migration head is 071 | `supabase/migrations/` | Regenerate `src/lib/data/supabase/types.ts` after every push: `supabase gen types typescript --linked` |
 | Production drifted from the migrations once | `pipeline_jobs_kind_check` allowed `warp` with no migration saying so; corrected in 070 | Nothing to fix now — but it means the migrations are not provably the whole schema. A `db pull` diff would settle it, and needs the direct DB password |
