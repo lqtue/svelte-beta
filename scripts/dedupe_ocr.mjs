@@ -201,9 +201,42 @@ function collapse(clusters, why) {
 // Same name already matched, so a row with no pixel coords is redundant against
 // one that has them. Pass 4 below must NOT do this: there, a coordinate-less row
 // would bridge every similar-looking label on the sheet into one cluster.
+// Overlapping tiles mean one word is read several times, and the model places it
+// a few pixels differently each time. On a small box that jitter is enough to
+// drop IoU to zero: "MINH" was read from three tiles at 8430,7541 / 8417,7496 /
+// 8429,7538 — 45px apart, boxes ~46px wide, no overlap at all between two of
+// them. So same-name rows also merge when their centres are close.
+//
+// Close relative to the label's own size, since a 40px word and a 1400px street
+// name jitter by different amounts — and, separately, under an absolute cap. The
+// cap is what stops a long street name printed twice along its own length from
+// collapsing: "Boulevard Charner" appears twice 1279px apart, which is 0.9 of
+// its own box, and those are two real placements of the name.
+//
+// ponytail: 1.5x and 300px are a judgement call, not a measurement — the
+// distribution of same-name distances runs smoothly from 25px to 5000px with no
+// gap to cut at. Both are set low, so obvious jitter merges and anything
+// arguable is left for a reviewer.
+const JITTER_SCALE = 1.5;
+const JITTER_CAP = 300;
+const centre = (b) => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+const longest = (b) => Math.max(b[2] - b[0], b[3] - b[1]);
+function jittered(a, b) {
+  const A = box(a),
+    B = box(b);
+  if (!A || !B) return false;
+  const [ax, ay] = centre(A),
+    [bx, by] = centre(B);
+  const d = Math.hypot(ax - bx, ay - by);
+  return d < JITTER_CAP && d < JITTER_SCALE * Math.max(longest(A), longest(B));
+}
+
+// Same name already matched, so a row with no pixel coords is redundant against
+// one that has them. Pass 4 below must NOT do this: there, a coordinate-less row
+// would bridge every similar-looking label on the sheet into one cluster.
 for (const v of groups.values())
   collapse(
-    cluster(v, (a, b) => !box(a) || !box(b) || iou(box(a), box(b)) > IOU),
+    cluster(v, (a, b) => !box(a) || !box(b) || iou(box(a), box(b)) > IOU || jittered(a, b)),
     'same name, same spot'
   );
 
