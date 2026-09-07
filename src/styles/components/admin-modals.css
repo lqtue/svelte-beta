@@ -637,6 +637,33 @@ code.detail-value {
   gap: 1rem;
   flex-wrap: wrap;
 }
+
+/* .ocr-controls wraps, so each field's max-width is a statement about how much
+   content it holds — a 0–1 threshold, a run-id timestamp, an x,y,w,h rect.
+   Four shared sizes rather than five `style="max-width:…"` in the markup. */
+.form-label.is-w-xs {
+  max-width: 160px;
+}
+.form-label.is-w-sm {
+  max-width: 200px;
+}
+.form-label.is-w-md {
+  max-width: 280px;
+}
+.form-label.is-w-lg {
+  max-width: 320px;
+}
+
+/* Two nudges inside the OCR review panel: the error sits directly above the
+   list it refers to, and the row tally directly below it. The tally needs its
+   own class — .ocr-review-panel .section-desc would also catch the "Loading…"
+   and empty-state lines, which carry no margin. */
+.ocr-review-panel .alert-error {
+  margin-bottom: 0.5rem;
+}
+.ocr-review-tally {
+  margin-top: 0.5rem;
+}
 .ocr-actions {
   display: flex;
   gap: 0.75rem;

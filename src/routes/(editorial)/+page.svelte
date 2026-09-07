@@ -164,7 +164,10 @@
 
 <div class="page home-page" class:mounted>
   <header class="hero">
-    <div id="google_translate_element" style="display:none"></div>
+    <!-- Mount point for the Google Translate widget in app.html; autoDisplay is
+         false, so it must never render. `hidden` is the platform's own way to say
+         that. -->
+    <div id="google_translate_element" hidden></div>
     <div class="hero-content">
       <div class="label-chip">✨ Make old maps fun again.</div>
       <h1 class="hero-title">
@@ -219,7 +222,7 @@
               <div class="empty-emoji">🙈</div>
               <h3>No favorites yet — sign in to start a list.</h3>
               <p>Heart any map and it lands here, on every device you sign in from.</p>
-              <p style="font-size:0.9rem;opacity:0.7">Sign in from the top nav.</p>
+              <p>Sign in from the top nav.</p>
             </div>
           {:else if displayedMaps.length > 0}
             <div class="maps-grid">

@@ -51,6 +51,11 @@
   font-size: 0.8rem;
   color: var(--color-gray-500);
 }
+/* The score spinner is the one field that wants to be narrow — it holds two
+   digits, and a full-width text input beside it reads as a search box. */
+.scout-page .filter-row input[type='number'] {
+  width: 5em;
+}
 .scout-page .filter-row select,
 .scout-page .filter-row input {
   padding: 0.35rem 0.5rem;

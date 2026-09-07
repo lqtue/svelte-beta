@@ -97,6 +97,24 @@
   --table-head-pad: var(--space-2) 0.6rem;
   --table-cell-pad: var(--space-1) 0.3rem;
 }
+/* Column widths. These are the grid's fixed column order, so they read as
+   positions here rather than as eight `style="width:…"` attributes in the
+   markup — Local path, Name, Year, Collection, Map type, Location, Status,
+   Remove. Name and Collection are deliberately unset: they take the rest. */
+.admin-bulk-page .grid th:nth-child(1) {
+  width: 32%;
+}
+.admin-bulk-page .grid th:nth-child(3),
+.admin-bulk-page .grid th:nth-child(7) {
+  width: 80px;
+}
+.admin-bulk-page .grid th:nth-child(5),
+.admin-bulk-page .grid th:nth-child(6) {
+  width: 120px;
+}
+.admin-bulk-page .grid th:nth-child(8) {
+  width: 40px;
+}
 .admin-bulk-page .grid input {
   border: 1px solid transparent;
   padding: 0.3rem 0.5rem;

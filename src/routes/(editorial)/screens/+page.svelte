@@ -499,9 +499,9 @@
 
         <h3 class="sc-h3">Reusable — reach for these</h3>
         <div class="sc-stage">
-          <div class="section-card" style="padding: 1.5rem">
-            <h4 class="section-title-sm" style="margin:0 0 .5rem">.section-card</h4>
-            <p class="section-desc" style="margin:0">
+          <div class="section-card">
+            <h4 class="section-title-sm">.section-card</h4>
+            <p class="section-desc">
               The editorial default. Thick border, large radius, solid shadow.
             </p>
           </div>

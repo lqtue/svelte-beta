@@ -251,13 +251,7 @@
         </label>
         <label
           >Min score
-          <input
-            type="number"
-            bind:value={filterMinScore}
-            on:change={applyFilters}
-            step="5"
-            style="width:5em"
-          />
+          <input type="number" bind:value={filterMinScore} on:change={applyFilters} step="5" />
         </label>
         <label
           >Search title

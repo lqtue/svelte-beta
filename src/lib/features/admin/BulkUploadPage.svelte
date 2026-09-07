@@ -257,14 +257,14 @@
         <table class="grid data-table">
           <thead>
             <tr>
-              <th style="width:32%">Local path</th>
+              <th>Local path</th>
               <th>Name</th>
-              <th style="width:80px">Year</th>
+              <th>Year</th>
               <th>Collection</th>
-              <th style="width:120px">Map type</th>
-              <th style="width:120px">Location</th>
-              <th style="width:80px">Status</th>
-              <th style="width:40px"></th>
+              <th>Map type</th>
+              <th>Location</th>
+              <th>Status</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>

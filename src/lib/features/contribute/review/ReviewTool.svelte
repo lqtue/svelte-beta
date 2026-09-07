@@ -153,8 +153,8 @@
 
 <div class="legend">
   <span class="legend-dot orange"></span> Needs review
-  <span class="legend-dot yellow" style="margin-left:0.75rem"></span> Selected
-  <span class="legend-dot green" style="margin-left:0.75rem"></span> Drag to edit
+  <span class="legend-dot yellow"></span> Selected
+  <span class="legend-dot green"></span> Drag to edit
 </div>
 
 <style>
@@ -183,6 +183,12 @@
     height: 10px;
     border-radius: 2px;
     flex-shrink: 0;
+  }
+
+  /* Gap before every dot but the first. Sibling combinators skip the label text
+     between them, so this holds however many entries the legend grows to. */
+  .legend-dot ~ .legend-dot {
+    margin-left: 0.75rem;
   }
 
   /* Literal, because these mirror the OpenLayers styles above exactly. */

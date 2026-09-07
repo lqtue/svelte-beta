@@ -330,6 +330,13 @@
   font-weight: 500;
 }
 
+/* A second paragraph in an empty state is the follow-up instruction, so it
+   reads quieter than the line it follows. */
+.home-page .empty-state p + p {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
 .home-page .action-footer {
   margin-top: 3rem;
   display: flex;

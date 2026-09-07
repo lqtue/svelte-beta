@@ -290,7 +290,7 @@
         {/if}
       </div>
       <div class="ocr-controls">
-        <label class="form-label" style="max-width: 200px;">
+        <label class="form-label is-w-sm">
           <span>Min confidence</span>
           <input
             type="number"
@@ -302,7 +302,7 @@
           />
           <span class="form-hint">0–1; threshold for pin insertion</span>
         </label>
-        <label class="form-label" style="max-width: 280px;">
+        <label class="form-label is-w-md">
           <span>Run ID (optional)</span>
           <input
             type="text"
@@ -311,7 +311,7 @@
             placeholder="e.g. 20260417T120000"
           />
         </label>
-        <label class="form-label" style="max-width: 320px;">
+        <label class="form-label is-w-lg">
           <span>Neatline crop (x,y,w,h)</span>
           <input
             type="text"
@@ -323,12 +323,12 @@
             >Paste coords from neatline tool. Crops the tile grid to map content.</span
           >
         </label>
-        <label class="form-label" style="max-width: 160px;">
+        <label class="form-label is-w-xs">
           <span>Target API calls</span>
           <input type="number" bind:value={ocrTargetCalls} class="form-input" min="4" max="64" />
           <span class="form-hint">Auto-scales tile size</span>
         </label>
-        <label class="form-label" style="max-width: 320px;">
+        <label class="form-label is-w-lg">
           <span>Prior run dir (optional)</span>
           <input
             type="text"
@@ -400,7 +400,7 @@
           </div>
 
           {#if reviewError}
-            <div class="alert alert-error" style="margin-bottom: 0.5rem">{reviewError}</div>
+            <div class="alert alert-error">{reviewError}</div>
           {/if}
 
           {#if reviewLoading}
@@ -455,7 +455,7 @@
                 </div>
               {/each}
             </div>
-            <p class="section-desc" style="margin-top:0.5rem">
+            <p class="section-desc ocr-review-tally">
               {reviewExtractions.length} shown. Edit text/category inline, then click ✓ to validate or
               ✗ to reject.
             </p>

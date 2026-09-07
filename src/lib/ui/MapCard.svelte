@@ -65,8 +65,7 @@
       on:click|stopPropagation={() => dispatch('toggleFavorite', map.id)}
       aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
     >
-      <span class="notranslate" style="display:{isFavorited ? 'block' : 'none'}">❤️</span>
-      <span class="notranslate" style="display:{isFavorited ? 'none' : 'block'}">🤍</span>
+      <span class="notranslate">{isFavorited ? '❤️' : '🤍'}</span>
     </button>
   {/if}
 </div>
