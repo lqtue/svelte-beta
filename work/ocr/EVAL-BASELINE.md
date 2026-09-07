@@ -140,8 +140,11 @@ implicit is not.
 
 ## seq-v1 passes the gate — new default (2026-09-08)
 
-Two sequence prompts, each one full run (30 tiles → 10 row calls, 2400/300/1024,
-`gemini-3-flash-preview`, no `--db`), scored from the run dir. `seq-v1` is v8 with the
+Two sequence prompts, each one full run (30 tiles → 10 row calls, 2400/300/1024, no
+`--db`), scored from the run dir. **Two variables, not one:** these ran on
+`gemini-3.8-flash` (`DEFAULT_MODEL` since 2026-09-04) while `baseline` and `postfix-v8`
+in this file ran on `gemini-3-flash-preview` — read `model` in each run's `calls.jsonl`, not
+the prose. A `seq-v1` run on the old model (`seq-v1-m3`, below) separates the prompt's share. `seq-v1` is v8 with the
 per-tile fragment rule replaced by whole-label assembly and abbreviations transcribed as
 printed; `seq-v1-style` adds the `style` / `ink` reading guidance and nothing else.
 
@@ -171,3 +174,73 @@ normalization was enough on this sheet. Run `seq-v1-style` with `--prompt seq-v1
 Output tokens roughly doubled against baseline: more predictions, longer notes
 (`spans frames 0-1`, `expanded from …`, the style tags). Cached input covers the system +
 task prompt on every call; the images are the floor.
+
+## Two passes, then agree — 41/43 (2026-09-08)
+
+The remaining `seq-v1` misses were not fragments and not box convention: `MESSAGERIES
+MARITIMES` and `POSTE DE POLICE` were absent from the raw tile output. A second look at
+the sheet finds them, provided the merge does not throw them away again.
+
+**The merge was the leak.** `dedup_items` keeps the higher self-reported confidence. Across
+prompts that number is not comparable — postfix-v8 reports 1.00 on a `POUDRIÈRE` box at
+IoU 0.06 and on every "Village de …" expansion — so the union of four runs scored *below*
+the best single run:
+
+| union of runs | raw union | `dedup_items` | `ensemble_items` (vote) |
+|---|---|---|---|
+| seq-v1 + seq-v1-style | 40 | 40 | 40 |
+| + baseline | 41 | 39 | 40 |
+| + postfix-v8 | 41 | **38** | 40 |
+
+`ensemble_items` (`ocr.py merge`) clusters same-label detections, keeps the spelling most
+passes wrote and the box that overlaps the other members most. Agreement between passes is
+the signal that survives a prompt change; confidence is not.
+
+**Second pass = same prompt, grid shifted half a tile** (`--crop 1200,1200,10902,7782`, so
+every seam falls where the first pass had tile interior). Alone it scores 28/43 — it does
+not cover the outer 1200 px strip and cuts labels in new places — and that is fine, it is
+not meant to stand alone. No coordinate drift in crop mode: median centroid offset against
+GT is < 3 px on both runs, same as the unshifted one.
+
+| | seq-v1 | seq-v1-shift | **merge(seq-v1, seq-v1-shift)** | merge(+ seq-v1-style) |
+|---|---|---|---|---|
+| matched / 43 | 39 | 28 | **41** | 41 |
+| char_acc | 0.9895 | 0.9846 | **0.990** | 0.990 |
+| text_recall@0.3 | 40/43 | 30/43 | **42/43** | 42/43 |
+| predictions | 210 | 264 | 337 | 360 |
+
+A third pass adds nothing. The recipe is two passes of `seq-v1` — one on the grid, one on
+the grid shifted half a tile — merged by vote. Cost: 2× the single-pass tokens (~110k in,
+a third of it cached, ~60k out), ~14 minutes per sheet at concurrency 3. The one label still
+missing at 0.5 is box convention; the one still missing at 0.3 is `POSTE DE POLICE`, which
+neither pass read.
+
+## Prompt × model, separated (2026-09-08)
+
+The `seq-v1` gain above was measured against runs made on a different model. Two more runs
+fill the square — same sheet, tiling and pass count, one variable per cell:
+
+| prompt \ model | gemini-3-flash-preview | gemini-3.8-flash |
+|---|---|---|
+| fallback (hardcoded, retired) | 33/43 · char 0.979 · text@0.3 33 | — |
+| v8 | 27/43 · char 0.952 · text@0.3 26 | 38/43 · char 0.962 · text@0.3 **31** |
+| seq-v1 | **25/43** · char 0.968 · text@0.3 23 | **39/43** · char **0.990** · text@0.3 **40** |
+
+Read across: the model moves the **boxes**. On 3-flash-preview `seq-v1` transcribes the text
+(318 raw extractions, `MARCHÉ CENTRAL` / `OUEST` / `DIRECTION DU Pt DE GUERRE` all present,
+character-exact) and puts the box in the wrong place — IoU 0.01–0.06, offsets under a tile,
+so not a frame-index slip, just poor localisation under a prompt that asks for whole labels.
+The retired fallback was tuned around that model's habits, which is why it led there.
+
+Read down: the prompt moves the **reading**. On 3.8-flash, v8 and seq-v1 box nearly the same
+labels (38 vs 39) but v8 reads 31 of them correctly to seq-v1's 40 — the expansion rule
+("Vge de" → "Village de", `R.` → `Rue`) and the fragment rule cost it nine labels against an
+as-printed GT, and 2.8 points of char_acc.
+
+So: the model bought most of the recall at IoU 0.5; the prompt bought the text. `seq-v1`
+stays the default on char_acc and text_recall@0.3, the two columns that say whether the
+label that reaches a reader is spelled the way the sheet spells it. The two-pass result
+(41/43) is unaffected — both passes ran on 3.8-flash.
+
+**Rule from this:** compare runs by the `model` field in their `calls.jsonl`, never by the
+prose around them. `DEFAULT_MODEL` changed on 09-04 and every run after it silently moved.
