@@ -167,7 +167,7 @@ All tables must have `alter table ... enable row level security`.
 
 ---
 
-## 11. Current schema (migration head 071)
+## 11. Current schema (migration head 075)
 
 Moved here from `CLAUDE.md` in September 2026. The table lists what exists; the paragraphs after it are the rules a migration must not undo.
 
@@ -186,9 +186,8 @@ Moved here from `CLAUDE.md` in September 2026. The table lists what exists; the 
 | `worker_keys` | Per-machine revocable worker credentials (mig 053) | `token_hash` (sha256), `kinds`, `revoked_at`. Written in step 2; the table exists now |
 | `map_pipeline_status` | Per-map pipeline state — **a view since mig 056** | Machine stages derived from `pipeline_jobs`, human stages from `map_review_marks`. Read-only; nothing writes it |
 | `map_review_marks` | The three stages a person asserts (mig 056) | `reviewed_at`, `seg_reviewed_at`, `exported_at`. Written only by the `set_review_mark` RPC |
-| `stories`, `story_points`, `story_progress` | Stories/tours | `hunts` / `hunt_stops` were dropped in mig 034. Since mig 059 a story has `status` (`draft/submitted/approved/rejected`) + `reviewed_by`/`reviewed_at`, and **`is_public` is gone** — publishing submits for review, and only `approved` is publicly readable |
+| `stories`, `story_points` | Stories/tours | `hunts` / `hunt_stops` were dropped in mig 034, `story_progress` in mig 075 — /trip/[id] keeps progress in localStorage. Since mig 059 a story has `status` (`draft/submitted/approved/rejected`) + `reviewed_by`/`reviewed_at`, and **`is_public` is gone** — publishing submits for review, and only `approved` is publicly readable |
 | `user_favorites` | Saved maps | via `data/supabase/favorites.ts` |
-| `legend_submissions`, `map_help_requests`, `metadata_submissions` | Community contributions | write paths only; no dedicated UI review screen yet |
 
 `maps.status` (mig 038): `draft | public | featured`. Inserts default to `draft`. The older `pending_georef → georeferenced → processing → published` values fail `maps_status_check`.
 
@@ -213,5 +212,5 @@ Moved here from `CLAUDE.md` in September 2026. The table lists what exists; the 
 | Item | Location | Fix |
 |------|---------|-----|
 | `label_pins` outlives its feature | `label_tasks` was dropped in mig 038 but `label_pins` remains, now written only by `POST /api/admin/maps/[id]/ocr/apply` | Either fold into `ocr_extractions` or document it as the OCR-applied point layer |
-| Migration head is 071 | `supabase/migrations/` | Regenerate `src/lib/data/supabase/types.ts` after every push: `supabase gen types typescript --linked` |
+| Migration head is 075 | `supabase/migrations/` | Regenerate `src/lib/data/supabase/types.ts` after every push: `supabase gen types typescript --linked` |
 | Production drifted from the migrations once | `pipeline_jobs_kind_check` allowed `warp` with no migration saying so; corrected in 070 | Nothing to fix now — but it means the migrations are not provably the whole schema. A `db pull` diff would settle it, and needs the direct DB password |
