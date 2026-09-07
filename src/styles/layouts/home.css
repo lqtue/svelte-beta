@@ -35,26 +35,70 @@
    ======================================== */
 .home-page .hero {
   position: relative;
-  padding: 5rem 2rem 4rem;
-  background: var(--color-yellow);
+  /* 72vh, not 100: a hero that fills the viewport exactly tells the reader
+     there is nothing below it. The Catalog card has to peek. */
+  min-height: 72vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem 5rem;
+  /* No colour of its own. The map is the hero; this is only what shows for the
+     moment before it loads. */
+  background: var(--color-bg);
   border-bottom: var(--border-thick);
   overflow: hidden;
-  color: var(--color-text-on-yellow);
+  color: var(--color-text);
   text-align: center;
 }
 
 .home-page .hero-content {
   position: relative;
-  z-index: 1;
-  max-width: 800px;
+  /* Above the live map and its scrim, which are absolutely positioned siblings. */
+  z-index: 4;
+  pointer-events: none;
+  max-width: 680px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Its own plate. Over a live map, type needs ground of its own — a page-wide
+     wash would have to be heavy enough to bury the map it is sitting on. */
+  background: var(--color-white);
+  border: var(--border-thick);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-solid);
+  padding: 2.25rem 2rem 2rem;
+  /* The masthead is the last beat, not the first: the sequence explains what
+     the archive does, and only then says whose it is. `visibility` rather than
+     `display` so the reserved space never reflows the hero mid-sequence. */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.75rem) scale(0.98);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease,
+    visibility 0s linear 0.7s;
+}
+
+.home-page .hero-content.revealed {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease,
+    visibility 0s;
+}
+
+@media (max-width: 640px) {
+  .home-page .hero-content {
+    padding: 1.5rem 1.1rem 1.25rem;
+  }
 }
 
 .home-page .label-chip {
   display: inline-block;
+  pointer-events: auto;
   background: var(--color-white);
   border: var(--border-thin);
   border-radius: var(--radius-pill);
@@ -62,7 +106,7 @@
   font-family: var(--font-family-display);
   font-weight: 700;
   font-size: 0.875rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 
@@ -72,7 +116,7 @@
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.03em;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
 }
 
 .home-page .text-highlight {
@@ -83,17 +127,67 @@
 
 .home-page .hero-subtitle {
   font-family: var(--font-family-base);
-  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  pointer-events: auto;
+  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
   font-weight: 500;
   line-height: 1.6;
   max-width: 560px;
-  background: var(--color-white);
-  padding: 1rem 1.5rem;
-  border: var(--border-thin);
-  border-radius: var(--radius-md);
+  padding: 0;
+  margin: 0;
+  text-align: center;
+  color: color-mix(in srgb, var(--color-text) 78%, var(--color-white));
+}
+
+/* The way in. The hero's four beats say what the archive holds; this is the
+   one thing to do about it, so it is the only control on the plate. */
+.home-page .hero-search {
+  pointer-events: auto;
+  margin-top: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 100%;
+  padding: 0.7rem 1rem;
+  background: var(--color-bg);
+  border: var(--border-thick);
+  border-radius: var(--radius-pill);
   box-shadow: var(--shadow-solid-sm);
-  margin: 0 0 2rem 0;
+  font-family: var(--font-family-base);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-text) 70%, var(--color-white));
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.home-page .hero-search:hover {
+  box-shadow: var(--shadow-solid);
+  transform: translate(-2px, -2px);
+  color: var(--color-text);
+}
+
+.home-page .hero-search span {
   text-align: left;
+}
+
+.home-page .hero-search kbd {
+  flex-shrink: 0;
+  font-family: var(--font-family-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border: var(--border-thin);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-text);
+}
+
+@media (max-width: 640px) {
+  .home-page .hero-search kbd {
+    display: none;
+  }
 }
 
 .home-page .hero-badges {

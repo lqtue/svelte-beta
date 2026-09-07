@@ -24,6 +24,13 @@
   /** Map ids whose fabric should be drawn. Empty means the layer sits idle. */
   export let mapIds: string[] = [];
 
+  /**
+   * Which review status to draw. `approved` is the only thing a reader should
+   * be shown as finished work, so it stays the default; the home page passes
+   * `submitted` deliberately and says so in its caption.
+   */
+  export let status: 'approved' | 'submitted' = 'approved';
+
   const { map: mapWritable } = getShellContext();
 
   let olMap: Map | null = null;
@@ -64,14 +71,16 @@
   async function load() {
     if (!source) return;
     const key = [...mapIds].sort().join(',');
-    if (key === loadedKey) return;
-    loadedKey = key;
+    if (`${key}|${status}` === loadedKey) return;
+    loadedKey = `${key}|${status}`;
     source.clear();
     if (!key) return;
 
     loading = true;
     try {
-      const res = await fetch(`/api/export/footprints?map_id=${encodeURIComponent(key)}`);
+      const res = await fetch(
+        `/api/export/footprints?map_id=${encodeURIComponent(key)}&status=${status}`
+      );
       if (!res.ok) return;
       const fc = await res.json();
       // Rows that could not be warped carry pixel coordinates, not degrees;
@@ -82,7 +91,7 @@
           (f: { properties?: { geo_converted?: boolean } }) => f.properties?.geo_converted
         ),
       };
-      if (loadedKey !== key) return; // a newer request won
+      if (loadedKey !== `${key}|${status}`) return; // a newer request won
       source.addFeatures(new GeoJSON().readFeatures(warped, { featureProjection: 'EPSG:3857' }));
     } catch {
       /* offline or a 500: an empty fabric is the honest result */
@@ -91,5 +100,5 @@
     }
   }
 
-  $: if (source && mapIds) void load();
+  $: if (source && (mapIds || status)) void load();
 </script>

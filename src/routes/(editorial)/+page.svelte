@@ -6,7 +6,9 @@
   import { annotationUrlForSource } from '$lib/map/shell/warpedOverlay';
   import { fetchFavorites, addFavorite, removeFavorite } from '$lib/data/supabase/favorites';
   import FeaturedSheet from '$lib/features/catalog/FeaturedSheet.svelte';
+  import HeroMap from '$lib/features/explore/HeroMap.svelte';
   import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
+  import { openPalette } from '$lib/core/utils/commandPalette';
   import '$styles/layouts/home.css';
 
   const { supabase, session } = getSupabaseContext();
@@ -19,6 +21,8 @@
   let selectedFeaturedCity: string = 'all';
   let favoriteIds: string[] = [];
   let filterCollection: 'featured' | 'favorites' = 'featured';
+  /** Which beat the hero is on. The masthead lands on the last one. */
+  let heroStage = -1;
 
   // Counts quoted in the copy below. `mapCount` is live — the catalog is already
   // being fetched, so there is no reason to hardcode a number that goes stale.
@@ -27,6 +31,26 @@
   // `labels` is distinct names, not rows: the OCR pass has been re-run on some
   // sheets and `ocr_extractions` holds 1,767 rows for 958 actual labels. Quoting
   // the row count would inflate the number by 85%.
+  /**
+   * The sheet the hero plays. Not one of the five featured maps on purpose:
+   * this is the only sheet in the archive that carries all three layers the
+   * hero shows — a georeference, 46 traced footprints and 43 validated OCR
+   * labels — so it is the only one where the sequence tells the truth.
+   *
+   * ponytail: hardcoded rather than queried. Picking "the sheet with the most
+   * of everything" needs a join the front page has no other use for; when a
+   * second sheet is this complete, that is the moment to write it.
+   */
+  const HERO_SHEET = {
+    id: '0e02b9d9-9d40-4cca-8e41-8c8373d54d3b',
+    // The mirrored annotation, not the bare Allmaps id: the bare id resolves to
+    // allmaps.org's copy, whose IIIF source is still archive.org — which 500s on
+    // the large tiles the warp asks for. The mirror points at our own R2.
+    annotation:
+      'https://trioykjhhwrruwjsklfo.supabase.co/storage/v1/object/public/annotations/0e02b9d9-9d40-4cca-8e41-8c8373d54d3b.json',
+    bbox: [106.689425, 10.76256, 106.708371, 10.791659] as [number, number, number, number],
+  };
+
   const STATS = { snapshot: 'September 2026', labels: 958, labelsChecked: 43, footprints: 46 };
   $: mapCount = maps.length || 39;
 
@@ -178,17 +202,38 @@
          false, so it must never render. `hidden` is the platform's own way to say
          that. -->
     <div id="google_translate_element" hidden></div>
-    <div class="hero-content">
-      <div class="label-chip">Georeferenced sheets, laid over the city that replaced them</div>
+    <HeroMap
+      mapId={HERO_SHEET.id}
+      source={HERO_SHEET.annotation}
+      bbox={HERO_SHEET.bbox}
+      href="/explore?map={HERO_SHEET.id}"
+      on:stage={(e) => (heroStage = e.detail.index)}
+    />
+    <div class="hero-content" class:revealed={heroStage >= 4}>
       <h1 class="hero-title">
         Vietnam<br /><span class="text-highlight">Map Archive</span>
       </h1>
       <p class="hero-subtitle">
-        A small volunteer archive of historical maps of Vietnam — Saigon, Huế and Hanoi so far.
-        {mapCount} sheets, from 1791 to 1968, are georeferenced: each one sits over the city that replaced
-        it, in a browser, with no specialist software. Reading the names off them and tracing what they
-        show is early work, and mostly still ahead of us.
+        {mapCount} sheets of Saigon, Huế and Hanoi — 1791 to 1968 — laid back over the ground they drew.
+        Volunteers put them there. Reading the names off them and tracing what they show is where the
+        work goes next.
       </p>
+      <button type="button" class="hero-search" on:click={openPalette}>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
+        </svg>
+        <span>Search a place, a sheet, a name off a map</span>
+        <kbd>⌘K</kbd>
+      </button>
     </div>
   </header>
 
