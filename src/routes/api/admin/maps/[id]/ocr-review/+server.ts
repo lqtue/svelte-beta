@@ -40,6 +40,34 @@ async function warpFields(
 import { bulkSetStatus, isOcrReviewStatus } from '$lib/server/ocrReview';
 import type { Database } from '$lib/data/supabase/types';
 
+/**
+ * PostgREST answers with at most 1000 rows however wide a range is asked for,
+ * and says so only in the Content-Range header. A sheet with more extractions
+ * than that silently lost its tail — and, worse, every count derived from the
+ * same query: the 1882 cadastral plan reported 0 validated rows out of 1099,
+ * because all 43 of them sorted past the cap. Page until a short page arrives.
+ */
+async function pageAll<T>(
+  query: (
+    from: number,
+    to: number
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  limit: number,
+  failure: string
+): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  while (out.length < limit) {
+    const want = Math.min(PAGE, limit - out.length);
+    const { data, error: err } = await query(out.length, out.length + want - 1);
+    if (err) dbError(err, failure);
+    if (!data?.length) break;
+    out.push(...data);
+    if (data.length < want) break;
+  }
+  return out;
+}
+
 /** GET /api/admin/maps/[id]/ocr-review
  *  Query params: run_id (optional), status (optional), limit (default 200), offset (default 0)
  *  Returns extractions for the map ordered by category, confidence desc.
@@ -53,36 +81,44 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '200'), 2000);
   const offset = parseInt(url.searchParams.get('offset') ?? '0');
 
-  let q = supabase
-    .from('ocr_extractions')
-    .select(
-      'id, run_id, tile_x, tile_y, tile_w, tile_h, global_x, global_y, global_w, global_h, category, text, text_validated, category_validated, confidence, rotation_deg, notes, status, validated_at, model, prompt'
-    )
-    .eq('map_id', mapId)
-    .order('category', { ascending: true })
-    .order('confidence', { ascending: false })
-    .range(offset, offset + limit - 1);
+  const rows = await pageAll(
+    (from, to) => {
+      let q = supabase
+        .from('ocr_extractions')
+        .select(
+          'id, run_id, tile_x, tile_y, tile_w, tile_h, global_x, global_y, global_w, global_h, category, text, text_validated, category_validated, confidence, rotation_deg, notes, status, validated_at, model, prompt'
+        )
+        .eq('map_id', mapId)
+        .order('category', { ascending: true })
+        .order('confidence', { ascending: false })
+        // Category and confidence both tie in bulk — every row of a run tends to
+        // carry confidence 1 — and a tie that resolves differently between two
+        // pages would drop rows and repeat others. id is the stable tiebreak.
+        .order('id', { ascending: true })
+        .range(offset + from, offset + to);
+      if (runId) q = q.eq('run_id', runId);
+      if (status) q = q.eq('status', status);
+      return q;
+    },
+    limit,
+    'Could not read OCR extractions'
+  );
 
-  if (runId) q = q.eq('run_id', runId);
-  if (status) q = q.eq('status', status);
-
-  const { data, error: err, count } = await q;
-  if (err) dbError(err, 'Could not read OCR extractions');
-
-  // Status counts + distinct run_ids for the map
-  const [{ data: counts }, { data: runRows }] = await Promise.all([
-    supabase.from('ocr_extractions').select('status').eq('map_id', mapId),
-    supabase.from('ocr_extractions').select('run_id').eq('map_id', mapId),
-  ]);
+  // Counts and run ids describe the whole sheet, so they need every row, not the
+  // page above. Two small columns, paged the same way.
+  const meta = await pageAll(
+    (from, to) =>
+      supabase.from('ocr_extractions').select('status, run_id').eq('map_id', mapId).range(from, to),
+    Infinity,
+    'Could not count OCR extractions'
+  );
 
   const statusCounts: Record<string, number> = {};
-  for (const row of counts ?? []) {
-    statusCounts[row.status] = (statusCounts[row.status] ?? 0) + 1;
-  }
+  for (const row of meta) statusCounts[row.status] = (statusCounts[row.status] ?? 0) + 1;
 
-  const runIds: string[] = runRows ? [...new Set(runRows.map((r) => r.run_id))].sort() : [];
+  const runIds = [...new Set(meta.map((r) => r.run_id))].sort();
 
-  return json({ extractions: data ?? [], total: count ?? 0, statusCounts, runIds });
+  return json({ extractions: rows, total: meta.length, statusCounts, runIds });
 };
 
 /** POST /api/admin/maps/[id]/ocr-review
