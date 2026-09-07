@@ -63,7 +63,26 @@ python work/ocr/scripts/ocr.py clean \
   --map-id <uuid> --run-id <clean-run-id> --min-confidence 0.1 [--apply]
 ```
 
-Subcommands (11): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `preview`, `list-models`, `detect-layout`, `numerals`, `legend`.
+Subcommands (12): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `merge`, `preview`, `list-models`, `detect-layout`, `numerals`, `legend`.
+
+**Two passes, then agree (the default from the queue).** One `batch` reads 39 of the 43
+validated labels on the gate sheet; the misses are labels the model never returned, not
+fragments and not box convention (`EVAL-BASELINE.md`, 2026-09-08). A second `batch` with
+`--grid-offset tile/2` moves every seam onto the first pass's tile interior, and
+`merge --runs a,b --run-id r --db` votes the two into one run: 41/43. The vote matters —
+`dedup_items` keeps the higher self-reported confidence, which one prompt hands out at 1.00
+on a box at IoU 0.06, so a plain union scored *below* a single pass. `ensemble_items` takes
+the spelling most passes wrote and the box that overlaps the others most. An `ocr` job with
+`passes: 2` (what `enqueue_ocr_all.mjs` and the Run OCR button now send; `--single-pass`
+opts out) becomes three worker commands: `batch <run>-a`, `batch <run>-b --grid-offset`,
+`merge → <run> --db`. Twice the tokens of one pass, a third of the input from the prefix
+cache, ~14 min a sheet.
+
+**Prompt.** `DEFAULT_PROMPT` is `seq-v1` (2026-09-08): v8 with whole-label assembly for the
+row-sequence path and abbreviations transcribed as printed — `R.` is `Rue` before a French
+road and `Rạch` before a Vietnamese name on the water, and the sheet decides, not a rule.
+The system + task prompt go into an explicit Gemini context cache per (key, model, text),
+1 h TTL; each call sends only its images. `GEMINI_EXPLICIT_CACHE=0` sends them inline.
 
 **Model.** `gemini_client.DEFAULT_MODEL` is `gemini-3.8-flash` ($0.75/$3.75 per 1M in/out) since 2026-09-04; it was `gemini-3-flash-preview`, which still answers but is absent from Google's pricing page — no published rate, no stated support window. `--model` overrides per run, an `ocr` job payload's `model` overrides per job (the worker passes it through), and `scripts/enqueue_ocr_all.mjs --model NAME` sets it for a whole batch. Measured on this corpus at 5,156 in / 1,810 out tokens per call and 30–60 calls per sheet, that is roughly $0.50 a map, or $0.06 on `gemini-2.5-flash-lite`. Rate limits are no longer published per model — read them at <https://aistudio.google.com/rate-limit>. `GEMINI_API_KEYS` (comma-separated) rotates keys when one hits its daily cap; `GEMINI_API_KEY` is the single-key fallback.
 

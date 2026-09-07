@@ -3,7 +3,7 @@
 //
 //   node --env-file=.env scripts/enqueue_ocr_all.mjs [--dry] [--force] [--limit N]
 //                                                    [--untriaged] [--model NAME]
-//                                                    [--tile-metres M]
+//                                                    [--tile-metres M] [--single-pass]
 //
 // Label search (`/api/search?include=labels`, mig 065) is only as good as the
 // share of the corpus that has extractions, and measured on 2026-09-02 that was
@@ -33,6 +33,10 @@ const limit = limitIdx > -1 ? Number(args[limitIdx + 1]) : Infinity;
 const untriaged = args.includes('--untriaged');
 const modelIdx = args.indexOf('--model');
 const model = modelIdx > -1 ? args[modelIdx + 1] : null;
+// Two passes by default: the grid, then the grid moved half a tile, voted into
+// one run by `ocr.py merge`. 41/43 against 39/43 for one pass on the gate sheet
+// (work/ocr/EVAL-BASELINE.md), for twice the tokens — cents. --single-pass opts out.
+const passes = args.includes('--single-pass') ? 1 : 2;
 
 // Ground per Gemini call, in metres. Opt-in, and it only ever makes a tile
 // FINER.
@@ -246,6 +250,7 @@ for (const m of todo) {
         ? { tile_overrides: t.tile_overrides }
         : {}),
       ...(model ? { model } : {}),
+      passes,
     },
   });
   if (insErr && insErr.code !== '23505') throw insErr; // 23505 = one-live-job index, already queued

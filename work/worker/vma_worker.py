@@ -85,15 +85,38 @@ def finish(job_id: str, status: str, result: dict | None = None, err: str | None
     )
 
 
-def ocr_argv(job: dict, python_bin: str) -> list[str]:
-    """Turn an `ocr` job payload into the ocr.py batch command line."""
+def ocr_argv(job: dict, python_bin: str) -> list[str] | list[list[str]]:
+    """Turn an `ocr` job payload into the ocr.py batch command line.
+
+    `passes: 2` returns a plan of three commands instead: the batch on the grid,
+    the same batch with the grid moved half a tile, and `merge --db` to vote the
+    two into the payload's run_id. Measured 2026-09-08 on the 1882 sheet: 39/43
+    for one pass, 41/43 for two — see work/ocr/EVAL-BASELINE.md.
+    """
+    p = job["payload"]
+    if int(p.get("passes", 1)) >= 2:
+        return _two_pass_plan(job, python_bin)
+    return _ocr_batch_argv(job, python_bin, p["run_id"], db=True)
+
+
+def _two_pass_plan(job: dict, python_bin: str) -> list[list[str]]:
+    p = job["payload"]
+    run, tile = p["run_id"], int(p.get("tile_size", 2400))
+    a = _ocr_batch_argv(job, python_bin, f"{run}-a", db=False)
+    b = _ocr_batch_argv(job, python_bin, f"{run}-b", db=False) + ["--grid-offset", str(tile // 2)]
+    merge = [python_bin, str(OCR_SCRIPT), "merge", "--map-id", job["map_id"],
+             "--runs", f"{run}-a,{run}-b", "--run-id", run, "--tile-size", str(tile), "--db"]
+    return [a, b, merge]
+
+
+def _ocr_batch_argv(job: dict, python_bin: str, run_id: str, db: bool) -> list[str]:
     p = job["payload"]
     argv = [
         python_bin,
         str(OCR_SCRIPT),
         "batch",
         "--map-id", job["map_id"],
-        "--run-id", p["run_id"],
+        "--run-id", run_id,
         "--tile-size", str(p.get("tile_size", 2400)),
         "--overlap", str(p.get("overlap", 600)),
         # The one that decides whether a street name is legible. Each tile is
@@ -106,8 +129,9 @@ def ocr_argv(job: dict, python_bin: str) -> list[str]:
         "--render-size", str(p.get("render_size", 1024)),
         "--concurrency", str(p.get("concurrency", 3)),
         "--min-confidence", str(p.get("min_confidence", 0.5)),
-        "--db",
     ]
+    if db:
+        argv.append("--db")
     # Left unset, every queued job silently inherits gemini_client.DEFAULT_MODEL,
     # which is invisible from the job row. Passing it explicitly means the run's
     # calls.jsonl and the payload agree about what was used.
@@ -289,22 +313,30 @@ def run_job(job: dict, python_bin: str) -> None:
         print(f"[{kind}] {job['id']} rejected — {e}")
         return
 
-    print(f"[{kind}] {job['id']} running: {' '.join(argv)}")
+    # A runner returns one command, or a plan of several run in order (the
+    # two-pass OCR recipe). The first non-zero exit fails the job.
+    plan: list[list[str]] = argv if argv and isinstance(argv[0], list) else [argv]  # type: ignore[list-item]
     finish(job["id"], "running")
 
     # The pipeline scripts write through the same endpoint with the same key.
     api_url, api_key = _config()
     env = {**os.environ, "VMA_API_URL": api_url, "VMA_WORKER_KEY": api_key}
 
-    try:
-        proc = subprocess.run(argv, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
-    except OSError as e:
-        # A missing interpreter or script would otherwise leave the job stuck in
-        # 'running' with nobody to claim it again.
-        finish(job["id"], "failed", err=str(e))
-        print(f"[{kind}] {job['id']} FAILED to start: {e}")
-        return
+    proc = None
+    for step, cmd in enumerate(plan, 1):
+        print(f"[{kind}] {job['id']} running {step}/{len(plan)}: {' '.join(cmd)}")
+        try:
+            proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
+        except OSError as e:
+            # A missing interpreter or script would otherwise leave the job stuck in
+            # 'running' with nobody to claim it again.
+            finish(job["id"], "failed", err=str(e))
+            print(f"[{kind}] {job['id']} FAILED to start: {e}")
+            return
+        if proc.returncode != 0:
+            break
 
+    assert proc is not None
     if proc.returncode == 0:
         tail = proc.stdout.strip().splitlines()[-1:] or [""]
         finish(job["id"], "done", {"returncode": 0, "last_line": tail[0][:500]})

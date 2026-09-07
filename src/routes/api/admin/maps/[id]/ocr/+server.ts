@@ -27,6 +27,9 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     overlap: body.overlap ?? 600,
     concurrency: body.concurrency ?? 3,
     min_confidence: body.min_confidence ?? 0.5,
+    // Two passes voted into one run (work/ocr/EVAL-BASELINE.md, 2026-09-08):
+    // the grid, then the grid moved half a tile. 41/43 against 39/43 for one.
+    passes: body.passes ?? 2,
     // Fully automated chain (default on): scout the neatline unless one was
     // drawn, then extract the legend. Stops at ocr_done for human review.
     auto: body.auto !== false,

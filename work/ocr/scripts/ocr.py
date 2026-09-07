@@ -406,6 +406,16 @@ def cmd_batch(args: argparse.Namespace) -> None:
         else:
             print("  No margins detected — using full image")
 
+    # Second pass of the two-pass recipe: same grid, moved half a tile in both
+    # axes so every seam lands where the first pass had tile interior. Not meant
+    # to stand alone (28/43 on its own — it skips the outer strip); merged with
+    # the unshifted pass by `ocr.py merge` it read 41/43. See EVAL-BASELINE.md.
+    grid_offset = getattr(args, "grid_offset", 0) or 0
+    if grid_offset:
+        rx, ry, rw, rh = grid_region or (0, 0, img_w, img_h)
+        grid_region = (rx + grid_offset, ry + grid_offset, rw - grid_offset, rh - grid_offset)
+        print(f"  Grid offset {grid_offset}px → region {grid_region}")
+
     tiles = list(tile_grid(img_w, img_h, tile=tile_size, overlap=overlap,
                            region=grid_region))
     total_before_filter = len(tiles)
@@ -1760,6 +1770,12 @@ def cmd_merge(args: argparse.Namespace) -> None:
             })
         n_written = upsert_ocr_extractions(args.map_id, args.run_id, db_rows)
         print(f"DB: upserted {n_written} merged rows to ocr_extractions")
+        try:
+            from supabase_client import update_pipeline_status
+            update_pipeline_status(args.map_id, "ocr_done", ocr_run_id=args.run_id,
+                                   ocr_finished_at=datetime.now(timezone.utc).isoformat())
+        except Exception as e:
+            print(f"[pipeline] status update skipped: {e}")
 
 
 def cmd_dedup(args: argparse.Namespace) -> None:
@@ -2604,6 +2620,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--overlap", type=int, default=300, help="Tile overlap in source pixels (default 300)")
     p_batch.add_argument("--render-size", type=int, default=1024, help="Rendered pixel width per tile (default 1024)")
     p_batch.add_argument("--concurrency", type=int, default=3, help="Max concurrent Gemini calls (default 3)")
+    p_batch.add_argument("--grid-offset", type=int, default=0,
+                         help="Shift the tile grid by this many source px in x and y (second pass of the two-pass recipe; tile_size/2)")
     p_batch.add_argument("--limit", type=int, help="Max tiles to process (for testing)")
     p_batch.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
     p_batch.add_argument("--prompt", default=DEFAULT_PROMPT, help="Prompt version key")
