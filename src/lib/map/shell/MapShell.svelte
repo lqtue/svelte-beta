@@ -43,6 +43,14 @@
 
   export let disableUrlSync = false;
 
+  /**
+   * OL's device-pixel ratio. Left undefined the map renders at the screen's own
+   * ratio, which on a Retina display asks for roughly four times the tiles. A
+   * decorative map can pin this to 1 and pay a quarter of the bandwidth; a tool
+   * where people read the sheet should not.
+   */
+  export let pixelRatio: number | undefined = undefined;
+
   /** Read-only binding to the OL Map instance */
   export let map: OlMap | null = null;
 
@@ -126,6 +134,7 @@
 
     olMap = new OlMap({
       target: mapContainer,
+      ...(pixelRatio ? { pixelRatio } : {}),
       layers: Array.from(basemapLayers.values()),
       view: new View({
         center,

@@ -50,9 +50,35 @@
   /** Longest the masthead will ever wait, however the sequence goes. */
   const FAILSAFE_MS = 16000;
 
+  /** Set once the sequence has played in this tab. */
+  const PLAYED_KEY = 'vma-hero-played-v1';
+
+  /**
+   * Whether to spend a reader's bandwidth on a decorative map at all. One hero
+   * view is ~80 tile requests, so a metered connection gets the masthead and
+   * nothing else. `saveData` and `effectiveType` are Chromium-only; everywhere
+   * else this is false and the map plays, which is the right default.
+   */
+  function tooExpensive(): boolean {
+    const c = (
+      navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
+    ).connection;
+    if (!c) return false;
+    return c.saveData === true || c.effectiveType === 'slow-2g' || c.effectiveType === '2g';
+  }
+
+  function played(): boolean {
+    try {
+      return sessionStorage.getItem(PLAYED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
   let live = false;
   let stage = -1;
   let seq: HeroSequence | null = null;
+  let immediate = false;
   /** Null until the reader moves the slider — see HeroSequence.overlayOpacity. */
   let overlayOpacity: number | null = null;
 
@@ -74,6 +100,14 @@
   const layerStore = createLayerStore({ basemap: 'g-streets' });
 
   onMount(() => {
+    if (tooExpensive()) {
+      // No map, no sequence: straight to the masthead, which is the only part
+      // of the hero that has to exist.
+      stage = captions.length;
+      return;
+    }
+    immediate = played();
+
     // Let the hero paint before pulling in OpenLayers. `requestIdleCallback` is
     // Safari 18+, hence the timeout fallback.
     const idle =
@@ -94,16 +128,28 @@
       clearTimeout(failsafe);
     };
   });
+
+  // Remember only once the reader has actually seen it through.
+  $: if (settled) {
+    try {
+      sessionStorage.setItem(PLAYED_KEY, '1');
+    } catch {
+      /* storage blocked: they get the sequence again, which is no worse */
+    }
+  }
 </script>
 
 <div class="hero-map">
   {#if live}
-    <MapShell {mapStore} {layerStore} disableUrlSync>
+    <!-- pixelRatio 1: at the screen's own ratio a Retina display asks for about
+         four times the tiles, and this map is scenery, not a reading surface. -->
+    <MapShell {mapStore} {layerStore} disableUrlSync pixelRatio={1}>
       <HeroSequence
         bind:this={seq}
         {mapId}
         {source}
         {overlayOpacity}
+        {immediate}
         on:stage={(e) => (stage = e.detail.index)}
       />
       <FootprintsLayer mapIds={stage >= 2 ? [mapId] : []} status="submitted" />

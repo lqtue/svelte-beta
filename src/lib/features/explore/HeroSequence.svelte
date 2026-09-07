@@ -52,6 +52,12 @@
    * sequence is still in charge — the fade must not fight a value nobody set.
    */
   export let overlayOpacity: number | null = null;
+  /**
+   * Skip the beats and compose the final frame at once. Set on a revisit
+   * within the same tab: the sequence is an introduction, and being introduced
+   * twice is being delayed.
+   */
+  export let immediate = false;
 
   const dispatch = createEventDispatcher<{ stage: { index: number } }>();
   const { map: mapWritable } = getShellContext();
@@ -65,6 +71,8 @@
   /** How long the sheet takes to come up, once its beat starts. */
   const SHEET_MS = 2400;
   const LABELS_MS = 1000;
+  /** Longest the first beat will wait for the map to actually paint. */
+  const PAINT_CAP_MS = 5000;
 
   let olMap: OlMap | null = null;
   let sheet: WarpedMapLayer | null = null;
@@ -133,7 +141,15 @@
       return;
     }
 
-    if (reduced) {
+    // Nothing is claimed until it is on screen. The beats used to start the
+    // moment the annotation parsed, so on a slow connection the caption said
+    // "Saigon, 1882" over an empty frame and "46 plots" over nothing at all.
+    // `rendercomplete` fires when the layers have finished loading for the
+    // current view; the cap is there because a single stalled tile must not
+    // hold the whole page hostage.
+    if (!reduced && !immediate) await waitForPaint(m, PAINT_CAP_MS);
+
+    if (reduced || immediate) {
       (sheet as unknown as { setOpacity(n: number): void }).setOpacity(sheetOpacity);
       m.render();
       setStage(BEATS.length - 1);
@@ -154,6 +170,20 @@
           if (i === 3) fadeLabels();
         }, at)
       );
+    });
+  }
+
+  /** Resolves when OL says the current view has finished loading, or on the cap. */
+  function waitForPaint(m: OlMap, cap: number): Promise<void> {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        resolve();
+      };
+      m.once('rendercomplete', finish);
+      timers.push(window.setTimeout(finish, cap));
     });
   }
 
