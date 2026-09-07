@@ -84,16 +84,22 @@
     } catch {
       points = [];
     }
+    // eslint-disable-next-line svelte/infinite-reactive-loop
     loadedFor = id;
     render();
   }
 
   // Fetch on (map, enabled) change; re-render whenever enabled or points change
   // (referencing both so Svelte tracks them as dependencies).
+  //
+  // `load` writes `loadedFor`, which this statement reads, so it does re-enter
+  // once — and then `mapId !== loadedFor` is false and it stops. The guard is
+  // the termination condition, which the linter cannot see.
+  // eslint-disable-next-line svelte/infinite-reactive-loop
   $: if (enabled && mapId && mapId !== loadedFor) load(mapId);
   $: {
-    enabled;
-    points;
+    void enabled;
+    void points;
     if (source) render();
     if (!enabled && overlay) overlay.setPosition(undefined);
   }
@@ -110,6 +116,10 @@
     );
     if (hit) {
       const label = hit.name ? `№${hit.n} · ${hit.name}` : `№${hit.n}`;
+      // Written straight to the node, not through the template: this runs on
+      // every pointermove over the layer, and a reactive round trip per mouse
+      // move to change one string is not worth it. Nothing else owns this node.
+      // eslint-disable-next-line svelte/no-dom-manipulating
       popupEl.textContent = hit.grid ? `${label}  [${hit.grid}]` : label;
       overlay.setPosition(fromLonLat([hit.lng, hit.lat]));
       olMap.getTargetElement().style.cursor = 'pointer';

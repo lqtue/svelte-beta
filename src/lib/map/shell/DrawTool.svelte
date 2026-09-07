@@ -11,11 +11,6 @@
   import type { Geometry } from 'ol/geom';
   import type { EventsKey } from 'ol/events';
   import { fromLonLat } from 'ol/proj';
-  import Style from 'ol/style/Style';
-  import Stroke from 'ol/style/Stroke';
-  import Fill from 'ol/style/Fill';
-  import CircleStyle from 'ol/style/Circle';
-  import Text from 'ol/style/Text';
 
   import type { DrawingMode, SearchResult } from '$lib/map/types';
   import { DRAW_TYPE_MAP } from '$lib/map/constants';

@@ -139,7 +139,10 @@
     }
   }
 
-  $: (footprints, footprintSource && syncFootprints());
+  $: {
+    void footprints;
+    if (footprintSource) syncFootprints();
+  }
   $: if (iiifInfoUrl && map) loadIIIFImage(iiifInfoUrl);
 
   // ── IIIF loading ──────────────────────────────────────────────────────────

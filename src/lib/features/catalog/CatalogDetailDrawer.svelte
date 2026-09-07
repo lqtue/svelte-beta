@@ -78,7 +78,7 @@
     {/if}
 
     <dl class="meta">
-      {#each fields as [k, v]}
+      {#each fields as [k, v] (k)}
         <div class="meta-row">
           <dt>{k}</dt>
           <dd>

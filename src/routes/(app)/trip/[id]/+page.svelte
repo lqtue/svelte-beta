@@ -47,7 +47,9 @@
   const storyPlayer = createStoryPlayerStore(supabase, ctx.session?.user?.id);
 
   $: storyId = $page.params.id;
-  $: isLoggedIn = !!ctx.session?.user?.id;
+  // `ctx` is captured once from context, so this can never change — a `$:`
+  // here only looked reactive.
+  const isLoggedIn = !!ctx.session?.user?.id;
 
   let story: Story | null = null;
   let mapList: MapListItem[] = [];

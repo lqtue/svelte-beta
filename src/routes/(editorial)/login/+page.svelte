@@ -1,15 +1,10 @@
 <script lang="ts">
   import { getSupabaseContext } from '$lib/data/supabase/context';
-  import { goto } from '$app/navigation';
 
   const { supabase, session } = getSupabaseContext();
 
   let error = '';
   let loading = false;
-
-  $: if (session) {
-    goto('/');
-  }
 
   async function loginWithGoogle() {
     error = '';

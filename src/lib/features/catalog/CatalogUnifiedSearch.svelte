@@ -98,7 +98,7 @@
               }}
             >
               <option value="">All areas</option>
-              {#each $areaChoices as a}
+              {#each $areaChoices as a (a)}
                 <option value={a}>{a}</option>
               {/each}
             </select>
@@ -115,7 +115,7 @@
               }}
             >
               <option value="">All types</option>
-              {#each $typeChoices as t}
+              {#each $typeChoices as t (t)}
                 <option value={t}>{t}</option>
               {/each}
             </select>

@@ -56,7 +56,7 @@
     <section class="facet-group">
       <h4>Period</h4>
       <div class="chips">
-        {#each periods as p}
+        {#each periods as p (p.key)}
           {@const n = (facets.period ?? {})[p.key] ?? 0}
           {@const on = (selected.period ?? []).includes(p.key)}
           <button
@@ -73,12 +73,12 @@
     </section>
   {/if}
 
-  {#each groups as g}
+  {#each groups as g (g.key)}
     {#if g.entries.length}
       <section class="facet-group">
         <h4>{g.title}</h4>
         <div class="chips">
-          {#each g.entries as [val, n]}
+          {#each g.entries as [val, n] (val)}
             {@const on = (selected[g.key] ?? []).includes(val)}
             <button class="chip" class:on on:click={() => toggle(g.key, val)} title={val}>
               <span class="lbl">{labelFor(g.key, val)}</span>

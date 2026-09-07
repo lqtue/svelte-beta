@@ -38,6 +38,10 @@
   }
   $: if (openDrawer === 'none') drawerExpanded = false;
 
+  // Reactive on purpose: the template calls `orderOf(...)`, and a plain function
+  // declaration would not be a dependency, so the drawer buttons would keep the
+  // first `tabOrder` they were rendered with.
+  // eslint-disable-next-line svelte/no-reactive-functions
   $: orderOf = (key: DrawerKey) => {
     const i = tabOrder.indexOf(key);
     return i === -1 ? 99 : i;

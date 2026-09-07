@@ -82,7 +82,7 @@
           </div>
         </div>
         <div class="stack-list">
-          {#each [...layers].reverse() as layer}
+          {#each [...layers].reverse() as layer (layer.id)}
             <div class="layer-card" class:open={expanded[layer.id]}>
               <!-- Header row — click to expand -->
               <button

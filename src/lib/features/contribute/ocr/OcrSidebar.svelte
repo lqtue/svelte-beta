@@ -129,6 +129,7 @@
         runId: filterRunId,
       });
       statusCounts = page.statusCounts;
+      // eslint-disable-next-line svelte/infinite-reactive-loop
       if (page.runIds.length) availableRuns = page.runIds;
       extractions = withEditState(page.extractions);
       // Row element maps are keyed by extraction id — drop the stale keys.
@@ -142,10 +143,14 @@
     }
   }
 
-  // Reset run selection and reload when map changes
+  // Reset run selection and reload when map changes.
+  //
+  // `load()` assigns `availableRuns`, but this statement only *reads* `mapId`,
+  // so `availableRuns` is not one of its dependencies and there is no loop.
   $: if (mapId) {
     filterRunId = '';
     availableRuns = [];
+    // eslint-disable-next-line svelte/infinite-reactive-loop
     load();
   }
 
@@ -355,7 +360,6 @@
         </thead>
         <tbody>
           {#each visible as ext (ext.id)}
-            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <tr
               class="shape-tr status-{ext.status}"
               class:row-selected={ext.id === selectedId}

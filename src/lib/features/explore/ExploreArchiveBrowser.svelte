@@ -67,7 +67,7 @@
         aria-label="Filter by area"
       >
         <option value="">All areas</option>
-        {#each $areaChoices as a}
+        {#each $areaChoices as a (a)}
           <option value={a}>{a}</option>
         {/each}
       </select>
@@ -79,7 +79,7 @@
         aria-label="Filter by map type"
       >
         <option value="">All types</option>
-        {#each $typeChoices as t}
+        {#each $typeChoices as t (t)}
           <option value={t}>{t}</option>
         {/each}
       </select>
@@ -91,7 +91,7 @@
         aria-label="Filter by period"
       >
         <option value="">All periods</option>
-        {#each $periodChoices as p}
+        {#each $periodChoices as p (p.key)}
           <option value={p.key}>{p.label}</option>
         {/each}
       </select>

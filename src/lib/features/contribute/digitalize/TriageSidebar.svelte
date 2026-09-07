@@ -494,7 +494,7 @@
   {#if Object.keys(runs).length > 0}
     <div class="tool-section">
       <div class="tool-section-title">Existing runs</div>
-      {#each Object.entries(runs).reverse() as [rid, info]}
+      {#each Object.entries(runs).reverse() as [rid, info] (rid)}
         <div class="ts-run-row">
           <div class="ts-run-meta">
             <code class="ts-run-id">{rid}</code>

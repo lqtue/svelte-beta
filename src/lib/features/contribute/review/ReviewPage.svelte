@@ -109,7 +109,7 @@
         <div class="state-msg">Queue's clear — no footprints waiting on review.</div>
       {:else}
         <ul class="review-map-list">
-          {#each maps as map}
+          {#each maps as map (map.id)}
             <li>
               <button class="map-card" on:click={() => open(map)}>
                 <span class="map-name">{map.name || map.id}</span>

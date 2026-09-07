@@ -62,7 +62,7 @@
       <div class="posts-section">
         <h2 class="section-title">Earlier posts</h2>
         <div class="posts-grid">
-          {#each olderPosts as post}
+          {#each olderPosts as post (post.slug)}
             <a href="/blog/{post.slug}" class="post-card">
               <div class="post-meta">
                 <span class="cat-chip" style="background: {CATEGORY_COLORS[post.category]}">

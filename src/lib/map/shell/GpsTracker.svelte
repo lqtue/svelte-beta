@@ -6,7 +6,6 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-  import { get } from 'svelte/store';
   import Feature from 'ol/Feature';
   import LineString from 'ol/geom/LineString';
   import Point from 'ol/geom/Point';

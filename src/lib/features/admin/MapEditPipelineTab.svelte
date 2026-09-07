@@ -276,12 +276,12 @@
               ? ''
               : 's'}.
           </p>
-          {#each Object.entries(ocrStatus.runs) as [rid, info]}
+          {#each Object.entries(ocrStatus.runs) as [rid, info] (rid)}
             <div class="ocr-run-row">
               <code class="ocr-run-id">{rid}</code>
               <span class="ocr-run-n">{info.n} items</span>
               <div class="ocr-cats">
-                {#each Object.entries(info.categories) as [cat, n]}
+                {#each Object.entries(info.categories) as [cat, n] (cat)}
                   <span class="ocr-cat-chip">{cat}: {n}</span>
                 {/each}
               </div>

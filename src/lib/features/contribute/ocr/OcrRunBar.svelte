@@ -38,7 +38,7 @@
         aria-label="Select run"
       >
         <option value="">All runs</option>
-        {#each runs as r}
+        {#each runs as r (r)}
           <option value={r}>{r}</option>
         {/each}
       </select>

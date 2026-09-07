@@ -232,7 +232,7 @@
           <select bind:value={filterSource} on:change={applyFilters}>
             <option value="">— all —</option>
             {#if facets?.source}
-              {#each Object.entries(facets.source) as [s, n]}
+              {#each Object.entries(facets.source) as [s, n] (s)}
                 <option value={s}>{s} ({n})</option>
               {/each}
             {/if}
@@ -243,7 +243,7 @@
           <select bind:value={filterCategory} on:change={applyFilters}>
             <option value="">— all —</option>
             {#if facets?.category}
-              {#each Object.entries(facets.category) as [c, n]}
+              {#each Object.entries(facets.category) as [c, n] (c)}
                 <option value={c}>{c} ({n})</option>
               {/each}
             {/if}

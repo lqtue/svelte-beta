@@ -171,16 +171,16 @@
   }
 
   $: {
-    extractions;
-    selectedId;
-    filteredIds;
-    isolationMode;
-    bboxSource && syncFeatures();
+    void extractions;
+    void selectedId;
+    void filteredIds;
+    void isolationMode;
+    if (bboxSource) syncFeatures();
   }
   $: {
-    selectedId;
-    extractions;
-    rectEditor && syncHandles();
+    void selectedId;
+    void extractions;
+    if (rectEditor) syncHandles();
   }
 
   // Toggle draw mode: disable select/translate, enable Draw interaction

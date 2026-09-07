@@ -135,6 +135,11 @@
       {#if preset === 'custom'}
         <label class="field">
           <span class="field-label">Overpass QL (statement body only)</span>
+          <!-- The placeholder stays a mustache: its value contains double quotes,
+            and as a plain attribute prettier renormalises the surrounding quotes
+            to double ones, which stops the file parsing. eslint's
+            no-useless-mustaches does not apply here. -->
+          <!-- eslint-disable-next-line svelte/no-useless-mustaches -->
           <textarea
             rows="4"
             bind:value={customQuery}

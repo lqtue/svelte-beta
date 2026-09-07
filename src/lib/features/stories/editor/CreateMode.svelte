@@ -519,7 +519,7 @@
       <svelte:fragment slot="mobile-browse">
         <div class="mobile-pane">
           <CatalogSidebarPanel
-            role={'user'}
+            role="user"
             activeId={selectedMap?.id ?? null}
             requireGeoref={true}
             showLayerActions={true}

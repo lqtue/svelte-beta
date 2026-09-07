@@ -7,7 +7,7 @@
   initialise from the current viewport.
 -->
 <script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { onDestroy, createEventDispatcher } from 'svelte';
   import VectorLayer from 'ol/layer/Vector';
   import VectorSource from 'ol/source/Vector';
   import Feature from 'ol/Feature';

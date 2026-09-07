@@ -50,6 +50,10 @@
       </header>
 
       <div class="article-body">
+        <!-- post.content comes from src/routes/(editorial)/blog/posts.ts, a
+          committed module. No user input reaches this, so there is nothing to
+          sanitise; if posts ever come from the database, this must change. -->
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         {@html post.content}
       </div>
 
@@ -83,7 +87,7 @@
         <div class="sidebar-card">
           <h3 class="sidebar-title">More posts</h3>
           <div class="other-posts">
-            {#each otherPosts as p}
+            {#each otherPosts as p (p.slug)}
               <a href="/blog/{p.slug}" class="other-post">
                 <span class="other-cat" style="background: {CATEGORY_COLORS[p.category]}"></span>
                 <div class="other-post-info">

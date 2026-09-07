@@ -124,7 +124,7 @@
       </tr>
     </thead>
     <tbody>
-      {#each groups as g}
+      {#each groups as g (g.label)}
         {#if g.label !== null}
           <tr class="group-row" on:click={() => toggleGroup(g.label)}>
             <td colspan="7">

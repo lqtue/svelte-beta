@@ -22,7 +22,6 @@
     destroyWarpedLayer,
     loadOverlayByUrl,
     setOverlayOpacity,
-    clearOverlay,
     applyClipMask,
   } from './warpedOverlay';
   import { layersStore, type OverlayLayer, type LayerRef } from '$lib/map/stores/layersStore';

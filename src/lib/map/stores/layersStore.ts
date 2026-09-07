@@ -55,7 +55,6 @@ export interface LayersState {
 
 const STORAGE_KEY = 'vma-layers-v1';
 const DEFAULT_BASE: BasemapRef = { kind: 'basemap', key: 'g-streets' };
-const DEFAULT: LayersState = { base: DEFAULT_BASE, overlays: [] };
 const MAX_OVERLAYS = 10;
 
 function load(): LayersState {

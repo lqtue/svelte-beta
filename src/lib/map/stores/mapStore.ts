@@ -5,7 +5,7 @@
  * so that deep-link handoffs preserve the exact camera position.
  */
 
-import { writable, derived, get, type Readable } from 'svelte/store';
+import { writable, get, type Readable } from 'svelte/store';
 import { fromLonLat } from 'ol/proj';
 
 // ── Types ────────────────────────────────────────────────────────────
