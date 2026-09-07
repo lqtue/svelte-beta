@@ -146,6 +146,9 @@ def _print(kind: str, r: dict, iou: float) -> None:
     print(f"  precision {r['precision']}   recall {r['recall']}   f1 {r['f1']}   mean_iou {r['mean_iou']}")
     if "char_acc" in r:
         print(f"  char_acc {r['char_acc']}")
+    if "text_recall_03" in r:
+        print(f"  text_recall@0.3 {r['text_recall_03']} ({r['n_text_found_03']}/{r['n_gt']} GT read "
+              f"correctly by some prediction overlapping at IoU>=0.3 — detection, box convention aside)")
     if "diacritic_rate" in r:
         dr = r["diacritic_recall"]
         print(f"  diacritic_rate {r['diacritic_rate']} (of all predictions)   "

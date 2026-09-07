@@ -132,6 +132,20 @@ def score_ocr(preds: list[dict], gts: list[dict], iou_thresh: float = 0.5) -> di
     # from a bad one at a glance — 9% of labels carrying any diacritic in one run,
     # 100% in another, on the same sheets — and no other metric here sees it.
     # `rate` needs no ground truth, so it also works on a sheet with none.
+    # Detection, separated from box convention. The gate at IoU 0.5 against
+    # hand-drawn GT boxes loses labels whose text is exact but whose box sits at
+    # IoU 0.3-0.5 (POUDRIERE, ABATTOIR, MARCHE CENTRAL on the 1882 sheet). This
+    # counts a GT as *found* if any prediction overlaps it at 0.3 and reads it at
+    # char_sim >= 0.9 — what a reviewer would call "the model saw it".
+    found = 0
+    for g in gts:
+        gb = tuple(g["bbox"])
+        if any(box_iou(tuple(p["bbox"]), gb) >= 0.3 and char_sim(p["text"], g["text"]) >= 0.9
+               for p in preds):
+            found += 1
+    out["text_recall_03"] = round(found / len(gts), 4) if gts else 0.0
+    out["n_text_found_03"] = found
+
     out["diacritic_rate"] = round(
         sum(has_diacritic(p["text"]) for p in preds) / len(preds), 4) if preds else 0.0
     dia = [(pi, gi) for pi, gi, _ in matches if has_diacritic(gts[gi]["text"])]
