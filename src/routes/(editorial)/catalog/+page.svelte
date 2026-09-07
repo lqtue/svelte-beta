@@ -47,14 +47,14 @@
   <title>Catalog — Vietnam Map Archive</title>
   <meta
     name="description"
-    content="Every historical map in the archive — georeferenced, searchable, free to download."
+    content="Every historical map in the archive — georeferenced, searchable, and linked back to the library or collection that holds the scan."
   />
 </svelte:head>
 
 <div class="page catalog-page" class:mounted>
   <PageHero
     eyebrow="Collection"
-    sub="Every historical map in the archive — georeferenced, searchable, free to download."
+    sub="Every historical map in the archive — georeferenced, searchable, and linked back to the library or collection that holds the scan."
   >
     <svelte:fragment slot="title">The <span class="text-highlight">Archive.</span></svelte:fragment>
     <div slot="actions">

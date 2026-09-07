@@ -19,14 +19,14 @@
   <title>Contribute — Vietnam Map Archive</title>
   <meta
     name="description"
-    content="Trace buildings, georeference maps, and review AI output. Anyone with an account can contribute to the Vietnam Map Archive."
+    content="Trace buildings, georeference maps, and check the OCR's reading. Anyone with an account can contribute to the Vietnam Map Archive — the queues are short and the work is real."
   />
 </svelte:head>
 
 <div class="page" class:mounted>
   <PageHero
     eyebrow="Open contribution"
-    sub="Trace a building, anchor a scan, or check the AI's work. Anyone with an account can contribute — an admin reviews and publishes what's ready."
+    sub="Trace a building, anchor a scan, or check what the OCR read. Anyone with an account can contribute; an admin reviews before anything is published. There are only a handful of us, so a single afternoon's work is a visible share of the whole."
   >
     <svelte:fragment slot="title">
       Build the archive<br />
@@ -41,8 +41,8 @@
           <div>
             <h2 class="section-title-sm">OCR &amp; Triage</h2>
             <p class="section-desc">
-              Crop a map's neatline, set tile priorities, and validate the toponyms our pipeline
-              extracts. Feeds the SAM2 segmentation step.
+              Crop a map's neatline, set tile priorities, and check the place names the OCR pass
+              read off the sheet. 1,767 labels are waiting; 43 have been checked so far.
             </p>
           </div>
         </div>
@@ -54,8 +54,8 @@
           <div>
             <h2 class="section-title-sm">Trace buildings</h2>
             <p class="section-desc">
-              Outline buildings, roads, and waterways on a georeferenced map. Every shape goes into
-              the open dataset.
+              Outline buildings, roads, and waterways on a georeferenced map. 46 shapes have been
+              traced so far, all on the 1882 cadastral survey.
             </p>
           </div>
         </div>
@@ -81,8 +81,8 @@
             <div>
               <h2 class="section-title-sm">Review footprints</h2>
               <p class="section-desc">
-                Approve or reject building traces from volunteers and the SAM2 pipeline. Mods and
-                admins only.
+                Approve or reject building traces from volunteers and the SAM2 pipeline. Nothing is
+                approved yet. Mods and admins only.
               </p>
             </div>
           </div>

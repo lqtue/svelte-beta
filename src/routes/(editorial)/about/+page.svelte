@@ -20,23 +20,23 @@
   <title>About — Vietnam Map Archive</title>
   <meta
     name="description"
-    content="Vietnam Map Archive is rebuilding Saigon's urban history as a time-layered, georeferenced digital city — starting with 1880–1930 French colonial Saigon."
+    content="Vietnam Map Archive is a small volunteer project putting historical maps of Saigon, Huế and Hanoi on real coordinates and reading what is printed on them. 39 sheets are placed; the rest of the plan is honest about being a plan."
   />
 </svelte:head>
 
 <div class="page about-page" class:mounted>
   <PageHero
     eyebrow="About the project"
-    sub="We started in Saigon — the city we know, live in, and have the best archives for. The 1880–1930 French colonial period is the testbed: the most documented, most transformative, most underserved window in the city's history. Once the method works here, it travels. Vietnam next. Then any city with a map archive and a community that cares."
+    sub="We started in Saigon — the city we know, live in, and have the best archives for. The 1880–1930 French colonial period is the testbed: well documented, sharply transformative, and badly served online. If the method works here it should travel, though that is a hope rather than a result. Everything below marks what is actually done and what is still a plan."
   >
     <svelte:fragment slot="title">
-      The city disappears<br />into the past.<br />
-      <span class="text-highlight">We bring it back.</span>
+      Old maps of Saigon,<br />
+      <span class="text-highlight">put back in place.</span>
     </svelte:fragment>
     <div class="hero-badges">
       <span class="badge-chip chip-green">Featured in Saigoneer Jan 2026</span>
       <span class="badge-chip chip-blue">Open Source · CC-BY · ODbL</span>
-      <span class="badge-chip chip-yellow">Forkable · Community-driven</span>
+      <span class="badge-chip chip-yellow">Forkable · Open to contributions</span>
     </div>
   </PageHero>
 
@@ -72,9 +72,11 @@
           <div>
             <h2 class="section-title-sm">What we're building</h2>
             <p class="section-desc">
-              Six layers, each one resting on the one below — from maps pinned to real coordinates
-              up to a walkable 3D city with family memories attached. Click any layer to see what's
-              done and what's next.
+              Six layers, each resting on the one below — from maps pinned to real coordinates up to
+              a walkable city with family memories attached. Only the first has much in it; the
+              upper four are research and design, not software. Click any layer to see what is
+              genuinely done, what is moving, and what is still only a plan. The percentages are our
+              own rough estimates, not measurements.
             </p>
           </div>
         </div>
@@ -186,19 +188,21 @@
           <div>
             <h2 class="section-title-sm">How this stays alive</h2>
             <p class="section-desc">
-              Not a startup. Not a closed archive. Public infrastructure for historical memory —
-              open, honest, designed to still be useful in 50 years.
+              Not a startup, not a closed archive, and not yet funded. The intent is public
+              infrastructure for historical memory — open, honest about its own state, and designed
+              to still be useful in 50 years.
             </p>
           </div>
         </div>
         <div class="model-grid">
           <div class="model-item">
-            <h4>Community-built, like OSM and Wikipedia</h4>
+            <h4>Built the way OSM and Wikipedia are built</h4>
             <p>
-              No central authority decides what's true. Anyone can add a fact, trace a building, or
-              correct a mistake — with a citation. Disputes are resolved by evidence. The archive
-              belongs to whoever uses it. This is the model that produced OpenStreetMap and
-              Wikipedia; VMA applies it to historical city data.
+              No central authority decides what's true: anyone can trace a building, correct a
+              mistake or add a fact with a citation, and disputes are settled by evidence. That is
+              the model we have chosen and built the tools for. It is not yet the model in practice
+              — the contributor count is in single figures, and the review queues are nearly empty
+              because almost nobody has filled them.
             </p>
           </div>
           <div class="model-item">
@@ -210,19 +214,21 @@
             </p>
           </div>
           <div class="model-item">
-            <h4>Community trains the AI, AI helps the community</h4>
+            <h4>People and the model check each other</h4>
             <p>
-              Contributors trace buildings; those traces train better AI detectors; better detectors
-              reduce the work for the next contributor. The community and the AI improve each other
-              in a loop — the same principle behind OSM's machine-assisted mapping tools.
+              The design is a loop: contributors trace buildings, those traces sharpen the detector,
+              and a sharper detector leaves less work for the next contributor. Both halves exist —
+              a tracing tool and a fine-tuned SAM2 fork — but the loop has not closed yet, because
+              it needs a volume of reviewed shapes we do not have.
             </p>
           </div>
           <div class="model-item">
-            <h4>Grant-funded (Phase 1–2)</h4>
+            <h4>Hoping to be grant-funded (Phase 1–2)</h4>
             <p>
-              Confirmed fit targets: French Institute, EFEO partnership, Wikimedia Foundation, Asia
-              Foundation, NEH (with US university partner). Not chasing every grant — building one
-              strong application at a time.
+              Nothing is funded today; the work so far is unpaid. Grants that look like a fit, none
+              of them applied for and won yet: the French Institute, an EFEO partnership, the
+              Wikimedia Foundation, the Asia Foundation, the NEH with a US university partner. One
+              strong application at a time rather than a scattergun.
             </p>
           </div>
         </div>
@@ -234,25 +240,26 @@
       <div class="cta-card">
         <h2 class="cta-title">Get involved</h2>
         <p class="cta-desc">
-          VMA runs on the OpenStreetMap and Wikipedia model — open data, community-verified,
-          permanently attributed. No single organisation controls it. Every traced building, cited
-          source, and added fact lands in a shared public record anyone can use, correct, or build
-          on.
+          VMA follows the OpenStreetMap and Wikipedia model — open data, community-verified,
+          permanently attributed, controlled by no single organisation. The archive is small enough
+          that one person's afternoon is a visible share of it, which is either the discouraging
+          part or the appealing one.
         </p>
         <div class="cta-grid">
           <div class="cta-role">
             <h4>Trace the city</h4>
             <p>
-              Draw building outlines on historical maps — same skills as OSM tracing. Every shape
-              goes into the open dataset.
+              Draw building outlines on historical maps — the same skills as OSM tracing. 46 shapes
+              exist so far, all on one sheet. Yours would be visible in the total.
             </p>
             <a href="/scan?mode=trace" class="role-btn">Start tracing</a>
           </div>
           <div class="cta-role">
             <h4>Write the history</h4>
             <p>
-              Once buildings are in the archive, each one gets a page — add what you know, cite a
-              source, the same way you'd edit Wikipedia.
+              Once buildings are in the archive each one gets a page, to be edited the way you would
+              edit Wikipedia. That is not built yet, so this is an invitation to help shape it
+              rather than to start writing.
             </p>
             <a href="mailto:vietnamma.project@gmail.com" class="role-btn"
               >Join the historian group</a
@@ -261,16 +268,18 @@
           <div class="cta-role">
             <h4>Adopt a building</h4>
             <p>
-              Take a landmark building from flat footprint to detailed 3D model — collect archival
-              photos, submit a mesh, get permanent credit.
+              Take a landmark from flat footprint to detailed 3D model — collect archival
+              photographs, submit a mesh, keep permanent credit. Nobody has done one yet, so the
+              first would be setting the pattern.
             </p>
             <a href="mailto:vietnamma.project@gmail.com" class="role-btn">Get in touch</a>
           </div>
           <div class="cta-role">
             <h4>Fund the work</h4>
             <p>
-              No pitch deck needed. Read the roadmap. If you see a fit — university partnership,
-              heritage grant, institutional collaboration — write us.
+              No pitch deck. Read the roadmap above, including the parts that say a layer has not
+              started. If you still see a fit — university partnership, heritage grant,
+              institutional collaboration — write to us.
             </p>
             <a href="mailto:vietnamma.project@gmail.com" class="role-btn">Contact us</a>
           </div>
@@ -285,15 +294,13 @@
           <span class="latest-chip">Latest update</span>
           <a href="/blog" class="all-updates-link">All updates</a>
         </div>
-        <h3 class="latest-title">March 2026 — first buildings out of the 1882 map</h3>
+        <h3 class="latest-title">May 2026 — rebuilding the viewer around the layer stack</h3>
         <p class="latest-excerpt">
-          A zero-shot SAM pipeline on IIIF tiles pulled 91 city blocks out of the 1882 Saigon
-          cadastral survey — no training data required. The 1881 and 1901 painting–map pairs are now
-          confirmed as the height-calibration source for the 3D pipeline.
+          The most recent written update. Since then the work has been unglamorous: route and
+          interface cleanup, an OCR pass across a few more sheets, and a review queue that needs
+          people more than it needs code. The next update is overdue.
         </p>
-        <a href="/blog/buildings-as-ground-control" class="action-btn primary-btn"
-          >Read the update</a
-        >
+        <a href="/blog/layer-stack-2026-05" class="action-btn primary-btn">Read the update</a>
       </div>
     </section>
   </main>

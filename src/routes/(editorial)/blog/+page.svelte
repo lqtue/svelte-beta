@@ -37,7 +37,7 @@
   <PageHero
     eyebrow="Field notes"
     title="Updates from the archive"
-    sub="Monthly digests, research notes, and announcements. No newsletter — everything lives here."
+    sub="Research notes and updates, written when there is something worth reporting rather than on a schedule — so the gaps are real. No newsletter; everything lives here."
   />
 
   <main class="main">

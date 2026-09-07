@@ -20,6 +20,13 @@
   let favoriteIds: string[] = [];
   let filterCollection: 'featured' | 'favorites' = 'featured';
 
+  // Counts quoted in the copy below. `mapCount` is live — the catalog is already
+  // being fetched, so there is no reason to hardcode a number that goes stale.
+  // The pipeline figures are a dated snapshot; refresh them when they embarrass
+  // us, which is the point of putting them on the front page.
+  const STATS = { snapshot: 'September 2026', labels: 1767, labelsChecked: 43, footprints: 46 };
+  $: mapCount = maps.length || 39;
+
   // sessionStorage cache so a 404 (un-georeferenced map) isn't refetched on reload
   const THUMB_CACHE_KEY = 'vma-thumb-cache-v1';
   function readThumbCache(): Record<string, string | null> {
@@ -158,7 +165,7 @@
   <title>Vietnam Map Archive — Saigon's historical maps, open and georeferenced</title>
   <meta
     name="description"
-    content="A volunteer-built archive of Saigon's historical maps — georeferenced, traced, and released as open data under CC-BY."
+    content="A small volunteer archive of historical maps of Saigon, Huế and Hanoi. 39 sheets are georeferenced and readable in a browser; tracing and label work have only just started."
   />
 </svelte:head>
 
@@ -174,9 +181,10 @@
         Vietnam<br /><span class="text-highlight">Map Archive</span>
       </h1>
       <p class="hero-subtitle">
-        A volunteer archive of Saigon's historical maps, georeferenced so each sheet sits over the
-        city that replaced it. Building footprints and street names are traced by hand, reviewed by
-        a person, and published as open data.
+        A small volunteer archive of historical maps of Saigon, Huế and Hanoi. {mapCount} sheets, from
+        1791 to 1968, are georeferenced — each one sits over the city that replaced it, in a browser,
+        with no specialist software. Reading the names off them and tracing what they show is early work,
+        and mostly still ahead of us.
       </p>
     </div>
   </header>
@@ -193,8 +201,9 @@
           <div class="feature-content-full">
             <h2 class="feature-title">The Catalog</h2>
             <p class="feature-description">
-              Every map in the archive. Browse the catalog, stack historical layers on today's city,
-              or inspect the high-resolution IIIF scans up close.
+              Every map in the archive. Browse the catalog, stack historical layers over today's
+              city, or inspect the high-resolution IIIF scans up close. Each record links back to
+              the library or collection that holds the scan.
             </p>
           </div>
         </div>
@@ -299,9 +308,10 @@
         <div class="feature-card hover-lift">
           <h2 class="feature-title">Contribute</h2>
           <p class="feature-description">
-            The archive is built by volunteers. Trace a building, crop a map for OCR, or anchor a
-            scan to today's coordinates — every contribution is attributed and released as open
-            data.
+            The archive is built by volunteers, and there are not many of us yet. Trace a building,
+            crop a map for OCR, or anchor a scan to today's coordinates. Your name stays on what you
+            submit, and the plan is to release all of it openly once there is enough to be worth
+            releasing.
           </p>
           <div class="micro-links">
             <a href="/scan?mode=triage" class="micro-link-card">
@@ -337,20 +347,22 @@
       <section class="info-card">
         <h2 class="info-title">About the project</h2>
         <p class="info-desc">
-          We're pulling every building out of colonial Saigon's historical maps — automatically, in
-          the open, with volunteer review. The 1882 and 1898 surveys are where it starts. Released
-          under CC-BY / ODbL.
+          The aim is to get the buildings and street names out of colonial Saigon's maps and into
+          open data, with a person checking the machine's work. The 1882 cadastral survey is where
+          it starts, and where most of the work so far sits. Everything published will be CC-BY /
+          ODbL.
         </p>
-        <a href="/about" class="info-link">Project overview</a>
+        <a href="/about" class="info-link">What's actually done</a>
       </section>
 
       <section class="info-card">
-        <h2 class="info-title">Latest update</h2>
-        <p class="info-title-sm">April 2026 — SAM2 running on the 1882 survey</p>
+        <h2 class="info-title">Where things stand</h2>
+        <p class="info-title-sm">{STATS.snapshot}</p>
         <p class="info-desc">
-          Zero-shot SAM2 segmentation is live on the 1882 Saigon cadastral survey. City blocks are
-          out; building footprints are in progress. Volunteers are reviewing the polygons as they
-          land.
+          The OCR pass has read {STATS.labels.toLocaleString('en')} labels off six sheets; {STATS.labelsChecked}
+          of them have been checked by a person, so that queue is barely started. {STATS.footprints} building
+          outlines have been traced on the 1882 cadastral survey, and none are approved yet. The last
+          written update was in May.
         </p>
         <a href="/blog" class="info-link">All updates</a>
       </section>
