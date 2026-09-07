@@ -278,6 +278,11 @@
           <button class="btn btn-outline btn-xs">Extra small</button>
           <button class="btn btn-primary" disabled>Disabled</button>
         </div>
+        <h3 class="sc-h3">.cmp-btn — the 22px row toggle</h3>
+        <div class="sc-row">
+          <button class="cmp-btn" aria-label="Add to comparison">+</button>
+          <button class="cmp-btn on" aria-label="Remove from comparison">✓</button>
+        </div>
       </section>
 
       <section class="sc-section">

@@ -210,16 +210,16 @@
     {/if}
 
     <div class="actions">
-      <button type="button" class="action-btn" disabled={currentIndex <= 0} on:click={goPrev}
+      <button type="button" class="trip-action" disabled={currentIndex <= 0} on:click={goPrev}
         >← Prev</button
       >
 
       {#if !isCurrentVisited}
-        <button type="button" class="action-btn is-primary" on:click={markVisited}
+        <button type="button" class="trip-action is-primary" on:click={markVisited}
           >Mark visited</button
         >
       {:else}
-        <button type="button" class="action-btn is-primary" on:click={goNext}>
+        <button type="button" class="trip-action is-primary" on:click={goNext}>
           {currentIndex < total - 1 ? 'Next →' : 'Finish →'}
         </button>
       {/if}
@@ -435,7 +435,7 @@
     gap: 0.4rem;
     align-items: stretch;
   }
-  .action-btn {
+  .trip-action {
     flex: 1;
     padding: 0.7rem 0.6rem;
     border: var(--border-thin);
@@ -447,15 +447,15 @@
     cursor: pointer;
     box-shadow: var(--shadow-solid-xs);
   }
-  .action-btn:active {
+  .trip-action:active {
     transform: translate(2px, 2px);
     box-shadow: 0 0 0 var(--color-border);
   }
-  .action-btn:disabled {
+  .trip-action:disabled {
     opacity: 0.45;
     cursor: not-allowed;
   }
-  .action-btn.is-primary {
+  .trip-action.is-primary {
     background: var(--sb-accent);
     color: var(--color-white);
     flex: 1.4;

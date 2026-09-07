@@ -72,8 +72,8 @@
   {/if}
 
   <div class="actions">
-    <button type="button" class="btn is-primary" on:click={handleShare}>Share</button>
-    <button type="button" class="btn is-ghost" on:click={() => dispatch('done')}>Done</button>
+    <button type="button" class="trip-btn is-primary" on:click={handleShare}>Share</button>
+    <button type="button" class="trip-btn is-ghost" on:click={() => dispatch('done')}>Done</button>
   </div>
 </div>
 
@@ -153,7 +153,7 @@
     display: flex;
     gap: 0.5rem;
   }
-  .btn {
+  .trip-btn {
     flex: 1;
     padding: 0.85rem 0.8rem;
     border-radius: 12px;
@@ -164,15 +164,15 @@
     cursor: pointer;
     box-shadow: 3px 3px 0 var(--color-border);
   }
-  .btn.is-primary {
+  .trip-btn.is-primary {
     background: var(--sb-accent);
     color: var(--color-white);
   }
-  .btn.is-ghost {
+  .trip-btn.is-ghost {
     background: var(--color-white);
     color: var(--color-text);
   }
-  .btn:active {
+  .trip-btn:active {
     transform: translate(2px, 2px);
     box-shadow: 1px 1px 0 var(--color-border);
   }

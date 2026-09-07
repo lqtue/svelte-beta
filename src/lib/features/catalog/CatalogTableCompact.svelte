@@ -140,36 +140,6 @@
     color: var(--sb-text-muted);
   }
 
-  .cmp-btn {
-    flex-shrink: 0;
-    width: 22px;
-    height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-white);
-    color: var(--color-text);
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-pill);
-    font: inherit;
-    font-family: var(--font-family-base);
-    font-size: 0.9rem;
-    font-weight: var(--font-extrabold);
-    line-height: 1;
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .cmp-btn:hover {
-    background: var(--sb-accent-yellow);
-  }
-
-  .cmp-btn.on {
-    background: var(--color-text);
-    color: var(--color-white);
-    font-size: 0.75rem;
-  }
-
   .scout-row {
     background: var(--sb-scout-bg);
   }

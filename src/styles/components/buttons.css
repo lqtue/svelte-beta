@@ -17,6 +17,9 @@
               IIIF tools, where a pill would eat the bar.
 
      ICON     `.ctrl-btn` — 48px round. The floating map controls.
+              `.cmp-btn`  — 22px round. The add-to-comparison toggle in a
+                            catalog row; it was defined identically in both
+                            catalog tables until Sept 2026.
 
    The four pill names are kept rather than collapsed into one because ~60
    files use them and a rename would be a diff nobody could review. They now
@@ -277,4 +280,35 @@
 .ctrl-btn.active {
   background: var(--color-blue);
   color: var(--color-white);
+}
+
+/* ── Icon: the 22px row toggle ───────────────────────────────────────────────
+   Sits inside a `.data-table` cell, so it carries no shadow and no lift —
+   either would reach into the row below. `.on` is the pressed state. */
+.cmp-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--color-white);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-family: var(--font-family-base);
+  font-size: 0.9rem;
+  font-weight: var(--font-extrabold);
+  line-height: 1;
+  cursor: pointer;
+}
+.cmp-btn:hover {
+  background: var(--sb-accent-yellow);
+}
+.cmp-btn.on {
+  background: var(--color-text);
+  color: var(--color-white);
+  font-size: 0.75rem;
 }

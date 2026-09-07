@@ -37,7 +37,7 @@
     {/if}
 
     <div class="auth-options">
-      <button class="auth-btn google-btn" on:click={loginWithGoogle} disabled={loading}>
+      <button class="chip auth-btn" on:click={loginWithGoogle} disabled={loading}>
         <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
           <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -119,40 +119,14 @@
     gap: 1rem;
   }
 
+  /* A `.chip` (buttons.css) at page-CTA size. Only the four properties this
+     page actually wants differently are set here. */
   .auth-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
+    --btn-text: 1rem;
+    --btn-weight: var(--font-extrabold);
+    --btn-pad: 0.875rem 1.25rem;
     width: 100%;
-    padding: 0.875rem 1.25rem;
-    border: var(--border-thick);
-    border-radius: var(--radius-pill);
-    font-family: var(--font-family-display);
-    font-size: 1rem;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.1s;
-    box-shadow: var(--shadow-solid-sm);
     text-transform: uppercase;
-    background: var(--color-white);
-    color: var(--color-text);
-  }
-
-  .auth-btn:hover:not(:disabled) {
-    transform: translate(-2px, -2px);
-    box-shadow: var(--shadow-solid);
-    background: var(--color-bg);
-  }
-
-  .auth-btn:active:not(:disabled) {
-    transform: translate(2px, 2px);
-    box-shadow: 0 0 0 var(--color-border);
-  }
-
-  .auth-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .auth-notice {

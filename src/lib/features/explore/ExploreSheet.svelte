@@ -26,8 +26,8 @@
     elsewhere, or suggest a source we should add.
   </p>
   <div class="actions">
-    <a class="btn primary" href={scoutHref}>Suggest a map here</a>
-    <button type="button" class="btn ghost" on:click={() => dispatch('jumpToSaigon')}>
+    <a class="sheet-btn primary" href={scoutHref}>Suggest a map here</a>
+    <button type="button" class="sheet-btn ghost" on:click={() => dispatch('jumpToSaigon')}>
       Jump to Saigon
     </button>
   </div>
@@ -77,7 +77,7 @@
     gap: 0.5rem;
     flex-wrap: wrap;
   }
-  .btn {
+  .sheet-btn {
     flex: 1;
     padding: 0.55rem 0.7rem;
     border: var(--border-thin);
@@ -91,14 +91,14 @@
     box-shadow: var(--shadow-solid-xs);
     color: var(--sb-text);
   }
-  .btn.primary {
+  .sheet-btn.primary {
     background: var(--sb-accent-warm);
     color: var(--color-white);
   }
-  .btn.ghost {
+  .sheet-btn.ghost {
     background: var(--sb-card-bg);
   }
-  .btn:active {
+  .sheet-btn:active {
     transform: translate(2px, 2px);
     box-shadow: none;
   }

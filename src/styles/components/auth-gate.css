@@ -40,25 +40,10 @@
   opacity: 0.8;
 }
 
-.auth-gate-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
+/* The sign-in button is a `.chip` (buttons.css) — shape, hover and focus all
+   come from there. Only its width is particular to this card. */
+.auth-gate-card .chip {
+  --btn-font: var(--font-family-base);
+  --btn-pad: 0.75rem;
   width: 100%;
-  padding: 0.75rem;
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-pill);
-  font-family: var(--font-family-base);
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: var(--shadow-solid-xs);
-  transition: transform 0.1s;
-}
-
-.auth-gate-btn:hover {
-  background: var(--color-yellow);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-solid-sm);
 }
