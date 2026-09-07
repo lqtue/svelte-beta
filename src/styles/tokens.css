@@ -1,28 +1,47 @@
 :root {
   /* ========================================
-     NEO-BRUTALIST PALETTE
+     PLATE-TONE PALETTE
+
+     Taken off the sheets themselves rather than from a UI kit. A lithographed
+     survey map is ink on paper that has aged to a grey-buff, so the ground is
+     `--color-bg` — cooler and darker than a cream, which is what stops the
+     page reading as a wellness brand. Card stock (`--color-white`) is a shade
+     lighter than the page, the way a mounted sheet sits on a backing board.
+
+     The accents keep their functional jobs — blue is active, yellow is hover,
+     green is success, red is danger — because a palette that loses those
+     distinctions is a downgrade, not a polish. What changed is the register:
+     every one is pulled from candy saturation to a printable ink, and each was
+     checked against both surfaces for WCAG AA before it went in (white on
+     each: red 6.4, blue 7.1, green 6.2, orange 4.8, purple 7.6; ink on
+     yellow 9.0; ink on paper 14.1).
      ======================================== */
-  --color-bg: #faf6f0;
-  --color-text: #111111;
-  --color-border: #111111;
-  --color-white: #ffffff;
+  --color-bg: #eae7e0; /* plate tone — the sheet */
+  --color-text: #1a1a17; /* lithographic black, warm, never #000 */
+  --color-border: #1a1a17;
+  --color-white: #f7f5f0; /* card stock, not paper-white */
 
-  --color-primary: #ff4d4d;
-  --color-blue: #4d94ff;
-  --color-yellow: #ffd23f;
-  --color-green: #00cc99;
-  --color-orange: #ff8c42;
-  --color-purple: #9d4edd;
+  --color-primary: #a63a2b; /* the administrative overprint — use it once */
+  --color-blue: #2f5d78; /* ink blue — active, selected */
+  --color-yellow: #e0b544; /* ochre — hover */
+  --color-green: #3d6b4a; /* plate green — success */
+  --color-orange: #a85f2b; /* burnt sienna — warning */
+  --color-purple: #5a4b80; /* indigo — the fifth thing */
 
-  /* Legacy mappings for compatibility */
+  /* Hairline weight, for a rule that has to read as printed rather than as a
+     UI divider. 3.6:1 on the page, so it clears the UI-boundary floor. */
+  --rule: #7d7869;
+
+  /* Legacy mappings for compatibility. The greys were a cool blue-grey ramp,
+     which fights a warm ground; they are warmed to the same paper family. */
   --color-primary-600: var(--color-blue);
-  --color-primary-700: #3b71ca;
+  --color-primary-700: #27506a;
   --color-gray-900: var(--color-text);
   --color-gray-50: var(--color-bg);
-  --color-gray-100: #f3f4f6;
-  --color-gray-300: #d1d5db;
-  --color-gray-400: #9ca3af;
-  --color-gray-500: #6b7280;
+  --color-gray-100: #e2ded5;
+  --color-gray-300: #c4bfb2;
+  --color-gray-400: #a09a8b;
+  --color-gray-500: #66614f; /* meta text — 5.0 on the page, 5.7 on a card */
   --color-success-600: var(--color-green);
   --color-warning-600: var(--color-orange);
   --color-error-600: var(--color-primary);
@@ -87,7 +106,7 @@
      SEMANTIC CONSTANTS
      Always dark regardless of mode — yellow is always a light surface
      ======================================== */
-  --color-text-on-yellow: #111111;
+  --color-text-on-yellow: #1a1a17;
 
   /* ========================================
      LAYOUT

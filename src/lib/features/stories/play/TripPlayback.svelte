@@ -308,8 +308,8 @@
   .bar {
     margin-top: 0.55rem;
     height: 5px;
-    background: #1111110d;
-    border: 1px solid #11111122;
+    background: #1a1a170d;
+    border: 1px solid #1a1a1722;
     border-radius: 99px;
     overflow: hidden;
   }

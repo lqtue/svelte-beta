@@ -57,7 +57,7 @@
     gap: 0.55rem;
     padding: 0.5rem 0.65rem;
     background: var(--color-white);
-    border: 1.5px solid #11111133;
+    border: 1.5px solid #1a1a1733;
     border-radius: 10px;
     font-size: 0.9rem;
   }

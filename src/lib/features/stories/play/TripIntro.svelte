@@ -78,7 +78,7 @@
     background: var(--sb-card-bg);
     border-top: var(--border-thin);
     border-radius: 18px 18px 0 0;
-    box-shadow: 0 -6px 0 #11111118;
+    box-shadow: 0 -6px 0 #1a1a1718;
     padding: 0.5rem 1.1rem calc(env(safe-area-inset-bottom) + 1.25rem);
     color: var(--sb-text);
     font-family: var(--sb-font-base);
@@ -89,7 +89,7 @@
     width: 38px;
     height: 4px;
     margin: 0.4rem auto 0.6rem;
-    background: #11111133;
+    background: #1a1a1733;
     border-radius: 99px;
   }
   .intro-eyebrow {

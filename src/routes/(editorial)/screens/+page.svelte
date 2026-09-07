@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import PageHero from '$lib/ui/PageHero.svelte';
   import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
   import CatalogCard from '$lib/ui/CatalogCard.svelte';
@@ -53,18 +54,33 @@
   let locQuery = '';
 
   // ── the system, as data ───────────────────────────────────────────────────
-  const COLORS = [
-    ['--color-bg', '#faf6f0', 'Page background'],
-    ['--color-white', '#ffffff', 'Card and element backgrounds'],
-    ['--color-text', '#111111', 'Primary text; also the footer background'],
-    ['--color-border', '#111111', 'Every border and shadow'],
-    ['--color-primary', '#ff4d4d', 'CTAs, links, active states, errors'],
-    ['--color-yellow', '#ffd23f', 'Hero backgrounds, highlights, hover fills'],
-    ['--color-blue', '#4d94ff', 'Info, in progress, research'],
-    ['--color-green', '#00cc99', 'Done / complete'],
-    ['--color-orange', '#ff8c42', 'Community / building now'],
-    ['--color-purple', '#9d4edd', 'Future / announcement'],
+  /*
+    Roles only. The hex column used to be written out here beside each token,
+    which meant the reference page kept its own copy of the palette and went
+    stale the moment tokens.css changed — it was still advertising the old
+    palette after this one landed. It reads the live computed value now, so it
+    cannot disagree with the stylesheet.
+  */
+  const COLORS: [string, string][] = [
+    ['--color-bg', 'Page background'],
+    ['--color-white', 'Card and element backgrounds'],
+    ['--color-text', 'Primary text; also the footer background'],
+    ['--color-border', 'Every border and shadow'],
+    ['--rule', 'Hairlines and printed rules'],
+    ['--color-primary', 'CTAs, links, active states, errors'],
+    ['--color-yellow', 'Hero backgrounds, highlights, hover fills'],
+    ['--color-blue', 'Info, in progress, research'],
+    ['--color-green', 'Done / complete'],
+    ['--color-orange', 'Community / building now'],
+    ['--color-purple', 'Future / announcement'],
   ];
+
+  /** The value the browser actually resolved, so the table cannot drift. */
+  let resolved: Record<string, string> = {};
+  onMount(() => {
+    const cs = getComputedStyle(document.documentElement);
+    resolved = Object.fromEntries(COLORS.map(([name]) => [name, cs.getPropertyValue(name).trim()]));
+  });
 
   const TYPE = [
     ['--text-3xl', '2rem'],
@@ -158,11 +174,11 @@
           Never hardcode one. A hex literal in a component <code>&lt;style&gt;</code> block is a bug.
         </p>
         <div class="sc-swatches">
-          {#each COLORS as [name, hex, role] (name)}
+          {#each COLORS as [name, role] (name)}
             <div class="sc-swatch">
               <div class="sc-swatch-chip" style="background: var({name})"></div>
               <code class="sc-code">{name}</code>
-              <span class="sc-hex">{hex}</span>
+              <span class="sc-hex">{resolved[name] ?? '…'}</span>
               <span class="sc-role">{role}</span>
             </div>
           {/each}

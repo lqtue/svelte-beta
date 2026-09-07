@@ -21,7 +21,7 @@ const FALLBACK: MarkerPalette = {
   pending: '#2563eb',
   current: '#f59e0b',
   done: '#16a34a',
-  border: '#111111',
+  border: '#1a1a17',
   label: '#ffffff',
   font: "'Space Grotesk', system-ui, sans-serif",
 };
