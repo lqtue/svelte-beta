@@ -292,10 +292,10 @@ def extract_labels_sequence(
     images: list[Image.Image],
     system_prompt: str,
     schema: dict,
+    user_prompt: str,
     model: str = DEFAULT_MODEL,
     log_path: Path | None = None,
     cache_dir: Path | None = None,
-    user_prompt: str | None = None,
 ) -> dict:
     """Send a sequence of overlapping tile images in ONE call (MapSAM2-style).
 
@@ -305,12 +305,15 @@ def extract_labels_sequence(
     Returns extractions with a 'frame_idx' field indicating which tile the
     bbox coordinates belong to (0-indexed).
 
-    `user_prompt` overrides the built-in tile-seam instructions. It exists
-    because the scout pass sends the *same map at several resolutions* rather
-    than adjacent tiles, and its own prompt carries the layout vocabulary. Until
-    2026-09-04 this function ignored the caller's prompt entirely: `cmd_scout`
-    built a `multi_prompt` and passed nothing, so PROMPT_SCOUT never reached the
-    model and every scout run returned zero regions and a null neatline.
+    `user_prompt` is required, and is the whole task prompt: the caller composes the
+    prompt version it selected with the frame rules that suit its own frames
+    (`prompt.sequence_frame_rules()` for adjacent tiles; `cmd_scout` writes its own,
+    because it sends the *same map at several resolutions* rather than a tile row).
+
+    It has no default on purpose. There used to be one, naming an "1882 Saigon
+    cadastral map", and every caller that forgot to pass a prompt silently got that
+    instead of the prompt the run asked for — which is exactly what `cmd_batch` did
+    on the production path until 2026-09-08. A missing prompt is now a TypeError.
     """
     import io, re as _re
     from cache import get as cache_get, put as cache_put
@@ -327,24 +330,7 @@ def extract_labels_sequence(
         )
         parts.append(f"[Frame {i}]")
 
-    sequence_prompt = user_prompt or (
-        f"You are given {len(images)} sequential overlapping tile images from the same "
-        f"1882 Saigon cadastral map, ordered left-to-right (or along the street axis). "
-        f"Labels — especially diagonal street names — may begin in one frame and end in another.\n\n"
-        f"For each text label:\n"
-        f"- If the label appears entirely within one frame, set frame_idx to that frame number "
-        f"and bbox_px to coordinates within that frame.\n"
-        f"- If the label SPANS multiple frames, set frame_idx to the frame where MOST of the "
-        f"text appears, bbox_px to coordinates in that frame, and add a note like "
-        f"'spans frames 0-1'.\n"
-        f"- Assemble the COMPLETE label text from all frames (e.g. 'Rue' in frame 0 + "
-        f"'de Genouilly' in frame 1 = one extraction: 'Rue de Genouilly').\n\n"
-        f"Apply all grouping rules: same road axis = one extraction, no bare parcel numbers. "
-        f"The pipeline applies per-category confidence filters downstream — return everything "
-        f"you can read at confidence ≥ 0.4.\n\n"
-        f"Add a top-level 'frame_idx' field (integer) to each extraction indicating the "
-        f"primary frame."
-    )
+    sequence_prompt = user_prompt
 
     # Cache key covers all image bytes + the sequence prompt + model
     cache_key_bytes = b"".join(all_image_bytes)

@@ -164,9 +164,10 @@ Point-in-polygon assignment of each `ocr_extractions` row to the `footprint_subm
 
 - Gemini bboxes are **0–1000 normalized space**; render with `img_dim / 1000`.
 - `ocr_extractions.global_x/y/w/h` already store full-image pixel coords.
-- Model: `DEFAULT_MODEL = "gemini-3-flash-preview"` (`work/ocr/scripts/gemini_client.py`), overridable per-subcommand with `--model`. Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation). `ocr.py list-models` enumerates what the key can actually reach.
+- Model: `DEFAULT_MODEL = "gemini-3.8-flash"` (`work/ocr/scripts/gemini_client.py`), overridable per-subcommand with `--model`. Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation). `ocr.py list-models` enumerates what the key can actually reach.
 - Outputs versioned at `work/ocr/outputs/<map_id>/runs/<run_id>/` with `run_config.json` for reproducibility.
 - Prompts `v1`–`v8` + scout in `work/ocr/scripts/prompt.py`. **`DEFAULT_PROMPT = "v8"`** (high-recall, no confidence floor). V6 introduced a 0.5 confidence floor that crushed recall; v8 reverts it.
+- **The selected prompt only started reaching the row-sequence path on 2026-09-08.** `extract_labels_sequence()` carried a hardcoded fallback prompt naming an "1882 Saigon cadastral map" and `cmd_batch` passed no prompt, so the production default sent that fallback for every sheet — 1968 Vietnamese ones included — while each tile's `_meta` recorded `"prompt": "v8"`. The caller now composes `PROMPTS[<version>] + sequence_frame_rules(n)`, `user_prompt` has no default, and `test_prompt_plumbing.py` fails if either regresses. Every run before that date was v8 in name only; do not read `_meta.prompt` on an older run as evidence of which prompt was sent.
 - `clean` writes to `ocr_extractions` (correct target for the digitalize review UI); legacy `dedup` writes to `label_pins`.
 
 Scripts: `ocr.py` (CLI), `gemini_client.py` (key rotation + retries), `iiif_tiles.py` (crop fetch, IA fallback, IIIF v2/v3 detection), `supabase_client.py` (direct REST), `prompt.py`, `local_vision.py`, `join_labels.py`, `eval.py` + `eval_metrics.py`, `cache.py`.
@@ -281,7 +282,8 @@ Note for anyone porting Google's spatial-understanding patterns: their notebook 
 
 ## Prompt design decisions
 
-1. **System prompt establishes map identity first** — priors for "French colonial Saigon 1882" are far stronger than for "historical map" generically.
+1. **System prompt establishes map identity first** — priors for a named corpus are far stronger than for "historical map" generically. But the identity has to be the *archive's*, not one sheet's: it names both the French colonial period and the mid-century Vietnamese one, and says explicitly not to assume which. Naming a single sheet ("an 1882 French colonial cadastral map") primes the wrong language for half the corpus, which is the suspected cause of the 9%–100% per-run diacritic spread. If a per-sheet prior is ever wanted, pass it from the map row; do not hardcode one in a shared prompt.
+   The prompt also demands diacritics in upper case as well as lower ("CHÂTEAU" not "CHATEAU", "ĐƯỜNG" not "DUONG") — an all-caps street name is where they were being dropped.
 2. **bbox within the tile** — coordinates relative to the submitted crop, directly compositable with SAM2 footprints (both pixel space).
 3. **`rotation_deg`** — street labels on French cadastral maps follow the road axis; capturing the angle allows correct placement in the label overlay.
 4. **`confidence`** — thresholds before human review. Surface everything ≥0.4 to HITL; auto-accept ≥0.85.
@@ -295,6 +297,8 @@ The shipped category taxonomy is whatever `work/ocr/scripts/prompt.py` and the r
 - **IIIF server rate limits** — archive.org throttles at ~10 req/s. The fetcher caches to `.tile_cache/` to avoid re-fetching.
 - **Model IDs change** — Flash preview IDs get replaced or renamed. Run `ocr.py list-models` on first use of a new key.
 - **French + quốc ngữ mix** — early French colonial maps use early Romanized Vietnamese transliterations. The model handles these but accuracy is lower.
+- **Diacritic retention varies by run, not by sheet** — measured across the live table: one run read 9% of labels with any diacritic, another read 100%, on the same sheets. It is the single biggest quality lever and no current eval metric captures it; **diacritic retention rate** (share of labels containing a non-ASCII character) is the metric this corpus argues for.
+- **`confidence` is not a usable signal as produced** — median 0.9 with p90 = p99 = 1.0, yet the pipeline gates on it (`--min-confidence 0.5` worker default, plus per-category floors in `ocr.py`). A field that is 1.0 for 90% of rows filters nothing and mis-ranks dedup winners. Either give the model a rubric or drop the gate.
 - **Edge labels cut off** — a label straddling a tile boundary is read as two fragments; `clean` rejoins them spatially, and sequence mode assembles some of them in-model.
 
 ## Cost

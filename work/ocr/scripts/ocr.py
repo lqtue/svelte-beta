@@ -56,7 +56,8 @@ from iiif_tiles import (
     tile_grid,
 )
 from gemini_client import DEFAULT_MODEL, extract_labels, extract_labels_sequence, extract_legend, list_models
-from prompt import DEFAULT_PROMPT, EXTRACTION_SCHEMA, PROMPTS, SYSTEM_PROMPT
+from prompt import (DEFAULT_PROMPT, EXTRACTION_SCHEMA, PROMPTS, SYSTEM_PROMPT,
+                    sequence_frame_rules)
 from local_vision import detect_legend_boxes, spot_numerals
 
 OUTPUTS_CACHE_DIR = Path(__file__).resolve().parents[1] / "outputs" / ".cache"
@@ -606,6 +607,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                         images=row_images,
                         system_prompt=SYSTEM_PROMPT,
                         schema=EXTRACTION_SCHEMA,
+                        user_prompt=prompt_text + sequence_frame_rules(len(row_images)),
                         model=model,
                         log_path=log_path,
                         cache_dir=OUTPUTS_CACHE_DIR,
@@ -1538,6 +1540,7 @@ def cmd_stitch(args: argparse.Namespace) -> None:
                         images=imgs,
                         system_prompt=SYSTEM_PROMPT,
                         schema=EXTRACTION_SCHEMA,
+                        user_prompt=prompt_text + sequence_frame_rules(len(imgs)),
                         model=args.model,
                         log_path=log_path,
                     )

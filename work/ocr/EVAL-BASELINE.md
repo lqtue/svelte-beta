@@ -5,6 +5,16 @@ Regenerate: `eval.py ocr --map-id 0e02b9d9-9d40-4cca-8e41-8c8373d54d3b --run-id 
 
 **Ground truth:** 43 human-validated extractions, map `0e02b9d9-9d40-4cca-8e41-8c8373d54d3b`, source run `v1b`. This is a *partial* subset of the true labels, not exhaustive.
 
+> **The baseline below predates the prompt-plumbing fix of 2026-09-08.** Every run in this
+> file was measured while `extract_labels_sequence()` was sending its own hardcoded "1882
+> Saigon cadastral map" prompt instead of `PROMPTS["v8"]` (see `docs/pipelines.md`). The
+> numbers stand as the gate — the harness is unchanged — but they are *not* a measurement
+> of v8. The first post-fix run has to be eval'd against them before anything else in the
+> call is touched, and `char_acc` is the column to watch: the fix targets diacritics, which
+> is exactly what character accuracy sees.
+>
+> **Not yet measured.** Nothing has been re-run since the fix landed.
+
 ## Baseline — run `baseline` (current default row-sequence batch), IoU ≥ 0.5
 
 | metric | value | trust |

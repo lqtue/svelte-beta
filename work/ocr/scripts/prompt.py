@@ -79,20 +79,30 @@ EXTRACTION_SCHEMA = {
 # ── System prompt ─────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
-You are an expert in French colonial cartography and historical Southeast Asian toponymy.
+You are an expert in the cartography and toponymy of southern Vietnam, across both the \
+French colonial period and the mid-twentieth-century Vietnamese one.
 
-The images you receive are crops from an 1882 French colonial cadastral map of Saigon \
-(modern Ho Chi Minh City, Vietnam). The map was produced by the French colonial administration \
-and uses French-language labels, with occasional Vietnamese (quốc ngữ) transliterations.
+The images you receive are crops from one historical map sheet of Saigon / Ho Chi Minh City \
+or another Vietnamese city. The sheet may be French-language (colonial cadastral plans and \
+city plans, c. 1860-1954), Vietnamese-language (quốc ngữ, c. 1955 onward), or mixed. Do not \
+assume a language or a period: read what is printed on this sheet.
 
 Typical text you will encounter:
-- Street names: "Rue de ...", "Boulevard ...", "Quai de ...", "Rue ..."
-- Quarter / district names: "Quartier de l'Inspection", "Village Annamite de ..."
-- Institutional labels: "Abattoir", "Hôpital", "Pagode", "Caserne", "Cathédrale", "Palais"
-- Building labels: "Mairie", "Direction de l'Intérieur", "Résidence"
+- French street names: "Rue de ...", "Boulevard ...", "Quai de ...", "Avenue ..."
+- Vietnamese street names: "Đường ...", "Bến ...", "Đại lộ ...", "Công trường ..."
+- Quarter / district / village names: "Quartier de l'Inspection", "Village Annamite de ...", \
+"Quận ...", "Phường ...", "Xã ..."
+- Institutional labels: "Abattoir", "Hôpital", "Pagode", "Caserne", "Cathédrale", "Palais", \
+"Bệnh viện", "Chợ", "Trường", "Nhà thờ", "Chùa"
+- Building labels: "Mairie", "Direction de l'Intérieur", "Résidence", "Dinh ...", "Toà ..."
+- Hydrology: "Arroyo de ...", "Rach ...", "Rạch ...", "Kinh ...", "Sông ..."
 - Parcel numbers: bare integers (classify as "other")
 - Legend / cartouche text: colour key, scale bar labels, map title, date, cartographer credit
-- Occasional Vietnamese: early Romanized place names alongside French
+
+**Diacritics are part of the text, not decoration.** Transcribe French accents \
+(é è ê ç î ô û) and Vietnamese vowel and tone marks (ă â đ ê ô ơ ư plus the five tones) \
+exactly as printed, in upper case as well as lower: "CHÂTEAU" is not "CHATEAU", "ĐƯỜNG" is \
+not "DUONG", "MARCHÉ" is not "MARCHE". Drop a mark only where the print carries none.
 
 Labels may be rotated to follow street axes. Ink may be faded or slightly blurred.
 """
@@ -670,3 +680,39 @@ PROMPTS: dict[str, str] = {
 }
 
 DEFAULT_PROMPT = "v8"
+
+
+# ── Frame rules for the row-sequence call ──────────────────────────────
+
+def sequence_frame_rules(n_frames: int) -> str:
+    """Frame-addressing rules to append to the selected prompt for a sequence call.
+
+    Deliberately not a `PROMPTS` entry: this is not a prompt version, it is the delta
+    between "one tile" and "n adjacent tiles in one call", so it has to be appended to
+    whichever version the run picked rather than replacing it.
+
+    Until 2026-09-08 these rules lived in `gemini_client.extract_labels_sequence` as a
+    hardcoded fallback that named an "1882 Saigon cadastral map", and `cmd_batch` passed
+    no `user_prompt` — so the row-sequence path (the production default for any row of
+    more than one tile) sent that fallback *instead of* the selected prompt. v8 never
+    reached the model on the default path, while every tile's `_meta` recorded
+    `"prompt": "v8"`. That is the most likely source of the 9%-100% per-run diacritic
+    spread in `EVAL-BASELINE.md`: the prompt version was never actually a variable.
+    """
+    return f"""
+
+**FRAME ADDRESSING (this call carries {n_frames} frames):**
+You are given {n_frames} overlapping crops of ONE map sheet, in reading order along the \
+tile row. Consecutive frames overlap, so the same label can fall inside more than one.
+
+- Add a top-level "frame_idx" (integer, 0-based) to every extraction.
+- bbox_px is always in the coordinate space of the frame named by that extraction's frame_idx.
+- Return each label ONCE. When it is legible in several frames, pick the frame showing most of it.
+- A label cut by a frame edge is not a fragment: the tile boundary is an artefact of how the \
+sheet was cropped for this call, not of how it was printed. Join the pieces you can see across \
+frames into the complete label — "Rue" at the right edge of frame 0 plus "de Genouilly" at the \
+left edge of frame 1 is one extraction, "Rue de Genouilly" — and add notes "spans frames 0-1".
+- Joining across frames is the ONLY exception to the transcription rule above. Join text you \
+can SEE in another frame; never supply words from prior knowledge of the place. If a label runs \
+off the outermost frame, transcribe what is printed and note "continues outside [edge] edge".
+"""
