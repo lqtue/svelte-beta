@@ -49,7 +49,7 @@
   $: path = $page.url.pathname;
   $: activeCatalog =
     path.startsWith('/catalog') || path.startsWith('/explore') || path.startsWith('/image');
-  $: activeTools = path.startsWith('/create') || path.startsWith('/studio');
+  $: activeTools = path.startsWith('/explore');
   $: activeContribute = path.startsWith('/contribute');
   $: activeAbout = path.startsWith('/about');
   $: activeBlog = path.startsWith('/blog');
@@ -80,8 +80,8 @@
     </NavDropdown>
 
     <NavDropdown label="Tools" active={activeTools}>
-      <a href="/create" class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
-      <a href="/studio" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
+      <a href="/explore?mode=story" class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
+      <a href="/explore?mode=annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
     </NavDropdown>
 
     <NavDropdown label="Contribute" active={activeContribute}>
@@ -170,8 +170,8 @@
       <a href="/image" class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
 
       <p class="drawer-section-label">Tools</p>
-      <a href="/create" class="drawer-link" on:click={closeDrawer}>Story Builder</a>
-      <a href="/studio" class="drawer-link" on:click={closeDrawer}>Annotate</a>
+      <a href="/explore?mode=story" class="drawer-link" on:click={closeDrawer}>Story Builder</a>
+      <a href="/explore?mode=annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
 
       <p class="drawer-section-label">Contribute</p>
       <a href="/contribute" class="drawer-link" on:click={closeDrawer}>Where to start</a>

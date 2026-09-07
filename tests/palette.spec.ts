@@ -30,7 +30,7 @@ test('a signed-out visitor is offered only public pages', () => {
 
 test('each role adds the tier below it and nothing above', () => {
   const member = destinationsFor('user', true).map((d) => d.href);
-  expect(member).toContain('/create');
+  expect(member).toContain('/explore?mode=story');
   expect(member).toContain('/contribute/trace');
   expect(member).not.toContain('/contribute/review');
 
@@ -63,8 +63,8 @@ test('the words people actually type reach the right tool', () => {
   const all = destinationsFor('admin', true);
   const first = (q: string) => matchDestinations(all, q)[0]?.href;
   expect(first('ocr')).toBe('/contribute/digitalize');
-  expect(first('annotate')).toBe('/studio');
-  expect(first('story')).toBe('/create');
+  expect(first('annotate')).toBe('/explore?mode=annotate');
+  expect(first('story')).toBe('/explore?mode=story');
   expect(first('allmaps')).toBe('/contribute/georef');
   expect(first('tokens')).toBe('/screens');
 });

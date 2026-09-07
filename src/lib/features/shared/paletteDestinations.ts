@@ -46,14 +46,14 @@ export const DESTINATIONS: Destination[] = [
 
   // Make
   {
-    href: '/create',
+    href: '/explore?mode=story',
     label: 'Story Builder',
     hint: 'Author a guided walk',
     role: 'member',
     keywords: 'story trip tour author write make',
   },
   {
-    href: '/studio',
+    href: '/explore?mode=annotate',
     label: 'Studio',
     hint: 'Annotate and animate',
     role: 'member',

@@ -272,7 +272,7 @@
             layers, or annotate a map with your own points, lines, and shapes.
           </p>
           <div class="micro-links">
-            <a href="/create" class="micro-link-card">
+            <a href="/explore?mode=story" class="micro-link-card">
               <span class="mlc-icon">🎨</span>
               <span class="mlc-body">
                 <span class="mlc-title">Story Builder</span>
@@ -282,7 +282,7 @@
               </span>
               <span class="mlc-arrow">→</span>
             </a>
-            <a href="/studio" class="micro-link-card">
+            <a href="/explore?mode=annotate" class="micro-link-card">
               <span class="mlc-icon">✏️</span>
               <span class="mlc-body">
                 <span class="mlc-title">Annotate</span>

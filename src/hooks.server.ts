@@ -6,7 +6,9 @@ import type { Database } from '$lib/data/supabase/types';
 /** Retired route paths → their replacements (301, query string preserved). */
 const LEGACY_REDIRECTS: Record<string, string> = {
   '/view': '/explore',
-  '/annotate': '/studio',
+  '/annotate': '/explore?mode=annotate',
+  '/studio': '/explore?mode=annotate',
+  '/create': '/explore?mode=story',
   '/contribute/label': '/contribute/digitalize',
   '/admin/bulk': '/admin?tab=bulk',
   '/admin/scout': '/admin?tab=scout',

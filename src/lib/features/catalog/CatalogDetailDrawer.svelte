@@ -103,7 +103,7 @@
         <a class="act" href="/image?map={item.id}">🖼️ Image</a>
       {/if}
       {#if canAnnotate}
-        <a class="act" href="/studio?map={item.id}">✏️ Studio</a>
+        <a class="act" href="/explore?mode=annotate&map={item.id}">✏️ Studio</a>
       {/if}
       {#if !isScout && (item.status === 'public' || item.status === 'featured')}
         <a class="act" href="/catalog/{item.id}">🔗 Share page</a>

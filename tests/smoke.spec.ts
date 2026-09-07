@@ -112,12 +112,21 @@ test('auth-gated and legacy routes redirect', async ({ page }) => {
   await page.goto('/profile');
   await expect(page).toHaveURL(/\/login$/);
 
+  // Compared as strings, not regexes: half these targets carry a `?`, which a
+  // RegExp reads as "the previous character is optional" — `/explore?mode=…`
+  // would quietly match nothing and the assertion would never fail honestly.
   for (const [from, to] of [
     ['/view', '/explore'],
-    ['/annotate', '/studio'],
+    ['/annotate', '/explore?mode=annotate'],
+    ['/studio', '/explore?mode=annotate'],
+    ['/create', '/explore?mode=story'],
     ['/contribute/label', '/contribute/digitalize'],
+    ['/admin/bulk', '/admin?tab=bulk'],
+    ['/admin/status', '/admin?tab=status'],
+    ['/place/rue-catinat', '/catalog/place/rue-catinat'],
   ]) {
     await page.goto(from);
-    await expect(page).toHaveURL(new RegExp(`${to}$`));
+    const landed = new URL(page.url());
+    expect(landed.pathname + landed.search).toBe(to);
   }
 });

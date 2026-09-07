@@ -8,8 +8,8 @@
       <a href="/">Home</a>
       <a href="/catalog">Catalog</a>
       <a href="/explore">Map viewer</a>
-      <a href="/create">Story Builder</a>
-      <a href="/studio">Annotate</a>
+      <a href="/explore?mode=story">Story Builder</a>
+      <a href="/explore?mode=annotate">Annotate</a>
       <a href="/contribute">Contribute</a>
       <a href="/about">About</a>
       <a href="/blog">Blog</a>
