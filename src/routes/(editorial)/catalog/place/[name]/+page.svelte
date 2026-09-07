@@ -56,21 +56,6 @@
       ? `&at=${place.lng.toFixed(6)},${place.lat.toFixed(6)}`
       : '';
 
-  /*
-    The primary button used to open `maps[0]`, which under the loader's
-    `.order('year')` is simply the oldest sheet — an artifact of the order the
-    grid below wanted, not a choice, and on most places the oldest sheet is the
-    widest-area one and so the worst for finding a neighbourhood on.
-
-    It opens the latest sheet now: the pin is drawn over the modern basemap,
-    later surveys warp closest to it, and its geography is the one a reader can
-    orient against. Whichever sheet it is, the button says so, and every card
-    below opens its own — so nothing here is privileged in a way the reader
-    cannot override.
-  */
-  $: primary = maps[maps.length - 1];
-  $: primaryYear = primary.year_label ?? primary.year ?? null;
-
   $: description = `“${place.name}” appears on ${maps.length} historical map${
     maps.length === 1 ? '' : 's'
   } of Saigon in the Vietnam Map Archive${span ? `, ${span}` : ''}.`;
@@ -110,18 +95,6 @@
     </p>
   {/if}
 
-  <a class="cta" href="/explore?map={primary.id}{atParam}">
-    {primaryYear ? `Open the ${primaryYear} sheet on the map` : 'Open on the map'}
-  </a>
-
-  {#if place.geom_rmse != null}
-    <p class="caveat">
-      Position is warped through each sheet's own georeference, whose control points sit about
-      {Math.round(place.geom_rmse)} m from where they claim to be on the least accurate of these maps.
-      Treat the spot as a neighbourhood, not a doorstep.
-    </p>
-  {/if}
-
   <!-- Client-side: the archives take seconds to answer and this page should
        render without waiting for them. -->
   <section class="press-section">
@@ -135,6 +108,15 @@
   </section>
 
   <h2>On these maps</h2>
+  {#if place.geom_rmse != null}
+    <!-- Sits with the grid, not above it: the cards are what drop the pin, so
+         this is a caption for them rather than a footnote to a lead button. -->
+    <p class="caveat">
+      Position is warped through each sheet's own georeference, whose control points sit about
+      {Math.round(place.geom_rmse)} m from where they claim to be on the least accurate of these maps.
+      Treat the spot as a neighbourhood, not a doorstep.
+    </p>
+  {/if}
   <ul class="maps">
     {#each maps as m (m.id)}
       <li>
@@ -188,17 +170,6 @@
     margin: 0 0 var(--space-4);
     font-size: var(--text-sm);
     max-width: 42rem;
-  }
-  .cta {
-    display: inline-block;
-    padding: var(--space-2) var(--space-4);
-    border: var(--border-thick);
-    border-radius: var(--radius-pill);
-    background: var(--color-primary);
-    color: var(--color-white);
-    font-weight: var(--font-bold);
-    text-decoration: none;
-    box-shadow: var(--shadow-solid-sm);
   }
   .caveat {
     margin: var(--space-4) 0 0;
