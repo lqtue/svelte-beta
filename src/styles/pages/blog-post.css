@@ -307,8 +307,6 @@ body {
 }
 
 .blog-post-page .sidebar-contact {
-  background: var(--color-text);
-  color: var(--color-white);
 }
 
 .blog-post-page .sidebar-contact .sidebar-title {
@@ -324,8 +322,6 @@ body {
 }
 /* FOOTER */
 .blog-post-page .footer {
-  background: var(--color-text);
-  color: var(--color-white);
   padding: 3rem 2rem;
   margin-top: 2rem;
 }

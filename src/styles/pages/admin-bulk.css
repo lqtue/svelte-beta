@@ -167,8 +167,6 @@
   margin-bottom: var(--space-3);
 }
 .admin-bulk-page .script {
-  background: var(--color-text);
-  color: var(--color-gray-300);
   padding: var(--space-4);
   border-radius: 4px;
   overflow-x: auto;

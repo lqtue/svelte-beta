@@ -245,9 +245,39 @@
 /* ----------------------------------------
    FOOTER — dark, shared across all editorial pages
    ---------------------------------------- */
+/*
+  A plate that stays ink in both themes — the mirror of `.on-light-plate`.
+
+  The footers, the About CTA and the contact card are painted with the text
+  ink and carry paper-coloured type: a deliberate dark slab on a light page.
+  Both halves of that pair flip, so at night the slab inverted wholesale into a
+  bright band across the bottom of the page — and the ochre links inside it,
+  which do not flip, landed on paper at about 1.8:1.
+
+  Pinned, they keep the appearance they were designed with in both themes. The
+  palette is pinned for the subtree as well, so a card or a border nested in a
+  slab still resolves against ink rather than against the page.
+*/
+.on-ink-plate,
+.editorial-footer,
+.about-page .cta-card,
+.about-page .footer,
+.blog-page .footer,
+.blog-post-page .sidebar-contact,
+.blog-post-page .footer,
+.home-page .footer,
+.admin-bulk-page .script {
+  --color-text: var(--light-paper);
+  --color-white: var(--light-paper);
+  --color-border: var(--light-paper);
+  --color-gray-300: var(--light-rule);
+  --color-gray-500: var(--light-rule);
+  --shadow-ink: var(--light-shadow);
+  background: var(--light-ink);
+  color: var(--color-text);
+}
+
 .editorial-footer {
-  background: var(--color-text);
-  color: var(--color-white);
   padding: 3rem 2rem;
   margin-top: 2rem;
 }

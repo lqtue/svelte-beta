@@ -452,8 +452,6 @@ body {
 
 /* CTA */
 .about-page .cta-card {
-  background: var(--color-text);
-  color: var(--color-white);
   border: var(--border-thick);
   border-radius: var(--radius-lg);
   padding: 3rem;
@@ -604,8 +602,6 @@ body {
 
 /* FOOTER */
 .about-page .footer {
-  background: var(--color-text);
-  color: var(--color-white);
   padding: 3rem 2rem;
   margin-top: 2rem;
 }

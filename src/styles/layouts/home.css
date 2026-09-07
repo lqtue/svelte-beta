@@ -456,8 +456,6 @@
 
 /* Footer */
 .home-page .footer {
-  background: var(--color-text);
-  color: var(--color-white);
   padding: 3rem 2rem;
   margin-top: 2rem;
 }

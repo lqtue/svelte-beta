@@ -121,6 +121,19 @@ for (const theme of THEMES) {
     expect(contrast(t('--color-text-on-yellow'), t('--color-yellow'))).toBeGreaterThanOrEqual(4.5);
   });
 
+  test(`${theme}: the footer's ochre links read on the ink plate`, () => {
+    // The footers are pinned ink in both themes (.on-ink-plate) precisely so
+    // this pair holds — unpinned, the slab inverted and the links sat on paper
+    // at about 1.8:1. Both sides are fixed, so the number is the same in each
+    // theme; the test runs in both to catch a token being un-pinned.
+    expect(
+      contrast(token('--color-yellow')[theme], token('--light-ink').light)
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(token('--light-paper').light, token('--light-ink').light)
+    ).toBeGreaterThanOrEqual(7);
+  });
+
   test(`${theme}: the offset shadow reads against the card it falls from`, () => {
     // Not a contrast requirement — a visibility one. The drop has to differ
     // from both the card above it and the ground behind it, or it disappears.
