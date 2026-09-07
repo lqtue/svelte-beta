@@ -237,37 +237,31 @@ export const phases = [
 
 export const users = [
   {
-    icon: '🏙️',
     title: 'People living in the city',
     desc: 'You walk past these buildings every day. Find out who built them, who owned them, what was torn down to put them there — and watch the street you know change across a century.',
     uses: 'Browse georeferenced maps · GPS walking stories · Overlay history on today',
   },
   {
-    icon: '👨‍👩‍👧',
     title: 'Families with roots here',
     desc: "Your grandparents' neighborhood existed. The street where they lived had a name before it was renamed. Tag a family photo, find the address, connect a memory to a place that still exists — just changed.",
     uses: 'Tag archival photos · Contribute family knowledge · Find addresses on colonial maps',
   },
   {
-    icon: '🔬',
     title: 'Researchers & historians',
     desc: 'Georeferenced maps, structured data, cited sources, open download. Colonial land tenure, urban morphology, merchant networks, French administrative records — searchable and linked.',
     uses: 'Download open datasets · Cite structured KG entries · Embed georeferenced maps',
   },
   {
-    icon: '🗺️',
     title: 'OSM & GIS mappers',
     desc: 'Same skills you already use — polygon tracing on a georeferenced base, open data values, community validation. Historical Saigon needs the same attention OpenStreetMap gives to the modern city.',
     uses: 'Trace building footprints · Validate community submissions · Export GeoJSON',
   },
   {
-    icon: '📚',
     title: 'Educators',
     desc: 'Interactive maps you can walk through, GPS stories you can assign, sourced historical data you can cite. Usable for teaching Vietnamese history, colonial urbanism, or heritage and memory.',
     uses: 'Embed maps in lessons · Assign GPS walks · Use structured timeline data',
   },
   {
-    icon: '🏛️',
     title: 'Archives & institutions',
     desc: 'Your digitized maps used, linked to knowledge, and kept accessible — not downloaded and forgotten. BnF Gallica, EFEO, and David Rumsey collections are already in the archive.',
     uses: 'Ingest existing collections · Get attribution · Reach new audiences',

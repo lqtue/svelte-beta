@@ -95,11 +95,6 @@ body {
   gap: 0.5rem;
 }
 
-.about-page .user-icon {
-  font-size: 1.75rem;
-  line-height: 1;
-}
-
 .about-page .user-title {
   font-family: var(--font-family-display);
   font-weight: 800;

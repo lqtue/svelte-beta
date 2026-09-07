@@ -56,7 +56,6 @@
         <div class="users-grid">
           {#each users as user (user.title)}
             <div class="user-card">
-              <div class="user-icon">{user.icon}</div>
               <h4 class="user-title">{user.title}</h4>
               <p class="user-desc">{user.desc}</p>
               <span class="user-uses">{user.uses}</span>
