@@ -186,7 +186,7 @@
     padding: 0.55rem 0.6rem;
     background: var(--color-gray-100);
     border: 1px solid var(--color-gray-300);
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
   }
   .seg-field {
     display: flex;
@@ -202,8 +202,8 @@
   .seg-field select {
     font-family: ui-monospace, monospace;
     font-size: 0.68rem;
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
     padding: 0.25rem 0.4rem;
     background: var(--color-white);
     width: 100%;

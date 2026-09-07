@@ -102,7 +102,7 @@ a:hover {
 
 ::selection {
   background: var(--color-primary-600);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 
 @media (max-width: 768px) {

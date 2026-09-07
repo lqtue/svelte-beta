@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test';
 import {
   destinationsFor,
+  DESTINATION_GROUPS,
   matchDestinations,
   DESTINATIONS,
 } from '../src/lib/features/shared/paletteDestinations';
@@ -54,6 +55,14 @@ test('a role claim without a session grants nothing', () => {
   expect(destinationsFor('admin', true).length).toBeGreaterThan(
     destinationsFor(null, false).length
   );
+});
+
+test('/directory shows every page the palette would offer', () => {
+  // The page renders group by group, so a destination whose group is not in
+  // DESTINATION_GROUPS would vanish from the directory without any error.
+  for (const d of DESTINATIONS) {
+    expect(DESTINATION_GROUPS, d.href).toContain(d.group);
+  }
 });
 
 // ── ranking ─────────────────────────────────────────────────────────────────

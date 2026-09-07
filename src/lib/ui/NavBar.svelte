@@ -1,10 +1,22 @@
 <!--
   NavBar.svelte — Shared top navigation for editorial pages.
 
-  Desktop: VMA | Catalog ▾  Tools ▾  Contribute ▾  About  Blog | [search] [avatar/signin]
-  Catalog ▾:    Browse Catalog /catalog | Map Viewer /explore | View Image /scan
-  Tools ▾:      Story /create | Studio /studio
-  Contribute ▾: the hub /contribute, then Digitalize | Trace | Georeference
+  Two tiers. The bar itself carries only what a visitor came to read —
+  Catalog, About, Blog — and every tool sits behind one Tools menu, which is
+  also where the staff pages appear once a role is known. A tool is something
+  you go and do; putting eight of them in the bar made the bar the tool.
+
+  Tools ▾:  Map viewer /explore | Inspect a scan /scan
+            Story Builder /explore?mode=story | Annotate /explore?mode=annotate
+            ── Contribute /contribute | Georeference /contribute/georef
+               OCR & Triage /scan?mode=triage | Trace buildings /scan?mode=trace
+            ── Review queue /scan?mode=review (mod) | Admin /admin (mod)
+               Design system /screens (admin)
+            ── All pages /directory
+
+  `role` gates the staff rows the same way the pages do — hidden rather than
+  shown and then refused. It arrives from the (editorial) layout, because ui/
+  may not import from data/ (layering rule).
 
   The search button opens the app-wide command palette (⌘K). NavBar is in `ui`,
   which may not import `features`, so it only flips the store in core/utils —
@@ -23,9 +35,12 @@
   import NavDropdown from './NavDropdown.svelte';
   import { page } from '$app/stores';
   import { openPalette } from '$lib/core/utils/commandPalette';
+  import { theme, setTheme, nextTheme, themeLabel } from '$lib/core/utils/theme';
 
-  // ui/ is domain-free (layering rule): the layout that mounts NavBar passes the session in.
+  // ui/ is domain-free (layering rule): the layout that mounts NavBar passes
+  // the session and the resolved role in.
   export let session: ClientSession | null = null;
+  export let role: string | null = null;
 
   let isVietnamese = false;
   let drawerOpen = false;
@@ -40,6 +55,9 @@
 
   onMount(() => {
     isVietnamese = document.cookie.includes('googtrans=/en/vi');
+    // app.html already put the attribute on <html>; this only re-syncs the
+    // store with what it wrote, in case this is a fresh document.
+    setTheme($theme);
     document.addEventListener('keydown', handleDrawerKey);
     return () => {
       document.removeEventListener('keydown', handleDrawerKey);
@@ -47,12 +65,16 @@
   });
 
   $: path = $page.url.pathname;
-  $: activeCatalog =
-    path.startsWith('/catalog') || path.startsWith('/explore') || path.startsWith('/scan');
-  $: activeTools = path.startsWith('/explore');
-  $: activeContribute = path.startsWith('/contribute');
+  // One page lights one nav item. The old rules overlapped on /explore, so
+  // Catalog and Tools both looked active there.
+  $: activeCatalog = path.startsWith('/catalog');
   $: activeAbout = path.startsWith('/about');
   $: activeBlog = path.startsWith('/blog');
+  $: activeTools = ['/explore', '/scan', '/contribute', '/admin', '/screens', '/directory'].some(
+    (p) => path.startsWith(p)
+  );
+
+  $: isStaff = role === 'admin' || role === 'mod';
 
   $: avatarUrl = session?.user?.user_metadata?.avatar_url as string | undefined;
   $: displayName =
@@ -71,30 +93,36 @@
 <nav class="top-nav">
   <a href="/" class="nav-logo">VMA</a>
 
-  <!-- Desktop links -->
+  <!-- Desktop links: what you read stays in the bar -->
   <div class="nav-links">
-    <NavDropdown label="Catalog" active={activeCatalog}>
-      <a href="/catalog" class="dropdown-item" on:click={closeDrawer}>Browse the catalog</a>
-      <a href="/explore" class="dropdown-item" on:click={closeDrawer}>Open the map viewer</a>
-      <a href="/scan" class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
-    </NavDropdown>
-
-    <NavDropdown label="Tools" active={activeTools}>
-      <a href="/explore?mode=story" class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
-      <a href="/explore?mode=annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
-    </NavDropdown>
-
-    <NavDropdown label="Contribute" active={activeContribute}>
-      <a href="/contribute" class="dropdown-item is-lead" on:click={closeDrawer}
-        >Start here — which job suits you</a
-      >
-      <a href="/scan?mode=triage" class="dropdown-item" on:click={closeDrawer}>OCR &amp; Triage</a>
-      <a href="/scan?mode=trace" class="dropdown-item" on:click={closeDrawer}>Trace buildings</a>
-      <a href="/contribute/georef" class="dropdown-item" on:click={closeDrawer}>Georeference</a>
-    </NavDropdown>
-
+    <a href="/catalog" class="nav-link" class:active={activeCatalog}>Catalog</a>
     <a href="/about" class="nav-link" class:active={activeAbout}>About</a>
     <a href="/blog" class="nav-link" class:active={activeBlog}>Blog</a>
+
+    <NavDropdown label="Tools" active={activeTools}>
+      <a href="/explore" class="dropdown-item" on:click={closeDrawer}>Map viewer</a>
+      <a href="/scan" class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
+      <a href="/explore?mode=story" class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
+      <a href="/explore?mode=annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
+
+      <span class="dropdown-rule" role="separator"></span>
+      <a href="/contribute" class="dropdown-item" on:click={closeDrawer}>Contribute</a>
+      <a href="/contribute/georef" class="dropdown-item" on:click={closeDrawer}>Georeference</a>
+      <a href="/scan?mode=triage" class="dropdown-item" on:click={closeDrawer}>OCR &amp; Triage</a>
+      <a href="/scan?mode=trace" class="dropdown-item" on:click={closeDrawer}>Trace buildings</a>
+
+      {#if isStaff}
+        <span class="dropdown-rule" role="separator"></span>
+        <a href="/scan?mode=review" class="dropdown-item" on:click={closeDrawer}>Review queue</a>
+        <a href="/admin?tab=status" class="dropdown-item" on:click={closeDrawer}>Admin console</a>
+        {#if role === 'admin'}
+          <a href="/screens" class="dropdown-item" on:click={closeDrawer}>Design system</a>
+        {/if}
+      {/if}
+
+      <span class="dropdown-rule" role="separator"></span>
+      <a href="/directory" class="dropdown-item is-quiet" on:click={closeDrawer}>All pages →</a>
+    </NavDropdown>
   </div>
 
   <!-- Auth + utils -->
@@ -114,6 +142,62 @@
       </svg>
       <span class="nav-search-label">Search</span>
       <kbd class="nav-search-kbd">⌘K</kbd>
+    </button>
+    <button
+      type="button"
+      class="nav-theme"
+      on:click={() => setTheme(nextTheme($theme))}
+      title={themeLabel($theme)}
+      aria-label={themeLabel($theme)}
+    >
+      {#if $theme === 'light'}
+        <!-- sun -->
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"
+          />
+        </svg>
+      {:else if $theme === 'dark'}
+        <!-- moon -->
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M20 14.5A8.5 8.5 0 019.5 4a7 7 0 108.5 10.5z" />
+        </svg>
+      {:else}
+        <!-- half-filled circle: whatever the system says -->
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 4a8 8 0 000 16z" fill="currentColor" stroke="none" />
+        </svg>
+      {/if}
     </button>
     {#if session}
       <a href="/profile" class="avatar-pill" title="Your profile">
@@ -162,24 +246,33 @@
     </div>
 
     <nav class="drawer-nav">
-      <p class="drawer-section-label">Catalog</p>
-      <a href="/catalog" class="drawer-link" on:click={closeDrawer}>Browse the catalog</a>
-      <a href="/explore" class="drawer-link" on:click={closeDrawer}>Open the map viewer</a>
-      <a href="/scan" class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
+      <a href="/catalog" class="drawer-link" on:click={closeDrawer}>Catalog</a>
+      <a href="/about" class="drawer-link" on:click={closeDrawer}>About</a>
+      <a href="/blog" class="drawer-link" on:click={closeDrawer}>Blog</a>
 
       <p class="drawer-section-label">Tools</p>
+      <a href="/explore" class="drawer-link" on:click={closeDrawer}>Map viewer</a>
+      <a href="/scan" class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
       <a href="/explore?mode=story" class="drawer-link" on:click={closeDrawer}>Story Builder</a>
       <a href="/explore?mode=annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
 
       <p class="drawer-section-label">Contribute</p>
       <a href="/contribute" class="drawer-link" on:click={closeDrawer}>Where to start</a>
+      <a href="/contribute/georef" class="drawer-link" on:click={closeDrawer}>Georeference</a>
       <a href="/scan?mode=triage" class="drawer-link" on:click={closeDrawer}>OCR &amp; Triage</a>
       <a href="/scan?mode=trace" class="drawer-link" on:click={closeDrawer}>Trace buildings</a>
-      <a href="/contribute/georef" class="drawer-link" on:click={closeDrawer}>Georeference</a>
 
-      <p class="drawer-section-label">Info</p>
-      <a href="/about" class="drawer-link" on:click={closeDrawer}>About</a>
-      <a href="/blog" class="drawer-link" on:click={closeDrawer}>Blog</a>
+      {#if isStaff}
+        <p class="drawer-section-label">Staff</p>
+        <a href="/scan?mode=review" class="drawer-link" on:click={closeDrawer}>Review queue</a>
+        <a href="/admin?tab=status" class="drawer-link" on:click={closeDrawer}>Admin console</a>
+        {#if role === 'admin'}
+          <a href="/screens" class="drawer-link" on:click={closeDrawer}>Design system</a>
+        {/if}
+      {/if}
+
+      <p class="drawer-section-label">Everything</p>
+      <a href="/directory" class="drawer-link" on:click={closeDrawer}>All pages</a>
     </nav>
 
     <div class="drawer-footer">
@@ -239,10 +332,43 @@
     }
   }
 
-  /* The first item in a dropdown that is itself a page, not a tool. */
-  .dropdown-item.is-lead {
-    font-weight: var(--font-bold);
-    border-bottom: 1px solid var(--color-gray-300);
+  /* Divider between the groups inside Tools. */
+  .dropdown-rule {
+    display: block;
+    height: 1px;
+    background: var(--color-gray-300);
+    margin: 0.35rem 0.35rem;
+  }
+
+  /* Theme cycle: system → light → dark. Same weight as the search opener so
+     the two read as one cluster of utilities. */
+  .nav-theme {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    background: var(--color-bg);
+    border: var(--border-thin);
+    border-radius: var(--radius-pill);
+    color: var(--color-text);
+    cursor: pointer;
+    opacity: 0.75;
+    transition:
+      opacity 0.1s,
+      background-color 0.1s;
+  }
+  .nav-theme:hover {
+    opacity: 1;
+    background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
+  }
+
+  /* The way out of the menu, not another tool. */
+  .dropdown-item.is-quiet {
+    color: var(--color-gray-500);
+    font-size: 0.8rem;
   }
 
   /* ── Dropdown item (inside NavDropdown panel) ── */
@@ -262,6 +388,7 @@
   }
   .dropdown-item:hover {
     background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
     border-color: var(--color-border);
   }
 
@@ -299,7 +426,7 @@
     font-family: var(--font-family-display);
     font-weight: var(--font-bold);
     font-size: 0.7rem;
-    color: var(--color-text);
+    color: var(--color-text-on-yellow);
     background: var(--color-yellow);
     width: 100%;
     height: 100%;
@@ -399,6 +526,7 @@
   }
   .drawer-link:hover {
     background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
     border-color: var(--color-border);
   }
   .drawer-footer {

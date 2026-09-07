@@ -1,4 +1,4 @@
-import { INK } from '$lib/core/ink';
+import { INK, inkAlpha } from '$lib/core/ink';
 
 // Legend items: simple string ("Building") or transcription object ({val: "1", label: "Abattoir Municipal"})
 export type LegendItem = string | { val: string; label: string };
@@ -60,8 +60,7 @@ const FILL_ALPHA: Record<FeatureType, number> = {
 /** `rgba(...)` fill for OpenLayers, which takes colour strings and not tokens. */
 export function featureTypeFill(ft: string): string {
   const key = (ft in FEATURE_TYPE_COLORS ? ft : 'other') as FeatureType;
-  const n = parseInt(FEATURE_TYPE_COLORS[key].slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${FILL_ALPHA[key]})`;
+  return inkAlpha(FEATURE_TYPE_COLORS[key], FILL_ALPHA[key]);
 }
 
 // Geometry kind derived from feature type

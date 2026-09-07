@@ -149,7 +149,7 @@
   }
   .place-link:hover {
     background: var(--color-green);
-    color: var(--color-white);
+    color: var(--color-on-accent);
     text-decoration: none;
   }
 </style>

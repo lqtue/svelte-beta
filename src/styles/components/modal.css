@@ -51,12 +51,12 @@
   width: 100%;
   max-width: 420px;
   max-height: calc(100vh - 2rem);
-  background: var(--sb-card-bg, #fff);
-  border: var(--sb-border, 1.5px solid #111);
-  border-radius: var(--sb-radius, 10px);
+  background: var(--sb-card-bg);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius);
   box-shadow: var(--shadow-solid);
   overflow: hidden;
-  font-family: var(--sb-font-base, 'Outfit', sans-serif);
+  font-family: var(--sb-font-base);
 }
 .mo-dialog.is-narrow {
   max-width: 340px;
@@ -69,16 +69,16 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.7rem 0.85rem;
-  border-bottom: var(--sb-border, 1.5px solid #111);
-  background: var(--sb-head-bg, #fafaf7);
+  border-bottom: var(--sb-border);
+  background: var(--sb-head-bg);
 }
 .mo-dialog-title {
-  font-family: var(--sb-font-display, 'Space Grotesk', sans-serif);
+  font-family: var(--sb-font-display);
   font-size: 0.85rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--sb-text, #111);
+  color: var(--sb-text);
 }
 
 .mo-dialog-body {
@@ -100,8 +100,8 @@
   gap: 0.5rem;
   justify-content: flex-end;
   padding: 0.65rem 0.85rem;
-  border-top: var(--sb-border, 1.5px solid #111);
-  background: var(--sb-head-bg, #fafaf7);
+  border-top: var(--sb-border);
+  background: var(--sb-head-bg);
 }
 /* ── Field (label + control) ──────────────────────────────────── */
 .mo-field {
@@ -110,12 +110,12 @@
   gap: 0.3rem;
 }
 .mo-field-label {
-  font-family: var(--sb-font-display, 'Space Grotesk', sans-serif);
+  font-family: var(--sb-font-display);
   font-size: 0.66rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--sb-text-meta, #555);
+  color: var(--sb-text-meta);
 }
 
 /* ── Search input (pill with icon) ────────────────────────────── */
@@ -124,19 +124,19 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.7rem;
-  background: var(--sb-card-bg, #fff);
-  border: var(--sb-border, 1.5px solid #111);
-  border-radius: var(--sb-radius-pill, 999px);
+  background: var(--sb-card-bg);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius-pill);
   min-height: 36px;
 }
 .mo-search:focus-within {
-  background: var(--sb-accent-yellow, #fff7d1);
+  background: var(--sb-accent-yellow);
 }
 .mo-search-icon {
   flex-shrink: 0;
   width: 14px;
   height: 14px;
-  color: var(--sb-text, #111);
+  color: var(--sb-text);
 }
 .mo-search-input {
   flex: 1;
@@ -144,12 +144,12 @@
   border: none;
   outline: none;
   background: transparent;
-  font-family: var(--sb-font-base, 'Outfit', sans-serif);
+  font-family: var(--sb-font-base);
   font-size: 0.85rem;
-  color: var(--sb-text, #111);
+  color: var(--sb-text);
 }
 .mo-search-input::placeholder {
-  color: var(--sb-text-muted, #888);
+  color: var(--sb-text-muted);
 }
 .mo-search-clear {
   flex-shrink: 0;
@@ -158,13 +158,13 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  color: var(--sb-text-meta, #555);
+  color: var(--sb-text-meta);
   font-size: 1rem;
   line-height: 1;
   padding: 0;
 }
 .mo-search-clear:hover {
-  color: var(--sb-text, #111);
+  color: var(--sb-text);
 }
 
 /* Compact variant for use inside narrow toolbars / sidebars. */
@@ -178,12 +178,12 @@
 
 /* ── Result lists ─────────────────────────────────────────────── */
 .mo-results-label {
-  font-family: var(--sb-font-display, 'Space Grotesk', sans-serif);
+  font-family: var(--sb-font-display);
   font-size: 0.62rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--sb-text-meta, #555);
+  color: var(--sb-text-meta);
   padding: 0 0.1rem;
 }
 .mo-results {
@@ -200,25 +200,25 @@
   gap: 0.1rem;
   width: 100%;
   padding: 0.4rem 0.55rem;
-  background: var(--sb-card-bg, #fff);
-  border: var(--sb-border, 1.5px solid #111);
-  border-radius: var(--sb-radius-sm, 6px);
+  background: var(--sb-card-bg);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius-sm);
   font: inherit;
-  font-family: var(--sb-font-base, 'Outfit', sans-serif);
+  font-family: var(--sb-font-base);
   text-align: left;
   cursor: pointer;
-  color: var(--sb-text, #111);
+  color: var(--sb-text);
 }
 .mo-result:hover {
-  background: var(--sb-accent-yellow, #fff7d1);
+  background: var(--sb-accent-yellow);
 }
 .mo-result.is-active {
-  background: var(--sb-accent, #2563eb);
-  color: #fff;
-  border-color: var(--sb-accent, #2563eb);
+  background: var(--sb-accent);
+  color: var(--color-on-accent);
+  border-color: var(--sb-accent);
 }
 .mo-result.is-active .mo-result-sub {
-  color: rgba(255, 255, 255, 0.8);
+  color: color-mix(in srgb, var(--color-on-accent) 80%, transparent);
 }
 
 .mo-result-title {
@@ -232,7 +232,7 @@
 .mo-result-sub {
   display: block;
   font-size: 0.7rem;
-  color: var(--sb-text-meta, #555);
+  color: var(--sb-text-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

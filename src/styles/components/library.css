@@ -13,7 +13,7 @@
   align-items: center;
   gap: 0.5rem;
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   border: var(--border-thick);
   padding: 0.5rem 1rem;
   border-radius: var(--radius-pill);
@@ -123,7 +123,7 @@
 
 .btn-icon-edit:hover {
   color: var(--color-blue);
-  background: #dbeafe;
+  background: color-mix(in srgb, var(--color-blue) 20%, var(--color-white));
   transform: translate(-1px, -1px);
 }
 

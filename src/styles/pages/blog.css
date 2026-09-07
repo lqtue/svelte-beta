@@ -23,6 +23,7 @@ body {
 /* HERO */
 .blog-page .hero {
   background: var(--color-blue);
+  color: var(--color-on-accent);
   border-bottom: var(--border-thick);
   padding: 5rem 2rem;
 }
@@ -50,9 +51,9 @@ body {
   font-weight: 800;
   letter-spacing: -0.03em;
   margin: 0 0 1.25rem 0;
-  color: white;
-  -webkit-text-stroke: 1.5px var(--color-text);
-  text-shadow: 3px 3px 0 var(--color-text);
+  color: var(--color-white);
+  -webkit-text-stroke: 1.5px var(--color-border);
+  text-shadow: 3px 3px 0 var(--color-border);
 }
 
 .blog-page .hero-sub {
@@ -114,7 +115,8 @@ body {
   padding: 0.25rem 0.6rem;
   border-radius: var(--radius-pill);
   border: var(--border-thin);
-  color: white;
+  /* the fill arrives inline from posts.ts, always one of the accents */
+  color: var(--color-on-accent);
 }
 
 .blog-page .post-date {
@@ -128,6 +130,7 @@ body {
   font-weight: 800;
   font-size: 0.75rem;
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
   border: var(--border-thin);
   border-radius: var(--radius-pill);
   padding: 0.2rem 0.6rem;

@@ -146,9 +146,9 @@
     letter-spacing: 0.05em;
     padding: 0.28rem 0.55rem;
     border: var(--border-thin);
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     background: var(--color-yellow);
-    color: var(--color-text);
+    color: var(--color-text-on-yellow);
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
@@ -157,7 +157,7 @@
   }
   .validate-btn {
     background: var(--color-success-600);
-    color: var(--color-white);
+    color: var(--color-on-accent);
   }
   .save-btn:hover:not(:disabled) {
     transform: translate(-1px, -1px);

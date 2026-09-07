@@ -525,6 +525,7 @@
   }
   .dot--dirty {
     background: var(--color-orange) !important;
+    color: var(--color-on-accent);
     border-style: dashed;
     border-color: var(--tone-amber-ink);
   }

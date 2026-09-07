@@ -1,8 +1,9 @@
 /*
   sidebar.css — design system for map-tool sidebars (left and right).
-  Used by /view (ViewSidebar), /create (MapViewerSidebar, CreateRightPane),
-  and the panels they compose (LayerStackPanel, LayerControlsPanel,
-  CatalogSidebarPanel, StoryHeaderPanel, StoryPointsPanel, PointInspector).
+  Used by every sidebar on both shells: /explore (ExploreSidebar), the story
+  and studio panes (MapViewerSidebar), the contribute tools on /scan, and the
+  panels they compose (LayerStackPanel, LayerControlsPanel, CatalogSidebarPanel,
+  StoryHeaderPanel, StoryPointsPanel, PointInspector, the OCR/triage sidebars).
 
   Hierarchy
   ─────────
@@ -42,51 +43,62 @@
 */
 
 :root {
-  --sb-bg: #fafaf7;
-  --sb-card-bg: #fff;
-  --sb-border: 1.5px solid #111;
-  --sb-border-soft: 1px dashed #d9d4c0;
-  --sb-radius: 10px;
-  --sb-radius-sm: 6px;
-  --sb-radius-pill: 999px;
+  /* Every value here is a view onto tokens.css. It used to be a second
+     palette — #fafaf7 ground, #111 ink, #2563eb blue, pure white cards — set
+     before the plate-tone pass, which is why the map sidebars read cool and
+     bright against a warm buff app while the contribute tools, which use the
+     `--color-*` tokens directly, read correctly. A tint is a color-mix over a
+     token, never a new literal, so re-skinning stays one edit in tokens.css. */
+
+  --sb-bg: var(--color-bg);
+  --sb-card-bg: var(--color-white);
+  /* 1.5px, not var(--border-thin): a sidebar stacks a dozen rules in 300px, and
+     at 2px each the panel reads as a grid rather than a card. Ink is the token. */
+  --sb-border: 1.5px solid var(--color-border);
+  --sb-border-soft: 1px dashed var(--color-gray-300);
+  --sb-radius: var(--radius-sm);
+  --sb-radius-sm: calc(var(--radius-sm) - 2px);
+  --sb-radius-pill: var(--radius-pill);
 
   --sb-card-margin: 0.5rem 0.6rem;
   --sb-card-pad-x: 0.65rem;
   --sb-card-pad-y: 0.6rem;
 
-  --sb-head-bg: #fafaf7;
+  --sb-head-bg: color-mix(in srgb, var(--color-bg) 45%, var(--color-white));
   --sb-head-pad: 0.5rem 0.7rem;
 
-  --sb-accent: #2563eb;
-  --sb-accent-warm: #f59e0b;
-  --sb-accent-yellow: #fff7d1;
-  --sb-accent-yellow-strong: #fff3b8;
-  --sb-row-hover: #fdfbf3;
-  --sb-scout-bg: #fffbe9;
-  --sb-accent-dark: #1e3a8a;
-  --sb-accent-fill: rgba(37, 99, 235, 0.18);
-  --sb-accent-glow: rgba(37, 99, 235, 0.35);
-  --sb-scrim: rgba(17, 17, 17, 0.3);
+  --sb-accent: var(--color-blue);
+  --sb-accent-warm: var(--color-orange);
+  /* Hover fill. Full ochre on a row is a poster; thinned over card stock it is
+     the same gesture as the editorial pages' yellow hover. */
+  --sb-accent-yellow: color-mix(in srgb, var(--color-yellow) 32%, var(--color-white));
+  --sb-accent-yellow-strong: color-mix(in srgb, var(--color-yellow) 55%, var(--color-white));
+  --sb-row-hover: color-mix(in srgb, var(--color-yellow) 12%, var(--color-white));
+  --sb-scout-bg: color-mix(in srgb, var(--color-yellow) 18%, var(--color-white));
+  --sb-accent-dark: color-mix(in srgb, var(--color-blue) 70%, var(--color-text));
+  --sb-accent-fill: color-mix(in srgb, var(--color-blue) 18%, transparent);
+  --sb-accent-glow: color-mix(in srgb, var(--color-blue) 35%, transparent);
+  --sb-scrim: color-mix(in srgb, var(--color-text) 30%, transparent);
 
   /* Warm archival greys used by the catalog table / detail drawer. */
-  --sb-head-hover: #f0efe7;
-  --sb-sort-idle: #c8c4b5;
-  --sb-thumb-bg: #f1ede0;
-  --sb-text-soft: #666;
-  --sb-badge-map: #d4f5e9;
-  --sb-group-bg: #f6f4ec;
-  --sb-group-bg-hover: #efece1;
-  --sb-error-bg: #ffe0e0;
-  --sb-row-active: #f3f1ea;
-  --sb-success-dark: #064e3b;
-  --sb-danger: #b91c1c;
-  --sb-danger-bg: #fee2e2;
-  --sb-success: #166534;
-  --sb-success-bg: #dcfce7;
+  --sb-head-hover: color-mix(in srgb, var(--color-bg) 70%, var(--color-white));
+  --sb-sort-idle: var(--color-gray-300);
+  --sb-thumb-bg: var(--color-gray-100);
+  --sb-text-soft: var(--color-gray-500);
+  --sb-badge-map: color-mix(in srgb, var(--color-green) 22%, var(--color-white));
+  --sb-group-bg: color-mix(in srgb, var(--color-bg) 45%, var(--color-white));
+  --sb-group-bg-hover: color-mix(in srgb, var(--color-bg) 70%, var(--color-white));
+  --sb-error-bg: color-mix(in srgb, var(--color-error-600) 16%, var(--color-white));
+  --sb-row-active: color-mix(in srgb, var(--color-bg) 55%, var(--color-white));
+  --sb-success-dark: color-mix(in srgb, var(--color-green) 65%, var(--color-text));
+  --sb-danger: var(--color-error-600);
+  --sb-danger-bg: color-mix(in srgb, var(--color-error-600) 15%, var(--color-white));
+  --sb-success: var(--color-green);
+  --sb-success-bg: color-mix(in srgb, var(--color-green) 18%, var(--color-white));
 
-  --sb-text: #111;
-  --sb-text-meta: #555;
-  --sb-text-muted: #888;
+  --sb-text: var(--color-text);
+  --sb-text-meta: var(--color-gray-500);
+  --sb-text-muted: var(--color-gray-400);
 
   /* Aliases, not a second opinion: the sidebar scope defers to the app's type
      tokens so a face change is one edit in tokens.css. */
@@ -281,12 +293,12 @@
   background: var(--sb-accent-yellow);
 }
 .sb-btn.is-primary:hover:not(:disabled) {
-  background: #ffe88a;
+  background: var(--sb-accent-yellow-strong);
 }
 
 .sb-btn.is-on {
   background: var(--sb-accent);
-  color: #fff;
+  color: var(--sb-card-bg);
   border-color: var(--sb-accent);
 }
 .sb-btn.is-on:hover:not(:disabled) {
@@ -304,7 +316,7 @@
   border-color: var(--sb-danger);
 }
 .sb-btn.is-danger:hover:not(:disabled) {
-  background: #fecaca;
+  background: color-mix(in srgb, var(--color-error-600) 26%, var(--color-white));
 }
 
 .sb-btn.is-ghost {
@@ -337,6 +349,10 @@
 }
 .sb-pill {
   flex: 1;
+  /* Without this the pill's text sets its flex basis, so a three-item row with
+     a long label ("Side-by-side") pushes past the sidebar's edge instead of
+     ellipsing inside it. */
+  min-width: 0;
   min-height: 38px;
   padding: 0.4rem 0.45rem;
   background: var(--sb-card-bg);
@@ -369,5 +385,5 @@
 }
 .sb-pill.is-on {
   background: var(--sb-text);
-  color: #fff;
+  color: var(--sb-card-bg);
 }

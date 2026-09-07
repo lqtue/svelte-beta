@@ -164,10 +164,11 @@
 .action-btn.primary-btn,
 .btn-primary {
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 .chip.primary:hover:not(:disabled) {
   background: var(--color-primary-700);
+  color: var(--color-on-accent);
 }
 .btn-primary {
   border: var(--border-thick);
@@ -175,7 +176,7 @@
 /* The home and about heroes carry the archive's red on their lead CTA. */
 .action-btn.primary-btn {
   background: var(--color-primary);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 
 .action-btn.secondary-btn,
@@ -187,13 +188,13 @@
 .chip.add,
 .btn-success {
   background: var(--color-green);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 
 .chip.danger,
 .btn-danger {
   background: var(--color-primary);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 
 .chip.ghost,
@@ -245,7 +246,7 @@
 }
 .tool-btn.active {
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   border-color: var(--color-blue);
 }
 .tool-btn span {
@@ -279,7 +280,7 @@
 }
 .ctrl-btn.active {
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 
 /* ── Icon: the 22px row toggle ───────────────────────────────────────────────

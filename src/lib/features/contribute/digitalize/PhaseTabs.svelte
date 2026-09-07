@@ -38,7 +38,7 @@
     display: flex;
     gap: 2px;
     background: var(--color-border);
-    border-radius: 6px;
+    border-radius: var(--sb-radius);
     padding: 2px;
     width: 100%;
   }
@@ -49,7 +49,7 @@
     font-size: 0.72rem;
     font-weight: var(--font-bold);
     border: none;
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     background: transparent;
     color: var(--color-white);
     cursor: pointer;

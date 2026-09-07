@@ -31,6 +31,17 @@ export const INK = {
 } as const;
 
 /**
+ * An ink at partial strength, in the `rgba()` string OL wants. Canvas fills
+ * used to carry their own literals — `rgba(245, 158, 11, 0.15)` for a draw
+ * preview, `rgba(255, 107, 53, 0.2)` for a selection — both pre-plate-tone
+ * hues that no longer matched the stroke drawn over them.
+ */
+export function inkAlpha(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/**
  * Cycled per distinct label when the thing being drawn has no category of its
  * own — one sheet's footprints, say. Ordered so neighbours in the cycle are
  * far apart in hue, because consecutive labels land next to each other.

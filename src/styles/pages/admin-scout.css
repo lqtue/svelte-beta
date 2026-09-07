@@ -161,11 +161,11 @@
 }
 .scout-page .chip.score[data-score='high'] {
   background: var(--color-success-600);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 .scout-page .chip.score[data-score='mid'] {
   background: var(--color-warning-600);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 .scout-page .chip.score[data-score='low'] {
   background: var(--color-gray-400);
@@ -173,7 +173,7 @@
 }
 .scout-page .chip.score[data-score='neg'] {
   background: var(--color-error-600);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 .scout-page .holder {
   font-size: 0.75rem;
@@ -202,17 +202,17 @@
    for inside a scoped stylesheet. Also applies to the buttons in .bulk-bar. */
 .scout-page button.btn-good {
   background: var(--color-success-600);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   border-color: var(--color-success-600);
 }
 .scout-page button.btn-bad {
   background: var(--color-error-600);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   border-color: var(--color-error-600);
 }
 .scout-page button.btn-primary {
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   border-color: var(--color-blue);
 }
 .scout-page button.btn-link {
@@ -227,13 +227,13 @@
 }
 .scout-page .status-badge.approved {
   background: var(--color-success-600);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 .scout-page .status-badge.rejected {
   background: var(--color-error-600);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 .scout-page .status-badge.ingested {
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }

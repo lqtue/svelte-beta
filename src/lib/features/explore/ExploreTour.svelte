@@ -9,6 +9,7 @@
 -->
 <script lang="ts" context="module">
   import { browser } from '$app/environment';
+  import { INK, inkAlpha } from '$lib/core/ink';
   const STORAGE_KEY = 'vma-explore-tour-ack-v1';
 
   export function shouldShowTour(): boolean {
@@ -166,7 +167,7 @@
     driverObj = driver({
       showProgress: true,
       progressText: 'Step {{current}} of {{total}}',
-      overlayColor: 'rgba(0,0,0,0.45)',
+      overlayColor: inkAlpha(INK.ink, 0.45),
       stagePadding: 6,
       stageRadius: 12,
       animate: true,

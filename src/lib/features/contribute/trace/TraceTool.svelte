@@ -16,7 +16,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-  import { INK } from '$lib/core/ink';
+  import { INK, inkAlpha } from '$lib/core/ink';
   import { get } from 'svelte/store';
   import Draw from 'ol/interaction/Draw';
   import Snap from 'ol/interaction/Snap';
@@ -79,7 +79,7 @@
   // Style used while drawing (dashed amber preview)
   const DRAW_STYLE = new Style({
     stroke: new Stroke({ color: INK.yellow, width: 2, lineDash: [6, 4] }),
-    fill: new Fill({ color: 'rgba(245, 158, 11, 0.15)' }),
+    fill: new Fill({ color: inkAlpha(INK.yellow, 0.15) }),
     image: new CircleStyle({ radius: 5, fill: new Fill({ color: INK.yellow }) }),
   });
 
@@ -89,7 +89,7 @@
     const isLine = geomType === 'LineString';
     return new Style({
       stroke: new Stroke({ color: INK.red, width: isLine ? 3 : 2.5 }),
-      fill: isLine ? undefined : new Fill({ color: 'rgba(255, 107, 53, 0.2)' }),
+      fill: isLine ? undefined : new Fill({ color: inkAlpha(INK.red, 0.2) }),
       image: new CircleStyle({
         radius: 6,
         fill: new Fill({ color: INK.red }),
@@ -301,13 +301,13 @@
     align-items: center;
     gap: 0.6rem;
     padding: 0.35rem 0.9rem;
-    border-radius: 3px;
+    border-radius: var(--sb-radius-sm);
     font-size: 0.75rem;
     font-family: 'Be Vietnam Pro', sans-serif;
     z-index: 50;
     pointer-events: none;
     white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    box-shadow: var(--shadow-solid-xs);
   }
 
   .trace-status.drawing {
@@ -337,9 +337,9 @@
   .pts-badge {
     font-weight: 800;
     font-size: 0.8rem;
-    background: rgba(0, 0, 0, 0.12);
+    background: color-mix(in srgb, var(--color-text) 12%, transparent);
     padding: 0.1rem 0.4rem;
-    border-radius: 3px;
+    border-radius: var(--sb-radius-sm);
     flex-shrink: 0;
   }
 
@@ -351,9 +351,9 @@
   kbd {
     font-family: monospace;
     font-size: 0.7rem;
-    background: rgba(0, 0, 0, 0.15);
+    background: color-mix(in srgb, var(--color-text) 15%, transparent);
     padding: 0.05rem 0.3rem;
-    border-radius: 2px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent);
   }
 </style>

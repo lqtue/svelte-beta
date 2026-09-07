@@ -21,9 +21,12 @@ test('home renders and links into the catalog', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle(/./);
   await expect(page.locator('nav.top-nav a[href="/about"]')).toBeVisible();
-  // Dropdown contents are gated behind {#if open} — click to render them.
-  await page.locator('nav.top-nav button', { hasText: 'Catalog' }).click();
-  await expect(page.locator('nav a[href="/catalog"]').first()).toBeVisible();
+  // The bar carries the reading pages directly; the tools sit behind Tools ▾,
+  // whose contents are gated behind {#if open} — click to render them.
+  await expect(page.locator('nav.top-nav a[href="/catalog"]')).toBeVisible();
+  await page.locator('nav.top-nav button', { hasText: 'Tools' }).click();
+  await expect(page.locator('nav a[href="/explore"]').first()).toBeVisible();
+  await expect(page.locator('nav a[href="/directory"]').first()).toBeVisible();
 });
 
 test('catalog search returns maps', async ({ page }) => {

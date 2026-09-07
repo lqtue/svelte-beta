@@ -305,7 +305,7 @@
     margin: -0.2rem -0.35rem 0;
   }
   .kf-label:hover {
-    background: rgba(0, 0, 0, 0.04);
+    background: color-mix(in srgb, var(--color-text) 4%, transparent);
   }
   .kf-label:focus {
     outline: none;

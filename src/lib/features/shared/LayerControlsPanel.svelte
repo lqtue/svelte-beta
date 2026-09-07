@@ -95,6 +95,8 @@
           type="button"
           class="sb-pill is-compact"
           class:is-on={viewMode === m.mode}
+          title={m.label}
+          aria-label={m.label}
           on:click={() => dispatch('changeViewMode', { mode: m.mode })}
           >{m.icon} <span class="mcp-lbl">{m.label}</span></button
         >
@@ -208,6 +210,9 @@
     flex-direction: column;
     gap: 0.35rem;
     padding: 0.5rem 0.55rem 0.55rem;
+    /* The pill labels drop out by how much room this panel has, not by how
+       wide the window is — it lives in a ~300px sidebar on a 1440px screen. */
+    container-type: inline-size;
   }
   .mcp-row {
     display: flex;
@@ -241,10 +246,16 @@
     font-weight: 800;
   }
   .mcp-lbl {
-    /* Hide labels on narrow sidebars; icons remain readable. */
+    /* Hidden on a narrow sidebar; the icons stay readable. This used to be a
+       @media (max-width: 320px), which reads the viewport — so on any desktop
+       it never fired and "Side-by-side" pushed the pill row past the panel. */
     display: inline;
   }
-  @media (max-width: 320px) {
+  /* 340px, measured on .mcp: three labelled pills plus the 44px leader need
+     ~330px, so the default desktop rail (317px of .mcp) drops to icons — each
+     pill keeps its name in title/aria-label — while the mobile drawer and a
+     rail the reader drags wider keep the words. */
+  @container (max-width: 340px) {
     .mcp-lbl {
       display: none;
     }
@@ -257,9 +268,9 @@
     padding: 0.2rem 0.5rem;
     font-size: 0.74rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    border: 1px solid var(--sb-border, var(--color-border));
-    border-radius: 4px;
-    background: var(--sb-bg-input, var(--color-white));
-    color: var(--sb-text, var(--color-text));
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
+    background: var(--sb-bg);
+    color: var(--sb-text);
   }
 </style>

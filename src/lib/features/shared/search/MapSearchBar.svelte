@@ -131,6 +131,7 @@
 
   .search-trigger:hover {
     background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
     transform: translate(-2px, -2px);
     box-shadow: var(--shadow-solid-hover);
   }

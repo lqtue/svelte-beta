@@ -229,7 +229,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--sb-scrim);
     z-index: 200;
   }
   .dialog {
@@ -243,7 +243,7 @@
     flex-direction: column;
     background: var(--sb-bg);
     border: var(--sb-border);
-    border-radius: var(--sb-radius-lg, 12px);
+    border-radius: var(--sb-radius);
     box-shadow: var(--shadow-solid);
     z-index: 201;
     overflow: hidden;
@@ -258,7 +258,7 @@
   }
   .head h3 {
     margin: 0;
-    font-family: var(--sb-font-display, inherit);
+    font-family: var(--sb-font-display);
     font-size: 1rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -277,7 +277,7 @@
     gap: 0.3rem;
   }
   .field-label {
-    font-family: var(--sb-font-display, inherit);
+    font-family: var(--sb-font-display);
     font-size: 0.66rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -296,7 +296,7 @@
     font-size: 0.85rem;
     background: var(--sb-card-bg);
     border: var(--sb-border);
-    border-radius: var(--sb-radius-sm, 6px);
+    border-radius: var(--sb-radius-sm);
     color: var(--sb-text);
   }
   .field input[type='search']:focus {
@@ -312,7 +312,7 @@
     font-size: 0.85rem;
     background: var(--sb-card-bg);
     border: var(--sb-border);
-    border-radius: var(--sb-radius-sm, 6px);
+    border-radius: var(--sb-radius-sm);
     color: var(--sb-text);
   }
   .field textarea {
@@ -331,7 +331,7 @@
     padding: 0.55rem 0.65rem;
     background: var(--sb-card-bg);
     border: var(--sb-border);
-    border-radius: var(--sb-radius-sm, 6px);
+    border-radius: var(--sb-radius-sm);
   }
   .bbox code {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -348,7 +348,7 @@
     background: var(--sb-danger-bg);
     color: var(--sb-danger);
     border: 1.5px solid var(--sb-danger);
-    border-radius: var(--sb-radius-sm, 6px);
+    border-radius: var(--sb-radius-sm);
     font-size: 0.8rem;
   }
   .foot {
@@ -366,7 +366,7 @@
     color: var(--sb-text);
   }
   .result-summary strong {
-    font-family: var(--sb-font-display, inherit);
+    font-family: var(--sb-font-display);
     font-weight: 800;
   }
 </style>

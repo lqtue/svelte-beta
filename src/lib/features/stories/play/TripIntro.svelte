@@ -66,9 +66,9 @@
     justify-content: center;
     background: linear-gradient(
       180deg,
-      rgba(0, 0, 0, 0) 0%,
-      rgba(0, 0, 0, 0.18) 60%,
-      rgba(0, 0, 0, 0.32) 100%
+      color-mix(in srgb, var(--color-text) 0%, transparent) 0%,
+      color-mix(in srgb, var(--color-text) 18%, transparent) 60%,
+      color-mix(in srgb, var(--color-text) 32%, transparent) 100%
     );
     pointer-events: auto;
   }

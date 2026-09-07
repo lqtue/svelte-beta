@@ -24,6 +24,7 @@ body {
 /* HERO */
 .about-page .hero {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
   border-bottom: var(--border-thick);
   padding: 5rem 2rem;
 }
@@ -155,6 +156,7 @@ body {
 
 .about-page .layer-header:hover {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
 }
 
 .about-page .chevron {
@@ -544,7 +546,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: var(--color-blue);
-  color: white;
+  color: var(--color-on-accent);
   padding: 0.3rem 0.75rem;
   border-radius: var(--radius-pill);
   border: var(--border-thin);
@@ -597,7 +599,7 @@ body {
 
 .about-page .primary-btn {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-accent);
 }
 
 /* FOOTER */

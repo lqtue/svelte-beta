@@ -207,7 +207,7 @@
     cursor: pointer;
     font-family: inherit;
     padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     transition:
       color 0.15s,
       background 0.15s;
@@ -233,7 +233,7 @@
     font-weight: var(--font-normal);
     color: var(--color-gray-500);
     background: var(--color-gray-100);
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     padding: 0.1rem 0.4rem;
     font-family: ui-monospace, monospace;
   }

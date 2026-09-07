@@ -1,9 +1,15 @@
 /*
-  tool-page.css — Shared layout for IIIF tool pages and map sidebars.
+  tool-page.css — layout for the ImageShell tool pages (/scan) and the frame
+  their sidebars sit in: .tool-page, .panel, .panel-header, .bottom-bar.
 
-  Used by: /image, /contribute/* tools, ViewSidebar.svelte.
-  Import in a component's <style> block:
-    @import '$styles/layouts/tool-page.css';
+  Colour, border weight, radius and type come from sidebar.css's `--sb-*`
+  scale, the same one /explore's panels use — this file owns position and size
+  only. The `var(--token, #hex)` fallbacks that used to be here were the old
+  pre-plate-tone palette, and every one of them was a wrong colour waiting for
+  a missing token that global.css always loads.
+
+  Import in a component's <script>:
+    import '$styles/layouts/tool-page.css';
 */
 
 /* ── Derived tones ───────────────────────────────────────────────────────────
@@ -32,9 +38,9 @@
   inset: var(--nav-height) 0 0 0;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg, #f5f0ea);
+  background: var(--color-bg);
   overflow: hidden;
-  font-family: var(--font-family-base, 'Be Vietnam Pro', sans-serif);
+  font-family: var(--font-family-base);
 }
 
 /* ── Home link (inside sidebar panel-header) ─────────────────────────────── */
@@ -43,24 +49,24 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.3rem 0.5rem 0.3rem 0.3rem;
-  border-radius: var(--radius-sm, 4px);
-  color: var(--color-text, #2b2520);
+  border-radius: var(--sb-radius-sm);
+  color: var(--sb-text);
   text-decoration: none;
-  opacity: 0.7;
-  transition: all 0.1s;
+  transition:
+    background 0.08s,
+    transform 0.1s;
   flex-shrink: 0;
-  font-family: var(--font-family-base);
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-family: var(--sb-font-display);
+  font-size: 0.72rem;
+  font-weight: var(--font-extrabold);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   background: none;
   border: none;
   cursor: pointer;
 }
 .home-link:hover {
-  opacity: 1;
-  background: var(--color-gray-100, #f1ece6);
+  background: var(--sb-accent-yellow);
   transform: translateX(-1px);
 }
 
@@ -78,8 +84,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-bg, #f5f0ea);
-  border-right: var(--border-thick, 2px solid #2b2520);
+  background: var(--sb-bg);
+  border-right: var(--border-thick);
   overflow: hidden;
   min-width: 0;
 }
@@ -87,21 +93,31 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
-  background: var(--color-white, #fff);
-  border-bottom: var(--border-thick, 2px solid #2b2520);
+  padding: 0.55rem 0.75rem;
+  background: var(--sb-card-bg);
+  border-bottom: var(--sb-border);
   flex-shrink: 0;
+  font-family: var(--sb-font-display);
 }
+/* Right-aligned, unlike .sb-bar-title: the left of this crown is the way back
+   to /contribute, so the mode name takes the other end. */
 .panel-mode-label {
   flex: 1;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-family: var(--sb-font-display);
+  font-size: 0.72rem;
+  font-weight: var(--font-extrabold);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.4;
+  letter-spacing: 0.08em;
+  color: var(--sb-text-meta);
   text-align: right;
   margin-right: 0.5rem;
   pointer-events: none;
+}
+/* Pinned right, the way .sb-bar's collapse control sits: the mode label is
+   flex:1 but a tool without a title leaves it empty, and without this the
+   button slides in next to the back link. */
+.panel-header .collapse-btn {
+  margin-left: auto;
 }
 .collapse-btn {
   display: inline-flex;
@@ -109,19 +125,15 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: var(--border-thin, 1px solid #2b2520);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--color-white, #fff);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius-pill);
+  background: var(--sb-card-bg);
   cursor: pointer;
-  color: var(--color-text, #2b2520);
-  opacity: 0.55;
-  transition:
-    opacity 0.1s,
-    background 0.1s;
+  color: var(--sb-text);
+  transition: background 0.08s;
 }
 .collapse-btn:hover {
-  opacity: 1;
-  background: var(--color-gray-100, #f1ece6);
+  background: var(--sb-accent-yellow);
 }
 @media (max-width: 900px) {
   .collapse-btn {
@@ -139,7 +151,7 @@
   padding: 2rem 1.5rem;
   text-align: center;
   font-size: 0.82rem;
-  opacity: 0.5;
+  color: var(--sb-text-muted);
 }
 .panel-empty p {
   margin: 0;
@@ -154,17 +166,14 @@
   gap: 1rem;
   height: 100%;
   font-size: 0.875rem;
-  color: var(--color-text, #2b2520);
-  opacity: 0.7;
+  color: var(--sb-text-meta);
 }
 .catalog-link {
-  font-weight: 700;
-  color: var(--color-text, #2b2520);
+  font-weight: var(--font-bold);
+  color: var(--sb-text);
   text-decoration: none;
-  opacity: 0.8;
 }
 .catalog-link:hover {
-  opacity: 1;
   text-decoration: underline;
 }
 
@@ -176,8 +185,7 @@
   gap: 0.75rem;
   height: 100%;
   font-size: 0.875rem;
-  color: var(--color-text, #2b2520);
-  opacity: 0.6;
+  color: var(--sb-text-meta);
 }
 /* ── Bottom toolbar (contribute/trace) ───────────────────────────────────── */
 .bottom-bar {
@@ -186,8 +194,8 @@
   gap: 0.25rem;
   height: 46px;
   padding: 0 0.75rem;
-  background: var(--color-white, #fff);
-  border-top: var(--border-thick, 2px solid #2b2520);
+  background: var(--color-white);
+  border-top: var(--border-thick);
   flex-shrink: 0;
   z-index: 20;
 }
@@ -220,25 +228,23 @@
 .empty-state {
   margin: 0;
   font-size: 0.85rem;
-  color: var(--color-text);
-  opacity: 0.6;
+  color: var(--sb-text-muted);
   font-style: italic;
 }
 
 .hint-bar {
   padding: 0.5rem 1rem;
   font-size: 0.72rem;
-  color: var(--color-text);
-  opacity: 0.6;
-  border-top: var(--border-thin);
+  color: var(--sb-text-meta);
+  border-top: var(--sb-border);
   line-height: 1.6;
   flex-shrink: 0;
 }
 .hint-bar kbd {
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 0.68rem;
-  background: var(--color-gray-100);
+  background: var(--sb-bg);
   padding: 0.05rem 0.3rem;
-  border-radius: 2px;
-  border: var(--border-thin);
+  border-radius: 3px;
+  border: var(--sb-border);
 }

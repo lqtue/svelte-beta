@@ -1,5 +1,39 @@
 :root {
   /* ========================================
+     TWO THEMES, ONE VALUE EACH
+
+     `light-dark(a, b)` picks by the used `color-scheme`, so every ink is
+     written once with both its faces side by side rather than in a second
+     `[data-theme]` block that drifts out of step. The switch below is the only
+     thing that changes which face is used:
+
+       color-scheme: light dark   →  follow the operating system (default)
+       color-scheme: light        →  the reader chose light
+       color-scheme: dark         →  the reader chose dark
+
+     Because it inherits, setting it on :root settles the whole document, and
+     native chrome — scrollbars, form controls, the caret — follows for free.
+
+     Dark is not an inversion. The sheets themselves are ink on aged paper and
+     stay that way; what goes dark is the room around them. So the ground
+     becomes a warm near-black, card stock a step lighter, and every accent is
+     lifted until it clears AA on the new ground (checked in tests/theme.spec.ts).
+     ======================================== */
+  color-scheme: light dark;
+
+  /* The light faces, named. A surface that stays light in both themes — the
+     yellow plate a hero sits on — pins the palette to these rather than
+     repeating the hexes; see `.on-light-plate` in editorial.css. Only the
+     ones such a surface actually needs are named. */
+  --light-ink: #1a1a17;
+  --light-paper: #f7f5f0;
+  --light-page: #eae7e0;
+  --light-meta: #66614f;
+  --light-rule: #c4bfb2;
+  --light-fill: #e2ded5;
+  --light-shadow: #63615a;
+
+  /* ========================================
      PLATE-TONE PALETTE
 
      Taken off the sheets themselves rather than from a UI kit. A lithographed
@@ -16,32 +50,40 @@
      each: red 6.4, blue 7.1, green 6.2, orange 4.8, purple 7.6; ink on
      yellow 9.0; ink on paper 14.1).
      ======================================== */
-  --color-bg: #eae7e0; /* plate tone — the sheet */
-  --color-text: #1a1a17; /* lithographic black, warm, never #000 */
-  --color-border: #1a1a17;
-  --color-white: #f7f5f0; /* card stock, not paper-white */
+  --color-bg: light-dark(
+    var(--light-page),
+    #1a1815
+  ); /* plate tone — the sheet / the room at night */
+  --color-text: light-dark(var(--light-ink), #e8e4da); /* lithographic black, warm, never #000 */
+  /* In light this is the text ink exactly. In dark it is deliberately dimmer:
+     the house style is a 3px border on every card, and at full paper-white
+     that is a neon outline, not a printed edge. 4.6:1 on the dark ground, so
+     it still clears the 3:1 floor for a UI boundary. */
+  --color-border: light-dark(var(--light-ink), #7f7969);
+  --color-white: light-dark(var(--light-paper), #24221d); /* card stock, not paper-white */
 
-  --color-primary: #a63a2b; /* the administrative overprint — use it once */
-  --color-blue: #2f5d78; /* ink blue — active, selected */
-  --color-yellow: #e0b544; /* ochre — hover */
-  --color-green: #3d6b4a; /* plate green — success */
-  --color-orange: #a85f2b; /* burnt sienna — warning */
-  --color-purple: #5a4b80; /* indigo — the fifth thing */
+  --color-primary: light-dark(#a63a2b, #dd7360); /* the administrative overprint — use it once */
+  --color-blue: light-dark(#2f5d78, #7aa8c8); /* ink blue — active, selected */
+  --color-yellow: light-dark(#e0b544, #d9b04a); /* ochre — hover */
+  --color-green: light-dark(#3d6b4a, #78a888); /* plate green — success */
+  --color-orange: light-dark(#a85f2b, #cf8a55); /* burnt sienna — warning */
+  --color-purple: light-dark(#5a4b80, #a294cc); /* indigo — the fifth thing */
 
   /* Hairline weight, for a rule that has to read as printed rather than as a
      UI divider. 3.6:1 on the page, so it clears the UI-boundary floor. */
-  --rule: #7d7869;
+  --rule: light-dark(#7d7869, #6b6558);
 
   /* Legacy mappings for compatibility. The greys were a cool blue-grey ramp,
      which fights a warm ground; they are warmed to the same paper family. */
   --color-primary-600: var(--color-blue);
-  --color-primary-700: #27506a;
+  --color-primary-700: light-dark(#27506a, #94bcd8);
   --color-gray-900: var(--color-text);
   --color-gray-50: var(--color-bg);
-  --color-gray-100: #e2ded5;
-  --color-gray-300: #c4bfb2;
-  --color-gray-400: #a09a8b;
-  --color-gray-500: #66614f; /* meta text — 5.0 on the page, 5.7 on a card */
+  --color-gray-100: light-dark(var(--light-fill), #2c2924);
+  --color-gray-300: light-dark(var(--light-rule), #423e37);
+  --color-gray-400: light-dark(#a09a8b, #6e685b);
+  /* meta text — 5.0 on the light page, 5.7 on a light card, 6.5 and 5.8 dark */
+  --color-gray-500: light-dark(var(--light-meta), #a39c8b);
   --color-success-600: var(--color-green);
   --color-warning-600: var(--color-orange);
   --color-error-600: var(--color-primary);
@@ -80,8 +122,11 @@
      so the border stays the hard edge and the drop sits behind it.
 
      Change this one value to re-weight every shadow in the app; the literal
-     offsets in the component sheets all point at it. */
-  --shadow-ink: #63615a;
+     offsets in the component sheets all point at it. In dark it is flat black,
+     and deliberately quiet: the card is lighter than the ground there, so the
+     drop only has 1.3:1 against the card and 1.2:1 against the page to work
+     with. The border carries the plate edge at night; the drop is a hint. */
+  --shadow-ink: light-dark(var(--light-shadow), #000000);
 
   --shadow-solid: 6px 6px 0px var(--shadow-ink);
   --shadow-solid-sm: 4px 4px 0px var(--shadow-ink);
@@ -114,13 +159,36 @@
   --space-16: 4rem;
 
   /* ========================================
-     SEMANTIC CONSTANTS
-     Always dark regardless of mode — yellow is always a light surface
+     INK ON A FILLED SURFACE
+
+     Two roles that `--color-text` cannot fill, because a filled chip does not
+     follow the page.
+
+     `--color-text-on-yellow` never flips: the hover ochre is a light surface
+     in both themes, so its ink is always the dark one. This is why a hero or
+     a chip on yellow must name it rather than inherit.
+
+     `--color-on-accent` flips the *other way* from the page. In light, blue,
+     green, red and purple are dark inks and carry paper-coloured text; the
+     dark theme lifts all four until they are light surfaces, so the same text
+     has to become dark. Using `--color-white` here reads correctly in light
+     and then turns into a dark-on-light-blue smudge at night.
      ======================================== */
-  --color-text-on-yellow: #1a1a17;
+  --color-text-on-yellow: var(--light-ink);
+  --color-on-accent: light-dark(var(--light-paper), var(--light-ink));
 
   /* ========================================
      LAYOUT
      ======================================== */
   --nav-height: 56px;
+}
+
+/* The toggle in NavBar writes one of these onto <html>; absent, the OS decides.
+   `src/app.html` replays the stored choice before first paint so a reader who
+   picked dark never sees a light flash. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }

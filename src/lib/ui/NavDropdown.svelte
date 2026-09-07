@@ -96,7 +96,7 @@
   .nav-dropdown-trigger.active {
     background: var(--color-yellow);
     border-color: var(--color-border);
-    color: var(--color-text);
+    color: var(--color-text-on-yellow);
   }
 
   .chevron {

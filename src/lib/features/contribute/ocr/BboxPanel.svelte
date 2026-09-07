@@ -117,7 +117,7 @@
     z-index: 20;
     background: var(--color-white);
     border: var(--border-thick);
-    border-radius: 6px;
+    border-radius: var(--sb-radius);
     box-shadow: var(--shadow-solid-sm);
     display: flex;
     flex-direction: column;
@@ -142,8 +142,8 @@
     min-width: 0;
     font-family: var(--font-family-base);
     font-size: 0.82rem;
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
     padding: 0.3rem 0.5rem;
     background: var(--color-bg);
   }
@@ -155,8 +155,8 @@
   .bbox-panel-cat {
     font-family: var(--font-family-base);
     font-size: 0.75rem;
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
     padding: 0.3rem 0.35rem;
     background: var(--color-bg);
     cursor: pointer;
@@ -183,7 +183,7 @@
     font-weight: var(--font-bold);
     padding: 0.28rem 0.65rem;
     border: var(--border-thin);
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     background: var(--color-bg);
     color: var(--color-text);
     cursor: pointer;
@@ -212,8 +212,8 @@
     width: 24px;
     height: 24px;
     margin-left: auto;
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
+    border: var(--sb-border);
+    border-radius: var(--sb-radius-sm);
     background: transparent;
     cursor: pointer;
     color: var(--color-text);

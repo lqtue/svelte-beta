@@ -147,11 +147,11 @@
 
   .year-badge {
     background: var(--color-green);
-    color: var(--color-text);
+    color: var(--color-on-accent);
   }
   .source-badge {
     background: var(--color-orange);
-    color: var(--color-white);
+    color: var(--color-on-accent);
   }
 
   .map-info {

@@ -70,13 +70,14 @@
 
 .search-panel .tb:hover {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0px var(--shadow-ink);
 }
 
 .search-panel .tb.active {
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   transform: translate(1px, 1px);
   box-shadow: none;
 }
@@ -98,6 +99,7 @@
 
 .search-panel .close-btn:hover {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
   transform: translate(-1px, -1px);
 }
 
@@ -204,6 +206,7 @@
 
 .search-panel .compare-row-btn:hover:not(:disabled) {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
   transform: scale(1.08);
 }
 
@@ -218,7 +221,7 @@
 }
 
 .search-panel .result-item.active-map .compare-row-btn {
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--color-white) 92%, transparent);
   color: var(--color-text);
 }
 
@@ -229,13 +232,14 @@
 .search-panel .result-item:hover,
 .search-panel .result-item:focus-within {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
   transform: translate(-2px, -2px);
   box-shadow: 3px 3px 0px var(--shadow-ink);
 }
 
 .search-panel .result-item.active-map {
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   border-color: var(--color-border);
 }
 
@@ -282,7 +286,7 @@
 
 .search-panel .year-badge {
   background: var(--color-orange);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 
 .search-panel .type-badge {
@@ -291,7 +295,7 @@
 
 .search-panel .active-badge {
   background: var(--color-green);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   border-color: var(--color-green);
 }
 
@@ -350,7 +354,7 @@
 
 .search-panel .result-main:focus-visible {
   outline: none;
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--color-white) 20%, transparent);
 }
 
 .search-panel .result-actions {
@@ -377,6 +381,7 @@
 
 .search-panel .chip:hover {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
   transform: translate(-1px, -1px);
   box-shadow: var(--shadow-solid-xs);
 }

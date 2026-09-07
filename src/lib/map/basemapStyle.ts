@@ -32,10 +32,39 @@ import Fill from 'ol/style/Fill';
 import Stroke from 'ol/style/Stroke';
 import Text from 'ol/style/Text';
 import type { FeatureLike } from 'ol/Feature';
+import { isDarkTheme } from '$lib/core/utils/theme';
 
 export const BASEMAP_PMTILES_URL = 'https://iiif.maparchive.vn/basemap/vietnam.pmtiles';
 
-const C = {
+/**
+ * Two palettes, because a canvas cannot read a CSS token: OL paints these as
+ * draw calls, so `light-dark()` and `var(--color-…)` mean nothing here. Same
+ * reason `core/ink.ts` exists for the annotation colours.
+ *
+ * The dark one is not an inversion of the light one. It is the same quiet
+ * hierarchy — earth, then landcover, then water, then roads, with buildings
+ * barely there — moved onto a warm near-black so the map sits beside the dark
+ * chrome instead of glaring next to it. Historical sheets warped on top keep
+ * their own ink either way; they are photographs of paper.
+ */
+interface Palette {
+  earth: string;
+  landcover: string;
+  park: string;
+  water: string;
+  waterLine: string;
+  building: string;
+  boundary: string;
+  roadFill: string;
+  roadCasing: string;
+  highway: string;
+  highwayCasing: string;
+  label: string;
+  labelHalo: string;
+  waterLabel: string;
+}
+
+const LIGHT: Palette = {
   earth: '#f4f1ea',
   landcover: '#e9eee2',
   park: '#e2ebdd',
@@ -50,19 +79,65 @@ const C = {
   label: '#5b554a',
   labelHalo: '#f8f6f1',
   waterLabel: '#7796a5',
-} as const;
+};
+
+const DARK: Palette = {
+  earth: '#232019',
+  landcover: '#272b22',
+  park: '#26302a',
+  water: '#1c2c36',
+  waterLine: '#27404e',
+  building: '#2c2823',
+  boundary: '#4e4838',
+  roadFill: '#3b362c',
+  roadCasing: '#211e19',
+  highway: '#4d4430',
+  highwayCasing: '#2a2419',
+  label: '#a8a091',
+  labelHalo: '#17150f',
+  waterLabel: '#6d8f9f',
+};
+
+/** The palette in force. `styleFor` reads it fresh on every call. */
+let C: Palette = LIGHT;
 
 /** Cheap singletons — a style function runs per feature per frame. */
-const S = {
-  earth: new Style({ fill: new Fill({ color: C.earth }) }),
-  landcover: new Style({ fill: new Fill({ color: C.landcover }) }),
-  park: new Style({ fill: new Fill({ color: C.park }) }),
-  water: new Style({ fill: new Fill({ color: C.water }) }),
-  building: new Style({ fill: new Fill({ color: C.building }) }),
-  boundary: new Style({
-    stroke: new Stroke({ color: C.boundary, width: 1, lineDash: [4, 3] }),
-  }),
-};
+function singletons(c: Palette) {
+  return {
+    earth: new Style({ fill: new Fill({ color: c.earth }) }),
+    landcover: new Style({ fill: new Fill({ color: c.landcover }) }),
+    park: new Style({ fill: new Fill({ color: c.park }) }),
+    water: new Style({ fill: new Fill({ color: c.water }) }),
+    building: new Style({ fill: new Fill({ color: c.building }) }),
+    boundary: new Style({
+      stroke: new Stroke({ color: c.boundary, width: 1, lineDash: [4, 3] }),
+    }),
+  };
+}
+
+let S = singletons(C);
+
+/**
+ * Layers built so far, so a theme change can ask them to redraw. Entries that
+ * are no longer on a map are dropped on the way past — a navigation away from
+ * /explore leaves its layer behind, and nothing else would let it go.
+ */
+const built = new Set<VectorTileLayer>();
+
+function applyBasemapTheme(dark: boolean): void {
+  const next = dark ? DARK : LIGHT;
+  if (next === C) return;
+  C = next;
+  S = singletons(C);
+  for (const layer of built) {
+    if (layer.getMapInternal()) layer.changed();
+    else built.delete(layer);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  isDarkTheme.subscribe(applyBasemapTheme);
+}
 
 const PARK_KINDS = new Set(['park', 'garden', 'forest', 'nature_reserve', 'recreation_ground']);
 
@@ -198,7 +273,7 @@ function styleFor(feature: FeatureLike, resolution: number): Style | Style[] | u
 
 /** The basemap layer. `visible` is owned by the caller, as with every base layer. */
 export function buildPmtilesBasemapLayer(visible: boolean): VectorTileLayer {
-  return new VectorTileLayer({
+  const layer = new VectorTileLayer({
     // Labels must not collide; polygons and lines are drawn in schema order.
     declutter: true,
     source: new PMTilesVectorSource({
@@ -212,4 +287,6 @@ export function buildPmtilesBasemapLayer(visible: boolean): VectorTileLayer {
     visible,
     zIndex: 0,
   });
+  built.add(layer);
+  return layer;
 }

@@ -92,6 +92,7 @@
 
 .catalog-page .status-pill:hover {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
 }
 .catalog-page .status-pill.active {
   background: var(--color-text);
@@ -156,7 +157,7 @@
 }
 .catalog-page .primary-btn {
   background: var(--color-blue);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 
 /* ========================================
@@ -183,12 +184,12 @@
 
 .catalog-page .year-badge {
   background: var(--color-green);
-  color: var(--color-text);
+  color: var(--color-on-accent);
 }
 
 .catalog-page .source-badge {
   background: var(--color-orange);
-  color: var(--color-white);
+  color: var(--color-on-accent);
 }
 
 /* ========================================

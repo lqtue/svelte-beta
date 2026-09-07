@@ -8,11 +8,11 @@
       <a href="/">Home</a>
       <a href="/catalog">Catalog</a>
       <a href="/explore">Map viewer</a>
-      <a href="/explore?mode=story">Story Builder</a>
-      <a href="/explore?mode=annotate">Annotate</a>
+      <a href="/scan">Inspect a scan</a>
       <a href="/contribute">Contribute</a>
       <a href="/about">About</a>
       <a href="/blog">Blog</a>
+      <a href="/directory">All pages</a>
       <a href="https://github.com/lqtue/svelte-beta" target="_blank" rel="noopener">GitHub</a>
     </div>
     <p>

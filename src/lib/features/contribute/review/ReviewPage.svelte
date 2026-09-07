@@ -155,6 +155,7 @@
 
   .queue-tabs button.is-on {
     background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
     font-weight: 700;
   }
 

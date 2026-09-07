@@ -241,7 +241,7 @@
 
   .count-badge.chip-green {
     background: var(--color-green);
-    color: var(--color-text);
+    color: var(--color-on-accent);
   }
 
   .steps-list {

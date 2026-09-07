@@ -457,12 +457,15 @@
   }
   .cp-kind-map {
     background: var(--color-blue);
+    color: var(--color-on-accent);
   }
   .cp-kind-place {
     background: var(--color-green);
+    color: var(--color-on-accent);
   }
   .cp-kind-label {
     background: var(--color-purple);
+    color: var(--color-on-accent);
   }
 
   .cp-text {

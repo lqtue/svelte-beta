@@ -16,7 +16,15 @@ import { keyToSlug } from '$lib/core/utils/placeKey';
 import { posts } from '../(editorial)/blog/posts';
 
 /** Editorial pages worth indexing. The app tools are behind `ssr = false`. */
-const STATIC_PATHS = ['/', '/catalog', '/about', '/blog', '/contribute', '/contribute/georef'];
+const STATIC_PATHS = [
+  '/',
+  '/catalog',
+  '/about',
+  '/blog',
+  '/contribute',
+  '/contribute/georef',
+  '/directory',
+];
 
 /** Long enough to be worth generating, short enough to follow a publish. */
 const CACHE_SECONDS = 3600;

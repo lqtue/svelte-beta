@@ -61,6 +61,7 @@ body {
 
 .blog-post-page .back-link:hover {
   background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
 }
 
 .blog-post-page .article-meta {
@@ -79,7 +80,8 @@ body {
   padding: 0.25rem 0.6rem;
   border-radius: var(--radius-pill);
   border: var(--border-thin);
-  color: white;
+  /* the fill arrives inline from posts.ts, always one of the accents */
+  color: var(--color-on-accent);
 }
 
 .blog-post-page .post-date {
@@ -205,7 +207,7 @@ body {
 
 .blog-post-page .cta-btn.primary {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-accent);
 }
 
 .blog-post-page .cta-btn.secondary {

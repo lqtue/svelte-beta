@@ -17,7 +17,7 @@
 -->
 <script lang="ts">
   import { onDestroy, createEventDispatcher } from 'svelte';
-  import { INK } from '$lib/core/ink';
+  import { INK, inkAlpha } from '$lib/core/ink';
   import { get } from 'svelte/store';
   import VectorSource from 'ol/source/Vector';
   import VectorLayer from 'ol/layer/Vector';
@@ -90,7 +90,7 @@
         text: LAYOUT_LABELS[region.category] ?? region.category,
         font: `${isSelected ? '600 ' : ''}13px system-ui, sans-serif`,
         fill: new Fill({ color }),
-        stroke: new Stroke({ color: 'rgba(255,255,255,0.9)', width: 3 }),
+        stroke: new Stroke({ color: inkAlpha(INK.paper, 0.9), width: 3 }),
         overflow: true,
         textAlign: 'left',
         textBaseline: 'top',

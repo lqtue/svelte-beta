@@ -143,11 +143,11 @@
      ones, so OCR'd wins and Triaged only shows on sheets not yet read. */
   .done-badge {
     background: var(--color-green);
-    color: var(--color-text);
+    color: var(--color-on-accent);
   }
 
   .triaged-badge {
     background: var(--color-yellow);
-    color: var(--color-text);
+    color: var(--color-text-on-yellow);
   }
 </style>

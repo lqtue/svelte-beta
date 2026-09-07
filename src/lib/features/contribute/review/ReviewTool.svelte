@@ -169,7 +169,7 @@
     gap: 0.35rem;
     background: color-mix(in srgb, var(--color-text) 88%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-white) 18%, transparent);
-    border-radius: 6px;
+    border-radius: var(--sb-radius);
     padding: 0.3rem 0.75rem;
     font-family: var(--font-family-base);
     font-size: 0.75rem;
@@ -196,11 +196,14 @@
      tokens rather than copied. */
   .legend-dot.orange {
     background: var(--color-orange);
+    color: var(--color-on-accent);
   }
   .legend-dot.yellow {
     background: var(--color-yellow);
+    color: var(--color-text-on-yellow);
   }
   .legend-dot.green {
     background: var(--color-green);
+    color: var(--color-on-accent);
   }
 </style>

@@ -201,7 +201,7 @@
   .swatch {
     width: 12px;
     height: 12px;
-    border-radius: 3px;
+    border-radius: var(--sb-radius-sm);
     flex-shrink: 0;
     margin-top: 3px;
     border: 1px solid color-mix(in srgb, var(--color-border) 15%, transparent);
@@ -234,7 +234,7 @@
     font-size: 0.75rem;
     font-weight: var(--font-bold);
     border: none;
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     cursor: pointer;
     font-family: inherit;
     transition: opacity 0.15s;
@@ -253,6 +253,7 @@
 
   .btn-approve:hover:not(:disabled) {
     background: var(--color-success-600);
+    color: var(--color-on-accent);
   }
 
   .btn-reject {
@@ -262,6 +263,7 @@
 
   .btn-reject:hover:not(:disabled) {
     background: var(--color-error-600);
+    color: var(--color-on-accent);
   }
 
   .type-select {
@@ -269,7 +271,7 @@
     background: var(--color-white);
     color: var(--color-text);
     border: 1px solid var(--color-gray-300);
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     font-size: 0.75rem;
     font-family: inherit;
     padding: 0.3rem 0.4rem;
@@ -297,7 +299,7 @@
     background: var(--tone-green-ink);
     color: var(--color-white);
     border: none;
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     cursor: pointer;
   }
   .btn-mark-reviewed:disabled {
@@ -306,6 +308,7 @@
   }
   .btn-mark-reviewed:hover:not(:disabled) {
     background: var(--color-success-600);
+    color: var(--color-on-accent);
   }
   .mark-reviewed-error {
     font-size: 0.72rem;

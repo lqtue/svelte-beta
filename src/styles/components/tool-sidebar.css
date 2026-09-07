@@ -1,9 +1,16 @@
 /*
-  tool-sidebar.css — the small design system every contribute-tool sidebar shares.
+  tool-sidebar.css — the `.tool-*` primitives the contribute-tool sidebars use.
 
-  Lifted verbatim (values unchanged) out of TriageSidebar's private `.ts-*`
-  block so TriageSidebar, SegSidebar, OcrSidebar and TraceSidebar can all reach
-  for the same section / field / button primitives instead of redeclaring them.
+  Every value here now defers to sidebar.css's `--sb-*` scale, so a panel on
+  the image shell (/scan) and one on the map shell (/explore) share one border
+  weight, one radius, one hover colour and one type scale. Before this they
+  were two systems that happened to sit side by side: 1px borders against
+  1.5px, 3px radii against 8px, a grey hover against an ochre one.
+
+  ponytail: two class prefixes for one system. `.tool-*` survives because only
+  TriageSidebar and SegSidebar still speak it (77 occurrences) and renaming
+  them buys nothing a reader can see. Collapse into `.sb-*` the next time
+  either file is opened for real work.
 
   Import in a component's <script>:
     import '$styles/components/tool-sidebar.css';
@@ -15,7 +22,8 @@
 /* ── Sections ────────────────────────────────────────────────────────────── */
 .tool-section {
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--sb-border);
+  font-family: var(--sb-font-base);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -28,12 +36,12 @@
 }
 
 .tool-section-title {
+  font-family: var(--sb-font-display);
   font-size: 0.7rem;
-  font-weight: var(--font-bold);
+  font-weight: var(--font-extrabold);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text);
-  opacity: 0.55;
+  letter-spacing: 0.07em;
+  color: var(--sb-text-meta);
 }
 
 .tool-hint-inline {
@@ -51,8 +59,7 @@
 
 .tool-label {
   font-size: 0.72rem;
-  color: var(--color-text);
-  opacity: 0.6;
+  color: var(--sb-text-meta);
   flex-shrink: 0;
 }
 
@@ -81,7 +88,7 @@
 .tool-coord-label span {
   width: 3.2rem;
   text-align: right;
-  opacity: 0.5;
+  color: var(--sb-text-muted);
 }
 
 .tool-num-input {
@@ -90,9 +97,10 @@
   padding: 0.25rem 0.4rem;
   font-size: 0.75rem;
   font-family: ui-monospace, monospace;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
-  background: var(--color-white);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius-sm);
+  background: var(--sb-bg);
+  color: var(--sb-text);
 }
 
 .tool-field {
@@ -109,29 +117,39 @@
   flex: 1;
   padding: 0.25rem 0.4rem;
   font-size: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
-  background: var(--color-white);
+  font-family: var(--sb-font-base);
+  border: var(--sb-border);
+  border-radius: var(--sb-radius-sm);
+  background: var(--sb-bg);
+  color: var(--sb-text);
 }
 
 .tool-range {
   flex: 1;
-  accent-color: var(--color-text);
+  accent-color: var(--sb-text);
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .tool-ghost-btn {
-  font-size: 0.7rem;
-  padding: 0.2rem 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
-  background: transparent;
+  font-family: var(--sb-font-base);
+  font-size: 0.72rem;
+  font-weight: var(--font-bold);
+  padding: 0.3rem 0.55rem;
+  border: var(--sb-border);
+  border-radius: var(--sb-radius-sm);
+  background: var(--sb-card-bg);
   cursor: pointer;
   white-space: nowrap;
-  color: var(--color-text);
+  color: var(--sb-text);
+  transition:
+    background 0.08s,
+    transform 0.05s;
 }
 .tool-ghost-btn:hover:not(:disabled) {
-  background: var(--color-gray-100);
+  background: var(--sb-accent-yellow);
+}
+.tool-ghost-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .tool-ghost-btn:disabled {
   opacity: 0.4;
@@ -144,17 +162,19 @@
   justify-content: center;
   gap: 0.4rem;
   width: 100%;
-  padding: 0.55rem;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--sb-font-base);
   font-size: 0.8rem;
-  font-weight: var(--font-semibold);
-  background: var(--color-text);
-  color: var(--color-bg);
-  border: none;
-  border-radius: 4px;
+  font-weight: var(--font-bold);
+  background: var(--sb-accent);
+  color: var(--sb-card-bg);
+  border: 1.5px solid var(--sb-accent);
+  border-radius: var(--sb-radius-sm);
   cursor: pointer;
+  transition: transform 0.05s;
 }
-.tool-run-btn:hover:not(:disabled) {
-  opacity: 0.85;
+.tool-run-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .tool-run-btn:disabled {
   opacity: 0.45;
@@ -166,13 +186,13 @@
   font-size: 0.72rem;
   color: var(--tone-red-ink);
   background: var(--tone-red-pale);
-  border: 1px solid color-mix(in srgb, var(--color-error-600) 35%, var(--color-white));
-  border-radius: 3px;
+  border: 1.5px solid color-mix(in srgb, var(--color-error-600) 35%, var(--color-white));
+  border-radius: var(--sb-radius-sm);
   padding: 0.35rem 0.5rem;
 }
 
 .tool-hint {
   font-size: 0.68rem;
-  opacity: 0.45;
+  color: var(--sb-text-muted);
   line-height: 1.4;
 }

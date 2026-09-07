@@ -439,7 +439,7 @@
     z-index: 25;
     max-width: 40ch;
     padding: 0.35rem 0.6rem;
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     background: var(--tone-red-pale);
     color: var(--tone-red-ink);
     font-size: 0.72rem;

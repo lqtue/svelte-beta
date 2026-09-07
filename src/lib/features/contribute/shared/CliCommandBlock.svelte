@@ -30,7 +30,7 @@
   .cli-block {
     background: color-mix(in srgb, var(--color-blue) 8%, var(--color-white));
     border: 1px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
-    border-radius: 4px;
+    border-radius: var(--sb-radius-sm);
     padding: 0.5rem 0.6rem;
     display: flex;
     flex-direction: column;
@@ -52,7 +52,7 @@
     font-weight: 700;
     padding: 0.15rem 0.45rem;
     border: 1px solid var(--color-blue);
-    border-radius: 3px;
+    border-radius: var(--sb-radius-sm);
     background: transparent;
     color: var(--color-blue);
     cursor: pointer;
@@ -62,7 +62,7 @@
     background: color-mix(in srgb, var(--color-blue) 15%, var(--color-white));
   }
   .cli-code {
-    font-family: var(--font-mono, ui-monospace, monospace);
+    font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 0.65rem;
     color: var(--color-text);
     white-space: pre-wrap;

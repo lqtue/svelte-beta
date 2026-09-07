@@ -184,7 +184,7 @@
     padding: 0.7rem 0.85rem;
     background: var(--sb-row-active);
     border: 1.5px dashed var(--sb-sort-idle);
-    border-radius: 10px;
+    border-radius: var(--sb-radius);
     font-family: var(--font-family-base);
     color: var(--sb-text-muted);
   }
@@ -209,7 +209,7 @@
     margin: 0.6rem 0.6rem 0;
     background: var(--sb-accent-yellow);
     border: 1.5px solid var(--color-border);
-    border-radius: 10px;
+    border-radius: var(--sb-radius);
     font-family: var(--font-family-base);
     overflow: hidden;
   }

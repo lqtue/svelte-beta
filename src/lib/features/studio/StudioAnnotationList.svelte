@@ -303,9 +303,11 @@
   }
   .type-line {
     background: var(--color-green);
+    color: var(--color-on-accent);
   }
   .type-polygon {
     background: var(--color-purple);
+    color: var(--color-on-accent);
   }
 
   .empty {

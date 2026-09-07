@@ -67,6 +67,36 @@
 /* ----------------------------------------
    HERO — yellow editorial hero (left-aligned)
    ---------------------------------------- */
+/*
+  A plate that stays light in both themes.
+
+  `--color-yellow` is the one surface that does not flip, so a hero keeps its
+  ochre ground at night. Everything nested in it then goes wrong at once: a
+  `.hero-sub` card takes the dark card stock, a `.label-chip` likewise, the
+  3px borders take the dimmed dark-theme border, and all of them inherit the
+  plate's fixed dark ink — a dark box with dark text on a bright yellow field.
+
+  Pinning the palette to its light face for the subtree fixes every descendant
+  that uses a token, rather than overriding rule by rule. Anything that must
+  stay themed inside such a plate has to say so explicitly.
+*/
+.on-light-plate,
+.editorial-hero,
+.home-page .hero,
+.about-page .hero,
+.blog-page .hero,
+.blog-post-page .hero {
+  --color-text: var(--light-ink);
+  --color-border: var(--light-ink);
+  --color-white: var(--light-paper);
+  --color-bg: var(--light-page);
+  --color-gray-100: var(--light-fill);
+  --color-gray-300: var(--light-rule);
+  --color-gray-500: var(--light-meta);
+  --shadow-ink: var(--light-shadow);
+  color: var(--color-text);
+}
+
 .editorial-hero {
   background: var(--color-yellow);
   border-bottom: var(--border-thick);
@@ -106,8 +136,8 @@
 /* White text with bold stroke — used for hero title highlights */
 .text-highlight {
   color: var(--color-white);
-  -webkit-text-stroke: 2px var(--color-text);
-  text-shadow: 4px 4px 0 var(--color-text);
+  -webkit-text-stroke: 2px var(--color-border);
+  text-shadow: 4px 4px 0 var(--color-border);
 }
 @media (max-width: 600px) {
   .editorial-hero {
@@ -145,10 +175,11 @@
 }
 .chip-green {
   background: var(--color-green);
+  color: var(--color-on-accent);
 }
 .chip-blue {
   background: var(--color-blue);
-  color: white;
+  color: var(--color-on-accent);
 }
 .chip-yellow {
   background: var(--color-white);
@@ -185,7 +216,7 @@
 .section-desc {
   font-size: 1rem;
   font-weight: var(--font-medium);
-  color: #555;
+  color: var(--color-gray-500);
   margin: 0;
   line-height: 1.5;
 }

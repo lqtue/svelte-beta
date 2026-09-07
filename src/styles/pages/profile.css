@@ -35,7 +35,7 @@
   font-family: var(--font-family-display);
   font-size: 2.5rem;
   font-weight: var(--font-extrabold);
-  color: var(--color-text);
+  color: var(--color-text-on-yellow);
   flex-shrink: 0;
 }
 
@@ -76,13 +76,13 @@
 
 .profile-page .role-badge.mod {
   background: var(--color-yellow);
-  color: var(--color-text);
+  color: var(--color-text-on-yellow);
   border-color: var(--color-border);
 }
 
 .profile-page .role-badge.admin {
   background: var(--color-orange);
-  color: var(--color-white);
+  color: var(--color-on-accent);
   border-color: var(--color-border);
 }
 
@@ -202,7 +202,7 @@
 
 .profile-page .lang-btn {
   background: var(--color-blue);
-  color: white;
+  color: var(--color-on-accent);
   border: none;
 }
 
