@@ -1,5 +1,5 @@
 <!--
-  /map/[id] — the shareable record for one map.
+  /catalog/[id] — the shareable record for one map.
 
   Server-rendered (see +page.server.ts) so link previews work. Everything
   interactive lives one click away in /explore?map=<id>.

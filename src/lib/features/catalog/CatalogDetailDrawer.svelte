@@ -106,7 +106,7 @@
         <a class="act" href="/studio?map={item.id}">✏️ Studio</a>
       {/if}
       {#if !isScout && (item.status === 'public' || item.status === 'featured')}
-        <a class="act" href="/map/{item.id}">🔗 Share page</a>
+        <a class="act" href="/catalog/{item.id}">🔗 Share page</a>
       {/if}
       {#if isScout && (item._scout?.source_url || item._scout?.manifest_url)}
         <a

@@ -10,9 +10,35 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/contribute/label': '/contribute/digitalize',
 };
 
+/**
+ * The two that carry an id in the path rather than a fixed name. Both moved
+ * under `/catalog` so the archive is one subtree instead of three siblings;
+ * every share link and printed reference to the old path still has to land
+ * somewhere real.
+ */
+const LEGACY_PREFIXES: [string, string][] = [
+  ['/map/', '/catalog/'],
+  ['/place/', '/catalog/place/'],
+];
+
+/** Some targets already carry a query, so an incoming one joins with `&`. */
+function withSearch(target: string, search: string): string {
+  if (!search) return target;
+  return target + (target.includes('?') ? '&' + search.slice(1) : search);
+}
+
+function legacyTarget(pathname: string): string | null {
+  const exact = LEGACY_REDIRECTS[pathname];
+  if (exact) return exact;
+  for (const [from, to] of LEGACY_PREFIXES) {
+    if (pathname.startsWith(from)) return to + pathname.slice(from.length);
+  }
+  return null;
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
-  const target = LEGACY_REDIRECTS[event.url.pathname];
-  if (target) throw redirect(301, target + event.url.search);
+  const target = legacyTarget(event.url.pathname);
+  if (target) throw redirect(301, withSearch(target, event.url.search));
 
   /**
    * Track whether the response has been resolved to prevent

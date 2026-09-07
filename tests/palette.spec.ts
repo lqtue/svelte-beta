@@ -97,9 +97,9 @@ test('a key round-trips through the slug the route parses', () => {
 });
 
 test('only the five gazetteer categories get a place link', () => {
-  expect(placeHrefFor('Rue Catinat', 'street')).toBe('/place/rue-catinat');
-  expect(placeHrefFor('Chợ Lớn', 'place')).toBe('/place/cho-lon');
-  expect(placeHrefFor('Arroyo Chinois', 'hydrology')).toBe('/place/arroyo-chinois');
+  expect(placeHrefFor('Rue Catinat', 'street')).toBe('/catalog/place/rue-catinat');
+  expect(placeHrefFor('Chợ Lớn', 'place')).toBe('/catalog/place/cho-lon');
+  expect(placeHrefFor('Arroyo Chinois', 'hydrology')).toBe('/catalog/place/arroyo-chinois');
   // The loader 404s on a key under two characters, so don't offer the link.
   expect(placeHrefFor('A', 'place')).toBeNull();
   expect(placeHrefFor('...', 'place')).toBeNull();

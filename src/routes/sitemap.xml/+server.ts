@@ -1,7 +1,7 @@
 /**
  * sitemap.xml — the crawl entry the server-rendered half of the site never had.
  *
- * `/map/[id]` and `/place/[name]` are both rendered without JavaScript so a
+ * `/catalog/[id]` and `/catalog/place/[name]` are both rendered without JavaScript so a
  * crawler can read them, but until Sept 2026 they linked only to *each other*:
  * the catalog listed maps as click handlers, not anchors, so there was no path
  * in from `/`. The catalog rows are anchors now; this is the other half, and it
@@ -48,10 +48,10 @@ export const GET: RequestHandler = async ({ url, setHeaders }) => {
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...STATIC_PATHS.map((p) => entry(p)),
     ...posts.map((p) => entry(`/blog/${p.slug}`, p.date)),
-    ...(maps ?? []).map((m) => entry(`/map/${m.id}`, m.updated_at as string | null)),
+    ...(maps ?? []).map((m) => entry(`/catalog/${m.id}`, m.updated_at as string | null)),
     ...(places ?? [])
       .filter((p) => p.name_key)
-      .map((p) => entry(`/place/${keyToSlug(p.name_key as string)}`)),
+      .map((p) => entry(`/catalog/place/${keyToSlug(p.name_key as string)}`)),
     '</urlset>',
   ].join('\n');
 

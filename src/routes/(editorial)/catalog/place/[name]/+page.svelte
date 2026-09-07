@@ -1,5 +1,5 @@
 <!--
-  /place/<name> — everything the archive holds about one place name.
+  /catalog/place/<name> — everything the archive holds about one place name.
 
   A landing page, not a tool: the sheets that name it, the span of years it is
   attested, the other spellings it was written with, and one link into
@@ -106,7 +106,7 @@
   <ul class="maps">
     {#each maps as m (m.id)}
       <li>
-        <a href={`/map/${m.id}`}>
+        <a href={`/catalog/${m.id}`}>
           {#if m.thumbnail}<img src={m.thumbnail} alt="" loading="lazy" />{/if}
           <span class="year">{m.year_label ?? m.year ?? '—'}</span>
           <span class="title">{m.name ?? 'Untitled'}</span>

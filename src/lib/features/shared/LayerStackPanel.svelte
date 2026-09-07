@@ -181,7 +181,7 @@
         <a class="lsp-link" href="/image?map={topMapId}">Scan</a>
         <a class="lsp-link" href="/studio?map={topMapId}">Annotate</a>
         {#if topIsPublished}
-          <a class="lsp-link" href="/map/{topMapId}">Share</a>
+          <a class="lsp-link" href="/catalog/{topMapId}">Share</a>
         {/if}
       </div>
     {/if}
