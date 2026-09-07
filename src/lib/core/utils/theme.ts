@@ -4,9 +4,12 @@
  * `tokens.css` writes every ink as `light-dark(light, dark)` and picks by the
  * used `color-scheme`. So all this has to do is put one attribute on <html>:
  *
- *   no attribute       → :root keeps `color-scheme: light dark`, the OS decides
  *   data-theme=light   → :root switches to `color-scheme: light`
  *   data-theme=dark    → :root switches to `color-scheme: dark`
+ *
+ * There are two choices, not three: the toggle is light ⇄ dark. The OS is
+ * consulted once, for a reader who has never chosen — after that the choice is
+ * pinned, and flipping the OS theme mid-session no longer moves the page.
  *
  * It lives in `core` rather than beside NavBar because `ui` may not import
  * `features` or `data` (layering rule) — the same reason `commandPalette.ts`
@@ -14,70 +17,51 @@
  * in `src/app.html` reads the same key before any bundle loads and a raw string
  * is one `getItem` there instead of a `JSON.parse` in a try/catch.
  */
-import { readable, writable, derived, type Readable } from 'svelte/store';
+import { writable, derived, type Readable } from 'svelte/store';
 
-export type ThemeChoice = 'system' | 'light' | 'dark';
+export type ThemeChoice = 'light' | 'dark';
 
 export const THEME_KEY = 'vma-theme';
 
-/** The cycle the toggle walks, in order. */
-export const THEME_CYCLE: readonly ThemeChoice[] = ['system', 'light', 'dark'];
-
 function stored(): ThemeChoice {
-  if (typeof localStorage === 'undefined') return 'system';
+  if (typeof localStorage === 'undefined') return 'light';
   try {
     const v = localStorage.getItem(THEME_KEY);
-    return v === 'light' || v === 'dark' ? v : 'system';
+    if (v === 'light' || v === 'dark') return v;
   } catch {
-    return 'system';
+    // A private window with storage blocked still themes for this page view.
   }
+  // Never chosen: start where the OS is, then stay there.
+  return typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
 }
 
-/** The reader's choice. `system` means no attribute and no stored value. */
+/** The reader's choice. */
 export const theme = writable<ThemeChoice>(stored());
 
 export function setTheme(choice: ThemeChoice): void {
   theme.set(choice);
   if (typeof document === 'undefined') return;
-  if (choice === 'system') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = choice;
+  document.documentElement.dataset.theme = choice;
   try {
-    if (choice === 'system') localStorage.removeItem(THEME_KEY);
-    else localStorage.setItem(THEME_KEY, choice);
+    localStorage.setItem(THEME_KEY, choice);
   } catch {
     // A private window with storage blocked still themes for this page view.
   }
 }
 
-/**
- * Whether the OS asks for dark right now. A store rather than a call, because
- * a reader on `system` who flips their OS theme mid-session has to be told:
- * CSS hears the media query by itself, but anything painting to a canvas — the
- * OpenLayers basemap — does not.
- */
-const systemPrefersDark: Readable<boolean> = readable(false, (set) => {
-  if (typeof window === 'undefined' || !window.matchMedia) return;
-  const q = window.matchMedia('(prefers-color-scheme: dark)');
-  set(q.matches);
-  const onChange = (e: MediaQueryListEvent) => set(e.matches);
-  q.addEventListener('change', onChange);
-  return () => q.removeEventListener('change', onChange);
-});
+/** The theme actually in force. Anything painting to a canvas — the
+ * OpenLayers basemap — has to be told; CSS hears the attribute by itself. */
+export const isDarkTheme: Readable<boolean> = derived(theme, (choice) => choice === 'dark');
 
-/** The theme actually in force, `system` resolved. */
-export const isDarkTheme: Readable<boolean> = derived(
-  [theme, systemPrefersDark],
-  ([choice, prefersDark]) => (choice === 'system' ? prefersDark : choice === 'dark')
-);
-
-/** The next choice after `current`, wrapping. */
+/** The other one. */
 export function nextTheme(current: ThemeChoice): ThemeChoice {
-  return THEME_CYCLE[(THEME_CYCLE.indexOf(current) + 1) % THEME_CYCLE.length];
+  return current === 'dark' ? 'light' : 'dark';
 }
 
 /** What the toggle should say it does, given where it is now. */
 export function themeLabel(current: ThemeChoice): string {
-  const next = nextTheme(current);
-  const name = { system: 'follow the system', light: 'light', dark: 'dark' } as const;
-  return `Theme: ${name[current]} — switch to ${name[next]}`;
+  return `Theme: ${current} — switch to ${nextTheme(current)}`;
 }

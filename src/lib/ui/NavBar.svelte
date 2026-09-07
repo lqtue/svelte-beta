@@ -167,7 +167,7 @@
             d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"
           />
         </svg>
-      {:else if $theme === 'dark'}
+      {:else}
         <!-- moon -->
         <svg
           width="16"
@@ -181,21 +181,6 @@
           aria-hidden="true"
         >
           <path d="M20 14.5A8.5 8.5 0 019.5 4a7 7 0 108.5 10.5z" />
-        </svg>
-      {:else}
-        <!-- half-filled circle: whatever the system says -->
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-        >
-          <circle cx="12" cy="12" r="8" />
-          <path d="M12 4a8 8 0 000 16z" fill="currentColor" stroke="none" />
         </svg>
       {/if}
     </button>
@@ -340,7 +325,7 @@
     margin: 0.35rem 0.35rem;
   }
 
-  /* Theme cycle: system → light → dark. Same weight as the search opener so
+  /* Theme toggle: light ⇄ dark. Same weight as the search opener so
      the two read as one cluster of utilities. */
   .nav-theme {
     display: inline-flex;
