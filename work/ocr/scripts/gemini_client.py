@@ -210,9 +210,12 @@ def extract_labels(
         try:
             response = client.models.generate_content(
                 model=model,
+                # Prompt first, image last. Implicit context caching keys on a
+                # stable prefix; with the image first the prefix changes every
+                # call and the ~1.5k-token prompt is billed in full each time.
                 contents=[
-                    genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
                     user_prompt,
+                    genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
                 ],
                 config=genai_types.GenerateContentConfig(**config_kwargs),
             )
@@ -282,6 +285,8 @@ def _log_call(
         "input_tokens": getattr(usage, "prompt_token_count", None),
         "output_tokens": getattr(usage, "candidates_token_count", None),
         "total_tokens": getattr(usage, "total_token_count", None),
+        # Non-zero only when the prompt-first ordering hit the implicit cache.
+        "cached_tokens": getattr(usage, "cached_content_token_count", None),
     }
     with _log_lock:
         with open(log_path, "a") as f:
@@ -380,7 +385,7 @@ def extract_labels_sequence(
         try:
             response = client.models.generate_content(
                 model=model,
-                contents=parts + [sequence_prompt],
+                contents=[sequence_prompt] + parts,  # prompt first: see extract_labels
                 config=genai_types.GenerateContentConfig(**config_kwargs),
             )
             elapsed = time.monotonic() - t_start

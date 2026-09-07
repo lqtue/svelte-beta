@@ -50,4 +50,13 @@ assert "frame_idx" in rules and "4 frames" in rules, "frame rules lost frame add
 assert "prior knowledge" in rules, \
     "frame rules no longer bound joining to visible text — v8 forbids reconstruction"
 
+# 6. Prompt before image, on both live call paths. Implicit context caching
+#    keys on a stable prefix; image-first made the prefix the one part that
+#    changes every call, so the ~1.5k-token prompt was billed in full each time.
+gsrc = Path("gemini_client.py").read_text()
+assert re.search(r"contents=\[\s*user_prompt,\s*genai_types\.Part\.from_bytes", gsrc), \
+    "extract_labels sends the image before the prompt again — no cache prefix"
+assert "contents=[sequence_prompt] + parts" in gsrc, \
+    "extract_labels_sequence sends the frames before the prompt again — no cache prefix"
+
 print("prompt plumbing OK")

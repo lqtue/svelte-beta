@@ -101,3 +101,39 @@ Built a flag-guarded `--neighbor-window` path (each tile read with its 4 grid ne
 | mean_iou | 0.7234 | 0.7266 | ≈ |
 
 **Rejected — regresses recall 16pts.** Two causes: (1) wrong `frame_idx` from the model globalizes a label outside every center tile → owned by nobody → lost; (2) centroid ownership leaked in the 300px tile-overlap band (adjacent tiles both "own" a band centroid), so dedup couldn't even be retired. The doc's premise (neighbor windows beat row-sequence) is false on this map. Code reverted; **row-sequence stays the default.** Don't re-attempt without fixing frame attribution AND owning by non-overlapping core regions (or nearest-center Voronoi), and only if a bigger GT set justifies it.
+
+## The fragment join is not a lever (2026-09-08)
+
+Hypothesis after the v8 result: the lost labels were word fragments (`MARCHÉ` + `CENTRAL`)
+that `_spatial_join_fragments` could not merge, because `_is_fragment_candidate` only fires
+on words ≤ 4 chars. Tested offline — `all_extractions.json` → dedup → join → `eval.py
+--pred-run-dir`, no API calls — with the predicate widened to any lone word plus a same-
+category / same-height / edge-gap ≤ 1.5× text-height rule:
+
+| preds | baseline raw | baseline join-old | baseline join-new | v8 raw | v8 join-old | v8 join-new |
+|---|---|---|---|---|---|---|
+| matched / 43 | 33 | 33 | 33 | 27 | 27 | **26** |
+| predictions | 145 | 139 | 139 | 204 | 197 | 194 |
+
+Widening never gains a match and costs one on v8 (it fused `GENDARMERIE` + `TRÉSOR`,
+`Hamelin` + `Batavia` — neighbouring labels on one axis). Reverted; the predicate stands.
+
+**Every miss is one of two things, neither of them fragmentation.** Listing the unmatched GT
+with its best-IoU prediction: *right text, wrong box* — `POUDRIÈRE` at IoU 0.31, `ABATTOIR`
+0.29–0.36, `MESSAGERIES MARITIMES` 0.44, `MAGASINS A PÉTROLE` 0.46, `MARCHÉ CENTRAL` 0.49
+(already a single prediction, `Marche Central`), `CASERNES` 0.50 — or *not detected at all*
+(`FOURRIERE`, `GENDARMERIE`, `POSTE DE POLICE` ×2, `OUEST` read as `QUEST`). So the gate at
+IoU ≥ 0.5 is measuring box convention against hand-drawn GT boxes, and the recall left on the
+table is detection, not assembly. A text-exact match column at IoU ≥ 0.3 would separate the two.
+
+## Prompt-first call order (2026-09-08)
+
+`extract_labels` and `extract_labels_sequence` sent the image parts before the prompt. Implicit
+context caching keys on a stable prefix, so the ~1.5k-token prompt was the *varying* part and
+billed in full every call. Both now send `[prompt, images…]`; `calls.jsonl` gains
+`cached_tokens` (`usage.cached_content_token_count`). Live check, run `ordercheck` (no `--db`),
+`gemini-3-flash-preview`: 3 calls, 4847 / 5941 / 4838 input, all parsed, **`cached_tokens`
+null on every call** including the third, whose prefix was identical to the first. The order
+is now cache-eligible; a hit was not observed on this model in this sample. If the saving
+matters, explicit caching (`client.caches.create` on system+prompt) is deterministic where
+implicit is not.

@@ -113,6 +113,13 @@ def ocr_argv(job: dict, python_bin: str) -> list[str]:
     # calls.jsonl and the payload agree about what was used.
     if p.get("model"):
         argv += ["--model", str(p["model"])]
+    # Same reasoning as --model: unset, every job silently runs DEFAULT_PROMPT,
+    # whatever that is on the day the worker started.
+    if p.get("prompt"):
+        argv += ["--prompt", str(p["prompt"])]
+    # Opt-in: blank water and margin tiles cost the same as dense ones.
+    if p.get("skip_sparse"):
+        argv.append("--skip-sparse")
     neatline = p.get("neatline")
     if neatline:
         argv += ["--crop", ",".join(str(n) for n in neatline)]
