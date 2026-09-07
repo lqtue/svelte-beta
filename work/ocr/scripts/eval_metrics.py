@@ -11,6 +11,7 @@ Seg score: greedy polygon-IoU match (precision / recall / F1 / mean IoU).
 
 from __future__ import annotations
 
+import unicodedata
 from difflib import SequenceMatcher
 from typing import Callable
 
@@ -54,6 +55,18 @@ def char_sim(a: str, b: str) -> float:
     if not na and not nb:
         return 1.0
     return SequenceMatcher(None, na, nb).ratio()
+
+
+def has_diacritic(text: str) -> bool:
+    """Does this label carry a French accent or a Vietnamese vowel/tone mark?
+
+    Decompose and look for a combining mark, rather than testing for non-ASCII:
+    "N°29" is non-ASCII and carries no diacritic, and counting it would inflate the
+    rate on exactly the numbered-street labels v8 asks for. đ/Đ has no decomposition,
+    so it is named.
+    """
+    t = unicodedata.normalize("NFD", text or "")
+    return any(unicodedata.combining(c) for c in t) or "đ" in t.lower()
 
 
 def greedy_match(
@@ -114,6 +127,17 @@ def score_ocr(preds: list[dict], gts: list[dict], iou_thresh: float = 0.5) -> di
     else:
         out["mean_iou"] = 0.0
         out["char_acc"] = 0.0
+
+    # Diacritic retention. Measured across the live table, this separated a good run
+    # from a bad one at a glance — 9% of labels carrying any diacritic in one run,
+    # 100% in another, on the same sheets — and no other metric here sees it.
+    # `rate` needs no ground truth, so it also works on a sheet with none.
+    out["diacritic_rate"] = round(
+        sum(has_diacritic(p["text"]) for p in preds) / len(preds), 4) if preds else 0.0
+    dia = [(pi, gi) for pi, gi, _ in matches if has_diacritic(gts[gi]["text"])]
+    out["n_gt_diacritic"] = len(dia)
+    out["diacritic_recall"] = round(
+        sum(has_diacritic(preds[pi]["text"]) for pi, _ in dia) / len(dia), 4) if dia else None
     return out
 
 
@@ -138,9 +162,26 @@ def _self_check() -> None:
     assert box_iou((0, 0, 10, 10), (100, 100, 10, 10)) == 0.0
     assert abs(box_iou((0, 0, 10, 10), (5, 0, 10, 10)) - (50 / 150)) < 1e-9
 
-    # char_sim: exact vs off.
+    # char_sim: exact vs off. It does NOT fold diacritics, which is why it can see
+    # the difference the prompt fix targets.
     assert char_sim("Rue de Genouilly", "rue de genouilly") == 1.0
     assert char_sim("Marché", "xxxxx") < 0.3
+    assert char_sim("MARCHÉ", "MARCHE") < 1.0
+
+    # has_diacritic: French accent, Vietnamese marks, bare đ — but not a degree sign.
+    assert has_diacritic("MARCHÉ") and has_diacritic("CHÂTEAU")
+    assert has_diacritic("ĐƯỜNG") and has_diacritic("Đ") and has_diacritic("Rạch")
+    assert not has_diacritic("MARCHE") and not has_diacritic("Rue") and not has_diacritic("")
+    assert not has_diacritic("N°29"), "degree sign is not a diacritic"
+
+    # Diacritic retention: GT keeps its mark, pred drops it → recall 0, rate 0.
+    dp = [{"bbox": (0, 0, 10, 10), "text": "MARCHE"}]
+    dg = [{"bbox": (0, 0, 10, 10), "text": "MARCHÉ"}]
+    ds = score_ocr(dp, dg, iou_thresh=0.5)
+    assert ds["n_gt_diacritic"] == 1 and ds["diacritic_recall"] == 0.0, ds
+    assert ds["diacritic_rate"] == 0.0, ds
+    ds2 = score_ocr(dg, dg, iou_thresh=0.5)
+    assert ds2["diacritic_recall"] == 1.0 and ds2["diacritic_rate"] == 1.0, ds2
 
     # poly_iou: identical squares → 1.
     sq = [[0, 0], [10, 0], [10, 10], [0, 10]]

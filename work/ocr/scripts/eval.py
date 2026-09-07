@@ -12,6 +12,7 @@ Predictions are a machine run to score against that truth:
 Usage:
     python eval.py ocr --map-id <uuid> --run-id <run>      # run vs validated
     python eval.py seg --map-id <uuid>                     # submitted vs verified
+    python eval.py ocr --map-id <uuid> --pred-run-dir ../outputs/<map>/runs/<run>
     python eval.py ocr --pred-file p.json --gt-file g.json # offline, no DB
     # JSON file shape: OCR [{"bbox":[x,y,w,h],"text":"..."}], seg [{"polygon":[[x,y],...]}]
 
@@ -23,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from eval_metrics import score_ocr, score_seg
 
@@ -56,6 +58,28 @@ def _ocr_rows_to_items(rows: list[dict], use_validated_text: bool) -> list[dict]
     return items
 
 
+def _run_dir_to_items(run_dir: str) -> list[dict]:
+    """Predictions read straight out of a run directory's `all_extractions.json`.
+
+    The DB should not be the only place a run can be scored from. Scoring a candidate
+    prompt by writing its rows into the shared `ocr_extractions` table pollutes the
+    corpus the review UI reads and then has to be dedup'd back out again — a real cost
+    for a measurement that throws its predictions away. `batch` already writes
+    `global_bbox` on every extraction, which is all `score_ocr` needs.
+    """
+    path = Path(run_dir)
+    if path.is_dir():
+        path = path / "all_extractions.json"
+    data = json.loads(path.read_text())
+    rows = data if isinstance(data, list) else data.get("extractions", [])
+    items = []
+    for r in rows:
+        gb = r.get("global_bbox")
+        if gb and len(gb) == 4:
+            items.append({"bbox": tuple(gb), "text": r.get("text") or ""})
+    return items
+
+
 def _cmd_ocr(args: argparse.Namespace) -> None:
     if args.pred_file and args.gt_file:
         preds = json.loads(open(args.pred_file).read())
@@ -65,14 +89,17 @@ def _cmd_ocr(args: argparse.Namespace) -> None:
             raise SystemExit("Provide --map-id (or --pred-file + --gt-file)")
         base = {"map_id": f"eq.{args.map_id}", "select": "*"}
         gt_rows = _rest_get("ocr_extractions", {**base, "status": "eq.validated"})
-        pred_params = {**base}
-        if args.run_id:
-            pred_params["run_id"] = f"eq.{args.run_id}"
-        else:
-            pred_params["status"] = "neq.validated"
-        pred_rows = _rest_get("ocr_extractions", pred_params)
         gts = _ocr_rows_to_items(gt_rows, use_validated_text=True)
-        preds = _ocr_rows_to_items(pred_rows, use_validated_text=False)
+        if args.pred_run_dir:
+            preds = _run_dir_to_items(args.pred_run_dir)
+        else:
+            pred_params = {**base}
+            if args.run_id:
+                pred_params["run_id"] = f"eq.{args.run_id}"
+            else:
+                pred_params["status"] = "neq.validated"
+            pred_rows = _rest_get("ocr_extractions", pred_params)
+            preds = _ocr_rows_to_items(pred_rows, use_validated_text=False)
 
     if not gts:
         print("No validated OCR ground truth for this map — nothing to score against.")
@@ -119,6 +146,11 @@ def _print(kind: str, r: dict, iou: float) -> None:
     print(f"  precision {r['precision']}   recall {r['recall']}   f1 {r['f1']}   mean_iou {r['mean_iou']}")
     if "char_acc" in r:
         print(f"  char_acc {r['char_acc']}")
+    if "diacritic_rate" in r:
+        dr = r["diacritic_recall"]
+        print(f"  diacritic_rate {r['diacritic_rate']} (of all predictions)   "
+              f"diacritic_recall {dr if dr is not None else 'n/a'} "
+              f"(over {r['n_gt_diacritic']} matched GT labels that carry a mark)")
 
 
 def main() -> None:
@@ -127,7 +159,11 @@ def main() -> None:
 
     po = sub.add_parser("ocr", help="Score an OCR run vs validated extractions")
     po.add_argument("--map-id")
-    po.add_argument("--run-id", help="Prediction run_id (default: all non-validated rows)")
+    po.add_argument("--run-id", help="Prediction run_id in the DB (default: all non-validated rows)")
+    po.add_argument("--pred-run-dir",
+                    help="Score a local run directory instead of DB rows (its "
+                         "all_extractions.json). Ground truth still comes from the DB. "
+                         "Use this for a candidate prompt — it needs no --db run.")
     po.add_argument("--iou", type=float, default=0.5)
     po.add_argument("--pred-file")
     po.add_argument("--gt-file")
