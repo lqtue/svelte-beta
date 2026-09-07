@@ -78,10 +78,6 @@
     name="description"
     content="Inspect high-resolution scans of historical maps from the Vietnam Map Archive."
   />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 <!-- ── Page shell ──────────────────────────────────────────────────────────── -->

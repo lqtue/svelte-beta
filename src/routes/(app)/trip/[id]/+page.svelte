@@ -325,7 +325,7 @@
   }
   .state h2 {
     margin: 0;
-    font-family: var(--sb-font-display, 'Spectral', serif);
+    font-family: var(--sb-font-display);
     font-size: 1.4rem;
   }
   .state p {
