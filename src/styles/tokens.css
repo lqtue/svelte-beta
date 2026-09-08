@@ -91,12 +91,23 @@
   /* ========================================
      TYPOGRAPHY
      ======================================== */
-  --font-family-base: 'Outfit', 'Be Vietnam Pro', system-ui, sans-serif;
-  --font-family-display: 'Space Grotesk', system-ui, sans-serif;
+  /* Google Sans is Google's own licence — it is not served by Google Fonts and
+     cannot be embedded here. It is named first anyway: on Android, ChromeOS
+     and machines that have it installed the browser uses it locally, and
+     everywhere else the stack falls through to the two faces the <link> in
+     src/app.html actually loads. Those two are the real pairing, chosen for
+     older eyes: Inter for reading (tall x-height, open apertures, a straight
+     `l` that will not read as `1`) and Be Vietnam Pro for headings and chrome
+     (geometric, close in flavour to Google Sans, and Vietnamese-complete —
+     which Inter also is, so no third face is needed for diacritics). */
+  --font-family-base:
+    'Google Sans Text', 'Google Sans', 'Inter', 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-family-display:
+    'Google Sans Display', 'Google Sans', 'Be Vietnam Pro', system-ui, sans-serif;
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
-  --text-base: 1rem;
+  --text-base: 1.0625rem; /* 17px — a notch up from 16 for older readers */
   --text-lg: 1.125rem;
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;

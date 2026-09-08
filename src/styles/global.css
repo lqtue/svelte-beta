@@ -34,7 +34,7 @@ body {
   font-family: var(--font-family-base);
   font-size: var(--text-base);
   font-weight: var(--font-normal);
-  line-height: 1.5;
+  line-height: 1.6; /* looser leading — long lines are easier to track back */
   color: var(--color-gray-900);
   background-color: var(--color-gray-50);
   -webkit-font-smoothing: antialiased;

@@ -53,15 +53,17 @@ Legacy aliases also exist and are still referenced, all warmed into the same pap
 
 | Variable | Value | Use |
 |---|---|---|
-| `--font-family-display` | `'Space Grotesk', system-ui, sans-serif` | Headings, nav, badges, labels, buttons |
-| `--font-family-base` | `'Outfit', 'Be Vietnam Pro', system-ui, sans-serif` | Body text, descriptions, captions |
+| `--font-family-display` | `'Google Sans Display', 'Google Sans', 'Be Vietnam Pro', system-ui, sans-serif` | Headings, nav, badges, labels, buttons |
+| `--font-family-base` | `'Google Sans Text', 'Google Sans', 'Inter', 'Be Vietnam Pro', system-ui, sans-serif` | Body text, descriptions, captions |
 
-Sizes: `--text-xs` `.75rem` · `--text-sm` `.875rem` · `--text-base` `1rem` · `--text-lg` `1.125rem` · `--text-xl` `1.25rem` · `--text-2xl` `1.5rem` · `--text-3xl` `2rem`.
+**Google Sans is named but never loaded.** It is Google's own licence and Google Fonts does not serve it, so it resolves only where the reader already has it (Android, ChromeOS). The two faces the app actually ships are the pairing: **Inter** for reading and **Be Vietnam Pro** for headings and chrome. Both cover Vietnamese, which is why the old third face is gone. The pair was chosen for older eyes — Inter has the tallest x-height and the most open apertures of the Google Fonts grotesks, and a straight `l` that will not be read as `1`; body copy sits at 17px with 1.6 leading for the same reason.
+
+Sizes: `--text-xs` `.75rem` · `--text-sm` `.875rem` · `--text-base` `1.0625rem` (17px) · `--text-lg` `1.125rem` · `--text-xl` `1.25rem` · `--text-2xl` `1.5rem` · `--text-3xl` `2rem`.
 Weights: `--font-normal` 400 · `--font-medium` 500 · `--font-semibold` 600 · `--font-bold` 700 · `--font-extrabold` 800.
 
 Use `800` for page and section titles, `700` for nav and sub-headings, `500` for body copy, `400` for long-form blog reading. Hero titles use `clamp(2.5rem, 6vw, 4rem)` — always fluid.
 
-**The Google Fonts link lives once in `src/app.html`**, and asks for exactly the three faces `tokens.css` names — Space Grotesk, Outfit, Be Vietnam Pro. Do not add a `<link>` to a page or component: three tool pages each carried a second render-blocking stylesheet (for Spectral and Noto Serif, which appear in no font stack) until Sept 2026.
+**The Google Fonts link lives once in `src/app.html`**, and asks for exactly the two faces `tokens.css` can load — Inter, Be Vietnam Pro. Do not add a `<link>` to a page or component: three tool pages each carried a second render-blocking stylesheet (for Spectral and Noto Serif, which appear in no font stack) until Sept 2026.
 
 **Map labels set themselves.** `components/lettering.css` with `core/utils/mapLettering.ts` gives a label the role its own sheet would have given it — `.lettering-hydronym` italic for rivers and canals, `.lettering-area` letterspaced capitals for quarters and districts, roman for everything else. Use them wherever a transcribed name is shown, not a generic italic.
 

@@ -55,7 +55,7 @@
       }),
       text: new Text({
         text: String(n),
-        font: "700 10px 'Space Grotesk', sans-serif",
+        font: "700 10px 'Be Vietnam Pro', sans-serif",
         fill: new Fill({ color: INK.ink }),
       }),
       zIndex: 5,
@@ -169,7 +169,7 @@
     border-radius: 4px;
     padding: 3px 7px;
     font:
-      600 12px 'Space Grotesk',
+      600 12px 'Be Vietnam Pro',
       sans-serif;
     white-space: nowrap;
     pointer-events: none;

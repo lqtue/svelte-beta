@@ -26,7 +26,7 @@ const FALLBACK: MarkerPalette = {
   done: INK.green,
   border: INK.ink,
   label: INK.paper,
-  font: "'Space Grotesk', system-ui, sans-serif",
+  font: "'Be Vietnam Pro', system-ui, sans-serif",
 };
 
 function cssVar(name: string, fallback: string): string {

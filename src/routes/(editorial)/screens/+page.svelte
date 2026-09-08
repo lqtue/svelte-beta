@@ -189,8 +189,9 @@
       <section class="sc-section">
         <h2 class="sc-h2">Type</h2>
         <p class="sc-blurb">
-          <strong>Space Grotesk</strong> for headings, nav, badges, labels and buttons.
-          <strong>Outfit</strong> for body text. Hero titles use
+          <strong>Google Sans</strong> where the reader's machine has it, otherwise
+          <strong>Be Vietnam Pro</strong> for headings, nav, badges, labels and buttons and
+          <strong>Inter</strong> for body text. Hero titles use
           <code>clamp(2.5rem, 6vw, 4rem)</code> — always fluid.
         </p>
         <div class="sc-typelist">
