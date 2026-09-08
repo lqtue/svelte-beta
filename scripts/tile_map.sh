@@ -110,7 +110,11 @@ if [[ -f "$MAP_DIR/info.json" ]]; then
   KEPT=$(for sf in $(jq -r '.tiles[0].scaleFactors[]' "$MAP_DIR/info.json"); do
            span=$((256 * sf))
            tw=$(( span < W ? span : W )); th=$(( span < H ? span : H ))
-           [[ -d "$MAP_DIR/$tw,$th" || -d "$MAP_DIR/0,0,$tw,$th" ]] && echo "$sf"
+           # `|| true` because the last factor is the one dzsave never writes:
+           # its failing test is the pipeline's exit status under pipefail, so
+           # without this the KEPT assignment fails and set -e kills the script
+           # right here, silently, on every map.
+           { [[ -d "$MAP_DIR/$tw,$th" || -d "$MAP_DIR/0,0,$tw,$th" ]] && echo "$sf"; } || true
          done | jq -sc '.')
   if [[ "$KEPT" != "[]" ]]; then
     echo "→ Advertised scale factors trimmed to $KEPT"
