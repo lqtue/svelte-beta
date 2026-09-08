@@ -30,6 +30,12 @@ import { parseRegion, type SavedTriage } from '$lib/data/maps/triageTypes';
 import { parseGrid } from '$lib/core/geo/mapGrid';
 
 const MAX_ROWS = 500;
+
+// Must match the unique index ocr_extractions_upsert_key (migration 077) and
+// `_CONFLICT_COLS` in work/ocr/scripts/supabase_client.py. global_xi/global_yi
+// are generated round(global_x/y) columns that exist only to be nameable here —
+// PostgREST cannot reference an expression index in on_conflict.
+const UPSERT_KEY = 'map_id,run_id,tile_x,tile_y,text,global_xi,global_yi';
 const JOB_STATUSES = ['running', 'done', 'failed'];
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -68,9 +74,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const { error: err, count } = await supabase
       .from('ocr_extractions')
-      .upsert(rows, { onConflict: 'map_id,run_id,tile_x,tile_y,text', count: 'exact' });
+      .upsert(rows, { onConflict: UPSERT_KEY, count: 'exact' });
     if (err) dbError(err, 'Could not write extractions');
+    // Report what the database accepted *and* what was offered. They differed
+    // silently before migration 077: the key was (map_id, run_id, tile_x,
+    // tile_y, text), so 18 of a 337-row merge collapsed into each other and the
+    // count came back 319 with nothing to compare it against.
     applied.extractions = count ?? rows.length;
+    if (count != null && count < rows.length) applied.extractions_offered = rows.length;
   }
 
   // The layout job's output. Merged, not replaced: the neatline and tile grid
@@ -90,13 +101,27 @@ export const POST: RequestHandler = async ({ request }) => {
     if (readErr) dbError(readErr, 'Could not read the triage');
     if (!row) throw error(404, 'No such map');
 
-    const triage: SavedTriage = { ...((row.triage as SavedTriage) ?? {}) };
-    triage.regions = regions;
-    triage.regions_at = new Date().toISOString();
+    // Keep what a person decided. `LayoutRegion.source` has recorded who put a
+    // region there since migration 069 — the canvas stamps 'human' on every
+    // drag, category change and add — and this used to replace the whole array
+    // anyway, so pressing Detect a second time silently discarded every
+    // correction. The model's proposals are the only thing a re-run may replace.
+    const kept = ((row.triage as SavedTriage)?.regions ?? []).filter((r) => r.source === 'human');
+    const merged = [...kept, ...regions];
 
-    const { error: writeErr } = await supabase.from('maps').update({ triage }).eq('id', mapId);
+    const { error: writeErr } = await supabase.rpc('set_triage_key', {
+      p_map_id: mapId,
+      p_key: 'regions',
+      p_value: merged,
+    });
     if (writeErr) dbError(writeErr, 'Could not write the triage');
-    applied.regions = regions.length;
+    await supabase.rpc('set_triage_key', {
+      p_map_id: mapId,
+      p_key: 'regions_at',
+      p_value: new Date().toISOString(),
+    });
+    applied.regions = merged.length;
+    if (kept.length) applied.regions_kept_human = kept.length;
   }
 
   // The sheet's printed reference grid. Merged for the same reason the regions
@@ -114,12 +139,17 @@ export const POST: RequestHandler = async ({ request }) => {
     if (readErr) dbError(readErr, 'Could not read the triage');
     if (!row) throw error(404, 'No such map');
 
-    const triage: SavedTriage = { ...((row.triage as SavedTriage) ?? {}) };
-    triage.grid = grid;
-    triage.grid_at = new Date().toISOString();
-
-    const { error: writeErr } = await supabase.from('maps').update({ triage }).eq('id', mapId);
+    const { error: writeErr } = await supabase.rpc('set_triage_key', {
+      p_map_id: mapId,
+      p_key: 'grid',
+      p_value: grid,
+    });
     if (writeErr) dbError(writeErr, 'Could not write the triage');
+    await supabase.rpc('set_triage_key', {
+      p_map_id: mapId,
+      p_key: 'grid_at',
+      p_value: new Date().toISOString(),
+    });
     applied.grid = `${grid.columns.length}x${grid.rows.length}`;
   }
 

@@ -167,7 +167,7 @@ All tables must have `alter table ... enable row level security`.
 
 ---
 
-## 11. Current schema (migration head 075)
+## 11. Current schema (migration head 077)
 
 Moved here from `CLAUDE.md` in September 2026. The table lists what exists; the paragraphs after it are the rules a migration must not undo.
 
@@ -181,8 +181,8 @@ Moved here from `CLAUDE.md` in September 2026. The table lists what exists; the 
 | `label_pins` | Point annotations | `map_id → maps.id`, pixel coords. `label_tasks` was dropped in mig 038 |
 | `footprint_submissions` | Polygon traces + SAM2 output | `map_id → maps.id`; status ∈ `draft/submitted/needs_review/approved/rejected`, source ∈ `volunteer/sam-auto/sam-corrected/import` (both widened in mig 055 — 038's lists rejected every SAM2 write); `pixel_polygon`; `run_id` (mig 057) pins a segmentation run so the OCR join cannot mix runs |
 | `annotation_sets` | User GeoJSON | `map_id → maps.id` nullable, `user_id → auth.users` |
-| `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text)` unique; `global_*` are full-image px; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join. Read policy inherits the map's gate since mig 065 (published, or any signed-in user) |
-| `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (10 values incl. `join` mig 061, `layout` mig 070) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs |
+| `ocr_extractions` | OCR bbox results | `(map_id, run_id, tile_x, tile_y, text, global_xi, global_yi)` unique (mig 077 — the key was position-blind, so eight distinct `Rue` labels in one tile collapsed to one row; `global_xi`/`global_yi` are generated `round(global_x/y)` and exist only because PostgREST cannot name an expression index in `on_conflict`). `global_x`/`global_y` are now `not null`; `global_*` are full-image px — the **derived** axis-aligned box around a label that may run at any angle, whose own rectangle is `rotation_deg` + `label_w`/`label_h` (mig 076; null on pipeline rows, where the size is inverted out of the box instead, and unrecoverable within ~2° of 45°). Every geometry write sends both; `status` ∈ `pending/validated/rejected`; `footprint_id` (mig 050) is the OCR↔footprint join. Read policy inherits the map's gate since mig 065 (published, or any signed-in user) |
+| `pipeline_jobs` | Work queue between web and workers (mig 053) | `kind` (10 values incl. `join` mig 061, `layout` mig 070) · `status` (`queued/claimed/running/done/failed/cancelled`) · `payload` jsonb · retry via `attempts < max_attempts`. Partial unique index = one live job per (kind, map). Service-role only. Claim/close with the `claim_job` / `finish_job` RPCs — since mig 077 `claim_job` also reclaims a job held in `claimed`/`running` for over 3 hours with attempts left, because nothing else ever un-stuck one and that partial index then blocked its map for good |
 | `worker_keys` | Per-machine revocable worker credentials (mig 053) | `token_hash` (sha256), `kinds`, `revoked_at`. Written in step 2; the table exists now |
 | `map_pipeline_status` | Per-map pipeline state — **a view since mig 056** | Machine stages derived from `pipeline_jobs`, human stages from `map_review_marks`. Read-only; nothing writes it |
 | `map_review_marks` | The three stages a person asserts (mig 056) | `reviewed_at`, `seg_reviewed_at`, `exported_at`. Written only by the `set_review_mark` RPC |

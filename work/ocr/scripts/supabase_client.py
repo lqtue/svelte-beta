@@ -39,8 +39,14 @@ def _load_config() -> tuple[str, str]:
 
 _CHUNK_SIZE = 50  # rows per request — avoids PostgREST payload limits
 
-# Conflict columns match the unique index: ocr_extractions_upsert_key
-_CONFLICT_COLS = "map_id,run_id,tile_x,tile_y,text"
+# Conflict columns match the unique index ocr_extractions_upsert_key (mig 077).
+# global_xi/global_yi are generated `round(global_x/y)` columns that exist only
+# so this list can name them: PostgREST cannot use an expression index here.
+# Keep in step with the index and with `onConflict` in
+# src/routes/api/pipeline/results/+server.ts — three declarations of one key,
+# in three languages, is the price of the write path being reachable from all
+# three.
+_CONFLICT_COLS = "map_id,run_id,tile_x,tile_y,text,global_xi,global_yi"
 
 
 def _api_config() -> tuple[str, str] | None:
@@ -101,14 +107,35 @@ def upsert_ocr_extractions(map_id: str, run_id: str, rows: list[dict[str, Any]])
             if isinstance(row.get(field), str):
                 row[field] = row[field].replace("\x00", "")
 
-    # Deduplicate on the unique key — model sometimes returns duplicate labels per tile
+    # Deduplicate on the unique key, so a single request cannot conflict with
+    # itself ("ON CONFLICT DO UPDATE command cannot affect row a second time").
+    #
+    # Until migration 077 the key was (map_id, run_id, tile_x, tile_y, text) and
+    # this loop silently threw away every label that shared text with another in
+    # the same tile — 18 of the 337 rows (5.3%) of a two-pass merge on the 1882
+    # sheet, because `merge` keys each row to the *winning pass's* tile origin
+    # and so concentrates labels from all over the sheet onto one origin. Eight
+    # distinct "Rue" labels became one. It returned the post-dedup count, so
+    # nothing downstream could see the loss.
+    #
+    # With the box's rounded corner in the key, what survives here is a true
+    # duplicate: same text, same tile, same position. Those are worth dropping —
+    # but never silently.
+    def _key(row: dict[str, Any]) -> tuple:
+        return (row["map_id"], row["run_id"], row["tile_x"], row["tile_y"], row["text"],
+                round(float(row["global_x"])), round(float(row["global_y"])))
+
     seen: set[tuple] = set()
     deduped_payload: list[dict[str, Any]] = []
     for row in payload:
-        key_tuple = (row["map_id"], row["run_id"], row["tile_x"], row["tile_y"], row["text"])
+        key_tuple = _key(row)
         if key_tuple not in seen:
             seen.add(key_tuple)
             deduped_payload.append(row)
+    dropped = len(payload) - len(deduped_payload)
+    if dropped:
+        print(f"  note: {dropped} of {len(payload)} rows are exact duplicates "
+              f"(same text, tile and position) and were collapsed")
     payload = deduped_payload
 
     api = _api_config()

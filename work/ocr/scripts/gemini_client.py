@@ -200,6 +200,34 @@ def _parse_result(response_text: str, schema: dict, model: str, user_prompt: str
         return _parse_response_text(retry_response.text)
 
 
+# How many times one call may be retried before it gives up.
+#
+# The loops below used to be unbounded `while True`: a persistently rate-limited
+# or 5xx endpoint retried every two minutes forever, and because the worker runs
+# these under a subprocess with no timeout and nothing reclaimed a stranded job,
+# one bad afternoon at the API wedged a worker and a map together. Backoff caps
+# at 120s, so 12 attempts is a little over 20 minutes of trying — long enough to
+# ride out a real rate-limit episode, short enough that the job fails, gets
+# requeued by finish_job and can be picked up by a worker that is not stuck.
+#
+# Key rotation on true quota exhaustion is deliberately *not* counted: rotating
+# to a fresh key is progress, not a retry, and the loop already ends when the
+# keys run out.
+MAX_CALL_RETRIES = int(os.environ.get("GEMINI_MAX_RETRIES", "12"))
+
+
+def _has_status(err_str: str, *codes: str) -> bool:
+    """True when the error text carries one of these HTTP status codes.
+
+    Matched as a standalone number, not a substring: plain `"500" in err_str`
+    also fires on a token count of 1500 or a byte offset of 25000, and with a
+    retry budget in place a misread permanent error now costs twelve backoffs
+    per tile rather than one immediate failure.
+    """
+    import re as _re2
+    return any(_re2.search(rf"(?<!\d){c}(?!\d)", err_str) for c in codes)
+
+
 def extract_labels(
     image: Image.Image,
     system_prompt: str,
@@ -224,14 +252,16 @@ def extract_labels(
     - Malformed JSON → one retry with schema hint; logs to malformed.jsonl
     """
     import io, re as _re
-    from cache import get as cache_get, put as cache_put
+    from cache import get as cache_get, put as cache_put, schema_version
 
     buf = io.BytesIO()
     image.save(buf, format="JPEG", quality=90)
     image_bytes = buf.getvalue()
 
     # Cache hit — free result, no API call
-    cached = cache_get(image_bytes, user_prompt, model, cache_dir=cache_dir)
+    sv = schema_version(schema)
+    cached = cache_get(image_bytes, user_prompt, model, cache_dir=cache_dir,
+                       schema_version=sv)
     if cached is not None:
         return cached
 
@@ -252,6 +282,7 @@ def extract_labels(
 
     t_start = time.monotonic()
     backoff = 2.0  # starting backoff for rate-limit retries (doubles each attempt)
+    retries = 0
 
     while True:
         client, active_key = _load_client()
@@ -275,7 +306,8 @@ def extract_labels(
                 _log_call(log_path=log_path, model=model, elapsed=elapsed,
                           usage=response.usage_metadata,
                           n_extractions=len(result.get("extractions", [])))
-            cache_put(image_bytes, user_prompt, model, result, cache_dir=cache_dir)
+            cache_put(image_bytes, user_prompt, model, result, cache_dir=cache_dir,
+                      schema_version=sv)
             return result
 
         except Exception as e:
@@ -289,8 +321,8 @@ def extract_labels(
                 or ("RESOURCE_EXHAUSTED" in err_str and "429" not in err_str)
             )
             # Per-second or per-minute rate limit — back off and retry same key.
-            is_rate = "429" in err_str and not is_true_quota
-            is_transient = any(c in err_str for c in ("503", "500", "UNAVAILABLE"))
+            is_rate = _has_status(err_str, "429") and not is_true_quota
+            is_transient = _has_status(err_str, "503", "500") or "UNAVAILABLE" in err_str
 
             if is_true_quota:
                 if not _rotate_key():
@@ -298,18 +330,25 @@ def extract_labels(
                 backoff = 2.0  # reset backoff after key rotation
                 continue
 
-            if is_rate:
-                # Honour Retry-After header if present, else use exponential backoff.
-                m = _re.search(r"retry[_\s-]?after[:\s]+([\d.]+)", err_str, _re.IGNORECASE)
-                wait = float(m.group(1)) + 1 if m else backoff
-                backoff = min(backoff * 2, 120.0)
-                print(f"\n  Rate limited — waiting {wait:.0f}s (next backoff {backoff:.0f}s) ...", flush=True)
+            if is_rate or is_transient:
+                retries += 1
+                if retries > MAX_CALL_RETRIES:
+                    raise RuntimeError(
+                        f"gave up after {MAX_CALL_RETRIES} retries on: {err_str[:200]}"
+                    ) from e
+                if is_rate:
+                    # Honour Retry-After header if present, else exponential backoff.
+                    m = _re.search(r"retry[_\s-]?after[:\s]+([\d.]+)", err_str, _re.IGNORECASE)
+                    wait = float(m.group(1)) + 1 if m else backoff
+                    backoff = min(backoff * 2, 120.0)
+                    print(f"\n  Rate limited — waiting {wait:.0f}s "
+                          f"(next backoff {backoff:.0f}s, retry {retries}/{MAX_CALL_RETRIES}) ...",
+                          flush=True)
+                else:
+                    wait = 30.0
+                    print(f"\n  Model unavailable — waiting 30s "
+                          f"(retry {retries}/{MAX_CALL_RETRIES}) ...", flush=True)
                 time.sleep(wait)
-                continue
-
-            if is_transient:
-                print(f"\n  Model unavailable — waiting 30s ...", flush=True)
-                time.sleep(30)
                 continue
 
             raise
@@ -367,7 +406,7 @@ def extract_labels_sequence(
     on the production path until 2026-09-08. A missing prompt is now a TypeError.
     """
     import io, re as _re
-    from cache import get as cache_get, put as cache_put
+    from cache import get as cache_get, put as cache_put, schema_version
 
     parts = []
     all_image_bytes: list[bytes] = []
@@ -385,7 +424,9 @@ def extract_labels_sequence(
 
     # Cache key covers all image bytes + the sequence prompt + model
     cache_key_bytes = b"".join(all_image_bytes)
-    cached = cache_get(cache_key_bytes, sequence_prompt, model, cache_dir=cache_dir)
+    sv = schema_version(schema)
+    cached = cache_get(cache_key_bytes, sequence_prompt, model, cache_dir=cache_dir,
+                       schema_version=sv)
     if cached is not None:
         return cached
 
@@ -425,6 +466,7 @@ def extract_labels_sequence(
 
     t_start = time.monotonic()
     backoff = 2.0
+    retries = 0
 
     while True:
         client, active_key = _load_client()
@@ -446,28 +488,37 @@ def extract_labels_sequence(
                 _log_call(log_path=log_path, model=model, elapsed=elapsed,
                           usage=response.usage_metadata,
                           n_extractions=len(result.get("extractions", [])))
-            cache_put(cache_key_bytes, sequence_prompt, model, result, cache_dir=cache_dir)
+            cache_put(cache_key_bytes, sequence_prompt, model, result, cache_dir=cache_dir,
+                      schema_version=sv)
             return result
         except Exception as e:
             err_str = str(e)
-            is_quota = "EXHAUSTED" in err_str.upper() or ("429" in err_str and "quota" in err_str.lower())
-            is_rate  = "429" in err_str and not is_quota
-            is_transient = any(c in err_str for c in ("503", "500", "UNAVAILABLE"))
+            is_quota = "EXHAUSTED" in err_str.upper() or (
+                _has_status(err_str, "429") and "quota" in err_str.lower())
+            is_rate  = _has_status(err_str, "429") and not is_quota
+            is_transient = _has_status(err_str, "503", "500") or "UNAVAILABLE" in err_str
             if is_quota:
                 if not _rotate_key():
                     raise RuntimeError("All API keys exhausted for today") from e
                 backoff = 2.0
                 continue
-            if is_rate:
-                m = _re.search(r"retry in ([\d.]+)s", err_str, _re.IGNORECASE)
-                wait = float(m.group(1)) + 2 if m else backoff
-                backoff = min(backoff * 2, 120.0)
-                print(f"\n  Rate limited — waiting {wait:.0f}s ...", flush=True)
+            if is_rate or is_transient:
+                retries += 1
+                if retries > MAX_CALL_RETRIES:
+                    raise RuntimeError(
+                        f"gave up after {MAX_CALL_RETRIES} retries on: {err_str[:200]}"
+                    ) from e
+                if is_rate:
+                    m = _re.search(r"retry in ([\d.]+)s", err_str, _re.IGNORECASE)
+                    wait = float(m.group(1)) + 2 if m else backoff
+                    backoff = min(backoff * 2, 120.0)
+                    print(f"\n  Rate limited — waiting {wait:.0f}s "
+                          f"(retry {retries}/{MAX_CALL_RETRIES}) ...", flush=True)
+                else:
+                    wait = 30.0
+                    print(f"\n  Model unavailable — waiting 30s "
+                          f"(retry {retries}/{MAX_CALL_RETRIES}) ...", flush=True)
                 time.sleep(wait)
-                continue
-            if is_transient:
-                print(f"\n  Model unavailable — waiting 30s ...", flush=True)
-                time.sleep(30)
                 continue
             raise
 

@@ -283,6 +283,75 @@ def cmd_run(args: argparse.Namespace) -> None:
     print(f"Usage log:     {log_path}")
 
 
+def origin_keyed_overrides(overrides: dict[str, str], shift: int) -> dict[tuple[int, int], str]:
+    """Re-key per-tile priorities from "{x}_{y}_{w}_{h}" to (x+shift, y+shift).
+
+    A person's triage keys are strings against the grid they saw. The second
+    pass of the two-pass recipe moves the whole grid by half a tile, and an edge
+    tile's w/h differ from the interior's, so a literal string lookup matched
+    nothing on that pass — every tile marked *skip* was read anyway at full cost.
+    Matching on the origin alone, shifted, is what makes a triage decision hold
+    across both passes. Unparseable keys are dropped rather than raising: the
+    payload is JSON from a browser.
+    """
+    out: dict[tuple[int, int], str] = {}
+    for key, priority in overrides.items():
+        parts = key.split("_")
+        if len(parts) < 2:
+            continue
+        try:
+            out[(int(parts[0]) + shift, int(parts[1]) + shift)] = priority
+        except ValueError:
+            continue
+    return out
+
+
+def cmd_self_check(args: argparse.Namespace) -> None:
+    """Run: python ocr.py self-check — the pure helpers on the automated path."""
+    # Tile priorities must survive the half-tile grid shift. With tile 2400 and
+    # overlap 600 the stride is 1800, so pass a starts at rx and pass b at
+    # rx+1200: 1800m - 1800n = 1200 has no integer solution and not one key
+    # coincides. The shift is what lines them back up.
+    overrides = {"0_0_2400_2400": "skip", "1800_0_2400_2400": "low_res",
+                 "3600_0_1200_2400": "skip"}
+    unshifted = origin_keyed_overrides(overrides, 0)
+    assert unshifted[(0, 0)] == "skip"
+    assert unshifted[(1800, 0)] == "low_res"
+    shifted = origin_keyed_overrides(overrides, 1200)
+    assert shifted[(1200, 1200)] == "skip", shifted
+    assert shifted[(3000, 1200)] == "low_res", shifted
+    assert not set(unshifted) & set(shifted), \
+        "the shifted grid must share no origin with the unshifted one"
+    # The clipped edge tile is found by origin alone, whatever its w/h.
+    assert shifted[(4800, 1200)] == "skip"
+    # Junk in the payload is dropped, not raised.
+    assert origin_keyed_overrides({"": "skip", "a_b_c_d": "skip", "7": "skip"}, 0) == {}
+
+    # The cache must not serve a result shaped by a different schema.
+    from cache import SCHEMA_VERSION, schema_version
+    assert schema_version(None) == SCHEMA_VERSION
+    assert schema_version({"a": 1}) == schema_version({"a": 1}), "must be stable"
+    assert schema_version({"a": 1}) != schema_version({"a": 1, "b": 2}), \
+        "an added schema field must invalidate the cache"
+    assert schema_version({"a": 1, "b": 2}) == schema_version({"b": 2, "a": 1}), \
+        "key order is not a schema change"
+    # …and today's schemas must still resolve to the version the 233 entries
+    # already in outputs/.cache were written under, or deriving the version
+    # would have thrown away every paid-for tile for no schema change at all.
+    from prompt import EXTRACTION_SCHEMA, SCOUT_SCHEMA
+    assert schema_version(EXTRACTION_SCHEMA) == SCHEMA_VERSION, "cache went cold"
+    assert schema_version(SCOUT_SCHEMA) == SCHEMA_VERSION, "scout cache went cold"
+    assert schema_version({**EXTRACTION_SCHEMA, "zzz": {"type": "string"}}) != SCHEMA_VERSION
+
+    # A retry decision must read a status code, not a substring of a number.
+    from gemini_client import _has_status
+    assert _has_status("503 UNAVAILABLE", "503")
+    assert not _has_status("used 1500 tokens", "500"), "1500 is not a 500"
+    assert not _has_status("4290", "429")
+
+    print("[ok] ocr self-check passed")
+
+
 def cmd_batch(args: argparse.Namespace) -> None:
     """Run OCR on every tile of a map with resume support and thread concurrency."""
     import concurrent.futures
@@ -451,9 +520,13 @@ def cmd_batch(args: argparse.Namespace) -> None:
 
     # 6. Per-tile priority overrides — skip marked tiles, use lower render for low_res
     tile_overrides: dict[str, str] = {}
+    # True when the grid these keys belong to is the one a person triaged, which
+    # is the only case that needs shifting to this pass's grid.
+    human_overrides = False
     if getattr(args, "tile_overrides", None):
         try:
             tile_overrides = json.loads(args.tile_overrides)
+            human_overrides = bool(tile_overrides)
         except json.JSONDecodeError as e:
             print(f"  Warning: could not parse --tile-overrides JSON: {e}")
     elif not local_image and getattr(args, "auto_priority", False):
@@ -490,12 +563,32 @@ def cmd_batch(args: argparse.Namespace) -> None:
 
     low_res_render = getattr(args, "low_res_render", 512)
 
-    skip_keys = {k for k, v in tile_overrides.items() if v == "skip"}
-    if skip_keys:
+    # Overrides arrive keyed "{x}_{y}_{w}_{h}" against the grid a person triaged.
+    # Two things stop a literal string match from working on the second pass of
+    # the two-pass recipe:
+    #
+    #   * `--grid-offset` moves the whole grid half a tile, so every origin is
+    #     the first pass's plus that offset (same stride, shifted start).
+    #   * w and h are only the clip at the sheet edge, so an edge tile's key
+    #     differs even when it is the same tile.
+    #
+    # Before this, neither matched on the shifted pass: `tile_overrides.get()`
+    # returned None for every tile, so every tile a person marked *skip* was
+    # read anyway at full cost, and every *low_res* tile rendered full size.
+    # Match on the origin alone, and shift a person's keys by the offset. Keys
+    # this run generated itself (auto-priority, AOI) are already on this grid.
+    priority_at = origin_keyed_overrides(
+        tile_overrides, grid_offset if human_overrides else 0)
+
+    def _priority(x: int, y: int) -> str | None:
+        return priority_at.get((int(x), int(y)))
+
+    if any(v == "skip" for v in priority_at.values()):
         before = len(tiles)
-        tiles = [t for t in tiles if f"{t[0]}_{t[1]}_{t[2]}_{t[3]}" not in skip_keys]
-        print(f"  Tile overrides: skipped {before - len(tiles)} skip tiles, "
-              f"{sum(1 for v in tile_overrides.values() if v == 'low_res')} low-res tiles")
+        tiles = [t for t in tiles if _priority(t[0], t[1]) != "skip"]
+        n_low = sum(1 for v in priority_at.values() if v == "low_res")
+        print(f"  Tile overrides: skipped {before - len(tiles)} skip tiles, {n_low} low-res tiles"
+              + (f" (keys shifted {grid_offset}px with the grid)" if grid_offset and human_overrides else ""))
 
     if args.limit:
         tiles = tiles[: args.limit]
@@ -561,7 +654,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                     if tile_img_path.exists():
                         img = PILImage.open(tile_img_path).convert("RGB")
                     else:
-                        tile_priority = tile_overrides.get(tile_key)
+                        tile_priority = _priority(x, y)
                         if tile_priority == "low_res":
                             rs = low_res_render
                         elif use_adaptive:
@@ -667,7 +760,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                 if tile_img_path.exists():
                     image = PILImage.open(tile_img_path).convert("RGB")
                 else:
-                    tile_rs = low_res_render if tile_overrides.get(tile_key) == "low_res" else render_size
+                    tile_rs = low_res_render if _priority(x, y) == "low_res" else render_size
                     image = fetch_crop(iiif_base, x, y, w, h, size=tile_rs,
                                        local_image=local_image, quality=iiif_quality)
                     image.save(tile_img_path)
@@ -753,6 +846,10 @@ def cmd_batch(args: argparse.Namespace) -> None:
         "map_id": map_label,
         "run_id": out_dir.name,
         "model": model,
+        # Recorded because `merge` writes the DB rows for the two-pass recipe and
+        # has nothing else to read the provenance off: the passes it merges run
+        # with --db off, so their prompt is written down nowhere else.
+        "prompt": args.prompt,
         "n_tiles_total": total,
         "n_tiles_processed": len(tile_results),
         "n_raw": raw_n,
@@ -1730,11 +1827,22 @@ def cmd_merge(args: argparse.Namespace) -> None:
         if not path.exists():
             raise SystemExit(f"no all_extractions.json for run {rid!r} under {runs_dir}")
         data = json.loads(path.read_text())
+        # Provenance lives on the run manifest, not on the extractions: a tile
+        # result has no model or prompt field. Reading `e.get("model")` here is
+        # what wrote every merged row with a null model and prompt="merge" until
+        # 2026-09-08, which made EVAL-BASELINE's one rule — compare runs by what
+        # they actually used — unenforceable for anything the queue ran.
+        run_model = data.get("model")
+        run_prompt = data.get("prompt")
+        if not run_prompt:
+            print(f"  warning: run {rid!r} has no prompt recorded (written before 2026-09-08); "
+                  f"its rows will carry a null prompt")
         for e in data.get("extractions", []):
             if not e.get("global_bbox"):
                 continue
             items.append({**e, "global_bbox": tuple(e["global_bbox"]),
-                          "_tile_origin": tuple(e.get("_tile_origin") or (0, 0)), "_run": rid})
+                          "_tile_origin": tuple(e.get("_tile_origin") or (0, 0)), "_run": rid,
+                          "_model": run_model, "_prompt": run_prompt})
     merged = ensemble_items(items)
     agreed = sum(1 for e in merged if e.get("n_passes", 1) > 1)
     print(f"{len(run_ids)} runs, {len(items)} labels → {len(merged)} merged ({agreed} seen by more than one pass)")
@@ -1765,8 +1873,10 @@ def cmd_merge(args: argparse.Namespace) -> None:
                 "confidence": e.get("confidence", 0),
                 "rotation_deg": e.get("rotation_deg"),
                 "notes": ((e.get("notes") or "") + f" merged:{e['_run']} passes={e.get('n_passes', 1)}").strip(),
-                "model": e.get("model"),
-                "prompt": e.get("prompt") or "merge",
+                "model": e.get("_model"),
+                # The winning pass's prompt, with the merge recorded beside it
+                # rather than in place of it.
+                "prompt": e.get("_prompt"),
             })
         n_written = upsert_ocr_extractions(args.map_id, args.run_id, db_rows)
         print(f"DB: upserted {n_written} merged rows to ocr_extractions")
@@ -2756,6 +2866,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_st.set_defaults(func=cmd_stitch)
 
     # list-models
+    sub.add_parser("self-check",
+                   help="Check the pure helpers on the automated path"
+                   ).set_defaults(func=cmd_self_check)
+
     p_lm = sub.add_parser("list-models", help="List available Gemini models")
     p_lm.set_defaults(func=cmd_list_models)
 

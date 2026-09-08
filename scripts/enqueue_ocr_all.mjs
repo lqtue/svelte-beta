@@ -38,6 +38,11 @@ const model = modelIdx > -1 ? args[modelIdx + 1] : null;
 // (work/ocr/EVAL-BASELINE.md), for twice the tokens — cents. --single-pass opts out.
 const passes = args.includes('--single-pass') ? 1 : 2;
 
+// Mirrors RENDER_FLOOR in work/worker/vma_worker.py. Only used to print the
+// ground-per-call figure below — the worker computes the value it actually
+// sends, so there is nothing here to drift out of step with.
+const RENDER_FLOOR = 1024;
+
 // Ground per Gemini call, in metres. Opt-in, and it only ever makes a tile
 // FINER.
 //
@@ -215,12 +220,9 @@ for (const m of todo) {
   const baseTile = t?.tile_size ?? 2400;
   const mpp = tileMetres ? await cropMpp(m, crop) : null;
   const tile = groundTile(mpp, baseTile);
-  // Equal to the tile is 1:1, the source ceiling. Left unset this fell through
-  // to the worker's own 1024 default, which on a 2400 px tile is the 2.34x
-  // downsample that put the 1959 sheet in front of the model at ~6.5 m/px.
-  // Nothing above 1:1 buys detail, but a very small image is not what these
-  // prompts expect, hence the 1024 floor.
-  const render = Math.max(tile, 1024);
+  // The render size is the worker's rule now (`_render_size`), so the button and
+  // this script cannot drift apart again. Shown here only to report it.
+  const render = Math.max(tile, RENDER_FLOOR);
   const ground = mpp ? `   ${((tile * mpp) / 1000).toFixed(2)} km/call` : '';
   console.log(
     `  ${m.year ?? '????'}  ${m.name}` +
@@ -238,10 +240,7 @@ for (const m of todo) {
     payload: {
       run_id,
       tile_size: tile,
-      render_size: render,
       overlap: t?.overlap ?? Math.round(tile / 4),
-      concurrency: 3,
-      min_confidence: 0.5,
       // A saved neatline is the whole point of triaging: with one, the scout
       // pass has nothing left to guess, so `auto` only still runs the legend.
       auto: true,

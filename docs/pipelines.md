@@ -291,7 +291,26 @@ Spatial ordering on the Gemini side is the cheap analogue of the paper's self-so
 
 `scout` reads the whole map at low resolution to find the neatline and the dense regions; `batch` then tiles only the content area (`--smart-grid`, `--crop`, `--auto-priority`, `--wash-above`, `--skip-sparse`) at full resolution.
 
-**"Full resolution" is `tile_size / render_size`, and the default is not 1:1.** A tile is `--tile-size` source pixels rendered to `--render-size` before the model sees it, so what Gemini reads is the sheet's own ground resolution times that ratio. The stock 2400/1024 is a 2.34x downsample *on top of* the scan: on the 1959 Đô thành Sài Gòn sheet (2.80 m/px source) it delivers 6.5 m/px, which cannot resolve a street name. Until 2026-09-04 `vma_worker.py` did not pass `--render-size` at all, so **every queued OCR job ran at that ratio regardless of payload** — set `render_size` in the payload now, equal to `tile_size` for 1:1. Nothing above 1:1 buys real detail; past it the scan is the ceiling. Rendering 1:1 costs tiles, which is what cropping to a study area pays for — see `work/analysis/district4/README.md` for the worked case.
+**Defaults have one home: `vma_worker.py`.** Tile size, overlap, render size,
+concurrency, confidence floor, pass count and prompt are all resolved in
+`_ocr_batch_argv` / `_render_size` / `_default_prompt`. Neither enqueue path
+restates them any more, because restating them is how the Run OCR button came to
+run a 2.34x downsample while `enqueue_ocr_all.mjs` ran the same sheet at 1:1, and
+how `passes` came to be declared in three files (audit, 2026-09-08). A payload
+names only what the caller chose; the worker fills the rest and stamps it into
+the command line, so the run's rows record what they used. Two consequences worth
+knowing: `render_size` now defaults to `max(tile_size, 1024)` — **1:1 for a
+stock 2400 tile**, not the old flat 1024 — and `passes` defaults to 2 rather
+than 1, so a hand-written job row gets the measured recipe.
+
+**`passes: 3` is ignored when it would duplicate a pass.** The hi-res pass runs a
+1200 px grid, so on a sheet whose `tile_size` is already at or below that (which
+`--tile-metres` normalisation can produce) it would be a byte-for-byte copy of
+pass a — free in tokens, but counted by the merge as an independent voter, which
+inflates `n_passes` and reverts the three-voter tie-break that took
+diacritic_recall from 0.864 to 0.955.
+
+**"Full resolution" is `tile_size / render_size`, and the default is not 1:1.** A tile is `--tile-size` source pixels rendered to `--render-size` before the model sees it, so what Gemini reads is the sheet's own ground resolution times that ratio. The stock 2400/1024 is a 2.34x downsample *on top of* the scan: on the 1959 Đô thành Sài Gòn sheet (2.80 m/px source) it delivers 6.5 m/px, which cannot resolve a street name. Until 2026-09-04 `vma_worker.py` did not pass `--render-size` at all, so **every queued OCR job ran at that ratio regardless of payload** — that was fixed on 2026-09-04, and since the 2026-09-08 audit the worker's own default is `max(tile_size, 1024)`, so a stock 2400 tile renders 1:1 without the payload saying anything. Nothing above 1:1 buys real detail; past it the scan is the ceiling. Rendering 1:1 costs tiles, which is what cropping to a study area pays for — see `work/analysis/district4/README.md` for the worked case.
 
 **But resolution was the smaller half.** Measured on the 1959 Đô thành Sài Gòn sheet, same crop and same 1:1 rendering, changing only `--tile-size` and counting distinct labels that warp back inside the study area: 2048 px (5.7 km of ground per call) found 1; 1024 px (2.9 km) found 2; ~500 px (1.4 km) found 6, and 5 on a repeat. Five to six times the yield off an unchanged scan, and only the finest runs read `QUẬN 4` printed on the sheet. Across a whole six-sheet collection the same change gave **+19%**, not 5x — the gain appears only where the ground per call actually drops a lot, and repeats of one configuration differ by a label or two, so do not read a single run's small difference as a result. Rendering was ruled out separately — 1024 px rendered 1:1 and at 2x gave byte-identical output, so upsampling past the scan buys nothing. **What starves a read is one call covering too much ground, and a fixed pixel tile is a different amount of ground on every sheet** (2048 px is 1.7 km on the 1923 sheet, 5.7 km on the 1959 one). That is why coarse sheets look empty and get blamed on their scans. `scripts/collection_aoi.mjs --tile-metres` (default 1400) sizes the tile per sheet from its own m/px; `enqueue_ocr_all.mjs` still takes a fixed `--tile-size` and would benefit from the same treatment. Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
 

@@ -22,7 +22,7 @@ Pipeline:
 - `/api/admin/maps/[id]/layout/` — POST enqueues a `layout` job (202, or 409 when one is in flight); GET the saved regions plus the latest layout job. The worker runs `ocr.py scout --save-triage`.
 - `/api/admin/maps/[id]/ocr/` — GET run summaries + the latest `pipeline_jobs` row for the map; POST enqueues an `ocr` job (202 `{ job_id, run_id, status }`, or 409 when one is already in flight).
 - `/api/admin/maps/[id]/ocr/apply/` — POST: turn `ocr_extractions` above a confidence threshold into `label_pins` (bbox centre in source-image px). Body `{ run_id?, min_confidence? }`.
-- `/api/admin/maps/[id]/ocr-review/` — GET extractions + runs; POST manual bbox; PATCH update text/category/status/coords; PUT batch status (`?window=` reverts the last N minutes).
+- `/api/admin/maps/[id]/ocr-review/` — GET extractions + runs; POST manual bbox; PATCH update text/category/status/coords/`rotation_deg`/`label_w`/`label_h` (the label rectangle and the box around it arrive together, so only a coord change re-warps); PUT batch status (`?window=` reverts the last N minutes).
 - `/api/admin/maps/[id]/ocr-review/revert-recent/` — GET count, POST undo the current reviewer's recent validations (thin wrapper over `$lib/server/ocrReview.ts`).
 - `/api/admin/maps/[id]/pipeline/` — GET the composed stage + timestamps; PATCH records a **human** stage (`reviewed`, `seg_reviewed`, `exported`, `idle`) via `set_review_mark`. The machine stages come from `pipeline_jobs` and are rejected with a 400.
 - `/api/admin/footprints/` — GET/PATCH SAM2 review (staff only).
@@ -32,7 +32,7 @@ Pipeline:
 Worker-authenticated (`Authorization: Bearer <worker_keys token>`, **not** a user session — see `$lib/server/workerAuth.ts`):
 
 - `/api/pipeline/claim/` — POST `{ kinds, worker }` → the claimed job or `{ job: null }`. A key scoped to certain kinds cannot claim outside them.
-- `/api/pipeline/results/` — POST `extractions` (≤500 rows, upserted), `map_id` + `triage_regions` (the layout pass, **merged** into `maps.triage` so it cannot clobber a hand-drawn neatline), and/or `job_id` + `status` (→ `finish_job`). There is no stage field: closing the job advances the stage.
+- `/api/pipeline/results/` — POST `extractions` (≤500 rows, upserted on `(map_id, run_id, tile_x, tile_y, text, global_xi, global_yi)`; the reply carries `extractions_offered` too whenever the database accepted fewer than were sent), `map_id` + `triage_regions` / `triage_grid` (the layout pass, written one key at a time through the `set_triage_key` RPC so it cannot clobber a hand-drawn neatline — and regions whose `source` is `human` are kept, so a second **Detect** no longer discards every correction), and/or `job_id` + `status` (→ `finish_job`). There is no stage field: closing the job advances the stage.
 - `/api/pipeline/execute/` — POST `{ job_id }` for the kinds whose work belongs on the server (`mirror_annotation`, `sync_allmaps`): they need the service key, which a worker deliberately lacks. The handler runs the mirror and closes the job itself. Kinds with real compute (`ocr`, `seg`, `tile_to_r2`) are rejected with a 400 — those run on the worker.
 
 Mint a token with `node --env-file=.env scripts/mint-worker-key.mjs <name> [kinds]`; it prints once and only the sha256 is stored. Revoke by setting `worker_keys.revoked_at`.

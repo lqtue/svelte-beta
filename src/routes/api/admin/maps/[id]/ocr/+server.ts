@@ -21,18 +21,24 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
   const body = await request.json().catch(() => ({}));
   const runId: string = body.run_id ?? new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
 
+  // Only what the caller actually chose. Every tuning default — tile size,
+  // overlap, concurrency, confidence floor, render size, pass count, prompt —
+  // belongs to the worker (`_ocr_batch_argv`), which is the one place that turns
+  // a payload into a command line. Restating them here is how the button came to
+  // run a 2.34x downsample while scripts/enqueue_ocr_all.mjs ran the same sheet
+  // at 1:1, and how `passes` came to be declared in three files.
   const payload = {
     run_id: runId,
-    tile_size: body.tile_size ?? 2400,
-    overlap: body.overlap ?? 600,
-    concurrency: body.concurrency ?? 3,
-    min_confidence: body.min_confidence ?? 0.5,
-    // Two passes voted into one run (work/ocr/EVAL-BASELINE.md, 2026-09-08):
-    // the grid, then the grid moved half a tile. 41/43 against 39/43 for one.
-    passes: body.passes ?? 2,
     // Fully automated chain (default on): scout the neatline unless one was
     // drawn, then extract the legend. Stops at ocr_done for human review.
     auto: body.auto !== false,
+    ...(body.tile_size ? { tile_size: Number(body.tile_size) } : {}),
+    ...(body.overlap != null ? { overlap: Number(body.overlap) } : {}),
+    ...(body.render_size ? { render_size: Number(body.render_size) } : {}),
+    ...(body.concurrency ? { concurrency: Number(body.concurrency) } : {}),
+    ...(body.min_confidence != null ? { min_confidence: Number(body.min_confidence) } : {}),
+    ...(body.passes ? { passes: Number(body.passes) } : {}),
+    ...(typeof body.prompt === 'string' && body.prompt ? { prompt: body.prompt } : {}),
     ...(Array.isArray(body.neatline) && body.neatline.length === 4
       ? { neatline: body.neatline }
       : {}),

@@ -219,105 +219,6 @@ export type Database = {
           },
         ]
       }
-      legend_submissions: {
-        Row: {
-          admin_notes: string | null
-          created_at: string
-          entries: Json
-          id: string
-          is_canonical: boolean
-          legend_type: string
-          map_id: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          admin_notes?: string | null
-          created_at?: string
-          entries?: Json
-          id?: string
-          is_canonical?: boolean
-          legend_type?: string
-          map_id: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          admin_notes?: string | null
-          created_at?: string
-          entries?: Json
-          id?: string
-          is_canonical?: boolean
-          legend_type?: string
-          map_id?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "legend_submissions_map_id_fkey"
-            columns: ["map_id"]
-            isOneToOne: false
-            referencedRelation: "map_pipeline_status"
-            referencedColumns: ["map_id"]
-          },
-          {
-            foreignKeyName: "legend_submissions_map_id_fkey"
-            columns: ["map_id"]
-            isOneToOne: false
-            referencedRelation: "maps"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      map_help_requests: {
-        Row: {
-          created_at: string
-          help_type: string
-          id: string
-          map_id: string
-          message: string
-          mod_response: string | null
-          status: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          help_type?: string
-          id?: string
-          map_id: string
-          message: string
-          mod_response?: string | null
-          status?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          help_type?: string
-          id?: string
-          map_id?: string
-          message?: string
-          mod_response?: string | null
-          status?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "map_help_requests_map_id_fkey"
-            columns: ["map_id"]
-            isOneToOne: false
-            referencedRelation: "map_pipeline_status"
-            referencedColumns: ["map_id"]
-          },
-          {
-            foreignKeyName: "map_help_requests_map_id_fkey"
-            columns: ["map_id"]
-            isOneToOne: false
-            referencedRelation: "maps"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       map_iiif_sources: {
         Row: {
           created_at: string | null
@@ -567,51 +468,6 @@ export type Database = {
         }
         Relationships: []
       }
-      metadata_submissions: {
-        Row: {
-          admin_notes: string | null
-          created_at: string
-          fields: Json
-          id: string
-          is_canonical: boolean
-          map_id: string
-          user_id: string | null
-        }
-        Insert: {
-          admin_notes?: string | null
-          created_at?: string
-          fields?: Json
-          id?: string
-          is_canonical?: boolean
-          map_id: string
-          user_id?: string | null
-        }
-        Update: {
-          admin_notes?: string | null
-          created_at?: string
-          fields?: Json
-          id?: string
-          is_canonical?: boolean
-          map_id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "metadata_submissions_map_id_fkey"
-            columns: ["map_id"]
-            isOneToOne: false
-            referencedRelation: "map_pipeline_status"
-            referencedColumns: ["map_id"]
-          },
-          {
-            foreignKeyName: "metadata_submissions_map_id_fkey"
-            columns: ["map_id"]
-            isOneToOne: false
-            referencedRelation: "maps"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       ocr_extractions: {
         Row: {
           category: string
@@ -624,9 +480,13 @@ export type Database = {
           geom_src: string | null
           global_h: number | null
           global_w: number | null
-          global_x: number | null
-          global_y: number | null
+          global_x: number
+          global_xi: number | null
+          global_y: number
+          global_yi: number | null
           id: string
+          label_h: number | null
+          label_w: number | null
           map_id: string
           model: string | null
           notes: string | null
@@ -654,9 +514,13 @@ export type Database = {
           geom_src?: string | null
           global_h?: number | null
           global_w?: number | null
-          global_x?: number | null
-          global_y?: number | null
+          global_x: number
+          global_xi?: number | null
+          global_y: number
+          global_yi?: number | null
           id?: string
+          label_h?: number | null
+          label_w?: number | null
           map_id: string
           model?: string | null
           notes?: string | null
@@ -684,9 +548,13 @@ export type Database = {
           geom_src?: string | null
           global_h?: number | null
           global_w?: number | null
-          global_x?: number | null
-          global_y?: number | null
+          global_x?: number
+          global_xi?: number | null
+          global_y?: number
+          global_yi?: number | null
           id?: string
+          label_h?: number | null
+          label_w?: number | null
           map_id?: string
           model?: string | null
           notes?: string | null
@@ -1037,47 +905,6 @@ export type Database = {
           },
         ]
       }
-      story_progress: {
-        Row: {
-          completed_at: string | null
-          completed_points: string[]
-          current_point_index: number
-          id: string
-          started_at: string
-          story_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          completed_points?: string[]
-          current_point_index?: number
-          id?: string
-          started_at?: string
-          story_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          completed_points?: string[]
-          current_point_index?: number
-          id?: string
-          started_at?: string
-          story_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "story_progress_story_id_fkey"
-            columns: ["story_id"]
-            isOneToOne: false
-            referencedRelation: "stories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_favorites: {
         Row: {
           created_at: string | null
@@ -1377,6 +1204,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_triage_key: {
+        Args: { p_key: string; p_map_id: string; p_value: Json }
+        Returns: Json
       }
     }
     Enums: {
