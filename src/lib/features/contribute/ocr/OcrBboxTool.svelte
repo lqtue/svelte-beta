@@ -23,6 +23,7 @@
   import VectorLayer from 'ol/layer/Vector';
   import Feature from 'ol/Feature';
   import Polygon from 'ol/geom/Polygon';
+  import LineString from 'ol/geom/LineString';
   import Style from 'ol/style/Style';
   import Fill from 'ol/style/Fill';
   import Stroke from 'ol/style/Stroke';
@@ -34,7 +35,7 @@
   import { click } from 'ol/events/condition';
   import { getImageShellStore } from '$lib/map/shell/imageContext';
   import type { OcrExtraction } from '../shared/types';
-  import { toOlRing, fromOlExtent, type Rect } from '$lib/core/geo/rectUtils';
+  import { toOlRing, fromOlExtent, baselineChord, type Rect } from '$lib/core/geo/rectUtils';
   import { createRectEditor, type RectEditor } from '../shared/bboxHandles';
 
   export let extractions: OcrExtraction[] = [];
@@ -82,6 +83,18 @@
     });
   }
 
+  /** The reported text baseline as a drawable line — geometry lives in `rectUtils`. */
+  function baselineGeom(ext: OcrExtraction): LineString | null {
+    const chord = baselineChord(
+      ext.global_x,
+      ext.global_y,
+      ext.global_w,
+      ext.global_h,
+      ext.rotation_deg
+    );
+    return chord ? new LineString(chord) : null;
+  }
+
   function makeStyle(ext: OcrExtraction, selected = false): Style | any[] {
     const isFiltered = filteredIds.size === 0 || filteredIds.has(ext.id);
     const hasSelection = !!selectedId;
@@ -99,7 +112,7 @@
     const dash = STATUS_DASH[ext.status] ?? [];
     const label = ext.text_validated ?? ext.text;
 
-    return new Style({
+    const boxStyle = new Style({
       stroke: new Stroke({
         color: color + (opacity < 1 ? '66' : ''),
         width: selected ? 3 : 1.5,
@@ -117,6 +130,23 @@
             })
           : undefined,
     });
+
+    // ponytail: the style carries its own geometry, so while a box is being
+    // dragged the baseline stays where the box was and snaps back on drop —
+    // syncFeatures re-styles only on translateend. Derive it from the feature's
+    // live geometry if the lag ever reads as a bug.
+    const baseline = baselineGeom(ext);
+    if (!baseline) return boxStyle;
+    return [
+      boxStyle,
+      new Style({
+        geometry: baseline,
+        stroke: new Stroke({
+          color: color + (opacity < 1 ? '99' : ''),
+          width: selected ? 2.5 : 1.5,
+        }),
+      }),
+    ];
   }
 
   // ── Sync extractions → OL features ───────────────────────────────────────

@@ -55,7 +55,8 @@ def _ocr_rows_to_items(rows: list[dict], use_validated_text: bool) -> list[dict]
             continue
         text = (r.get("text_validated") or r.get("text")) if use_validated_text else r.get("text")
         cat = (r.get("category_validated") or r.get("category")) if use_validated_text else r.get("category")
-        items.append({"bbox": (gx, gy, gw, gh), "text": text or "", "category": cat})
+        items.append({"bbox": (gx, gy, gw, gh), "text": text or "", "category": cat,
+                      "rotation_deg": r.get("rotation_deg")})
     return items
 
 
@@ -77,7 +78,8 @@ def _run_dir_to_items(run_dir: str) -> list[dict]:
     for r in rows:
         gb = r.get("global_bbox")
         if gb and len(gb) == 4:
-            items.append({"bbox": tuple(gb), "text": r.get("text") or "", "category": r.get("category")})
+            items.append({"bbox": tuple(gb), "text": r.get("text") or "",
+                          "category": r.get("category"), "rotation_deg": r.get("rotation_deg")})
     return items
 
 
@@ -158,6 +160,10 @@ def _print(kind: str, r: dict, iou: float) -> None:
         print(f"  diacritic_rate {r['diacritic_rate']} (of all predictions)   "
               f"diacritic_recall {dr if dr is not None else 'n/a'} "
               f"(over {r['n_gt_diacritic']} matched GT labels that carry a mark)")
+    if r.get("rotation_mae") is not None:
+        print(f"  rotation_mae {r['rotation_mae']}\u00b0 (over {r['n_rotation_scored']} matched pairs; "
+              f"{r['n_rotation_off_15']} disagree by 15\u00b0 or more \u2014 agreement with GT's own "
+              f"unvalidated angle, not accuracy)")
 
 
 def main() -> None:

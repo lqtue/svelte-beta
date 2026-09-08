@@ -109,6 +109,17 @@ def _prf(tp: int, n_pred: int, n_gt: int) -> dict:
             "precision": round(precision, 4), "recall": round(recall, 4), "f1": round(f1, 4)}
 
 
+def baseline_delta(a: float, b: float) -> float:
+    """Disagreement between two baseline angles, in degrees, folded to [0, 90].
+
+    A baseline is a line, not a direction: -90 and 90 describe the same vertical
+    text and 0 and 180 the same horizontal one, so fold modulo 180 and then take
+    the shorter way round. Without the fold, agreeing runs score 180 apart.
+    """
+    d = abs(float(a) - float(b)) % 180.0
+    return min(d, 180.0 - d)
+
+
 def score_ocr(preds: list[dict], gts: list[dict], iou_thresh: float = 0.5) -> dict:
     """Score OCR predictions vs ground truth.
 
@@ -166,6 +177,23 @@ def score_ocr(preds: list[dict], gts: list[dict], iou_thresh: float = 0.5) -> di
     out["n_gt_diacritic"] = len(dia)
     out["diacritic_recall"] = round(
         sum(has_diacritic(preds[pi]["text"]) for pi, _ in dia) / len(dia), 4) if dia else None
+
+    # Baseline angle. rotation_deg is asked of the model, stored, and used to group
+    # collinear fragments — and nothing scored it until 2026-09-08, when the 1882
+    # sheet turned out to disagree with itself on exactly the diagonal labels
+    # (GT -90 vs predicted 0 on "Boulevard de Canton", -45 vs 0 on "FOURRIERE").
+    # The GT angle is model output no reviewer ever saw, so this is an agreement
+    # number between two runs, not an accuracy one against the sheet.
+    rots = [(preds[pi].get("rotation_deg"), gts[gi].get("rotation_deg")) for pi, gi, _ in matches]
+    rots = [(pr, gr) for pr, gr in rots if pr is not None and gr is not None]
+    out["n_rotation_scored"] = len(rots)
+    if rots:
+        deltas = [baseline_delta(pr, gr) for pr, gr in rots]
+        out["rotation_mae"] = round(sum(deltas) / len(deltas), 2)
+        out["n_rotation_off_15"] = sum(d >= 15 for d in deltas)
+    else:
+        out["rotation_mae"] = None
+        out["n_rotation_off_15"] = 0
     return out
 
 
@@ -201,6 +229,15 @@ def _self_check() -> None:
     assert has_diacritic("ĐƯỜNG") and has_diacritic("Đ") and has_diacritic("Rạch")
     assert not has_diacritic("MARCHE") and not has_diacritic("Rue") and not has_diacritic("")
     assert not has_diacritic("N°29"), "degree sign is not a diacritic"
+
+    # baseline_delta: a baseline is a line, so 180 apart is agreement and 90 is
+    # the worst case. -90 vs 90 is the same vertical text read the other way.
+    assert baseline_delta(0, 0) == 0.0
+    assert baseline_delta(0, 180) == 0.0
+    assert baseline_delta(-90, 90) == 0.0
+    assert baseline_delta(0, 90) == 90.0
+    assert baseline_delta(-45, 0) == 45.0
+    assert abs(baseline_delta(170, 5) - 15.0) < 1e-9
 
     # Diacritic retention: GT keeps its mark, pred drops it → recall 0, rate 0.
     dp = [{"bbox": (0, 0, 10, 10), "text": "MARCHE"}]

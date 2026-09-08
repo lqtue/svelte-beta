@@ -274,3 +274,70 @@ before the merge, for sheets where the 2400 passes visibly miss small type. The 
 merge with hi-res dropped diacritic_recall to 0.864: with two voters every disagreement is a
 tie and the tie-break is "longest", which favours the fragmentary spelling. Three voters fix
 it; if a two-run merge is ever the norm, tie-break on confidence instead.
+
+## Rotation: already good, never drawn, and no help to matching (2026-09-08)
+
+Asked whether adding bbox rotation would improve *matching* and *orientation*. Measured
+both. The answers pull apart.
+
+**The ground truth doubled today.** `status='validated'` on the gate sheet is now **85
+scorable rows** (78 rows carry a full `global_*` box; 77 of them from run `v1b`, one from
+`2026-09-04T0527`), against the 43 every number above was scored on — 35 were validated on
+09-08. So the 41/43 result in the sections above is stale as a *fraction*; rescored against
+the bigger GT the same two-pass merge reads:
+
+| | seq-v1 | seq-v1-shift | 2-pass merge |
+|---|---|---|---|
+| matched / 85 @ IoU 0.5 | 71 | 42 | **75** |
+| char_acc | 0.981 | 0.983 | 0.979 |
+| text_recall@0.3 | 75/85 (0.882) | 44/85 | **77/85 (0.906)** |
+| category_acc | 0.873 | 0.810 | 0.880 |
+| diacritic_recall | 1.0 | 1.0 | 1.0 |
+| **rotation_mae** | 3.65° | 3.81° | **3.49°** |
+
+The merge still wins on every column that matters, on a gate twice the size. Note the GT is
+still 77/78 `v1b` rows — a reviewer approved *more of v1b's existing output*, so "recall
+against what v1b found" is unchanged as a caveat; only the sample grew.
+
+**Matching: no.** Every path that compares two boxes gates on text first —
+`dedup_extractions` (`ocr.py`, "Text similarity check first") and `ensemble_items` (the
+`_text_similar` guard before `_iou`). A fat axis-aligned box cannot merge two different
+labels, so a rotated-rect IoU has nothing to fix there. The one path that is *not*
+text-gated is the eval's own `greedy_match`, and the labels it matches below IoU 0.5 are
+horizontal: of the five, one is diagonal. The 0.3–0.5 gap this file records for POUDRIERE /
+ABATTOIR / MARCHE CENTRAL is box tightness on long horizontal institution names, not
+rotation. `shapely` is already in the venv, so the cost was never the obstacle — the
+measurement was.
+
+**Orientation: the data is there and it is right.** `rotation_mae` (new, `eval_metrics.py`)
+folds two baseline angles modulo 180 — a baseline is a line, so −90 and 90 agree — and over
+the merge's 75 matched pairs it is **3.49°, with 5 pairs disagreeing by 15° or more**. The
+model's angle is not the weak link. Caveat in the metric's name: GT's angle is *also* model
+output, from `v1b`, which no reviewer ever saw (the review UI has no rotation control), so
+this is agreement between two runs, not accuracy against the sheet.
+
+**What was actually missing was that nothing drew it.** Before today, `rotation_deg` was
+read by `_group_sequential` and the fragment pass and by nothing else: no file under `src/`
+touched it but the generated types. So a reviewer looking at a diagonal label saw an
+axis-aligned rectangle — and **58% of the merge's 337 labels claim |angle| ≥ 20°, 157 of
+them ≥ 40°** (the 1882 sheet's street grid runs on the diagonal). Their boxes have a median
+aspect ratio of 1.15: near-square, roughly twice the text's real area, telling a reviewer
+nothing about which way the lettering runs.
+
+`baselineChord()` (`src/lib/core/geo/rectUtils.ts`) draws it, and needs no new data. The
+chord of a *tight* AABB through its centre at the baseline angle **is** the text's extent —
+half-length is whichever side the chord reaches first — so `OcrBboxTool` renders it as a
+second style on the existing feature (no new layer, no new interaction), skipped below 5°
+where the box already reads right. `tests/baseline-chord.spec.ts` pins the sign convention.
+
+**Not done, and why:** asking the model for a quad (four corners instead of a box plus an
+angle) would give a tight oriented box for free downstream. It costs a schema field on a
+prompt that currently passes, and the last two fields added to `seq-v1` were measured and
+cut (`c6b983af`). With `rotation_mae` at 3.5° there is nothing visibly broken for it to fix,
+so it waits until something needs the tight box — SAM2 is the candidate, and SAM2's box
+prompt is axis-aligned anyway.
+
+**Also worth knowing:** the oriented box *can* be recovered offline from a tight AABB plus an
+angle — `W = w·c + h·s`, `H = w·s + h·c`, so `w = (W·c − H·s)/cos2θ` — but `cos 2θ` vanishes
+at 45°, which is where 137 of this sheet's labels sit. Recovery solves the cases that did not
+need solving. The chord does not have this problem: it needs no inversion.
