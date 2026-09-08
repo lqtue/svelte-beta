@@ -136,7 +136,7 @@
     // sluggish again rather than breaking. Upstream has no option for this;
     // the fix would be OL registering the listener only when an interaction
     // wants it.
-    const wheelHandler = (m as unknown as { boundHandleBrowserEvent_?: EventListener })
+    const wheelHandler = (m as unknown as { boundHandleBrowserEvent_?: (e: Event) => void })
       .boundHandleBrowserEvent_;
     if (wheelHandler) m.getViewport().removeEventListener('wheel', wheelHandler);
 
