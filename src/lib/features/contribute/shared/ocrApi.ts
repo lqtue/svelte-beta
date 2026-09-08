@@ -135,3 +135,99 @@ export function withEditState(rows: OcrExtraction[]): EditableOcrExtraction[] {
     _saving: false,
   }));
 }
+
+/** A review table's two pieces of row state, moved together by the writes below. */
+export type RowSaveState = {
+  rows: EditableOcrExtraction[];
+  statusCounts: Record<string, number>;
+};
+
+/**
+ * Flags one row as writing, or done writing.
+ *
+ * The reason this returns a new array instead of setting `row._saving` is the
+ * same reason every helper here does: `OcrSidebar` dispatches its row objects
+ * to `ocrReviewController`, which keeps them. A row mutated in place changes
+ * under the controller without its store ever firing, and once the controller
+ * replaces that row immutably the two tables are holding different objects for
+ * the same label.
+ */
+export function markRowSaving(
+  rows: EditableOcrExtraction[],
+  id: string,
+  saving: boolean
+): EditableOcrExtraction[] {
+  return rows.map((r) => (r.id === id ? { ...r, _saving: saving } : r));
+}
+
+/**
+ * Writes one row's status and returns the next rows and counts. Throws what
+ * `patchExtraction` throws; the caller owns the error line.
+ *
+ * `filterStatus` is the table's status filter (`''` for all). A status filter
+ * is a live query, so a row whose new status leaves it drops out of the list.
+ */
+export async function saveRowStatus(
+  mapId: string,
+  state: RowSaveState,
+  id: string,
+  status: OcrStatus,
+  filterStatus: string
+): Promise<RowSaveState> {
+  const row = state.rows.find((r) => r.id === id);
+  if (!row) return state;
+
+  await patchExtraction(mapId, {
+    id,
+    text: row._editText,
+    category: row._editCategory,
+    status,
+  });
+
+  // Decrement the status the row is leaving, whatever it was. The admin tab's
+  // copy of this always decremented `pending`, so validated → rejected drove
+  // the pending count down a second time.
+  const statusCounts = { ...state.statusCounts };
+  statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+  statusCounts[row.status] = Math.max(0, (statusCounts[row.status] ?? 1) - 1);
+
+  const validated_at = status === 'validated' ? new Date().toISOString() : null;
+  const rows =
+    filterStatus && filterStatus !== status
+      ? state.rows.filter((r) => r.id !== id)
+      : state.rows.map((r) => (r.id === id ? { ...r, status, validated_at } : r));
+
+  return { rows, statusCounts };
+}
+
+/**
+ * Writes one row's edited text and category, leaving its status alone. Returns
+ * the next rows, with the edit buffer promoted to the validated columns.
+ */
+export async function saveRowText(
+  mapId: string,
+  rows: EditableOcrExtraction[],
+  id: string
+): Promise<EditableOcrExtraction[]> {
+  const row = rows.find((r) => r.id === id);
+  if (!row) return rows;
+
+  await patchExtraction(mapId, {
+    id,
+    text: row._editText,
+    category: row._editCategory,
+    status: row.status,
+  });
+
+  return rows.map((r) =>
+    r.id === id ? { ...r, text_validated: r._editText, category_validated: r._editCategory } : r
+  );
+}
+
+/** True when a row's edit buffer has diverged from what is stored. */
+export function isRowDirty(row: EditableOcrExtraction): boolean {
+  return (
+    row._editText !== (row.text_validated ?? row.text) ||
+    row._editCategory !== (row.category_validated ?? row.category)
+  );
+}

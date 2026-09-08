@@ -35,15 +35,12 @@
     destroyWarpedLayer,
     loadOverlayByUrl,
   } from '$lib/map/shell/warpedOverlay';
-  import { easeInOutCubic, tweenValue } from '$lib/core/utils/tween';
-  import { parsePointHex } from '$lib/core/geo/wkb';
+  import { tweenValue } from '$lib/core/utils/tween';
   import { INK } from '$lib/core/ink';
-  import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { HERO_LABELS } from '$lib/features/explore/heroFabric';
 
   /** The sheet to lay over the city — `maps.allmaps_id` or an annotation URL. */
   export let source: string;
-  /** `maps.id`, for the label query. */
-  export let mapId: string;
   /** Opacity the sheet settles at. */
   export let sheetOpacity = 0.88;
   /**
@@ -60,7 +57,6 @@
 
   const dispatch = createEventDispatcher<{ stage: { index: number } }>();
   const { map: mapWritable } = getShellContext();
-  const { supabase } = getSupabaseContext();
 
   /**
    * When each beat begins, ms from the first frame. The last one carries no
@@ -84,13 +80,6 @@
   const reduced =
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
-
-  /** Called by the hero's controls, which live outside the shell context. */
-  export function zoomBy(delta: number) {
-    const view = olMap?.getView();
-    if (!view) return;
-    view.animate({ zoom: (view.getZoom() ?? 16) + delta, duration: 250, easing: easeInOutCubic });
-  }
 
   $: if (overlayOpacity !== null && sheet) {
     (sheet as unknown as { setOpacity(n: number): void }).setOpacity(overlayOpacity);
@@ -259,22 +248,11 @@
     if (labelsRequested) return;
     labelsRequested = true;
 
-    const { data } = await supabase
-      .from('ocr_extractions')
-      .select('text,geom')
-      .eq('map_id', mapId)
-      .eq('status', 'validated')
-      .not('geom', 'is', null)
-      .limit(150);
-
-    const features: Feature[] = [];
-    for (const row of (data ?? []) as { text: string | null; geom: unknown }[]) {
-      const point = parsePointHex(typeof row.geom === 'string' ? row.geom : null);
-      if (!point || !row.text) continue;
-      const f = new Feature({ geometry: new Point(fromLonLat(point)) });
-      f.set('text', row.text);
-      features.push(f);
-    }
+    const features: Feature[] = HERO_LABELS.map(([text, lng, lat]) => {
+      const f = new Feature({ geometry: new Point(fromLonLat([lng, lat])) });
+      f.set('text', text);
+      return f;
+    });
     if (!features.length) return;
 
     const source = new VectorSource({ features });

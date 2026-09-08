@@ -1,36 +1,47 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   import type { MapListItem } from '$lib/data/maps/types';
   import { getSupabaseContext } from '$lib/data/supabase/context';
-  import { fetchMaps, fetchFeaturedMaps } from '$lib/data/maps/service';
-  import { annotationUrlForSource } from '$lib/map/shell/warpedOverlay';
-  import { fetchFavorites, addFavorite, removeFavorite } from '$lib/data/supabase/favorites';
+  import { addFavorite, removeFavorite } from '$lib/data/supabase/favorites';
+  import { loadHomeCatalog, resolveThumbnails } from '$lib/features/catalog/homeCatalog';
   import FeaturedSheet from '$lib/features/catalog/FeaturedSheet.svelte';
-  import HeroMap from '$lib/features/explore/HeroMap.svelte';
   import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
-  import { openPalette } from '$lib/core/utils/commandPalette';
+  import { isMeteredConnection } from '$lib/core/utils/connection';
+  import { openPaletteWith } from '$lib/core/utils/commandPalette';
   import '$styles/layouts/home.css';
 
   const { supabase, session } = getSupabaseContext();
 
-  let mounted = false;
   let maps: MapListItem[] = [];
   let featuredMaps: MapListItem[] = [];
-  let loading = true;
-  let thumbnails: Map<string, string> = new Map();
-  let selectedFeaturedCity: string = 'all';
   let favoriteIds: string[] = [];
+  let thumbnails: Map<string, string> = new Map();
+  let loading = true;
   let filterCollection: 'featured' | 'favorites' = 'featured';
-  /** Which beat the hero is on. The masthead lands on the last one. */
-  let heroStage = -1;
 
-  // Counts quoted in the copy below. `mapCount` is live — the catalog is already
-  // being fetched, so there is no reason to hardcode a number that goes stale.
-  // The pipeline figures are a dated snapshot; refresh them when they embarrass
-  // us, which is the point of putting them on the front page.
-  // `labels` is distinct names, not rows: the OCR pass has been re-run on some
-  // sheets and `ocr_extractions` holds 1,767 rows for 958 actual labels. Quoting
-  // the row count would inflate the number by 85%.
+  /**
+   * The hero map, fetched rather than imported. A static import puts
+   * OpenLayers, ol-pmtiles and Allmaps in the front page's first chunk — 179 kB
+   * of JavaScript, and ~390 kB of basemap behind it — before the masthead has
+   * painted. The hero already waited for an idle callback to *mount* the map;
+   * this makes it wait for the code too, and a metered connection never fetches
+   * it at all.
+   */
+  let HeroMap: typeof import('$lib/features/explore/HeroMap.svelte').default | null = null;
+
+  function loadHeroMap() {
+    if (isMeteredConnection()) return;
+    const start = () => {
+      import('$lib/features/explore/HeroMap.svelte').then((m) => (HeroMap = m.default));
+    };
+    const idle = window.requestIdleCallback?.(start, { timeout: 1500 }) ?? setTimeout(start, 500);
+    return () => {
+      if (window.cancelIdleCallback && typeof idle === 'number') window.cancelIdleCallback(idle);
+      clearTimeout(idle as number);
+    };
+  }
+
   /**
    * The sheet the hero plays. Not one of the five featured maps on purpose:
    * this is the only sheet in the archive that carries all three layers the
@@ -41,100 +52,101 @@
    * of everything" needs a join the front page has no other use for; when a
    * second sheet is this complete, that is the moment to write it.
    */
+  /**
+   * The sheet the hero plays and the frame it opens on — both of them read off
+   * an /explore URL, which is the only tool needed for either:
+   *
+   *   1. open /explore, stack the sheet, and set the camera (drag to pan,
+   *      scroll to zoom, ⌘/ctrl-drag to rotate),
+   *   2. copy the address bar — it reads
+   *      `/explore?map=<id>#@<lat>,<lng>,<zoom>z,<rotation>r`,
+   *   3. `id` is that `map=`, and `view` is those four numbers.
+   *
+   * The sheet has to be georeferenced and mirrored (publishing enqueues
+   * `mirror_annotation`), because HeroMap plays our own copy of the annotation.
+   *
+   * ponytail: hardcoded rather than queried. Picking "the sheet with the most
+   * of everything" needs a join the front page has no other use for; when a
+   * second sheet is this complete, that is the moment to write it. This one is
+   * the only sheet carrying all three layers the hero shows — a georeference,
+   * 46 traced footprints and 43 validated OCR labels — so it is the only one
+   * where the sequence tells the truth.
+   */
   const HERO_SHEET = {
     id: '0e02b9d9-9d40-4cca-8e41-8c8373d54d3b',
-    // The mirrored annotation, not the bare Allmaps id: the bare id resolves to
-    // allmaps.org's copy, whose IIIF source is still archive.org — which 500s on
-    // the large tiles the warp asks for. The mirror points at our own R2.
-    annotation:
-      'https://trioykjhhwrruwjsklfo.supabase.co/storage/v1/object/public/annotations/0e02b9d9-9d40-4cca-8e41-8c8373d54d3b.json',
-    bbox: [106.689425, 10.76256, 106.708371, 10.791659] as [number, number, number, number],
+    view: { lng: 106.706116, lat: 10.772994, zoom: 16.75, rotation: 2.4014 },
   };
 
+  /** The sheet's opacity, once the reader takes the slider. Owned here, because the slider is. */
+  let sheetOpacity: number | null = null;
+  /** True once the hero's sequence has finished; the slider waits for it. */
+  let heroSettled = false;
+
+  /**
+   * The figures quoted in the copy below. A dated snapshot on purpose —
+   * refresh them when they embarrass us, which is the point of putting them on
+   * the front page. `labels` is distinct names, not rows: the OCR pass has been
+   * re-run on some sheets and `ocr_extractions` holds 1,767 rows for 958 actual
+   * labels, so quoting the row count would inflate the number by 85%.
+   */
   const STATS = { snapshot: 'September 2026', labels: 958, labelsChecked: 43, footprints: 46 };
-  $: mapCount = maps.length || 39;
 
-  // sessionStorage cache so a 404 (un-georeferenced map) isn't refetched on reload
-  const THUMB_CACHE_KEY = 'vma-thumb-cache-v1';
-  function readThumbCache(): Record<string, string | null> {
-    try {
-      return JSON.parse(sessionStorage.getItem(THUMB_CACHE_KEY) ?? '{}');
-    } catch {
-      return {};
-    }
-  }
-  function writeThumbCache(id: string, value: string | null): void {
-    try {
-      const c = readThumbCache();
-      c[id] = value;
-      sessionStorage.setItem(THUMB_CACHE_KEY, JSON.stringify(c));
-    } catch {}
-  }
+  /**
+   * The four things to type into an empty search box. Every one of them
+   * currently returns something — two OCR'd labels each for the Vietnamese
+   * names, a gazetteer place for Catinat, two sheets for the year — which is
+   * the whole point: a suggestion that returns nothing is worse than none.
+   * Re-check them when the corpus changes.
+   */
+  const HERO_TRIES = ['Chợ Lớn', 'Bến Thành', 'Catinat', '1882'];
 
-  // Fetch IIIF thumbnail URL from Allmaps annotation
-  async function fetchThumbnailUrl(mapId: string): Promise<string | null> {
-    if (!mapId) return null;
-    const cache = readThumbCache();
-    if (Object.prototype.hasOwnProperty.call(cache, mapId)) return cache[mapId];
-    try {
-      const response = await fetch(annotationUrlForSource(mapId));
-      if (!response.ok) {
-        writeThumbCache(mapId, null);
-        return null;
-      }
+  /**
+   * Both search fields on this page are handoffs, not searches: the first
+   * character opens the real palette carrying what was typed, and the field
+   * clears behind it. Two fields, one draft — they are never on screen
+   * together, and a stale character left in the other one would be a ghost.
+   */
+  let searchDraft = '';
 
-      const annotation = await response.json();
-      const items = annotation.items;
-      const source = items?.[0]?.target?.source;
-      if (!source?.id) {
-        writeThumbCache(mapId, null);
-        return null;
-      }
-
-      const url = `${source.id}/full/,400/0/default.jpg`;
-      writeThumbCache(mapId, url);
-      return url;
-    } catch {
-      writeThumbCache(mapId, null);
-      return null;
-    }
+  function handOffSearch() {
+    const typed = searchDraft.trim();
+    if (!typed) return;
+    searchDraft = '';
+    openPaletteWith(typed);
   }
 
-  async function loadMapCatalog() {
+  /**
+   * Live once the catalog lands. The fallback is only ever read in the seconds
+   * before it does, or if the fetch fails — the alternative to a slightly stale
+   * number there is the sentence claiming the archive holds zero sheets.
+   */
+  const MAP_COUNT_FALLBACK = 39;
+  $: mapCount = maps.length || MAP_COUNT_FALLBACK;
+
+  $: favoriteMaps = maps.filter((m) => favoriteIds.includes(m.id));
+  $: displayedMaps = filterCollection === 'featured' ? featuredMaps : favoriteMaps;
+
+  async function loadCatalog() {
+    let visible: MapListItem[] = [];
     try {
-      const [allMaps, featured] = await Promise.all([
-        fetchMaps(supabase),
-        fetchFeaturedMaps(supabase),
-      ]);
+      const catalog = await loadHomeCatalog(supabase, session?.user?.id);
+      maps = catalog.maps;
+      featuredMaps = catalog.featured;
+      favoriteIds = catalog.favoriteIds;
 
-      maps = allMaps;
-      featuredMaps = featured.length > 0 ? featured : allMaps.slice(0, 6);
-
-      if (session?.user?.id) {
-        const favs = await fetchFavorites(supabase, session.user.id);
-        favoriteIds = favs || [];
-      }
-
-      loading = false;
-
-      const fetchPromises = maps.map(async (map) => {
-        // Only fetch thumbnails for what might be visible, and only if
-        // the DB doesn't already have one (skips 404s on un-georeferenced maps).
-        const visible = featuredMaps.some((m) => m.id === map.id) || favoriteIds.includes(map.id);
-        const source = map.annotation_url ?? map.allmaps_id;
-        if (!visible || map.thumbnail || !source) return;
-        const url = await fetchThumbnailUrl(source);
-        if (url) {
-          thumbnails.set(map.id, url);
-          thumbnails = thumbnails;
-        }
-      });
-      await Promise.all(fetchPromises);
+      // Only what this page can put on screen is worth a network round trip.
+      const featuredIds = new Set(catalog.featured.map((m) => m.id));
+      visible = catalog.maps.filter(
+        (m) => featuredIds.has(m.id) || catalog.favoriteIds.includes(m.id)
+      );
     } catch (err) {
       console.error('Failed to load map catalog:', err);
     } finally {
+      // Before the thumbnails, not after: the sheet renders from the DB
+      // `thumbnail` column where there is one, and fills in as the rest resolve.
       loading = false;
     }
+    thumbnails = await resolveThumbnails(visible);
   }
 
   async function toggleFavorite(mapId: string) {
@@ -142,50 +154,29 @@
     const userId = session.user.id;
     const wasFavorited = favoriteIds.includes(mapId);
 
-    // Optimistic update: use array reassignment for guaranteed Svelte reactivity
-    if (wasFavorited) {
-      favoriteIds = favoriteIds.filter((id) => id !== mapId);
-    } else {
-      favoriteIds = [...favoriteIds, mapId];
-    }
+    // Optimistic: reassign rather than mutate, or the heart does not repaint.
+    favoriteIds = wasFavorited ? favoriteIds.filter((id) => id !== mapId) : [...favoriteIds, mapId];
 
-    // Persist
-    const success = wasFavorited
+    const ok = wasFavorited
       ? await removeFavorite(supabase, userId, mapId)
       : await addFavorite(supabase, userId, mapId);
 
-    // Revert on failure
-    if (!success) {
-      if (wasFavorited) {
-        favoriteIds = [...favoriteIds, mapId];
-      } else {
-        favoriteIds = favoriteIds.filter((id) => id !== mapId);
-      }
+    if (!ok) {
+      favoriteIds = wasFavorited
+        ? [...favoriteIds, mapId]
+        : favoriteIds.filter((id) => id !== mapId);
+      return;
+    }
+
+    // A map favorited from outside the featured set has no thumbnail yet.
+    const added = !wasFavorited && maps.find((m) => m.id === mapId);
+    if (added && !thumbnails.has(mapId)) {
+      thumbnails = new Map([...thumbnails, ...(await resolveThumbnails([added]))]);
     }
   }
 
-  // Get unique cities from maps
-  $: cities = Array.from(new Set(maps.map((m) => m.location).filter(Boolean))).sort();
-
-  // Get unique cities from featured maps
-  $: featuredCities = Array.from(
-    new Set(featuredMaps.map((m) => m.location).filter(Boolean))
-  ).sort();
-
-  // Filter featured maps by selected city
-  $: displayedFeaturedMaps =
-    selectedFeaturedCity === 'all'
-      ? featuredMaps
-      : featuredMaps.filter((m) => m.location === selectedFeaturedCity);
-
-  $: favoriteMaps = maps.filter((m) => favoriteIds.includes(m.id));
-
-  $: displayedMaps = filterCollection === 'featured' ? displayedFeaturedMaps : favoriteMaps;
-
-  onMount(() => {
-    mounted = true;
-    loadMapCatalog();
-  });
+  onMount(loadCatalog);
+  onMount(loadHeroMap);
 </script>
 
 <svelte:head>
@@ -196,28 +187,28 @@
   />
 </svelte:head>
 
-<div class="page home-page" class:mounted>
+<div class="page home-page">
   <header class="hero">
-    <!-- Mount point for the Google Translate widget in app.html; autoDisplay is
-         false, so it must never render. `hidden` is the platform's own way to say
-         that. -->
-    <div id="google_translate_element" hidden></div>
-    <HeroMap
+    <!-- The map arrives behind a masthead that is already on screen. It used to
+         be the sequence's last beat, so the one thing to do about the archive
+         showed up eight seconds after the reader did. -->
+    <svelte:component
+      this={HeroMap}
       mapId={HERO_SHEET.id}
-      source={HERO_SHEET.annotation}
-      bbox={HERO_SHEET.bbox}
-      on:stage={(e) => (heroStage = e.detail.index)}
+      view={HERO_SHEET.view}
+      bind:overlayOpacity={sheetOpacity}
+      bind:settled={heroSettled}
     />
-    <div class="hero-content" class:revealed={heroStage >= 4}>
+    <div class="hero-content on-ink-plate">
       <h1 class="hero-title">
         Vietnam<br /><span class="text-highlight">Map Archive</span>
       </h1>
       <p class="hero-subtitle">
         {mapCount} sheets of Saigon, Huế and Hanoi — 1791 to 1968 — laid back over the ground they drew.
-        Volunteers put them there. Reading the names off them and tracing what they show is where the
-        work goes next.
       </p>
-      <button type="button" class="hero-search" on:click={openPalette}>
+      <!-- Re-pinned to the light face: the field is a paper plate sitting on
+           the masthead's dark ground, so it must not inherit its paper ink. -->
+      <div class="hero-search on-light-plate">
         <svg
           width="18"
           height="18"
@@ -230,9 +221,44 @@
         >
           <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
         </svg>
-        <span>Search a place, a sheet, a name off a map</span>
+        <input
+          class="hero-search-input"
+          type="search"
+          autocomplete="off"
+          placeholder="Search a place, a sheet, a name off a map"
+          aria-label="Search a place, a sheet, or a name off a map"
+          bind:value={searchDraft}
+          on:input={handOffSearch}
+        />
         <kbd>⌘K</kbd>
-      </button>
+      </div>
+
+      <p class="hero-tries">
+        <span class="hero-tries-label">Try</span>
+        {#each HERO_TRIES as term (term)}
+          <button type="button" class="hero-try" on:click={() => openPaletteWith(term)}>
+            {term}
+          </button>
+        {/each}
+      </p>
+
+      <!-- The archive's whole gesture in one control: drag from today back to
+           1882. It arrives with the masthead, so it never crowds the sequence. -->
+      {#if heroSettled}
+        <label class="hero-fade" transition:fade={{ duration: 400 }}>
+          <span>Today</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={sheetOpacity ?? 0.88}
+            on:input={(e) => (sheetOpacity = Number(e.currentTarget.value))}
+            aria-label="How much of the 1882 sheet to show"
+          />
+          <span>1882</span>
+        </label>
+      {/if}
     </div>
   </header>
 
@@ -288,7 +314,7 @@
           <a href="/catalog" class="text-link">Browse the catalog</a>
           <a href="/scan" class="text-link">Inspect a scan</a>
         </div>
-        <a href="/explore" class="action-btn primary-btn">Open the map viewer</a>
+        <a href="/explore" class="action-btn primary-btn">Open the map</a>
       </div>
     </section>
 
@@ -353,10 +379,11 @@
       <section class="band-col">
         <h2 class="band-title">About the project</h2>
         <p class="band-desc">
-          The aim is to get the buildings and street names out of Vietnam's colonial-era maps and
-          into open data, with a person checking the machine's work. The 1882 cadastral survey of
-          Saigon is where it starts, and where most of the work so far sits. Everything published
-          will be CC-BY / ODbL.
+          Volunteers put those sheets on the ground they drew. Reading the names off them and
+          tracing what they show is where the work goes next: the aim is to get the buildings and
+          street names out of Vietnam's colonial-era maps and into open data, with a person checking
+          the machine's work. The 1882 cadastral survey of Saigon is where it starts, and where most
+          of the work so far sits. Everything published will be CC-BY / ODbL.
         </p>
         <a href="/about" class="info-link">What's actually done →</a>
       </section>
@@ -373,5 +400,39 @@
         <a href="/blog" class="info-link">All updates →</a>
       </section>
     </div>
+
+    <!-- ============ THE WAY OUT ============
+         The reader who got this far is the likeliest to act, and until now the
+         page handed them a footer. Same field as the hero, same one CTA. -->
+    <section class="home-cta">
+      <h2 class="home-cta-title">What will you find?</h2>
+      <p class="home-cta-sub">
+        Most people come for one street and stay for the city. {mapCount} sheets, 1791 to 1968.
+      </p>
+      <div class="hero-search home-cta-search on-light-plate">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
+        </svg>
+        <input
+          class="hero-search-input"
+          type="search"
+          autocomplete="off"
+          placeholder="Search a place, a sheet, a name off a map"
+          aria-label="Search a place, a sheet, or a name off a map"
+          bind:value={searchDraft}
+          on:input={handOffSearch}
+        />
+      </div>
+      <a href="/explore" class="action-btn home-cta-btn on-light-plate">Open the map</a>
+    </section>
   </main>
 </div>

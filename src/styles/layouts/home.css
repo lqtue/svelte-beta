@@ -26,14 +26,25 @@
 /* ========================================
    PAGE ROOT
    ======================================== */
+/* The page fades in once. This used to be a `mounted` boolean flipped in
+   onMount and read as `class:mounted` — a round trip through JS for something
+   an animation with `both` fill does on its own, starting from the same
+   invisible first frame. */
 .home-page {
   min-height: 100vh;
-  opacity: 0;
-  transition: opacity 0.5s ease;
+  animation: home-fade-in 0.5s ease both;
 }
 
-.home-page.mounted {
-  opacity: 1;
+@keyframes home-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-page {
+    animation: none;
+  }
 }
 
 /* ========================================
@@ -46,14 +57,16 @@
   min-height: 68vh;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 3rem 1.5rem 4rem;
+  /* The masthead is a left column and the sheet keeps the rest of the frame —
+     the plate used to sit dead centre, over the one thing worth looking at. */
+  justify-content: flex-start;
+  padding: 3rem clamp(1.5rem, 5vw, 4.5rem) 4rem;
   /* No colour of its own. The map is the hero; this is only what shows for the
      moment before it loads. */
   background: var(--color-bg);
   overflow: hidden;
   color: var(--color-text);
-  text-align: center;
+  text-align: left;
 }
 
 .home-page .hero-content {
@@ -61,51 +74,31 @@
   /* Above the live map and its scrim, which are absolutely positioned siblings. */
   z-index: 4;
   pointer-events: none;
-  max-width: 700px;
-  margin: 0 auto;
+  width: min(34rem, 100%);
+  margin: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  /* Type over a live map still needs ground, but a bordered plate reads as a
-     dialog dropped on the map. A translucent wash with a blur behind it lets
-     the sheet stay visible through the masthead and needs no outline at all.
-     The fallback for a browser without backdrop-filter is the same colour at
-     full strength — legible, just opaque. */
-  background: color-mix(in srgb, var(--color-white) 90%, transparent);
-  border-radius: var(--radius-lg);
-  padding: 2rem 2rem 1.75rem;
-  /* The masthead is the last beat, not the first: the sequence explains what
-     the archive does, and only then says whose it is. `visibility` rather than
-     `display` so the reserved space never reflows the hero mid-sequence. */
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(0.75rem) scale(0.98);
-  transition:
-    opacity 0.7s ease,
-    transform 0.7s ease,
-    visibility 0s linear 0.7s;
+  align-items: flex-start;
+  /* No plate. Type over a live map needs ground, and the ground is now the
+     darkened left edge of the map itself (`.hero-map-scrim` in HeroMap) — a
+     translucent white box over the sheet was the thing hiding the sheet.
+     `.on-ink-plate` in the markup carries the paper-coloured ink that darkened
+     edge needs; the class paints a solid slab, which is what this undoes. */
+  background: none;
+  padding: 0;
 }
 
-@supports (backdrop-filter: blur(1px)) {
-  .home-page .hero-content {
-    background: color-mix(in srgb, var(--color-white) 72%, transparent);
-    backdrop-filter: blur(14px) saturate(1.15);
-  }
-}
-
-.home-page .hero-content.revealed {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-  transition:
-    opacity 0.7s ease,
-    transform 0.7s ease,
-    visibility 0s;
+/* The highlight keeps its ink outline against the dark edge — under
+   `.on-ink-plate` both the fill and the stroke would resolve to paper. */
+.home-page .hero-content .text-highlight {
+  color: var(--light-paper);
+  -webkit-text-stroke: 2px var(--light-ink);
+  text-shadow: 4px 4px 0 var(--light-ink);
 }
 
 @media (max-width: 640px) {
   .home-page .hero-content {
-    padding: 1.4rem 1.1rem 1.25rem;
+    width: 100%;
   }
 }
 
@@ -130,46 +123,125 @@
   font-size: clamp(0.95rem, 2.2vw, 1.075rem);
   font-weight: 500;
   line-height: 1.6;
-  max-width: 560px;
+  max-width: 32rem;
   padding: 0;
   margin: 0;
-  text-align: center;
-  color: color-mix(in srgb, var(--color-text) 78%, var(--color-white));
+  text-align: left;
+  color: color-mix(in srgb, var(--color-text) 88%, transparent);
 }
 
 /* The way in. The hero's four beats say what the archive holds; this is the
    one thing to do about it, so it is the only control on the plate. It keeps
-   its border — a search field with no edge is not a search field. */
+   its border — a search field with no edge is not a search field.
+
+   It is a real field rather than a button that opens the palette: the reader's
+   first keystroke is the expensive one, and a button throws it away. The field
+   hands the character to the palette and clears (see `handOffSearch`). */
 .home-page .hero-search {
   pointer-events: auto;
   margin-top: 1.35rem;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.6rem;
-  max-width: 100%;
+  width: min(30rem, 100%);
   padding: 0.7rem 1rem;
   background: var(--color-bg);
   border: var(--border-thick);
   border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-solid-sm);
-  font-family: var(--font-family-base);
-  font-size: 0.95rem;
-  font-weight: 500;
   color: color-mix(in srgb, var(--color-text) 70%, var(--color-white));
-  cursor: pointer;
-  transition:
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
+  transition: color 0.15s ease;
 }
 
-.home-page .hero-search:hover {
-  box-shadow: var(--shadow-solid);
-  transform: translate(-2px, -2px);
+.home-page .hero-search:hover,
+.home-page .hero-search:focus-within {
   color: var(--color-text);
 }
 
-.home-page .hero-search span {
-  text-align: left;
+.home-page .hero-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--font-family-base);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* The plate already lifts on focus; a second ring inside it is noise. */
+.home-page .hero-search-input:focus {
+  outline: none;
+}
+
+.home-page .hero-search-input::placeholder {
+  color: color-mix(in srgb, var(--color-text) 60%, var(--color-white));
+}
+
+/* An empty field is the hardest thing to fill. Four terms that currently
+   return something turn the blank box into a demonstration. */
+.home-page .hero-tries {
+  pointer-events: auto;
+  margin: 0.7rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--font-family-base);
+  font-size: 0.85rem;
+}
+
+.home-page .hero-tries-label {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+}
+
+.home-page .hero-try {
+  padding: 0.15rem 0.55rem;
+  background: none;
+  border: var(--border-thin);
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.home-page .hero-try:hover {
+  background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
+}
+
+/* The opacity slider. No plate: it lives in the masthead column, on the same
+   left edge as the title and the field, over the darkened map — so it takes the
+   column's paper ink (`.on-ink-plate`) rather than carrying a white box of its
+   own down at the bottom of the frame. */
+.home-page .hero-fade {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.1rem;
+  font-family: var(--font-family-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--color-text) 75%, transparent);
+}
+
+.home-page .hero-fade input {
+  width: 9rem;
+  /* One line instead of a bespoke thumb: the platform's slider already has the
+     keyboard behaviour and the hit target. */
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .home-page .hero-fade input {
+    width: 6rem;
+  }
 }
 
 .home-page .hero-search kbd {
@@ -281,20 +353,15 @@
   border-radius: var(--radius-pill);
   text-decoration: none;
   cursor: pointer;
-  box-shadow: var(--shadow-solid-sm);
-  transition:
-    transform 0.1s,
-    box-shadow 0.1s;
+  transition: filter 0.1s;
   width: max-content;
 }
 
 .home-page .action-btn:hover {
-  transform: translate(-4px, -4px);
-  box-shadow: var(--shadow-solid);
+  filter: brightness(0.95);
 }
 .home-page .action-btn:active {
-  transform: translate(0, 0);
-  box-shadow: 0px 0px 0px var(--shadow-ink);
+  filter: brightness(0.9);
 }
 .home-page .primary-btn {
   background: var(--color-primary);
@@ -537,4 +604,60 @@
   .home-page .action-btn {
     width: 100%;
   }
+}
+
+/* ========================================
+   THE CLOSING CTA
+
+   One filled band, the same field as the hero and the same single action. It
+   is painted with `--color-green`, so its type takes `--color-on-accent` and
+   not `--color-white`: the accent inks flip the other way from the page, and a
+   white label on the dark-theme green would be the bug that token exists for.
+   ======================================== */
+.home-page .home-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 3.5rem 1.5rem;
+  background: var(--color-green);
+  color: var(--color-on-accent);
+  border: var(--border-thick);
+  border-radius: var(--radius-lg);
+}
+
+.home-page .home-cta-title {
+  font-family: var(--font-family-display);
+  font-size: clamp(1.9rem, 4.5vw, 2.75rem);
+  font-weight: var(--font-extrabold);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.home-page .home-cta-sub {
+  max-width: 34rem;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--color-on-accent) 85%, var(--color-green));
+}
+
+/* The field keeps the hero's shape. Its colours come from `.on-light-plate` in
+   the markup, not from here: the band flips with the theme and the field must
+   not — a paper field with dark ink reads on both faces of the green, and
+   inheriting would give the dark theme a dark box on a light green band. */
+.home-page .home-cta-search {
+  margin-top: 0.5rem;
+}
+
+/* Pinned light for the same reason as the field beside it: the band's green is
+   dark in the light theme and light in the dark one, and a button that flips
+   with the page turns into a hole punched in the light-green face. */
+.home-page .home-cta-btn {
+  margin-top: 0.25rem;
+  justify-content: center;
+  background: var(--color-white);
+  color: var(--color-text);
 }

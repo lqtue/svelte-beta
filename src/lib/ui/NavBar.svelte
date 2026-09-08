@@ -184,6 +184,9 @@
         </svg>
       {/if}
     </button>
+    <!-- The one action the whole site is for. It is inside `Tools ▾` as well,
+         but a menu is somewhere to look and this is somewhere to click. -->
+    <a href="/explore" class="chip nav-cta">Open the map</a>
     {#if session}
       <a href="/profile" class="avatar-pill" title="Your profile">
         {#if avatarUrl}

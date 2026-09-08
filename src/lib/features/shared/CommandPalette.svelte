@@ -17,7 +17,8 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
-  import { paletteOpen, closePalette } from '$lib/core/utils/commandPalette';
+  import { get } from 'svelte/store';
+  import { paletteOpen, paletteSeed, closePalette } from '$lib/core/utils/commandPalette';
   import { letteringClass } from '$lib/core/utils/mapLettering';
   import { debounce } from '$lib/core/utils/debounce';
   import { destinationsFor, matchDestinations, type Destination } from './paletteDestinations';
@@ -170,9 +171,19 @@
 
   async function open() {
     opener = document.activeElement as HTMLElement | null;
+    // Whatever opened us may have handed over the reader's first keystrokes.
+    const seed = get(paletteSeed);
+    if (seed) {
+      paletteSeed.set('');
+      query = seed;
+      onInput();
+    }
     await tick();
     input?.focus();
-    input?.select();
+    // Seeded text gets a caret at the end, not a selection: the reader is
+    // mid-word, and the next character must extend it rather than replace it.
+    if (seed) input?.setSelectionRange(seed.length, seed.length);
+    else input?.select();
   }
   $: if ($paletteOpen) open();
 

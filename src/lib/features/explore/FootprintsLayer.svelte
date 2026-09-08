@@ -31,6 +31,14 @@
    */
   export let status: 'approved' | 'submitted' = 'approved';
 
+  /**
+   * A ready-made FeatureCollection to draw instead of asking the API. The home
+   * page hero passes its one sheet's fabric from `heroFabric.ts`, which is the
+   * same rows frozen at build time: it plays on every visit and the polygons
+   * only move when somebody reviews one.
+   */
+  export let featureCollection: { features?: unknown[] } | null = null;
+
   const { map: mapWritable } = getShellContext();
 
   let olMap: Map | null = null;
@@ -78,26 +86,38 @@
 
     loading = true;
     try {
-      const res = await fetch(
-        `/api/export/footprints?map_id=${encodeURIComponent(key)}&status=${status}`
-      );
-      if (!res.ok) return;
-      const fc = await res.json();
-      // Rows that could not be warped carry pixel coordinates, not degrees;
-      // drawing them would scatter garbage across the Gulf of Guinea.
-      const warped = {
-        ...fc,
-        features: (fc.features ?? []).filter(
-          (f: { properties?: { geo_converted?: boolean } }) => f.properties?.geo_converted
-        ),
-      };
+      // The frozen collection was filtered when it was generated, so it comes
+      // through as it is; only a fetched one still needs the pass below.
+      const fc = featureCollection ?? warpedOnly(await fetchCollection(key));
+      if (!fc) return;
       if (loadedKey !== `${key}|${status}`) return; // a newer request won
-      source.addFeatures(new GeoJSON().readFeatures(warped, { featureProjection: 'EPSG:3857' }));
+      source.addFeatures(new GeoJSON().readFeatures(fc, { featureProjection: 'EPSG:3857' }));
     } catch {
       /* offline or a 500: an empty fabric is the honest result */
     } finally {
       loading = false;
     }
+  }
+
+  async function fetchCollection(key: string) {
+    const res = await fetch(
+      `/api/export/footprints?map_id=${encodeURIComponent(key)}&status=${status}`
+    );
+    return res.ok ? await res.json() : null;
+  }
+
+  /**
+   * Rows that could not be warped carry pixel coordinates, not degrees; drawing
+   * them would scatter garbage across the Gulf of Guinea.
+   */
+  function warpedOnly(fc: { features?: unknown[] } | null) {
+    if (!fc) return null;
+    return {
+      ...fc,
+      features: (fc.features ?? []).filter(
+        (f) => (f as { properties?: { geo_converted?: boolean } }).properties?.geo_converted
+      ),
+    };
   }
 
   $: if (source && (mapIds || status)) void load();

@@ -29,6 +29,29 @@ test('home renders and links into the catalog', async ({ page }) => {
   await expect(page.locator('nav a[href="/directory"]').first()).toBeVisible();
 });
 
+// The hero field is a handoff, not a search: the reader's first keystroke has
+// to survive the jump into the palette. Getting this wrong loses one character
+// silently, which reads as a flaky keyboard rather than a bug.
+test('the hero field hands its first keystrokes to the palette', async ({ page }) => {
+  await page.goto('/');
+  // The masthead is the hero sequence's last beat, so the field is hidden for
+  // the first few seconds. Wait for it rather than typing into a hidden input,
+  // which Playwright will happily do and which fires no input event at all.
+  const hero = page.locator('.hero-search-input').first();
+  await expect(hero).toBeVisible({ timeout: 20000 });
+  await hero.pressSequentially('Catin', { delay: 40 });
+
+  const palette = page.locator('.cp input[role="combobox"]');
+  await expect(palette).toHaveValue('Catin');
+  // And the field it came from is empty, so coming back shows no ghost.
+  await expect(hero).toHaveValue('');
+
+  // A suggestion chip is the same handoff with the word already chosen.
+  await page.keyboard.press('Escape');
+  await page.locator('.hero-try', { hasText: '1882' }).click();
+  await expect(palette).toHaveValue('1882');
+});
+
 test('catalog search returns maps', async ({ page }) => {
   await page.goto('/catalog');
   await page.getByPlaceholder(/Search by title/i).fill('saigon');

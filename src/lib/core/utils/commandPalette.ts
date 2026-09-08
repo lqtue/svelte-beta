@@ -10,7 +10,21 @@ import { writable } from 'svelte/store';
 
 export const paletteOpen = writable(false);
 
-export const openPalette = () => paletteOpen.set(true);
+/**
+ * Text the palette should start with, consumed and cleared by the palette when
+ * it opens. The home page's search field and its "Try:" chips hand the reader's
+ * first keystroke straight through, so typing into the hero is typing into the
+ * palette rather than a field that throws the character away.
+ */
+export const paletteSeed = writable('');
+
+export function openPaletteWith(seed: string): void {
+  paletteSeed.set(seed);
+  paletteOpen.set(true);
+}
+
+/** Zero-argument on purpose: it is used directly as an `on:click` handler. */
+export const openPalette = () => openPaletteWith('');
 export const closePalette = () => paletteOpen.set(false);
 export const togglePalette = () => paletteOpen.update((v) => !v);
 

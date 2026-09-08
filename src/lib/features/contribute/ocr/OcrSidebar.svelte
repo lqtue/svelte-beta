@@ -16,10 +16,13 @@
   import type { EditableOcrExtraction } from '../shared/types';
   import {
     fetchExtractions,
-    patchExtraction,
     batchSetStatus,
     revertRecent,
     withEditState,
+    markRowSaving,
+    saveRowStatus,
+    saveRowText,
+    isRowDirty,
     type OcrStatus,
   } from '../shared/ocrApi';
   import {
@@ -156,70 +159,43 @@
   }
 
   async function save(ext: EditableOcrExtraction, status: OcrStatus) {
-    ext._saving = true;
-    extractions = extractions;
+    extractions = markRowSaving(extractions, ext.id, true);
     error = '';
     try {
-      await patchExtraction(mapId, {
-        id: ext.id,
-        text: ext._editText,
-        category: ext._editCategory,
+      ({ rows: extractions, statusCounts } = await saveRowStatus(
+        mapId,
+        { rows: extractions, statusCounts },
+        ext.id,
         status,
-      });
-      const old = ext.status as string;
-      ext.status = status;
-      ext.validated_at = status === 'validated' ? new Date().toISOString() : null;
-      statusCounts[status] = (statusCounts[status] ?? 0) + 1;
-      statusCounts[old] = Math.max(0, (statusCounts[old] ?? 1) - 1);
-      if (filterStatus && filterStatus !== status) {
-        extractions = extractions.filter((e) => e.id !== ext.id);
-      } else {
-        extractions = extractions;
-      }
+        filterStatus
+      ));
     } catch (e: any) {
       error = e.message;
     } finally {
-      ext._saving = false;
-      extractions = extractions;
+      extractions = markRowSaving(extractions, ext.id, false);
     }
   }
 
-  $: dirtyCount = extractions.filter(
-    (e) =>
-      e._editText !== (e.text_validated ?? e.text) ||
-      e._editCategory !== (e.category_validated ?? e.category)
-  ).length;
+  $: dirtyCount = extractions.filter(isRowDirty).length;
 
   async function saveAllEdits() {
-    const dirty = extractions.filter(
-      (e) =>
-        e._editText !== (e.text_validated ?? e.text) ||
-        e._editCategory !== (e.category_validated ?? e.category)
-    );
-    for (const ext of dirty) await commitText(ext);
+    // Snapshot the ids first: each commit reassigns `extractions`.
+    for (const id of extractions.filter(isRowDirty).map((e) => e.id)) {
+      const row = extractions.find((e) => e.id === id);
+      if (row) await commitText(row);
+    }
   }
 
   async function commitText(ext: EditableOcrExtraction) {
-    const textChanged = ext._editText !== (ext.text_validated ?? ext.text);
-    const catChanged = ext._editCategory !== (ext.category_validated ?? ext.category);
-    if (!textChanged && !catChanged) return;
-    ext._saving = true;
-    extractions = extractions;
+    if (!isRowDirty(ext)) return;
+    extractions = markRowSaving(extractions, ext.id, true);
     error = '';
     try {
-      await patchExtraction(mapId, {
-        id: ext.id,
-        text: ext._editText,
-        category: ext._editCategory,
-        status: ext.status,
-      });
-      ext.text_validated = ext._editText;
-      ext.category_validated = ext._editCategory;
+      extractions = await saveRowText(mapId, extractions, ext.id);
     } catch (e: any) {
       error = e.message;
     } finally {
-      ext._saving = false;
-      extractions = extractions;
+      extractions = markRowSaving(extractions, ext.id, false);
     }
   }
 

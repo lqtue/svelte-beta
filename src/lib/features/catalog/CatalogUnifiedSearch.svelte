@@ -42,15 +42,16 @@
     typeChoices,
     includeScout,
     labels,
+    selected,
+    toggleFacet,
+    setSingle,
   } = search;
 
-  // Mirror the parent's search box into the engine's query store.
+  // Mirror the parent's search box into the engine's query store. This is the
+  // one `$:` here that writes: `searchQuery` is a prop owned by the parent's
+  // text box and the engine's `query` is an external sink that never writes
+  // back, so there is no state to derive and no loop to close.
   $: query.set(searchQuery);
-
-  // Facet selection lives locally (FacetRail two-way binds it; the compact
-  // selects mutate it); we push it into the engine which owns the filtering.
-  let selected: Record<string, string[]> = {};
-  $: search.selected.set(selected);
 
   onMount(() => search.start());
 
@@ -67,22 +68,24 @@
     const { group, value } = e.detail;
     // Only the area chip is a filter. Other clicks (year, type, etc.) are no-ops.
     if (group !== 'area') return;
-    const cur = new Set(selected.area ?? []);
-    if (cur.has(value)) cur.delete(value);
-    else cur.add(value);
-    selected = { ...selected, area: Array.from(cur) };
+    toggleFacet('area', value);
   }
 
-  $: activeAreas = selected.area ?? [];
+  $: activeAreas = $selected.area ?? [];
   // Type selections live under the `type` key — the same key the engine's
   // filter and the FacetRail use. (The compact <select> below previously wrote
   // `map_type`, which the filter never read, so it silently did nothing.)
-  $: activeTypes = selected.type ?? [];
+  $: activeTypes = $selected.type ?? [];
 </script>
 
 <div class="v2-layout" class:compact>
   {#if !compact}
-    <FacetRail facets={$facets} periods={$periods} bind:selected showScoutFacets={$includeScout} />
+    <FacetRail
+      facets={$facets}
+      periods={$periods}
+      bind:selected={$selected}
+      showScoutFacets={$includeScout}
+    />
   {/if}
   <div class="v2-results">
     {#if compact && ($areaChoices.length > 0 || $typeChoices.length > 0)}
@@ -94,7 +97,7 @@
               value={activeAreas[0] ?? ''}
               on:change={(e) => {
                 const v = (e.currentTarget as HTMLSelectElement).value;
-                selected = { ...selected, area: v ? [v] : [] };
+                setSingle('area', v);
               }}
             >
               <option value="">All areas</option>
@@ -111,7 +114,7 @@
               value={activeTypes[0] ?? ''}
               on:change={(e) => {
                 const v = (e.currentTarget as HTMLSelectElement).value;
-                selected = { ...selected, type: v ? [v] : [] };
+                setSingle('type', v);
               }}
             >
               <option value="">All types</option>

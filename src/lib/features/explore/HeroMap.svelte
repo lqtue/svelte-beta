@@ -8,62 +8,68 @@
   persisted globals, so a visit to the home page cannot rearrange the reader's
   /explore layer stack.
 
-  The OL map mounts on the first idle callback rather than at parse time —
-  OpenLayers is ~120 kB gzipped that a reader who bounces should never pay for
-  before the page is on screen. There is deliberately no still poster behind it:
-  a IIIF thumbnail cropped to a landscape hero shows the sheet at a wildly
-  different scale from the map that replaces it, and the swap read as a flash.
+  The front page imports this file dynamically, on an idle callback and only off
+  a connection that is not metered, so OpenLayers is never in its first chunk.
+  Inside here the OL map then mounts on a second idle callback. There is
+  deliberately no still poster behind it: a IIIF thumbnail cropped to a
+  landscape hero shows the sheet at a wildly different scale from the map that
+  replaces it, and the swap read as a flash.
+
+  The masthead no longer waits for the last beat — the page paints it first and
+  this plays behind it.
 -->
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onMount } from 'svelte';
+  import type Map from 'ol/Map';
+  import { PUBLIC_SUPABASE_URL } from '$env/static/public';
   import { fade, fly } from 'svelte/transition';
   import MapShell from '$lib/map/shell/MapShell.svelte';
   import { createMapStore } from '$lib/map/stores/mapStore';
   import { createLayerStore } from '$lib/map/stores/layerStore';
   import FootprintsLayer from '$lib/features/explore/FootprintsLayer.svelte';
   import HeroSequence from '$lib/features/explore/HeroSequence.svelte';
+  import {
+    HERO_FOOTPRINTS,
+    HERO_FOOTPRINT_COUNT,
+    HERO_LABEL_COUNT,
+  } from '$lib/features/explore/heroFabric';
 
   /** `maps.id` of the sheet to play. */
   export let mapId: string;
-  /** An annotation URL (preferred — it is the R2 mirror) or a bare `allmaps_id`. */
-  export let source: string;
-  /** `[minLng, minLat, maxLng, maxLat]` — where to point the camera. */
-  export let bbox: [number, number, number, number];
+  /**
+   * The mirrored annotation for `mapId`, not allmaps.org's copy: theirs still
+   * points at archive.org, which 500s on the large tiles the warp asks for.
+   * Derived rather than passed, so changing which sheet the hero plays is one
+   * uuid on the home page.
+   */
+  $: source = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/annotations/${mapId}.json`;
+  /**
+   * Where the camera sits, pinned. It used to be the sheet's bbox centre at a
+   * fixed zoom, which framed the whole sheet — most of it margin. This is a
+   * chosen view: the Charner canal and the blocks either side of it, the part
+   * of the sheet worth arriving on.
+   */
+  export let view: { lng: number; lat: number; zoom: number; rotation: number };
 
   /**
-   * One line per beat, shown alone. They are claims about the archive, so they
-   * name real numbers: change them when the numbers change. The last beat has
-   * no line — that is where the masthead arrives.
+   * One line per beat, shown alone. They are claims about the archive, so the
+   * two that quote numbers take them from the frozen fabric itself — they used
+   * to be typed by hand, one regeneration away from lying. The last beat has no
+   * line: that is where the masthead used to arrive, and the page now paints it
+   * from the start.
    */
   export let captions: string[] = [
     'Hồ Chí Minh City, today',
     'Saigon, 1882 — laid over the ground it drew',
-    '46 plots and waterways, traced by hand',
-    '85 names, read off the sheet and placed',
+    `${HERO_FOOTPRINT_COUNT} plots and waterways, traced by hand`,
+    `${HERO_LABEL_COUNT} names, read off the sheet and placed`,
   ];
-
-  /** Fires on every beat, so the page can bring in its masthead on the last. */
-  const dispatch = createEventDispatcher<{ stage: { index: number } }>();
 
   /** Longest the masthead will ever wait, however the sequence goes. */
   const FAILSAFE_MS = 12000;
 
   /** Set once the sequence has played in this tab. */
   const PLAYED_KEY = 'vma-hero-played-v1';
-
-  /**
-   * Whether to spend a reader's bandwidth on a decorative map at all. One hero
-   * view is ~80 tile requests, so a metered connection gets the masthead and
-   * nothing else. `saveData` and `effectiveType` are Chromium-only; everywhere
-   * else this is false and the map plays, which is the right default.
-   */
-  function tooExpensive(): boolean {
-    const c = (
-      navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
-    ).connection;
-    if (!c) return false;
-    return c.saveData === true || c.effectiveType === 'slow-2g' || c.effectiveType === '2g';
-  }
 
   function played(): boolean {
     try {
@@ -75,35 +81,59 @@
 
   let live = false;
   let stage = -1;
-  let seq: HeroSequence | null = null;
+  let heroMap: Map | null = null;
+  let heroWidth = 0;
+  /**
+   * The masthead is a left column, so the sheet has to sit right of it. OL's
+   * own view padding does that — the camera centre stays the sheet's centre and
+   * the frame it is centred in shrinks — which beats offsetting the lng/lat,
+   * since the view is rotated a quarter turn and an offset there is diagonal.
+   */
+  $: viewPadding =
+    heroWidth >= 900 ? [0, 0, 0, Math.round(Math.min(heroWidth * 0.4, 600))] : [0, 0, 0, 0];
+  // OL's padding setter shifts the centre so the visible content stays put,
+  // which means `view.getCenter()` — what MapShell writes to the store — would
+  // drift by half the padding on every round trip through `HERO_SHEET.view`.
+  // Restoring the centre after the write keeps the pinned numbers and the live
+  // camera the same numbers.
+  $: if (heroMap) {
+    const v = heroMap.getView();
+    const centre = v.getCenter();
+    v.padding = viewPadding;
+    if (centre) v.setCenter(centre);
+  }
   let immediate = false;
-  /** Null until the reader moves the slider — see HeroSequence.overlayOpacity. */
-  let overlayOpacity: number | null = null;
 
-  /** The controls arrive with the masthead, so they never crowd the sequence. */
+  /**
+   * Null until the reader moves the slider — see HeroSequence.overlayOpacity.
+   * Bound by the page, which owns the slider: it belongs in the masthead
+   * column beside the search field, not on its own plate over the map.
+   */
+  export let overlayOpacity: number | null = null;
+  /** True once the sequence has had its say, so the page can show the slider. */
+  export let settled = false;
   $: settled = stage >= captions.length;
 
-  $: dispatch('stage', { index: stage });
+  /** The one place `stage` moves. */
+  function setStage(index: number) {
+    stage = index;
+  }
   $: caption = stage >= 0 && stage < captions.length ? captions[stage] : null;
 
   const mapStore = createMapStore({
-    lng: (bbox[0] + bbox[2]) / 2,
-    lat: (bbox[1] + bbox[3]) / 2,
-    // The sheet is portrait and the hero is landscape, so the view starts a
-    // quarter-turn over to lay the sheet's long axis across the frame. OL keeps
+    lng: view.lng,
+    lat: view.lat,
+    // A quarter turn lays the portrait sheet's long axis across a landscape
+    // hero; the pinned value lives with the rest of the view now. OL keeps
     // basemap labels upright regardless, so the modern city stays readable.
-    rotation: Math.PI / 2,
-    zoom: 16.05,
+    rotation: view.rotation,
+    zoom: view.zoom,
   });
   const layerStore = createLayerStore({ basemap: 'g-streets' });
 
   onMount(() => {
-    if (tooExpensive()) {
-      // No map, no sequence: straight to the masthead, which is the only part
-      // of the hero that has to exist.
-      stage = captions.length;
-      return;
-    }
+    // Whether this map is worth a metered reader's bandwidth is decided by the
+    // page, before it imports this component at all — see `isMeteredConnection`.
     immediate = played();
 
     // Let the hero paint before pulling in OpenLayers. `requestIdleCallback` is
@@ -117,7 +147,7 @@
     // whose title depends on an animation finishing is a page that can render
     // without its title.
     const failsafe = window.setTimeout(() => {
-      if (stage < captions.length) stage = captions.length;
+      if (stage < captions.length) setStage(captions.length);
     }, FAILSAFE_MS);
 
     return () => {
@@ -137,48 +167,33 @@
   }
 </script>
 
-<div class="hero-map">
+<div class="hero-map" bind:clientWidth={heroWidth}>
   {#if live}
     <!-- pixelRatio 1: at the screen's own ratio a Retina display asks for about
          four times the tiles, and this map is scenery, not a reading surface. -->
-    <MapShell {mapStore} {layerStore} disableUrlSync pixelRatio={1} wheelZoom={false}>
+    <MapShell
+      {mapStore}
+      {layerStore}
+      disableUrlSync
+      pixelRatio={1}
+      wheelZoom={false}
+      bind:map={heroMap}
+    >
       <HeroSequence
-        bind:this={seq}
-        {mapId}
         {source}
         {overlayOpacity}
         {immediate}
-        on:stage={(e) => (stage = e.detail.index)}
+        on:stage={(e) => setStage(e.detail.index)}
       />
-      <FootprintsLayer mapIds={stage >= 2 ? [mapId] : []} status="submitted" />
+      <FootprintsLayer
+        mapIds={stage >= 2 ? [mapId] : []}
+        status="submitted"
+        featureCollection={HERO_FOOTPRINTS}
+      />
     </MapShell>
   {/if}
 
   <div class="hero-map-scrim" aria-hidden="true"></div>
-
-  <!-- Hand the sheet over once the sequence has had its say. The slider is the
-       archive's whole gesture in one control: drag from today back to 1882. -->
-  {#if settled}
-    <div class="hero-controls" transition:fade={{ duration: 400 }}>
-      <div class="hero-zoom">
-        <button type="button" on:click={() => seq?.zoomBy(-1)} aria-label="Zoom out">−</button>
-        <button type="button" on:click={() => seq?.zoomBy(1)} aria-label="Zoom in">+</button>
-      </div>
-      <label class="hero-fade">
-        <span>Today</span>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={overlayOpacity ?? 0.88}
-          on:input={(e) => (overlayOpacity = Number(e.currentTarget.value))}
-          aria-label="How much of the 1882 sheet to show"
-        />
-        <span>1882</span>
-      </label>
-    </div>
-  {/if}
 
   <!-- One line at a time, and only a line: it used to be a link to /explore,
        which meant a click anywhere near the middle of the hero tore the page
@@ -205,21 +220,40 @@
     background: var(--color-bg);
   }
 
-  /* Legibility only, and only where chrome sits: a wash under the nav and one
-     under the caption. Pinned to the light ink in both themes — a warped sheet
-     is a photograph of paper and stays light at night, so a scrim that flipped
-     with the theme would brighten exactly the thing it is meant to darken. */
+  /* Legibility only, and only where chrome sits: a wash down the left where the
+     masthead reads, one under the nav and one under the caption.
+
+     Pinned to `--light-ink` in both themes — a warped sheet is a photograph of
+     paper and stays light at night, so a scrim that flipped with the theme
+     would brighten exactly the thing it is meant to darken. It used to say
+     `--color-text`, which is that flip: the comment was already the intent. */
   .hero-map-scrim {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--color-text) 22%, transparent) 0%,
-      transparent 18%,
-      transparent 78%,
-      color-mix(in srgb, var(--color-text) 20%, transparent) 100%
-    );
+    background:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--light-ink) 84%, transparent) 0%,
+        color-mix(in srgb, var(--light-ink) 78%, transparent) 34%,
+        color-mix(in srgb, var(--light-ink) 42%, transparent) 50%,
+        transparent 66%
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--light-ink) 22%, transparent) 0%,
+        transparent 18%,
+        transparent 78%,
+        color-mix(in srgb, var(--light-ink) 20%, transparent) 100%
+      );
+  }
+
+  /* On a phone the masthead is full width, so the side wash has no side to be
+     on: one even veil instead. */
+  @media (max-width: 640px) {
+    .hero-map-scrim {
+      background: color-mix(in srgb, var(--light-ink) 62%, transparent);
+    }
   }
 
   /* Centred, not tucked at the bottom: for four beats this line is the only
@@ -244,7 +278,6 @@
     background: var(--color-white);
     border: var(--border-thick);
     border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-solid-sm);
     padding: 0.7rem 1.4rem;
     font-family: var(--font-family-display);
     font-weight: 700;
@@ -270,75 +303,60 @@
     touch-action: pan-y;
   }
 
-  /* Bottom-left is the scale bar and bottom-right the attribution, so the
-     controls sit between them, clear of both. */
-  .hero-controls {
+  @media (max-width: 640px) {
+    .hero-map-scrim {
+      background: color-mix(in srgb, var(--light-ink) 62%, transparent);
+    }
+  }
+
+  /* Centred, not tucked at the bottom: for four beats this line is the only
+     thing on the hero, so it is the hero. The grid keeps each line in one spot
+     while the outgoing one fades under the incoming. */
+  .hero-caption {
     position: absolute;
-    left: 50%;
-    bottom: 1.5rem;
-    transform: translateX(-50%);
+    inset: 0;
+    display: grid;
+    place-items: center;
     z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.5rem;
+    pointer-events: none;
+  }
+
+  .hero-caption p {
+    grid-area: 1 / 1;
+    margin: 0;
+  }
+
+  .hero-caption span {
+    display: inline-block;
     background: var(--color-white);
     border: var(--border-thick);
     border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-solid-sm);
-  }
-
-  .hero-zoom {
-    display: flex;
-    gap: 0.25rem;
-  }
-
-  .hero-zoom button {
-    width: 1.9rem;
-    height: 1.9rem;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    background: var(--color-bg);
-    border: var(--border-thin);
-    border-radius: 50%;
+    padding: 0.7rem 1.4rem;
     font-family: var(--font-family-display);
-    font-size: 1rem;
     font-weight: 700;
-    line-height: 1;
+    font-size: clamp(0.95rem, 2vw, 1.35rem);
     color: var(--color-text);
-    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
   }
 
-  .hero-zoom button:hover {
-    background: var(--color-yellow);
-    color: var(--color-text-on-yellow);
-  }
+  /* On a phone the hero fills the screen, so a one-finger swipe has to scroll
+     the page — without this the map swallows it and the reader is stuck in the
+     header with no way down. `pan-y` lets the browser claim the gesture on the
+     compositor, before OL sees a pointer event at all, which is why it beats
+     rewriting DragPan's condition.
 
-  .hero-fade {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding-right: 0.35rem;
-    font-family: var(--font-family-display);
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: color-mix(in srgb, var(--color-text) 65%, var(--color-white));
-  }
-
-  .hero-fade input {
-    width: 8rem;
-    /* One line instead of a bespoke thumb: the platform's slider already has
-       the keyboard behaviour and the hit target. */
-    accent-color: var(--color-primary);
-    cursor: pointer;
+     The cost, measured rather than assumed: Chrome suppresses the pointer
+     stream for the whole gesture, so on touch the hero map no longer pans by
+     drag in any direction. That is the right trade for a decorative map — the
+     reader needs to get past it far more than they need to pan it, and the
+     caption is one tap to /explore, where panning is the point. Desktop is
+     untouched: mouse drag still pans, the wheel still scrolls the page. */
+  .hero-map :global(.ol-viewport) {
+    touch-action: pan-y;
   }
 
   @media (max-width: 640px) {
-    .hero-fade input {
-      width: 5rem;
-    }
-
     .hero-caption span {
       font-size: 0.95rem;
       white-space: normal;

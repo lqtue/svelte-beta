@@ -29,35 +29,16 @@
     <link rel="preconnect" href="https://trioykjhhwrruwjsklfo.supabase.co" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Inter as a variable axis, not four static cuts: `wght@400..800` is one
+         file per unicode subset instead of four, which took the stylesheet from
+         40 @font-face rules to 16. Be Vietnam Pro has no variable build, so it
+         stays static — 600/700/800, the three weights headings and chrome
+         actually use. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Be+Vietnam+Pro:wght@500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Be+Vietnam+Pro:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
     %sveltekit.head%
-    <script type="text/javascript">
-      function googleTranslateElementInit() {
-        new google.translate.TranslateElement(
-          {
-            pageLanguage: 'en',
-            includedLanguages: 'en,vi',
-            autoDisplay: false,
-          },
-          'google_translate_element'
-        );
-      }
-    </script>
-    <script
-      type="text/javascript"
-      src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
-    ></script>
-    <style>
-      body > .skiptranslate {
-        display: none !important;
-      }
-      body {
-        top: 0 !important;
-      }
-    </style>
   </head>
   <body data-sveltekit-preload-data="hover">
     <div style="display: contents">%sveltekit.body%</div>

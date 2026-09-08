@@ -8,6 +8,15 @@ import type { MapListItem, MapSourceType, MapStatus } from './types';
 
 export type DbRow = Database['public']['Tables']['maps']['Row'];
 
+/**
+ * Exactly the columns `toMapListItem` reads. `select('*')` sent 120 KB of row
+ * for the catalog (37 KB over the wire), most of it `extra_metadata` and the
+ * long source fields no list ever renders; this is 9 KB. `fetchMapRow` still
+ * takes the whole row — the admin editor writes back columns no list carries.
+ */
+const LIST_COLUMNS =
+  'id,allmaps_id,annotation_url,name,location,map_type,dc_description,thumbnail,status,year,year_label,collection,holding_institution,source_url,source_type,bbox,iiif_image,georef_done';
+
 function toMapListItem(row: DbRow): MapListItem {
   return {
     id: row.id,
@@ -34,7 +43,7 @@ function toMapListItem(row: DbRow): MapListItem {
 
 /** All maps (published). For catalog page. */
 export async function fetchMaps(supabase: SupabaseClient<Database>): Promise<MapListItem[]> {
-  const { data, error } = await supabase.from('maps').select('*').order('name');
+  const { data, error } = await supabase.from('maps').select(LIST_COLUMNS).order('name');
 
   if (error) {
     console.error('fetchMaps:', error);
@@ -49,7 +58,7 @@ export async function fetchFeaturedMaps(
 ): Promise<MapListItem[]> {
   const { data, error } = await supabase
     .from('maps')
-    .select('*')
+    .select(LIST_COLUMNS)
     .eq('status', 'featured')
     .order('year', { ascending: true, nullsFirst: false });
 
@@ -66,7 +75,7 @@ export async function fetchGeoreferencedMaps(
 ): Promise<MapListItem[]> {
   const { data, error } = await supabase
     .from('maps')
-    .select('*')
+    .select(LIST_COLUMNS)
     .or('allmaps_id.not.is.null,annotation_url.not.is.null')
     .order('year', { ascending: true, nullsFirst: false });
 

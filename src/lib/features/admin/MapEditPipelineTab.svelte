@@ -8,9 +8,10 @@
   import type { EditableOcrExtraction } from '$lib/features/contribute/shared/types';
   import {
     fetchExtractions,
-    patchExtraction,
     batchSetStatus,
     withEditState,
+    markRowSaving,
+    saveRowStatus,
     type OcrStatus,
   } from '$lib/features/contribute/shared/ocrApi';
   export let mapId: string;
@@ -138,31 +139,20 @@
   }
 
   async function saveReview(ext: EditableOcrExtraction, status: OcrStatus) {
-    ext._saving = true;
-    reviewExtractions = reviewExtractions;
+    reviewExtractions = markRowSaving(reviewExtractions, ext.id, true);
     reviewError = '';
     try {
-      await patchExtraction(mapId, {
-        id: ext.id,
-        text: ext._editText,
-        category: ext._editCategory,
+      ({ rows: reviewExtractions, statusCounts: reviewStatusCounts } = await saveRowStatus(
+        mapId,
+        { rows: reviewExtractions, statusCounts: reviewStatusCounts },
+        ext.id,
         status,
-      });
-      ext.status = status;
-      ext.validated_at = status === 'validated' ? new Date().toISOString() : null;
-      reviewStatusCounts[status] = (reviewStatusCounts[status] ?? 0) + 1;
-      if (status !== 'pending')
-        reviewStatusCounts['pending'] = Math.max(0, (reviewStatusCounts['pending'] ?? 0) - 1);
-      if (reviewStatusFilter && reviewStatusFilter !== status) {
-        reviewExtractions = reviewExtractions.filter((e) => e.id !== ext.id);
-      } else {
-        reviewExtractions = reviewExtractions;
-      }
+        reviewStatusFilter
+      ));
     } catch (e: any) {
       reviewError = e.message;
     } finally {
-      ext._saving = false;
-      reviewExtractions = reviewExtractions;
+      reviewExtractions = markRowSaving(reviewExtractions, ext.id, false);
     }
   }
 

@@ -58,6 +58,28 @@
   gap: 0.75rem;
   margin-left: auto;
 }
+/* Below the hamburger breakpoint the bar holds search, theme and sign-in
+   already; the drawer carries the map viewer. */
+.nav-cta {
+  min-height: 2.1rem;
+  font-size: 0.85rem;
+  /* The archive's red, same as the lead CTA on the home and about heroes —
+     `.chip.primary` is blue, which would make three colours of "the one
+     action" on a single page. */
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+}
+.nav-cta:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+}
+
+@media (max-width: 780px) {
+  .nav-cta {
+    display: none;
+  }
+}
+
 @media (max-width: 600px) {
   .nav-links {
     display: none;

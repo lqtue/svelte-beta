@@ -89,7 +89,9 @@
   // MapShell still sets its own context for its real descendants.
   const mapWritable = writable<Map | null>(null);
   setShellContext({ map: mapWritable, mapStore, layerStore });
-  $: mapWritable.set(shellMap);
+  // MapShell binds straight into the context store, so `shellMap` is a
+  // derivation of it rather than a second copy pushed across by a `$:`.
+  $: shellMap = $mapWritable;
 
   // ── Reactive store reads ─────────────────────────────────────────
 
@@ -141,7 +143,7 @@
   <!-- Map stage -->
   <div class="dual-container" class:dual-active={dualPaneActive}>
     <div class="dual-primary" class:dual-active={dualPaneActive}>
-      <MapShell {mapStore} {layerStore} bind:map={shellMap}>
+      <MapShell {mapStore} {layerStore} bind:map={$mapWritable}>
         <LayerRenderer />
         <slot name="map-children" />
       </MapShell>
