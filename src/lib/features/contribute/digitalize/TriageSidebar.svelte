@@ -12,13 +12,15 @@
   import '$styles/components/tool-sidebar.css';
   import type { TileOverrides } from './tileParams';
   import { buildTileGrid } from './tileParams';
-  import type { StoredTriage } from './triagePrefs';
   import {
     LAYOUT_CATEGORIES,
     LAYOUT_COLORS,
     LAYOUT_LABELS,
+    TRIAGE_STATE_LABELS,
+    triageState,
     type LayoutCategory,
     type LayoutRegion,
+    type SavedTriage,
   } from '$lib/data/maps/triageTypes';
 
   export let imgWidth: number = 0;
@@ -44,7 +46,7 @@
   export let runs: Record<string, { n: number; categories: Record<string, number> }> = {};
 
   /** What `maps.triage` holds for this map — null until someone saves one. */
-  export let savedTriage: (StoredTriage & { saved_at?: string }) | null = null;
+  export let savedTriage: SavedTriage | null = null;
   export let savingTriage: boolean = false;
   export let saveTriageError: string = '';
   export let suggesting: boolean = false;
@@ -107,6 +109,14 @@
   }
 
   $: mainMap = layoutRegions.find((r) => r.category === 'main_map') ?? null;
+
+  // Proposed vs accepted. The layout pass can now produce a whole triage with
+  // nobody looking, so "has a triage" no longer means "someone decided this" —
+  // the panel has to say which of the two this sheet is.
+  $: savedState = triageState(savedTriage);
+  $: acceptedOn = savedTriage?.validated_at
+    ? new Date(savedTriage.validated_at).toLocaleDateString()
+    : '';
 
   // Local neatline inputs (separate vars to avoid array reactivity issues)
   let nx = 0,
@@ -292,6 +302,12 @@
         >Full image</button
       >
     </div>
+    {#if savedTriage?.neatline_src === 'main_map'}
+      <p class="ts-note">
+        This crop is the layout pass's <strong>main map</strong> region, adopted automatically — nobody
+        drew it. Check it against the sheet.
+      </p>
+    {/if}
     <div class="tool-coord-grid">
       <label class="tool-coord-label">
         <span>X</span>
@@ -428,13 +444,30 @@
         ready to queue.
       {/if}
     </div>
+    {#if savedState === 'ready'}
+      <div class="tool-hint">Accepted{acceptedOn ? ` ${acceptedOn}` : ''}.</div>
+    {:else if savedState === 'proposed'}
+      <p class="ts-note">
+        Proposed by the layout pass — nothing will be queued until you accept it.
+      </p>
+    {:else}
+      <p class="ts-note">{TRIAGE_STATE_LABELS[savedState]}</p>
+    {/if}
     <button
       class:tool-run-btn={triageDirty}
       class:tool-ghost-btn={!triageDirty}
       on:click={() => dispatch('saveTriage')}
       disabled={savingTriage || !neatlineValid || !neatline}
     >
-      {savingTriage ? 'Saving…' : savedTriage ? 'Update saved triage' : 'Save triage'}
+      {#if savingTriage}
+        Saving…
+      {:else if savedState === 'proposed'}
+        Accept triage
+      {:else if savedTriage}
+        Update saved triage
+      {:else}
+        Save triage
+      {/if}
     </button>
   </div>
 

@@ -31,6 +31,9 @@ const force = args.includes('--force');
 const limitIdx = args.indexOf('--limit');
 const limit = limitIdx > -1 ? Number(args[limitIdx + 1]) : Infinity;
 const untriaged = args.includes('--untriaged');
+// Queue proposals nobody has accepted yet. The point of the accept step is that
+// a bad crop is caught before it is paid for, so this is opt-in.
+const unvalidated = args.includes('--unvalidated');
 const modelIdx = args.indexOf('--model');
 const model = modelIdx > -1 ? args[modelIdx + 1] : null;
 // Two passes by default: the grid, then the grid moved half a tile, voted into
@@ -109,18 +112,37 @@ const { data: live } = await db
   .in('status', ['queued', 'claimed', 'running']);
 const inFlight = new Set((live ?? []).map((r) => r.map_id));
 
-// `triage` defaults to `{}`, so a neatline is what tells a saved triage from a
-// map nobody has opened.
-const triageOf = (m) => (m.triage?.neatline ? m.triage : null);
+// A sheet is queueable when a person has *accepted* a crop, not merely when one
+// exists. The crop can now be proposed end-to-end with no human — the layout
+// job adopts its own `main_map` region — so "has a triage" stopped meaning
+// "someone decided this".
+//
+// The old gate was `triage.neatline`, and across 101 georeferenced maps **no
+// sheet had one**, so this script's default mode queued nothing at all and
+// looked like it had worked. 37 sheets already carried a main_map region that
+// `tilingCrop` prefers to a neatline anyway. Mirrors `triageState()` in
+// src/lib/data/maps/triageTypes.ts — this file is plain .mjs and cannot import
+// the TS.
+const cropOfTriage = (t) =>
+  (t?.regions ?? []).find((r) => r.category === 'main_map')?.bbox ?? t?.neatline ?? null;
+const triageOf = (m) => {
+  const t = m.triage;
+  if (!cropOfTriage(t)) return null;
+  return unvalidated || t.validated_at ? t : null;
+};
 
 // The crop the tile pass should cover. A `main_map` region is the layout pass's
 // answer to "where is the terrain", which beats the neatline: the neatline is
 // the printed border, and a legend or an index printed inside it is inside the
 // neatline too. Mirrors `tilingCrop()` in src/lib/data/maps/triageTypes.ts —
 // this file is plain .mjs and cannot import the TS.
-const cropOf = (t) =>
-  (t?.regions ?? []).find((r) => r.category === 'main_map')?.bbox ?? t?.neatline ?? null;
+const cropOf = cropOfTriage;
 const nTriaged = maps.filter(triageOf).length;
+const nProposed = maps.filter((m) => cropOf(m.triage) && !m.triage?.validated_at).length;
+const nNeedsCrop = maps.filter((m) => !cropOf(m.triage) && (m.triage?.regions ?? []).length).length;
+const nNeedsLayout = maps.filter(
+  (m) => !cropOf(m.triage) && !(m.triage?.regions ?? []).length
+).length;
 
 const todo = maps
   .filter((m) => !inFlight.has(m.id) && (force || !hasOcr.has(m.id)))
@@ -128,14 +150,30 @@ const todo = maps
   .slice(0, limit);
 
 console.log(
-  `${maps.length} georeferenced · ${nTriaged} triaged · ${hasOcr.size} already OCR'd · ` +
-    `${inFlight.size} in flight → ${todo.length} to queue${dry ? ' (dry run)' : ''}`
+  `${maps.length} georeferenced · ${nTriaged} accepted · ${nProposed} proposed (not accepted) · ` +
+    `${nNeedsCrop} no main_map · ${nNeedsLayout} no layout pass · ` +
+    `${hasOcr.size} already OCR'd · ${inFlight.size} in flight → ` +
+    `${todo.length} to queue${dry ? ' (dry run)' : ''}`
 );
 if (!untriaged && nTriaged < maps.length) {
-  console.log(
-    `  ${maps.length - nTriaged} sheets have no saved triage and are skipped. ` +
-      `Triage them at /contribute/digitalize, or pass --untriaged to run them in auto mode.`
-  );
+  if (nNeedsLayout) {
+    console.log(
+      `  ${nNeedsLayout} sheets have had no layout pass. ` +
+        `Run scripts/enqueue_layout_all.mjs and drain it — that proposes the crop.`
+    );
+  }
+  if (nProposed) {
+    console.log(
+      `  ${nProposed} sheets have a proposed crop nobody has accepted. ` +
+        `Accept them at /scan?mode=triage, or pass --unvalidated to queue them as proposed.`
+    );
+  }
+  if (nNeedsCrop) {
+    console.log(
+      `  ${nNeedsCrop} sheets had a layout pass that found no main_map — those need a person ` +
+        `to open them at /scan?mode=triage, where the browser proposes a crop from the ink.`
+    );
+  }
 }
 
 /**
@@ -244,6 +282,12 @@ for (const m of todo) {
       // A saved neatline is the whole point of triaging: with one, the scout
       // pass has nothing left to guess, so `auto` only still runs the legend.
       auto: true,
+      // Per-tile priorities from the measured density signal, computed at run
+      // time on the grid actually being tiled — so there is no key to
+      // mismatch. `tests/density-parity.spec.ts` pins the Python pass to the
+      // browser's, which is the implementation that was measured; a saved
+      // `tile_overrides` from a person still wins, since ocr.py prefers it.
+      auto_priority: true,
       ...(crop ? { neatline: crop } : {}),
       ...(t?.tile_overrides && Object.keys(t.tile_overrides).length
         ? { tile_overrides: t.tile_overrides }

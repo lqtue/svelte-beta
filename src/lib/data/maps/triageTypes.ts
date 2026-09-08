@@ -78,8 +78,26 @@ export type LayoutRegion = {
 
 export type SavedTriage = {
   neatline?: RegionBox;
+  /**
+   * Where the neatline came from. `human` is a drawn rectangle; `main_map` is
+   * the layout pass's own answer, adopted automatically — which is what lets a
+   * sheet reach OCR without anyone drawing anything. Absent on triages saved
+   * before the layout pass could propose one.
+   */
+  neatline_src?: 'human' | 'main_map';
   regions?: LayoutRegion[];
   regions_at?: string;
+  /**
+   * When a person last looked at this proposal and accepted it.
+   *
+   * The whole triage can now be proposed without a human (layout job → regions
+   * → `main_map` as the crop), so "has a triage" stopped meaning "someone
+   * decided this". This is the field that means it, and it is what
+   * `enqueue_ocr_all.mjs` gates on: a proposal nobody has seen does not get to
+   * spend money on OCR.
+   */
+  validated_at?: string;
+  validated_by?: string;
   /** The sheet's printed reference grid, so an index entry's "J 6" becomes a
    *  position without spotting a single numeral on the map body. */
   grid?: MapGrid;
@@ -134,3 +152,37 @@ export function tilingCrop(triage: SavedTriage | null | undefined): RegionBox | 
   if (triage.neatline && triage.neatline.length === 4) return triage.neatline;
   return null;
 }
+
+/**
+ * What still stands between a sheet and an OCR run.
+ *
+ * Three callers need this answer and used to disagree about it:
+ * `enqueue_ocr_all.mjs` gated on `triage.neatline`, which **no sheet in the
+ * corpus had** — 101 georeferenced maps, zero neatlines — so its default mode
+ * queued nothing at all, while 37 sheets already carried a `main_map` region
+ * that `tilingCrop` prefers to a neatline anyway. The digitalize sidebar and
+ * /admin?tab=status each had their own idea too.
+ *
+ * `ready`     — a person has accepted a crop; queue it.
+ * `proposed`  — the layout pass found a crop, nobody has looked; needs one click.
+ * `needs_layout` — no layout pass has run.
+ * `needs_crop`   — the layout pass ran and found no `main_map`. Not guessable:
+ *                  someone has to open the sheet, where the browser's
+ *                  ink-profile walk will propose one.
+ */
+export type TriageState = 'ready' | 'proposed' | 'needs_crop' | 'needs_layout';
+
+export function triageState(triage: SavedTriage | null | undefined): TriageState {
+  const crop = tilingCrop(triage);
+  if (crop && triage?.validated_at) return 'ready';
+  if (crop) return 'proposed';
+  return (triage?.regions ?? []).length ? 'needs_crop' : 'needs_layout';
+}
+
+/** One line for a person: what this sheet is waiting for. */
+export const TRIAGE_STATE_LABELS: Record<TriageState, string> = {
+  ready: 'Accepted — queued for OCR',
+  proposed: 'Proposed — needs a look',
+  needs_crop: 'Layout found no main map — open it to draw one',
+  needs_layout: 'No layout pass yet',
+};

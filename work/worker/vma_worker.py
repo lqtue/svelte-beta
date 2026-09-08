@@ -240,6 +240,14 @@ def _ocr_batch_argv(job: dict, python_bin: str, run_id: str, db: bool) -> list[s
     # Opt-in: blank water and margin tiles cost the same as dense ones.
     if p.get("skip_sparse"):
         argv.append("--skip-sparse")
+    # The measured density pass, computed on the grid actually being tiled. It
+    # existed in ocr.py all along and no enqueue path or worker ever passed it,
+    # so the automated runs paid full price for blank margin tiles. Safe to wire
+    # in now for two reasons: the overview is 2048px (at 1024 the signal was
+    # inverted and it demoted the densest tiles), and tests/density-parity.spec.ts
+    # pins it to the browser implementation that was actually measured.
+    if p.get("auto_priority"):
+        argv.append("--auto-priority")
     neatline = p.get("neatline")
     if neatline:
         argv += ["--crop", ",".join(str(n) for n in neatline)]

@@ -29,6 +29,7 @@
       withBbox: number;
       read: number;
       triaged: number;
+      proposed: number;
       withLayout: number;
     };
     words: { total: number; placed: number; placeNames: number };
@@ -126,20 +127,28 @@
       {
         title: 'Getting sheets ready to read',
         blurb:
-          'Before the AI reads a sheet, someone marks where the map actually is on the paper — the border, and which squares are blank or water. Nothing queues without it.',
+          'The AI now proposes where the map sits on the paper and which squares are blank or water. A person looks at that proposal and accepts it. Nothing is read — and nothing is paid for — until someone has.',
         rows: [
           {
-            label: 'Sheets triaged by a person',
+            label: 'Sheets a person has accepted',
             value: of(m.triaged, m.georeferenced),
             detail:
               m.triaged === 0
-                ? 'None. This is the blocker: the queueing script only takes triaged sheets, so running it right now would queue nothing at all and look like it worked.'
-                : 'These have a saved border and tile grid, so the queueing script will take them.',
+                ? 'None yet. The queueing script only takes accepted sheets, so running it now would queue nothing and look like it worked.'
+                : 'These are the ones the queueing script will take.',
             tone: m.triaged === 0 ? 'bad' : m.triaged < m.georeferenced ? 'warn' : 'good',
             next:
               m.triaged < m.georeferenced
-                ? 'Draw the border and press Save triage at /scan?mode=triage. One sheet at a time.'
+                ? 'Open a proposed sheet at /scan?mode=triage, check the border it suggests, and press Save triage. That is the acceptance.'
                 : undefined,
+          },
+          {
+            label: 'Proposed, waiting to be looked at',
+            value: of(m.proposed, m.georeferenced),
+            detail:
+              'The AI has already worked out the border on these. Each one needs a person to glance at it and accept — that is the whole remaining step.',
+            tone: m.proposed > 0 ? 'warn' : 'good',
+            next: m.proposed > 0 ? 'Work through them at /scan?mode=triage.' : undefined,
           },
           {
             label: 'Sheets the AI has mapped out',
@@ -148,8 +157,8 @@
               'The layout pass guesses what each part of the sheet is — the map itself, the title, the legend, insets — so a person corrects boxes instead of drawing them.',
             tone: m.withLayout === 0 ? 'warn' : 'good',
             next:
-              m.withLayout === 0
-                ? 'Run the Layout step at /scan?mode=triage, then a worker with --kinds layout.'
+              m.withLayout < m.georeferenced
+                ? 'Run scripts/enqueue_layout_all.mjs for the whole collection at once, then leave a worker running. It proposes the border too.'
                 : undefined,
           },
         ],

@@ -96,16 +96,28 @@ export function saveTriageState(mapId: string, state: TriageState): void {
 }
 
 /**
- * Write the triage to `maps.triage`, so the enqueue script can see it.
+ * Write the triage to `maps.triage` and mark it accepted.
+ *
+ * Pressing this button has always meant "a person asserts this sheet is
+ * triaged", and now that the crop can be proposed end-to-end by the layout job
+ * that assertion is the only thing separating a machine's suggestion from a
+ * decision — so the save stamps `validated_at`, which is what
+ * `enqueue_ocr_all.mjs` gates OCR spending on.
+ *
+ * Posts to the triage route rather than PATCHing `maps`, because that PATCH
+ * replaced the whole `triage` column with an object built from local state and
+ * so silently dropped every key that state does not model: `grid`, `grid_at`,
+ * `regions_at`, `neatline_src`. The route writes one key at a time.
+ *
  * Throws with the server's message, which the sidebar shows verbatim.
  */
 export async function saveTriageToServer(mapId: string, state: TriageState): Promise<void> {
   const stored = toStoredTriage(state);
   if (!stored) throw new Error('Draw a neatline before saving.');
-  const res = await fetch(`/api/admin/maps/${mapId}`, {
-    method: 'PATCH',
+  const res = await fetch(`/api/admin/maps/${mapId}/triage`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ triage: { ...stored, saved_at: new Date().toISOString() } }),
+    body: JSON.stringify({ ...stored, validate: true }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

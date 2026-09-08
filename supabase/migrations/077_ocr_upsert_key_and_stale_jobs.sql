@@ -194,8 +194,15 @@ begin
     raise exception 'set_triage_key: refusing key %', p_key;
   end if;
 
+  -- A null value removes the key. jsonb_set with a NULL new_value returns NULL
+  -- for the *whole* document, so without this branch "withdraw the validation"
+  -- would erase the entire triage.
   update public.maps m
-     set triage = jsonb_set(coalesce(m.triage, '{}'::jsonb), array[p_key], p_value, true)
+     set triage = case
+                    when p_value is null
+                      then coalesce(m.triage, '{}'::jsonb) - p_key
+                    else jsonb_set(coalesce(m.triage, '{}'::jsonb), array[p_key], p_value, true)
+                  end
    where m.id = p_map_id
   returning m.triage into updated;
 

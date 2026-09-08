@@ -243,7 +243,8 @@ def link_extractions_to_footprints(assignments: dict[str, str]) -> int:
     return total
 
 
-def save_triage_regions(map_id: str, regions: list[dict[str, Any]]) -> int:
+def save_triage_regions(map_id: str, regions: list[dict[str, Any]],
+                        neatline: list[int] | None = None) -> int:
     """Write the layout pass into maps.triage.regions.
 
     Same two transports as every other write here: through /api/pipeline/results
@@ -254,9 +255,13 @@ def save_triage_regions(map_id: str, regions: list[dict[str, Any]]) -> int:
     Merges rather than replaces the triage object, because the neatline and the
     tile grid beside it belong to whoever drew them.
     """
+    body: dict[str, Any] = {"map_id": map_id, "triage_regions": regions}
+    if neatline:
+        body["triage_neatline"] = neatline
+
     api = _api_config()
     if api:
-        out = _post_results({"map_id": map_id, "triage_regions": regions})
+        out = _post_results(body)
         return int(out.get("regions", len(regions)))
 
     url, key = _load_config()
@@ -271,8 +276,15 @@ def save_triage_regions(map_id: str, regions: list[dict[str, Any]]) -> int:
     if not rows:
         raise SystemExit(f"No map {map_id}")
     triage = rows[0].get("triage") or {}
-    triage["regions"] = regions
+    # Same rule as /api/pipeline/results: a region a person put there survives a
+    # re-run. Only the model's own proposals are replaced.
+    kept = [r for r in (triage.get("regions") or []) if r.get("source") == "human"]
+    triage["regions"] = kept + regions
     triage["regions_at"] = datetime.now(timezone.utc).isoformat()
+    # A human-drawn crop is never overwritten by the model's.
+    if neatline and triage.get("neatline_src") != "human":
+        triage["neatline"] = neatline
+        triage["neatline_src"] = "main_map"
     resp = requests.patch(
         f"{url}/rest/v1/maps",
         headers=_headers(key),

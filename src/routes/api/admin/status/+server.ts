@@ -48,11 +48,24 @@ export const GET: RequestHandler = async ({ locals }) => {
     /* 13 */ db.from('pipeline_jobs').select('*', head).eq('status', 'queued'),
     /* 14 */ db.from('pipeline_jobs').select('*', head).in('status', ['claimed', 'running']),
     /* 15 */ db.from('pipeline_jobs').select('*', head).eq('status', 'failed'),
-    // A sheet counts as triaged when it has a saved neatline — the same
-    // predicate `scripts/enqueue_ocr_all.mjs` uses (`triageOf`), so this row
+    // A sheet counts as triaged when a person has **accepted** its crop, which is
+    // the same predicate `scripts/enqueue_ocr_all.mjs` gates on — so this row
     // answers "how many sheets would a plain enqueue run actually queue?".
-    /* 16 */ db.from('maps').select('*', head).not('triage->>neatline', 'is', null),
+    //
+    // It used to count a saved neatline, and no sheet in the corpus had one,
+    // which is how the script's default mode came to queue nothing while
+    // looking like it worked. The crop is proposed automatically now (the
+    // layout pass adopts its own main_map region), so what is scarce is the
+    // acceptance, not the crop.
+    /* 16 */ db.from('maps').select('*', head).not('triage->>validated_at', 'is', null),
     /* 17 */ db.from('maps').select('*', head).not('triage->>regions', 'is', null),
+    // Proposed but not accepted: a crop exists and nobody has looked at it.
+    // This is the queue a person actually works through.
+    /* 18 */ db
+      .from('maps')
+      .select('*', head)
+      .not('triage->>neatline', 'is', null)
+      .is('triage->>validated_at', null),
   ]);
 
   const broken = results.find((r) => r.error);
@@ -77,6 +90,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     jobsFailed,
     mapsTriaged,
     mapsWithLayout,
+    mapsProposed,
   ] = results.map((r) => r.count ?? 0);
 
   // Only fetched when there is something to show, so the normal case is free.
@@ -103,6 +117,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       withBbox: mapsWithBbox,
       read: mapsRead,
       triaged: mapsTriaged,
+      proposed: mapsProposed,
       withLayout: mapsWithLayout,
     },
     words: { total: words, placed: wordsPlaced, placeNames },

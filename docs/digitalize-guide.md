@@ -47,7 +47,24 @@ Pick a sheet from the floating map picker. It badges each map **Triaged** and **
 
 ## Triage, step by step
 
-The sidebar is five numbered steps. Work them in order; each one narrows what the next has to do.
+**Since September 2026 the sheet arrives already proposed.** A `layout` job asks
+the model where everything is, adopts its own `main_map` answer as the rectangle
+to tile, and the tile priorities are computed from the sheet's own ink when the
+job runs. So the five steps below are now mostly a *check*: you are looking at a
+proposal and agreeing with it, not building one.
+
+What that means in practice:
+
+| The sidebar says | What is true | What you do |
+|------------------|--------------|-------------|
+| **Proposed — needs a look** | The AI worked out the border. Nobody has agreed. | Glance at it, press **Save triage**. |
+| **Accepted** | A person agreed. The batch script will take this sheet. | Nothing. |
+| **Layout found no main map** | The model could not find the map body. | Open it — **Suggest** reads the ink instead. |
+| **No layout pass yet** | Nothing has run. | `scripts/enqueue_layout_all.mjs`, then a worker. |
+
+Nothing is read, and nothing is paid for, until a person has accepted. That is
+the only manual gate left, and it is there because a wrong crop is silent: the
+sheet comes back looking merely disappointing.
 
 ### 1. Layout — ask what the sheet is made of
 
@@ -76,7 +93,13 @@ Correct what comes back: click a rectangle to select it, drag the body to move i
 
 ### 2. Neatline — the rectangle that gets tiled
 
-Press **Main map → neatline** to adopt the model's answer.
+**Normally already filled in.** The layout job adopts its own `main_map` region
+as the crop and stamps `neatline_src: 'main_map'`, so the sidebar tells you the
+rectangle came from the model rather than from a person. Check it and move on.
+
+Press **Main map → neatline** if you want to re-adopt it after changing
+something. Anything *you* draw is marked as yours and a later layout run will
+not overwrite it.
 
 This is better than tracing the printed border by hand, because a legend printed *inside* the border is inside the border. If there is no layout, **Suggest** reads the sheet's ink profile and finds the printed rule instead — an independent method that agreed with the model to within 8 pixels on the 1882 cadastral.
 
@@ -108,9 +131,18 @@ Rendering is *not* the lever. A tile rendered at 1:1 and the same tile upsampled
 
 Everything above autosaves to your browser as a draft. **Nothing on a server can see that.**
 
-**Save triage** writes it to the database (`maps.triage`), and that is what the batch script reads. It is a deliberate assertion: *this sheet is triaged*. The sidebar shows exactly one primary button at a time — Save while the triage is unsaved, Run once it is on the server.
+**Save triage** writes it to the database (`maps.triage`) *and records that you
+accepted it* (`validated_at`). That acceptance is what the batch script gates
+on — a proposal nobody has looked at is not queued, however confident the model
+was. The sidebar shows exactly one primary button at a time, and it reads
+**Accept triage** while the sheet is still only proposed.
 
-**Checkpoint.** `/admin?tab=status` → "Sheets triaged by a person" should go up by one.
+It writes one key at a time. It used to replace the whole triage object with
+whatever the page had in memory, which quietly deleted the printed reference
+grid and the crop's provenance along with it.
+
+**Checkpoint.** `/admin?tab=status` → "Sheets a person has accepted" should go
+up by one, and "Proposed, waiting to be looked at" down by one.
 
 ### 5. Run OCR — queue the work
 
@@ -176,7 +208,31 @@ node --env-file=.env scripts/enqueue_ocr_all.mjs --dry --tile-metres 1400
 node --env-file=.env scripts/enqueue_ocr_all.mjs --tile-metres 1400
 ```
 
-By default this queues **only** sheets with a saved triage. `--untriaged` includes the rest, which fall back to letting the scout pass guess the neatline — the old behaviour, and worse.
+By default this queues **only** sheets a person has accepted. Two escape
+hatches, both worse and both opt-in: `--unvalidated` queues proposals nobody has
+looked at, and `--untriaged` queues sheets with no crop at all, letting the
+scout pass guess — the oldest behaviour, and the worst.
+
+The `--dry` line now tells you which state every sheet is in, so run it first:
+
+```
+39 georeferenced · 0 accepted · 37 proposed (not accepted) · 0 no main_map ·
+2 no layout pass · 6 already OCR'd · 0 in flight → 0 to queue (dry run)
+```
+
+That reads: 37 sheets are one glance each from being queueable, and 2 need a
+layout pass. The whole-corpus order is therefore:
+
+```bash
+# 1. Propose everything (cents for the corpus — one call per sheet)
+node --env-file=.env scripts/enqueue_layout_all.mjs
+python work/worker/vma_worker.py --worker $(hostname)   # drains it
+
+# 2. Accept them at /scan?mode=triage — the only manual step
+
+# 3. Queue the reading
+node --env-file=.env scripts/enqueue_ocr_all.mjs --tile-metres 1400
+```
 
 `--tile-metres` is opt-in and only ever makes a tile **finer**, never coarser: a saved triage carries the tile size *you* chose, and a fixed ground target once coarsened the 0.34 m/px 1882 cadastral and cost it labels.
 
@@ -195,5 +251,12 @@ Every defect found in this pipeline during the September 2026 pass returned *pla
 - Tiles assembled with a third of the sheet missing, and the model read the rest correctly.
 - The worker reported "queue empty" when the network was down.
 - Every queued job silently downsampled 2.34×, for months.
+- The batch script gated on a saved neatline. **No sheet in the corpus had
+  one** — 101 georeferenced maps, zero neatlines — so its default mode queued
+  nothing at all and exited reporting success, while 37 sheets already carried
+  the `main_map` region it would have preferred anyway.
+- The OCR upsert key ignored where a label was, so eight distinct `Rue` labels
+  in one tile became one row, and the count returned was the count *after* the
+  loss.
 
 None of these were found by reading the code. All were found by **measuring something that already appeared to work.** When a sheet looks finished, check a number.

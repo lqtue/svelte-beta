@@ -535,9 +535,18 @@ def cmd_batch(args: argparse.Namespace) -> None:
         print("  Auto-priority: computing density + colour pre-pass ...")
         overview = _overview()
         densities = compute_tile_densities(overview, tiles, img_w, img_h)
-        # Water and vegetation wash reads as busy to the density pass but holds
-        # almost no toponyms, so it demotes a tile one step.
-        colours = compute_tile_colours(overview, tiles, img_w, img_h)
+        # The colour/wash demotion is opt-in, and stays out of the automated
+        # path. Water and vegetation wash reads as busy to the density pass and
+        # holds almost no toponyms, so demoting it is the right idea — but the
+        # implementation looks at hue 60–260° and every saturated pixel on the
+        # 1882 cadastral sits in 0–60° (warm aged paper, pink parcel tints). It
+        # scored 0.000 on every tile at every saturation gate down to 0.10, so
+        # on this corpus it is an unmeasured signal, and `--auto-priority` is
+        # now what the queue sends by default. `suggestTriage.ts` leaves it out
+        # for the same reason.
+        colours = None
+        if getattr(args, "colour_wash", False):
+            colours = compute_tile_colours(overview, tiles, img_w, img_h)
         tile_overrides = auto_tile_overrides(
             densities,
             skip_below=getattr(args, "skip_below", 0.01),
@@ -545,9 +554,13 @@ def cmd_batch(args: argparse.Namespace) -> None:
             colours=colours,
             wash_above=getattr(args, "wash_above", 0.6),
         )
-        washed = sum(1 for v in colours.values() if v >= getattr(args, "wash_above", 0.6))
-        if washed:
+        if colours:
+            washed = sum(1 for v in colours.values() if v >= getattr(args, "wash_above", 0.6))
             print(f"  Colour pre-pass: {washed} tiles are mostly water/vegetation wash")
+        n_skip = sum(1 for v in tile_overrides.values() if v == "skip")
+        n_low = sum(1 for v in tile_overrides.values() if v == "low_res")
+        print(f"  Auto-priority: {n_skip} skip, {n_low} low-res, "
+              f"{len(tiles) - n_skip - n_low} full of {len(tiles)} tiles")
 
     # 6b. Study-area filter — everything outside the AOI becomes a skip. Runs
     # after the priority pass so it can only take tiles away, never promote.
@@ -2362,8 +2375,25 @@ def cmd_scout(args: argparse.Namespace) -> None:
         if not args.map_id:
             raise SystemExit("--save-triage needs --map-id")
         from supabase_client import save_triage_regions
-        n = save_triage_regions(args.map_id, regions)
+        # Adopt `main_map` as the crop at the same time. `tilingCrop()` already
+        # prefers it to a hand-drawn neatline — the neatline is the printed
+        # border and a legend inside it is inside the neatline too — so writing
+        # it here is what lets a sheet reach OCR with nobody drawing anything.
+        # Measured on the 1882 sheet: two independent layout runs put main_map
+        # 0.2% apart at conf 0.98, on 80.4% of the sheet, against the 81% the
+        # browser's ink-profile walk finds by a wholly different method.
+        #
+        # Not guessed when the model found no main_map: that sheet goes to the
+        # "needs a crop" list for a person to open (see triageState).
+        main = next((r for r in regions if r.get("category") == "main_map"), None)
+        n = save_triage_regions(args.map_id, regions,
+                                neatline=[int(v) for v in main["bbox"]] if main else None)
         print(f"  Wrote {n} region(s) to maps.triage.regions")
+        if main:
+            print(f"  Adopted main_map as the crop: {[int(v) for v in main['bbox']]} "
+                  f"(conf {main.get('confidence')})")
+        else:
+            print("  No main_map region — the crop is left for a person to draw")
 
     return {"content": global_bound, "cartouche": global_cartouche, "regions": regions}
 
@@ -2793,6 +2823,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="CLAHE clip limit (default 2.0; 1.0 is a no-op, >4 amplifies paper grain)")
     p_batch.add_argument("--clahe-grid", default="8",
         help="CLAHE grid: N for NxN, or ROWSxCOLS (default 8)")
+    p_batch.add_argument("--colour-wash", action="store_true",
+                         help="With --auto-priority, also demote water/vegetation wash. Opt-in: "
+                              "its hue bands miss a warm-toned scan entirely and it scored 0.000 "
+                              "on every tile of the 1882 cadastral")
     p_batch.add_argument("--wash-above", type=float, default=0.6,
                          help="Water/vegetation coverage above which --auto-priority demotes a tile "
                               "one step (default 0.6)")

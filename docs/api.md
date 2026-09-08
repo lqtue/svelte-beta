@@ -19,6 +19,7 @@ Admin map CRUD:
 
 Pipeline:
 
+- `/api/admin/maps/[id]/triage/` — POST writes part of `maps.triage`, one key at a time through the `set_triage_key` RPC (`neatline`, `neatline_src`, `tile_size`, `overlap`, `tile_overrides`, `regions`), and `{ validate: true }` stamps `validated_at`/`validated_by` — the acceptance `enqueue_ocr_all.mjs` gates OCR spending on. Replaces PATCHing `maps` with a whole `triage` object, which dropped every key the page did not model (`grid`, `grid_at`, `regions_at`, `neatline_src`).
 - `/api/admin/maps/[id]/layout/` — POST enqueues a `layout` job (202, or 409 when one is in flight); GET the saved regions plus the latest layout job. The worker runs `ocr.py scout --save-triage`.
 - `/api/admin/maps/[id]/ocr/` — GET run summaries + the latest `pipeline_jobs` row for the map; POST enqueues an `ocr` job (202 `{ job_id, run_id, status }`, or 409 when one is already in flight).
 - `/api/admin/maps/[id]/ocr/apply/` — POST: turn `ocr_extractions` above a confidence threshold into `label_pins` (bbox centre in source-image px). Body `{ run_id?, min_confidence? }`.

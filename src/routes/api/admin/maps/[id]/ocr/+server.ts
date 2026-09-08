@@ -38,6 +38,10 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
     ...(body.concurrency ? { concurrency: Number(body.concurrency) } : {}),
     ...(body.min_confidence != null ? { min_confidence: Number(body.min_confidence) } : {}),
     ...(body.passes ? { passes: Number(body.passes) } : {}),
+    // Per-tile priorities from the density pass unless the caller opts out. A
+    // saved `tile_overrides` still wins — ocr.py only auto-fills when none was
+    // passed — so accepting a triage does not lose a person's tile decisions.
+    auto_priority: body.auto_priority !== false,
     ...(typeof body.prompt === 'string' && body.prompt ? { prompt: body.prompt } : {}),
     ...(Array.isArray(body.neatline) && body.neatline.length === 4
       ? { neatline: body.neatline }

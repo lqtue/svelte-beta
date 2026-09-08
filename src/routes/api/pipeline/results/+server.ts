@@ -122,6 +122,33 @@ export const POST: RequestHandler = async ({ request }) => {
     });
     applied.regions = merged.length;
     if (kept.length) applied.regions_kept_human = kept.length;
+
+    // Adopt the layout pass's `main_map` as the crop, so a sheet becomes
+    // OCR-able without anyone drawing a neatline. `tilingCrop()` prefers
+    // main_map to a neatline anyway, and across the corpus 37 sheets had one
+    // while *no* sheet had a neatline — which is why the fleet script's default
+    // mode used to queue nothing. A crop a person drew is never overwritten.
+    if (Array.isArray(body.triage_neatline) && body.triage_neatline.length === 4) {
+      const existing = row.triage as SavedTriage | null;
+      if (existing?.neatline_src === 'human') {
+        applied.neatline = 'kept the human crop';
+      } else {
+        const box = body.triage_neatline.map(Number);
+        if (box.every((n: number) => Number.isFinite(n))) {
+          await supabase.rpc('set_triage_key', {
+            p_map_id: mapId,
+            p_key: 'neatline',
+            p_value: box,
+          });
+          await supabase.rpc('set_triage_key', {
+            p_map_id: mapId,
+            p_key: 'neatline_src',
+            p_value: 'main_map',
+          });
+          applied.neatline = box;
+        }
+      }
+    }
   }
 
   // The sheet's printed reference grid. Merged for the same reason the regions
