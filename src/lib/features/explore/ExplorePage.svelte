@@ -38,6 +38,7 @@
   import LayerControlsPanel from '$lib/features/shared/LayerControlsPanel.svelte';
 
   import ExploreSidebar from '$lib/features/explore/ExploreSidebar.svelte';
+  import ExploreRightSidebar from '$lib/features/explore/ExploreRightSidebar.svelte';
   import ExploreBrowsePanel from '$lib/features/explore/ExploreBrowsePanel.svelte';
   import ExplorePrivacyNotice from '$lib/features/explore/ExplorePrivacyNotice.svelte';
   import ExploreSheet from '$lib/features/explore/ExploreSheet.svelte';
@@ -69,6 +70,7 @@
   let mapList: MapListItem[] = [];
   let shellMap: Map | null = null;
   let sidebarCollapsed = false;
+  let rightSidebarCollapsed = false;
   let isMobile = false;
   let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
 
@@ -121,6 +123,9 @@
   $: stackCount = $layersStore.overlays.length;
   // Numbered-legend point overlay — gated to the active (top) overlay map.
   $: activeOverlayMapId = $layersStore.overlays[0]?.ref.mapId ?? null;
+  $: activeOverlayMap = activeOverlayMapId
+    ? (mapList.find((m) => m.id === activeOverlayMapId) ?? null)
+    : null;
   let showLegendPoints = false;
   /** The spot a search hit sent us to, pulsed once so it is findable. */
   let focusPoint: { lng: number; lat: number } | null = null;
@@ -382,6 +387,7 @@
     bind:mapList
     bind:shellMap
     bind:sidebarCollapsed
+    bind:rightSidebarCollapsed
     bind:isMobile
     bind:openDrawer
   >
@@ -390,22 +396,30 @@
         {viewMode}
         {mapList}
         {vectorMapIds}
-        {gpsActive}
         {matches}
         {role}
-        legendPointsAvailable={!!activeOverlayMapId}
-        {showLegendPoints}
         forceBrowseExpanded={mode === 'all'}
         on:zoomToOverlay={handleZoomToOverlay}
         on:toggleVectors={handleToggleVectors}
         on:pickMap={handlePickMap}
         on:pickLabel={handlePickLabel}
         on:removeOverlay={handleRemoveOverlay}
-        on:pickLocation={handlePickLocation}
+        on:toggleCollapse={() => (sidebarCollapsed = true)}
+      />
+    </svelte:fragment>
+
+    <svelte:fragment slot="right-sidebar">
+      <ExploreRightSidebar
+        {viewMode}
+        {gpsActive}
+        mapId={activeOverlayMapId}
+        map={activeOverlayMap}
+        {showLegendPoints}
         on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
+        on:pickLocation={handlePickLocation}
         on:toggleGps={toggleGps}
         on:toggleLegendPoints={() => (showLegendPoints = !showLegendPoints)}
-        on:toggleCollapse={() => (sidebarCollapsed = true)}
+        on:toggleCollapse={() => (rightSidebarCollapsed = true)}
       />
     </svelte:fragment>
 
