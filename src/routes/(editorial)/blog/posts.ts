@@ -4,17 +4,182 @@ export interface BlogPost {
   date: string;
   category: 'update' | 'research' | 'community' | 'announcement';
   excerpt: string;
+  /**
+   * Dated correction, rendered above the post body. A post is a record of what
+   * we believed on its date; where a claim has since turned out wrong, or the
+   * thing it describes was renamed or never shipped, the note says so rather
+   * than the post being quietly rewritten.
+   */
+  note?: string;
   content: string; // HTML
 }
 
 export const posts: BlogPost[] = [
   {
+    slug: 'routes-design-ocr-2026-09',
+    title: 'Sixteen Pages, One Palette, and an OCR Change That Failed Its Own Test',
+    date: '2026-09-08',
+    category: 'update',
+    excerpt:
+      'Twenty-three pages merged into sixteen with modes as query params, a palette taken off the sheets themselves plus a dark theme, a front page that plays the pipeline as a live map, and an OCR prompt that measured worse than the one it replaced — so it was rejected.',
+    content: `
+<p>Four weeks of work, one post. The first three items are cleanup a reader might notice; the fourth is the one worth reading.</p>
+
+<h2>Twenty-three pages became sixteen</h2>
+<p>The tools had accumulated a route each — a page for browsing, a page for annotating, a page for authoring a story, four more for the image-space work. Modes are now query params on two pages: <code>/explore?mode=browse|annotate|story</code> and <code>/scan?mode=inspect|triage|trace|review</code>.</p>
+<p>The grouping is by <em>shell</em> rather than by verb, which is the whole point. /explore is the surface with a geographic map on it; /scan is the surface with a scanned image on it. Switching modes inside one of them keeps the OpenLayers map, the basemap source and the warped tiles alive instead of tearing them down and rebuilding them. Every retired path 301s, so old links and bookmarks still land. The three admin pages became one console with tabs, and <code>/directory</code> now lists every page in the app from the same list the command palette reads, so adding a page means adding one row.</p>
+
+<h2>One design system, and a dark theme</h2>
+<p>The app had two palettes: a warm one for the editorial pages and a cool, bright one that the map sidebars had inherited from an earlier pass. They now come from one set of tokens taken off the sheets themselves — plate tones, paper and ink. Emoji iconography is gone, buttons are one system rather than four, and the map tools use the same inks as the pages.</p>
+<p>Dark mode is written as <code>light-dark(light, dark)</code> on every colour token, so there is one value per ink and no second theme to drift out of step. Four things deliberately do not flip: the yellow surfaces, the ink slab under the footers, and the plates that pin a subtree to its light face. Contrast is asserted in a test against the token file rather than eyeballed, because a dark theme fails quietly — the page still renders, it just cannot be read.</p>
+
+<h2>The front page is a live map now</h2>
+<p>It plays the pipeline in five beats: the modern city, the 1882 cadastral sheet warping over it, the 46 shapes traced off that sheet, the labels a person has checked, then the masthead. It is the archive demonstrating itself rather than a screenshot claiming to.</p>
+<p>Three things keep a decorative map from costing what a tool costs: it renders at pixel ratio 1 (at a Retina screen's own ratio OpenLayers asks for about four times the tiles), it is skipped entirely when the browser reports a metered connection, and a reload composes the final frame at once instead of replaying the sequence.</p>
+
+<h2>The OCR result, including the part that failed</h2>
+<p>The row-sequence OCR call had a bug: it was sending its own hardcoded prompt instead of the one the run selected. Fixing the plumbing meant the selected prompt (v8) finally reached the model — and it scored <em>worse</em> than the hardcoded fallback it replaced. Same sheet, same model, same tiling, one variable: recall fell from 0.77 to 0.63 and character accuracy dropped 2.7 points. The fix was correct and the prompt it delivered was rejected as the default. That is what the eval gate is for.</p>
+<p>A rewritten prompt did pass. <code>seq-v1</code> — v8 with the per-tile fragment rule replaced by whole-label assembly, and abbreviations transcribed as printed — matched 39 of the 43 human-checked labels at IoU 0.5, with character accuracy 0.990 and diacritic recall 1.0, in about seven minutes a sheet. Running it twice, once on the tile grid and once on the grid shifted half a tile, then merging the two by vote, reaches 41 of 43. A third pass adds nothing, so the recipe stops at two.</p>
+<p>One more finding, from filling in the prompt-by-model square: the two variables do different jobs. The newer model moved the <em>boxes</em>; the prompt moved the <em>reading</em>. On the same model, two prompts boxed nearly the same labels (38 versus 39) but one read 31 of them correctly to the other's 40.</p>
+<p>Caveat worth repeating: the ground truth is 43 labels a person validated on a single sheet. It is enough to reject a change that makes things clearly worse, which is what it just did. It is not enough to certify one that looks slightly better.</p>
+		`,
+  },
+  {
+    slug: 'inside-the-sheets-2026-09',
+    title: 'Searching Inside the Sheets, and Asking the Model What a Sheet Is Made Of',
+    date: '2026-09-05',
+    category: 'update',
+    excerpt:
+      'A place-time index and a page per attested place name, so a label on a map is a searchable, citable URL. Plus a layout pass that looks at a whole sheet once and says which rectangle is the map, the legend, the title block or the name list.',
+    content: `
+<p>Two related pieces of work. One makes what the OCR has already read findable; the other decides what the OCR should look at next.</p>
+
+<h2>Search that reaches inside a map</h2>
+<p>Until now the archive could search titles and metadata — the things a librarian wrote about a sheet. What it could not search is what is printed <em>on</em> the sheet. That is now indexed: every extracted label and traced shape carries a real-world position, a record of which georeference produced it, and that georeference's own error in metres. "What was here in 1923" is a query rather than a re-computation.</p>
+<p>On top of it sits a page per attested place name, server-rendered, one URL each, grouping the spellings the sheets themselves used — the same place appears as several strings across a century of surveys and reforms, and the gazetteer keeps them together instead of picking a winner. The command palette (⌘K anywhere) searches four things now: pages, maps, places and labels, and a label result opens the viewer at the spot it was read.</p>
+<p>There is also a period-press panel: given a label, it queries Gallica and the National Library of Vietnam for newspaper hits within a few years of the sheet's date. It is a lead generator, not a citation — it tells you the name was in print, and leaves the reading to you.</p>
+
+<h2>The layout pass</h2>
+<p>A colonial sheet is not all map. There is a title block, a legend, sometimes a list of street names down one side, an inset, a scale bar, a north arrow, a stamp. Running OCR over the whole scan wastes calls on furniture and mixes a legend key into the place names.</p>
+<p>So one low-resolution look at the whole sheet now asks the model where each of those things is, in nine categories, and returns a labelled rectangle for each. It runs as a queued job rather than a page action, because the model key lives on the worker and deliberately not in the web app. A person can drag any rectangle to correct it; a dashed edge means the model proposed it and a solid one means a person accepted or drew it.</p>
+<p>The rectangle that matters for tiling is <code>main_map</code>, and it beats the neatline when both exist. The neatline is the printed border of the sheet — a legend printed inside that border is inside the neatline too, so cropping to the neatline does not exclude it. Tiles are also sized by ground distance now rather than by pixels, so the same tile covers the same amount of city on a 1:2,000 plan and a 1:25,000 survey.</p>
+
+<h2>And a status page</h2>
+<p>Counts of maps, jobs and failures that used to need hand-run SQL are now a page. The first useful thing it said: triage is the top blocker. OCR only queues sheets a person has triaged, and that queue is where the corpus run is waiting — not on the model, not on the pipeline.</p>
+		`,
+  },
+  {
+    slug: 'self-hosted-basemap-2026-09',
+    title: 'Our Own Basemap, After Two Tile Servers Said No',
+    date: '2026-09-01',
+    category: 'update',
+    excerpt:
+      'CARTO started stamping "API KEY REQUIRED" across every tile and the OSM Foundation\'s policy does not cover a busy site, so the modern map under the historical sheets is now one PMTiles archive we host ourselves. Also: ten failed deploys, and what caused them.',
+    content: `
+<p>A historical map needs a modern one underneath it, or there is nothing to line it up against. Ours came from a third party until that stopped working twice.</p>
+
+<h2>What broke</h2>
+<p>The keyless raster endpoint we were using began stamping <strong>API KEY REQUIRED</strong> diagonally across every tile — fair enough, it was never promised to us. The obvious fallback, the OSM Foundation's own tiles, has a usage policy that does not cover a site with real traffic. Both roads end in either a bill or a breach.</p>
+
+<h2>What replaced it</h2>
+<p>One PMTiles archive in our own object storage, built from Protomaps' daily OpenStreetMap extract, drawn by a deliberately quiet OpenLayers style: land, water, roads, buildings, boundaries, place labels, and nothing that competes with a 140-year-old sheet on top of it. No API key, no quota, no third-party policy.</p>
+<p>The first cut covered Saigon only — 37 MB, and cheap. It also left 21 of the georeferenced sheets, every Huế and Hanoi one, floating on bare land fill with no city under them, which is a good illustration of how a "we only work on Saigon" assumption gets baked into infrastructure. It was replaced a few days later by an extract spanning Hanoi to the Mekong: 348 MB, zoom 0–15.</p>
+<p>Two details worth writing down. The storage key carries the build date, because the archive sits behind a long edge cache — writing a new build over the same key would strand every reader on stale bytes, so a rebuild is a new name and a config change. And it is served straight off the bucket on its own domain rather than through our worker: PMTiles is nothing but byte-range reads, and the worker could not cache them, because the cache API refuses to store a 206 Partial Content response. Off the worker, those reads are the CDN's to cache.</p>
+
+<h2>Ten failed deploys, for the record</h2>
+<p>The same week ate ten builds on two mistakes, both worth knowing if you deploy a SvelteKit app to Cloudflare Pages.</p>
+<ul>
+<li>A <code>wrangler.toml</code> in the repo root that declares the build output directory <em>replaces the dashboard's entire environment</em> — including the secrets. The site built and then could not reach its own database. There is no root <code>wrangler.toml</code> now, on purpose.</li>
+<li><code>$env/dynamic/private</code> returns undefined in Pages Functions. Private values have to come through <code>$env/static/private</code>, which resolves at build time, which in turn means every environment that builds needs every secret present or the build fails on the first import.</li>
+</ul>
+<p>Related, and the reason this took longer to diagnose than it should have: a blank page immediately after a deploy is usually edge propagation, not a bug. Chunks 404 for a minute or two, and one missing chunk on a client-rendered page is a blank document. Wait, hard-reload, then debug.</p>
+		`,
+  },
+  {
+    slug: 'cleanup-2026-08',
+    title: '3,194 Lines Deleted, a Job Queue, and a Rule the Linter Enforces',
+    date: '2026-08-31',
+    category: 'update',
+    excerpt:
+      'A cleanup week with nothing a reader can see: dead code deleted, the library restructured into layers with the import direction enforced by lint, status changes moved into the database, and the copy-paste pipeline commands replaced by a job queue and a worker that holds no credentials.',
+    content: `
+<p>Every visible feature this project ships gets slower to build if this work never happens. One commit range removed 3,194 lines and added 155.</p>
+
+<h2>Layers, enforced</h2>
+<p>The library is now five directories with one allowed import direction: pure helpers, then data access, then the map runtime, then the product surfaces, then the routes. Generic UI primitives may import none of it. The rule is a lint error rather than something a reviewer is supposed to notice, which is the only version of an architecture rule that survives a busy week. Features declare their shared seams the same way — one feature reaching into another's internals now fails the same check.</p>
+
+<h2>Status changes belong to the database</h2>
+<p>Validating an extraction, approving a footprint, claiming a job: those used to be an API route reading a row, deciding, and writing it back. They are now functions inside Postgres, callable only by the service role. The queue claims work with a locking select that skips locked rows, so two workers cannot take the same job. Anything that writes has one code path instead of one per caller.</p>
+
+<h2>Enqueue, never execute</h2>
+<p>Pipeline work used to be a CLI command the page printed for you to paste into a terminal. It is now a row in a job queue: the page returns immediately, and a worker claims the job when one is free. The worker holds <em>no database credentials</em> — it authenticates with a minted key and talks to the API, which owns the writes. A machine with a GPU can run the segmentation jobs and nothing else, from a notebook, without ever seeing the service key.</p>
+
+<h2>The leak this found</h2>
+<p>Consolidating visibility onto one model — draft, public, featured — surfaced that draft maps were readable anonymously. Unpublished scans, some from institutions whose terms we are careful about, were one API call away from anyone. Fixed the next day; drafts are now visible only to a signed-in user, and a published map must carry a georeference or it cannot be published at all.</p>
+<p>Alongside it: contributions are rate-limited, submitted stories go through a review queue instead of appearing directly, and a share page for each published map is server-rendered so a link preview works without running JavaScript.</p>
+
+<h2>Tests, finally</h2>
+<p>A browser smoke suite that reads production without writing to it, a set of pure checks that ride the same runner, and — separately — write-path tests against a local database stack that refuses to run unless the URL it is given is a loopback address. Continuous integration runs the type-checker and the build on every push. The write tests found a broken trigger on their first run, which is the return on the whole exercise.</p>
+		`,
+  },
+  {
+    slug: 'ocr-audit-2026-08',
+    title: 'Nine Faults in the OCR Pipeline, and a Gate So the Next Change Is Measured',
+    date: '2026-08-10',
+    category: 'research',
+    excerpt:
+      'An audit of the OCR pipeline found nine problems, including two coordinate conventions living in one database column and a permission that let any signed-in user rewrite a label. The more useful outcome is the eval harness: a core-loop change now has to beat a measured baseline before it ships.',
+    content: `
+<p>The OCR pipeline reads place names off a scanned sheet and writes them, with a box, to the database. It worked, which is different from being correct. An audit went through it looking for the failures that return plausible output while quietly dropping or corrupting data.</p>
+
+<h2>What was wrong</h2>
+<ul>
+<li><strong>Two coordinate conventions in one column.</strong> Parts of the pipeline wrote boxes normalised to a 0–1000 grid and parts wrote something else, into the same field. A box read under the wrong convention lands somewhere else on the sheet and is not obviously wrong when you look at a list. One contract now, everywhere.</li>
+<li><strong>Anyone signed in could rewrite any label.</strong> The update permission on the extractions table was not restricted. It is now admin and moderator only, at the database level rather than in application code.</li>
+<li><strong>A human correction could be overwritten by the model.</strong> Derived reads did not check the review status of the row they were reading, so a re-run could quietly undo a person's fix. Reads are gated on status now, and a human decision wins.</li>
+<li><strong>Manual boxes collided.</strong> A hand-drawn box was keyed in a way that clashed with the model's rows on re-insert. Keyed by location now.</li>
+<li><strong>A malformed reply retried without the image.</strong> When the model returned unparseable JSON, the retry re-sent the prompt but not the picture, so the retry was asking about nothing.</li>
+</ul>
+<p>Four smaller ones are in the audit report in the repository. None of these was a crash. All of them produced output that looked like output.</p>
+
+<h2>The gate</h2>
+<p>The more durable outcome is that the pipeline is now measured. There is a ground truth — 43 extractions on the 1882 cadastral sheet that a person checked one by one — and a harness that scores a run against it: how many of the known labels a run finds, how accurate the text is on the ones it matches, how well the boxes agree, and whether the diacritics survived.</p>
+<p>Two honest limits, both written into the report. The ground truth is a <em>partial</em> subset of what is actually printed on the sheet, so precision is not a trustworthy number: a correct reading the humans never got round to validating counts as a false positive. And it is one sheet. What the harness can do is reject a change that makes things clearly worse, and refuse to let anyone argue from taste about a change that makes things slightly better. That is worth more than it sounds; the first thing it did was kill a step we had already half-built.</p>
+
+<h2>Also that week</h2>
+<p>A density pre-pass that scores each tile of a sheet and sets its priority, so the expensive calls go where the text is. Legend extraction, so a numbered key on the sheet can be joined to the entries it names. And a level-aware join between a label and the shape it sits inside, which is the piece that lets a traced building carry the name printed on it rather than a separate guess.</p>
+		`,
+  },
+  {
+    slug: 'explore-and-trip-2026-06',
+    title: 'A Front Door for the Maps, and a URL for a Printed QR Code',
+    date: '2026-06-01',
+    category: 'update',
+    excerpt:
+      'The viewer got an entry point that asks what you came for, a coverage lookup that answers whether the archive has anything where you are standing, and a guided tour. Story playback moved to its own stable URL so a printed QR code has something durable to point at.',
+    content: `
+<p>Two small releases, both about arriving rather than about capability.</p>
+
+<h2>An entry point</h2>
+<p>The map viewer opened onto a map and a catalog and expected you to know what to do. It now opens with a chooser — browse the archive, look up where you are, or take a short guided tour — and remembers that you have seen it, so it appears once.</p>
+<p>The coverage lookup is the useful half: it answers the first question a visitor from Ho Chi Minh City actually has, which is whether the archive holds anything covering the ground under their feet. Sometimes the answer is no, and it is better to say so in a sentence than to leave someone panning around an empty map.</p>
+
+<h2>A URL that can be printed</h2>
+<p>Story playback — a route with stops, meant to be walked with a phone — is now its own page per story, at a stable address. The reason is physical: a QR code on a printed card or a wall label cannot be re-pointed after it is printed. Everything else in the app is free to move; that URL is not.</p>
+<p>Honest state: one story exists to play. The tool works, the format works, and there is a single walk in the archive to try it on.</p>
+
+<h2>Two weeks later, the boring half</h2>
+<p>Mid-June cleaned up what the release exposed. The catalog had three search implementations that behaved differently; they are one engine now. The coverage lookup learned about draft maps, so staff see the unpublished sheets they are working on and the public does not. Map editing came back into the catalog for admins and moderators, where it belongs, instead of living on a separate page. And the "Looking up maps…" spinner that never stopped spinning when a lookup returned nothing was fixed — the version of a bug that makes an app feel broken rather than empty.</p>
+		`,
+  },
+  {
     slug: 'layer-stack-2026-05',
-    title: 'Rebuilding /view Around a Single Concept: the Layer Stack',
+    title: 'Rebuilding the Map Viewer Around a Single Concept: the Layer Stack',
     date: '2026-05-24',
     category: 'update',
     excerpt:
       'A short post on a long refactor. The map viewer had grown three overlapping mental models — active map, base map, compare set — each with their own UI surface, each leaking into the others. We collapsed them into one Photoshop-style layer stack with a single store, then redesigned mobile around two labeled bottom drawers.',
+    note: 'September 2026 — the route in this post, <code>/view</code>, is now <code>/explore</code>: a later merge folded twenty-three pages into sixteen and turned modes into query params. The layer stack itself is unchanged and is what /explore still renders.',
     content: `
 <p>If you opened <code>/view</code> a week ago and tried to put one historical map under another and a third on top to compare, you would have used three different buttons in three different places, talking to three different stores, rendered by three different components. It worked, but only if you already understood the model. New users didn't. Even we kept tripping on it.</p>
 <p>This post is about the cleanup: what was wrong, what we replaced it with, and the mobile UX that fell out of doing the work properly.</p>
@@ -53,10 +218,11 @@ export const posts: BlogPost[] = [
     date: '2026-05-16',
     category: 'update',
     excerpt:
-      'We built a multi-source discovery pipeline that pulls Vietnam-related map records from BnF Gallica, Humazur, David Rumsey, and the Library of Congress into a single reviewable grid. 3,373 candidates surfaced — 758 high-confidence — now curatable from /admin/scout with thumbnails, scoring, and one-click bulk-ingest into the catalog.',
+      'We built a multi-source discovery pipeline that pulls Vietnam-related map records from BnF Gallica, Humazur, David Rumsey, and the Library of Congress into a single reviewable grid. 3,373 candidates surfaced — 758 high-confidence — now curatable from /admin?tab=scout with thumbnails, scoring, and one-click bulk-ingest into the catalog.',
+    note: 'September 2026 — the queue holds 985 candidates today, not 3,373: dedup and rejection pruned it. The 758 high-score bucket was never curated in an afternoon or otherwise. What actually came out of the scout is one batch of 62 Tonkin sheets, and those are still unpublished drafts. The page moved from /admin/scout to /admin?tab=scout.',
     content: `
 <p>Until this week, adding maps to VMA was a one-by-one job: paste a IIIF manifest URL into the admin form, click "Fetch from Allmaps," fill in the gaps, save. That works fine for the maps we already know about. It doesn't work for the ones we don't — and the colonial Vietnam corpus is scattered across at least a dozen institutions worldwide, most of which have public catalogs but no obvious entry point.</p>
-<p>So we built a scout. <strong>3,373 candidate maps</strong> are now sitting in a reviewable queue at <code>/admin/scout</code>, pulled from four institutions in one pass, scored for relevance, and ready to bulk-ingest with thumbnails and full Dublin Core metadata.</p>
+<p>So we built a scout. <strong>3,373 candidate maps</strong> are now sitting in a reviewable queue at <code>/admin?tab=scout</code>, pulled from four institutions in one pass, scored for relevance, and ready to bulk-ingest with thumbnails and full Dublin Core metadata.</p>
 
 <h2>What "scout" means here</h2>
 <p>Each source has its own API quirks, but the shape of the work is the same: query for Vietnam-related material, normalize the metadata, dedup against what's already in the VMA catalog, derive a thumbnail, and score the result for relevance. We hit four sources:</p>
@@ -86,11 +252,11 @@ export const posts: BlogPost[] = [
 <p>One bug we caught in the process: our initial Humazur scout was building manifest URLs out of media IDs (<code>iiif/&lt;media_id&gt;/manifest</code>) when the correct pattern is <em>item</em> ID (<code>iiif/&lt;item_id&gt;/manifest</code>). Every Humazur manifest URL was returning 404. The loader silently fixes this at insert time so the stored URLs are correct.</p>
 
 <h2>The review UI</h2>
-<p>The page at <code>/admin/scout</code> is a thumbnail grid with filters along the top (status, source, category, minimum score, title search), facet counts that update as you filter, and per-card Approve / Reject / Revert buttons. Selecting multiple cards lets you bulk-approve, bulk-reject, or — for already-approved candidates — bulk-ingest as draft <code>maps</code> rows. Each ingested map carries an <code>extra_metadata.scout_candidate_id</code> reference so we can always trace a catalog row back to the source record that produced it.</p>
+<p>The page at <code>/admin?tab=scout</code> is a thumbnail grid with filters along the top (status, source, category, minimum score, title search), facet counts that update as you filter, and per-card Approve / Reject / Revert buttons. Selecting multiple cards lets you bulk-approve, bulk-reject, or — for already-approved candidates — bulk-ingest as draft <code>maps</code> rows. Each ingested map carries an <code>extra_metadata.scout_candidate_id</code> reference so we can always trace a catalog row back to the source record that produced it.</p>
 <p>The ingest itself reuses the same metadata model we just standardized in last week's <code>holding_institution</code> work: each ingested row gets <code>source_type</code> mapped from the holding institution (Bibliothèque nationale de France → <code>bnf</code>, David Rumsey → <code>rumsey</code>, others → <code>other</code>), a populated <code>holding_institution</code> field separate from <code>collection</code> (which is the sub-collection at the holder), and the IIIF manifest URL ready for further enrichment via the "Fetch metadata from IIIF manifest" button in MapEditModal.</p>
 
 <h2>Why this matters for the project</h2>
-<p>VMA's core constraint is volunteer attention. Every minute spent hunting for a candidate map in BnF's catalog is a minute not spent georeferencing, OCR-ing, or annotating. By front-loading discovery into a tool that produces a curatable queue, we shift the work from "find one map at a time" to "review a batch and approve in bulk." The first pass already surfaces roughly twice as many viable candidates as VMA's current catalog of 100 maps — and that's before we extend the scout to Vietnamese-language sources (the National Archives have a digital catalog, and so does Hanoi's Institute of Sino-Nôm Studies).</p>
+<p>VMA's core constraint is volunteer attention. Every minute spent hunting for a candidate map in BnF's catalog is a minute not spent georeferencing, OCR-ing, or annotating. By front-loading discovery into a tool that produces a curatable queue, we shift the work from "find one map at a time" to "review a batch and approve in bulk." The first pass already surfaces roughly twice as many viable candidates as VMA's current catalog of 100 map rows, 39 of them published — and that's before we extend the scout to Vietnamese-language sources (the National Archives have a digital catalog, and so does Hanoi's Institute of Sino-Nôm Studies).</p>
 <p>It's also a small piece of infrastructure that scales: each new source is one normalize function and one entry in the scout runner. Adding a fifth source — say, EFEO's <em>Bibliothèque Numérique</em> when we get around to it — is an afternoon of work, not a rebuild.</p>
 
 <h2>What's next</h2>
@@ -99,18 +265,19 @@ export const posts: BlogPost[] = [
 <li><strong>Curate and ingest the high-score bucket.</strong> 758 candidates is a real afternoon's work, but a quiet one — most are obvious approves. Once they're in the catalog as drafts, the existing pipeline (georeference → OCR → annotate) picks up from there.</li>
 <li><strong>Extend to Vietnamese-language and regional sources.</strong> The biggest gap right now is anything held inside Vietnam. EFEO's collection, the Institut d'Asie Orientale at Lyon, and any digitized holdings from Hanoi or Ho Chi Minh City archives would push the corpus toward 5,000+ unique candidates.</li>
 </ol>
-<p>If you've been waiting for a way to help VMA without doing pixel-level work, scout review is exactly that — fast, judgment-based, and visible in its impact. Drop us a note and we'll get you admin access to <code>/admin/scout</code>.</p>
+<p>If you've been waiting for a way to help VMA without doing pixel-level work, scout review is exactly that — fast, judgment-based, and visible in its impact. Drop us a note and we'll get you admin access to <code>/admin?tab=scout</code>.</p>
 		`,
   },
   {
     slug: 'tonkin-topographic-series-2026-05',
-    title: 'New Collection: 63 Tonkin Topographic Sheets (1903–1927)',
+    title: 'Ingested: 62 Tonkin Topographic Sheets (1903–1927)',
     date: '2026-05-14',
     category: 'announcement',
     excerpt:
-      "A batch of 63 colonial-era topographic sheets covering the Red River delta — Hà Nội, Hải Phòng, Nam Định, Thanh Hóa, and surrounding provinces — has been tiled to R2 and added to the catalog. All from the Service Géographique de l'Indochine, surveyed between 1903 and 1927.",
+      "A batch of 62 colonial-era topographic sheets covering the Red River delta — Hà Nội, Hải Phòng, Nam Định, Thanh Hóa, and surrounding provinces — has been tiled to R2 and ingested as drafts. All from the Service Géographique de l'Indochine, surveyed between 1903 and 1927.",
+    note: 'September 2026 — all 62 sheets are georeferenced now, but every one is still <code>draft</code>, so none of them is visible to a reader who is not signed in. Nothing in this batch has been published, OCR-ed or traced, and the toponym layer for northern Vietnam described at the end of this post does not exist.',
     content: `
-<p>We've added <strong>63 new sheets</strong> to the catalog from the Service Géographique de l'Indochine — the French colonial mapping bureau that produced the most systematic topographic survey of northern Vietnam before WWII. The collection covers the Red River delta and surrounding provinces, with most sheets surveyed between 1903 and 1927 at roughly 1:100,000 scale.</p>
+<p>We've ingested <strong>62 new sheets</strong> from the Service Géographique de l'Indochine — the French colonial mapping bureau that produced the most systematic topographic survey of northern Vietnam before WWII. The collection covers the Red River delta and surrounding provinces, with most sheets surveyed between 1903 and 1927 at roughly 1:100,000 scale.</p>
 
 <h2>What's in the batch</h2>
 <p>The sheets span the densely populated lowland north: Hà Nội itself (sheet 20, 1903), the port of Hải Phòng (31, 1904), and the major delta cities — Nam Định (55), Thái Bình (56), Ninh Bình (59), Phát Diệm (69), Thanh Hóa (75). Inland coverage extends to Sơn Tây (12), Bắc Ninh (10), Hưng Yên (42), and the Quảng Yên coastal zone (25, 32). A handful of named sheets sit outside the numbered grid: <em>Hà châu</em>, <em>Nhà nam</em>, <em>Bảo Lộc</em>, <em>Cẩm Lý</em>, and a cover plate that we've kept in the archive for completeness.</p>
@@ -122,7 +289,7 @@ export const posts: BlogPost[] = [
 
 <h2>What's next for these sheets</h2>
 <p>None of the new maps are georeferenced yet — they're in <code>draft</code> status until the corners are placed. The sheets are gridded enough that GCP propagation should work well: once we manually georeference one or two anchors per band, the rest can inherit corners arithmetically the same way the L7014 series did. After that, the OCR pipeline can scout the sheets for place names, and the toponym layer for northern Vietnam starts to materialize.</p>
-<p>If you can read the older romanization confidently and want to help validate place-name extractions, this is exactly the kind of contributor work we're set up to support. <a href="/catalog">Browse the catalog</a> to see the new sheets.</p>
+<p>If you can read the older romanization confidently and want to help validate place-name extractions, this is exactly the kind of contributor work we're set up to support — though the sheets have to be published before there is anything to validate. The <a href="/catalog">catalog</a> shows what is published today.</p>
 		`,
   },
   {
@@ -132,6 +299,7 @@ export const posts: BlogPost[] = [
     category: 'update',
     excerpt:
       "Self-hosted tiles on R2 for better performance, a Gemini-powered OCR pipeline for toponym discovery, and a core architecture refactor around MapShell. April's updates focus on scaling our data foundation and unifying the user experience.",
+    note: 'September 2026 — three corrections. The OCR pass is called “Project Scout” here; a month later we shipped an unrelated map-discovery tool also called Scout, and the name in this post is the confusing one. The tile-speed figure was an impression from clicking around, not a benchmark. And the Label tool listed under MapShell was retired in the route merge.',
     content: `
 <p>Stability in a research archive comes from two places: the reliability of the data sources and the clarity of the interface. This week's updates address both, moving us away from reliance on institutional IIIF servers and toward a unified architecture that can support our next phase of growth.</p>
 
@@ -140,7 +308,7 @@ export const posts: BlogPost[] = [
 <p>We've solved this by deploying a custom <strong>Cloudflare Worker and R2 backend</strong>. When a map is mirrored to our internal <code>iiif.maparchive.vn</code> service, we fetch the source image, tile it ourselves, and host it on the edge. The worker acts as a universal IIIF translator, serving perfect v3-compliant <code>info.json</code> manifests regardless of the original source. The result is a nearly 10x improvement in tile load times and a much simpler display layer.</p>
 
 <h2>Project Scout: Gemini OCR for Map Discovery</h2>
-<p>Georeferencing a map is only the first step. To make these maps searchable, we need to extract the text—street names, administrative boundaries, and landmark labels. Doing this manually for the 500+ sheets in our collection is impossible.</p>
+<p>Georeferencing a map is only the first step. To make these maps searchable, we need to extract the text—street names, administrative boundaries, and landmark labels. Doing this by hand across a whole collection is impossible.</p>
 <p>We've introduced <strong>Project Scout</strong>, an OCR pipeline powered by Gemini 3 Flash. Unlike standard OCR, Scout is tuned for the specific typography and layout of historical maps. It runs in two passes: a low-resolution "Scout Pass" to identify major features and a high-resolution "Detail Pass" for precise bounding boxes. We're already seeing high-accuracy extractions from the 1882 cadastral survey, which are being used to seed our search index and knowledge graph.</p>
 
 <h2>MapShell: A Unified Architecture</h2>
@@ -203,9 +371,10 @@ export const posts: BlogPost[] = [
     category: 'research',
     excerpt:
       'The 1882 and 1898 Saigon maps share hundreds of the same buildings. We use those stable structures as automatic ground control points — letting maps georeference each other, and producing a 1880–1900 building dataset as a byproduct.',
+    note: 'September 2026 — most of this did not ship as described. The colour-profile SAM pipeline was deleted from the repository; footprint segmentation now runs on a fine-tuned SAM2 fork, on Colab. The building-to-building matching — Hu moments, RANSAC, an automatic georeference of the 1898 sheet — was never built, and there is no 1880–1900 change dataset. The 91 city blocks below came from one 1,200 px crop and remain the whole of the result. Every one of the 46 footprints in the archive today was traced by hand.',
     content: `
 <p>The two most important maps we have of colonial Saigon — an 1882 cadastral survey and its 1898 revision — have never been compared as spatial data. They've been studied individually, scanned, and put online. But no one has asked: which buildings appear in both? Which ones were built or demolished in those sixteen years? And can that shared knowledge help us georeference the maps themselves?</p>
-<p>The answer to the last question turns out to be yes — and it changes how we think about the whole problem of historical map vectorization.</p>
+<p>The answer to the last question turns out to be yes, at least on paper.</p>
 
 <h2>The standard approach and its cost</h2>
 <p>Georeferencing a historical map means manually clicking corresponding points between the old map and a modern coordinate reference. You click a church corner on the 1882 map, click the same spot on a modern satellite image, repeat 15–20 times, and a polynomial transform snaps the old map into place. This works. It takes about an hour per map, requires you to find recognizable landmarks that still exist, and has to be done again from scratch for every new map even if it covers the same area.</p>
@@ -254,7 +423,7 @@ export const posts: BlogPost[] = [
 
 <h2>Where this stands</h2>
 <p>The 1882 map is georeferenced and on Internet Archive. The plot pass is validated. The building pass is next, followed by the full-map run, then the 1898 preparation (Pixelmator seam correction on the BnF Gallica composite scan). Once both maps are vectorized, the vector-to-vector matching step — Hu moment descriptors, mutual-best-match, RANSAC — produces the change classification and auto-georefs the 1898 map simultaneously.</p>
-<p>The full pipeline code is in the VMA repository. If you're working on historical city reconstruction — Hanoi, Phnom Penh, Manila, any city with a colonial-era cadastral survey — this architecture is designed to be forked.</p>
+<p>If you're working on historical city reconstruction — Hanoi, Phnom Penh, Manila, any city with a colonial-era cadastral survey — this architecture is designed to be forked.</p>
 		`,
   },
   {
@@ -264,12 +433,13 @@ export const posts: BlogPost[] = [
     category: 'update',
     excerpt:
       "Featured in Saigoneer. Automated 500+ L7014 maps. Now planning the knowledge graph, 3D pipeline, and community tier system. Here's where things stand.",
+    note: 'September 2026 — no tier system was ever built: there are no Photo Hunter or Cartographer roles, and no photogrammetry mission has run on any of the five landmarks. The 500+ L7014 sheets are georeferenced and served from Internet Archive, but were never ingested into this catalog, which holds 39 published sheets. The knowledge graph is still a design document. This was also the only monthly digest.',
     content: `
-<p>This is the first monthly digest. The rule: two paragraphs, no slide decks, no meetings requested. What shipped, what didn't, what's next.</p>
+<p>This was meant to be the first monthly digest. The rule: two paragraphs, no slide decks, no meetings requested. What shipped, what didn't, what's next.</p>
 
 <h2>What shipped</h2>
 <p>The <strong>L7014 pipeline is complete and archived</strong>. 500+ US Army maps of Vietnam are georeferenced, datum-corrected (Indian 1960 → WGS84), and served over IIIF. The propagation algorithm — using seed maps to extrapolate corners across the regular grid — eliminated manual GCP placement for roughly 90% of the series. This work is done; the pipeline code has been retired now that the series is fully processed.</p>
-<p>We were <strong>featured in Saigoneer</strong> (January 2026), Vietnam's leading English-language culture publication. The coverage framed the project clearly: we're not building a map app, we're building the spatial memory of a city most of the world has only seen in wartime. The response from the Vietnamese diaspora community was immediate and warm.</p>
+<p>We were <strong>featured in Saigoneer</strong> (January 2026), Vietnam's leading English-language culture publication. The coverage framed the project clearly: we're not building a map app, we're building the spatial memory of a city most of the world has only seen in wartime. It brought the first readers who were not already looking for us.</p>
 
 <h2>What didn't ship</h2>
 <p>The knowledge graph is fully designed (schema, predicates, temporal encoding, source types) but not yet built. Community tracing UI exists as a label studio but lacks the gamification layer needed to attract contributors at scale. The 3D pipeline is planned in detail — we've adapted the Morlighem (TU Delft 2021) method to our IIIF output — but Phase 3 starts after Phase 1 footprints are in hand.</p>
@@ -286,6 +456,7 @@ export const posts: BlogPost[] = [
     category: 'research',
     excerpt:
       "How we treat a historical city as a data stack — translating the modern world's six-layer spatial model into a framework that works with 19th-century maps, panoramic paintings, and archival photos.",
+    note: 'September 2026 — the four contribution tiers in this post do not exist and no data or model weights have been published to Hugging Face. The L5 knowledge graph has no schema and no API in the codebase; “CRUD API in development” was optimistic. The height-uncertainty figures (±3 m → ±1.5 m) are what we expected from reading the method, not anything measured. L1 vectorization now means a fine-tuned SAM2 fork run on Colab, and it has produced no reviewed footprints yet.',
     content: `
 <p>Every city is simultaneously a physical object, a set of economic relationships, a carrier of memory, and a political argument. Reconstructing one from archival sources requires separating these layers and building them in the right order. This post explains how we do that for 1880–1930 Saigon.</p>
 
@@ -317,16 +488,17 @@ export const posts: BlogPost[] = [
 
 <h2>What we've learned so far</h2>
 <p>The propagation algorithm works: one manual georeference → 10 automated neighbors, error rate under 1% validated against independent seeds. The Morlighem pipeline is proven on Dutch and Belgian maps (>84% building detection, >99% valid CityJSON) and we expect it to adapt, with colour calibration work, to French colonial Saigon's symbology. The 1882 and 1898 panoramas are a more significant calibration source than we initially understood — they reduce height uncertainty from roughly ±3m to approximately ±1.5m for the 1900 core.</p>
-<p>The methodology is public. The pipeline is open. If you're working on historical city reconstruction for another Southeast Asian city — or anywhere with a colonial-era map archive — this framework is forkable. That's the point.</p>
+<p>The methodology and the code are public. If you're working on a colonial-era map archive for another city, it is forkable — and worth reading with the note at the top of this post in hand.</p>
 		`,
   },
   {
     slug: 'how-the-georef-pipeline-works',
-    title: 'How We Automate Georeferencing of 500 Historical Maps',
+    title: 'How GCP Propagation Georeferences a Whole Map Series',
     date: '2026-02-01',
     category: 'research',
     excerpt:
       'A plain-language explanation of the GCP propagation algorithm that turns a 500-sheet military map series into an automatically georeferenced archive.',
+    note: 'September 2026 — this describes the L7014 batch, which is served from Internet Archive and was never ingested into this catalog: none of the 39 published sheets here is an L7014 sheet. The under-1% error figure compares propagated annotations against our own seed georeferences, not against independent ground truth, so it measures internal consistency rather than accuracy. The pipeline code was deleted in April 2026.',
     content: `
 <p>Georeferencing a historical map means answering: where on Earth does this pixel sit? For a single map, you place control points by hand — match corners and landmarks to known coordinates — and a polynomial transform handles the rest. For 500 maps in a uniform series, doing this by hand would take months. We don't do it by hand.</p>
 
@@ -340,7 +512,7 @@ export const posts: BlogPost[] = [
 
 <h2>The output</h2>
 <p>Every georeferenced sheet is stored as a W3C Web Annotation (Georeference Annotation) JSON file in Supabase Storage, compatible with the Allmaps viewer. 500+ sheets processed. Error rate under 1% on propagated annotations validated against manually-georeferenced seeds. The series is complete.</p>
-<p>The method generalizes: any uniform map series with known sheet dimensions can be processed the same way. Hanoi. Phnom Penh. Manila. Whoever runs this first for their city's archive owns the result permanently.</p>
+<p>The method generalizes: any uniform map series with known sheet dimensions can be processed the same way — Hanoi, Phnom Penh, Manila, anywhere the sheets were drawn to a grid.</p>
 		`,
   },
   {
@@ -350,6 +522,7 @@ export const posts: BlogPost[] = [
     category: 'announcement',
     excerpt:
       "Saigoneer covered us in January 2026. Here's the project vision in plain language — recovering the body and soul of a city lost to wartime imagery.",
+    note: 'September 2026 — the Photo Hunter tier was never built, and there is still no way to attach a photograph or a memory to a place. What a newcomer can actually do today: trace footprints at /scan?mode=trace, check what the OCR read at /scan?mode=triage, or place a sheet at /contribute/georef.',
     content: `
 <p>Vietnam Map Archive was featured in Saigoneer on January 15, 2026. If you're reading this because of that article: welcome. Here's the short version of what we're doing and why.</p>
 
@@ -357,11 +530,11 @@ export const posts: BlogPost[] = [
 <p>Most of the world's mental image of Vietnam is the war. Napalm, jungle, helicopters. But Saigon in 1900 was a modernizing colonial metropolis — grand boulevards, a cathedral, an opera house, a postcard industry producing tens of thousands of images. That city is almost entirely absent from digital public memory. The maps exist, scattered across French national archives, American military repositories, and private collections. They're just disconnected from each other, from modern geography, and from the people whose families lived there.</p>
 
 <h2>What we're doing</h2>
-<p>We're connecting the maps to each other (georeferencing), to documents (knowledge graph), and eventually to three-dimensional space (3D reconstruction from archival photos). The method is HITL — Human-in-the-Loop — where community contributors trace buildings and tag photos, which trains AI that accelerates future contributions, which produces better data, which trains better AI. The community builds the data. The AI accelerates the community. The output is open and permanent.</p>
+<p>We're connecting the maps to each other (georeferencing), to documents (knowledge graph), and eventually to three-dimensional space (3D reconstruction from archival photos). The method is human-in-the-loop: contributors trace buildings and check what the model read, and those corrections are what a better model would be trained on. The data is openly licensed either way.</p>
 <p>The 1880–1930 focus is deliberate. This is the period when the French colonial administration physically remade Saigon — filling in canals to build boulevards, moving Chinese merchant communities to control land, building public monuments to assert cultural dominance. Understanding this period is not just historical curiosity. It's the origin of the city's current geography and the root of debates about public space, heritage, and memory that are active right now in Ho Chi Minh City.</p>
 
 <h2>How to help</h2>
-<p>Right now, the most useful thing is to <strong>find historical photos</strong> of Saigon buildings and tag them to locations. No technical skill required. If you recognize a street, a building, a neighborhood from your family's history — that knowledge is irreplaceable and we need it. The Photo Hunter tier is designed for exactly this: zero barrier, mobile-friendly, immediately meaningful.</p>
+<p>Right now, the most useful thing is to <strong>find historical photos</strong> of Saigon buildings and tag them to locations. No technical skill required. If you recognize a street, a building, a neighborhood from your family's history — that knowledge is irreplaceable and we need it. The tool for it is designed and not built, so for the moment that means emailing us rather than clicking anything.</p>
 <p>If you're a researcher, a GIS mapper, a Blender artist, or a foundation program officer — there's a specific role for you. The strategy and roadmap documents are public. Read them and reach out.</p>
 		`,
   },
@@ -372,7 +545,7 @@ export function getPost(slug: string): BlogPost | undefined {
 }
 
 export const CATEGORY_LABELS: Record<BlogPost['category'], string> = {
-  update: 'Monthly Update',
+  update: 'Update',
   research: 'Research',
   community: 'Community',
   announcement: 'Announcement',

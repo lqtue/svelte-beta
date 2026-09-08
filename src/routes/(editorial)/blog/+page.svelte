@@ -29,7 +29,7 @@
   <title>Blog — Vietnam Map Archive</title>
   <meta
     name="description"
-    content="Monthly digests, research notes, and announcements from the Vietnam Map Archive."
+    content="Research notes and updates from the Vietnam Map Archive, written when there is something to report. Posts carry a dated note where a claim has since turned out wrong."
   />
 </svelte:head>
 

@@ -49,6 +49,15 @@
         <div class="article-divider"></div>
       </header>
 
+      {#if post.note}
+        <aside class="article-note">
+          <span class="note-label">Since this was written</span>
+          <!-- Same trust boundary as post.content below: a committed module. -->
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+          <p>{@html post.note}</p>
+        </aside>
+      {/if}
+
       <div class="article-body">
         <!-- post.content comes from src/routes/(editorial)/blog/posts.ts, a
           committed module. No user input reaches this, so there is nothing to

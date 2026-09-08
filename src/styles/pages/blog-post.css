@@ -377,3 +377,46 @@ body {
     display: none;
   }
 }
+
+/* Dated correction above the post body — see BlogPost.note. Yellow is the one
+   surface that stays light in both themes, hence the pinned ink token. */
+.blog-post-page .article-note {
+  margin: 2rem 3rem 0;
+  padding: 1rem 1.25rem;
+  background: var(--color-yellow);
+  border: var(--border-thick);
+  border-radius: 6px;
+  color: var(--color-text-on-yellow);
+}
+
+.blog-post-page .article-note .note-label {
+  display: block;
+  font-family: var(--font-family-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.blog-post-page .article-note p {
+  margin: 0;
+  font-family: var(--font-family-base);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.blog-post-page .article-note code {
+  font-family: monospace;
+  font-size: 0.9em;
+  border: var(--border-thin);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+
+@media (max-width: 600px) {
+  .blog-post-page .article-note {
+    margin: 1.5rem 1.5rem 0;
+  }
+}
