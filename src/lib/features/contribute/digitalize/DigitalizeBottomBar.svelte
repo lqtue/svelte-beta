@@ -2,24 +2,25 @@
   DigitalizeBottomBar.svelte — the toolbar under the /scan?mode=triage
   canvas. Triage gets a hint only; the review phases add the draw and focus
   toggles. Purely presentational: every action is an event.
+
+  It carried a panel toggle until the rails were split. With a left rail and a
+  right one, "the sidebar" stopped naming a single thing, and ToolLayout already
+  gives each rail its own collapse chevron and its own re-open pill — so one
+  ambiguous button was doing badly what two unambiguous ones already did.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import SidebarToggleButton from '$lib/features/contribute/shared/SidebarToggleButton.svelte';
   import '$styles/layouts/tool-page.css';
 
   export let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
   export let drawMode = false;
   export let isolationMode = false;
-  export let isMobile = false;
-  export let sidebarCollapsed = false;
   /** Current canvas rotation, signed degrees. 0 hides the reset button. */
   export let rotationDeg = 0;
 
   const dispatch = createEventDispatcher<{
     toggleDraw: void;
     toggleIsolation: void;
-    toggleSidebar: void;
     rotate: { deg: number };
     resetRotation: void;
   }>();
@@ -27,14 +28,12 @@
 
 <footer class="bottom-bar">
   {#if phase === 'triage'}
-    <div class="bar-hint">
-      Drag the amber rectangle to set the neatline · click a tile to change its priority
-    </div>
+    <div class="bar-hint">Drag the amber box · click a tile to set its priority</div>
   {:else}
     <div class="bar-hint">
       {drawMode
         ? 'Drag a rectangle to add a bbox · Esc to cancel'
-        : 'Click a bbox to edit · corners resize · round handle turns it · j/k next · v validate'}
+        : 'Click a bbox to edit · j/k next · v validate'}
     </div>
     <div class="bar-divider"></div>
     <button
@@ -128,10 +127,6 @@
     >
       <span class="rot-deg">{rotationDeg}°</span>
     </button>
-  {/if}
-  {#if !isMobile}
-    <div class="bar-divider"></div>
-    <SidebarToggleButton collapsed={sidebarCollapsed} onClick={() => dispatch('toggleSidebar')} />
   {/if}
 </footer>
 

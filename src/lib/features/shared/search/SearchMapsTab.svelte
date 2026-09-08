@@ -17,12 +17,15 @@
   export let selectedMapId: string | null = null;
   /** When false, hide the layer-stack compare button. */
   export let showCompare = true;
+  /** The search panel opens on a keystroke and should land in the box. A rail
+   *  that is always on screen must not take focus away from the page on load. */
+  export let autofocus = true;
 
   let mapsQuery = '';
   let searchInputEl: HTMLInputElement | null = null;
 
   onMount(() => {
-    queueMicrotask(() => searchInputEl?.focus());
+    if (autofocus) queueMicrotask(() => searchInputEl?.focus());
   });
 
   $: compareIds = $layersStore.overlays.map((o) => o.ref.mapId);

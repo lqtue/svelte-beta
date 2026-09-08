@@ -12,10 +12,12 @@
 
   export let title: string = '';
   export let onCollapse: (() => void) | null = null;
+  /** Left rail carries the way back out; the right panel is a work surface. */
+  export let showBack = true;
 </script>
 
 <aside class="panel">
-  <ToolPanelHeader {title} {onCollapse} />
+  <ToolPanelHeader {title} {onCollapse} {showBack} />
   <slot />
   {#if $$slots.footer}
     <div class="panel-footer">

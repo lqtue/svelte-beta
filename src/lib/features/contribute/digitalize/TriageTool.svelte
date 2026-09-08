@@ -42,6 +42,11 @@
   export let tileSize: number = 2400;
   export let overlap: number = 300;
   export let tileOverrides: TileOverrides = {};
+  /** Layer visibility, owned by the left rail. Hiding the neatline takes its
+   *  drag handles and both Translate interactions with it — an invisible
+   *  rectangle you can still drag by accident is worse than no toggle. */
+  export let showNeatline = true;
+  export let showTiles = true;
 
   const dispatch = createEventDispatcher<{
     neatlineChange: [number, number, number, number];
@@ -221,6 +226,14 @@
   }
 
   $: if (tileSource && tileOverrides) tileSource.changed();
+
+  // OL skips hidden layers in forEachFeatureAtPixel, so the tile-priority click
+  // goes quiet on its own once the grid is off.
+  $: neatlineLayer?.setVisible(showNeatline);
+  $: rectEditor?.layer.setVisible(showNeatline);
+  $: rectEditor?.setActive(showNeatline);
+  $: bodyTranslate?.setActive(showNeatline);
+  $: tileLayer?.setVisible(showTiles);
 
   $: setup($shellStore);
 

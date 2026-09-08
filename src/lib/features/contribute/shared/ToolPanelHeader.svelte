@@ -10,24 +10,29 @@
 
   export let title: string = '';
   export let onCollapse: (() => void) | null = null;
+  /** The way out of the tool. With two rails on screen it belongs to one of
+   *  them — printing it twice makes neither look like the way out. */
+  export let showBack = true;
 </script>
 
 <div class="panel-header">
-  <a href="/contribute" class="home-link" aria-label="Back to Contribute">
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path d="M12.5 15L7.5 10L12.5 5" />
-    </svg>
-    Contribute
-  </a>
+  {#if showBack}
+    <a href="/contribute" class="home-link" aria-label="Back to Contribute">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M12.5 15L7.5 10L12.5 5" />
+      </svg>
+      Contribute
+    </a>
+  {/if}
   {#if title}
     <div class="panel-mode-label">{title}</div>
   {/if}

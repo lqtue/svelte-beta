@@ -1,10 +1,15 @@
 <!--
-  ToolMapPicker.svelte — the floating map picker shared by the contribute
-  IIIF-canvas tools (/scan?mode=triage, /scan?mode=trace).
+  ToolMapPicker.svelte — the map picker shared by the contribute IIIF-canvas
+  tools, rendered inline in `ScanLeftRail`.
 
   Owns the map list: loads it via fetchLabelMaps() and adapts LabelMapInfo to
-  the MapListItem shape MapSearchBar expects, so callers need neither a
-  loadMaps() copy nor an `as any` cast.
+  the MapListItem shape the list expects, so callers need neither a loadMaps()
+  copy nor an `as any` cast.
+
+  It used to render `MapSearchBar` — a trigger floating over the canvas that
+  opened the whole search panel — so "which sheet am I on?" sat on top of the
+  sheet and cost two clicks. It now renders that panel's own maps tab straight
+  into the rail, which is the same list without the overlay.
 
   Dispatches:
     loaded { maps }        — after the list arrives
@@ -13,8 +18,11 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import MapSearchBar from '$lib/features/shared/search/MapSearchBar.svelte';
+  import SearchMapsTab from '$lib/features/shared/search/SearchMapsTab.svelte';
+  // The list's styles ship with the panel that used to own it.
+  import '$styles/components/search-panel.css';
   import { getSupabaseContext } from '$lib/data/supabase/context';
+  import { triageState } from '$lib/data/maps/triageTypes';
   import { fetchLabelMaps } from '$lib/data/supabase/footprints';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';
   import type { MapListItem } from '$lib/data/maps/types';
@@ -45,7 +53,9 @@
     year: m.year,
     location: m.location,
     dc_description: m.description,
-    _triaged: !!m.triage,
+    // A proposal nobody has accepted is not triaged — that is the whole point
+    // of `validated_at`, and `triageState` is the one place the rule lives.
+    _triaged: triageState(m.triage) === 'ready',
     _ocrd: m.hasOcr,
   }));
 
@@ -66,11 +76,34 @@
 
 <!-- showCompare={false}: the ⇄ button adds to `layersStore`, the /explore layer
      stack. These tools run on an ImageShell and have no geo map, so it was a
-     dead control taking a third of every row. -->
-<MapSearchBar
-  maps={listItems}
-  {selectedMapId}
-  mapsOnly
-  showCompare={false}
-  on:selectMap={handleSelect}
-/>
+     dead control taking a third of every row.
+     autofocus={false}: the rail is on screen from load, and a picker that grabs
+     the caret means every page starts with the keyboard in a filter box. -->
+<div class="tool-map-picker">
+  <SearchMapsTab
+    maps={listItems}
+    {selectedMapId}
+    showCompare={false}
+    autofocus={false}
+    on:selectMap={handleSelect}
+  />
+</div>
+
+<style>
+  /* SearchMapsTab was written for a fixed-height panel; in the rail it is the
+     part that flexes, so the list scrolls and the filter box stays put. */
+  .tool-map-picker {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 0.75rem;
+    gap: 0.4rem;
+  }
+  .tool-map-picker :global(.results-list) {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    max-height: none;
+  }
+</style>

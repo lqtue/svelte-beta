@@ -22,7 +22,7 @@
   import TraceTool from '$lib/features/contribute/trace/TraceTool.svelte';
   import TraceSidebar from '$lib/features/contribute/trace/TraceSidebar.svelte';
   import ToolSidebarShell from '$lib/features/contribute/shared/ToolSidebarShell.svelte';
-  import ToolMapPicker from '$lib/features/contribute/shared/ToolMapPicker.svelte';
+  import ScanLeftRail from '$lib/features/contribute/shared/ScanLeftRail.svelte';
   import EmptyPanel from '$lib/features/contribute/shared/EmptyPanel.svelte';
   import SidebarToggleButton from '$lib/features/contribute/shared/SidebarToggleButton.svelte';
   import '$styles/layouts/tool-page.css';
@@ -58,6 +58,8 @@
 
   // ── Layout ─────────────────────────────────────────────────────────────────
   let sidebarCollapsed = false;
+  let rightSidebarCollapsed = false;
+  let imageOpacity = 1;
   let isMobile = false;
 
   // ── Derived ────────────────────────────────────────────────────────────────
@@ -176,13 +178,30 @@
 
 <!-- ── Page shell ─────────────────────────────────────────────────────────────── -->
 <div class="tool-page">
-  <ToolLayout bind:sidebarCollapsed bind:isMobile>
-    <!-- Sidebar -->
-    <!-- One instance; ToolLayout puts it in the desktop rail or the mobile drawer. -->
-    <svelte:fragment slot="sidebar" let:compact>
-      <ToolSidebarShell
-        title={compact ? (currentMap?.name ?? 'Trace') : 'Trace'}
+  <ToolLayout
+    bind:sidebarCollapsed
+    bind:rightSidebarCollapsed
+    bind:isMobile
+    hasRightSidebar
+    tabOrder={['browse', 'controls']}
+  >
+    <!-- Left: which sheet. Same rail, same place, in every /scan mode. -->
+    <svelte:fragment slot="sidebar">
+      <ScanLeftRail
+        selectedMapId={currentMap?.id ?? null}
+        bind:imageOpacity
         onCollapse={() => (sidebarCollapsed = true)}
+        on:select={(e) => selectMap(e.detail.map)}
+        on:error={(e) => (mapsError = e.detail.message)}
+      />
+    </svelte:fragment>
+
+    <!-- Right: the tracing work. -->
+    <svelte:fragment slot="right-sidebar">
+      <ToolSidebarShell
+        title="Trace"
+        showBack={false}
+        onCollapse={() => (rightSidebarCollapsed = true)}
       >
         {#if currentMap}
           <TraceSidebar
@@ -194,21 +213,14 @@
             on:updateFootprintMeta={handleUpdateFootprintMeta}
           />
         {:else}
-          <EmptyPanel showIcon={!compact} message="Select a map to start tracing." />
+          <EmptyPanel message="Select a map to start tracing." />
         {/if}
       </ToolSidebarShell>
     </svelte:fragment>
 
-    <!-- Floating map search (canvas, top-center) — maps only, no location tab -->
-    <ToolMapPicker
-      selectedMapId={currentMap?.id ?? null}
-      on:select={(e) => selectMap(e.detail.map)}
-      on:error={(e) => (mapsError = e.detail.message)}
-    />
-
     <!-- Image stage -->
     {#if currentMap && iiifInfoUrl}
-      <ImageShell {iiifInfoUrl} {footprints}>
+      <ImageShell {iiifInfoUrl} {footprints} {imageOpacity}>
         <TraceTool
           {drawMode}
           {geometryMode}

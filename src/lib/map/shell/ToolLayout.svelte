@@ -16,6 +16,10 @@
     mobile-layers     — mobile drawer 1 body  (label: "Layers")
     mobile-controls   — mobile drawer 2 body  (label: "Controls")
     mobile-browse     — mobile drawer 3 body  (label: "Browse")
+
+  A page that fills both `sidebar` and `right-sidebar` and no mobile slot gets
+  them as two drawers automatically — left under "Browse", right under
+  "Controls" — so neither rail disappears on a phone.
     mobile-sidebar    — legacy fallback (single drawer, label: "Tools")
 
   A tool that only fills `sidebar` gets that same slot in the mobile drawer,
@@ -120,10 +124,22 @@
   $: hasMobileControls = !!$$slots['mobile-controls'];
   $: hasMobileBrowse = !!$$slots['mobile-browse'];
   $: hasMobileSidebar = !!$$slots['mobile-sidebar'];
+  $: hasExplicitMobile = hasMobileLayers || hasMobileControls || hasMobileBrowse;
+  /**
+   * Both rails filled and no mobile slots of their own — the /scan tools, where
+   * the left rail is "which sheet" and the right one is the mode's work. One
+   * drawer would stack a scrolling map list on top of a scrolling panel, so the
+   * stack takes them as two tabs: left → Browse, right → Controls. Without this
+   * a two-rail page lost its right rail entirely on a phone, because the legacy
+   * drawer only ever reached for `sidebar`.
+   */
+  $: splitRailsOnMobile = hasSidebar && hasRightSidebar && !hasMobileSidebar && !hasExplicitMobile;
   /** No `mobile-sidebar` of its own: the drawer reuses the `sidebar` slot. */
-  $: mobileUsesSidebar = hasSidebar && !hasMobileSidebar;
+  $: mobileUsesSidebar = hasSidebar && !hasMobileSidebar && !splitRailsOnMobile;
   $: hasLegacyDrawer = hasMobileSidebar || mobileUsesSidebar;
-  $: hasAnyDrawer = hasMobileLayers || hasMobileControls || hasMobileBrowse || hasLegacyDrawer;
+  $: drawerBrowse = hasMobileBrowse || splitRailsOnMobile;
+  $: drawerControls = hasMobileControls || splitRailsOnMobile;
+  $: hasAnyDrawer = hasMobileLayers || drawerControls || drawerBrowse || hasLegacyDrawer;
   $: showDesktopSidebar = hasSidebar && !sidebarCollapsed && !isMobile;
   $: showRightSidebar = hasRightSidebar && !rightSidebarCollapsed && !isMobile;
 </script>
@@ -215,13 +231,25 @@
       bind:openDrawer
       {tabOrder}
       hasLayers={hasMobileLayers}
-      hasControls={hasMobileControls}
-      hasBrowse={hasMobileBrowse}
+      hasControls={drawerControls}
+      hasBrowse={drawerBrowse}
       hasLegacy={hasLegacyDrawer}
     >
       <slot name="mobile-layers" slot="layers" />
-      <slot name="mobile-controls" slot="controls" />
-      <slot name="mobile-browse" slot="browse" />
+      <svelte:fragment slot="controls">
+        {#if hasMobileControls}
+          <slot name="mobile-controls" />
+        {:else if splitRailsOnMobile}
+          <slot name="right-sidebar" />
+        {/if}
+      </svelte:fragment>
+      <svelte:fragment slot="browse">
+        {#if hasMobileBrowse}
+          <slot name="mobile-browse" />
+        {:else if splitRailsOnMobile}
+          <slot name="sidebar" compact={true} />
+        {/if}
+      </svelte:fragment>
       <svelte:fragment slot="legacy">
         {#if hasMobileSidebar}
           <slot name="mobile-sidebar" />

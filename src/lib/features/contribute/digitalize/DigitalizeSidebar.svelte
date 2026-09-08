@@ -17,25 +17,24 @@
   import SegSidebar from './SegSidebar.svelte';
   import PhaseTabs from './PhaseTabs.svelte';
   import type { SegConfig } from './segCommand';
-  import type { TriageState, StoredTriage } from './triagePrefs';
+  import type { TriageState } from './triagePrefs';
+  import type { SavedTriage } from '$lib/data/maps/triageTypes';
   import type { PipelineStatus } from '$lib/features/contribute/pipelineApi';
 
   export let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
   export let mapId: string | null = null;
   export let imgWidth = 0;
   export let imgHeight = 0;
-  export let iiifInfoUrl: string | null = null;
   /** Two-way: TriageSidebar and the canvas edit the same neatline / tile grid. */
   export let triage: TriageState;
   /** What `maps.triage` holds for the selected map, and the state of saving it. */
-  export let savedTriage: StoredTriage | null = null;
+  export let savedTriage: SavedTriage | null = null;
   export let savingTriage = false;
   export let saveTriageError = '';
   export let suggesting = false;
   export let suggestError = '';
   /** The layout pass, bound so the canvas and the list share a selection. */
   export let selectedRegion: number | null = null;
-  export let showRegions = true;
   export let detectingLayout = false;
   export let layoutError = '';
   export let layoutJob: { status: string; error?: string | null } | null = null;
@@ -59,7 +58,7 @@
   const dispatch = createEventDispatcher<{ phaseChange: { phase: typeof phase } }>();
 </script>
 
-<ToolSidebarShell {onCollapse}>
+<ToolSidebarShell title="Triage" showBack={false} {onCollapse}>
   {#if !mapId}
     <EmptyPanel
       message={compact ? 'Select a map first.' : 'Pick a map to start.'}
@@ -69,7 +68,6 @@
     <TriageSidebar
       {imgWidth}
       {imgHeight}
-      {iiifInfoUrl}
       bind:neatline={triage.neatline}
       bind:tileSize={triage.tileSize}
       bind:overlap={triage.overlap}
@@ -87,7 +85,6 @@
       {suggestError}
       layoutRegions={triage.regions}
       bind:selectedRegion
-      bind:showRegions
       {detectingLayout}
       {layoutError}
       {layoutJob}

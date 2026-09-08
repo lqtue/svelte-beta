@@ -64,6 +64,10 @@
   export let filteredIds = new Set<string>();
   export let isolationMode = false;
   export let drawMode = false;
+  /** Layer visibility, owned by the left rail. Hidden boxes are also
+   *  uninteractive: a Select over an invisible layer selects nothing a person
+   *  can see. */
+  export let visible = true;
 
   const dispatch = createEventDispatcher<{
     select: { id: string };
@@ -221,15 +225,22 @@
   }
 
   // Toggle draw mode: disable select/translate, enable Draw interaction
-  $: if (initialized) toggleDrawMode(drawMode);
+  $: labelLayer?.setVisible(visible);
+  // Re-run the interaction split whenever either input moves: `visible` and
+  // `drawMode` both decide the same four interactions, so one owner settles it.
+  $: if (initialized) {
+    void visible;
+    toggleDrawMode(drawMode);
+  }
 
   function toggleDrawMode(active: boolean) {
     if (!selectInteraction || !bodyTranslate || !obbEditor) return;
-    selectInteraction.setActive(!active);
-    bodyTranslate.setActive(!active);
-    obbEditor.setActive(!active);
-    rotateHandle?.setActive(!active);
-    if (drawInteraction) drawInteraction.setActive(active);
+    const editable = !active && visible;
+    selectInteraction.setActive(editable);
+    bodyTranslate.setActive(editable);
+    obbEditor.setActive(editable);
+    rotateHandle?.setActive(editable);
+    if (drawInteraction) drawInteraction.setActive(active && visible);
   }
 
   /**

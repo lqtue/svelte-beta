@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import type { FootprintSubmission, PixelCoord, FeatureType, LegendItem } from '$lib/data/maps/footprintTypes';
-import type { StoredTriage } from '$lib/data/maps/types';
+import type { SavedTriage } from '$lib/data/maps/triageTypes';
 
 type Json = Database['public']['Tables']['footprint_submissions']['Row']['pixel_polygon'];
 type FootprintUpdate = Database['public']['Tables']['footprint_submissions']['Update'];
@@ -28,8 +28,10 @@ export interface LabelMapInfo {
 	iiifImage?: string;
 	legend: LegendItem[];
 	categories: string[];
-	/** `maps.triage` (migration 069) — null when this sheet has never been triaged. */
-	triage: StoredTriage | null;
+	/** `maps.triage` (migrations 069/070) — null only when the column is still
+	 *  `{}`. A row may hold `regions` and no neatline; ask `triageState()` what
+	 *  it means rather than testing a field. */
+	triage: SavedTriage | null;
 	/** The three fields the picker filters and badges on. */
 	year?: number;
 	location?: string;
@@ -64,9 +66,14 @@ export async function fetchLabelMaps(supabase: SupabaseClient<Database>): Promis
 				iiifImage:  r.iiif_image ?? undefined,
 				legend:     Array.isArray(cfg.legend)     ? cfg.legend     : [],
 				categories: Array.isArray(cfg.categories) ? cfg.categories : [],
-				// The default is `{}`, so "has a neatline" is what distinguishes a saved
-				// triage from a map nobody has opened.
-				triage:     (r.triage as StoredTriage | null)?.neatline ? (r.triage as StoredTriage) : null,
+				// The column defaults to `{}`, so an empty object is "nobody has opened
+				// this". Anything else is kept whole and read through `triageState()`.
+				// This used to gate on `.neatline` and hand back null without one —
+				// the same dead gate `enqueue_ocr_all.mjs` had, in a second file: 37
+				// sheets carried a `main_map` region and no neatline, so the picker
+				// nulled their layout and the page drew "No layout pass yet" over a
+				// proposal that was sitting right there in the row.
+				triage:     Object.keys((r.triage ?? {}) as object).length ? (r.triage as SavedTriage) : null,
 				year:        r.year ?? undefined,
 				location:    r.location ?? undefined,
 				description: r.dc_description ?? undefined,

@@ -49,6 +49,19 @@ test('a main_map region alone is a proposal — queueable only once accepted', (
   expect(triageState({ ...t, validated_at: '2026-09-08T00:00:00Z' })).toBe('ready');
 });
 
+test('regions and no neatline is the shape 37 real rows have', () => {
+  // Every layout job that ran before 2026-09-08 wrote `regions` and nothing
+  // else — adopting main_map as the neatline came later. That shape has to be a
+  // queueable proposal, and it is the one two separate files got wrong by
+  // testing `.neatline` instead of asking here: the fleet script queued nothing
+  // across the corpus, and the map picker handed the page a null triage so it
+  // drew "No layout pass yet" over a proposal it was holding.
+  const t: SavedTriage = { regions: [region('sheet', [0, 0, 12102, 8982]), MAIN_MAP] };
+  expect(t.neatline).toBeUndefined();
+  expect(tilingCrop(t)).toEqual(MAIN_MAP.bbox);
+  expect(triageState(t)).toBe('proposed');
+});
+
 test('a hand-drawn crop is a proposal too until somebody accepts it', () => {
   // Drawing is not accepting: the Save button does both, but a triage restored
   // from a draft has a neatline and no validated_at.

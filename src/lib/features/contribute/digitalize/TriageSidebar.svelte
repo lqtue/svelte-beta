@@ -25,7 +25,6 @@
 
   export let imgWidth: number = 0;
   export let imgHeight: number = 0;
-  export let iiifInfoUrl: string | null = null;
 
   // Two-way bound from parent
   export let neatline: [number, number, number, number] | null = null;
@@ -52,10 +51,10 @@
   export let suggesting: boolean = false;
   export let suggestError: string = '';
 
-  /** The layout pass: what the sheet is made of, for a person to correct. */
+  /** The layout pass: what the sheet is made of, for a person to correct.
+   *  Whether it is *drawn* is the left rail's business, not this panel's. */
   export let layoutRegions: LayoutRegion[] = [];
   export let selectedRegion: number | null = null;
-  export let showRegions: boolean = true;
   export let detectingLayout: boolean = false;
   export let layoutError: string = '';
   /** The `layout` pipeline_jobs row, while one is in flight. */
@@ -186,21 +185,40 @@
 </script>
 
 <div class="triage-sidebar">
-  <!-- Image info -->
-  <div class="tool-section">
-    <div class="tool-section-title">Image</div>
-    <div class="tool-row">
-      <span class="tool-label">Dimensions</span>
-      <span class="tool-value tool-mono">{imgWidth} × {imgHeight} px</span>
+  <!-- Where this sheet stands, and the one button that moves it. It used to be
+       step 4, four scrolls down, which is a strange place for the only decision
+       on the page: everything above it is a proposal you are agreeing to. -->
+  <div class="tool-section ts-verdict" class:is-ready={savedState === 'ready'}>
+    <div class="ts-verdict-line">
+      {#if savedState === 'ready'}
+        Accepted{acceptedOn ? ` ${acceptedOn}` : ''} — the batch script will take this sheet.
+      {:else if savedState === 'proposed'}
+        {savedTriage
+          ? 'Proposed by the layout pass. Nothing is queued until you accept it.'
+          : 'Not saved. This triage lives only in this browser.'}
+      {:else}
+        {TRIAGE_STATE_LABELS[savedState]}
+      {/if}
     </div>
-    {#if iiifInfoUrl}
-      <div class="tool-row ts-url-row">
-        <span class="tool-label">IIIF</span>
-        <span class="tool-value tool-mono ts-url" title={iiifInfoUrl}
-          >{iiifInfoUrl.replace('/info.json', '').split('/').slice(-2).join('/')}</span
-        >
-      </div>
+    {#if saveTriageError}
+      <div class="tool-error">{saveTriageError}</div>
     {/if}
+    <button
+      class:tool-run-btn={triageDirty}
+      class:tool-ghost-btn={!triageDirty}
+      on:click={() => dispatch('saveTriage')}
+      disabled={savingTriage || !neatlineValid || !neatline}
+    >
+      {#if savingTriage}
+        Saving…
+      {:else if savedState === 'proposed'}
+        Accept triage
+      {:else if savedTriage}
+        Update saved triage
+      {:else}
+        Save triage
+      {/if}
+    </button>
   </div>
 
   <!-- Layout -->
@@ -231,11 +249,6 @@
     {#if layoutError}<p class="tool-error">{layoutError}</p>{/if}
 
     {#if layoutRegions.length}
-      <label class="ts-toggle">
-        <input type="checkbox" bind:checked={showRegions} />
-        <span>Show on the map</span>
-      </label>
-
       <ul class="ts-regions">
         {#each layoutRegions as r, i (i)}
           <li class:selected={selectedRegion === i}>
@@ -272,11 +285,6 @@
 
       <div class="ts-region-actions">
         <button class="tool-ghost-btn" on:click={addRegion} disabled={!imgWidth}>Add region</button>
-        {#if mainMap}
-          <button class="tool-ghost-btn" on:click={() => useAsNeatline(mainMap)}>
-            Main map → neatline
-          </button>
-        {/if}
       </div>
     {:else if !detectingLayout}
       <div class="ts-region-actions">
@@ -290,7 +298,10 @@
   <!-- Neatline -->
   <div class="tool-section">
     <div class="tool-section-header">
-      <div class="tool-section-title"><span class="ts-step">2</span> Neatline crop</div>
+      <div class="tool-section-title"><span class="ts-step">2</span> Crop</div>
+      {#if mainMap}
+        <button class="tool-ghost-btn" on:click={() => useAsNeatline(mainMap)}>Main map</button>
+      {/if}
       <button
         class="tool-ghost-btn"
         on:click={() => dispatch('suggestTriage')}
@@ -308,62 +319,65 @@
         drew it. Check it against the sheet.
       </p>
     {/if}
-    <div class="tool-coord-grid">
-      <label class="tool-coord-label">
-        <span>X</span>
-        <input
-          type="number"
-          bind:value={nx}
-          on:change={onNeatlineInput}
-          class="tool-num-input"
-          min="0"
-          max={imgWidth}
-        />
-      </label>
-      <label class="tool-coord-label">
-        <span>Y</span>
-        <input
-          type="number"
-          bind:value={ny}
-          on:change={onNeatlineInput}
-          class="tool-num-input"
-          min="0"
-          max={imgHeight}
-        />
-      </label>
-      <label class="tool-coord-label">
-        <span>W</span>
-        <input
-          type="number"
-          bind:value={nw}
-          on:change={onNeatlineInput}
-          class="tool-num-input"
-          min="1"
-          max={imgWidth}
-        />
-      </label>
-      <label class="tool-coord-label">
-        <span>H</span>
-        <input
-          type="number"
-          bind:value={nh}
-          on:change={onNeatlineInput}
-          class="tool-num-input"
-          min="1"
-          max={imgHeight}
-        />
-      </label>
-    </div>
+    <details class="ts-more">
+      <summary>Coordinates</summary>
+      <div class="tool-coord-grid">
+        <label class="tool-coord-label">
+          <span>X</span>
+          <input
+            type="number"
+            bind:value={nx}
+            on:change={onNeatlineInput}
+            class="tool-num-input"
+            min="0"
+            max={imgWidth}
+          />
+        </label>
+        <label class="tool-coord-label">
+          <span>Y</span>
+          <input
+            type="number"
+            bind:value={ny}
+            on:change={onNeatlineInput}
+            class="tool-num-input"
+            min="0"
+            max={imgHeight}
+          />
+        </label>
+        <label class="tool-coord-label">
+          <span>W</span>
+          <input
+            type="number"
+            bind:value={nw}
+            on:change={onNeatlineInput}
+            class="tool-num-input"
+            min="1"
+            max={imgWidth}
+          />
+        </label>
+        <label class="tool-coord-label">
+          <span>H</span>
+          <input
+            type="number"
+            bind:value={nh}
+            on:change={onNeatlineInput}
+            class="tool-num-input"
+            min="1"
+            max={imgHeight}
+          />
+        </label>
+      </div>
+      <div class="tool-hint">
+        {imgWidth} × {imgHeight} px sheet. Paste x,y,w,h from another tool.
+      </div>
+    </details>
     {#if !neatlineValid}
       <div class="tool-error">Neatline exceeds image bounds.</div>
     {/if}
     {#if suggestError}
       <div class="tool-error">{suggestError}</div>
     {/if}
-    <div class="tool-hint">
-      Drag the amber rectangle on the canvas to adjust, or type coords. From the HTML neatline tool:
-      paste x,y,w,h above.
-    </div>
+    <div class="tool-hint">Drag the amber rectangle on the canvas to adjust.</div>
   </div>
 
   <!-- Tile config -->
@@ -377,30 +391,33 @@
         >Suggest</button
       >
     </div>
-    <div class="tool-coord-grid">
-      <label class="tool-coord-label">
-        <span>Size</span>
-        <input
-          type="number"
-          bind:value={tileSize}
-          class="tool-num-input"
-          min="512"
-          max="8192"
-          step="100"
-        />
-      </label>
-      <label class="tool-coord-label">
-        <span>Overlap</span>
-        <input
-          type="number"
-          bind:value={overlap}
-          class="tool-num-input"
-          min="0"
-          max="1200"
-          step="50"
-        />
-      </label>
-    </div>
+    <details class="ts-more">
+      <summary>Size {tileSize} · overlap {overlap}</summary>
+      <div class="tool-coord-grid">
+        <label class="tool-coord-label">
+          <span>Size</span>
+          <input
+            type="number"
+            bind:value={tileSize}
+            class="tool-num-input"
+            min="512"
+            max="8192"
+            step="100"
+          />
+        </label>
+        <label class="tool-coord-label">
+          <span>Overlap</span>
+          <input
+            type="number"
+            bind:value={overlap}
+            class="tool-num-input"
+            min="0"
+            max="1200"
+            step="50"
+          />
+        </label>
+      </div>
+    </details>
     <div class="ts-priority-caption">Priority — click tiles on the map</div>
     <div class="ts-priority-legend">
       <div class="ts-priority-row">
@@ -422,78 +439,34 @@
         <span class="ts-priority-detail">empty / border</span>
       </div>
     </div>
-    <div class="tool-hint">Click a tile once → Low-res · twice → Skip · three times → Normal</div>
-  </div>
-
-  <!-- Save triage -->
-  <div class="tool-section">
-    <div class="tool-section-title"><span class="ts-step">4</span> Save triage</div>
-    {#if saveTriageError}
-      <div class="tool-error">{saveTriageError}</div>
-    {/if}
-    <div class="tool-hint">
-      {#if !savedTriage}
-        Not saved yet. Until you save, this triage lives only in this browser and the enqueue script
-        cannot see it.
-      {:else if triageDirty}
-        Changed since you saved{savedTriage.saved_at
-          ? ` (${savedTriage.saved_at.slice(0, 16).replace('T', ' ')})`
-          : ''}.
-      {:else}
-        Saved{savedTriage.saved_at ? ` ${savedTriage.saved_at.slice(0, 16).replace('T', ' ')}` : ''} —
-        ready to queue.
-      {/if}
-    </div>
-    {#if savedState === 'ready'}
-      <div class="tool-hint">Accepted{acceptedOn ? ` ${acceptedOn}` : ''}.</div>
-    {:else if savedState === 'proposed'}
-      <p class="ts-note">
-        Proposed by the layout pass — nothing will be queued until you accept it.
-      </p>
-    {:else}
-      <p class="ts-note">{TRIAGE_STATE_LABELS[savedState]}</p>
-    {/if}
-    <button
-      class:tool-run-btn={triageDirty}
-      class:tool-ghost-btn={!triageDirty}
-      on:click={() => dispatch('saveTriage')}
-      disabled={savingTriage || !neatlineValid || !neatline}
-    >
-      {#if savingTriage}
-        Saving…
-      {:else if savedState === 'proposed'}
-        Accept triage
-      {:else if savedTriage}
-        Update saved triage
-      {:else}
-        Save triage
-      {/if}
-    </button>
   </div>
 
   <!-- Run config -->
   <div class="tool-section">
-    <div class="tool-section-title"><span class="ts-step">5</span> Run OCR</div>
-    <label class="tool-field">
-      <span class="tool-label">Run ID</span>
-      <input
-        type="text"
-        bind:value={runId}
-        class="tool-text-input tool-mono"
-        placeholder="auto-generated"
-      />
-    </label>
-    <label class="tool-field">
-      <span class="tool-label">Min confidence <strong>{minConfidence.toFixed(2)}</strong></span>
-      <input
-        type="range"
-        bind:value={minConfidence}
-        min="0"
-        max="1"
-        step="0.05"
-        class="tool-range"
-      />
-    </label>
+    <div class="tool-section-title"><span class="ts-step">4</span> Run OCR</div>
+    <details class="ts-more">
+      <summary>Run options</summary>
+      <label class="tool-field">
+        <span class="tool-label">Run ID</span>
+        <input
+          type="text"
+          bind:value={runId}
+          class="tool-text-input tool-mono"
+          placeholder="auto-generated"
+        />
+      </label>
+      <label class="tool-field">
+        <span class="tool-label">Min confidence <strong>{minConfidence.toFixed(2)}</strong></span>
+        <input
+          type="range"
+          bind:value={minConfidence}
+          min="0"
+          max="1"
+          step="0.05"
+          class="tool-range"
+        />
+      </label>
+    </details>
 
     {#if ocrError}
       <div class="tool-error">{ocrError}</div>
@@ -543,7 +516,43 @@
 </div>
 
 <style>
-  /* A small ordinal, so the panel reads as five steps rather than eight
+  /* The verdict sits above the steps and outweighs them: it is the only thing
+     on this panel that changes what happens to the sheet. */
+  .ts-verdict {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sb-surface, var(--color-white));
+    border-bottom: var(--sb-border);
+  }
+  .ts-verdict.is-ready .ts-verdict-line {
+    opacity: 0.6;
+  }
+  .ts-verdict-line {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Every number that used to sit open in the panel. Kept, not deleted: a
+     wrong crop is typed here when the drag will not land on the pixel. */
+  .ts-more {
+    margin: 0.35rem 0;
+  }
+  .ts-more > summary {
+    cursor: pointer;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    padding: 0.2rem 0;
+    user-select: none;
+  }
+  .ts-more > summary:hover {
+    opacity: 0.9;
+  }
+
+  /* A small ordinal, so the panel reads as four steps rather than eight
      equally-weighted boxes of readouts and controls. */
   .ts-step {
     display: inline-flex;
@@ -572,14 +581,6 @@
     border-radius: var(--radius-sm);
     background: var(--color-gray-100);
     font-size: 0.72rem;
-  }
-  .ts-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.74rem;
-    cursor: pointer;
   }
   .ts-regions {
     list-style: none;
@@ -676,18 +677,6 @@
     overflow-y: auto;
     flex: 1;
     min-height: 0;
-  }
-
-  .ts-url-row {
-    align-items: flex-start;
-  }
-  .ts-url {
-    font-size: 0.68rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 180px;
-    opacity: 0.6;
   }
 
   .ts-priority-legend {

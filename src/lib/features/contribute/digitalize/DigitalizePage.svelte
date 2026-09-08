@@ -24,7 +24,6 @@
   import TriageTool from '$lib/features/contribute/digitalize/TriageTool.svelte';
   import RegionsTool from '$lib/features/contribute/digitalize/RegionsTool.svelte';
   import DigitalizeSidebar from '$lib/features/contribute/digitalize/DigitalizeSidebar.svelte';
-  import ToolMapPicker from '$lib/features/contribute/shared/ToolMapPicker.svelte';
   import DigitalizeBottomBar from '$lib/features/contribute/digitalize/DigitalizeBottomBar.svelte';
   import '$styles/layouts/tool-page.css';
   import { createOcrReview } from '$lib/features/contribute/ocr/ocrReviewController';
@@ -49,7 +48,9 @@
     type TriageState,
     type StoredTriage,
   } from '$lib/features/contribute/digitalize/triagePrefs';
-  import type { SavedTriage } from '$lib/data/maps/triageTypes';
+  import { tilingCrop, LAYOUT_COLORS, type SavedTriage } from '$lib/data/maps/triageTypes';
+  import { INK } from '$lib/core/ink';
+  import ScanLeftRail from '$lib/features/contribute/shared/ScanLeftRail.svelte';
   import { suggestTriage as computeTriageProposal } from '$lib/features/contribute/digitalize/suggestTriage';
   import { createLayoutJob } from '$lib/features/contribute/digitalize/layoutJob';
   import {
@@ -72,8 +73,44 @@
   let map: OlMap | null = null;
 
   let sidebarCollapsed = false;
+  let rightSidebarCollapsed = false;
   let isMobile = false;
   let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
+
+  // ── Canvas layers ─────────────────────────────────────────────────────────────
+  // What is drawn over the scan, owned by the left rail rather than by whichever
+  // panel happens to draw it. `showRegions` used to be a checkbox inside the
+  // layout step, which is where you look for it least: it is not a step.
+  let showRegions = true;
+  let showNeatline = true;
+  let showTiles = true;
+  let showBoxes = true;
+  let imageOpacity = 1;
+
+  /** The rail lists the layers that exist in the phase you are in. */
+  $: railLayers =
+    phase === 'triage'
+      ? [
+          {
+            id: 'regions',
+            label: 'Layout regions',
+            on: showRegions,
+            color: LAYOUT_COLORS.main_map,
+          },
+          { id: 'neatline', label: 'Neatline', on: showNeatline, color: INK.yellow },
+          { id: 'tiles', label: 'Tile grid', on: showTiles, color: INK.slate },
+        ]
+      : phase === 'ocr'
+        ? [{ id: 'boxes', label: 'OCR boxes', on: showBoxes, color: INK.blue }]
+        : [];
+
+  function toggleLayer(e: CustomEvent<{ id: string; on: boolean }>) {
+    const { id, on } = e.detail;
+    if (id === 'regions') showRegions = on;
+    else if (id === 'neatline') showNeatline = on;
+    else if (id === 'tiles') showTiles = on;
+    else if (id === 'boxes') showBoxes = on;
+  }
 
   // ── Phase state ───────────────────────────────────────────────────────────────
   let triage: TriageState = defaultTriageState();
@@ -91,7 +128,7 @@
   /** `maps.triage` for the selected map: what the enqueue script would use.
    *  Widened past `StoredTriage` because the row also carries the acceptance
    *  stamps the sidebar reads (`validated_at`, `neatline_src`). */
-  let savedTriage: (StoredTriage & SavedTriage) | null = null;
+  let savedTriage: SavedTriage | null = null;
   let savingTriage = false;
   let saveTriageError = '';
   let suggesting = false;
@@ -99,7 +136,6 @@
 
   // ── Layout pass ───────────────────────────────────────────────────────────────
   let selectedRegion: number | null = null;
-  let showRegions = true;
   const layout = createLayoutJob((regions) => (triage.regions = regions));
   onDestroy(layout.stop);
 
@@ -231,8 +267,17 @@
   }
 
   // ── Triage derivations + persistence ──────────────────────────────────────────
+  // A sheet whose layout pass ran arrives with a `main_map` region and, on rows
+  // written before 2026-09-08, no neatline. Falling back to the whole scan there
+  // would put a rectangle on the canvas that is not the one `tilingCrop` tiles,
+  // and Accept would save it as a hand-drawn border. Adopt the crop instead.
   $: if (imgWidth && imgHeight && triage.neatline === null) {
-    triage.neatline = [0, 0, imgWidth, imgHeight];
+    triage.neatline = tilingCrop({ ...savedTriage, regions: triage.regions }) ?? [
+      0,
+      0,
+      imgWidth,
+      imgHeight,
+    ];
   }
 
   // A new grid (neatline or tile size) invalidates the per-tile priorities.
@@ -411,22 +456,41 @@
 </svelte:head>
 
 <div class="tool-page">
-  <ToolLayout bind:sidebarCollapsed bind:isMobile>
-    <svelte:fragment slot="sidebar" let:compact>
+  <ToolLayout
+    bind:sidebarCollapsed
+    bind:rightSidebarCollapsed
+    bind:isMobile
+    hasRightSidebar
+    tabOrder={['browse', 'controls']}
+  >
+    <!-- Left: which sheet, and what is drawn on it. Same in every mode. -->
+    <svelte:fragment slot="sidebar">
+      <ScanLeftRail
+        selectedMapId={currentMap?.id ?? null}
+        layers={railLayers}
+        bind:imageOpacity
+        onCollapse={() => (sidebarCollapsed = true)}
+        on:select={(e) => selectMap(e.detail.map)}
+        on:error={(e) => (mapsError = e.detail.message)}
+        on:toggle={toggleLayer}
+      />
+    </svelte:fragment>
+
+    <!-- Right: everything this mode does. -->
+    <svelte:fragment slot="right-sidebar">
       <DigitalizeSidebar
-        {compact}
+        compact={false}
         {phase}
         mapId={currentMap?.id ?? null}
         {imgWidth}
         {imgHeight}
-        {iiifInfoUrl}
         bind:triage
         {run}
         {pipeline}
         bind:segConfig
         bind:ocrSidebar
         selectedId={$review.selectedId}
-        onCollapse={() => (sidebarCollapsed = true)}
+        onCollapse={() => (rightSidebarCollapsed = true)}
         on:phaseChange={setPhase}
         {savedTriage}
         {savingTriage}
@@ -434,7 +498,6 @@
         {suggesting}
         {suggestError}
         bind:selectedRegion
-        bind:showRegions
         detectingLayout={$layout.detecting}
         layoutError={$layout.error}
         layoutJob={$layout.job}
@@ -454,16 +517,9 @@
       />
     </svelte:fragment>
 
-    <!-- Floating map picker -->
-    <ToolMapPicker
-      selectedMapId={currentMap?.id ?? null}
-      on:select={(e) => selectMap(e.detail.map)}
-      on:error={(e) => (mapsError = e.detail.message)}
-    />
-
     <!-- Canvas stage -->
     {#if currentMap && iiifInfoUrl}
-      <ImageShell {iiifInfoUrl} bind:imgWidth bind:imgHeight bind:map>
+      <ImageShell {iiifInfoUrl} {imageOpacity} bind:imgWidth bind:imgHeight bind:map>
         {#if phase === 'triage'}
           <TriageTool
             {imgWidth}
@@ -472,6 +528,8 @@
             tileSize={triage.tileSize}
             overlap={triage.overlap}
             tileOverrides={triage.tileOverrides}
+            {showNeatline}
+            {showTiles}
             on:neatlineChange={(e) => (triage.neatline = e.detail)}
             on:tileOverridesChange={(e) => (triage.tileOverrides = e.detail)}
           />
@@ -490,6 +548,7 @@
             filteredIds={$review.visibleIds}
             isolationMode={$review.isolationMode}
             drawMode={$review.drawMode}
+            visible={showBoxes}
             on:select={review.select}
             on:edit={review.edit}
             on:draw={review.draw}
@@ -544,14 +603,11 @@
       {phase}
       drawMode={$review.drawMode}
       isolationMode={$review.isolationMode}
-      {isMobile}
-      {sidebarCollapsed}
       {rotationDeg}
       on:toggleDraw={review.toggleDraw}
       on:toggleIsolation={review.toggleIsolation}
       on:rotate={(e) => rotate(e.detail.deg)}
       on:resetRotation={resetRotation}
-      on:toggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
     />
   {/if}
 </div>

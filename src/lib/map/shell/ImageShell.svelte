@@ -50,6 +50,9 @@
   export let footprints: FootprintSubmission[] = [];
   export let imgWidth = 0;
   export let imgHeight = 0;
+  /** Opacity of the scan itself. Dimming the paper is how the tile grid and the
+   *  layout rectangles drawn over it become readable on a dense sheet. */
+  export let imageOpacity = 1;
 
   let mapContainer: HTMLDivElement;
   export let map: OlMap | null = null;
@@ -154,7 +157,7 @@
       if (!options) throw new Error('Could not parse IIIF tile source options');
       if (tileLayer) map.removeLayer(tileLayer);
       const iiifSource = new IIIF(options);
-      tileLayer = new TileLayer({ source: iiifSource, zIndex: 0 });
+      tileLayer = new TileLayer({ source: iiifSource, zIndex: 0, opacity: imageOpacity });
       map.getLayers().insertAt(0, tileLayer);
       const tileGrid = iiifSource.getTileGrid();
       if (tileGrid) {
@@ -168,6 +171,10 @@
       loadingImage = false;
     }
   }
+
+  // Set on creation too (above): a sheet loaded after the slider moved would
+  // otherwise come back at full opacity until the next change.
+  $: tileLayer?.setOpacity(imageOpacity);
 
   // ── Mount ─────────────────────────────────────────────────────────────────
   onMount(() => {
