@@ -259,6 +259,22 @@
     box-shadow: var(--shadow-solid);
   }
 
+  /* On a phone the hero fills the screen, so a one-finger swipe has to scroll
+     the page — without this the map swallows it and the reader is stuck in the
+     header with no way down. `pan-y` lets the browser claim the gesture on the
+     compositor, before OL sees a pointer event at all, which is why it beats
+     rewriting DragPan's condition.
+
+     The cost, measured rather than assumed: Chrome suppresses the pointer
+     stream for the whole gesture, so on touch the hero map no longer pans by
+     drag in any direction. That is the right trade for a decorative map — the
+     reader needs to get past it far more than they need to pan it, and the
+     caption is one tap to /explore, where panning is the point. Desktop is
+     untouched: mouse drag still pans, the wheel still scrolls the page. */
+  .hero-map :global(.ol-viewport) {
+    touch-action: pan-y;
+  }
+
   /* Bottom-left is the scale bar and bottom-right the attribution, so the
      controls sit between them, clear of both. */
   .hero-controls {
