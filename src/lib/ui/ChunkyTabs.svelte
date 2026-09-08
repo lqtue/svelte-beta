@@ -39,19 +39,15 @@
     border: var(--border-thick);
     border-radius: var(--radius-md);
     cursor: pointer;
-    box-shadow: var(--shadow-solid-sm);
     transition: all 0.1s;
   }
 
   .chunky-tab:hover {
-    transform: translateY(-2px);
-    box-shadow: 4px 4px 0px var(--shadow-ink);
+    filter: brightness(0.95);
   }
 
   .chunky-tab.active {
     background: var(--tab-active-bg, var(--color-blue));
-    color: white;
-    transform: translate(2px, 2px);
-    box-shadow: 0 0 0 var(--color-border);
+    color: var(--color-on-accent);
   }
 </style>

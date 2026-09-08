@@ -49,7 +49,9 @@
 
   border: var(--btn-border, var(--border-thick));
   border-radius: var(--radius-pill);
-  box-shadow: var(--btn-shadow, var(--shadow-solid-sm));
+  /* No offset-block shadow: buttons are flat. `--btn-shadow` stays as the
+     opt-in for a caller that wants one back. */
+  box-shadow: var(--btn-shadow, none);
 
   cursor: pointer;
   text-decoration: none;
@@ -65,8 +67,11 @@
 .action-btn:hover:not(:disabled),
 .pill-btn:hover:not(:disabled),
 .btn:hover:not(:disabled) {
-  transform: translate(var(--btn-lift, -2px), var(--btn-lift, -2px));
-  box-shadow: var(--btn-shadow-hover, var(--shadow-solid));
+  /* Brightness, not a lift: the lift only read as a lift against the shadow
+     it uncovered, and brightness works on every colour variant without an
+     override fight over `background`. */
+  filter: brightness(0.95);
+  box-shadow: var(--btn-shadow-hover, none);
   text-decoration: none;
 }
 
@@ -74,8 +79,7 @@
 .action-btn:active:not(:disabled),
 .pill-btn:active:not(:disabled),
 .btn:active:not(:disabled) {
-  transform: translate(0, 0);
-  box-shadow: 0 0 0 var(--color-border);
+  filter: brightness(0.9);
 }
 
 .chip:disabled,
@@ -98,8 +102,10 @@
 .action-btn:focus-visible,
 .pill-btn:focus-visible,
 .btn:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-solid-hover);
+  /* The focus ring was the hover shadow; with the shadows gone it has to be a
+     real outline, or keyboard focus becomes invisible. */
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
 }
 
 /* ── Pill: the four sizes ────────────────────────────────────────────────── */
@@ -109,7 +115,6 @@
   --btn-text: 1rem;
   --btn-weight: var(--font-extrabold);
   --btn-pad: 0.875rem 1.75rem;
-  --btn-lift: -3px;
   justify-content: flex-start;
   width: max-content;
 }
@@ -265,18 +270,14 @@
   background: var(--color-white);
   color: var(--color-text);
   cursor: pointer;
-  box-shadow: var(--shadow-solid-sm);
   transition: all 0.1s;
 }
 .ctrl-btn:hover {
   background: var(--color-yellow);
   color: var(--color-text-on-yellow);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-solid);
 }
 .ctrl-btn:active {
-  transform: translate(0, 0);
-  box-shadow: 0 0 0 var(--color-border);
+  filter: brightness(0.9);
 }
 .ctrl-btn.active {
   background: var(--color-blue);
