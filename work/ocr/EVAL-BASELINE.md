@@ -341,3 +341,73 @@ prompt is axis-aligned anyway.
 angle — `W = w·c + h·s`, `H = w·s + h·c`, so `w = (W·c − H·s)/cos2θ` — but `cos 2θ` vanishes
 at 45°, which is where 137 of this sheet's labels sit. Recovery solves the cases that did not
 need solving. The chord does not have this problem: it needs no inversion.
+
+## The automated path, audited and then automated (2026-09-08)
+
+Two passes over the same code, in the same day: an audit of everything that runs
+unattended, then removing the manual steps that were left.
+
+**Twelve faults, every one of them producing plausible output.** The full list is
+in the commit (`fix(pipeline): the twelve faults the automated path was hiding`).
+The four that cost data:
+
+| | Measured |
+|---|---|
+| The OCR upsert key ignored position | 18 of 337 merged rows (5.3%) overwrote each other; 1 of 210 for a single pass |
+| A layout re-run replaced `regions` wholesale | every `source: 'human'` correction discarded, silently |
+| Pass 2 could not match the triage's tile keys | stride 1800, offset 1200 — `1800m − 1800n = 1200` has no integer solution, so *no* key matched and every skipped tile was read at full cost |
+| Merged rows lost their provenance | `model = NULL`, `prompt = 'merge'` on the default path |
+
+The upsert key was the interesting one, because the honest fix was not the first
+idea. Re-keying each row to its own grid cell instead of the winning pass's tile
+origin sounded better and measured **worse** — 47 rows lost against 18, because a
+coarse cell concentrates more, not less. Position had to go in the key
+(migration 077, `global_xi`/`global_yi`, generated `round()` columns because
+PostgREST cannot name an expression index in `on_conflict`). With it: 0 lost.
+
+**Then the triage.** It was five manual steps per sheet; it is now a proposal a
+person checks. What made that cheap is that two of the three signals were
+already built and simply never wired:
+
+- The `layout` job's own `main_map` region becomes the crop. Two independent runs
+  on the 1882 sheet put it **0.2% apart at conf 0.98**, covering 80.4% of the
+  scan — against the 81% `suggestTriage.ts`'s ink-profile walk finds by a wholly
+  different method. `tilingCrop()` already preferred main_map to a neatline.
+- `--auto-priority` had existed in `ocr.py` all along and **no enqueue path or
+  worker ever passed it**, so automated runs paid full price for blank margins.
+
+**The blocker nobody could see was a gate.** `enqueue_ocr_all.mjs` required
+`triage.neatline`, and across 101 georeferenced maps **not one had one** — while
+37 already carried the `main_map` region the crop resolver prefers. The script's
+default mode therefore queued nothing across the entire corpus and exited
+reporting success. `/admin?tab=status` had even printed the symptom ("this is the
+blocker") without anyone finding the cause. `triageState()` is now the one
+predicate and a `--dry` run names every state, so "queued nothing" cannot pass
+for success again.
+
+**The one measurement that had to be made before wiring any of it.** The
+tile-density signal exists twice — the measured TS the browser proposes with, and
+the Python the automated path now uses — and `suggestTriage.ts`'s header exists
+*because the Python one was silently wrong on this corpus*: fed a 1024px overview
+it rated the dense city centre lower than the margins and would have skipped
+exactly the tiles worth reading. That was a resolution bug, since fixed, but
+nothing stopped the two drifting again, and a drift does not look like a bug — it
+looks like a sheet that came back thin.
+
+`tests/density-parity.spec.ts` compares them on **identical bytes** (a 512px
+window of the 1882 overview across the left sheet edge: dark scan margin, blank
+paper, the printed rule, map content — all three decision bands) and asserts they
+agree on every tile's `skip`/`low_res`/`normal` **verdict**, not just its number.
+They do. Comparing two fetches of an image would have confounded a decoder
+difference with an algorithm difference, hence the stored raw L bytes.
+
+The colour/wash demotion inside that pass was made opt-in rather than shipped:
+its hue bands are 60–260° and every saturated pixel on this sheet sits in 0–60°
+(warm paper, pink parcel tints), so it scored 0.000 on every tile at every
+saturation gate. Wiring `--auto-priority` into the queue would otherwise have
+shipped an unmeasured signal by the back door.
+
+**Rule from this pass:** the corpus-wide count is the check nobody runs. Three of
+these faults — the dead gate, the never-passed flag, the missing neatlines — were
+invisible in the code and obvious the moment someone counted rows. Two of the
+twelve were caught only by re-measuring a thing that already appeared to work.

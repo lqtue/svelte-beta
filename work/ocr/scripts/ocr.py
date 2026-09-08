@@ -343,6 +343,19 @@ def cmd_self_check(args: argparse.Namespace) -> None:
     assert schema_version(SCOUT_SCHEMA) == SCHEMA_VERSION, "scout cache went cold"
     assert schema_version({**EXTRACTION_SCHEMA, "zzz": {"type": "string"}}) != SCHEMA_VERSION
 
+    # A partial chunked write must be loud. The chunk loop is not
+    # transactional, so this number is the only thing separating "the run
+    # finished" from "the run stopped four chunks in and the rows look fine".
+    from supabase_client import check_write_complete
+    check_write_complete(337, 337, "m", "r")          # complete
+    check_write_complete(337, 400, "m", "r")          # a previous attempt wrote more
+    try:
+        check_write_complete(337, 150, "m", "r")
+    except RuntimeError as e:
+        assert "150" in str(e) and "337" in str(e), e
+    else:
+        raise AssertionError("a short write must raise")
+
     # A retry decision must read a status code, not a substring of a number.
     from gemini_client import _has_status
     assert _has_status("503 UNAVAILABLE", "503")

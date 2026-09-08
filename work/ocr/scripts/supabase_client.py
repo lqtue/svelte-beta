@@ -84,6 +84,30 @@ def _headers(key: str) -> dict[str, str]:
     }
 
 
+def check_write_complete(intended: int, present: int, map_id: str, run_id: str) -> None:
+    """Raise unless the database now holds at least as many rows as were sent.
+
+    The chunk loop below posts 50 rows per request and is **not** transactional,
+    so chunk 4 of 7 failing leaves the first 150 rows in place and raises. A
+    retry re-upserts everything and heals it, because the upsert is idempotent —
+    but once `max_attempts` is spent, a partial run sits in `ocr_extractions`
+    with nothing marking it partial. The stage no longer claims otherwise (a
+    failed job reads as `idle`, not `ocr_done`), yet the rows themselves look
+    exactly like a complete run.
+
+    Preventing that needs a transaction the REST API will not give us. Knowing
+    about it needs one number, which is this. `present > intended` is not a
+    fault: a previous attempt of the same run_id may have written rows this one
+    deduped away.
+    """
+    if present < intended:
+        raise RuntimeError(
+            f"partial write: sent {intended} rows for run {run_id!r} on map {map_id}, "
+            f"but only {present} are in ocr_extractions. The upsert is idempotent — "
+            f"re-run the same run_id to finish it."
+        )
+
+
 def upsert_ocr_extractions(map_id: str, run_id: str, rows: list[dict[str, Any]]) -> int:
     """Upsert a batch of extraction rows into ocr_extractions.
 
@@ -140,12 +164,17 @@ def upsert_ocr_extractions(map_id: str, run_id: str, rows: list[dict[str, Any]])
 
     api = _api_config()
     if api:
-        total = 0
+        # Count what the *database* accepted, not what we posted. The route
+        # returns the upsert's own count, so a chunk that lands short says so
+        # here rather than at the next person to look at the sheet.
+        accepted = 0
         for i in range(0, len(payload), _CHUNK_SIZE):
             chunk = payload[i : i + _CHUNK_SIZE]
-            _post_results({"extractions": chunk})
-            total += len(chunk)
-        return total
+            out = _post_results({"extractions": chunk})
+            got = out.get("extractions")
+            accepted += int(got) if isinstance(got, int) else len(chunk)
+        check_write_complete(len(payload), accepted, map_id, run_id)
+        return accepted
 
     url, key = _load_config()
     # PostgREST requires on_conflict param to resolve conflicts on non-PK unique indexes
@@ -165,6 +194,18 @@ def upsert_ocr_extractions(map_id: str, run_id: str, rows: list[dict[str, Any]])
                 response=resp,
             )
         total += len(chunk)
+
+    # This path has the service key, so ask the table how many rows it really
+    # holds for the run rather than trusting the loop's own arithmetic.
+    count = requests.get(
+        f"{url}/rest/v1/ocr_extractions",
+        headers={**_headers(key), "Prefer": "count=exact", "Range": "0-0"},
+        params={"map_id": f"eq.{map_id}", "run_id": f"eq.{run_id}", "select": "id"},
+        timeout=30,
+    )
+    if count.ok and "/" in (count.headers.get("content-range") or ""):
+        present = int(count.headers["content-range"].rsplit("/", 1)[1])
+        check_write_complete(len(payload), present, map_id, run_id)
 
     return total
 
