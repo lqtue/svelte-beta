@@ -16,11 +16,21 @@
 
   const dispatch = createEventDispatcher<{
     save: { status: OcrStatus; text: string; category: string };
+    rotate: { deg: number };
     close: void;
   }>();
 
+  $: angle = Math.round(extraction.rotation_deg ?? 0);
+
   let text = '';
   let category = '';
+  let textEl: HTMLInputElement | undefined;
+
+  /** Called by the page when the operator presses `e`. */
+  export function focusText() {
+    textEl?.focus();
+    textEl?.select();
+  }
 
   // Re-seed whenever the selection (or the row behind it) changes.
   $: if (extraction) {
@@ -43,6 +53,7 @@
       class="bbox-panel-text"
       type="text"
       bind:value={text}
+      bind:this={textEl}
       placeholder="Label text…"
       on:keydown={(e) => {
         if (e.key === 'Enter') save('validated');
@@ -56,6 +67,14 @@
   </div>
   <div class="bbox-panel-actions">
     <span class="bbox-panel-conf">{((extraction.confidence ?? 0) * 100).toFixed(0)}%</span>
+    <button
+      class="bbox-panel-btn"
+      on:click={() => dispatch('rotate', { deg: 0 })}
+      disabled={angle === 0}
+      title="Drag the round handle to turn the label · , and . nudge 1° · click to reset"
+    >
+      {angle}°
+    </button>
     <button
       class="bbox-panel-btn validate"
       class:active={extraction.status === 'validated'}

@@ -27,6 +27,9 @@ export type OcrExtractionPatch = {
   global_y?: number;
   global_w?: number;
   global_h?: number;
+  rotation_deg?: number | null;
+  label_w?: number | null;
+  label_h?: number | null;
 };
 
 export type ManualBboxInput = {
@@ -35,6 +38,9 @@ export type ManualBboxInput = {
   global_y: number;
   global_w: number;
   global_h: number;
+  rotation_deg?: number | null;
+  label_w?: number | null;
+  label_h?: number | null;
   category?: string;
   text?: string;
 };

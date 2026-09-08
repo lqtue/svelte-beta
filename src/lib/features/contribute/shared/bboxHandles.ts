@@ -18,8 +18,8 @@ import VectorLayer from 'ol/layer/Vector';
 import Translate from 'ol/interaction/Translate';
 import type OlMap from 'ol/Map';
 import type { StyleLike } from 'ol/style/Style';
-import type { Rect } from '$lib/core/geo/rectUtils';
-import { olPointToImage } from '$lib/core/geo/rectUtils';
+import type { Obb, ObbCorner, Rect } from '$lib/core/geo/rectUtils';
+import { OBB_CORNERS, obbCorner, obbFromCornerDrag, olPointToImage } from '$lib/core/geo/rectUtils';
 
 export type HandleRole = 'nw' | 'ne' | 'sw' | 'se';
 
@@ -141,6 +141,8 @@ export function createRectEditor(
   opts: {
     getRect: (bboxId: string) => Rect | null;
     onChange: (bboxId: string, rect: Rect) => void;
+    /** Live, every pointer move: the rect the drag would land on right now. */
+    onDrag?: (bboxId: string, rect: Rect) => void;
     clamp?: (rect: Rect) => Rect;
     onDragStart?: (bboxId: string) => void;
     zIndex?: number;
@@ -151,22 +153,38 @@ export function createRectEditor(
   const layer = new VectorLayer({ source, zIndex: opts.zIndex ?? 9, style: opts.style });
   map.addLayer(layer);
 
-  const translate = new Translate({ layers: [layer] });
+  /** The rect the dragged handle implies right now; the anchor is the stored
+   *  opposite corner, which is why `getRect` may not be updated mid-drag. */
+  function draggedRect(feat: Feature): { bboxId: string; rect: Rect } | null {
+    const bboxId = feat.get('bboxId') as string;
+    const role = feat.get('handleRole') as HandleRole;
+    const current = opts.getRect(bboxId);
+    if (!current) return null;
+    const newPos = olPointToImage((feat.getGeometry() as Point).getCoordinates());
+    const oppPos = oppositeCorner(role, current.x, current.y, current.w, current.h);
+    const raw = rectFromHandleMove(role, newPos, oppPos);
+    return { bboxId, rect: opts.clamp ? opts.clamp(raw) : raw };
+  }
+
+  // Slightly more slack than the body drag, so a corner still wins next to it.
+  const translate = new Translate({ layers: [layer], hitTolerance: 8 });
   translate.on('translatestart', (e: any) => {
     const feat = e.features.getArray()[0];
     if (feat && opts.onDragStart) opts.onDragStart(feat.get('bboxId') as string);
   });
+  // Live preview. Only the box is redrawn — repositioning the handles here would
+  // move the one under the pointer and fight the drag.
+  translate.on('translating', (e: any) => {
+    if (!opts.onDrag) return;
+    const feat = e.features.getArray()[0];
+    const next = feat && draggedRect(feat);
+    if (next) opts.onDrag(next.bboxId, next.rect);
+  });
   translate.on('translateend', (e: any) => {
     const feat = e.features.getArray()[0];
-    if (!feat) return;
-    const bboxId = feat.get('bboxId') as string;
-    const role = feat.get('handleRole') as HandleRole;
-    const current = opts.getRect(bboxId);
-    if (!current) return;
-    const newPos = olPointToImage((feat.getGeometry() as Point).getCoordinates());
-    const oppPos = oppositeCorner(role, current.x, current.y, current.w, current.h);
-    const raw = rectFromHandleMove(role, newPos, oppPos);
-    const rect = opts.clamp ? opts.clamp(raw) : raw;
+    const next = feat && draggedRect(feat);
+    if (!next) return;
+    const { bboxId, rect } = next;
     updateHandlePositions(source.getFeatures(), rect.x, rect.y, rect.w, rect.h);
     opts.onChange(bboxId, rect);
   });
@@ -189,6 +207,196 @@ export function createRectEditor(
     },
     move(rect) {
       updateHandlePositions(source.getFeatures(), rect.x, rect.y, rect.w, rect.h);
+    },
+    setActive(active) {
+      translate.setActive(active);
+    },
+    destroy() {
+      map.removeInteraction(translate);
+      map.removeLayer(layer);
+    },
+  };
+}
+
+/**
+ * One draggable handle that turns a box.
+ *
+ * Same shape as `createRectEditor` — its own layer plus a Translate — but the
+ * caller gets raw OL coordinates rather than a rect, because what a rotation
+ * drag means is `rotationFromPointer(centre, coord)` and the centre belongs to
+ * the caller. Add it to the map *after* the corner editor so that where the two
+ * overlap the rotation wins (OL dispatches interactions last-added-first).
+ */
+export interface RotateHandle {
+  layer: VectorLayer;
+  /** Show the handle for `bboxId` at an OL point; null hides it. */
+  show(bboxId: string | null, olPoint: number[] | null): void;
+  setActive(active: boolean): void;
+  destroy(): void;
+}
+
+export function createRotateHandle(
+  map: OlMap,
+  opts: {
+    /** Live, every pointer move. */
+    onDrag: (bboxId: string, olPoint: number[]) => void;
+    /** On drop. */
+    onChange: (bboxId: string, olPoint: number[]) => void;
+    onDragStart?: (bboxId: string) => void;
+    zIndex?: number;
+    style?: StyleLike;
+  }
+): RotateHandle {
+  const source = new VectorSource();
+  const layer = new VectorLayer({ source, zIndex: opts.zIndex ?? 10, style: opts.style });
+  map.addLayer(layer);
+
+  const coordOf = (feat: Feature) => (feat.getGeometry() as Point).getCoordinates();
+
+  const translate = new Translate({ layers: [layer], hitTolerance: 10 });
+  translate.on('translatestart', (e: any) => {
+    const feat = e.features.getArray()[0];
+    if (feat && opts.onDragStart) opts.onDragStart(feat.get('bboxId') as string);
+  });
+  translate.on('translating', (e: any) => {
+    const feat = e.features.getArray()[0];
+    if (feat) opts.onDrag(feat.get('bboxId') as string, coordOf(feat));
+  });
+  translate.on('translateend', (e: any) => {
+    const feat = e.features.getArray()[0];
+    if (feat) opts.onChange(feat.get('bboxId') as string, coordOf(feat));
+  });
+  map.addInteraction(translate);
+
+  return {
+    layer,
+    show(bboxId, olPoint) {
+      if (!bboxId || !olPoint) {
+        source.clear();
+        return;
+      }
+      const existing = source.getFeatures()[0];
+      if (existing && existing.get('bboxId') === bboxId) {
+        (existing.getGeometry() as Point).setCoordinates(olPoint);
+        return;
+      }
+      source.clear();
+      const feat = new Feature({ geometry: new Point(olPoint) });
+      feat.setId(`${bboxId}:rotate`);
+      feat.set('bboxId', bboxId);
+      source.addFeature(feat);
+    },
+    setActive(active) {
+      translate.setActive(active);
+    },
+    destroy() {
+      map.removeInteraction(translate);
+      map.removeLayer(layer);
+    },
+  };
+}
+
+/**
+ * Corner editor for a label rectangle that is *not* axis-aligned.
+ *
+ * Same skeleton as `createRectEditor` — four Point features on their own layer
+ * plus a Translate — but the handles sit on the turned corners and a drag is
+ * resolved in the label's own frame, so a diagonal label stretches lengthwise
+ * rather than being pulled square. The caller owns the rectangle: `getObb`
+ * supplies the one the drag started from, `onDrag`/`onChange` receive the new one.
+ */
+export interface ObbEditor {
+  layer: VectorLayer;
+  /** Show handles for `bboxId` on `obb`; null hides them. */
+  show(bboxId: string | null, obb: Obb | null): void;
+  /** Reposition existing handles (after a body move, say). */
+  move(obb: Obb): void;
+  setActive(active: boolean): void;
+  destroy(): void;
+}
+
+export function createObbEditor(
+  map: OlMap,
+  opts: {
+    /** The rectangle as stored — the drag anchor, so it must not change mid-drag. */
+    getObb: (bboxId: string) => Obb | null;
+    onChange: (bboxId: string, obb: Obb) => void;
+    /** Live, every pointer move. */
+    onDrag?: (bboxId: string, obb: Obb) => void;
+    onDragStart?: (bboxId: string) => void;
+    zIndex?: number;
+    style?: StyleLike;
+  }
+): ObbEditor {
+  const source = new VectorSource();
+  const layer = new VectorLayer({ source, zIndex: opts.zIndex ?? 9, style: opts.style });
+  map.addLayer(layer);
+
+  function place(bboxId: string, obb: Obb) {
+    const existing = source.getFeatures();
+    if (existing.length === 4 && existing[0].get('bboxId') === bboxId) {
+      for (const feat of existing) {
+        const [x, y] = obbCorner(obb, feat.get('obbCorner') as ObbCorner);
+        (feat.getGeometry() as Point).setCoordinates([x, -y]);
+      }
+      return;
+    }
+    source.clear();
+    source.addFeatures(
+      OBB_CORNERS.map((corner) => {
+        const [x, y] = obbCorner(obb, corner);
+        const feat = new Feature({ geometry: new Point([x, -y]) });
+        feat.setId(`${bboxId}:${corner}`);
+        feat.set('obbCorner', corner);
+        feat.set('bboxId', bboxId);
+        return feat;
+      })
+    );
+  }
+
+  /** The rectangle the dragged handle implies right now. */
+  function dragged(feat: Feature): { bboxId: string; obb: Obb } | null {
+    const bboxId = feat.get('bboxId') as string;
+    const current = opts.getObb(bboxId);
+    if (!current) return null;
+    const point = olPointToImage((feat.getGeometry() as Point).getCoordinates());
+    return { bboxId, obb: obbFromCornerDrag(current, feat.get('obbCorner') as ObbCorner, point) };
+  }
+
+  const translate = new Translate({ layers: [layer], hitTolerance: 8 });
+  translate.on('translatestart', (e: any) => {
+    const feat = e.features.getArray()[0];
+    if (feat && opts.onDragStart) opts.onDragStart(feat.get('bboxId') as string);
+  });
+  // Live preview. The handles are deliberately left alone: repositioning the one
+  // under the pointer fights the drag.
+  translate.on('translating', (e: any) => {
+    if (!opts.onDrag) return;
+    const feat = e.features.getArray()[0];
+    const next = feat && dragged(feat);
+    if (next) opts.onDrag(next.bboxId, next.obb);
+  });
+  translate.on('translateend', (e: any) => {
+    const feat = e.features.getArray()[0];
+    const next = feat && dragged(feat);
+    if (!next) return;
+    place(next.bboxId, next.obb);
+    opts.onChange(next.bboxId, next.obb);
+  });
+  map.addInteraction(translate);
+
+  return {
+    layer,
+    show(bboxId, obb) {
+      if (!bboxId || !obb) {
+        source.clear();
+        return;
+      }
+      place(bboxId, obb);
+    },
+    move(obb) {
+      const bboxId = source.getFeatures()[0]?.get('bboxId') as string | undefined;
+      if (bboxId) place(bboxId, obb);
     },
     setActive(active) {
       translate.setActive(active);

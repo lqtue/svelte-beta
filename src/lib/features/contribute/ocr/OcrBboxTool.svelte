@@ -1,18 +1,24 @@
 <!--
-  OcrBboxTool.svelte — Renders OCR extraction bboxes on the IIIF canvas.
-  Must be a child of <ImageShell>. Accesses the OL map via getImageShellStore().
+  OcrBboxTool.svelte — the OCR labels on the IIIF canvas, as editable objects.
 
-  Coordinate system:
-    global_x/y/w/h are SOURCE IMAGE PIXEL COORDINATES (same space as OL canvas).
-    OL uses y-flipped convention: ol_y = -image_y.
+  Must be a child of <ImageShell>; the OL map comes from getImageShellStore().
 
-  Interactions:
-    click        → select bbox, dispatch 'select'
-    drag body    → Translate (move whole bbox), dispatch 'move' on end
-    drag corner  → Translate on dedicated handle Point features, dispatch 'move' on end
+  Each label is one rotated rectangle — an `Obb` (`$lib/core/geo/rectUtils`):
+  centre, length along the text, thickness across it, and the angle. That
+  rectangle is what gets drawn, hit-tested and edited; there is no axis-aligned
+  outer box on screen any more. `global_*` is the box *around* it and is
+  recomputed on every write (`obbToRow`), which is why turning a label no longer
+  resizes it and why 45 degrees is no longer a blind spot.
 
-  Corner handles appear only for the selected bbox (4 squares, one per corner).
-  This replaces the old OL Modify + getModifiedRect() approach.
+  Coordinates are image pixels, y-down; OL is y-up (ol_y = -image_y) and every
+  flip goes through rectUtils.
+
+  Interactions, on the selected label only:
+    click       → select
+    drag body   → move the centre
+    drag corner → resize along the label's own axes, opposite corner anchored
+    drag knob   → turn about the centre
+  Each dispatches `edit` with the columns to write; the parent owns the PATCH.
 -->
 <script lang="ts">
   import { CAT_COLORS } from '../shared/constants';
@@ -23,20 +29,35 @@
   import VectorLayer from 'ol/layer/Vector';
   import Feature from 'ol/Feature';
   import Polygon from 'ol/geom/Polygon';
-  import LineString from 'ol/geom/LineString';
   import Style from 'ol/style/Style';
   import Fill from 'ol/style/Fill';
   import Stroke from 'ol/style/Stroke';
   import TextStyle from 'ol/style/Text';
   import RegularShape from 'ol/style/RegularShape';
+  import CircleStyle from 'ol/style/Circle';
   import Select from 'ol/interaction/Select';
   import Translate from 'ol/interaction/Translate';
   import Draw, { createBox } from 'ol/interaction/Draw';
   import { click } from 'ol/events/condition';
   import { getImageShellStore } from '$lib/map/shell/imageContext';
   import type { OcrExtraction } from '../shared/types';
-  import { toOlRing, fromOlExtent, baselineChord, type Rect } from '$lib/core/geo/rectUtils';
-  import { createRectEditor, type RectEditor } from '../shared/bboxHandles';
+  import {
+    fromOlExtent,
+    obbFromRow,
+    obbRing,
+    obbToRow,
+    ringCentre,
+    rotationFromPointer,
+    rotationHandlePoint,
+    type Obb,
+    type ObbRow,
+  } from '$lib/core/geo/rectUtils';
+  import {
+    createObbEditor,
+    createRotateHandle,
+    type ObbEditor,
+    type RotateHandle,
+  } from '../shared/bboxHandles';
 
   export let extractions: OcrExtraction[] = [];
   export let selectedId: string | null = null;
@@ -46,8 +67,8 @@
 
   const dispatch = createEventDispatcher<{
     select: { id: string };
-    move: { id: string; global_x: number; global_y: number; global_w: number; global_h: number };
-    draw: { global_x: number; global_y: number; global_w: number; global_h: number };
+    edit: { id: string } & Required<ObbRow>;
+    draw: Required<ObbRow>;
   }>();
 
   const STATUS_DASH: Record<string, number[]> = {
@@ -57,20 +78,36 @@
   };
 
   const shellStore = getImageShellStore();
-  let bboxSource: VectorSource | null = null;
-  let bboxLayer: VectorLayer | null = null;
-  let rectEditor: RectEditor | null = null;
+  let labelSource: VectorSource | null = null;
+  let labelLayer: VectorLayer | null = null;
+  let obbEditor: ObbEditor | null = null;
+  let rotateHandle: RotateHandle | null = null;
+  /** The edit in flight, so the canvas can show it before the write lands. */
+  let preview: { id: string; obb: Obb } | null = null;
   let selectInteraction: Select | null = null;
   let bodyTranslate: Translate | null = null;
   let drawInteraction: Draw | null = null;
-  let activeId: string | null = null;
   let initialized = false;
 
-  // ── Styling ──────────────────────────────────────────────────────────────
+  // ── The label rectangle ───────────────────────────────────────────────────
+  function rowOf(id: string): OcrExtraction | undefined {
+    return extractions.find((e) => e.id === id);
+  }
 
-  function handleStyleFn(feat: Feature): Style {
-    const bboxId = feat.get('bboxId') as string;
-    const ext = extractions.find((e) => e.id === bboxId);
+  /** As stored — the anchor a drag is resolved against, so never the preview. */
+  function storedObb(id: string): Obb | null {
+    const ext = rowOf(id);
+    return ext && ext.global_w > 0 && ext.global_h > 0 ? obbFromRow(ext) : null;
+  }
+
+  /** What to draw: the live edit if there is one, else the row. */
+  function obbOf(ext: OcrExtraction): Obb {
+    return preview?.id === ext.id ? preview.obb : obbFromRow(ext);
+  }
+
+  // ── Styling ───────────────────────────────────────────────────────────────
+  function cornerStyleFn(feat: Feature): Style {
+    const ext = rowOf(feat.get('bboxId') as string);
     const color = CAT_COLORS[ext?.category ?? ''] ?? INK.grey;
     return new Style({
       image: new RegularShape({
@@ -83,19 +120,19 @@
     });
   }
 
-  /** The reported text baseline as a drawable line — geometry lives in `rectUtils`. */
-  function baselineGeom(ext: OcrExtraction): LineString | null {
-    const chord = baselineChord(
-      ext.global_x,
-      ext.global_y,
-      ext.global_w,
-      ext.global_h,
-      ext.rotation_deg
-    );
-    return chord ? new LineString(chord) : null;
+  function rotateStyleFn(feat: Feature): Style {
+    const ext = rowOf(feat.get('bboxId') as string);
+    const color = CAT_COLORS[ext?.category ?? ''] ?? INK.grey;
+    return new Style({
+      image: new CircleStyle({
+        radius: 6,
+        fill: new Fill({ color: INK.paper }),
+        stroke: new Stroke({ color, width: 2 }),
+      }),
+    });
   }
 
-  function makeStyle(ext: OcrExtraction, selected = false): Style | any[] {
+  function makeStyle(ext: OcrExtraction, selected = false): Style | Style[] {
     const isFiltered = filteredIds.size === 0 || filteredIds.has(ext.id);
     const hasSelection = !!selectedId;
 
@@ -105,18 +142,16 @@
     } else if (hasSelection && !selected) {
       opacity = isolationMode ? 0 : 0.25;
     }
-
     if (opacity === 0) return [];
 
     const color = CAT_COLORS[ext.category] ?? INK.grey;
-    const dash = STATUS_DASH[ext.status] ?? [];
     const label = ext.text_validated ?? ext.text;
 
-    const boxStyle = new Style({
+    return new Style({
       stroke: new Stroke({
         color: color + (opacity < 1 ? '66' : ''),
         width: selected ? 3 : 1.5,
-        lineDash: dash,
+        lineDash: STATUS_DASH[ext.status] ?? [],
       }),
       fill: new Fill({ color: color + (selected ? '44' : opacity < 0.5 ? '08' : '18') }),
       text:
@@ -127,78 +162,49 @@
               fill: new Fill({ color: INK.paper }),
               stroke: new Stroke({ color: INK.ink, width: 2.5 }),
               overflow: true,
+              // OL rotation is clockwise; the stored angle reads counter-clockwise.
+              // Rotating with the view keeps the caption on the lettering when the
+              // whole sheet is turned.
+              rotation: (-obbOf(ext).deg * Math.PI) / 180,
+              rotateWithView: true,
             })
           : undefined,
     });
-
-    // ponytail: the style carries its own geometry, so while a box is being
-    // dragged the baseline stays where the box was and snaps back on drop —
-    // syncFeatures re-styles only on translateend. Derive it from the feature's
-    // live geometry if the lag ever reads as a bug.
-    const baseline = baselineGeom(ext);
-    if (!baseline) return boxStyle;
-    return [
-      boxStyle,
-      new Style({
-        geometry: baseline,
-        stroke: new Stroke({
-          color: color + (opacity < 1 ? '99' : ''),
-          width: selected ? 2.5 : 1.5,
-        }),
-      }),
-    ];
   }
 
-  // ── Sync extractions → OL features ───────────────────────────────────────
+  // ── Sync rows → OL features ───────────────────────────────────────────────
   function syncFeatures() {
-    if (!bboxSource) return;
-    const seenIds = new Set<string>();
+    if (!labelSource) return;
+    const seen = new Set<string>();
 
     for (const ext of extractions) {
       if (!(ext.global_w > 0) || !(ext.global_h > 0)) continue;
-      seenIds.add(ext.id);
-
-      if (ext.id === activeId) {
-        const feat = bboxSource.getFeatureById(ext.id);
-        if (feat) {
-          feat.set('extraction', ext);
-          feat.setStyle(makeStyle(ext, ext.id === selectedId));
-        }
-        continue;
-      }
-
-      const ring = toOlRing(ext.global_x, ext.global_y, ext.global_w, ext.global_h);
-      let feat = bboxSource.getFeatureById(ext.id);
-
+      seen.add(ext.id);
+      const ring = obbRing(obbOf(ext));
+      let feat = labelSource.getFeatureById(ext.id);
       if (!feat) {
         feat = new Feature({ geometry: new Polygon([ring]) });
         feat.setId(ext.id);
         feat.set('extractionId', ext.id);
-        bboxSource.addFeature(feat);
+        labelSource.addFeature(feat);
       } else {
         (feat.getGeometry() as Polygon).setCoordinates([ring]);
       }
-
       feat.set('extraction', ext);
       feat.setStyle(makeStyle(ext, ext.id === selectedId));
     }
 
-    for (const feat of bboxSource.getFeatures()) {
-      const id = feat.get('extractionId') as string;
-      if (!seenIds.has(id)) bboxSource.removeFeature(feat);
+    for (const feat of labelSource.getFeatures()) {
+      if (!seen.has(feat.get('extractionId') as string)) labelSource.removeFeature(feat);
     }
   }
 
-  // ── Sync corner handles for the selected extraction ───────────────────────
-  function rectOf(id: string): Rect | null {
-    const ext = extractions.find((e) => e.id === id);
-    if (!ext || !(ext.global_w > 0)) return null;
-    return { x: ext.global_x, y: ext.global_y, w: ext.global_w, h: ext.global_h };
-  }
-
   function syncHandles() {
-    if (!rectEditor) return;
-    rectEditor.show(selectedId, selectedId ? rectOf(selectedId) : null);
+    // Not mid-drag: repositioning the handle under the pointer fights the drag.
+    if (preview) return;
+    const obb = selectedId ? storedObb(selectedId) : null;
+    obbEditor?.show(selectedId, obb);
+    rotateHandle?.show(obb ? selectedId : null, obb ? rotationHandlePoint(obb) : null);
   }
 
   $: {
@@ -206,40 +212,46 @@
     void selectedId;
     void filteredIds;
     void isolationMode;
-    if (bboxSource) syncFeatures();
+    if (labelSource) syncFeatures();
   }
   $: {
     void selectedId;
     void extractions;
-    if (rectEditor) syncHandles();
+    if (obbEditor) syncHandles();
   }
 
   // Toggle draw mode: disable select/translate, enable Draw interaction
   $: if (initialized) toggleDrawMode(drawMode);
 
   function toggleDrawMode(active: boolean) {
-    if (!selectInteraction || !bodyTranslate || !rectEditor) return;
+    if (!selectInteraction || !bodyTranslate || !obbEditor) return;
     selectInteraction.setActive(!active);
     bodyTranslate.setActive(!active);
-    rectEditor.setActive(!active);
+    obbEditor.setActive(!active);
+    rotateHandle?.setActive(!active);
     if (drawInteraction) drawInteraction.setActive(active);
   }
 
-  /** Snaps the bbox polygon + its cached extraction to a resized rect. */
-  function snapBboxToRect(bboxId: string, rect: Rect) {
-    const ext = extractions.find((e) => e.id === bboxId);
-    const bboxFeat = bboxSource?.getFeatureById(bboxId);
-    if (!ext || !bboxFeat) return;
-    (bboxFeat.getGeometry() as Polygon).setCoordinates([toOlRing(rect.x, rect.y, rect.w, rect.h)]);
-    const updatedExt = {
-      ...ext,
-      global_x: rect.x,
-      global_y: rect.y,
-      global_w: rect.w,
-      global_h: rect.h,
-    };
-    bboxFeat.set('extraction', updatedExt);
-    bboxFeat.setStyle(makeStyle(updatedExt, true));
+  /**
+   * Draw one label at the rectangle an edit is heading for. Both the feature
+   * style and its `extraction` property are written, because a selected feature
+   * is drawn twice — once by its layer and once by Select's overlay, which
+   * styles from that property.
+   */
+  function showPreview(id: string, obb: Obb) {
+    preview = { id, obb };
+    const ext = rowOf(id);
+    const feat = labelSource?.getFeatureById(id);
+    if (!ext || !feat) return;
+    (feat.getGeometry() as Polygon).setCoordinates([obbRing(obb)]);
+    feat.set('extraction', ext);
+    feat.setStyle(makeStyle(ext, true));
+  }
+
+  /** Hand the finished rectangle to the parent: itself plus the box around it. */
+  function commit(id: string, obb: Obb) {
+    preview = null;
+    dispatch('edit', { id, ...obbToRow(obb) });
   }
 
   // ── Tool setup ────────────────────────────────────────────────────────────
@@ -250,15 +262,16 @@
     initialized = true;
     const olMap = ctx.map;
 
-    // Bbox layer (z8)
-    bboxSource = new VectorSource();
-    bboxLayer = new VectorLayer({ source: bboxSource, zIndex: 8 });
-    olMap.addLayer(bboxLayer);
+    labelSource = new VectorSource();
+    labelLayer = new VectorLayer({ source: labelSource, zIndex: 8 });
+    olMap.addLayer(labelLayer);
 
-    // Click to select bbox
     selectInteraction = new Select({
       condition: click,
-      layers: (l: any) => l === bboxLayer,
+      // A legend label can be 8 px tall at full zoom-out; an exact hit test
+      // makes it unclickable.
+      hitTolerance: 6,
+      layers: (l: any) => l === labelLayer,
       style: (feat: any) => makeStyle(feat.get('extraction'), true),
     });
     selectInteraction.on('select', (e: any) => {
@@ -267,52 +280,70 @@
     });
     olMap.addInteraction(selectInteraction);
 
-    // Body translate — move entire selected bbox
-    bodyTranslate = new Translate({ features: selectInteraction.getFeatures() });
-    bodyTranslate.on('translatestart', (e: any) => {
+    // Body drag — move the centre. OL drags the polygon itself, so the centre
+    // is read back off the moved ring and the handles are carried along.
+    bodyTranslate = new Translate({
+      features: selectInteraction.getFeatures(),
+      hitTolerance: 6,
+    });
+    const movedObb = (feat: Feature): { id: string; obb: Obb } | null => {
+      const id = feat.get('extractionId') as string;
+      const stored = storedObb(id);
+      if (!stored) return null;
+      const ring = (feat.getGeometry() as Polygon).getCoordinates()[0];
+      const [cx, cy] = ringCentre(ring);
+      return { id, obb: { ...stored, cx, cy } };
+    };
+    bodyTranslate.on('translating', (e: any) => {
       const feat = e.features.getArray()[0];
-      if (feat) activeId = feat.get('extractionId');
+      const next = feat && movedObb(feat);
+      if (!next) return;
+      preview = next;
+      obbEditor?.move(next.obb);
+      rotateHandle?.show(next.id, rotationHandlePoint(next.obb));
     });
     bodyTranslate.on('translateend', (e: any) => {
-      activeId = null;
       for (const feat of e.features.getArray()) {
-        const id = feat.get('extractionId') as string;
-        const extent = (feat.getGeometry() as Polygon).getExtent();
-        const rect = fromOlExtent(extent);
-        dispatch('move', {
-          id,
-          global_x: rect.x,
-          global_y: rect.y,
-          global_w: rect.w,
-          global_h: rect.h,
-        });
-        // Refresh handle positions to match new body position
-        if (rectEditor && id === selectedId) rectEditor.move(rect);
+        const next = movedObb(feat);
+        if (next) commit(next.id, next.obb);
       }
     });
     olMap.addInteraction(bodyTranslate);
 
-    // Corner-handle resize (z9) — added after bodyTranslate so a corner drag
-    // wins over a body drag (OL dispatches interactions last-added-first).
-    rectEditor = createRectEditor(olMap, {
+    // Corner resize (z9) — added after the body drag so a corner wins next to
+    // it (OL dispatches interactions last-added-first).
+    obbEditor = createObbEditor(olMap, {
       zIndex: 9,
-      style: (f: any) => handleStyleFn(f as Feature),
-      getRect: rectOf,
-      onDragStart: (bboxId) => (activeId = bboxId),
-      onChange: (bboxId, rect) => {
-        activeId = null;
-        snapBboxToRect(bboxId, rect);
-        dispatch('move', {
-          id: bboxId,
-          global_x: rect.x,
-          global_y: rect.y,
-          global_w: rect.w,
-          global_h: rect.h,
-        });
+      style: (f: any) => cornerStyleFn(f as Feature),
+      getObb: storedObb,
+      onDrag: (id, obb) => {
+        showPreview(id, obb);
+        rotateHandle?.show(id, rotationHandlePoint(obb));
+      },
+      onChange: commit,
+    });
+
+    // Turn handle (z10) — added last, so it wins wherever it overlaps a corner.
+    rotateHandle = createRotateHandle(olMap, {
+      zIndex: 10,
+      style: (f: any) => rotateStyleFn(f as Feature),
+      onDrag: (id, olPoint) => {
+        const stored = storedObb(id);
+        if (!stored) return;
+        // Nothing but the angle changes — the label keeps the size it has.
+        showPreview(id, { ...stored, deg: rotationFromPointer(stored.cx, stored.cy, olPoint) });
+        obbEditor?.move(preview!.obb);
+      },
+      onChange: (id, olPoint) => {
+        const stored = storedObb(id);
+        preview = null;
+        if (!stored) return;
+        commit(id, { ...stored, deg: rotationFromPointer(stored.cx, stored.cy, olPoint) });
       },
     });
 
-    // Draw interaction for adding new bboxes (inactive until drawMode=true)
+    // Draw interaction for adding new labels (inactive until drawMode=true).
+    // A drawn box is upright, so it starts as its own rectangle at 0 degrees.
     const drawSource = new VectorSource();
     drawInteraction = new Draw({
       source: drawSource,
@@ -321,10 +352,18 @@
     });
     drawInteraction.setActive(false);
     drawInteraction.on('drawend', (e: any) => {
-      const extent = e.feature.getGeometry().getExtent();
-      const rect = fromOlExtent(extent);
+      const rect = fromOlExtent(e.feature.getGeometry().getExtent());
       drawSource.clear();
-      dispatch('draw', { global_x: rect.x, global_y: rect.y, global_w: rect.w, global_h: rect.h });
+      dispatch(
+        'draw',
+        obbToRow({
+          cx: rect.x + rect.w / 2,
+          cy: rect.y + rect.h / 2,
+          w: rect.w,
+          h: rect.h,
+          deg: 0,
+        })
+      );
     });
     olMap.addInteraction(drawInteraction);
 
@@ -334,12 +373,13 @@
 
   onDestroy(() => {
     const ctx = get(shellStore);
-    rectEditor?.destroy();
+    obbEditor?.destroy();
+    rotateHandle?.destroy();
     if (ctx) {
       if (drawInteraction) ctx.map.removeInteraction(drawInteraction);
       if (bodyTranslate) ctx.map.removeInteraction(bodyTranslate);
       if (selectInteraction) ctx.map.removeInteraction(selectInteraction);
-      if (bboxLayer) ctx.map.removeLayer(bboxLayer);
+      if (labelLayer) ctx.map.removeLayer(labelLayer);
     }
   });
 </script>

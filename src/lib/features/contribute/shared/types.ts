@@ -15,7 +15,10 @@ export type OcrExtraction = {
   confidence: number;
   status: 'pending' | 'validated' | 'rejected';
   run_id?: string;
+  /** The label's own rectangle (mig 076): length along the text and across it. */
   rotation_deg?: number | null;
+  label_w?: number | null;
+  label_h?: number | null;
   notes?: string | null;
   validated_at?: string | null;
   model?: string | null;

@@ -86,7 +86,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
       let q = supabase
         .from('ocr_extractions')
         .select(
-          'id, run_id, tile_x, tile_y, tile_w, tile_h, global_x, global_y, global_w, global_h, category, text, text_validated, category_validated, confidence, rotation_deg, notes, status, validated_at, model, prompt'
+          'id, run_id, tile_x, tile_y, tile_w, tile_h, global_x, global_y, global_w, global_h, category, text, text_validated, category_validated, confidence, rotation_deg, label_w, label_h, notes, status, validated_at, model, prompt'
         )
         .eq('map_id', mapId)
         .order('category', { ascending: true })
@@ -151,6 +151,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     global_y,
     global_w,
     global_h,
+    // A drawn box is upright and is its own label rectangle.
+    rotation_deg: Number.isFinite(body.rotation_deg) ? body.rotation_deg : 0,
+    label_w: Number.isFinite(body.label_w) ? body.label_w : global_w,
+    label_h: Number.isFinite(body.label_h) ? body.label_h : global_h,
     category: body.category ?? 'other',
     text: body.text ?? '',
     confidence: 1.0,
@@ -189,8 +193,20 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     global_y,
     global_w,
     global_h,
+    rotation_deg,
+    label_w,
+    label_h,
   } = body;
   if (!extractionId) throw error(400, 'Missing extraction id');
+  for (const [name, value] of [
+    ['rotation_deg', rotation_deg],
+    ['label_w', label_w],
+    ['label_h', label_h],
+  ] as const) {
+    if (value !== undefined && value !== null && !Number.isFinite(value)) {
+      throw error(400, `${name} must be a number or null`);
+    }
+  }
   if (status !== undefined && !isOcrReviewStatus(status)) {
     throw error(400, 'status must be validated, rejected, or pending');
   }
@@ -205,6 +221,11 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   if (global_y !== undefined) update.global_y = global_y;
   if (global_w !== undefined) update.global_w = global_w;
   if (global_h !== undefined) update.global_h = global_h;
+  // The label's own rectangle (mig 076). `global_*` is the box around it and
+  // arrives in the same PATCH, so there is nothing to recompute server-side.
+  if (rotation_deg !== undefined) update.rotation_deg = rotation_deg;
+  if (label_w !== undefined) update.label_w = label_w;
+  if (label_h !== undefined) update.label_h = label_h;
   if (!Object.keys(update).length && status === undefined) {
     throw error(400, 'No fields to update');
   }

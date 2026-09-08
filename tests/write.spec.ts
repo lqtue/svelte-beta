@@ -142,6 +142,50 @@ test('staff can create and validate an OCR bbox through the review API', async (
   expect(row.status).toBe('validated');
   expect(row.text_validated).toBe('Rue Catinat');
   expect(row.validated_at).toBeTruthy();
+  // A drawn box is upright, so it is its own label rectangle (mig 076).
+  expect(row.label_w).toBe(50);
+  expect(row.label_h).toBe(20);
+});
+
+test('turning a label writes its own rectangle, not just the box', async () => {
+  const runId = `write-smoke-obb-${Date.now()}`;
+  created.runIds.push(runId);
+
+  const post = await staffRequest.post(`/api/admin/maps/${mapId}/ocr-review`, {
+    data: { run_id: runId, global_x: 0, global_y: 0, global_w: 200, global_h: 20 },
+  });
+  expect(post.ok(), await post.text()).toBe(true);
+  const { id } = await post.json();
+
+  // What the editor sends after a turn: the label unchanged, the box around it
+  // recomputed. The two must come back exactly as sent — deriving the size from
+  // the box is what the columns exist to avoid.
+  const patch = await staffRequest.patch(`/api/admin/maps/${mapId}/ocr-review`, {
+    data: {
+      id,
+      rotation_deg: 45,
+      label_w: 200,
+      label_h: 20,
+      global_x: -27.78,
+      global_y: 66.22,
+      global_w: 155.56,
+      global_h: 155.56,
+    },
+  });
+  expect(patch.ok(), await patch.text()).toBe(true);
+
+  const get = await staffRequest.get(`/api/admin/maps/${mapId}/ocr-review?run_id=${runId}`);
+  const { extractions } = await get.json();
+  const row = extractions.find((e: { id: string }) => e.id === id);
+  expect(row.rotation_deg).toBe(45);
+  expect(row.label_w).toBe(200);
+  expect(row.label_h).toBe(20);
+  expect(row.global_w).toBeCloseTo(155.56, 2);
+
+  const bad = await staffRequest.patch(`/api/admin/maps/${mapId}/ocr-review`, {
+    data: { id, label_w: 'wide' },
+  });
+  expect(bad.status()).toBe(400);
 });
 
 test('an anonymous caller cannot reach the staff review API', async () => {
