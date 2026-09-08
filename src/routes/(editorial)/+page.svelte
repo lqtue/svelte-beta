@@ -206,7 +206,6 @@
       mapId={HERO_SHEET.id}
       source={HERO_SHEET.annotation}
       bbox={HERO_SHEET.bbox}
-      href="/explore?map={HERO_SHEET.id}"
       on:stage={(e) => (heroStage = e.detail.index)}
     />
     <div class="hero-content" class:revealed={heroStage >= 4}>
