@@ -120,10 +120,26 @@
   });
 
   async function start(m: OlMap) {
-    // Wheel zoom is off at construction — see MapShell's `wheelZoom` prop. It
-    // used to be removed here instead, which left a window where the wheel ate
-    // the reader's scroll.
+    // Wheel zoom is off at construction — see MapShell's `wheelZoom` prop — but
+    // that is not enough on its own. `Map.handleTargetChanged_` binds a
+    // non-passive `wheel` listener to the viewport unconditionally, whatever
+    // interactions the map has. Non-passive means Chrome cannot scroll on the
+    // compositor: every wheel tick has to wait for a main thread that is busy
+    // rendering a warped WebGL map, and over the map the page feels stuck while
+    // the same gesture over the masthead scrolls fine. Headless never shows it,
+    // because headless has no compositor scrolling to lose.
     //
+    // ponytail: reaches for `boundHandleBrowserEvent_`, an OL private. It is a
+    // plain instance field and `removeEventListener` matches on type and
+    // function alone, so this is stable in a way a monkey-patch would not be —
+    // but it is a private, so if an OL upgrade renames it the wheel simply gets
+    // sluggish again rather than breaking. Upstream has no option for this;
+    // the fix would be OL registering the listener only when an interaction
+    // wants it.
+    const wheelHandler = (m as unknown as { boundHandleBrowserEvent_?: EventListener })
+      .boundHandleBrowserEvent_;
+    if (wheelHandler) m.getViewport().removeEventListener('wheel', wheelHandler);
+
     // The +/- buttons land under the nav and read as chrome on a page that is
     // not a tool. Attribution and scale stay: both are required.
     for (const c of m.getControls().getArray().slice()) {
