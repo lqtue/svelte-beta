@@ -29,8 +29,6 @@
   export let source: string;
   /** `[minLng, minLat, maxLng, maxLat]` — where to point the camera. */
   export let bbox: [number, number, number, number];
-  /** Where a caption sends the reader. */
-  export let href: string;
 
   /**
    * One line per beat, shown alone. They are claims about the archive, so they
@@ -41,14 +39,14 @@
     'Hồ Chí Minh City, today',
     'Saigon, 1882 — laid over the ground it drew',
     '46 plots and waterways, traced by hand',
-    '43 names, read off the sheet and placed',
+    '85 names, read off the sheet and placed',
   ];
 
   /** Fires on every beat, so the page can bring in its masthead on the last. */
   const dispatch = createEventDispatcher<{ stage: { index: number } }>();
 
   /** Longest the masthead will ever wait, however the sequence goes. */
-  const FAILSAFE_MS = 16000;
+  const FAILSAFE_MS = 12000;
 
   /** Set once the sequence has played in this tab. */
   const PLAYED_KEY = 'vma-hero-played-v1';
@@ -182,13 +180,15 @@
     </div>
   {/if}
 
-  <!-- One line at a time. `aria-live` reads each as it lands, so a screen
-       reader hears the same four claims a sighted reader watches. -->
+  <!-- One line at a time, and only a line: it used to be a link to /explore,
+       which meant a click anywhere near the middle of the hero tore the page
+       down mid-sequence. `aria-live` reads each as it lands, so a screen reader
+       hears the same four claims a sighted reader watches. -->
   <div class="hero-caption" aria-live="polite">
     {#if caption}
       {#key caption}
-        <p in:fly={{ y: 10, duration: 500 }} out:fade={{ duration: 250 }}>
-          <a {href}>{caption}</a>
+        <p in:fly={{ y: 10, duration: 400 }} out:fade={{ duration: 200 }}>
+          <span>{caption}</span>
         </p>
       {/key}
     {/if}
@@ -239,9 +239,8 @@
     margin: 0;
   }
 
-  .hero-caption a {
+  .hero-caption span {
     display: inline-block;
-    pointer-events: auto;
     background: var(--color-white);
     border: var(--border-thick);
     border-radius: var(--radius-pill);
@@ -253,10 +252,6 @@
     color: var(--color-text);
     text-decoration: none;
     white-space: nowrap;
-  }
-
-  .hero-caption a:hover {
-    box-shadow: var(--shadow-solid);
   }
 
   /* On a phone the hero fills the screen, so a one-finger swipe has to scroll
@@ -344,7 +339,7 @@
       width: 5rem;
     }
 
-    .hero-caption a {
+    .hero-caption span {
       font-size: 0.95rem;
       white-space: normal;
       text-align: center;

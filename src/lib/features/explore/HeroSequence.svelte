@@ -66,12 +66,12 @@
    * When each beat begins, ms from the first frame. The last one carries no
    * layer of its own — it is the cue for the page to bring in its masthead.
    */
-  const BEATS = [0, 2600, 5800, 9000, 12200];
+  const BEATS = [0, 1500, 3300, 4900, 6400];
   /** How long the sheet takes to come up, once its beat starts. */
-  const SHEET_MS = 2400;
-  const LABELS_MS = 1000;
+  const SHEET_MS = 1400;
+  const LABELS_MS = 700;
   /** Longest the first beat will wait for the map to actually paint. */
-  const PAINT_CAP_MS = 5000;
+  const PAINT_CAP_MS = 3000;
 
   let olMap: OlMap | null = null;
   let sheet: WarpedMapLayer | null = null;
@@ -112,7 +112,19 @@
     return unsub;
   });
 
+  /** ⌘/Ctrl + wheel = zoom; a bare wheel is left to the page. */
+  function onWheel(e: WheelEvent) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const view = olMap?.getView();
+    if (!view) return;
+    // A trackpad pinch arrives as many small ctrl+wheel ticks, so this scales
+    // with deltaY rather than stepping a whole zoom level per event.
+    view.setZoom((view.getZoom() ?? 16) - e.deltaY * 0.01);
+  }
+
   onDestroy(() => {
+    olMap?.getViewport().removeEventListener('wheel', onWheel);
     for (const f of frames) cancelAnimationFrame(f);
     for (const t of timers) clearTimeout(t);
     if (sheet) destroyWarpedLayer(sheet);
@@ -139,6 +151,14 @@
     const wheelHandler = (m as unknown as { boundHandleBrowserEvent_?: (e: Event) => void })
       .boundHandleBrowserEvent_;
     if (wheelHandler) m.getViewport().removeEventListener('wheel', wheelHandler);
+
+    // ⌘/Ctrl + wheel zooms, everything else scrolls the page. Our own listener
+    // rather than OL's `MouseWheelZoom` with a condition, because OL's arrives
+    // through the handler removed just above. It is non-passive — a zoom has to
+    // cancel the browser's own ctrl+wheel page zoom — but it returns on the
+    // first line without a modifier, so the cost the removal above bought back
+    // stays bought.
+    m.getViewport().addEventListener('wheel', onWheel, { passive: false });
 
     // The +/- buttons land under the nav and read as chrome on a page that is
     // not a tool. Attribution and scale stay: both are required.
@@ -229,9 +249,11 @@
    * person has checked — because the front page should not quote the model's
    * unreviewed guesses at itself.
    *
-   * ponytail: one query, no paging, capped at 60. The 1882 sheet has 43
-   * validated rows; a sheet with hundreds would need thinning by zoom, and OL
-   * declutter would be the place to start.
+   * ponytail: one query, no paging, capped at 150. The 1882 sheet has 85
+   * validated rows and the queue is still moving, so the cap has headroom
+   * rather than sitting on the count; a sheet with hundreds would need thinning
+   * by zoom, and OL declutter would be the place to start. The caption in
+   * HeroMap quotes the same number by hand — bump both together.
    */
   async function loadLabels(m: OlMap, initialOpacity: number) {
     if (labelsRequested) return;
@@ -243,7 +265,7 @@
       .eq('map_id', mapId)
       .eq('status', 'validated')
       .not('geom', 'is', null)
-      .limit(60);
+      .limit(150);
 
     const features: Feature[] = [];
     for (const row of (data ?? []) as { text: string | null; geom: unknown }[]) {
