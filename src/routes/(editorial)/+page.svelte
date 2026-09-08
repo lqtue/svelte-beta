@@ -237,174 +237,140 @@
   </header>
 
   <main class="main">
-    <!-- 
-      ============================================
-      SECTION 1: CATALOG
-      ============================================
-    -->
-    <section class="mode-section" id="view-mode">
-      <div class="feature-card mega-card">
-        <div class="feature-header-split">
-          <div class="feature-content-full">
-            <h2 class="feature-title">The Catalog</h2>
-            <p class="feature-description">
-              A featured sheet, whole. Pick another below, then open it in the viewer to lay it over
-              today's city, or inspect the high-resolution IIIF scan up close. Each record links
-              back to the library or collection that holds it.
-            </p>
-          </div>
+    <!-- ============ THE CATALOG ============ -->
+    <section class="home-section" id="view-mode">
+      <div class="section-head">
+        <div class="section-head-text">
+          <h2 class="feature-title">The Catalog</h2>
+          <p class="feature-description">
+            A featured sheet, whole. Pick another below, then open it in the viewer to lay it over
+            today's city, or inspect the high-resolution IIIF scan up close. Each record links back
+            to the library or collection that holds it.
+          </p>
         </div>
+        <ChunkyTabs
+          tabs={[
+            { value: 'featured', label: 'Featured' },
+            { value: 'favorites', label: 'Favorites' },
+          ]}
+          active={filterCollection}
+          on:change={(e) => (filterCollection = e.detail as typeof filterCollection)}
+        />
+      </div>
 
-        <div class="embedded-maps-area">
-          <div class="tab-bar">
-            <ChunkyTabs
-              tabs={[
-                { value: 'featured', label: 'Featured' },
-                { value: 'favorites', label: 'Favorites' },
-              ]}
-              active={filterCollection}
-              on:change={(e) => (filterCollection = e.detail as typeof filterCollection)}
-            />
-          </div>
-
-          {#if loading}
-            <div class="maps-loading">
-              <span>Opening the archive…</span>
-            </div>
-          {:else if filterCollection === 'favorites' && !session}
-            <div class="empty-state">
-              <h3>No favorites yet.</h3>
-              <p>Heart any map and it lands here, on every device you sign in from.</p>
-              <p>Sign in from the top nav.</p>
-            </div>
-          {:else if displayedMaps.length > 0}
-            <FeaturedSheet
-              maps={displayedMaps}
-              {thumbnails}
-              {favoriteIds}
-              showFavorite={!!session}
-              on:toggleFavorite={(e) => toggleFavorite(e.detail)}
-            />
-          {:else}
-            <div class="empty-state">
-              <h3>Nothing here yet.</h3>
-              <p>No maps match this view — try another tab or the catalog.</p>
-            </div>
-          {/if}
-
-          <div class="action-footer">
-            <div class="footer-links-group">
-              <a href="/catalog" class="text-link">Browse the catalog</a>
-              <a href="/scan" class="text-link">Inspect a scan</a>
-            </div>
-            <a href="/explore" class="action-btn primary-btn">Open the map viewer</a>
-          </div>
+      {#if loading}
+        <div class="maps-loading">
+          <span>Opening the archive…</span>
         </div>
+      {:else if filterCollection === 'favorites' && !session}
+        <div class="empty-state">
+          <h3>No favorites yet.</h3>
+          <p>Heart any map and it lands here, on every device you sign in from.</p>
+          <p>Sign in from the top nav.</p>
+        </div>
+      {:else if displayedMaps.length > 0}
+        <FeaturedSheet
+          maps={displayedMaps}
+          {thumbnails}
+          {favoriteIds}
+          showFavorite={!!session}
+          on:toggleFavorite={(e) => toggleFavorite(e.detail)}
+        />
+      {:else}
+        <div class="empty-state">
+          <h3>Nothing here yet.</h3>
+          <p>No maps match this view — try another tab or the catalog.</p>
+        </div>
+      {/if}
+
+      <div class="action-footer">
+        <div class="footer-links-group">
+          <a href="/catalog" class="text-link">Browse the catalog</a>
+          <a href="/scan" class="text-link">Inspect a scan</a>
+        </div>
+        <a href="/explore" class="action-btn primary-btn">Open the map viewer</a>
       </div>
     </section>
 
-    <div class="split-sections">
-      <!--
-        ============================================
-        SECTION 2: CREATIVE TOOLS
-        ============================================
-      -->
-      <section class="mode-section" id="create-mode">
-        <div class="feature-card hover-lift">
-          <h2 class="feature-title">
-            Tools <span class="fun-badge">Beta</span>
-          </h2>
-          <p class="feature-description">
-            Build something on top of the archive. Stitch a scrollytelling story across historical
-            layers, or annotate a map with your own points, lines, and shapes.
-          </p>
-          <div class="micro-links">
-            <a href="/explore?mode=story" class="micro-link-card">
-              <span class="mlc-body">
-                <span class="mlc-title">Story Builder</span>
-                <span class="mlc-desc"
-                  >Walk readers through a place, one historical layer at a time</span
-                >
-              </span>
-            </a>
-            <a href="/explore?mode=annotate" class="micro-link-card">
-              <span class="mlc-body">
-                <span class="mlc-title">Annotate</span>
-                <span class="mlc-desc"
-                  >Draw points, lines, and shapes on any map and save them as a set</span
-                >
-              </span>
-            </a>
-          </div>
+    <!-- ============ THE BAND ============
+         Tools, Contribute and the two standing notes were four bordered cards
+         across two rows. They hold four short lists and two short paragraphs
+         between them, which is one band's worth of content, so that is what
+         they are now. -->
+    <div class="home-band">
+      <section class="band-col" id="create-mode">
+        <h2 class="band-title">
+          Tools <span class="fun-badge">Beta</span>
+        </h2>
+        <p class="band-desc">
+          Build something on top of the archive — a scrollytelling story across historical layers,
+          or your own points, lines and shapes on a sheet.
+        </p>
+        <div class="micro-links">
+          <a href="/explore?mode=story" class="micro-link-card">
+            <span class="mlc-body">
+              <span class="mlc-title">Story Builder</span>
+              <span class="mlc-desc">Walk readers through a place, one layer at a time</span>
+            </span>
+          </a>
+          <a href="/explore?mode=annotate" class="micro-link-card">
+            <span class="mlc-body">
+              <span class="mlc-title">Annotate</span>
+              <span class="mlc-desc">Draw on any map and save it as a set</span>
+            </span>
+          </a>
         </div>
       </section>
 
-      <!--
-        ============================================
-        SECTION 3: COMMUNITY CONTRIBUTION
-        ============================================
-      -->
-      <section class="mode-section" id="contribute-mode">
-        <div class="feature-card hover-lift">
-          <h2 class="feature-title">Contribute</h2>
-          <p class="feature-description">
-            The archive is built by volunteers, and there are not many of us yet. Trace a building,
-            crop a map for OCR, or anchor a scan to today's coordinates. Your name stays on what you
-            submit, and the plan is to release all of it openly once there is enough to be worth
-            releasing.
-          </p>
-          <div class="micro-links">
-            <a href="/scan?mode=triage" class="micro-link-card">
-              <span class="mlc-body">
-                <span class="mlc-title">OCR &amp; Triage</span>
-                <span class="mlc-desc"
-                  >Crop a map's neatline and validate the toponyms our pipeline pulls out</span
-                >
-              </span>
-            </a>
-            <a href="/scan?mode=trace" class="micro-link-card">
-              <span class="mlc-body">
-                <span class="mlc-title">Trace buildings</span>
-                <span class="mlc-desc"
-                  >Outline buildings, roads, and waterways on a georeferenced map</span
-                >
-              </span>
-            </a>
-            <a href="/contribute/georef" class="micro-link-card">
-              <span class="mlc-body">
-                <span class="mlc-title">Georeference</span>
-                <span class="mlc-desc"
-                  >Pin a historical map to real-world coordinates in the Allmaps Editor</span
-                >
-              </span>
-            </a>
-          </div>
+      <section class="band-col" id="contribute-mode">
+        <h2 class="band-title">Contribute</h2>
+        <p class="band-desc">
+          The archive is built by volunteers, and there are not many of us yet. Your name stays on
+          what you submit, and all of it is meant to be released openly.
+        </p>
+        <div class="micro-links">
+          <a href="/scan?mode=triage" class="micro-link-card">
+            <span class="mlc-body">
+              <span class="mlc-title">OCR &amp; Triage</span>
+              <span class="mlc-desc">Crop a neatline, check the toponyms the pipeline pulled</span>
+            </span>
+          </a>
+          <a href="/scan?mode=trace" class="micro-link-card">
+            <span class="mlc-body">
+              <span class="mlc-title">Trace buildings</span>
+              <span class="mlc-desc">Outline buildings, roads and waterways</span>
+            </span>
+          </a>
+          <a href="/contribute/georef" class="micro-link-card">
+            <span class="mlc-body">
+              <span class="mlc-title">Georeference</span>
+              <span class="mlc-desc">Pin a scan to real coordinates in the Allmaps Editor</span>
+            </span>
+          </a>
         </div>
       </section>
-    </div>
 
-    <div class="info-row">
-      <section class="info-card">
-        <h2 class="info-title">About the project</h2>
-        <p class="info-desc">
+      <section class="band-col">
+        <h2 class="band-title">About the project</h2>
+        <p class="band-desc">
           The aim is to get the buildings and street names out of Vietnam's colonial-era maps and
           into open data, with a person checking the machine's work. The 1882 cadastral survey of
           Saigon is where it starts, and where most of the work so far sits. Everything published
           will be CC-BY / ODbL.
         </p>
-        <a href="/about" class="info-link">What's actually done</a>
+        <a href="/about" class="info-link">What's actually done →</a>
       </section>
 
-      <section class="info-card">
-        <h2 class="info-title">Where things stand</h2>
-        <p class="info-title-sm">{STATS.snapshot}</p>
-        <p class="info-desc">
+      <section class="band-col">
+        <h2 class="band-title">Where things stand</h2>
+        <p class="band-note">{STATS.snapshot}</p>
+        <p class="band-desc">
           The OCR pass has read {STATS.labels} distinct place names off six sheets, of which
           {STATS.labelsChecked} have been checked by a person — so that queue has barely started.
           {STATS.footprints} building outlines have been traced on the 1882 cadastral survey, and none
           are approved yet. The last written update was in May.
         </p>
-        <a href="/blog" class="info-link">All updates</a>
+        <a href="/blog" class="info-link">All updates →</a>
       </section>
     </div>
   </main>

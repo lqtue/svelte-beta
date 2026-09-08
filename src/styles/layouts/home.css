@@ -1,10 +1,4 @@
 /*
-  Neutral text greys are expressed as token mixes rather than raw hex:
-  `color-mix(in srgb, var(--color-text) N%, var(--color-white))` reproduces
-  #222…#888 exactly (--color-text is #111, a neutral), so tokenising here is
-  pixel-identical. White overlays use the same form against `transparent`.
-*/
-/*
  * Home page layout — /
  *
  * ALL selectors are scoped under .home-page to avoid conflicts with
@@ -12,6 +6,21 @@
  *
  * Root div must carry: class="page home-page"
  * Import in +page.svelte script: import "$styles/layouts/home.css";
+ *
+ * ── The 2026-09 pass: no boxes, no dots ──────────────────────────────────
+ * The page used to be a dot-grid field carrying six cards, each a 3px border
+ * plus a 6px hard offset shadow with 2.5rem of padding inside it. That is
+ * ~120px of chrome per card before a word is read, and the dots underneath
+ * meant no card could ever sit *on* the page — it always sat in front of it.
+ *
+ * What replaced it: the page ground is plain, sections are separated by one
+ * hairline rule and vertical rhythm, and the padding that used to be inside a
+ * border is now the gutter between columns. Nothing that carries information
+ * lost anything; what went is the outline drawn around it.
+ *
+ * The offset-shadow chrome is NOT gone from the app — it is the house style
+ * and still runs on buttons, chips and the sidebars. It is gone from the
+ * *containers* on this page, which is what was eating the space.
  */
 
 /* ========================================
@@ -19,9 +28,6 @@
    ======================================== */
 .home-page {
   min-height: 100vh;
-  background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
-  background-size: 32px 32px;
-  background-position: 0 0;
   opacity: 0;
   transition: opacity 0.5s ease;
 }
@@ -35,17 +41,16 @@
    ======================================== */
 .home-page .hero {
   position: relative;
-  /* 72vh, not 100: a hero that fills the viewport exactly tells the reader
-     there is nothing below it. The Catalog card has to peek. */
-  min-height: 72vh;
+  /* 68vh, not 100: a hero that fills the viewport exactly tells the reader
+     there is nothing below it. The catalog has to peek. */
+  min-height: 68vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4rem 2rem 5rem;
+  padding: 3rem 1.5rem 4rem;
   /* No colour of its own. The map is the hero; this is only what shows for the
      moment before it loads. */
   background: var(--color-bg);
-  border-bottom: var(--border-thick);
   overflow: hidden;
   color: var(--color-text);
   text-align: center;
@@ -56,18 +61,19 @@
   /* Above the live map and its scrim, which are absolutely positioned siblings. */
   z-index: 4;
   pointer-events: none;
-  max-width: 680px;
+  max-width: 700px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Its own plate. Over a live map, type needs ground of its own — a page-wide
-     wash would have to be heavy enough to bury the map it is sitting on. */
-  background: var(--color-white);
-  border: var(--border-thick);
+  /* Type over a live map still needs ground, but a bordered plate reads as a
+     dialog dropped on the map. A translucent wash with a blur behind it lets
+     the sheet stay visible through the masthead and needs no outline at all.
+     The fallback for a browser without backdrop-filter is the same colour at
+     full strength — legible, just opaque. */
+  background: color-mix(in srgb, var(--color-white) 90%, transparent);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-solid);
-  padding: 2.25rem 2rem 2rem;
+  padding: 2rem 2rem 1.75rem;
   /* The masthead is the last beat, not the first: the sequence explains what
      the archive does, and only then says whose it is. `visibility` rather than
      `display` so the reserved space never reflows the hero mid-sequence. */
@@ -78,6 +84,13 @@
     opacity 0.7s ease,
     transform 0.7s ease,
     visibility 0s linear 0.7s;
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .home-page .hero-content {
+    background: color-mix(in srgb, var(--color-white) 72%, transparent);
+    backdrop-filter: blur(14px) saturate(1.15);
+  }
 }
 
 .home-page .hero-content.revealed {
@@ -92,31 +105,17 @@
 
 @media (max-width: 640px) {
   .home-page .hero-content {
-    padding: 1.5rem 1.1rem 1.25rem;
+    padding: 1.4rem 1.1rem 1.25rem;
   }
-}
-
-.home-page .label-chip {
-  display: inline-block;
-  pointer-events: auto;
-  background: var(--color-white);
-  border: var(--border-thin);
-  border-radius: var(--radius-pill);
-  padding: 0.4rem 1rem;
-  font-family: var(--font-family-display);
-  font-weight: 700;
-  font-size: 0.875rem;
-  margin-bottom: 1.25rem;
-  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 
 .home-page .hero-title {
   font-family: var(--font-family-display);
-  font-size: clamp(2.5rem, 7vw, 5rem);
+  font-size: clamp(2.4rem, 6.5vw, 4.5rem);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.05;
   letter-spacing: -0.03em;
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.85rem 0;
 }
 
 .home-page .text-highlight {
@@ -128,7 +127,7 @@
 .home-page .hero-subtitle {
   font-family: var(--font-family-base);
   pointer-events: auto;
-  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
+  font-size: clamp(0.95rem, 2.2vw, 1.075rem);
   font-weight: 500;
   line-height: 1.6;
   max-width: 560px;
@@ -139,10 +138,11 @@
 }
 
 /* The way in. The hero's four beats say what the archive holds; this is the
-   one thing to do about it, so it is the only control on the plate. */
+   one thing to do about it, so it is the only control on the plate. It keeps
+   its border — a search field with no edge is not a search field. */
 .home-page .hero-search {
   pointer-events: auto;
-  margin-top: 1.5rem;
+  margin-top: 1.35rem;
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
@@ -190,125 +190,92 @@
   }
 }
 
-.home-page .hero-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: center;
-}
-
-.home-page .badge-chip {
-  font-family: var(--font-family-display);
-  font-weight: 700;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.9rem;
-  border-radius: var(--radius-pill);
-  border: var(--border-thin);
-  box-shadow: 2px 2px 0 var(--shadow-ink);
-}
-
-.home-page .chip-green {
-  background: var(--color-green);
-  color: var(--color-on-accent);
-}
-.home-page .chip-blue {
-  background: var(--color-blue);
-  color: var(--color-on-accent);
-}
-.home-page .chip-yellow {
-  background: var(--color-white);
-}
-
 /* ========================================
-   MAIN CONTENT & CARDS
+   MAIN CONTENT
+
+   Wider and tighter than the card layout it replaces: 1240 rather than 1100,
+   because with no 3px border and no 2.5rem of card padding on each side the
+   text column would otherwise get *narrower* as the page got plainer.
    ======================================== */
 .home-page .main {
-  max-width: 1100px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 4rem 1.5rem;
+  padding: 3rem 1.5rem 4rem;
   display: flex;
   flex-direction: column;
-  gap: 3rem;
+  gap: 3.25rem;
 }
 
-.home-page .feature-card {
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-lg);
-  padding: 2.5rem;
-  box-shadow: var(--shadow-solid);
-  position: relative;
+/* One hairline where a card edge used to be. `:first-child` keeps the rule off
+   the top of the first section, so the hero flows straight into the catalog. */
+.home-page .home-section + .home-section,
+.home-page .home-band {
+  border-top: 1px solid var(--color-border);
+  padding-top: 3.25rem;
+}
+
+.home-page .home-section {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-}
-
-.home-page .mega-card {
-  padding-bottom: 3rem;
-}
-
-.home-page .hover-lift {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-.home-page .hover-lift:hover {
-  transform: translate(-4px, -4px);
-  box-shadow: var(--shadow-solid-hover);
-}
-
-.home-page .split-sections {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-}
-
-.home-page .feature-header-split {
-  display: flex;
   gap: 1.5rem;
-  align-items: flex-start;
-  margin-bottom: 2rem;
+}
+
+/* Section head: the title and its standfirst sit in a measure of their own
+   rather than running the full 1240, which is unreadable for prose. On wide
+   screens the tabs pull up beside them instead of costing another row. */
+.home-page .section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.home-page .section-head-text {
+  max-width: 62ch;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 .home-page .feature-title {
   font-family: var(--font-family-display);
-  font-size: 2rem;
+  font-size: clamp(1.6rem, 3vw, 2rem);
   font-weight: 800;
-  margin: 0 0 1rem 0;
+  margin: 0;
+  line-height: 1.15;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .home-page .fun-badge {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   background: var(--color-purple);
   color: var(--color-on-accent);
-  padding: 0.25rem 0.75rem;
+  padding: 0.2rem 0.6rem;
   border-radius: var(--radius-pill);
-  border: var(--border-thin);
-  box-shadow: 2px 2px 0px var(--shadow-ink);
   text-transform: uppercase;
-  transform: rotate(5deg);
+  letter-spacing: 0.04em;
 }
 
 .home-page .feature-description {
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   line-height: 1.6;
-  color: color-mix(in srgb, var(--color-text) 86%, var(--color-white));
+  color: color-mix(in srgb, var(--color-text) 82%, var(--color-white));
   margin: 0;
-  font-weight: 500;
+  font-weight: 400;
 }
 
-/* Buttons */
+/* Buttons keep the house chrome — a call to action is meant to be an object. */
 .home-page .action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  padding: 1rem 2rem;
+  padding: 0.85rem 1.75rem;
   font-family: var(--font-family-display);
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 800;
   border: var(--border-thick);
   border-radius: var(--radius-pill);
@@ -333,64 +300,50 @@
   background: var(--color-primary);
   color: var(--color-on-accent);
 }
-.home-page .secondary-btn {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
 
-/* Tab bar wrapper — provides bottom spacing before map grid */
-.home-page .tab-bar {
-  margin-bottom: 1.5rem;
-}
-
-/* States & Micro UI */
+/* States */
 .home-page .maps-loading {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 4rem;
+  justify-content: center;
+  padding: 3rem;
   font-weight: 700;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
+  color: color-mix(in srgb, var(--color-text) 64%, var(--color-white));
 }
 
+/* No dashed outline. An empty state is an absence — drawing a box around it
+   makes the absence louder than the page it sits in. */
 .home-page .empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  background: var(--color-bg);
-  border: var(--border-thick);
-  border-radius: var(--radius-md);
-  border-style: dashed;
+  padding: 3rem 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+  gap: 0.6rem;
+  max-width: 52ch;
 }
 
 .home-page .empty-state h3 {
   margin: 0;
   font-family: var(--font-family-display);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
 }
 .home-page .empty-state p {
-  margin: 0 0 1rem 0;
-  font-weight: 500;
+  margin: 0;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--color-text) 76%, var(--color-white));
 }
 
-/* A second paragraph in an empty state is the follow-up instruction, so it
-   reads quieter than the line it follows. */
 .home-page .empty-state p + p {
   font-size: 0.9rem;
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
 .home-page .action-footer {
-  margin-top: 3rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 2rem;
-  border-top: var(--border-thick);
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .home-page .footer-links-group {
@@ -400,8 +353,8 @@
 
 .home-page .text-link {
   font-family: var(--font-family-display);
-  font-size: 1.125rem;
-  font-weight: 800;
+  font-size: 1.0625rem;
+  font-weight: 700;
   color: var(--color-text);
   text-decoration: none;
   position: relative;
@@ -413,9 +366,8 @@
   bottom: -4px;
   left: 0;
   width: 100%;
-  height: 4px;
+  height: 3px;
   background: var(--color-primary);
-  color: var(--color-on-accent);
   transform: scaleX(0);
   transform-origin: right;
   transition: transform 0.3s ease;
@@ -426,183 +378,161 @@
   transform-origin: left;
 }
 
-/* Micro Links */
+/* ========================================
+   THE BAND — Tools · Contribute · About · Where things stand
+
+   Four blocks in one band rather than two stacked two-column rows of cards.
+   `auto-fit` with a 15rem floor gives 4 columns on a desktop, 2 on a tablet
+   and 1 on a phone with no breakpoint of its own; the vertical rules are the
+   only separator, so the columns can pack tight without running together.
+   ======================================== */
+.home-page .home-band {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 2rem 2.5rem;
+}
+
+.home-page .band-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+/* The rule between columns. Drawn on the column rather than as a grid gap
+   line so it disappears for free when the grid reflows to one column. */
+@media (min-width: 720px) {
+  .home-page .band-col + .band-col {
+    padding-left: 2.5rem;
+    margin-left: -1.25rem;
+    border-left: 1px solid var(--color-border);
+  }
+}
+
+.home-page .band-title {
+  font-family: var(--font-family-display);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.home-page .band-desc {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--color-text) 76%, var(--color-white));
+  margin: 0;
+}
+
+.home-page .band-note {
+  font-family: var(--font-family-display);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 60%, var(--color-white));
+  margin: 0;
+}
+
+/* Link list. No card, no border, no shadow — a rule between rows and a colour
+   change on hover is the whole affordance, and it costs 8px per row instead
+   of the 60-odd the bordered card did. */
 .home-page .micro-links {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: auto;
-}
-.home-page .micro-link {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background: var(--color-bg);
-  border: var(--border-thin);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  color: var(--color-text);
-  font-weight: 700;
-  transition: all 0.2s;
-}
-
-.home-page .micro-link:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-  transform: translateX(4px);
-  box-shadow: 2px 2px 0px var(--shadow-ink);
+  margin-top: 0.25rem;
 }
 
 .home-page .micro-link-card {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  padding: 0.875rem 1rem;
-  background: var(--color-bg);
-  border: var(--border-thick);
-  border-radius: var(--radius-md);
+  display: block;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--color-border);
   text-decoration: none;
   color: var(--color-text);
-  transition: all 0.1s;
-  box-shadow: var(--shadow-solid-sm);
+  transition: color 0.12s ease;
 }
 
-.home-page .micro-link-card:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-solid);
+.home-page .micro-link-card:last-child {
+  border-bottom: 1px solid var(--color-border);
 }
+
 .home-page .mlc-body {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  flex: 1;
+  gap: 0.15rem;
 }
 .home-page .mlc-title {
   font-family: var(--font-family-display);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9375rem;
 }
+
+/* The arrow is CSS, not markup: three tool lists and two info blocks would
+   otherwise carry the same span five times. */
+.home-page .mlc-title::after {
+  content: ' →';
+  color: var(--color-primary);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.home-page .micro-link-card:hover .mlc-title,
+.home-page .micro-link-card:focus-visible .mlc-title {
+  color: var(--color-primary);
+}
+.home-page .micro-link-card:hover .mlc-title::after,
+.home-page .micro-link-card:focus-visible .mlc-title::after {
+  opacity: 1;
+}
+
 .home-page .mlc-desc {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--color-text) 64%, var(--color-white));
-  line-height: 1.3;
-}
-/* INFO ROW */
-.home-page .info-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--color-text) 62%, var(--color-white));
+  line-height: 1.4;
 }
 
-.home-page .info-card {
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  box-shadow: var(--shadow-solid-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.home-page .info-title {
-  font-family: var(--font-family-display);
-  font-size: 1.25rem;
-  font-weight: 800;
-  margin: 0;
-}
-.home-page .info-title-sm {
-  font-family: var(--font-family-display);
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin: 0;
-  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
-}
-.home-page .info-desc {
-  font-size: 0.95rem;
-  font-weight: 500;
-  line-height: 1.55;
-  color: color-mix(in srgb, var(--color-text) 79%, var(--color-white));
-  margin: 0;
-  flex: 1;
-}
 .home-page .info-link {
   font-family: var(--font-family-display);
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: var(--color-primary);
   text-decoration: none;
   margin-top: auto;
+  padding-top: 0.5rem;
 }
 .home-page .info-link:hover {
   text-decoration: underline;
-}
-
-/* Footer */
-.home-page .footer {
-  padding: 3rem 2rem;
-  margin-top: 2rem;
-}
-.home-page .footer-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.home-page .footer-links {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  flex-wrap: wrap;
-}
-.home-page .footer-links a,
-.home-page .footer a {
-  color: var(--color-yellow);
-  text-decoration: none;
-  font-weight: 700;
-  font-family: var(--font-family-display);
-}
-.home-page .footer p {
-  font-family: var(--font-family-base);
-  font-weight: 500;
-  margin: 0;
-  font-size: 0.95rem;
 }
 
 /* ========================================
    RESPONSIVE
    ======================================== */
 @media (max-width: 768px) {
-  .home-page .split-sections {
-    grid-template-columns: 1fr;
-  }
-  .home-page .info-row {
-    grid-template-columns: 1fr;
-  }
   .home-page .hero {
-    padding: 3rem 1.25rem;
+    padding: 2.5rem 1.25rem 3rem;
   }
-  .home-page .hero-title {
-    font-size: 2.5rem;
+  .home-page .main {
+    padding: 2rem 1.25rem 3rem;
+    gap: 2.5rem;
   }
-  .home-page .feature-header-split {
-    flex-direction: column;
-    gap: 1rem;
+  .home-page .home-section + .home-section,
+  .home-page .home-band {
+    padding-top: 2.5rem;
+  }
+  .home-page .section-head {
+    align-items: flex-start;
   }
   .home-page .action-footer {
     flex-direction: column;
-    gap: 1.5rem;
-    text-align: center;
+    align-items: stretch;
+    gap: 1.25rem;
   }
   .home-page .footer-links-group {
-    flex-direction: column;
-    gap: 0.75rem;
-    align-items: center;
+    justify-content: space-between;
   }
   .home-page .action-btn {
     width: 100%;

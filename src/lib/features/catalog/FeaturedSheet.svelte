@@ -186,7 +186,11 @@
     justify-content: center;
     padding: var(--space-3);
     background: var(--color-gray-100);
-    border: var(--border-thick);
+    /* A hairline, not the house 3px: the home page around it no longer draws
+       boxes, and a thick frame on the one big image is the whole card look
+       coming back through the side door. The plate still needs *an* edge —
+       a scan on a near-matching ground has no boundary of its own. */
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     overflow: hidden;
   }
