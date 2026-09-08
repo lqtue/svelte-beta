@@ -705,6 +705,7 @@ export type Database = {
           publisher: string | null
           raw: Json | null
           reasons: string | null
+          review_note: string | null
           reviewed_at: string | null
           reviewer_id: string | null
           rights: string | null
@@ -733,6 +734,7 @@ export type Database = {
           publisher?: string | null
           raw?: Json | null
           reasons?: string | null
+          review_note?: string | null
           reviewed_at?: string | null
           reviewer_id?: string | null
           rights?: string | null
@@ -761,6 +763,7 @@ export type Database = {
           publisher?: string | null
           raw?: Json | null
           reasons?: string | null
+          review_note?: string | null
           reviewed_at?: string | null
           reviewer_id?: string | null
           rights?: string | null

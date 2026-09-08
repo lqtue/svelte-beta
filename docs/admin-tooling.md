@@ -111,25 +111,35 @@ Full historical plan (phases, worker source draft, cost table): `docs/archive/ii
 
 ## Scout & ingest (`/admin?tab=scout`)
 
-External-source discovery + curate + bulk-ingest pipeline. Surfaces candidates from Gallica, Humazur, David Rumsey, Library of Congress as a reviewable grid. Admin approves rows → bulk-ingest as `draft` `maps` rows with full DC + `holding_institution`.
+External-source discovery + curate + bulk-ingest pipeline. Surfaces candidates from Gallica, Humazur, David Rumsey, Library of Congress, UWM AGDM as a reviewable grid. Admin approves rows → bulk-ingest as `draft` `maps` rows with full DC + `holding_institution`.
 
 **Data flow:** scout JSON → `scout_candidates` table → admin review UI → approved → POST ingests as `maps` rows.
+
+**The review UI** is two views over one queue, chosen by a pill toggle and remembered in `vma-scout-view-v1`: the **card grid** (judge a sheet by its picture) and a dense **table** on `.data-table.is-dense` (scan a thousand titles, spot the near-duplicates). Sorting is the server's — `?order=&dir=` — because the page holds 60 of 1041 rows and re-ordering only those would label the oldest sheet *on this page* as the oldest in the queue.
+
+`ScoutDecision.svelte` is the approve/reject control both views mount, so a verdict behaves identically in each: preset reasons plus free text, Enter commits, Escape cancels, and a blank reason is allowed — the keyboard sweep (`a`/`r`) decides with no reason at all, which is the trade for clearing a page of obvious rows in seconds. The reason lands in `scout_candidates.review_note` (mig 078), which is the *person's* column: `reasons` belongs to the scorer and `load_scout_to_db.mjs` overwrites it on every re-load. Bulk approve/reject takes one reason for the batch.
+
+**The score is no longer shown.** The loader still computes it and `score`/`reasons` still exist, but neither the chip nor the min-score filter is in the UI — 822 of 1041 rows score ≥ 40, so it never separated anything a person needed separated. A candidate with no usable image source carries a `no image` flag instead, which is the fact that actually decides whether ingest can proceed.
 
 ### Scout scripts (read-only, produce JSON)
 
 | Script | What it does |
 |--------|--------------|
-| `scripts/scout_all_sources.mjs` | Gallica SRU (BnF + federated: Bordeaux 3, Paris, Sorbonne) + David Rumsey Luna API + Library of Congress JSON API. 14 Vietnam place keywords. |
+| `scripts/scout_all_sources.mjs` | Gallica SRU (BnF + federated: Bordeaux 3, Paris, Sorbonne) + David Rumsey Luna API + Library of Congress JSON API + UWM AGDM CONTENTdm API. 15 Vietnam place keywords, `--sources` to pick. |
 | `scripts/scout_humazur.mjs` | Humazur Omeka S API (sets 59 Cartothèque ASEMI + 519 Indochine française). `--merge <existing>.json` to combine. |
 | `scripts/categorize_scout_results.mjs` | Scores + categorizes candidates. Outputs `scripts/scout_review.csv`. |
 | `scripts/load_scout_to_db.mjs` | Loads merged scout JSON into `scout_candidates`. Fixes Humazur manifest URLs (must use `iiif/{item_id}/manifest`, NOT media_id). Derives Gallica thumbnails from ARK pattern. |
-| `scripts/oneoff/backfill_humazur_thumbs.mjs` | Backfills Humazur thumbnails (Omeka stores them on the media object, not the item — needs `/api/media/{id}`). Throttled 150ms/req. |
+| `scripts/scoutDerive.mjs` | Per-source URL derivation, shared by the loader and the backfill so a pattern is written once: Omeka S manifests, the LoC Image API, protocol-relative permalinks. Self-check: `node scripts/scoutDerive.test.mjs`. |
+| `scripts/oneoff/backfill_omeka_thumbs.mjs` | Backfills thumbnails for any Omeka S host (Omeka stores them on the media object, not the item — needs `/api/media/{id}`). Picks rows by `source_url` host, since the Bordeaux rows are labelled `gallica`. Throttled 150ms/req, dry-run by default. Replaced `backfill_humazur_thumbs.mjs`, which hardcoded the one host. |
+| `scripts/oneoff/fix_scout_iiif.mjs` | Applied `scoutDerive` to the 985 rows loaded before it existed: 41 Bordeaux manifests, 42 LoC image URLs, 5 protocol-relative permalinks. Dry-run by default. |
 
 ### Source patterns (for adding new sources)
 
 - **Gallica SRU**: `https://gallica.bnf.fr/SRU?operation=searchRetrieve&version=1.2&query=(dc.type adj "carte") and (dc.title all "{keyword}")&maximumRecords=50&startRecord=1` — federated. Rate-limit ~3s/req, returns 429 if hammered. Use `--use-system-ca` or `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 - **David Rumsey Luna**: `https://www.davidrumsey.com/luna/servlet/as/search?q={kw}&dh=50&os=json&so={offset}` — JSON, ~994 raw "Vietnam" hits. Filter on `fieldValues.Country/City/Region` to drop atlas pages.
-- **Library of Congress**: `https://www.loc.gov/maps/?q={kw}&fo=json&c=50&sp={page}` — small but high-quality, ~50 total Vietnam hits.
+- **Library of Congress**: `https://www.loc.gov/maps/?q={kw}&fo=json&c=50&sp={page}` — small but high-quality, ~50 total Vietnam hits. **No Presentation manifest is reachable**: item pages and `?fo=json` on an item both answer 403 behind a Cloudflare challenge. The Image API is fine, and the thumbnail names it — `tile.loc.gov/storage-services/service/gmd/gmd7/g7823/g7823g/ct003290.gif` → `tile.loc.gov/image-services/iiif/service:gmd:gmd7:g7823:g7823g:ct003290/info.json`. `deriveImageUrl` in `scoutDerive.mjs` does that, parking the result in `raw.iiif_image`, which ingest writes to `maps.iiif_image`. Rows with no thumbnail derive nothing and cannot be ingested.
+- **Omeka S** (Humazur, and Bordeaux 3 via Gallica SRU federation): `{host}/iiif/{item_id}/manifest` — a IIIF v2 manifest. Two of the "gallica" federated hosts are Omeka S, so the BnF ark pattern leaves them with no manifest; `deriveManifestUrl` keys off the `source_url` host.
+- **UWM AGDM (CONTENTdm)**: `https://collections.lib.uwm.edu/digital/bl/dmwebservices/index.php?q=dmQuery/agdm/CISOSEARCHALL^{kw}^all^and/{fields}/nosort/{n}/{offset}/1/0/0/0/json` — the American Geographical Society Library's map collection, 55 Vietnam hits, strong on 1920s-1960s French and US sheets. Field nicknames come from `dmGetCollectionFieldInfo/agdm/json` (`map`=creator, `maa`=publisher, `public`=date, `boundi`=bbox, almost always empty). IIIF Image API is level1 at `/digital/iiif/agdm/{pointer}`, manifest at `/iiif/2/agdm:{pointer}/manifest.json`. A `filetype: cpd` record is a **compound multi-sheet object**: its own pointer carries no image, so the single-item thumbnail answers 200 with HTML — take the first `pageptr` from `dmGetCompoundObjectInfo/agdm/{pointer}/json` (12 of the 55 are compound).
 - **Humazur Omeka S**: `https://humazur.univ-cotedazur.fr/api/items?item_set_id={set}&resource_class_id=33&per_page=100&page={n}` — `resource_class_id=33` is StillImage. item_sets: 59 (Cartothèque ASEMI, ~417 pure maps), 519 (Indochine française, 1500+ mixed).
 
 Skipped: IA (3500+ noisy hits, no clean filter); Cartomundi (JS app, needs headless browser); Princeton GeoBlacklight (geographic-bbox-indexed, 0 hits for "vietnam"); Harvard LibraryCloud (endpoint quirks); HathiTrust (Cloudflare-blocked).

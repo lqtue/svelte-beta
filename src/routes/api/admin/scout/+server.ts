@@ -69,6 +69,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
   const results: { id: string; map_id?: string; error?: string }[] = [];
   for (const c of cands ?? []) {
     try {
+      // Mig 062 only constrains published maps, so a candidate with no image
+      // source would insert happily as a draft and then be unusable. Say so
+      // instead, and leave the candidate approved so it can be fixed and retried.
+      const imageUrl = (c.raw as { iiif_image?: string } | null)?.iiif_image ?? null;
+      if (!c.manifest_url && !imageUrl)
+        throw new Error('No IIIF manifest or image URL — cannot ingest');
+
       const holdingInst = c.holding_institution ?? '';
       const insertPayload = {
         name: (c.title || '(untitled)').slice(0, 240),
@@ -88,6 +95,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         language: c.language ?? null,
         rights: c.rights ?? null,
         iiif_manifest: c.manifest_url ?? null,
+        // A source with no reachable Presentation manifest can still expose an
+        // Image API endpoint; scoutDerive.mjs parks it here (LoC is the case).
+        iiif_image: imageUrl,
         source_url: c.source_url ?? null,
         thumbnail: c.thumbnail ?? null,
         extra_metadata: {

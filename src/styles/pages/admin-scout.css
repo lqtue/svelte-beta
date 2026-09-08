@@ -1,15 +1,20 @@
 /*
-  /admin/scout — candidate review grid.
-  Migrated out of the page's <style> block and tokenised. Every rule is scoped
-  under .scout-page: the class names (.card, .chip, .grid, .title) are generic
-  enough that they must not become global.
+  /admin?tab=scout — candidate review, as a card grid or a dense table.
 
-  Palette substitutions (nearest token, no exact match in tokens.css):
-    #2e7d32 → --color-success-600   #b71c1c → --color-error-600
-    #ed8c00 → --color-warning-600   #3367d6 → --color-blue
-    #666/#555 → --color-gray-500    #999/#888 → --color-gray-400
-    #ddd/#ccc → --color-gray-300    #eee → --color-gray-100
-    #fafafa → --color-gray-50       #1a1a1a/#333 → --color-text
+  Layout and position only. Everything with a look of its own comes from a
+  shared sheet: `.btn*` from buttons.css, `.sb-card` / `.sb-input` /
+  `.sb-pill` from sidebar.css, `.badge-chip` + `.chip-*` from editorial.css,
+  `.data-table.is-dense` / `.table-wrap` from table.css.
+
+  This file used to be 239 lines and carried a second design system —
+  its own `.chip`, its own `.btn-good` / `.btn-bad` / `.btn-link`, its own
+  bordered inputs and card stock — so the one admin page a reviewer spends
+  hours in was the one page that did not look like the app. The score chip
+  and its four colour bands went with it: the score is still written by the
+  loader, it is just not something a person should be asked to read.
+
+  Rules stay scoped under .scout-page because `.card`, `.grid` and `.title`
+  are generic enough that they must not become global.
 */
 
 .scout-page {
@@ -22,17 +27,28 @@
   font-size: var(--text-3xl);
 }
 .scout-page .page-header p {
-  margin: 0 0 var(--space-6);
+  margin: 0 0 var(--space-2);
   color: var(--color-gray-500);
   font-size: 0.9rem;
 }
+.scout-page .kbd-hint {
+  margin-bottom: var(--space-6);
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+.scout-page .kbd-hint kbd {
+  font-family: ui-monospace, monospace;
+  border: var(--border-thin);
+  border-radius: 3px;
+  padding: 0 0.3em;
+}
+
+/* ── Filter + bulk bars ──────────────────────────────────────────────────── */
 
 .scout-page .filters,
 .scout-page .bulk-bar {
-  background: var(--color-gray-50);
-  border: 1px solid var(--color-gray-300);
   padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-4);
+  margin: 0 0 var(--space-4);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
@@ -48,19 +64,9 @@
 .scout-page .filter-row label {
   display: flex;
   flex-direction: column;
+  gap: 0.2rem;
   font-size: 0.8rem;
   color: var(--color-gray-500);
-}
-/* The score spinner is the one field that wants to be narrow — it holds two
-   digits, and a full-width text input beside it reads as a search box. */
-.scout-page .filter-row input[type='number'] {
-  width: 5em;
-}
-.scout-page .filter-row select,
-.scout-page .filter-row input {
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--color-gray-300);
-  font-size: 0.9rem;
 }
 .scout-page .result-line {
   width: 100%;
@@ -73,6 +79,13 @@
 .scout-page .result-line button {
   margin-left: auto;
 }
+.scout-page .result-line button + button {
+  margin-left: 0;
+}
+.scout-page .bulk-note {
+  min-width: 16rem;
+  flex: 1 1 16rem;
+}
 .scout-page .spacer {
   flex: 1;
 }
@@ -80,33 +93,30 @@
   font-size: 0.85rem;
   color: var(--color-gray-500);
 }
+/* The toggle is a pill row, so it must not stretch with the filter labels. */
+.scout-page .view-toggle {
+  align-self: end;
+  flex: 0 0 auto;
+}
+
+/* ── Card grid ───────────────────────────────────────────────────────────── */
 
 .scout-page .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--space-4);
 }
+/* .sb-card carries the stock; the grid only needs it to stack and clip. */
 .scout-page .card {
-  border: 1px solid var(--color-gray-300);
-  background: var(--color-white);
   position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  margin: 0;
 }
 .scout-page .card.focused {
   outline: 3px solid var(--color-border);
   outline-offset: 2px;
-}
-.scout-page .kbd-hint {
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-.scout-page .kbd-hint kbd {
-  font-family: ui-monospace, monospace;
-  border: var(--border-thin);
-  border-radius: 3px;
-  padding: 0 0.3em;
 }
 .scout-page .card.selected {
   outline: 3px solid var(--color-blue);
@@ -152,28 +162,20 @@
   flex-wrap: wrap;
   gap: var(--space-1);
 }
-.scout-page .chip {
-  font-size: 0.7rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 2px;
-  background: var(--color-gray-100);
-  color: var(--color-text);
+/* .badge-chip is sized for an editorial hero; in a 220px card it is furniture. */
+.scout-page .meta .badge-chip {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.45rem;
+  box-shadow: 1px 1px 0 var(--shadow-ink);
 }
-.scout-page .chip.score[data-score='high'] {
-  background: var(--color-success-600);
-  color: var(--color-on-accent);
-}
-.scout-page .chip.score[data-score='mid'] {
-  background: var(--color-warning-600);
-  color: var(--color-on-accent);
-}
-.scout-page .chip.score[data-score='low'] {
-  background: var(--color-gray-400);
-  color: var(--color-white);
-}
-.scout-page .chip.score[data-score='neg'] {
-  background: var(--color-error-600);
-  color: var(--color-on-accent);
+/* The one badge that has to be noticed: this candidate cannot be ingested.
+   `.chip-red` is not available on purpose — /screens records that the red,
+   orange and purple chips were removed — so the flag is the sanctioned white
+   badge, marked by the ink it borrows from `.btn-danger`. */
+.scout-page .badge-chip.is-flag {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: var(--font-extrabold);
 }
 .scout-page .holder {
   font-size: 0.75rem;
@@ -184,56 +186,138 @@
   color: var(--color-gray-400);
   font-style: italic;
 }
-.scout-page .actions {
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+
+.scout-page .scout-table .col-check,
+.scout-page .scout-table .col-thumb {
+  width: 1%;
+  white-space: nowrap;
+}
+.scout-page .scout-table .col-thumb img {
+  display: block;
+  width: 56px;
+  height: 40px;
+  object-fit: cover;
+  background: var(--color-text);
+}
+.scout-page .scout-table .col-title {
+  min-width: 22rem;
+}
+.scout-page .scout-table .col-title a {
+  font-weight: var(--font-semibold);
+}
+.scout-page .scout-table .col-holder {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-gray-500);
+}
+.scout-page .scout-table .col-decide {
+  width: 1%;
+  white-space: nowrap;
+}
+.scout-page .scout-table .badge-chip {
+  font-size: 0.65rem;
+  padding: 0.05rem 0.4rem;
+  box-shadow: none;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+}
+.scout-page .scout-table .row-note {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+}
+.scout-page .scout-table tr.is-selected td {
+  background: var(--sb-accent-fill);
+}
+/* One ring per row, not per cell: an inset shadow on every <td> drew a
+   column of vertical bars. A left marker plus a tint reads as one row. */
+.scout-page .scout-table tr.is-cursor td {
+  background: var(--sb-row-hover);
+}
+.scout-page .scout-table tr.is-cursor td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-border);
+}
+
+/* ── Decision control (ScoutDecision) ────────────────────────────────────── */
+
+.scout-page .sd-actions {
   display: flex;
   gap: 0.4rem;
+  align-items: center;
   margin-top: auto;
 }
-.scout-page .actions button {
-  flex: 1;
-  padding: 0.35rem;
-  font-size: 0.8rem;
-  border: 1px solid var(--color-gray-300);
-  background: var(--color-white);
-  cursor: pointer;
+.scout-page .sd-actions .btn {
+  flex: 1 1 auto;
 }
-/* `button.btn-*` matches the specificity of `.actions button` above and wins on
-   source order — which is what the original !important flags were compensating
-   for inside a scoped stylesheet. Also applies to the buttons in .bulk-bar. */
-.scout-page button.btn-good {
-  background: var(--color-success-600);
-  color: var(--color-on-accent);
-  border-color: var(--color-success-600);
+.scout-page .scout-table .sd-actions .btn {
+  flex: 0 0 auto;
 }
-.scout-page button.btn-bad {
-  background: var(--color-error-600);
-  color: var(--color-on-accent);
-  border-color: var(--color-error-600);
-}
-.scout-page button.btn-primary {
-  background: var(--color-blue);
-  color: var(--color-on-accent);
-  border-color: var(--color-blue);
-}
-.scout-page button.btn-link {
-  background: transparent;
-  border: none;
-  color: var(--color-blue);
-  font-size: 0.75rem;
-}
-.scout-page .status-badge {
+.scout-page .sd-verdict {
+  font-family: var(--font-family-display);
+  font-weight: var(--font-bold);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   padding: 0.2rem 0.5rem;
-  font-size: 0.75rem;
+  border-radius: var(--radius-pill);
+  border: var(--border-thin);
 }
-.scout-page .status-badge.approved {
-  background: var(--color-success-600);
+.scout-page .sd-verdict.is-approved {
+  background: var(--color-green);
   color: var(--color-on-accent);
 }
-.scout-page .status-badge.rejected {
-  background: var(--color-error-600);
+.scout-page .sd-verdict.is-rejected {
+  background: var(--color-primary);
   color: var(--color-on-accent);
 }
-.scout-page .status-badge.ingested {
+.scout-page .sd-verdict.is-ingested {
   background: var(--color-blue);
   color: var(--color-on-accent);
+}
+.scout-page .sd-note-shown {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-gray-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scout-page .sd-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: auto;
+}
+.scout-page .sd-ask-label {
+  font-size: 0.75rem;
+  font-weight: var(--font-semibold);
+}
+.scout-page .sd-ask-label em {
+  font-weight: var(--font-normal);
+  color: var(--color-gray-500);
+}
+.scout-page .sd-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.scout-page .sd-note {
+  width: 100%;
+}
+.scout-page .sd-ask-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+/* The reason panel stacks inside the cell and the row grows for as long as
+   the question is open. It was floated out of the cell at first, which put
+   Confirm underneath `.table-wrap`'s overflow clip — unreachable. */
+.scout-page .scout-table .sd-ask {
+  width: 15rem;
+  padding: var(--space-2) 0;
 }

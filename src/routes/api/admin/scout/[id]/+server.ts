@@ -19,6 +19,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
     'year',
     'language',
     'rights',
+    // The reviewer's reason for the decision (mig 078). Optional, and blank
+    // clears it — a reason that no longer applies should not outlive a revert.
+    'review_note',
   ] as const;
   const patch: Database['public']['Tables']['scout_candidates']['Update'] = {};
   for (const k of allowed) {
