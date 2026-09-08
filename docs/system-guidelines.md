@@ -78,7 +78,7 @@ The group in parentheses is the SvelteKit layout group, not part of the URL. Bot
 | `/profile` | (editorial) | `+page.svelte` + `+page.server.ts` | auth (303 → `/login`) |
 | `/admin?tab=bulk` | (editorial) | `+page.svelte` | admin |
 | `/admin?tab=scout` | (editorial) | `+page.svelte` + `ScoutCard` | admin/mod |
-| `/explore` | (app) | `+page.svelte` + `MapWorkspace` + `ExploreSidebar` | none |
+| `/explore` | (app) | `+page.svelte` + `MapWorkspace` + `ExploreSidebar` (left rail) + `ExploreRightSidebar` (right rail) | none |
 | `/explore?mode=annotate` | (app) | `StudioMode.svelte` | auth |
 | `/explore?mode=story` | (app) | `CreateMode.svelte` | auth |
 | `/trip/[id]` | (app) | `+page.svelte` + `TripPlayback` | none |

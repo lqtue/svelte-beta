@@ -74,9 +74,11 @@ Use `800` for page and section titles, `700` for nav and sub-headings, `500` for
 | `--border-thick` | `3px solid var(--color-border)` | Cards, nav, hero, structural elements |
 | `--border-thin` | `2px solid var(--color-border)` | Inline labels, progress tracks, dividers |
 | `--shadow-solid` | `6px 6px 0 var(--shadow-ink)` | Feature cards, primary CTAs |
-| `--shadow-solid-sm` | `4px 4px 0` | Smaller cards, badges, secondary buttons |
+| `--shadow-solid-sm` | `4px 4px 0` | Smaller cards, badges |
 | `--shadow-solid-xs` | `2px 2px 0` | Chips, dense controls |
 | `--shadow-solid-hover` | `8px 8px 0` | Hover lift only — never on a static element |
+
+**Buttons carry no shadow** (Sept 2026). `.btn` / `.chip` / `.action-btn` / `.pill-btn`, `.ctrl-btn`, `.back-link`, `ChunkyTabs` and the catalog's tag chips are flat; `--btn-shadow` is the opt-in for a caller that wants one back. Two things had been leaning on it and were replaced rather than deleted: **hover** was a 2px lift, which only read as a lift against the shadow it uncovered, and is now `filter: brightness(0.95)` — it works on every colour variant without an override fight over `background`; and **`:focus-visible`** *was* the hover shadow, so it had to become a real `outline`, or keyboard focus would have gone invisible. Cards, plates and non-interactive chips (`.section-card`, `.hero-sub`, `.label-chip`, `.badge-chip`) keep theirs — the offset plate is still the house gesture, just not on things you press.
 | `--radius-sm / md / lg / pill` | `8px / 16px / 24px / 999px` | Tags · cards, inputs · feature cards · buttons, chips |
 
 Aliases `--shadow-sm/md/lg` map onto the solid set.
