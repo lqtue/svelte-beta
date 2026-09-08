@@ -10,3 +10,4 @@ test-results
 playwright-report
 .wrangler
 worker/.wrangler
+scripts/scout_all_*.json

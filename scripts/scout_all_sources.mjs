@@ -6,6 +6,7 @@
 //   1. Gallica SRU         (BnF + federated: Humazur, Bordeaux 3, Paris, Sorbonne)
 //   2. David Rumsey Luna   (Stanford collection, ~994 Vietnam hits)
 //   3. Library of Congress (loc.gov JSON API)
+//   4. UWM AGDM          (American Geographical Society Library, CONTENTdm API)
 //
 // Skipped (low signal / no API):
 //   - Internet Archive (3500+ noisy hits, no clean filter)
@@ -33,7 +34,7 @@ const KEY = env.SUPABASE_SERVICE_KEY;
 const UA = 'Mozilla/5.0 VMA-Scout/1.0';
 
 const sIdx = process.argv.indexOf('--sources');
-const SOURCES = sIdx > -1 ? process.argv[sIdx + 1].split(',') : ['gallica', 'rumsey', 'loc'];
+const SOURCES = sIdx > -1 ? process.argv[sIdx + 1].split(',') : ['gallica', 'rumsey', 'loc', 'uwm'];
 
 const KEYWORDS = [
   'Saigon',
@@ -71,6 +72,8 @@ async function fetchExistingKeys() {
       if (r) keys.add(`rumsey:${r[0]}`);
       const l = v.match(/loc\.gov\/(?:resource|item)\/([^/]+)/);
       if (l) keys.add(`loc:${l[1]}`);
+      const u = v.match(/(?:agdm[:/]|collection\/agdm\/id\/)(\d+)/);
+      if (u) keys.add(`uwm:${u[1]}`);
     }
   }
   return keys;
@@ -318,6 +321,112 @@ async function scoutLoC(keywords) {
   return [...all.values()];
 }
 
+// ===== SOURCE 4: UWM AGDM (CONTENTdm) =====
+// American Geographical Society Library digital map collection.
+// dmwebservices is the public read API; the IIIF Image API is level1 at
+// /digital/iiif/agdm/<pointer>, the manifest at /iiif/2/agdm:<pointer>/manifest.json.
+const UWM_BASE = 'https://collections.lib.uwm.edu';
+const UWM_FIELDS = [
+  'title',
+  'map',
+  'maa',
+  'public',
+  'subjec',
+  'countr',
+  'city',
+  'region',
+  'boundi',
+  'scale',
+  'langua',
+  'rights',
+  'dmrecord',
+].join('!');
+
+async function scoutUwm(keywords) {
+  const all = new Map();
+  for (const kw of keywords) {
+    process.stdout.write(`  uwm/${kw.padEnd(16)} `);
+    let start = 0;
+    const page = 100;
+    let total = 0;
+    while (start < 1000) {
+      const q = `dmQuery/agdm/CISOSEARCHALL^${encodeURIComponent(kw)}^all^and/${UWM_FIELDS}/nosort/${page}/${start}/1/0/0/0/json`;
+      const data = await fetchJson(`${UWM_BASE}/digital/bl/dmwebservices/index.php?q=${q}`);
+      if (data.__error) {
+        console.log(`ERR ${data.__error}`);
+        break;
+      }
+      total = parseInt(data.pager?.total || '0');
+      const records = data.records || [];
+      for (const r of records) {
+        const combined = [r.title, r.countr, r.city, r.region, r.subjec].join(' ').toLowerCase();
+        if (
+          !/vietnam|viet nam|viê|saigon|hanoi|hué|hue|tonkin|annam|cochinchin|indochin/i.test(
+            combined
+          )
+        )
+          continue;
+        const ptr = String(r.dmrecord || r.pointer);
+        const key = `uwm:${ptr}`;
+        if (!all.has(key))
+          all.set(key, {
+            source: 'uwm',
+            externalId: ptr,
+            title: r.title || '',
+            creator: r.map || '',
+            publisher: r.maa || '',
+            date: r.public || '',
+            rights: r.rights || 'UWM Libraries Digital Collections',
+            language: r.langua || '',
+            holding_institution: 'American Geographical Society Library (UW-Milwaukee)',
+            manifestUrl: `${UWM_BASE}/iiif/2/agdm:${ptr}/manifest.json`,
+            sourceUrl: `${UWM_BASE}/digital/collection/agdm/id/${ptr}`,
+            thumbnail: `${UWM_BASE}/digital/api/singleitem/image/agdm/${ptr}/default.jpg`,
+            foundVia: [kw],
+            dedupKey: key,
+            raw: {
+              compound: r.filetype === 'cpd',
+              country: r.countr,
+              city: r.city,
+              region: r.region,
+              scale: r.scale,
+              bbox: r.boundi,
+              // an array, because load_scout_to_db.mjs joins raw.subject
+              subject: String(r.subjec || '')
+                .split(';')
+                .map((x) => x.trim())
+                .filter(Boolean),
+            },
+          });
+        else all.get(key).foundVia.push(kw);
+      }
+      if (records.length < page) break;
+      start += page;
+      await sleep(400);
+    }
+    console.log(`(${total} total raw, ${all.size} unique vn-filtered)`);
+    await sleep(300);
+  }
+  // A compound object is a multi-sheet set: its own pointer has no image, so the
+  // parent thumbnail URL answers 200 with HTML. Take the first child page instead.
+  const compound = [...all.values()].filter((r) => r.raw.compound);
+  if (compound.length) {
+    process.stdout.write(`  uwm/compound thumbs (${compound.length}) `);
+    for (const r of compound) {
+      const info = await fetchJson(
+        `${UWM_BASE}/digital/bl/dmwebservices/index.php?q=dmGetCompoundObjectInfo/agdm/${r.externalId}/json`
+      );
+      const pages = (info.page || []).map((p) => String(p.pageptr));
+      if (!pages.length) continue;
+      r.raw.pages = pages;
+      r.thumbnail = `${UWM_BASE}/digital/api/singleitem/image/agdm/${pages[0]}/default.jpg`;
+      await sleep(300);
+    }
+    console.log('done');
+  }
+  return [...all.values()];
+}
+
 // ===== main =====
 const existingKeys = await fetchExistingKeys();
 console.log(`VMA has ${existingKeys.size} known external keys for dedup\n`);
@@ -341,6 +450,13 @@ if (SOURCES.includes('loc')) {
   console.log('\n=== Library of Congress ===');
   const recs = await scoutLoC(KEYWORDS);
   counts.loc = recs.length;
+  for (const r of recs) merged.set(r.dedupKey, r);
+}
+
+if (SOURCES.includes('uwm')) {
+  console.log('\n=== UWM AGDM (American Geographical Society Library) ===');
+  const recs = await scoutUwm(KEYWORDS);
+  counts.uwm = recs.length;
   for (const r of recs) merged.set(r.dedupKey, r);
 }
 

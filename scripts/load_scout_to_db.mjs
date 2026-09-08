@@ -15,6 +15,7 @@
 
 import { readFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
+import { deriveManifestUrl, deriveImageUrl, fixSourceUrl } from './scoutDerive.mjs';
 
 const env = Object.fromEntries(
   readFileSync(resolve(process.cwd(), '.env'), 'utf8')
@@ -65,7 +66,7 @@ function fixManifestUrl(rec) {
     // BUG FIX: scout_humazur.mjs used media @id (wrong); manifest is at iiif/{item_id}/manifest
     return `https://humazur.univ-cotedazur.fr/iiif/${rec.externalId}/manifest`;
   }
-  return rec.manifestUrl || null;
+  return deriveManifestUrl(rec);
 }
 
 // ---- Parse year ----
@@ -210,7 +211,7 @@ const rows = candidates
     return {
       source: rec.source,
       external_id: rec.externalId || rec.dedupKey || '',
-      source_url: rec.sourceUrl || null,
+      source_url: fixSourceUrl(rec),
       manifest_url: fixManifestUrl(rec),
       title: (rec.title || '(untitled)').slice(0, 1000),
       creator: rec.creator || null,
@@ -227,7 +228,12 @@ const rows = candidates
       reasons: sc.reasons,
       found_via: (rec.foundVia || []).join(';'),
       status: 'pending',
-      raw: rec.raw || null,
+      // A source with no reachable Presentation manifest can still have an
+      // Image API endpoint (LoC). Ingest reads it from here — see /api/admin/scout.
+      raw: (() => {
+        const img = deriveImageUrl(rec);
+        return img ? { ...(rec.raw || {}), iiif_image: img } : rec.raw || null;
+      })(),
     };
   })
   .filter((r) => r.external_id);
@@ -237,6 +243,9 @@ console.log(`Prepared ${rows.length} rows for insertion`);
 // ---- Insert into Supabase ----
 async function sb(path, opts = {}) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    // opts first: spreading it last would replace the merged headers wholesale,
+    // which dropped the apikey on any call that passed its own headers.
+    ...opts,
     headers: {
       apikey: KEY,
       Authorization: `Bearer ${KEY}`,
@@ -244,7 +253,6 @@ async function sb(path, opts = {}) {
       Prefer: 'resolution=merge-duplicates',
       ...(opts.headers || {}),
     },
-    ...opts,
   });
   if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
   return r;
@@ -265,7 +273,12 @@ let ok = 0,
 for (let i = 0; i < rows.length; i += batchSize) {
   const batch = rows.slice(i, i + batchSize);
   try {
-    await sb('/scout_candidates', { method: 'POST', body: JSON.stringify(batch) });
+    // on_conflict is required for merge-duplicates to target a unique constraint
+    // rather than the primary key — without it a re-run 409s on the whole batch.
+    await sb('/scout_candidates?on_conflict=source,external_id', {
+      method: 'POST',
+      body: JSON.stringify(batch),
+    });
     ok += batch.length;
     process.stdout.write(`  ${ok}/${rows.length}\r`);
   } catch (e) {

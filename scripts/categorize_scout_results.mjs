@@ -323,5 +323,5 @@ for (const r of rows.slice(-5)) {
 
 console.log(`\nCSV written: ${csvPath}`);
 console.log(`Mark column "action" with "y" to ingest, leave blank to skip, then run:`);
-console.log(`  node scripts/ingest_scout_approved.mjs        (dry-run)`);
-console.log(`  node scripts/ingest_scout_approved.mjs --apply`);
+console.log(`  node scripts/load_scout_to_db.mjs --file <this scout json>`);
+console.log(`  then approve + ingest in /admin?tab=scout (POST /api/admin/scout)`);
