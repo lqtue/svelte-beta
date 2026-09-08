@@ -13,11 +13,15 @@
   export let isolationMode = false;
   export let isMobile = false;
   export let sidebarCollapsed = false;
+  /** Current canvas rotation, signed degrees. 0 hides the reset button. */
+  export let rotationDeg = 0;
 
   const dispatch = createEventDispatcher<{
     toggleDraw: void;
     toggleIsolation: void;
     toggleSidebar: void;
+    rotate: { deg: number };
+    resetRotation: void;
   }>();
 </script>
 
@@ -30,7 +34,7 @@
     <div class="bar-hint">
       {drawMode
         ? 'Drag a rectangle to add a bbox · Esc to cancel'
-        : 'Click a bbox to edit it · drag to move it'}
+        : 'Click a bbox to edit · corners resize · round handle turns it · j/k next · v validate'}
     </div>
     <div class="bar-divider"></div>
     <button
@@ -74,6 +78,57 @@
       <span>{isolationMode ? 'Focus On' : 'Focus'}</span>
     </button>
   {/if}
+  <div class="bar-divider"></div>
+  <button
+    type="button"
+    class="tool-btn icon-only"
+    on:click={() => dispatch('rotate', { deg: -90 })}
+    title="Rotate left 90° (Shift+R) · [ and ] turn 5°"
+    aria-label="Rotate left"
+  >
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+    </svg>
+  </button>
+  <button
+    type="button"
+    class="tool-btn icon-only"
+    on:click={() => dispatch('rotate', { deg: 90 })}
+    title="Rotate right 90° (R) · [ and ] turn 5°"
+    aria-label="Rotate right"
+  >
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </svg>
+  </button>
+  {#if rotationDeg !== 0}
+    <button
+      type="button"
+      class="tool-btn"
+      on:click={() => dispatch('resetRotation')}
+      title="Back to upright (0)"
+    >
+      <span class="rot-deg">{rotationDeg}°</span>
+    </button>
+  {/if}
   {#if !isMobile}
     <div class="bar-divider"></div>
     <SidebarToggleButton collapsed={sidebarCollapsed} onClick={() => dispatch('toggleSidebar')} />
@@ -81,6 +136,13 @@
 </footer>
 
 <style>
+  .icon-only {
+    padding-inline: 0.4rem;
+  }
+  .rot-deg {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.72rem;
+  }
   .bar-hint {
     font-size: 0.72rem;
     color: var(--color-text);

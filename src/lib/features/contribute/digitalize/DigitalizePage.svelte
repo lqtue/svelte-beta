@@ -49,6 +49,7 @@
     type TriageState,
     type StoredTriage,
   } from '$lib/features/contribute/digitalize/triagePrefs';
+  import type { SavedTriage } from '$lib/data/maps/triageTypes';
   import { suggestTriage as computeTriageProposal } from '$lib/features/contribute/digitalize/suggestTriage';
   import { createLayoutJob } from '$lib/features/contribute/digitalize/layoutJob';
   import {
@@ -59,6 +60,7 @@
   } from '$lib/features/contribute/pipelineApi';
   import { resolveMapIiifInfoUrl } from '$lib/features/contribute/shared/iiifSource';
   import { toOlExtent } from '$lib/core/geo/rectUtils';
+  import { containsExtent, getCenter } from 'ol/extent';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';
 
   // ── Shared ────────────────────────────────────────────────────────────────────
@@ -86,8 +88,10 @@
     loading: false,
     error: '',
   };
-  /** `maps.triage` for the selected map: what the enqueue script would use. */
-  let savedTriage: StoredTriage | null = null;
+  /** `maps.triage` for the selected map: what the enqueue script would use.
+   *  Widened past `StoredTriage` because the row also carries the acceptance
+   *  stamps the sidebar reads (`validated_at`, `neatline_src`). */
+  let savedTriage: (StoredTriage & SavedTriage) | null = null;
   let savingTriage = false;
   let saveTriageError = '';
   let suggesting = false;
@@ -103,15 +107,128 @@
 
   // ── OCR review ────────────────────────────────────────────────────────────────
   let ocrSidebar: OcrSidebar | undefined;
+  let bboxPanel: BboxPanel | undefined;
   const review = createOcrReview({
     getMapId: () => currentMap?.id ?? null,
     getRunId: () => ocrSidebar?.getRunId?.() ?? 'manual',
     reload: () => ocrSidebar?.load?.(),
-    focusRow: (id) => ocrSidebar?.focusRow?.(id),
+    focusRow: (id, focusInput) => ocrSidebar?.focusRow?.(id, focusInput),
     fitTo: (x, y, w, h) =>
       map?.getView().fit(toOlExtent(x, y, w, h), { padding: [100, 100, 100, 100], duration: 400 }),
+    panTo,
+    setRowStatus: (id, status) => ocrSidebar?.setRowStatus?.(id, status),
   });
   $: selectedExtraction = $review.extractions.find((e) => e.id === $review.selectedId) ?? null;
+
+  /**
+   * Centres a bbox only when it is off screen, so clicking one never yanks the
+   * canvas but stepping to the next label always lands on it. Zoom is left
+   * alone — the operator picked it, and `fitTo` (double-click) is the zoom.
+   */
+  function panTo(x: number, y: number, w: number, h: number) {
+    const view = map?.getView();
+    const size = map?.getSize();
+    if (!view || !size) return;
+    const target = toOlExtent(x, y, w, h);
+    if (containsExtent(view.calculateExtent(size), target)) return;
+    view.animate({ center: getCenter(target), duration: 250 });
+  }
+
+  // ── Canvas rotation ───────────────────────────────────────────────────────────
+  // Many sheets were scanned sideways and plenty of labels run up a street at an
+  // angle; OL's own alt+shift+drag is the free-angle version of these buttons.
+  let rotationDeg = 0;
+  let rotationBoundTo: OlMap | null = null;
+
+  $: if (map && map !== rotationBoundTo) bindRotation(map);
+
+  function bindRotation(m: OlMap) {
+    rotationBoundTo = m;
+    const view = m.getView();
+    const read = () => {
+      const deg = Math.round((view.getRotation() * 180) / Math.PI) % 360;
+      rotationDeg = deg > 180 ? deg - 360 : deg < -180 ? deg + 360 : deg;
+    };
+    read();
+    view.on('change:rotation', read);
+  }
+
+  function rotate(deg: number) {
+    const view = map?.getView();
+    if (!view) return;
+    view.animate({ rotation: view.getRotation() + (deg * Math.PI) / 180, duration: 150 });
+  }
+
+  function resetRotation() {
+    map?.getView().animate({ rotation: 0, duration: 150 });
+  }
+
+  // ── Keyboard ──────────────────────────────────────────────────────────────────
+  /**
+   * Review runs off the canvas, so the keys have to work with focus on the page:
+   * j/k walk the rows the sidebar shows, v/x set a status and advance, e drops
+   * into the text field, Esc comes back out. Rotation keys work in every phase.
+   */
+  function onKeydown(e: KeyboardEvent) {
+    const el = e.target as HTMLElement | null;
+    const typing =
+      !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+
+    if (e.key === 'Escape') {
+      review.cancelDraw();
+      if (typing) el?.blur();
+      else review.deselect();
+      return;
+    }
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+
+    switch (e.key) {
+      case 'r':
+        return handled(e, () => rotate(90));
+      case 'R':
+        return handled(e, () => rotate(-90));
+      case ']':
+        return handled(e, () => rotate(5));
+      case '[':
+        return handled(e, () => rotate(-5));
+      case '0':
+        return handled(e, resetRotation);
+    }
+    if (phase !== 'ocr') return;
+    switch (e.key) {
+      case 'j':
+      case 'ArrowDown':
+        return handled(e, () => review.step(1));
+      case 'k':
+      case 'ArrowUp':
+        return handled(e, () => review.step(-1));
+      case 'v':
+      case 'Enter':
+        return handled(e, () => review.setStatus('validated', true));
+      case 'x':
+        return handled(e, () => review.setStatus('rejected', true));
+      case 'e':
+        return handled(e, () => bboxPanel?.focusText());
+      case 'd':
+        return handled(e, review.toggleDraw);
+      case 'f':
+        return handled(e, review.toggleIsolation);
+      // The label's own angle, not the canvas: 1 deg a press, 5 with shift.
+      case ',':
+        return handled(e, () => review.nudgeRotation(-1));
+      case '.':
+        return handled(e, () => review.nudgeRotation(1));
+      case '<':
+        return handled(e, () => review.nudgeRotation(-5));
+      case '>':
+        return handled(e, () => review.nudgeRotation(5));
+    }
+  }
+
+  function handled(e: KeyboardEvent, fn: () => void) {
+    e.preventDefault();
+    fn();
+  }
 
   // ── Triage derivations + persistence ──────────────────────────────────────────
   $: if (imgWidth && imgHeight && triage.neatline === null) {
@@ -228,7 +345,16 @@
     saveTriageError = '';
     try {
       await saveTriageToServer(currentMap.id, triage);
-      savedTriage = { ...toStoredTriage(triage)!, saved_at: new Date().toISOString() };
+      // The route stamps `validated_at` + `neatline_src` on this POST, so echo
+      // both: without them the panel would still read "Proposed" right after
+      // the person accepted it.
+      const now = new Date().toISOString();
+      savedTriage = {
+        ...toStoredTriage(triage)!,
+        saved_at: now,
+        validated_at: now,
+        neatline_src: 'human',
+      };
       // The picker list is the copy selectMap reads back, so keep it in step
       // rather than re-fetching every map to learn one column.
       currentMap.triage = savedTriage;
@@ -277,7 +403,7 @@
   }
 </script>
 
-<svelte:window on:keydown={(e) => e.key === 'Escape' && review.cancelDraw()} />
+<svelte:window on:keydown={onKeydown} />
 <svelte:head>
   <title
     >{currentMap ? `${currentMap.name} — OCR & Triage` : 'OCR & Triage'} — Vietnam Map Archive</title
@@ -324,6 +450,7 @@
         on:loaded={review.loaded}
         on:filter={review.filter}
         on:zoomToExtraction={review.zoom}
+        on:select={review.select}
       />
     </svelte:fragment>
 
@@ -364,7 +491,7 @@
             isolationMode={$review.isolationMode}
             drawMode={$review.drawMode}
             on:select={review.select}
-            on:move={review.move}
+            on:edit={review.edit}
             on:draw={review.draw}
           />
         {/if}
@@ -376,9 +503,11 @@
 
       {#if phase === 'ocr' && selectedExtraction}
         <BboxPanel
+          bind:this={bboxPanel}
           extraction={selectedExtraction}
           saving={$review.saving}
           on:save={review.save}
+          on:rotate={(e) => review.turnSelected(e.detail.deg)}
           on:close={review.deselect}
         />
       {/if}
@@ -417,8 +546,11 @@
       isolationMode={$review.isolationMode}
       {isMobile}
       {sidebarCollapsed}
+      {rotationDeg}
       on:toggleDraw={review.toggleDraw}
       on:toggleIsolation={review.toggleIsolation}
+      on:rotate={(e) => rotate(e.detail.deg)}
+      on:resetRotation={resetRotation}
       on:toggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
     />
   {/if}

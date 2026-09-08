@@ -32,6 +32,7 @@
     zoomToExtraction: { globalX: number; globalY: number; globalW: number; globalH: number };
     loaded: { extractions: EditableOcrExtraction[] };
     filter: { extractions: EditableOcrExtraction[] };
+    select: { id: string };
   }>();
 
   export let mapId: string;
@@ -253,16 +254,28 @@
     return filterRunId || availableRuns[availableRuns.length - 1] || 'manual';
   }
 
-  export function focusRow(id: string) {
+  /**
+   * Scrolls a row into view. `focusInput` puts the caret in its text field —
+   * right after a canvas click, wrong during keyboard navigation, where the
+   * keys have to keep reaching the page.
+   */
+  export function focusRow(id: string, focusInput = true) {
     // Ensure "All" filter so the row is visible
     if (filterStatus && extractions.find((e) => e.id === id)?.status !== filterStatus) {
       filterStatus = '';
     }
     tick().then(() => {
       rowEls[id]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (!focusInput) return;
       inputEls[id]?.focus();
       inputEls[id]?.select();
     });
+  }
+
+  /** One row's status, written the same way the row buttons write it. */
+  export async function setRowStatus(id: string, status: OcrStatus) {
+    const ext = extractions.find((e) => e.id === id);
+    if (ext) await save(ext, status);
   }
 </script>
 
@@ -364,6 +377,7 @@
               class="shape-tr status-{ext.status}"
               class:row-selected={ext.id === selectedId}
               bind:this={rowEls[ext.id]}
+              on:click={() => dispatch('select', { id: ext.id })}
               on:dblclick={() =>
                 dispatch('zoomToExtraction', {
                   globalX: ext.global_x,
@@ -490,7 +504,9 @@
   </div>
 
   <div class="hint-bar">
-    Double-click row to zoom · Edit text → auto-saves on blur · <kbd>✓</kbd> validate · <kbd>✗</kbd> reject
+    Click row to select · double-click to zoom · <kbd>j</kbd>/<kbd>k</kbd> next/prev ·
+    <kbd>v</kbd> validate · <kbd>x</kbd> reject · <kbd>e</kbd> edit text ·
+    <kbd>,</kbd>/<kbd>.</kbd> turn label · <kbd>r</kbd> turn sheet
   </div>
 </div>
 

@@ -13,6 +13,7 @@
  */
 
 import { get, writable } from 'svelte/store';
+import { foldAngle, obbFromRow, obbToRow, type ObbRow } from '$lib/core/geo/rectUtils';
 import { createManualBbox, patchExtraction, type OcrStatus } from '../shared/ocrApi';
 import type { OcrExtraction } from '../shared/types';
 
@@ -33,10 +34,14 @@ export type OcrReviewHooks = {
   getRunId: () => string;
   /** Ask the sidebar to reload its table after a write. */
   reload: () => void;
-  /** Ask the sidebar to scroll to + focus a row. */
-  focusRow: (id: string) => void;
+  /** Ask the sidebar to scroll to a row; `focusInput` false leaves the keyboard alone. */
+  focusRow: (id: string, focusInput?: boolean) => void;
   /** Zoom the canvas to an image-space rect. */
   fitTo: (x: number, y: number, w: number, h: number) => void;
+  /** Bring an image-space rect into view without changing the zoom. */
+  panTo: (x: number, y: number, w: number, h: number) => void;
+  /** Write one row's status through the sidebar, so its table stays the one copy. */
+  setRowStatus: (id: string, status: OcrStatus) => void | Promise<void>;
 };
 
 const EMPTY: OcrReviewState = {
@@ -63,13 +68,70 @@ export function createOcrReview(hooks: OcrReviewHooks) {
     }));
   }
 
+  /** A reload keeps the selection when the row survived it — validating a bbox
+   *  used to close the panel, which cost a click per label. */
   function loaded(e: CustomEvent<{ extractions: OcrExtraction[] }>) {
-    update((s) => ({ ...s, extractions: e.detail.extractions, selectedId: null }));
+    update((s) => ({
+      ...s,
+      extractions: e.detail.extractions,
+      selectedId: e.detail.extractions.some((ex) => ex.id === s.selectedId) ? s.selectedId : null,
+    }));
   }
 
+  /**
+   * Canvas or row click. It deliberately does NOT focus the row's text input:
+   * that put the keyboard in a text field, so every shortcut (r, v, x, j, k)
+   * typed a character instead of firing. `e` is how you get to the text.
+   */
   function select(e: CustomEvent<{ id: string }>) {
     update((s) => ({ ...s, selectedId: e.detail.id }));
-    hooks.focusRow(e.detail.id);
+    reveal(e.detail.id);
+    hooks.focusRow(e.detail.id, false);
+  }
+
+  /** Pans the canvas only when the bbox is off screen, so a click never jumps. */
+  function reveal(id: string) {
+    const ext = get(store).extractions.find((ex) => ex.id === id);
+    if (ext) hooks.panTo(ext.global_x, ext.global_y, ext.global_w, ext.global_h);
+  }
+
+  /**
+   * Moves the selection through the rows the sidebar shows, in its sort order —
+   * `visibleIds` is built from that list and a Set keeps insertion order. Wraps
+   * at both ends; with nothing selected, forward starts at the top and back at
+   * the bottom. Leaves the keyboard on the canvas.
+   */
+  function step(delta: number) {
+    const s = get(store);
+    const ids = s.visibleIds.size ? [...s.visibleIds] : s.extractions.map((ex) => ex.id);
+    if (!ids.length) return;
+    const at = s.selectedId ? ids.indexOf(s.selectedId) : -1;
+    const to = at < 0 ? (delta > 0 ? 0 : ids.length - 1) : (at + delta + ids.length) % ids.length;
+    const id = ids[to];
+    update((st) => ({ ...st, selectedId: id }));
+    reveal(id);
+    hooks.focusRow(id, false);
+  }
+
+  /**
+   * Keyboard validate / reject. Pressing the same one twice returns the row to
+   * pending, like the panel's buttons. The write goes through the sidebar so its
+   * table, counts and error line stay the single copy.
+   * ponytail: the canvas copy is optimistic and never reverted — a failed write
+   * shows in the sidebar's error line. Revert here if that proves confusing.
+   */
+  function setStatus(status: OcrStatus, advance = false) {
+    const s = get(store);
+    const id = s.selectedId;
+    const ext = id ? s.extractions.find((ex) => ex.id === id) : null;
+    if (!id || !ext) return;
+    const next: OcrStatus = ext.status === status ? 'pending' : status;
+    update((st) => ({
+      ...st,
+      extractions: st.extractions.map((ex) => (ex.id === id ? { ...ex, status: next } : ex)),
+    }));
+    void hooks.setRowStatus(id, next);
+    if (advance) step(1);
   }
 
   function filter(e: CustomEvent<{ extractions: OcrExtraction[] }>) {
@@ -84,48 +146,61 @@ export function createOcrReview(hooks: OcrReviewHooks) {
     hooks.fitTo(globalX, globalY, globalW, globalH);
   }
 
-  /** Optimistic: the bbox has already moved on the canvas when this fires. */
-  async function move(
-    e: CustomEvent<{
-      id: string;
-      global_x: number;
-      global_y: number;
-      global_w: number;
-      global_h: number;
-    }>
-  ) {
+  /**
+   * Every geometry edit — move, resize, turn — arrives here as the label's own
+   * rectangle plus the axis-aligned box around it (see `obbToRow`). Optimistic:
+   * the canvas has already drawn it by the time this fires.
+   */
+  async function edit(e: CustomEvent<{ id: string } & Required<ObbRow>>) {
     const mapId = hooks.getMapId();
     if (!mapId) return;
-    const { id, global_x, global_y, global_w, global_h } = e.detail;
+    const { id, ...cols } = e.detail;
     update((s) => ({
       ...s,
-      extractions: s.extractions.map((ex) =>
-        ex.id === id ? { ...ex, global_x, global_y, global_w, global_h } : ex
-      ),
+      extractions: s.extractions.map((ex) => (ex.id === id ? { ...ex, ...cols } : ex)),
     }));
     try {
-      await patchExtraction(mapId, { id, global_x, global_y, global_w, global_h });
+      await patchExtraction(mapId, { id, ...cols });
     } catch (err: any) {
       update((s) => ({ ...s, error: err.message }));
     }
   }
 
-  async function draw(
-    e: CustomEvent<{ global_x: number; global_y: number; global_w: number; global_h: number }>
-  ) {
+  /**
+   * Angle-only edit for the keyboard and the panel's reset. Nothing but `deg`
+   * changes, so the label keeps its size and the box is rebuilt around it.
+   * ponytail: one PATCH per keypress. Debounce if holding a key ever matters.
+   */
+  function turnSelected(deg: number) {
+    const ext = selected();
+    if (!ext) return;
+    const obb = obbFromRow(ext);
+    void edit(
+      new CustomEvent('edit', {
+        detail: { id: ext.id, ...obbToRow({ ...obb, deg: foldAngle(deg) }) },
+      })
+    );
+  }
+
+  /** Keyboard fine-tune of the selected label's angle, in degrees. */
+  function nudgeRotation(delta: number) {
+    const ext = selected();
+    if (ext) turnSelected(obbFromRow(ext).deg + delta);
+  }
+
+  function selected(): OcrExtraction | null {
+    const s = get(store);
+    return (s.selectedId && s.extractions.find((ex) => ex.id === s.selectedId)) || null;
+  }
+
+  async function draw(e: CustomEvent<Required<ObbRow>>) {
     const mapId = hooks.getMapId();
     if (!mapId) return;
     update((s) => ({ ...s, drawMode: false }));
-    const { global_x, global_y, global_w, global_h } = e.detail;
+    const cols = e.detail;
     let id: string;
     try {
-      id = await createManualBbox(mapId, {
-        run_id: hooks.getRunId(),
-        global_x,
-        global_y,
-        global_w,
-        global_h,
-      });
+      id = await createManualBbox(mapId, { run_id: hooks.getRunId(), ...cols });
     } catch (err: any) {
       update((s) => ({ ...s, error: err.message }));
       return;
@@ -133,14 +208,11 @@ export function createOcrReview(hooks: OcrReviewHooks) {
     // Mirror the server defaults for a manual row (see the ocr-review POST).
     const row: OcrExtraction = {
       id,
-      tile_x: Math.round(global_x),
-      tile_y: Math.round(global_y),
+      tile_x: Math.round(cols.global_x),
+      tile_y: Math.round(cols.global_y),
       tile_w: 0,
       tile_h: 0,
-      global_x,
-      global_y,
-      global_w,
-      global_h,
+      ...cols,
       category: 'other',
       text: '',
       text_validated: null,
@@ -201,9 +273,13 @@ export function createOcrReview(hooks: OcrReviewHooks) {
     reset,
     loaded,
     select,
+    step,
+    setStatus,
     filter,
     zoom,
-    move,
+    edit,
+    nudgeRotation,
+    turnSelected,
     draw,
     save,
     deselect,

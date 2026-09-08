@@ -107,6 +107,7 @@
       on:loaded
       on:filter
       on:zoomToExtraction
+      on:select
     />
   {:else}
     <SegSidebar
