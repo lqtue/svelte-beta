@@ -24,7 +24,6 @@
   import Stroke from 'ol/style/Stroke';
   import Text from 'ol/style/Text';
   import CircleStyle from 'ol/style/Circle';
-  import MouseWheelZoom from 'ol/interaction/MouseWheelZoom';
   import { Zoom } from 'ol/control';
   import { fromLonLat } from 'ol/proj';
   import type OlMap from 'ol/Map';
@@ -121,11 +120,10 @@
   });
 
   async function start(m: OlMap) {
-    // A full-bleed hero that eats the scroll wheel is a trap. Drag and
-    // double-click still zoom, so the map stays explorable.
-    for (const i of m.getInteractions().getArray().slice()) {
-      if (i instanceof MouseWheelZoom) m.removeInteraction(i);
-    }
+    // Wheel zoom is off at construction — see MapShell's `wheelZoom` prop. It
+    // used to be removed here instead, which left a window where the wheel ate
+    // the reader's scroll.
+    //
     // The +/- buttons land under the nav and read as chrome on a page that is
     // not a tool. Attribution and scale stay: both are required.
     for (const c of m.getControls().getArray().slice()) {

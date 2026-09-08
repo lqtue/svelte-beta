@@ -29,6 +29,8 @@
   import { fromLonLat, toLonLat } from 'ol/proj';
   import 'ol/ol.css';
 
+  import { defaults as defaultInteractions } from 'ol/interaction/defaults';
+
   import { createBasemapLayers } from './basemapLayers';
   import type { MapStore } from '$lib/map/stores/mapStore';
   import { getOlCenter } from '$lib/map/stores/mapStore';
@@ -50,6 +52,15 @@
    * where people read the sheet should not.
    */
   export let pixelRatio: number | undefined = undefined;
+
+  /**
+   * Whether the wheel zooms the map. A tool wants that; a map embedded in a
+   * scrolling page does not, because the reader's scroll gesture gets eaten and
+   * they cannot get past it. Off means the interaction is never constructed —
+   * removing it after mount left a window, however short, where the wheel still
+   * zoomed.
+   */
+  export let wheelZoom = true;
 
   /** Read-only binding to the OL Map instance */
   export let map: OlMap | null = null;
@@ -143,6 +154,7 @@
         enableRotation: true,
       }),
       controls,
+      interactions: defaultInteractions({ mouseWheelZoom: wheelZoom }),
     });
 
     // Sync to prop

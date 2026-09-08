@@ -143,7 +143,7 @@
   {#if live}
     <!-- pixelRatio 1: at the screen's own ratio a Retina display asks for about
          four times the tiles, and this map is scenery, not a reading surface. -->
-    <MapShell {mapStore} {layerStore} disableUrlSync pixelRatio={1}>
+    <MapShell {mapStore} {layerStore} disableUrlSync pixelRatio={1} wheelZoom={false}>
       <HeroSequence
         bind:this={seq}
         {mapId}
