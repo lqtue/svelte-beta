@@ -30,7 +30,7 @@
       title="Traced footprints">⬡ Traced</button
     >
     <a class="sb-btn is-sm" href="/scan?map={mapId}">Scan</a>
-    <a class="sb-btn is-sm" href="/explore?mode=annotate&map={mapId}">Annotate</a>
+    <a class="sb-btn is-sm" href="/explore?mode=studio&map={mapId}">Studio</a>
     {#if published}
       <a class="sb-btn is-sm" href="/catalog/{mapId}">Share</a>
     {/if}

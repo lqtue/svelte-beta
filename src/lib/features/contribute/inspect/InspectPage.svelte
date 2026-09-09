@@ -108,8 +108,8 @@
                   Open on map
                 </a>
               {/if}
-              <a class="inspect-link" href={`/explore?mode=annotate&map=${currentMap.id}`}>
-                Annotate
+              <a class="inspect-link" href={`/explore?mode=studio&map=${currentMap.id}`}>
+                Studio
               </a>
             </div>
           </SidebarCard>

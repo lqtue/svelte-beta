@@ -16,7 +16,10 @@
   no facet chosen, Picked shows the whole stack.
 
   Controls moved to the right rail (ExploreRightSidebar) in Sept 2026 — this
-  rail is the archive, that one is the sheet on top of the stack.
+  rail is the archive, that one is the sheet on top of the stack. The frame
+  both wear (`.sb-rail`, `.sb-rail-filters`, `.sb-rail-tabs`, `.sb-rail-body`)
+  and the bar at the crown (`.sb-search`) live in `components/sidebar.css`: the
+  two were identical scoped copies until they drifted into two heights.
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
@@ -109,7 +112,7 @@
   }
 </script>
 
-<aside class="panel">
+<aside class="sb-rail">
   <div class="sb-bar">
     <span class="sb-bar-title">Explore</span>
     <button
@@ -133,11 +136,11 @@
     </button>
   </div>
 
-  <div class="rail-filters">
+  <div class="sb-rail-filters">
     <ArchiveFilters {search} />
   </div>
 
-  <div class="sb-pill-row tab-strip" role="tablist">
+  <div class="sb-pill-row sb-rail-tabs" role="tablist">
     {#each TABS as t (t.key)}
       <button
         type="button"
@@ -154,7 +157,7 @@
     {/each}
   </div>
 
-  <div class="card-wrap" data-tour={tab === 'all' ? 'browse' : 'layers'}>
+  <div class="sb-rail-body" data-tour={tab === 'all' ? 'browse' : 'layers'}>
     <SidebarCard grow={1} flush={true}>
       {#if tab === 'all'}
         <ExploreBrowsePanel
@@ -179,36 +182,9 @@
 </aside>
 
 <style>
-  .panel {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background: var(--color-bg);
-    border-right: var(--border-thick);
-    overflow: hidden;
-    min-width: 0;
-  }
-
-  .rail-filters {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    padding: 0.45rem 0.6rem 0.5rem;
-  }
-
-  .tab-strip {
-    padding: 0 0.45rem 0.35rem;
-  }
   /* The count rides the pill's own ink in both states, so it needs no colour
      of its own — only steady digit widths. */
   .tab-count {
     font-variant-numeric: tabular-nums;
-  }
-
-  .card-wrap {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
   }
 </style>

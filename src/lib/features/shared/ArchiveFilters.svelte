@@ -41,7 +41,7 @@
 </script>
 
 <div class="filters">
-  <label class="search">
+  <label class="sb-search">
     <svg
       viewBox="0 0 24 24"
       width="16"
@@ -55,10 +55,13 @@
       <circle cx="11" cy="11" r="7" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
-    <input type="text" placeholder="Search maps…" bind:value={$query} />
+    <input class="sb-search-input" type="search" placeholder="Search maps…" bind:value={$query} />
     {#if $query}
-      <button type="button" class="clear" on:click={() => query.set('')} aria-label="Clear"
-        >×</button
+      <button
+        type="button"
+        class="sb-search-clear"
+        on:click={() => query.set('')}
+        aria-label="Clear">×</button
       >
     {/if}
   </label>
@@ -121,33 +124,6 @@
   .filters {
     display: flex;
     flex-direction: column;
-  }
-  .search {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem var(--space-2);
-    background: var(--sb-card-bg);
-    border: var(--border-thin);
-    border-radius: var(--sb-radius-sm);
-    box-shadow: 1px 1px 0 var(--shadow-ink);
-  }
-  .search input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-family: inherit;
-    font-size: 0.85rem;
-  }
-  .clear {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 1.05rem;
-    color: var(--sb-text-meta);
-    padding: 0 0.2rem;
   }
   .dropdowns {
     display: flex;

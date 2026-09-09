@@ -7,7 +7,7 @@
   you go and do; putting eight of them in the bar made the bar the tool.
 
   Tools ▾:  Map viewer /explore | Inspect a scan /scan
-            Story Builder /explore?mode=story | Annotate /explore?mode=annotate
+            Story Builder /explore?mode=story | Studio /explore?mode=studio
             ── Contribute /contribute | Georeference /contribute/georef
                OCR & Triage /scan?mode=triage | Trace buildings /scan?mode=trace
             ── Review queue /scan?mode=review (mod) | Admin /admin (mod)
@@ -107,7 +107,7 @@
       <a href="/explore" class="dropdown-item" on:click={closeDrawer}>Map viewer</a>
       <a href="/scan" class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
       <a href="/explore?mode=story" class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
-      <a href="/explore?mode=annotate" class="dropdown-item" on:click={closeDrawer}>Annotate</a>
+      <a href="/explore?mode=studio" class="dropdown-item" on:click={closeDrawer}>Studio</a>
 
       <span class="dropdown-rule" role="separator"></span>
       <a href="/contribute" class="dropdown-item" on:click={closeDrawer}>Contribute</a>
@@ -246,7 +246,7 @@
       <a href="/explore" class="drawer-link" on:click={closeDrawer}>Map viewer</a>
       <a href="/scan" class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
       <a href="/explore?mode=story" class="drawer-link" on:click={closeDrawer}>Story Builder</a>
-      <a href="/explore?mode=annotate" class="drawer-link" on:click={closeDrawer}>Annotate</a>
+      <a href="/explore?mode=studio" class="drawer-link" on:click={closeDrawer}>Studio</a>
 
       <p class="drawer-section-label">Contribute</p>
       <a href="/contribute" class="drawer-link" on:click={closeDrawer}>Where to start</a>

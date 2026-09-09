@@ -31,6 +31,7 @@
   import StoryMarkers from '$lib/features/stories/shared/StoryMarkers.svelte';
   import LegendPointsLayer from '$lib/features/explore/LegendPointsLayer.svelte';
   import FocusPulse from '$lib/features/explore/FocusPulse.svelte';
+  import GpsDot from '$lib/features/explore/GpsDot.svelte';
   import FootprintsLayer from '$lib/features/explore/FootprintsLayer.svelte';
   import PressPanel from '$lib/features/explore/PressPanel.svelte';
   import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
@@ -261,6 +262,10 @@
     const { lat, lng, bbox } = e.detail;
     if (bbox) setViewFromBounds(bbox);
     else mapStore.setView({ lng, lat, zoom: 15 });
+    // The camera alone leaves the reader guessing which of the hundred things
+    // under the crosshair they searched for — the same reason a label hit
+    // pulses. A bbox pick pulses at its centre, which is where it centred.
+    focusPoint = { lng, lat };
   }
 
   // Additive: tap a row → add to stack (if not on) + zoom to it. Never
@@ -483,6 +488,7 @@
         on:error={handleGpsError}
       />
       <LegendPointsLayer mapId={activeOverlayMapId} enabled={showLegendPoints} />
+      <GpsDot position={userPosition} />
       <FocusPulse point={focusPoint} />
       <FootprintsLayer mapIds={vectorMapIds} />
       {#if activeStory}

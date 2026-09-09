@@ -209,8 +209,8 @@ test('auth-gated and legacy routes redirect', async ({ page }) => {
   // would quietly match nothing and the assertion would never fail honestly.
   for (const [from, to] of [
     ['/view', '/explore'],
-    ['/annotate', '/explore?mode=annotate'],
-    ['/studio', '/explore?mode=annotate'],
+    ['/annotate', '/explore?mode=studio'],
+    ['/studio', '/explore?mode=studio'],
     ['/create', '/explore?mode=story'],
     ['/contribute/label', '/scan?mode=triage'],
     ['/contribute/digitalize', '/scan?mode=triage'],
@@ -223,5 +223,17 @@ test('auth-gated and legacy routes redirect', async ({ page }) => {
     await page.goto(from);
     const landed = new URL(page.url());
     expect(landed.pathname + landed.search).toBe(to);
+  }
+});
+
+// `?mode=annotate` is the name the tool shipped under and is still live in
+// share links and bookmarks. The dispatcher aliases it to `studio` rather than
+// redirecting, so the failure it guards against is silent: an unknown mode
+// falls through to browse, and an old link would open the archive instead of
+// the tool with no error anywhere.
+test('an old ?mode=annotate link still opens the studio', async ({ page }) => {
+  for (const mode of ['studio', 'annotate']) {
+    await page.goto(`/explore?mode=${mode}`);
+    await expect(page).toHaveTitle(/^Studio —/);
   }
 });

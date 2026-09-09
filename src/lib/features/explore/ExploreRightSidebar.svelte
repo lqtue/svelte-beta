@@ -1,22 +1,27 @@
 <!--
   ExploreRightSidebar.svelte — desktop right rail for /explore.
 
-  Mirrors ExploreSidebar exactly: crown, one search bar, a .sb-pill tab strip,
-  one card that swaps its body. Left rail is the archive; this one is the sheet
-  on top of the stack.
+  Mirrors ExploreSidebar exactly, and not by copy: the frame (`.sb-rail` +
+  `is-right`, `.sb-rail-filters`, `.sb-rail-tabs`, `.sb-rail-body`) and the
+  crown's bar (`.sb-search`) both live in `components/sidebar.css`. Crown, one
+  search bar, a .sb-pill tab strip, one card that swaps its body. Left rail is
+  the archive; this one is the sheet on top of the stack.
 
     ┌ This sheet ─────────────────── ⇥ ┐
     │ ⌕ Search a place…                │  PlaceSearchBar
-    │ ( Info ) ( Legend ) ( Control )  │
+    │ ◎ MY LOCATION                    │  .sb-more-btn, as the left rail's
+    │ ( Info ) ( Legend ) ( Control )  │  FILTERS disclosure
     │ …metadata, legend rows, controls…│
     └──────────────────────────────────┘
 
-  The search is at the top rather than inside Control because it is how you get
-  anywhere on the map — the same job the left rail's filter bar does for the
-  archive. `LayerControlsPanel` therefore takes `showSearch={false}` here, or
-  the Control tab would show a second one.
+  The search and "My location" are at the top rather than inside Control
+  because they are how you get anywhere on the map — the same job the left
+  rail's filter bar does for the archive, and My location wears that bar's
+  FILTERS face (`.sb-more-btn`) in the same slot. `LayerControlsPanel`
+  therefore takes `showSearch={false}` and `showGps={false}` here, or the
+  Control tab would show a second of each.
 
-  Info carries TopSheetActions (⬡ Traced · Scan · Annotate · Share). Those four
+  Info carries TopSheetActions (⬡ Traced · Scan · Studio · Share). Those four
   sat above the tab strip until Sept 2026, where they pushed the tabs down and
   belonged to no tab.
 -->
@@ -106,7 +111,7 @@
     : [];
 </script>
 
-<aside class="panel" data-tour="controls">
+<aside class="sb-rail is-right" data-tour="controls">
   <div class="sb-bar">
     <span class="sb-bar-title">This sheet</span>
     <button
@@ -130,11 +135,32 @@
     </button>
   </div>
 
-  <div class="rail-filters">
+  <div class="sb-rail-filters">
     <PlaceSearchBar on:pickLocation={(e) => dispatch('pickLocation', e.detail)} />
+    <button
+      type="button"
+      class="sb-more-btn"
+      class:is-on={gpsActive}
+      on:click={() => dispatch('toggleGps')}
+      aria-pressed={gpsActive}
+      title={gpsActive ? 'Stop GPS tracking' : 'Use my location'}
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+      </svg>
+      {gpsActive ? 'GPS on' : 'My location'}
+    </button>
   </div>
 
-  <div class="sb-pill-row tab-strip" role="tablist">
+  <div class="sb-pill-row sb-rail-tabs" role="tablist">
     {#each TABS as t (t.key)}
       <button
         type="button"
@@ -147,7 +173,7 @@
     {/each}
   </div>
 
-  <div class="card-wrap">
+  <div class="sb-rail-body">
     <SidebarCard grow={1} flush={true} padded={tab !== 'control'}>
       {#if tab === 'info'}
         {#if !map}
@@ -221,13 +247,15 @@
           </ul>
         {/if}
       {:else}
-        <!-- `showSearch={false}`: the rail's own search bar is at the top.
+        <!-- `showSearch={false}` / `showGps={false}`: the rail carries both at
+             its crown.
              `legendPointsAvailable={false}`: the Legend tab carries that
              toggle, beside the list it switches on. -->
         <LayerControlsPanel
           {viewMode}
           {gpsActive}
           showSearch={false}
+          showGps={false}
           legendPointsAvailable={false}
           on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)}
           on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
@@ -239,32 +267,6 @@
 </aside>
 
 <style>
-  .panel {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background: var(--color-bg);
-    border-left: var(--border-thick);
-    overflow: hidden;
-    min-width: 0;
-  }
-
-  .rail-filters {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    padding: 0.45rem 0.6rem 0.5rem;
-  }
-
-  .tab-strip {
-    padding: 0 0.45rem 0.35rem;
-  }
-  .card-wrap {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
   /* Legend */
   .lg-list {
     list-style: none;

@@ -7,8 +7,8 @@
   search bar. The panel still renders one on mobile (`showSearch`), so the
   markup had to have one home rather than two.
 
-  `.mo-search` is global (`$styles/components/modal.css`), hence the thin
-  scoped block.
+  The bar itself is `.sb-search` (`$styles/components/sidebar.css`) — the same
+  one `ArchiveFilters` wears on the left rail, so the two crowns match.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
@@ -28,10 +28,11 @@
 </script>
 
 <div class="psb">
-  <label class="mo-search is-compact">
+  <label class="sb-search">
     <svg
-      class="mo-search-icon"
       viewBox="0 0 24 24"
+      width="16"
+      height="16"
       fill="none"
       stroke="currentColor"
       stroke-width="2.5"
@@ -50,7 +51,7 @@
       bind:value={query}
     />
     {#if query}
-      <button type="button" class="mo-search-clear" on:click={() => (query = '')} aria-label="Clear"
+      <button type="button" class="sb-search-clear" on:click={() => (query = '')} aria-label="Clear"
         >×</button
       >
     {/if}

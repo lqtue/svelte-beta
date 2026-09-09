@@ -19,6 +19,7 @@
   import type Map from 'ol/Map';
 
   import { getShellContext } from '$lib/map/shell/context';
+  import { INK, inkAlpha } from '$lib/core/ink';
 
   /** Set to a spot to pulse there; set to null to clear. Re-setting restarts it. */
   export let point: { lng: number; lat: number } | null = null;
@@ -71,7 +72,7 @@
           image: new CircleStyle({
             radius: 6 + phase * 34,
             stroke: new Stroke({
-              color: `rgba(234, 179, 8, ${((1 - phase) * (1 - t) * 0.9).toFixed(3)})`,
+              color: inkAlpha(INK.yellow, (1 - phase) * (1 - t) * 0.9),
               width: 3,
             }),
           }),

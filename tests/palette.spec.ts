@@ -78,7 +78,7 @@ test('the words people actually type reach the right tool', () => {
   const all = destinationsFor('admin', true);
   const first = (q: string) => matchDestinations(all, q)[0]?.href;
   expect(first('ocr')).toBe('/scan?mode=triage');
-  expect(first('annotate')).toBe('/explore?mode=annotate');
+  expect(first('annotate')).toBe('/explore?mode=studio');
   expect(first('story')).toBe('/explore?mode=story');
   expect(first('allmaps')).toBe('/contribute/georef');
   expect(first('tokens')).toBe('/screens');

@@ -2,7 +2,7 @@
   /*
     /explore — the MapShell surface, mode chosen by `?mode=`.
 
-    Browse, annotate and author-a-story were /explore, /studio and /create:
+    Browse, studio and author-a-story were /explore, /studio and /create:
     three routes that each built the same OpenLayers map, the same basemap
     sources and the same warped-tile pipeline, then tore it all down on the way
     to the next one. Grouping them by shell rather than by verb is what lets
@@ -15,15 +15,20 @@
   */
   import { page } from '$app/stores';
   import ExplorePage from '$lib/features/explore/ExplorePage.svelte';
-  import StudioMode from '$lib/features/studio/StudioMode.svelte';
+  import StudioMode from '$lib/features/annotate/AnnotateMode.svelte';
   import CreateMode from '$lib/features/stories/editor/CreateMode.svelte';
 
-  $: mode = $page.url.searchParams.get('mode') ?? 'browse';
+  /* `?mode=annotate` is the name this mode shipped under and is still live in
+     share links, bookmarks and the wild, so it stays an alias rather than a
+     404 or a silent fall-through to browse. `studio` is what the UI says. */
+  const MODE_ALIASES: Record<string, string> = { annotate: 'studio' };
+  $: rawMode = $page.url.searchParams.get('mode') ?? 'browse';
+  $: mode = MODE_ALIASES[rawMode] ?? rawMode;
 
-  /* Kept verbatim from the /studio and /create routes this replaced — the
-     browse title and viewport meta stay in ExplorePage, which owns them. */
+  /* From the /studio and /create routes this replaced. The browse title and
+     viewport meta stay in ExplorePage, which owns them. */
   const HEAD = {
-    annotate: {
+    studio: {
       title: 'Studio — Vietnam Map Archive',
       description:
         'Draw and annotate historical maps of Vietnam. Create points, lines, and polygons to mark places of interest.',
@@ -34,7 +39,7 @@
         'Create guided stories and adventures on historical maps of Vietnam. Place points, configure challenges, and share your creations.',
     },
   } as const;
-  $: head = mode === 'annotate' ? HEAD.annotate : mode === 'story' ? HEAD.story : null;
+  $: head = mode === 'studio' ? HEAD.studio : mode === 'story' ? HEAD.story : null;
 </script>
 
 <svelte:head>
@@ -44,7 +49,7 @@
   {/if}
 </svelte:head>
 
-{#if mode === 'annotate'}
+{#if mode === 'studio'}
   <StudioMode />
 {:else if mode === 'story'}
   <CreateMode />

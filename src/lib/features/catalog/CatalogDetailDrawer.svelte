@@ -1,6 +1,6 @@
 <!--
   CatalogDetailDrawer — side panel that shows full metadata for a map and
-  three primary actions (Map / Image / Annotate).
+  three primary actions (Map / Image / Studio).
   Open by setting `item`; close fires `close` event (parent should null out the binding).
 -->
 <script lang="ts">
@@ -105,7 +105,7 @@
         <a class="chip act" href="/scan?map={item.id}">Image</a>
       {/if}
       {#if canAnnotate}
-        <a class="chip act" href="/explore?mode=annotate&map={item.id}">✏️ Studio</a>
+        <a class="chip act" href="/explore?mode=studio&map={item.id}">✏️ Studio</a>
       {/if}
       {#if !isScout && (item.status === 'public' || item.status === 'featured')}
         <a class="chip act" href="/catalog/{item.id}">Share page</a>

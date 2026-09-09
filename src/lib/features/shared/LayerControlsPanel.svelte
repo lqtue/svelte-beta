@@ -5,7 +5,8 @@
   everything that isn't a layer row or a catalog row:
     • Display mode (Stacked / Lens / Side-by-side)
     • Base map (Maps / Satellite / None)
-    • My Location (GPS toggle)
+    • My Location (GPS toggle) — `showGps={false}` drops it, for the same
+      reason as `showSearch`: /explore's right rail carries one at its crown
     • Location search (Nominatim) — `PlaceSearchBar`, and `showSearch={false}`
       drops it: /explore's right rail carries one at the top of the rail
       instead, so the Control tab would have shown a second.
@@ -21,13 +22,15 @@
 
   export let viewMode: ViewMode = 'overlay';
   export let gpsActive: boolean = false;
-  /** When false, "Side-by-side" is hidden — used by tool pages (/studio, /create). */
+  /** When false, "Side-by-side" is hidden — used by tool pages (annotate, story). */
   export let allowDual: boolean = true;
   /** Show the "Legend points" toggle (only when the active overlay has legend data). */
   export let legendPointsAvailable: boolean = false;
   export let showLegendPoints: boolean = false;
   /** Render the place search. False where the caller already has one. */
   export let showSearch: boolean = true;
+  /** Render the GPS toggle. False where the caller already has one. */
+  export let showGps: boolean = true;
 
   const dispatch = createEventDispatcher<{
     changeViewMode: { mode: ViewMode };
@@ -140,27 +143,29 @@
     </button>
   {/if}
 
-  <div class="mcp-row">
-    <button
-      type="button"
-      class="sb-btn is-sm mcp-gps"
-      class:is-on={gpsActive}
-      on:click={() => dispatch('toggleGps')}
-      title={gpsActive ? 'Stop GPS tracking' : 'Use my location'}
-    >
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
+  {#if showGps}
+    <div class="mcp-row">
+      <button
+        type="button"
+        class="sb-btn is-sm mcp-gps"
+        class:is-on={gpsActive}
+        on:click={() => dispatch('toggleGps')}
+        title={gpsActive ? 'Stop GPS tracking' : 'Use my location'}
       >
-        <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-      </svg>
-      <span>{gpsActive ? 'GPS on' : 'My location'}</span>
-    </button>
-  </div>
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+        </svg>
+        <span>{gpsActive ? 'GPS on' : 'My location'}</span>
+      </button>
+    </div>
+  {/if}
 
   {#if showSearch}
     <PlaceSearchBar on:pickLocation={(e) => dispatch('pickLocation', e.detail)} />

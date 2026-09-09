@@ -1,7 +1,7 @@
 /*
   sidebar.css — design system for map-tool sidebars (left and right).
   Used by every sidebar on both shells: /explore (ExploreSidebar), the story
-  and studio panes (MapViewerSidebar), the contribute tools on /scan, and the
+  and annotate panes (MapViewerSidebar), the contribute tools on /scan, and the
   panels they compose (LayerStackPanel, LayerControlsPanel, CatalogSidebarPanel,
   StoryHeaderPanel, StoryPointsPanel, PointInspector, the OCR/triage sidebars).
 
@@ -23,6 +23,11 @@
   Inputs
   ──────
     .sb-input, .sb-textarea   Bordered fields with consistent padding.
+    .sb-search                Icon + input + clear, the bar a rail wears at
+                              its crown. Both /explore rails use it.
+    .sb-more-btn              A bare toggle wearing the `.sb-more > summary`
+                              face — for a crown control that is not a
+                              disclosure (the right rail's "My location").
     .sb-mono                  Monospace face for a numeric field or readout.
     .sb-coord-grid            Two-per-line grid of .sb-coord-label fields.
 
@@ -272,7 +277,11 @@
 .sb-more {
   margin: 0.35rem 0;
 }
-.sb-more > summary {
+/* One face, two shapes: the left rail's FILTERS disclosure and the right
+   rail's My-location toggle sit in the same slot under the same search bar, so
+   they read as the same kind of control. */
+.sb-more > summary,
+.sb-more-btn {
   cursor: pointer;
   font-size: 0.72rem;
   letter-spacing: 0.02em;
@@ -281,8 +290,26 @@
   padding: 0.2rem 0;
   user-select: none;
 }
-.sb-more > summary:hover {
+.sb-more > summary:hover,
+.sb-more-btn:hover {
   opacity: 0.9;
+}
+.sb-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--sb-text);
+}
+/* Tracking, not a fill: it is a text control, and a filled pill here would
+   outweigh the search bar above it. */
+.sb-more-btn.is-on {
+  opacity: 1;
+  color: var(--sb-accent);
 }
 
 /* `.empty-state.error` (components/feedback.css) is inline red text, which is
@@ -321,6 +348,76 @@
 .sb-textarea:focus {
   outline: none;
   background: var(--sb-card-bg);
+}
+
+/* ── The /explore rail frame ──────────────────────────────────────
+   The left and right rails are the same object mirrored, and they held four
+   identical scoped rules each until Sept 2026 — which is how one of them ended
+   up with a different search bar, a different height and no shadow. One home,
+   `is-right` the only difference. Not in `layouts/tool-page.css` because
+   neither rail imports it; this sheet is always on. */
+.sb-rail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  background: var(--sb-bg);
+  border-right: var(--border-thick);
+  overflow: hidden;
+}
+.sb-rail.is-right {
+  border-right: 0;
+  border-left: var(--border-thick);
+}
+/* The crown: search, facets, whatever steers what is below. */
+.sb-rail-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.45rem 0.6rem 0.5rem;
+}
+/* Same 0.6rem as the crown, so the pills and the search share one left edge. */
+.sb-rail-tabs {
+  padding: 0 0.6rem 0.4rem;
+}
+.sb-rail-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The search bar a rail wears at its crown. It was two designs until Sept
+   2026 — `ArchiveFilters`' own scoped `.search` on the left rail and
+   `.mo-search.is-compact` (a modal class) on the right — so the two rails sat
+   side by side at visibly different heights, with and without a shadow. */
+.sb-search {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem var(--space-2);
+  background: var(--sb-card-bg);
+  border: var(--border-thin);
+  border-radius: var(--sb-radius-sm);
+  box-shadow: 1px 1px 0 var(--shadow-ink);
+}
+.sb-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--sb-text);
+}
+.sb-search-clear {
+  padding: 0 0.2rem;
+  background: transparent;
+  border: none;
+  font-size: 1.05rem;
+  color: var(--sb-text-meta);
+  cursor: pointer;
 }
 
 /* `.sb-input` is sized for one full-width field. This is the size a row of

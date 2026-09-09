@@ -74,12 +74,12 @@ export const DESTINATIONS: Destination[] = [
     keywords: 'story trip tour author write make',
   },
   {
-    href: '/explore?mode=annotate',
+    href: '/explore?mode=studio',
     label: 'Studio',
     hint: 'Annotate and animate',
     group: 'Make',
     role: 'member',
-    keywords: 'annotate draw timeline animation',
+    keywords: 'studio annotate draw timeline animation',
   },
 
   // Contribute
