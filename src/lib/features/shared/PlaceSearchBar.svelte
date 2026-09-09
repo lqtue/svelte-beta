@@ -44,7 +44,7 @@
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
     <input
-      class="mo-search-input"
+      class="sb-search-input"
       type="search"
       {placeholder}
       aria-label={placeholder}

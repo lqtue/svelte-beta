@@ -106,7 +106,6 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `sidebar.css` | `global.css` + `SidebarCard` | sidebar card frame |
 | `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome only — the `.btn` family moved to `buttons.css` in Sept 2026, because six components outside the modals used it without importing it |
 | `catalog.css` | `CatalogGrid`, `CatalogCard`, `/catalog` | map card grid |
-| `search-panel.css` | `features/shared/search/SearchPanel` + its two tabs | unified search overlay |
 | `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the toolbar and cell editors around that table |
 | `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate — the card only; its button is a `.chip` |
 | `library.css` | `LibraryGrid`, `StudioMode`, `CreateMode` | project/story library grid |
