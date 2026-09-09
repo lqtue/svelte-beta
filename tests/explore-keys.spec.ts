@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { stepByYear, timeOrder } from '../src/lib/features/explore/exploreKeys';
+import { hasHashCamera } from '../src/lib/features/explore/hashCamera';
 import type { MapListItem } from '../src/lib/data/maps/types';
 
 /** Pure checks for the /explore time scrubber. No browser, no network. */
@@ -35,4 +36,20 @@ test('an unknown or absent current map gives nothing to step from', () => {
   expect(stepByYear(MAPS, 'not-here', 1)).toBeNull();
   expect(stepByYear(MAPS, null, 1)).toBeNull();
   expect(stepByYear([], 'a', 1)).toBeNull();
+});
+
+/**
+ * A share link's `#@lat,lng,zoomz` camera must survive its own `?map=`.
+ * Before this, `?map=` always refit the view to the sheet's bounds, so a link
+ * sent at zoom 13 opened at zoom 10 — and the first zoomed-out frame stayed on
+ * the Allmaps canvas as a shrunken copy of the sheet in the corner.
+ */
+test('a hash camera is recognised, a bare or params-only hash is not', () => {
+  expect(hasHashCamera('#@10.77972,106.64947,13.37z,0r')).toBe(true);
+  expect(hasHashCamera('@10.77972,106.64947,13.37z,0r')).toBe(true);
+  expect(hasHashCamera('#@-33.87,151.21,9z,0r&base=g-satellite')).toBe(true);
+  expect(hasHashCamera('')).toBe(false);
+  expect(hasHashCamera('#')).toBe(false);
+  expect(hasHashCamera('#base=g-satellite')).toBe(false);
+  expect(hasHashCamera('#@,,13.37z')).toBe(false);
 });

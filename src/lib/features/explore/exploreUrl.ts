@@ -14,6 +14,7 @@ import type { MapListItem } from '$lib/data/maps/types';
 import type { Story } from '$lib/features/stories/shared/types';
 import { resolveMapRef } from '$lib/features/stories/shared/applyPoint';
 import { recordMapOpen } from '$lib/data/supabase/mapOpens';
+export { hasHashCamera } from '$lib/features/explore/hashCamera';
 
 export interface ExploreUrlOptions {
   supabase: SupabaseClient<Database>;
@@ -104,6 +105,11 @@ export interface ApplyExploreUrlParams {
   zoomToMap: (map: MapListItem, options?: { force?: boolean }) => Promise<void>;
   setView: (view: { lng: number; lat: number; zoom: number }) => void;
   startStory: (story: Story) => void;
+  /**
+   * The URL already carries a camera in its `#@lat,lng,zoomz` hash, so the
+   * sender chose the view and `?map=` must not overrule it.
+   */
+  keepCamera?: boolean;
 }
 
 /** Zoom used when landing on a single label — a street name is legible here. */
@@ -125,7 +131,7 @@ export async function applyExploreUrlParams(p: ApplyExploreUrlParams): Promise<v
       // Arriving on a shared ?map= link is an open too — and it's the one path
       // where the visitor never touches the browse panel.
       p.tallyMapOpen(found.id);
-      await p.zoomToMap(found, { force: true });
+      if (!p.keepCamera) await p.zoomToMap(found, { force: true });
       const at = parseAt(p.at);
       if (at) p.setView({ ...at, zoom: LABEL_ZOOM });
     }

@@ -54,6 +54,7 @@
   import {
     createExploreUrl,
     applyExploreUrlParams,
+    hasHashCamera,
     LABEL_ZOOM,
   } from '$lib/features/explore/exploreUrl';
   import type { LabelHit } from '$lib/features/shared/catalogSearch';
@@ -163,6 +164,7 @@
       storyId: paramStoryId,
       maps: mapList,
       stories,
+      keepCamera: hasHashCamera(location.hash),
       addMapOverlay,
       tallyMapOpen,
       zoomToMap,
@@ -357,7 +359,11 @@
   }
 
   onMount(async () => {
-    mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
+    // MapShell has already put the link's `#@lat,lng,zoomz` camera in the store
+    // by now (child onMount runs first), so this default would throw it away.
+    if (!hasHashCamera(location.hash)) {
+      mapStore.setView({ lng: SAIGON_CENTER[0], lat: SAIGON_CENTER[1], zoom: SAIGON_DEFAULT_ZOOM });
+    }
     role = (await fetchUserRole(supabase, session?.user?.id)) ?? 'user';
     try {
       stories = await fetchPublicStories(supabase);
