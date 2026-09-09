@@ -17,6 +17,7 @@
   import type { Unsubscriber } from 'svelte/store';
 
   import { getShellContext } from './context';
+  import { setVisibleBasemap } from './basemapLayers';
   import {
     createWarpedLayer,
     destroyWarpedLayer,
@@ -41,17 +42,6 @@
     string,
     { layer: WarpedMapLayer; loadedAllmapsId: string | null }
   >();
-
-  /** Show only the basemap matching `key`, or hide them all if key === 'none' / unknown. */
-  function setVisibleBasemap(map: OlMap, key: string) {
-    map.getLayers().forEach((layer) => {
-      const props = layer.getProperties() as { base?: boolean; name?: string };
-      if (props?.base) {
-        const k = props.name ?? '';
-        (layer as any).setVisible(k === key);
-      }
-    });
-  }
 
   function hideAllBasemaps(map: OlMap) {
     map.getLayers().forEach((layer) => {

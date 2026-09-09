@@ -17,6 +17,17 @@ async function blockMapOpenTally(page: Page): Promise<() => number> {
 // saving an OCR bbox and submitting a footprint — need a logged-in user and
 // would insert into production tables; they want a seeded test project first.
 
+/**
+ * Every (editorial) page server-renders now, so the nav and the hero field are
+ * painted — and clickable-looking — before their handlers exist. A click in
+ * that window is dropped. The root layout sets `data-hydrated` in `onMount`;
+ * waiting on it is the difference between a test that fails under parallel
+ * load and one that tests the app.
+ */
+async function hydrated(page: import('@playwright/test').Page) {
+  await page.locator('html[data-hydrated]').waitFor({ timeout: 15000 });
+}
+
 test('home renders and links into the catalog', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle(/./);
@@ -24,6 +35,7 @@ test('home renders and links into the catalog', async ({ page }) => {
   // The bar carries the reading pages directly; the tools sit behind Tools ▾,
   // whose contents are gated behind {#if open} — click to render them.
   await expect(page.locator('nav.top-nav a[href="/catalog"]')).toBeVisible();
+  await hydrated(page);
   await page.locator('nav.top-nav button', { hasText: 'Tools' }).click();
   await expect(page.locator('nav a[href="/explore"]').first()).toBeVisible();
   await expect(page.locator('nav a[href="/directory"]').first()).toBeVisible();
@@ -34,11 +46,12 @@ test('home renders and links into the catalog', async ({ page }) => {
 // silently, which reads as a flaky keyboard rather than a bug.
 test('the hero field hands its first keystrokes to the palette', async ({ page }) => {
   await page.goto('/');
-  // The masthead is the hero sequence's last beat, so the field is hidden for
-  // the first few seconds. Wait for it rather than typing into a hidden input,
-  // which Playwright will happily do and which fires no input event at all.
+  // The masthead is painted with the page now — it used to be the hero
+  // sequence's last beat — but it is server-rendered, so it is on screen
+  // before it is wired. Wait for both.
   const hero = page.locator('.hero-search-input').first();
   await expect(hero).toBeVisible({ timeout: 20000 });
+  await hydrated(page);
   await hero.pressSequentially('Catin', { delay: 40 });
 
   const palette = page.locator('.cp input[role="combobox"]');

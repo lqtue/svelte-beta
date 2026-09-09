@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fade } from 'svelte/transition';
   import type { MapListItem } from '$lib/data/maps/types';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { addFavorite, removeFavorite } from '$lib/data/supabase/favorites';
   import { loadHomeCatalog, resolveThumbnails } from '$lib/features/catalog/homeCatalog';
   import FeaturedSheet from '$lib/features/catalog/FeaturedSheet.svelte';
+  import HeroDemo from '$lib/features/explore/HeroDemo.svelte';
   import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
-  import { isMeteredConnection } from '$lib/core/utils/connection';
   import { openPaletteWith } from '$lib/core/utils/commandPalette';
+  import { tweenValue } from '$lib/core/utils/tween';
   import '$styles/layouts/home.css';
 
   const { supabase, session } = getSupabaseContext();
@@ -21,40 +21,9 @@
   let filterCollection: 'featured' | 'favorites' = 'featured';
 
   /**
-   * The hero map, fetched rather than imported. A static import puts
-   * OpenLayers, ol-pmtiles and Allmaps in the front page's first chunk — 179 kB
-   * of JavaScript, and ~390 kB of basemap behind it — before the masthead has
-   * painted. The hero already waited for an idle callback to *mount* the map;
-   * this makes it wait for the code too, and a metered connection never fetches
-   * it at all.
-   */
-  let HeroMap: typeof import('$lib/features/explore/HeroMap.svelte').default | null = null;
-
-  function loadHeroMap() {
-    if (isMeteredConnection()) return;
-    const start = () => {
-      import('$lib/features/explore/HeroMap.svelte').then((m) => (HeroMap = m.default));
-    };
-    const idle = window.requestIdleCallback?.(start, { timeout: 1500 }) ?? setTimeout(start, 500);
-    return () => {
-      if (window.cancelIdleCallback && typeof idle === 'number') window.cancelIdleCallback(idle);
-      clearTimeout(idle as number);
-    };
-  }
-
-  /**
-   * The sheet the hero plays. Not one of the five featured maps on purpose:
-   * this is the only sheet in the archive that carries all three layers the
-   * hero shows — a georeference, 46 traced footprints and 43 validated OCR
-   * labels — so it is the only one where the sequence tells the truth.
-   *
-   * ponytail: hardcoded rather than queried. Picking "the sheet with the most
-   * of everything" needs a join the front page has no other use for; when a
-   * second sheet is this complete, that is the moment to write it.
-   */
-  /**
-   * The sheet the hero plays and the frame it opens on — both of them read off
-   * an /explore URL, which is the only tool needed for either:
+   * The sheet the "how this works" section plays and the frame it opens on —
+   * both of them read off an /explore URL, which is the only tool needed for
+   * either:
    *
    *   1. open /explore, stack the sheet, and set the camera (drag to pan,
    *      scroll to zoom, ⌘/ctrl-drag to rotate),
@@ -68,7 +37,7 @@
    * ponytail: hardcoded rather than queried. Picking "the sheet with the most
    * of everything" needs a join the front page has no other use for; when a
    * second sheet is this complete, that is the moment to write it. This one is
-   * the only sheet carrying all three layers the hero shows — a georeference,
+   * the only sheet carrying all three layers the demo shows — a georeference,
    * 46 traced footprints and 43 validated OCR labels — so it is the only one
    * where the sequence tells the truth.
    */
@@ -77,10 +46,75 @@
     view: { lng: 106.706116, lat: 10.772994, zoom: 16.75, rotation: 2.4014 },
   };
 
-  /** The sheet's opacity, once the reader takes the slider. Owned here, because the slider is. */
-  let sheetOpacity: number | null = null;
-  /** True once the hero's sequence has finished; the slider waits for it. */
-  let heroSettled = false;
+  /**
+   * The header used to be the live map itself, which put OpenLayers,
+   * ol-pmtiles and Allmaps in the front page's first chunk — 179 kB of
+   * JavaScript with ~390 kB of basemap behind it — before the masthead had
+   * painted. It is two stills now, cross-faded by the slider in the column,
+   * and the real map plays further down in `HeroDemo` for a reader who
+   * scrolls to it. Both come out of the same frame of that demo, which is why
+   * the two ends of the slider line up to the pixel.
+   *
+   * Regenerate with `node scripts/gen-hero-still.mjs` after changing
+   * `HERO_SHEET`, or the header shows a frame the demo no longer opens on.
+   */
+  const HERO_NOW = '/images/hero-now.webp';
+  const HERO_1882 = '/images/hero-1882.webp';
+
+  /**
+   * How much of the 1882 sheet the header shows: 1 is the sheet, 0 is the
+   * satellite image under it. It starts on the sheet — that is the archive,
+   * and the city underneath is what the reader already knows.
+   */
+  let heroSheet = 1;
+
+  /**
+   * The header demonstrates itself once. A slider that nobody drags is a
+   * slider nobody knows is there, and this one carries the whole idea of the
+   * archive — so shortly after the page settles it sweeps down to the imagery
+   * and back, then leaves the control alone for good.
+   *
+   * The sweep stops dead on the reader's first touch: a control that keeps
+   * animating under a finger is fighting the person using it. It runs once a
+   * tab (`vma-hero-swept-v1`), never under `prefers-reduced-motion`, and never
+   * again after that — it is an introduction, not an idle animation.
+   */
+  const SWEEP_KEY = 'vma-hero-swept-v1';
+  const SWEEP_DELAY_MS = 1100;
+  const SWEEP_MS = 2800;
+  /** How far down the sweep goes. Not 0: the point is "this moves", not "look at a satellite photo". */
+  const SWEEP_FLOOR = 0.12;
+
+  let heroTouched = false;
+
+  function sweepHeroSlider(): (() => void) | undefined {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    try {
+      if (sessionStorage.getItem(SWEEP_KEY) === '1') return;
+      sessionStorage.setItem(SWEEP_KEY, '1');
+    } catch {
+      /* storage blocked: they get the sweep again next load, which is no worse */
+    }
+
+    let frame = 0;
+    const timer = window.setTimeout(() => {
+      const start = performance.now();
+      const step = (now: number) => {
+        if (heroTouched) return;
+        const t = Math.min(1, (now - start) / SWEEP_MS);
+        // Down and back in one pass: a triangle through the same easing curve
+        // the studio timeline uses, so the turn at the bottom is not a corner.
+        heroSheet = tweenValue(1, SWEEP_FLOOR, t < 0.5 ? t * 2 : (1 - t) * 2);
+        if (t < 1) frame = requestAnimationFrame(step);
+      };
+      frame = requestAnimationFrame(step);
+    }, SWEEP_DELAY_MS);
+
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(frame);
+    };
+  }
 
   /**
    * The figures quoted in the copy below. A dated snapshot on purpose —
@@ -176,7 +210,7 @@
   }
 
   onMount(loadCatalog);
-  onMount(loadHeroMap);
+  onMount(sweepHeroSlider);
 </script>
 
 <svelte:head>
@@ -189,16 +223,37 @@
 
 <div class="page home-page">
   <header class="hero">
-    <!-- The map arrives behind a masthead that is already on screen. It used to
-         be the sequence's last beat, so the one thing to do about the archive
-         showed up eight seconds after the reader did. -->
-    <svelte:component
-      this={HeroMap}
-      mapId={HERO_SHEET.id}
-      view={HERO_SHEET.view}
-      bind:overlayOpacity={sheetOpacity}
-      bind:settled={heroSettled}
+    <!-- Two stills of one frame, the slider below fading between them. The
+         city sits underneath and only shows as the sheet comes off it, so it
+         is `low` priority — the sheet is the LCP element and nothing else on
+         this page should compete with it. `alt=""` on the lower one for the
+         same reason: it is one picture with two states, not two pictures. -->
+    <img
+      class="hero-still"
+      src={HERO_NOW}
+      alt=""
+      width="1600"
+      height="900"
+      fetchpriority="low"
+      decoding="async"
     />
+    <img
+      class="hero-still"
+      src={HERO_1882}
+      alt="The 1882 cadastral survey of Saigon laid over the modern city"
+      width="1600"
+      height="900"
+      fetchpriority="high"
+      decoding="async"
+      style:opacity={heroSheet}
+    />
+    <div class="hero-still-scrim" aria-hidden="true"></div>
+    <!-- The imagery is on screen whenever the slider is off 1882, so its
+         credit has to be too. The live map below gets OL's own attribution
+         control; a still image has no such thing. -->
+    <p class="hero-credit">
+      Imagery © Esri, Maxar, Earthstar Geographics · Sheet: Plan Cadastral de Saïgon, 1882
+    </p>
     <div class="hero-content on-ink-plate">
       <h1 class="hero-title">
         Vietnam<br /><span class="text-highlight">Map Archive</span>
@@ -243,22 +298,24 @@
       </p>
 
       <!-- The archive's whole gesture in one control: drag from today back to
-           1882. It arrives with the masthead, so it never crowds the sequence. -->
-      {#if heroSettled}
-        <label class="hero-fade" transition:fade={{ duration: 400 }}>
-          <span>Today</span>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={sheetOpacity ?? 0.88}
-            on:input={(e) => (sheetOpacity = Number(e.currentTarget.value))}
-            aria-label="How much of the 1882 sheet to show"
-          />
-          <span>1882</span>
-        </label>
-      {/if}
+           1882. It is in the column, not on a plate over the map, so it shares
+           the left edge with the title and the field by layout rather than by
+           a matching `clamp()`. Two images and an opacity — no map, no
+           JavaScript beyond the bind. -->
+      <label class="hero-fade">
+        <span>Today</span>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          bind:value={heroSheet}
+          on:pointerdown={() => (heroTouched = true)}
+          on:keydown={() => (heroTouched = true)}
+          aria-label="How much of the 1882 sheet to show"
+        />
+        <span>1882</span>
+      </label>
     </div>
   </header>
 
@@ -317,6 +374,12 @@
         <a href="/explore" class="action-btn primary-btn">Open the map</a>
       </div>
     </section>
+
+    <!-- ============ HOW THIS WORKS ============
+         The animated hero, moved out of the header. Same map, same four beats;
+         the difference is that a reader who never scrolls this far never pays
+         for OpenLayers. -->
+    <HeroDemo mapId={HERO_SHEET.id} view={HERO_SHEET.view} still={HERO_1882} />
 
     <!-- ============ THE BAND ============
          Tools, Contribute and the two standing notes were four bordered cards

@@ -26,15 +26,28 @@
   }
 
   /**
-   * The same IIIF image at a size worth looking at. Both URL shapes we hold
+   * The same IIIF image at a chosen width. Both URL shapes we hold
    * (`/full/,400/` from the annotation, `/full/800,/` from the DB column) end in
    * the same three segments, so swapping the size is a string edit.
-   * ponytail: regex over parsing the IIIF URL; the <img> falls back to the small
-   * one on error, which is the only failure this can cause.
+   * ponytail: regex over parsing the IIIF URL; the <img> falls back to the
+   * stored one on error, which is the only failure this can cause.
    */
+  function atWidth(src: string | undefined, width: number): string | undefined {
+    return src?.replace(/\/full\/[^/]+\/(\d+)\/(\w+)\.(\w+)$/, `/full/${width},/$1/$2.$3`);
+  }
+
+  /** The plate: the one image on the page worth its own request. */
   function largeSrc(m: MapListItem): string | undefined {
-    const small = smallSrc(m);
-    return small?.replace(/\/full\/[^/]+\/(\d+)\/(\w+)\.(\w+)$/, '/full/1200,/$1/$2.$3');
+    return atWidth(smallSrc(m), 1200);
+  }
+
+  /**
+   * The picker tiles are 132px wide, and the stored `thumbnail` column is
+   * 800 — five of those was 715 kB of front page for five thumbnails. 400
+   * still covers a 2x screen.
+   */
+  function tileSrc(m: MapListItem): string | undefined {
+    return atWidth(smallSrc(m), 400);
   }
 
   function fallbackToSmall(e: Event, m: MapListItem) {
@@ -141,8 +154,13 @@
             on:click={() => (selectedId = m.id)}
           >
             <span class="fs-plate-sm">
-              {#if smallSrc(m)}
-                <img src={smallSrc(m)} alt="" loading="lazy" />
+              {#if tileSrc(m)}
+                <img
+                  src={tileSrc(m)}
+                  alt=""
+                  loading="lazy"
+                  on:error={(e) => fallbackToSmall(e, m)}
+                />
               {/if}
               <span class="fs-tile-year">{m.year ?? '\u2014'}</span>
             </span>

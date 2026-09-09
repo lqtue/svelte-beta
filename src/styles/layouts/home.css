@@ -69,6 +69,57 @@
   text-align: left;
 }
 
+/* The header images — two of them, stacked, the 1882 one over the modern city
+   with its opacity on the slider. Both are the frame `HeroDemo` opens on, so
+   the section further down is a continuation of the picture rather than a
+   second one. `object-position` keeps the interesting half of a 16:9 still on
+   screen when the header crops it taller or narrower than that.
+
+   No transition on the opacity: it is dragged, not toggled. */
+.home-page .hero-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 62% center;
+}
+
+/* Legibility only, and only where chrome sits: a wash down the left where the
+   masthead reads, one under the nav and one along the bottom.
+
+   Pinned to `--light-ink` in both themes — a warped sheet is a photograph of
+   paper and stays light at night, so a scrim that flipped with the theme would
+   brighten exactly the thing it is meant to darken. */
+.home-page .hero-still-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--light-ink) 84%, transparent) 0%,
+      color-mix(in srgb, var(--light-ink) 78%, transparent) 34%,
+      color-mix(in srgb, var(--light-ink) 42%, transparent) 50%,
+      transparent 66%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--light-ink) 22%, transparent) 0%,
+      transparent 18%,
+      transparent 78%,
+      color-mix(in srgb, var(--light-ink) 20%, transparent) 100%
+    );
+}
+
+/* On a phone the masthead is full width, so the side wash has no side to be
+   on: one even veil instead. */
+@media (max-width: 640px) {
+  .home-page .hero-still-scrim {
+    background: color-mix(in srgb, var(--light-ink) 62%, transparent);
+  }
+}
+
 .home-page .hero-content {
   position: relative;
   /* Above the live map and its scrim, which are absolutely positioned siblings. */
@@ -80,7 +131,7 @@
   flex-direction: column;
   align-items: flex-start;
   /* No plate. Type over a live map needs ground, and the ground is now the
-     darkened left edge of the map itself (`.hero-map-scrim` in HeroMap) — a
+     darkened left edge of the map itself (`.hero-still-scrim` below) — a
      translucent white box over the sheet was the thing hiding the sheet.
      `.on-ink-plate` in the markup carries the paper-coloured ink that darkened
      edge needs; the class paints a solid slab, which is what this undoes. */
@@ -215,9 +266,9 @@
 }
 
 /* The opacity slider. No plate: it lives in the masthead column, on the same
-   left edge as the title and the field, over the darkened map — so it takes the
-   column's paper ink (`.on-ink-plate`) rather than carrying a white box of its
-   own down at the bottom of the frame. */
+   left edge as the title and the field, over the darkened image — so it takes
+   the column's paper ink (`.on-ink-plate`) rather than carrying a white box of
+   its own down at the bottom of the frame. */
 .home-page .hero-fade {
   pointer-events: auto;
   display: flex;
@@ -241,6 +292,35 @@
 @media (max-width: 640px) {
   .home-page .hero-fade input {
     width: 6rem;
+  }
+}
+
+/* The imagery credit. Bottom right of the frame, out of the masthead column's
+   way, small but not hidden — Esri's tiles are on screen whenever the slider
+   is off the 1882 end. Pinned to the light faces like the rest of the header
+   furniture: it sits on a photograph, which does not flip at night. */
+.home-page .hero-credit {
+  position: absolute;
+  right: clamp(0.75rem, 2vw, 1.25rem);
+  bottom: 0.6rem;
+  z-index: 4;
+  margin: 0;
+  max-width: min(28rem, 60%);
+  text-align: right;
+  font-family: var(--font-family-base);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--light-paper) 78%, transparent);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--light-ink) 70%, transparent);
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .home-page .hero-credit {
+    max-width: 100%;
+    left: clamp(0.75rem, 2vw, 1.25rem);
+    text-align: left;
+    font-size: 0.62rem;
   }
 }
 

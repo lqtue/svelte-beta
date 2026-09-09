@@ -48,6 +48,14 @@
   setSupabaseContext({ supabase, session: data.session });
 
   onMount(() => {
+    // Hydration flag. Every (editorial) page server-renders, so the nav and
+    // the hero field are on screen and *look* clickable before any handler is
+    // attached — a click in that window is silently dropped. There is nothing
+    // to do about that for a reader beyond keeping the bundle small, but a
+    // test that clicks at machine speed hits it every time under load, so the
+    // smoke suite waits on this rather than on a timeout.
+    document.documentElement.dataset.hydrated = 'true';
+
     // Client-side identity is for chrome only — which nav links show, whether
     // the palette offers staff rows. Every actual gate is server-side through
     // requireRole, which reads the getUser()-validated user. So a session off

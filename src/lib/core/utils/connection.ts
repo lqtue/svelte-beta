@@ -1,7 +1,7 @@
 /**
  * connection.ts — whether to spend a reader's bandwidth on decoration.
  *
- * Lived inside `HeroMap` until the front page needed the same answer *before*
+ * Lived inside `HeroMap` until `HeroDemo` needed the same answer *before*
  * importing it: the point of a dynamic import is that a metered connection
  * never fetches the chunk, which cannot be decided from inside the chunk.
  *
