@@ -1,9 +1,9 @@
 <!--
-  StudioMode.svelte — /studio plugin on MapWorkspace.
+  AnnotateMode.svelte — the /explore?mode=annotate plugin on MapWorkspace.
 
   Desktop two-sidebar layout (mirrors /create):
     • Left sidebar  — Layers · Controls · Browse (MapViewerSidebar, shared)
-    • Right sidebar — Project header · Annotations · Inspector (StudioRightPane)
+    • Right sidebar — Project header · Annotations · Inspector (AnnotateRightPane)
 
   Mobile is intentionally unsupported here — the library view still works on
   mobile (read-only project list), but the editor itself is desktop-only.
@@ -29,8 +29,8 @@
   import MapWorkspace from '$lib/map/shell/MapWorkspace.svelte';
   import DrawTool from '$lib/map/shell/DrawTool.svelte';
   import MapViewerSidebar from '$lib/features/shared/MapViewerSidebar.svelte';
-  import StudioRightPane from './StudioRightPane.svelte';
-  import StudioOverpassController from './StudioOverpassController.svelte';
+  import AnnotateRightPane from './AnnotateRightPane.svelte';
+  import AnnotateOverpassController from './AnnotateOverpassController.svelte';
   import BboxSelector from './BboxSelector.svelte';
   import OverpassPreviewLayer from './OverpassPreviewLayer.svelte';
   import type { FeatureCollection } from 'geojson';
@@ -64,7 +64,7 @@
   let sidebarCollapsed = false;
   let rightSidebarCollapsed = false;
 
-  // Studio-specific state
+  // Annotate-specific state
   let drawingMode: DrawingMode | null = null;
   let drawToolRef: DrawTool;
   let notice: { text: string; tone: 'info' | 'error' | 'success' } | null = null;
@@ -77,9 +77,9 @@
   let isSaving = false;
   let saveSuccess = false;
 
-  // Overpass import — the flow lives in StudioOverpassController; these three
+  // Overpass import — the flow lives in AnnotateOverpassController; these three
   // are shared with the two map layers it drives.
-  let overpassController: StudioOverpassController;
+  let overpassController: AnnotateOverpassController;
   let bboxPickerActive = false;
   let pickerBbox: Bbox4 | null = null;
   let overpassPreview: FeatureCollection | null = null;
@@ -241,7 +241,7 @@
   }
 
   onMount(() => {
-    // /studio doesn't support side-by-side — snap back if state is stale from /view.
+    // annotate mode doesn't support side-by-side — snap back if state is stale from /view.
     if ($layerStore.viewMode === 'dual') layerStore.setViewMode('overlay');
 
     projectStore.loadFromSupabase().finally(() => {
@@ -283,7 +283,7 @@
 {#if !session}
   <AuthGate
     {supabase}
-    title="Sign in to Studio"
+    title="Sign in to annotate"
     body="Sign in with your Google account to create and manage annotation projects."
   />
 
@@ -304,7 +304,9 @@
     on:rename={handleLibraryRename}
     on:remove={(e) => projectStore.deleteProject(e.detail.item.id)}
   >
-    <svelte:fragment slot="title">My <span class="text-highlight">Studio.</span></svelte:fragment>
+    <svelte:fragment slot="title"
+      >My <span class="text-highlight">Annotations.</span></svelte:fragment
+    >
 
     <svelte:fragment slot="meta" let:item>
       <span class="meta-tag">{featureCount(item)} feature{featureCount(item) !== 1 ? 's' : ''}</span
@@ -319,7 +321,7 @@
 
   <!-- Editor View — desktop two-sidebar layout -->
 {:else}
-  <div class="studio-mode">
+  <div class="annotate-mode">
     <MapWorkspace
       {supabase}
       {mapStore}
@@ -347,7 +349,7 @@
       </svelte:fragment>
 
       <svelte:fragment slot="right-sidebar">
-        <StudioRightPane
+        <AnnotateRightPane
           project={currentProject}
           {annotations}
           {selectedAnnotationId}
@@ -392,7 +394,7 @@
       </svelte:fragment>
     </MapWorkspace>
 
-    <StudioOverpassController
+    <AnnotateOverpassController
       bind:this={overpassController}
       {shellMap}
       importGeoJson={(text) => drawToolRef?.importGeoJsonText(text)}

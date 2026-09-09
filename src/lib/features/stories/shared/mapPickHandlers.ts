@@ -1,6 +1,6 @@
 /**
  * mapPickHandlers.ts — the catalog pick / zoom handlers shared by the
- * two-sidebar map editors (/create and /studio).
+ * two-sidebar map editors (the story and annotate modes).
  *
  * `mapList` and `shellMap` are passed as getters because both are `bind:`-ed
  * from MapWorkspace and change after this factory runs.
@@ -16,7 +16,7 @@ export interface MapPickHandlerOptions {
   mapStore: MapStore;
   mapList: () => MapListItem[];
   layersStore?: typeof globalLayersStore;
-  /** When supplied, zoom-to-map also glides the OL view (studio behaviour). */
+  /** When supplied, zoom-to-map also glides the OL view (annotate-mode behaviour). */
   shellMap?: () => OlMap | null;
 }
 

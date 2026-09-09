@@ -23,7 +23,7 @@ the scan pattern, which was also missing five markers by construction.
 
 - **:5** — hand-rolled tween that replaced `animejs`, a dependency carried for one job. ceiling: deliberate — no stagger, no keyframe sequencing, no spring. upgrade: take a library back rather than growing this, if the timeline needs any of those.
 
-## src/lib/features/studio/animation/playback.ts
+## src/lib/features/annotate/animation/playback.ts
 
 - **:189** — the second half of the same `animejs` removal: a proxy object with one numeric property. ceiling: no stagger, no keyframes, no spring. upgrade: take the dependency back rather than growing this.
 
@@ -33,7 +33,7 @@ the scan pattern, which was also missing five markers by construction.
 
 ## src/lib/features/explore/FocusPulse.svelte
 
-- **:53** — the pulse is driven by `requestAnimationFrame`, not OL's `postrender`. ceiling: it stops on its own and nothing else on the map animates. upgrade: reach for `postrender` only if a second animated layer shows up.
+- **:54** — the pulse is driven by `requestAnimationFrame`, not OL's `postrender`. ceiling: it stops on its own and nothing else on the map animates. upgrade: reach for `postrender` only if a second animated layer shows up.
 
 ## src/lib/features/explore/FootprintsLayer.svelte
 
@@ -41,16 +41,16 @@ the scan pattern, which was also missing five markers by construction.
 
 ## src/lib/features/explore/ExploreRightSidebar.svelte
 
-- **:60** — the Legend tab issues the same GET `LegendPointsLayer` makes, so an open tab fetches it twice. ceiling: one small request per map. upgrade: give it a store if a third reader turns up.
+- **:79** — the Legend tab issues the same GET `LegendPointsLayer` makes, so an open tab fetches it twice. ceiling: one small request per map. upgrade: give it a store if a third reader turns up.
 
 ## src/lib/features/explore/HeroMap.svelte
 
-- **:157** — `fitSheet` runs once, when the map appears; not on resize. ceiling: a refit would undo a reader who has panned or ⌘-zoomed, and the frame only has to be right for the beats. upgrade: re-fit on `change:size` the day the stage becomes resizable.
+- **:156** — `fitSheet` runs once, when the map appears; not on resize. ceiling: a refit would undo a reader who has panned or ⌘-zoomed, and the frame only has to be right for the beats. upgrade: re-fit on `change:size` the day the stage becomes resizable.
 
 ## src/lib/features/explore/HeroSequence.svelte
 
-- **:148** — reaches for `boundHandleBrowserEvent_`, an OpenLayers private, to drop a wheel listener. ceiling: a plain instance field, and `removeEventListener` matches on type and function alone, so it is stabler than a monkey-patch — but an OL rename makes the wheel sluggish again rather than throwing. upgrade: none available to us; the real fix is OL registering the listener only when an interaction wants it.
-- **:268** — one label query, no paging, capped at 150. ceiling: the 1882 sheet has 85 validated rows, so the cap has headroom; a sheet with hundreds would need thinning by zoom. upgrade: OL declutter is where to start — and `HeroMap`'s caption quotes the same number by hand, so bump both together.
+- **:142** — reaches for `boundHandleBrowserEvent_`, an OpenLayers private, to drop a wheel listener. ceiling: a plain instance field, and `removeEventListener` matches on type and function alone, so it is stabler than a monkey-patch — but an OL rename makes the wheel sluggish again rather than throwing. upgrade: none available to us; the real fix is OL registering the listener only when an interaction wants it.
+- **:262** — one label query, no paging, capped at 150. ceiling: the 1882 sheet has 85 validated rows, so the cap has headroom; a sheet with hundreds would need thinning by zoom. upgrade: OL declutter is where to start — and `HeroMap`'s caption quotes the same number by hand, so bump both together.
 
 ## src/lib/features/catalog/FeaturedSheet.svelte
 

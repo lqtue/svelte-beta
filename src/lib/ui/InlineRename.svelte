@@ -1,7 +1,7 @@
 <!--
   InlineRename.svelte — double-click (or Enter / F2) a title to edit it in
   place; Enter or blur commits, Escape cancels. Shared by the /create story
-  header and the /studio project header.
+  header and the annotate-mode project header.
 
   The idle state is a real <button> so it is focusable and keyboard-operable
   without an ARIA role override.
@@ -14,7 +14,7 @@
   export let value = '';
   export let placeholder = 'Title';
   export let fallback = 'Untitled';
-  /** One-line variant used in the /studio header strip. */
+  /** One-line variant used in the annotate-mode header strip. */
   export let compact = false;
 
   let editing = false;

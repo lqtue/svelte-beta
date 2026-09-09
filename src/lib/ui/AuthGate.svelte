@@ -1,6 +1,6 @@
 <!--
   AuthGate.svelte — "sign in to continue" card shown by the tool pages
-  (/create, /studio) when there is no session. Google OAuth only, matching the
+  (the story and annotate modes) when there is no session. Google OAuth only, matching the
   rest of the app.
 -->
 <script lang="ts">

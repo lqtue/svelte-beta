@@ -1,5 +1,5 @@
 <!--
-  StudioAnnotationInspector.svelte — /studio's inspector card: name, notes,
+  AnnotateAnnotationInspector.svelte — annotate mode's inspector card: name, notes,
   colour, and show/hide + zoom for the selected annotation.
 -->
 <script lang="ts">

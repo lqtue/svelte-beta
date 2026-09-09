@@ -1,5 +1,5 @@
 /**
- * playback.ts — sequential keyframe runner for /studio.
+ * playback.ts — sequential keyframe runner for annotate mode.
  *
  * For each keyframe:
  *   1. Reconcile overlay membership against `layersStore` by mapId.

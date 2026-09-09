@@ -1,7 +1,7 @@
 <!--
   MapSearchBar.svelte — Reusable search trigger bar + SearchPanel wrapper.
   Positions both relative to a toolbar element (width-matching via ResizeObserver).
-  Used in ViewMode, CreateMode, AnnotateMode, Studio.
+  Used in ViewMode, CreateMode and AnnotateMode.
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';

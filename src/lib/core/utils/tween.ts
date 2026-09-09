@@ -1,5 +1,5 @@
 /**
- * tween.ts — the easing curve and the one interpolation the studio timeline
+ * tween.ts — the easing curve and the one interpolation the annotate-mode timeline
  * needs, with no OpenLayers or DOM in sight so it can be checked directly.
  *
  * ponytail: this is what replaced `animejs`, which was a dependency carried for

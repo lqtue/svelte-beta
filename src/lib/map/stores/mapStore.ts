@@ -1,7 +1,7 @@
 /**
  * Central map view state — single source of truth for map position.
  *
- * Every mode (studio, trip, explorer, lab) reads/writes the same store
+ * Every mode (annotate, trip, explorer, lab) reads/writes the same store
  * so that deep-link handoffs preserve the exact camera position.
  */
 

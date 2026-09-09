@@ -1,5 +1,5 @@
 /**
- * timelineStore — in-memory keyframe list for /studio playback.
+ * timelineStore — in-memory keyframe list for annotate-mode playback.
  *
  * Each keyframe snapshots the current camera (mapStore) and layer stack
  * (layersStore). Not persisted — survives only the editor session.
@@ -79,7 +79,7 @@ export interface TimelineStore extends Readable<TimelineState> {
 }
 
 /**
- * One timeline per editor session — created by StudioMode and passed down to
+ * One timeline per editor session — created by AnnotateMode and passed down to
  * the panels, so leaving and re-entering the editor starts from a clean slate.
  */
 export function createTimelineStore(): TimelineStore {

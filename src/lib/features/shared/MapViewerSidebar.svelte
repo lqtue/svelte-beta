@@ -1,6 +1,6 @@
 <!--
   MapViewerSidebar.svelte — the Layers · Controls · Browse left sidebar shared
-  by the two-sidebar map editors (/create, /studio). Mirrors ViewSidebar.
+  by the two-sidebar map editors (the story and annotate modes). Mirrors ViewSidebar.
   Tool-specific authoring lives in each mode's right pane.
 -->
 <script lang="ts">

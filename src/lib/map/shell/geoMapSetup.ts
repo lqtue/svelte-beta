@@ -1,5 +1,5 @@
 /**
- * geoMapSetup.ts — the store pair every geo-map mode (/explore, /studio,
+ * geoMapSetup.ts — the store pair every geo-map mode (/explore, annotate,
  * /create, /trip) instantiates.
  */
 import { onDestroy } from 'svelte';

@@ -1,5 +1,6 @@
 /*
-  create-mode.css — the full-screen shell shared by /create and /studio.
+  create-mode.css — the full-screen shell shared by the story and
+  annotate modes.
 
   The auth gate and the library grid that both modes render before the shell
   now live in components/auth-gate.css and components/library.css; the modes
@@ -7,7 +8,7 @@
 */
 
 .create-mode,
-.studio-mode {
+.annotate-mode {
   position: fixed;
   inset: var(--nav-height) 0 0 0;
   display: flex;

@@ -1,5 +1,5 @@
 <!--
-  StudioAnnotationList.svelte — /studio's "Annotations" card: the Clear /
+  AnnotateAnnotationList.svelte — annotate mode's "Annotations" card: the Clear /
   Export / Import / From-OSM actions, the Point · Line · Polygon draw toggles,
   the transient notice line, and the annotation rows themselves.
 -->
@@ -22,7 +22,7 @@
   export let annotations: AnnotationSummary[] = [];
   export let selectedAnnotationId: string | null = null;
   export let drawingMode: DrawingMode | null = null;
-  /** Transient status line above the list, owned by StudioMode. */
+  /** Transient status line above the list, owned by AnnotateMode. */
   export let notice: { text: string; tone: 'info' | 'error' | 'success' } | null = null;
 
   function pickDrawMode(m: DrawingMode) {

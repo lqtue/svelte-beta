@@ -1,20 +1,20 @@
 <!--
-  StudioRightPane.svelte — right pane for /studio. A mode switch, nothing more.
+  AnnotateRightPane.svelte — right pane for annotate mode. A mode switch, nothing more.
 
   Layout:
     • Top bar       — Back · Mode toggle (Annotate | Animate) · Collapse
-    • Project strip — StudioProjectHeader (title + save state + selected map)
-    • Mode body     — Annotate: StudioAnnotationList + StudioAnnotationInspector
-                      Animate:  StudioAnimationPanel
+    • Project strip — AnnotateProjectHeader (title + save state + selected map)
+    • Mode body     — Annotate: AnnotateAnnotationList + AnnotateAnnotationInspector
+                      Animate:  AnnotateAnimationPanel
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { AnnotationSummary, DrawingMode, AnnotationSet } from '$lib/map/types';
   import type { MapListItem } from '$lib/data/maps/types';
-  import StudioProjectHeader from './StudioProjectHeader.svelte';
-  import StudioAnnotationList from './StudioAnnotationList.svelte';
-  import StudioAnnotationInspector from './StudioAnnotationInspector.svelte';
-  import StudioAnimationPanel from './StudioAnimationPanel.svelte';
+  import AnnotateProjectHeader from './AnnotateProjectHeader.svelte';
+  import AnnotateAnnotationList from './AnnotateAnnotationList.svelte';
+  import AnnotateAnnotationInspector from './AnnotateAnnotationInspector.svelte';
+  import AnnotateAnimationPanel from './AnnotateAnimationPanel.svelte';
   import type { TimelineStore } from './animation/timelineStore';
 
   const dispatch = createEventDispatcher<{
@@ -30,7 +30,7 @@
   export let drawingMode: DrawingMode | null = null;
   export let isSaving = false;
   export let saveSuccess = false;
-  /** Transient status line above the annotation list, owned by StudioMode. */
+  /** Transient status line above the annotation list, owned by AnnotateMode. */
   export let notice: { text: string; tone: 'info' | 'error' | 'success' } | null = null;
   export let timelineStore: TimelineStore;
 
@@ -97,11 +97,18 @@
     </button>
   </div>
 
-  <StudioProjectHeader {project} {selectedMap} {isSaving} {saveSuccess} on:renameProject on:save />
+  <AnnotateProjectHeader
+    {project}
+    {selectedMap}
+    {isSaving}
+    {saveSuccess}
+    on:renameProject
+    on:save
+  />
 
   <!-- Mode body -->
   {#if mode === 'annotate'}
-    <StudioAnnotationList
+    <AnnotateAnnotationList
       {annotations}
       {selectedAnnotationId}
       {drawingMode}
@@ -116,7 +123,7 @@
       on:importOSM
     />
 
-    <StudioAnnotationInspector
+    <AnnotateAnnotationInspector
       {selected}
       index={selectedIndex}
       on:rename
@@ -127,7 +134,7 @@
       on:select
     />
   {:else}
-    <StudioAnimationPanel
+    <AnnotateAnimationPanel
       {timelineStore}
       on:addKeyframe
       on:removeKeyframe

@@ -153,7 +153,7 @@
         if (heroTouched) return;
         // One cycle: down, dwell on the imagery, back up, dwell on the sheet.
         // `k` is 0 at the sheet and 1 at the imagery; the easing is the curve
-        // the studio timeline uses, so neither turn is a corner.
+        // the annotate-mode timeline uses, so neither turn is a corner.
         const at = (now - start) % cycle;
         let k: number;
         if (at < leg) k = at / leg;
@@ -494,9 +494,9 @@
               <span class="mlc-desc">Walk readers through a place, one layer at a time</span>
             </span>
           </a>
-          <a href="/explore?mode=annotate" class="micro-link-card">
+          <a href="/explore?mode=studio" class="micro-link-card">
             <span class="mlc-body">
-              <span class="mlc-title">Annotate</span>
+              <span class="mlc-title">Studio</span>
               <span class="mlc-desc">Draw on any map and save it as a set</span>
             </span>
           </a>

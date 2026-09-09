@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { tweenValue } from '../src/lib/core/utils/tween';
 
 /**
- * Pure checks for the opacity tween that replaced animejs in the studio
+ * Pure checks for the opacity tween that replaced animejs in the annotate-mode
  * timeline. No clock, no browser — `tweenValue` is the whole interpolation.
  */
 

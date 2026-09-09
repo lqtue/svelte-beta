@@ -1,7 +1,7 @@
 /*
   auth-gate.css — the "sign in to continue" card shown by $lib/ui/AuthGate.svelte.
   Split out of layouts/create-mode.css; imported by the tool modes that render
-  AuthGate (/create, /studio).
+  AuthGate (the annotate and story modes).
 */
 
 .auth-gate {

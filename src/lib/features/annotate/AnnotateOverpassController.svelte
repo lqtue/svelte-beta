@@ -1,12 +1,12 @@
 <!--
-  StudioOverpassController.svelte — the whole "import from OpenStreetMap" flow
-  for /studio, lifted out of StudioMode.
+  AnnotateOverpassController.svelte — the whole "import from OpenStreetMap" flow
+  for annotate mode, lifted out of AnnotateMode.
 
   Owns: the dialog, the bbox the query runs against (viewport / search result /
   draw-on-map), the Overpass fetch, and the preview → Add | Discard step.
 
   The two map layers it drives (BboxSelector, OverpassPreviewLayer) stay in
-  StudioMode's `map-children` slot — they need MapShell's context — and are wired
+  AnnotateMode's `map-children` slot — they need MapShell's context — and are wired
   through the bindable `pickerActive` / `pickerBbox` / `preview` props.
 
   Call `open()` (via bind:this) to raise the dialog.
@@ -15,7 +15,7 @@
   import { createEventDispatcher } from 'svelte';
   import { toLonLat } from 'ol/proj';
   import type { FeatureCollection } from 'geojson';
-  import StudioOverpassDialog from './StudioOverpassDialog.svelte';
+  import AnnotateOverpassDialog from './AnnotateOverpassDialog.svelte';
   import {
     buildQuery,
     fetchOverpass,
@@ -160,7 +160,7 @@
   </div>
 {/if}
 
-<StudioOverpassDialog
+<AnnotateOverpassDialog
   {open}
   {bbox}
   isFetching={fetching}

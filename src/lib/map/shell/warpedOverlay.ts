@@ -2,7 +2,7 @@
  * Shared WarpedMapLayer lifecycle utilities.
  *
  * Extracted from StudioMap + TripTracker so every mode
- * (shell, studio, trip, lab) uses the same proven code.
+ * (shell, annotate, trip, lab) uses the same proven code.
  */
 
 import { WarpedMapLayer } from '@allmaps/openlayers';

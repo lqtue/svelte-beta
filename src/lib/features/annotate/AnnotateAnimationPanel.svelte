@@ -1,5 +1,5 @@
 <!--
-  StudioAnimationPanel.svelte — Animate-mode body for the Studio right pane.
+  AnnotateAnimationPanel.svelte — Animate-mode body for the annotate right pane.
 
   Takes the full height of the mode body:
     • Big keyframe list (thumb + label + transition fields + per-row actions)

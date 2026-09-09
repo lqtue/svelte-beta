@@ -531,8 +531,8 @@
           <div class="sc-item-head">
             <code class="sc-code">AuthGate</code>
             <span class="sc-role">
-              Signed-out gate for /studio and /create. Not rendered here — its button starts a real
-              Google sign-in.
+              Signed-out gate for the annotate and story modes. Not rendered here — its button
+              starts a real Google sign-in.
             </span>
           </div>
         </div>

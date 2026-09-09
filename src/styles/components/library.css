@@ -1,11 +1,11 @@
 /*
   library.css — project/story library grid shown by $lib/ui/LibraryGrid.svelte
-  (the /create and /studio landing screens): create button, empty + loading
+  (the story- and annotate-mode landing screens): create button, empty + loading
   states, and the CatalogCard slot styles (thumb, meta tags, description,
   edit/delete icon buttons).
 
   Split out of layouts/create-mode.css; imported by the tool modes that render
-  LibraryGrid (/create, /studio).
+  LibraryGrid (the story and annotate modes).
 
   Both create buttons are `.action-btn primary-btn` — the private
   `.library-create-btn` was a fourth copy of the pill.

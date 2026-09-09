@@ -9,7 +9,7 @@
   through `layersStore`, because that store persists to localStorage: a hero
   that wrote to it would silently rearrange the reader's /explore layer stack.
 
-  The beats advance on one rAF loop off `easeInOutCubic`, the curve the studio
+  The beats advance on one rAF loop off `easeInOutCubic`, the curve the annotate-mode
   timeline already uses. `prefers-reduced-motion` skips straight to the final
   composed frame, which is the interesting one anyway.
 -->

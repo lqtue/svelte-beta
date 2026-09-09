@@ -1,5 +1,5 @@
 <!--
-  StudioOverpassDialog.svelte — Modal for importing OSM features via Overpass.
+  AnnotateOverpassDialog.svelte — Modal for importing OSM features via Overpass.
 
   Lets the user pick a preset (or paste a custom QL body), confirms the
   current viewport bbox, and runs the query. Result conversion + DrawTool
