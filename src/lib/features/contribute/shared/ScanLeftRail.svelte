@@ -11,7 +11,7 @@
   It is built from the same two pieces as `ExploreSidebar`: a `.sb-bar` crown
   (via `ToolSidebarShell`) over `SidebarCard`s, with the same titles — "Browse
   the archive" and "My layers". The body used to be a bare picker over flat
-  `.tool-section` strips, which is what made the /scan rail read as a different
+  section strips, which is what made the /scan rail read as a different
   component from the /explore one even though both crowns were already the same
   rule set. There is no draggable splitter here: the layers card is two or three
   rows, so there is nothing to trade height with.
@@ -27,7 +27,6 @@
   import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';
   import '$styles/layouts/tool-page.css';
-  import '$styles/components/tool-sidebar.css';
 
   export let selectedMapId: string | null = null;
   /** Caller-supplied map list; see `ToolMapPicker`. Null means "load them all". */

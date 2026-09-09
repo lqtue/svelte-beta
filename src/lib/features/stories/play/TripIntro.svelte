@@ -22,11 +22,11 @@
     <h1 id="trip-intro-title">{story.title}</h1>
 
     <div class="meta-row">
-      <span class="chip"><strong>{stops}</strong> stops</span>
+      <span class="badge-chip is-sm"><strong>{stops}</strong> stops</span>
       {#if estimatedMinutes > 0}
-        <span class="chip">~{estimatedMinutes} min</span>
+        <span class="badge-chip is-sm">~{estimatedMinutes} min</span>
       {/if}
-      <span class="chip chip-walk">On foot</span>
+      <span class="badge-chip is-sm chip-yellow">On foot</span>
     </div>
 
     {#if story.description}
@@ -41,14 +41,14 @@
 
     <div class="cta-row">
       {#if hasProgress}
-        <button type="button" class="cta is-primary" on:click={() => dispatch('resume')}>
+        <button type="button" class="btn btn-primary" on:click={() => dispatch('resume')}>
           Resume trip →
         </button>
-        <button type="button" class="cta is-ghost" on:click={() => dispatch('start')}>
+        <button type="button" class="btn btn-outline" on:click={() => dispatch('start')}>
           Restart
         </button>
       {:else}
-        <button type="button" class="cta is-primary" on:click={() => dispatch('start')}>
+        <button type="button" class="btn btn-primary" on:click={() => dispatch('start')}>
           Start walking →
         </button>
       {/if}
@@ -113,24 +113,6 @@
     gap: 0.4rem;
     margin-bottom: 0.85rem;
   }
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.3rem 0.65rem;
-    background: var(--color-white);
-    border: var(--sb-border);
-    border-radius: 999px;
-    font-size: 0.78rem;
-    font-weight: 600;
-  }
-  .chip strong {
-    font-weight: 800;
-  }
-  .chip-walk {
-    background: var(--color-yellow);
-    color: var(--color-text-on-yellow);
-  }
   .desc {
     margin: 0 0 0.85rem;
     font-size: 0.95rem;
@@ -152,31 +134,10 @@
     flex-direction: column;
     gap: 0.5rem;
   }
-  .cta {
+  /* Layout only — full-width thumb targets stacked in the sheet. */
+  .cta-row .btn {
     width: 100%;
-    padding: 0.95rem 1rem;
-    border-radius: 14px;
-    border: var(--border-thin);
-    font-size: 1rem;
-    font-weight: 800;
-    font-family: inherit;
-    cursor: pointer;
-    box-shadow: 3px 3px 0 var(--shadow-ink);
-    transition:
-      transform 0.06s ease,
-      box-shadow 0.06s ease;
-  }
-  .cta:active {
-    transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 var(--shadow-ink);
-  }
-  .cta.is-primary {
-    background: var(--sb-accent);
-    color: var(--color-white);
-  }
-  .cta.is-ghost {
-    background: var(--color-white);
-    color: var(--color-text);
-    box-shadow: var(--shadow-solid-xs);
+    --btn-pad: 0.95rem 1rem;
+    --btn-text: 1rem;
   }
 </style>

@@ -88,9 +88,11 @@
         <span class="name">{m.name}</span>
         <span class="type-cell">
           {#if badges[m.id]}
-            <span class="type-chip is-badge">{badges[m.id]}</span>
+            <span class="badge-chip is-sm chip-green">{badges[m.id]}</span>
           {:else if m.map_type}
-            <span class="type-chip" style={typeStyle(m.map_type)}>{m.map_type}</span>
+            <span class="badge-chip is-sm type-chip" style={typeStyle(m.map_type)}
+              >{m.map_type}</span
+            >
           {/if}
         </span>
       </button>
@@ -170,19 +172,10 @@
     justify-content: flex-end;
     min-width: 0;
   }
-  /* Progress, not classification — it reads as a state, not a category. */
-  .type-chip.is-badge {
-    background: var(--sb-badge-map);
-    text-transform: none;
-  }
+  /* The shape is the shared badge; the tone is not, because it is computed
+     per map_type at runtime (see `typeStyle`) and lands as an inline style.
+     Casing is all that is left to say. */
   .type-chip {
-    padding: 0.15rem var(--space-2);
-    background: var(--sb-accent-yellow);
-    border: var(--sb-border);
-    border-radius: var(--sb-radius-pill);
-    font-size: 0.7rem;
-    font-weight: var(--font-bold);
     text-transform: capitalize;
-    white-space: nowrap;
   }
 </style>

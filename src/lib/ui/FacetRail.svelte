@@ -61,7 +61,7 @@
           {@const on = (selected.period ?? []).includes(p.key)}
           <button
             class="chip"
-            class:on
+            class:active={on}
             disabled={!n && !on}
             on:click={() => toggle('period', p.key)}
           >
@@ -80,7 +80,7 @@
         <div class="chips">
           {#each g.entries as [val, n] (val)}
             {@const on = (selected[g.key] ?? []).includes(val)}
-            <button class="chip" class:on on:click={() => toggle(g.key, val)} title={val}>
+            <button class="chip" class:active={on} on:click={() => toggle(g.key, val)} title={val}>
               <span class="lbl">{labelFor(g.key, val)}</span>
               <span class="n">{n}</span>
             </button>
@@ -121,36 +121,24 @@
     flex-wrap: wrap;
     gap: 0.3rem;
   }
+  /* The shared pill, run dense through its own `--btn-*` knobs: the rail is
+     260px wide and holds a dozen of these, so the default padding and 2.5rem
+     min-height would put every facet on its own line. Every face — rest, hover,
+     the filled `.active`, focus, disabled — comes from components/buttons.css;
+     overriding `background` here would tie with `.chip.active` on specificity
+     and a selected facet would stop reading as selected. */
   .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.25rem 0.55rem;
-    background: var(--sb-bg);
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-pill);
-    font-family: inherit;
-    font-size: 0.78rem;
-    font-weight: var(--font-semibold);
-    cursor: pointer;
+    --btn-font: inherit;
+    --btn-text: 0.78rem;
+    --btn-weight: var(--font-semibold);
+    --btn-pad: 0.25rem 0.55rem;
+    --btn-border: 1.5px solid var(--color-border);
+    min-height: 0;
     max-width: 100%;
   }
-  .chip:hover:not(:disabled) {
-    background: var(--color-white);
-    transform: translate(-1px, -1px);
-    box-shadow: 1.5px 1.5px 0 var(--shadow-ink);
-  }
-  .chip.on {
-    background: var(--color-text);
-    color: var(--color-white);
-  }
-  .chip.on .n {
+  .chip.active .n {
     background: var(--color-white);
     color: var(--color-text);
-  }
-  .chip:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
   }
   .lbl {
     overflow: hidden;

@@ -1,13 +1,7 @@
 <script lang="ts">
   import { posts, CATEGORY_LABELS, CATEGORY_COLORS } from './posts';
   import PageHero from '$lib/ui/PageHero.svelte';
-  import { onMount } from 'svelte';
   import '$styles/pages/blog.css';
-
-  let mounted = false;
-  onMount(() => {
-    mounted = true;
-  });
 
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -33,7 +27,7 @@
   />
 </svelte:head>
 
-<div class="page blog-page" class:mounted>
+<div class="page blog-page">
   <PageHero
     eyebrow="Field notes"
     title="Updates from the archive"

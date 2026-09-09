@@ -92,7 +92,7 @@
             </a>
             {#if !hasImageSource(c)}
               <span
-                class="badge-chip chip-yellow is-flag"
+                class="badge-chip chip-white is-flag"
                 title="No IIIF manifest or image URL — ingest will refuse it">no image</span
               >
             {/if}

@@ -82,56 +82,57 @@
   {/if}
 </svelte:head>
 
-<PageHero sub={description}>
-  <svelte:fragment slot="title">
-    <span class={letteringClass(place.category)}>{place.name}</span>
-  </svelte:fragment>
-</PageHero>
+<div class="page">
+  <PageHero sub={description}>
+    <svelte:fragment slot="title">
+      <span class={letteringClass(place.category)}>{place.name}</span>
+    </svelte:fragment>
+  </PageHero>
 
-<main class="place">
-  <p class="facts">
-    {#if span}<span><strong>{span}</strong> attested</span>{/if}
-    <span><strong>{maps.length}</strong> map{maps.length === 1 ? '' : 's'}</span>
-    <span><strong>{place.mentions}</strong> mention{place.mentions === 1 ? '' : 's'}</span>
-    {#if place.category}<span>{place.category}</span>{/if}
-  </p>
-
-  {#if otherSpellings.length}
-    <p class="spellings">
-      Also written {#each otherSpellings as v, i (v)}<em>{v}</em>{i < otherSpellings.length - 1
-          ? ', '
-          : ''}{/each}. Spellings come from the maps themselves and from optical character
-      recognition, so some are the sheet's own orthography and some are reading errors a reviewer
-      has not reached yet.
+  <main class="editorial-main place">
+    <p class="facts">
+      {#if span}<span><strong>{span}</strong> attested</span>{/if}
+      <span><strong>{maps.length}</strong> map{maps.length === 1 ? '' : 's'}</span>
+      <span><strong>{place.mentions}</strong> mention{place.mentions === 1 ? '' : 's'}</span>
+      {#if place.category}<span>{place.category}</span>{/if}
     </p>
-  {/if}
 
-  <!-- Client-side: the archives take seconds to answer and this page should
+    {#if otherSpellings.length}
+      <p class="spellings">
+        Also written {#each otherSpellings as v, i (v)}<em>{v}</em>{i < otherSpellings.length - 1
+            ? ', '
+            : ''}{/each}. Spellings come from the maps themselves and from optical character
+        recognition, so some are the sheet's own orthography and some are reading errors a reviewer
+        has not reached yet.
+      </p>
+    {/if}
+
+    <!-- Client-side: the archives take seconds to answer and this page should
        render without waiting for them. -->
-  <section class="press-section">
-    <PressPanel
-      inline
-      q={place.name}
-      year={place.first_year ?? place.last_year}
-      variants={place.variants ?? []}
-      window_={20}
-    />
-  </section>
+    <section class="press-section">
+      <PressPanel
+        inline
+        q={place.name}
+        year={place.first_year ?? place.last_year}
+        variants={place.variants ?? []}
+        window_={20}
+      />
+    </section>
 
-  <h2>On these maps</h2>
-  {#if place.geom_rmse != null}
-    <!-- Sits with the grid, not above it: the cards are what drop the pin, so
+    <h2>On these maps</h2>
+    {#if place.geom_rmse != null}
+      <!-- Sits with the grid, not above it: the cards are what drop the pin, so
          this is a caption for them rather than a footnote to a lead button. -->
-    <p class="caveat">
-      Position is warped through each sheet's own georeference, whose control points sit about
-      {Math.round(place.geom_rmse)} m from where they claim to be on the least accurate of these maps.
-      Treat the spot as a neighbourhood, not a doorstep.
-    </p>
-  {/if}
-  <ul class="maps">
-    {#each maps as m (m.id)}
-      <li>
-        <!--
+      <p class="caveat">
+        Position is warped through each sheet's own georeference, whose control points sit about
+        {Math.round(place.geom_rmse)} m from where they claim to be on the least accurate of these maps.
+        Treat the spot as a neighbourhood, not a doorstep.
+      </p>
+    {/if}
+    <ul class="maps">
+      {#each maps as m (m.id)}
+        <li>
+          <!--
           The card opens the place *on* this sheet. On a page headed "On these
           maps", that is what picking a sheet means: the reader is looking at a
           name and wants to see where it sits. It used to lead to the sheet's
@@ -140,31 +141,34 @@
           anywhere from a place to that place on a chosen sheet. The record is
           still one click away, below.
         -->
-        <a class="card" href="/explore?map={m.id}{atParam}">
-          {#if m.thumbnail}<img src={m.thumbnail} alt="" loading="lazy" />{/if}
-          <span class="year">{m.year_label ?? m.year ?? '—'}</span>
-          <span class="title">{m.name ?? 'Untitled'}</span>
-          {#if m.holding_institution}
-            <span class="holder">{m.holding_institution}</span>
-          {/if}
-        </a>
-        <!-- Five links reading "Sheet details" are indistinguishable to a
+          <a class="card" href="/explore?map={m.id}{atParam}">
+            {#if m.thumbnail}<img src={m.thumbnail} alt="" loading="lazy" />{/if}
+            <span class="year">{m.year_label ?? m.year ?? '—'}</span>
+            <span class="title">{m.name ?? 'Untitled'}</span>
+            {#if m.holding_institution}
+              <span class="holder">{m.holding_institution}</span>
+            {/if}
+          </a>
+          <!-- Five links reading "Sheet details" are indistinguishable to a
           screen reader, so each one names its sheet. -->
-        <a
-          class="card-meta"
-          href={`/catalog/${m.id}`}
-          aria-label="Details for {m.name ?? 'this sheet'}">Sheet details</a
-        >
-      </li>
-    {/each}
-  </ul>
-</main>
+          <a
+            class="card-meta"
+            href={`/catalog/${m.id}`}
+            aria-label="Details for {m.name ?? 'this sheet'}">Sheet details</a
+          >
+        </li>
+      {/each}
+    </ul>
+  </main>
+</div>
 
 <style>
+  /* `.editorial-main` (editorial.css) centres the column and pads it; this
+     page only widens the measure and drops the card rhythm, since its children
+     are paragraphs and headings rather than sections. */
   .place {
     max-width: 60rem;
-    margin: 0 auto;
-    padding: var(--space-6) var(--space-4) var(--space-12);
+    gap: 0;
   }
   .facts {
     display: flex;

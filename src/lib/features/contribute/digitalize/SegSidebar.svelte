@@ -14,7 +14,6 @@
   import { buildSegCommand, type SegConfig } from './segCommand';
   import type { PipelineStatus, HumanStage } from '$lib/features/contribute/pipelineApi';
   import '$styles/layouts/tool-page.css';
-  import '$styles/components/tool-sidebar.css';
 
   export let mapId: string;
   export let status: PipelineStatus | null = null;
@@ -25,14 +24,25 @@
 
   const dispatch = createEventDispatcher<{ advance: { stage: HumanStage }; refresh: void }>();
 
+  /* The pipeline stage's tone on the shared dense badge. Anything unmapped
+     (idle, ocr_queued, seg_queued's neighbours) stays grey. */
+  const STAGE_TONE: Record<string, string> = {
+    ocr_done: 'chip-orange',
+    reviewed: 'chip-orange',
+    seg_queued: 'chip-blue',
+    seg_done: 'chip-green',
+    seg_reviewed: 'chip-green',
+  };
+
   $: stage = status?.stage ?? 'idle';
+  $: stageTone = STAGE_TONE[stage] ?? 'chip-gray';
   $: command = buildSegCommand(mapId, status?.ocr_run_id, config);
 </script>
 
 <div class="seg-panel">
   <div class="seg-status">
     <span class="seg-stage-label">Stage</span>
-    <span class="seg-stage-badge stage-{stage}">{stage}</span>
+    <span class="badge-chip is-sm {stageTone}">{stage}</span>
   </div>
 
   {#if compact}
@@ -40,24 +50,19 @@
       <CliCommandBlock {command} label="Colab command" />
     {/if}
     {#if error}
-      <p class="seg-error">{error}</p>
+      <p class="empty-state error">{error}</p>
     {/if}
   {:else}
     {#if stage === 'ocr_done' || stage === 'reviewed'}
       {#if stage === 'ocr_done'}
-        <button
-          class="action-btn seg-ready-btn"
-          on:click={() => dispatch('advance', { stage: 'reviewed' })}
-        >
+        <button class="sb-btn is-block" on:click={() => dispatch('advance', { stage: 'reviewed' })}>
           Mark ready for segmentation
         </button>
       {:else}
         <p class="seg-hint">Ready. Run the Colab command below, then come back here.</p>
       {/if}
     {:else if stage === 'seg_done' || stage === 'seg_reviewed'}
-      <a class="action-btn seg-review-link" href="/scan?mode=review&map={mapId}">
-        Review footprints &rarr;
-      </a>
+      <a class="sb-btn is-block" href="/scan?mode=review&map={mapId}"> Review footprints &rarr; </a>
     {:else if stage === 'idle'}
       <p class="seg-hint">
         Finish OCR review first. The segmentation step needs validated toponyms to run.
@@ -66,7 +71,7 @@
 
     {#if command}
       <div class="seg-config">
-        <div class="tool-section-title">Command config</div>
+        <div class="sb-section-label">Command config</div>
         <label class="seg-field">
           <span>Checkpoint</span>
           <input
@@ -119,10 +124,14 @@
     {/if}
 
     {#if error}
-      <p class="seg-error">{error}</p>
+      <p class="empty-state error">{error}</p>
     {/if}
 
-    <button class="pill-btn seg-refresh" on:click={() => dispatch('refresh')} disabled={loading}>
+    <button
+      class="sb-btn is-sm seg-refresh"
+      on:click={() => dispatch('refresh')}
+      disabled={loading}
+    >
       {loading ? 'Loading…' : 'Refresh status'}
     </button>
   {/if}
@@ -143,41 +152,6 @@
   }
   .seg-stage-label {
     opacity: 0.55;
-  }
-  .seg-stage-badge {
-    font-size: 0.72rem;
-    font-weight: var(--font-semibold);
-    padding: 2px 8px;
-    border-radius: var(--radius-pill);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    background: var(--color-gray-100);
-    color: var(--color-text);
-  }
-  .seg-stage-badge.stage-ocr_done,
-  .seg-stage-badge.stage-reviewed {
-    background: var(--tone-amber-pale);
-    color: var(--tone-amber-ink);
-  }
-  .seg-stage-badge.stage-seg_queued {
-    background: var(--tone-blue-pale);
-    color: var(--tone-blue-ink);
-  }
-  .seg-stage-badge.stage-seg_done,
-  .seg-stage-badge.stage-seg_reviewed {
-    background: var(--tone-green-pale);
-    color: var(--tone-green-ink);
-  }
-  .seg-ready-btn {
-    width: 100%;
-    font-size: 0.8rem;
-  }
-  .seg-review-link {
-    display: block;
-    text-align: center;
-    text-decoration: none;
-    width: 100%;
-    font-size: 0.8rem;
   }
   .seg-config {
     display: flex;
@@ -244,14 +218,9 @@
     flex-direction: column;
     gap: 0.15rem;
   }
-  .seg-error {
-    font-size: 0.75rem;
-    color: var(--tone-red-ink);
-    margin: 0;
-  }
+  /* Layout only — `.sb-btn` supplies the face. */
   .seg-refresh {
     align-self: flex-start;
-    font-size: 0.72rem;
   }
   .seg-hint {
     font-size: 0.75rem;

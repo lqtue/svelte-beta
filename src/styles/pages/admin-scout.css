@@ -2,7 +2,8 @@
   /admin?tab=scout — candidate review, as a card grid or a dense table.
 
   Layout and position only. Everything with a look of its own comes from a
-  shared sheet: `.btn*` from buttons.css, `.sb-card` / `.sb-input` /
+  shared sheet: `.section-title-sm` / `.section-desc` / `.empty-state` from
+  editorial.css and feedback.css, `.btn*` from buttons.css, `.sb-card` / `.sb-input` /
   `.sb-pill` from sidebar.css, `.badge-chip` + `.chip-*` from editorial.css,
   `.data-table.is-dense` / `.table-wrap` from table.css.
 
@@ -17,19 +18,12 @@
   are generic enough that they must not become global.
 */
 
-.scout-page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: var(--space-8) var(--space-6) 5rem;
-}
-.scout-page .page-header h1 {
-  margin: 0 0 var(--space-1);
-  font-size: var(--text-3xl);
-}
-.scout-page .page-header p {
-  margin: 0 0 var(--space-2);
-  color: var(--color-gray-500);
-  font-size: 0.9rem;
+/* No page geometry here: the /admin route wraps every tab in `.editorial-main`,
+   which owns the measure and the padding. This tab is a panel inside it. */
+/* The tab's opening title. `.section-title-sm` and `.section-desc` carry the
+   look; only the gap down to the keyboard hint is this page's own. */
+.scout-page .scout-head .section-desc {
+  margin-bottom: var(--space-2);
 }
 .scout-page .kbd-hint {
   margin-bottom: var(--space-6);
@@ -169,9 +163,10 @@
   box-shadow: 1px 1px 0 var(--shadow-ink);
 }
 /* The one badge that has to be noticed: this candidate cannot be ingested.
-   `.chip-red` is not available on purpose — /screens records that the red,
-   orange and purple chips were removed — so the flag is the sanctioned white
-   badge, marked by the ink it borrows from `.btn-danger`. */
+   It stays a white badge marked by the red ink it borrows from `.btn-danger`
+   rather than taking `.chip-red`'s solid fill — the flag sits in a row of
+   quiet metadata badges, and a filled red there reads as an error state for
+   the whole row rather than a note on one field. */
 .scout-page .badge-chip.is-flag {
   border-color: var(--color-primary);
   color: var(--color-primary);
@@ -255,28 +250,6 @@
 }
 .scout-page .scout-table .sd-actions .btn {
   flex: 0 0 auto;
-}
-.scout-page .sd-verdict {
-  font-family: var(--font-family-display);
-  font-weight: var(--font-bold);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 0.2rem 0.5rem;
-  border-radius: var(--radius-pill);
-  border: var(--border-thin);
-}
-.scout-page .sd-verdict.is-approved {
-  background: var(--color-green);
-  color: var(--color-on-accent);
-}
-.scout-page .sd-verdict.is-rejected {
-  background: var(--color-primary);
-  color: var(--color-on-accent);
-}
-.scout-page .sd-verdict.is-ingested {
-  background: var(--color-blue);
-  color: var(--color-on-accent);
 }
 .scout-page .sd-note-shown {
   margin: 0.25rem 0 0;

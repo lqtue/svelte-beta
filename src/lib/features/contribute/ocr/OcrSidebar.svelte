@@ -585,9 +585,4 @@
     color: var(--color-text);
     opacity: 0.6;
   }
-  .empty-state {
-    font-size: 0.8rem;
-    color: var(--color-text);
-    opacity: 0.6;
-  }
 </style>

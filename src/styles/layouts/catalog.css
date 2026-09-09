@@ -17,17 +17,12 @@
 /* ========================================
    PAGE ROOT
    ======================================== */
+/* Height and the mount fade come from `.page` (components/editorial.css);
+   the dot field is this page's own. */
 .catalog-page {
-  min-height: 100vh;
   background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
   background-size: 32px 32px;
   background-position: 0 0;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-}
-
-.catalog-page.mounted {
-  opacity: 1;
 }
 
 .catalog-page .search-box {
@@ -129,36 +124,11 @@
 /* ========================================
    BUTTONS
    ======================================== */
-.catalog-page .action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem 2rem;
-  font-family: var(--font-family-display);
-  font-size: 1.125rem;
-  font-weight: 800;
-  border: var(--border-thick);
-  border-radius: var(--radius-pill);
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: var(--shadow-solid-sm);
-  transition:
-    transform 0.1s,
-    box-shadow 0.1s;
-}
-
-.catalog-page .action-btn:hover {
-  transform: translate(-4px, -4px);
-  box-shadow: var(--shadow-solid);
-}
-.catalog-page .action-btn:active {
-  transform: translate(0, 0);
-  box-shadow: 0px 0px 0px var(--shadow-ink);
-}
-.catalog-page .primary-btn {
-  background: var(--color-blue);
-  color: var(--color-on-accent);
-}
+/* None here. This page carried its own `.action-btn` — the pre-flat chrome,
+   with a 4px lift on hover — plus a blue `.primary-btn`, so the one hero CTA
+   in the archive that reads "Submit a map" was a different object from the
+   same CTA on / and /about. components/buttons.css paints both.
+   ======================================== */
 
 /* ========================================
    GRID VIEW

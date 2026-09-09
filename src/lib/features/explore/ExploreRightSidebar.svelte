@@ -118,7 +118,7 @@
     {#each TABS as t (t.key)}
       <button
         type="button"
-        class="sb-pill is-compact tab-btn"
+        class="sb-pill is-compact"
         class:is-on={tab === t.key}
         role="tab"
         aria-selected={tab === t.key}
@@ -227,10 +227,6 @@
   .tab-strip {
     padding: 0 0.45rem 0.35rem;
   }
-  .tab-btn {
-    flex: 1;
-  }
-
   .card-wrap {
     display: flex;
     flex: 1;

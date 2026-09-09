@@ -586,7 +586,7 @@
         </svg>
         <p>Select a map to begin digitalization.</p>
         {#if mapsError}
-          <p class="stage-error">Couldn't load the map list: {mapsError}</p>
+          <p class="empty-state error">Couldn't load the map list: {mapsError}</p>
         {/if}
         <a href="/catalog" class="catalog-link">Browse catalog →</a>
       </div>
@@ -613,13 +613,6 @@
 </div>
 
 <style>
-  .stage-error {
-    font-size: 0.8rem;
-    color: var(--tone-red-ink);
-    max-width: 34ch;
-    text-align: center;
-  }
-
   .ocr-error-toast {
     position: absolute;
     top: 0.6rem;

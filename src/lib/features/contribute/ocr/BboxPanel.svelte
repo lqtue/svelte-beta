@@ -68,7 +68,7 @@
   <div class="bbox-panel-actions">
     <span class="bbox-panel-conf">{((extraction.confidence ?? 0) * 100).toFixed(0)}%</span>
     <button
-      class="bbox-panel-btn"
+      class="tool-btn"
       on:click={() => dispatch('rotate', { deg: 0 })}
       disabled={angle === 0}
       title="Drag the round handle to turn the label · , and . nudge 1° · click to reset"
@@ -76,7 +76,7 @@
       {angle}°
     </button>
     <button
-      class="bbox-panel-btn validate"
+      class="tool-btn validate"
       class:active={extraction.status === 'validated'}
       disabled={saving}
       on:click={() => save(extraction.status === 'validated' ? 'pending' : 'validated')}
@@ -95,7 +95,7 @@
       {extraction.status === 'validated' ? 'Validated' : 'Validate'}
     </button>
     <button
-      class="bbox-panel-btn reject"
+      class="tool-btn reject"
       class:active={extraction.status === 'rejected'}
       disabled={saving}
       on:click={() => save(extraction.status === 'rejected' ? 'pending' : 'rejected')}
@@ -193,33 +193,18 @@
     opacity: 0.45;
     margin-right: 0.2rem;
   }
-  .bbox-panel-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-family: var(--font-family-base);
-    font-size: 0.72rem;
-    font-weight: var(--font-bold);
-    padding: 0.28rem 0.65rem;
-    border: var(--border-thin);
-    border-radius: var(--sb-radius-sm);
-    background: var(--color-bg);
-    color: var(--color-text);
-    cursor: pointer;
-    transition: all 0.1s;
-  }
-  .bbox-panel-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .bbox-panel-btn.validate:hover,
-  .bbox-panel-btn.validate.active {
+  /* The buttons are `.tool-btn` (buttons.css). Only the two tones are local:
+     validate and reject answer in green and red rather than `.tool-btn`'s
+     yellow hover and blue `.active`, and the two-class selectors outrank both.
+     The disabled face is `.tool-btn`'s own, in buttons.css. */
+  .tool-btn.validate:hover,
+  .tool-btn.validate.active {
     background: var(--tone-green-pale);
     color: var(--tone-green-ink);
     border-color: var(--tone-green-ink);
   }
-  .bbox-panel-btn.reject:hover,
-  .bbox-panel-btn.reject.active {
+  .tool-btn.reject:hover,
+  .tool-btn.reject.active {
     background: var(--tone-red-pale);
     color: var(--tone-red-ink);
     border-color: var(--tone-red-ink);

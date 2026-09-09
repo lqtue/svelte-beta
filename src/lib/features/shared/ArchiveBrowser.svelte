@@ -134,7 +134,7 @@
 {#if shownRows.length}
   <ArchiveMapRows rows={shownRows} {activeIds} {badges} on:pick on:remove />
 {:else if !showLabels || !$labels.length}
-  <p class="empty">No maps match those filters.</p>
+  <p class="empty-state empty">No maps match those filters.</p>
 {/if}
 
 <style>
@@ -215,10 +215,8 @@
     cursor: pointer;
   }
 
+  /* Spacing only — the muted line itself is the shared `.empty-state`. */
   .empty {
     margin: 0.4rem 0;
-    color: var(--sb-text-meta);
-    font-size: 0.85rem;
-    font-style: italic;
   }
 </style>

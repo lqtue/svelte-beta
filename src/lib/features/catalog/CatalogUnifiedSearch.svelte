@@ -143,7 +143,9 @@
     {/if}
     <LabelHits hits={$labels} />
     {#if $results.length === 0 && $labels.length === 0 && !$loading}
-      <div class="state-panel">
+      <!-- `state-panel`/`state-desc` carry no rule here any more; they are the
+           hooks layouts/catalog.css uses to give /catalog its white card. -->
+      <div class="empty-state is-block state-panel">
         <h2 class="state-title">Nothing matches.</h2>
         <p class="state-desc">Try another keyword, or clear a filter and start over.</p>
       </div>
@@ -250,17 +252,14 @@
     cursor: pointer;
   }
 
-  .state-panel {
-    text-align: center;
-    padding: 3rem 1rem;
-  }
+  /* The heading keeps its display face; the muted body and the centred block
+     come from `.empty-state.is-block`. */
   .state-title {
     font-family: var(--font-family-display);
     font-weight: var(--font-extrabold);
+    font-size: 1.1rem;
+    color: var(--color-text);
     margin: 0.5rem 0;
-  }
-  .state-desc {
-    color: var(--sb-text-meta);
   }
   @media (max-width: 900px) {
     .v2-layout {

@@ -11,7 +11,6 @@
 
   const { supabase, session } = getSupabaseContext();
 
-  let mounted = false;
   let role: 'user' | 'mod' | 'admin' = 'user';
   let searchQuery: string = '';
 
@@ -38,7 +37,6 @@
   const contributeHref = `mailto:${CONTRIBUTE_EMAIL}?subject=${encodeURIComponent('VMA — map submission')}&body=${encodeURIComponent("Hi VMA,\n\nI'd like to submit a map to the archive.\n\n• Title:\n• Year / period:\n• Location (city / region):\n• Source (URL, institution, or attachment):\n• Anything else we should know:\n\nThanks!")}`;
 
   onMount(async () => {
-    mounted = true;
     role = (await fetchUserRole(supabase, session?.user?.id)) ?? 'user';
   });
 </script>
@@ -51,7 +49,7 @@
   />
 </svelte:head>
 
-<div class="page catalog-page" class:mounted>
+<div class="page catalog-page">
   <PageHero
     eyebrow="Collection"
     sub="Every historical map in the archive — georeferenced, searchable, and linked back to the library or collection that holds the scan."

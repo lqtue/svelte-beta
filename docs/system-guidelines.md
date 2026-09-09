@@ -144,7 +144,7 @@ The shared classes (`.editorial-hero`, `.editorial-main`, `.section-card`, `.lab
 
 `/scan`, `/scan?mode=triage`, `/scan?mode=trace`, `/scan?mode=review`, plus `NeatlineEditor` inside the admin modal.
 
-These use `ImageShell` (static image extent, pixel coordinates) and the shared sidebar frame `ToolSidebarShell` + `ToolMapPicker`. They do **not** use MapShell or the global map stores. CSS: `src/styles/layouts/tool-page.css` + `src/styles/components/tool-sidebar.css`.
+These use `ImageShell` (static image extent, pixel coordinates) and the shared sidebar frame `ToolSidebarShell` + `ToolMapPicker`. They do **not** use MapShell or the global map stores. CSS: `src/styles/layouts/tool-page.css` + `src/styles/components/sidebar.css` — one sidebar vocabulary, `.sb-*`. `components/tool-sidebar.css` held a second one (`.tool-*`) until Sept 2026; its last speaker was `TriageSidebar` and the sheet is gone.
 
 ### Admin
 
@@ -252,7 +252,7 @@ Everything shared lives in `src/styles/`, reached via the `$styles` alias. `glob
 
 The Aug-2026 sweep took component hex literals from ~900 to 116. The Sept-2026 plate-tone pass took the rest: canvas colours moved to `INK` in `src/lib/core/ink.ts` (an OpenLayers style is a draw call and cannot read a CSS variable), stale `var(--token, #old-value)` fallbacks became `var(--token, var(--other-token))`, and ink-at-alpha scrims became `color-mix`. Four literals survive in the tree and each says why where it sits: `ink.ts` itself, the offscreen analysis canvas in `suggestTriage.ts`, the Google logo paths, and `ReviewSidebar`'s cadastral class swatches.
 
-**One button system.** Every button is in `components/buttons.css` except `.sb-btn` (token-scoped) and `tool-sidebar.css`'s two dense helpers. A component that needs a near-`.chip` adds the class and overrides `--btn-*`; it never rebuilds the shape, and it never redefines a global button class in its own `<style>` block — Svelte scoping makes that win silently.
+**One button system.** Every button is in `components/buttons.css` except `.sb-btn` (token-scoped). A component that needs a near-`.chip` adds the class and overrides `--btn-*`; it never rebuilds the shape, and it never redefines a global button class in its own `<style>` block — Svelte scoping makes that win silently.
 
 **Scoping.** `<style>` is component-scoped by default — use it freely for layout. Never redefine a shared global class per component. Use `:global()` only for third-party DOM (OL controls). Inline `style=` is for dynamic values only (`style="--sidebar-width: {w}px"`).
 

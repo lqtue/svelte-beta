@@ -213,21 +213,21 @@
 <svelte:head><title>Bulk Upload — Admin</title></svelte:head>
 
 <div class="admin-bulk-page">
-  <header class="hero">
+  <header class="bulk-head">
     <a class="back-link" href="/catalog">← Catalog</a>
-    <h1>Bulk Map Upload</h1>
-    <p class="lede">
+    <h2 class="section-title-sm">Bulk Map Upload</h2>
+    <p class="section-desc">
       Insert many maps at once. Tiling still runs locally — this page gives you the script.
     </p>
   </header>
 
   {#if !roleChecked}
-    <p class="status">Checking access…</p>
+    <p class="empty-state is-block">Checking access…</p>
   {:else if role !== 'admin'}
-    <p class="status error">Admin only.</p>
+    <p class="empty-state is-block error">Admin only.</p>
   {:else}
-    <section class="panel">
-      <h2>1. Defaults</h2>
+    <section class="section-card">
+      <h3 class="section-title-sm">1. Defaults</h3>
       <label class="field">
         <span>Default collection</span>
         <input
@@ -238,8 +238,8 @@
       </label>
     </section>
 
-    <section class="panel">
-      <h2>2. Maps</h2>
+    <section class="section-card">
+      <h3 class="section-title-sm">2. Maps</h3>
       <p class="hint">
         Paste from a spreadsheet (one row per line, tab- or comma-separated: path, name, year,
         collection, map_type, location) — or just paste a list of paths and we'll auto-parse
@@ -289,8 +289,10 @@
                   {:else}—{/if}
                 </td>
                 <td
-                  ><button class="icon-btn" on:click={() => removeRow(i)} aria-label="Remove row"
-                    >✕</button
+                  ><button
+                    class="btn btn-xs btn-ghost"
+                    on:click={() => removeRow(i)}
+                    aria-label="Remove row">✕</button
                   ></td
                 >
               </tr>
@@ -307,14 +309,14 @@
           {creating ? 'Creating…' : `Create ${rows.length} map row${rows.length === 1 ? '' : 's'}`}
         </button>
       </div>
-      {#if createSummary}<p class="status">{createSummary}</p>{/if}
+      {#if createSummary}<p class="empty-state">{createSummary}</p>{/if}
     </section>
 
     <GeorefSyncPanel />
 
     {#if resultScript}
-      <section class="panel">
-        <h2>3. Run this locally to tile + upload</h2>
+      <section class="section-card">
+        <h3 class="section-title-sm">3. Run this locally to tile + upload</h3>
         <p class="hint">
           Save as <code>tile_batch.sh</code> in your <code>svelte-beta</code> repo root,
           <code>chmod +x</code>, then run. After tiling, click the backfill button below to set IIIF

@@ -255,12 +255,12 @@
           <div class="result-row">
             <span class="result-title">{map.name}</span>
             {#if map.id === selectedMapId}
-              <span class="badge active-badge">Active</span>
+              <span class="badge-chip is-sm chip-green">Active</span>
             {/if}
           </div>
           <div class="result-meta">
-            {#if map.year}<span class="badge year-badge">{map.year}</span>{/if}
-            {#if map.location}<span class="badge type-badge">{map.location}</span>{/if}
+            {#if map.year}<span class="badge-chip is-sm chip-orange">{map.year}</span>{/if}
+            {#if map.location}<span class="badge-chip is-sm chip-gray">{map.location}</span>{/if}
           </div>
         </button>
       {/each}

@@ -165,14 +165,14 @@
       <input class="form-input extra-val" bind:value={pair.value} placeholder="Value" />
       <button
         type="button"
-        class="btn-remove-pair"
+        class="btn btn-xs btn-danger"
         on:click={() => (extraPairs = extraPairs.filter((_, j) => j !== i))}>×</button
       >
     </div>
   {/each}
   <button
     type="button"
-    class="btn-add-pair"
+    class="btn btn-xs btn-success add-pair"
     on:click={() => (extraPairs = [...extraPairs, { key: '', value: '' }])}>+ Add field</button
   >
 </div>

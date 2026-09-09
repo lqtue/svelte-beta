@@ -3,9 +3,10 @@
 
   Nothing to do with bulk upload; it only lives on the bulk-upload tab because that was
   the nearest admin page when it was written. It belongs with the catalog admin
-  bar (or a future /admin/maintenance). Styling still comes from the host page's
-  stylesheet (`$styles/pages/admin-bulk.css`, scoped under .admin-bulk-page) —
-  move those four rules with it when it relocates.
+  bar (or a future /admin/maintenance). The card, heading and button are shared
+  classes; only `.hint` and `.script-actions` come from the host page's sheet
+  (`$styles/pages/admin-bulk.css`, scoped under .admin-bulk-page) — move those
+  two rules with it when it relocates.
 -->
 <script lang="ts">
   let syncing = false;
@@ -27,8 +28,8 @@
   }
 </script>
 
-<section class="panel">
-  <h2>Sync georef status</h2>
+<section class="section-card">
+  <h3 class="section-title-sm">Sync georef status</h3>
   <p class="hint">
     Probe the Allmaps annotation server for every map with an <code>allmaps_id</code> but
     <code>georef_done = false</code>. Volunteers who finish georef in the Allmaps Editor become
@@ -39,5 +40,5 @@
       {syncing ? 'Syncing…' : 'Sync georef from Allmaps'}
     </button>
   </div>
-  {#if syncResult}<p class="status">{syncResult}</p>{/if}
+  {#if syncResult}<p class="empty-state">{syncResult}</p>{/if}
 </section>

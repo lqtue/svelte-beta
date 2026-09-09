@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import PageHero from '$lib/ui/PageHero.svelte';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { fetchUserRole } from '$lib/data/supabase/role';
   import '$styles/pages/admin-status.css';
@@ -283,104 +282,89 @@
   <meta name="description" content="What the archive holds and what is blocked." />
 </svelte:head>
 
-<div class="page status-page" class:mounted={roleChecked}>
-  <PageHero
-    eyebrow="Admin"
-    sub="What the archive actually holds right now, what is stuck, and what would unstick it."
-  >
-    <svelte:fragment slot="title">
-      System status<br /><span class="text-highlight">in plain words.</span>
-    </svelte:fragment>
-  </PageHero>
+<div class="status-page">
+  <header class="status-head">
+    <h2 class="section-title-sm">System status in plain words.</h2>
+    <p class="section-desc">
+      What the archive actually holds right now, what is stuck, and what would unstick it.
+    </p>
+  </header>
 
-  <main class="editorial-main">
-    {#if !roleChecked}
-      <p class="status-note">Checking access…</p>
-    {:else if role !== 'admin' && role !== 'mod'}
-      <p class="status-note">Admin access required.</p>
+  {#if !roleChecked}
+    <p class="empty-state is-block">Checking access…</p>
+  {:else if role !== 'admin' && role !== 'mod'}
+    <p class="empty-state is-block">Admin access required.</p>
+  {:else}
+    <div class="status-bar">
+      <button class="chip" on:click={load} disabled={loading}>
+        {loading ? 'Checking…' : 'Refresh'}
+      </button>
+      {#if checked}<span class="status-checked">Last checked {checked}</span>{/if}
+    </div>
+
+    {#if loadError}
+      <p class="empty-state is-block error">Could not load: {loadError}</p>
+    {:else if !data}
+      <p class="empty-state is-block">Reading the archive…</p>
     {:else}
-      <div class="status-bar">
-        <button class="status-refresh" on:click={load} disabled={loading}>
-          {loading ? 'Checking…' : 'Refresh'}
-        </button>
-        {#if checked}<span class="status-checked">Last checked {checked}</span>{/if}
-      </div>
+      {#if headline}
+        <section class="status-headline">
+          <div class="status-headline-label">Biggest blocker</div>
+          <p class="status-headline-text">{headline.label} — {headline.detail}</p>
+          <p class="status-headline-next">{headline.next}</p>
+        </section>
+      {/if}
 
-      {#if loadError}
-        <p class="status-note status-note-bad">Could not load: {loadError}</p>
-      {:else if !data}
-        <p class="status-note">Reading the archive…</p>
-      {:else}
-        {#if headline}
-          <section class="status-headline">
-            <div class="status-headline-label">Biggest blocker</div>
-            <p class="status-headline-text">{headline.label} — {headline.detail}</p>
-            <p class="status-headline-next">{headline.next}</p>
-          </section>
-        {/if}
+      {#each sections as section (section.title)}
+        <section class="status-section">
+          <h2 class="section-title-sm">{section.title}</h2>
+          <p class="section-desc status-blurb">{section.blurb}</p>
 
-        {#each sections as section (section.title)}
-          <section class="status-section">
-            <h2 class="status-section-title">{section.title}</h2>
-            <p class="status-section-blurb">{section.blurb}</p>
+          <div class="status-rows">
+            {#each section.rows as row (row.label)}
+              <article class="status-row tone-{row.tone}">
+                <div class="status-row-head">
+                  <h3 class="status-row-label">{row.label}</h3>
+                  <div class="status-row-value">{row.value}</div>
+                </div>
+                <p class="status-row-detail">{row.detail}</p>
+                {#if row.next}
+                  <p class="status-row-next"><span>Next</span> {row.next}</p>
+                {/if}
+              </article>
+            {/each}
+          </div>
+        </section>
+      {/each}
 
-            <div class="status-rows">
-              {#each section.rows as row (row.label)}
-                <article class="status-row tone-{row.tone}">
-                  <div class="status-row-head">
-                    <h3 class="status-row-label">{row.label}</h3>
-                    <div class="status-row-value">{row.value}</div>
+      {#if data.jobs.failures.length}
+        <section class="status-section">
+          <h2 class="section-title-sm">What failed</h2>
+          <p class="section-desc status-blurb">
+            The most recent failures, newest first. The message is whatever the worker reported.
+          </p>
+          <div class="status-rows">
+            {#each data.jobs.failures as f, i (i)}
+              <article class="status-row tone-bad">
+                <div class="status-row-head">
+                  <h3 class="status-row-label">{f.kind}</h3>
+                  <div class="status-row-value status-row-value-sm">
+                    {f.attempts}
+                    {f.attempts === 1 ? 'try' : 'tries'}
                   </div>
-                  <p class="status-row-detail">{row.detail}</p>
-                  {#if row.next}
-                    <p class="status-row-next"><span>Next</span> {row.next}</p>
-                  {/if}
-                </article>
-              {/each}
-            </div>
-          </section>
-        {/each}
-
-        {#if data.jobs.failures.length}
-          <section class="status-section">
-            <h2 class="status-section-title">What failed</h2>
-            <p class="status-section-blurb">
-              The most recent failures, newest first. The message is whatever the worker reported.
-            </p>
-            <div class="status-rows">
-              {#each data.jobs.failures as f, i (i)}
-                <article class="status-row tone-bad">
-                  <div class="status-row-head">
-                    <h3 class="status-row-label">{f.kind}</h3>
-                    <div class="status-row-value status-row-value-sm">
-                      {f.attempts}
-                      {f.attempts === 1 ? 'try' : 'tries'}
-                    </div>
-                  </div>
-                  <p class="status-row-detail">{f.error ?? 'No message was recorded.'}</p>
-                  {#if f.map_id}
-                    <p class="status-row-next">
-                      <span>Map</span>
-                      <a href="/explore?map={f.map_id}">{f.map_id.slice(0, 8)}</a>
-                    </p>
-                  {/if}
-                </article>
-              {/each}
-            </div>
-          </section>
-        {/if}
+                </div>
+                <p class="status-row-detail">{f.error ?? 'No message was recorded.'}</p>
+                {#if f.map_id}
+                  <p class="status-row-next">
+                    <span>Map</span>
+                    <a href="/explore?map={f.map_id}">{f.map_id.slice(0, 8)}</a>
+                  </p>
+                {/if}
+              </article>
+            {/each}
+          </div>
+        </section>
       {/if}
     {/if}
-  </main>
+  {/if}
 </div>
-
-<style>
-  .page {
-    min-height: 100vh;
-    opacity: 0;
-    transition: opacity 0.4s ease;
-  }
-  .page.mounted {
-    opacity: 1;
-  }
-</style>

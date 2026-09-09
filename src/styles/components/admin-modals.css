@@ -95,32 +95,6 @@
   background: var(--color-white);
 }
 
-.tab {
-  padding: 0.5rem 1rem;
-  font-family: var(--font-family-base);
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--color-text);
-  background: var(--color-bg);
-  border: var(--border-thin);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: all 0.1s;
-  opacity: 0.7;
-}
-
-.tab:hover {
-  opacity: 1;
-  transform: translateY(-1px);
-}
-
-.tab.active {
-  opacity: 1;
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-  box-shadow: 1px 1px 0px var(--shadow-ink);
-}
-
 .modal-body {
   padding: 1.5rem;
   overflow-y: auto;
@@ -191,7 +165,10 @@
   font-size: 0.85rem;
 }
 
-.section-desc {
+/* A boxed explainer above a group of fields. It was `.section-desc` until
+   Sept 2026, which is the editorial paragraph class in editorial.css — two
+   different objects under one global name, decided by import order. */
+.panel-note {
   font-family: var(--font-family-base);
   font-size: 0.9rem;
   color: var(--color-text);
@@ -204,34 +181,17 @@
   border: var(--border-thin);
 }
 
+/* Inside a box that already has its own stock, the note is just the prose. */
+.ocr-status-box .panel-note {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+/* The IA file picker is a <label>, so it wears `.btn` and starts the column. */
 .upload-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1.25rem;
-  font-family: var(--font-family-base);
-  font-size: 0.9rem;
-  font-weight: 700;
-  background: var(--color-white);
-  color: var(--color-text);
-  border: var(--border-thin);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: all 0.1s;
   align-self: flex-start;
-  box-shadow: 2px 2px 0px var(--shadow-ink);
-}
-
-.upload-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0px var(--shadow-ink);
-}
-
-.upload-btn.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .upload-status {
@@ -279,33 +239,6 @@ code.detail-value {
   flex-wrap: wrap;
 }
 
-.link-btn {
-  font-family: var(--font-family-base);
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--color-text);
-  text-decoration: none;
-  padding: 0.5rem 1rem;
-  border: var(--border-thin);
-  border-radius: var(--radius-pill);
-  transition: all 0.1s;
-  background: var(--color-white);
-  box-shadow: 1px 1px 0px var(--shadow-ink);
-}
-
-.link-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-  transform: translate(-1px, -1px);
-  box-shadow: 2px 2px 0px var(--shadow-ink);
-}
-
-.link-btn.disabled {
-  opacity: 0.4;
-  pointer-events: none;
-  cursor: not-allowed;
-}
-
 .modal-footer {
   display: flex;
   align-items: center;
@@ -339,18 +272,6 @@ code.detail-value {
   font-family: monospace;
   font-size: 0.8rem;
   word-break: break-all;
-}
-
-.chip-green {
-  background: color-mix(in srgb, var(--color-green) 18%, var(--color-white));
-  color: var(--color-green);
-  border-color: var(--color-green);
-}
-
-.chip-gray {
-  background: var(--color-gray-100);
-  color: var(--color-gray-500);
-  border-color: var(--color-gray-400);
 }
 
 .alert {
@@ -456,34 +377,10 @@ code.detail-value {
 .extra-val {
   flex: 1;
 }
-.btn-remove-pair {
-  flex-shrink: 0;
-  padding: 0.25rem 0.5rem;
-  background: color-mix(in srgb, var(--color-error-600) 15%, var(--color-white));
-  border: 1px solid color-mix(in srgb, var(--color-error-600) 40%, var(--color-white));
-  border-radius: 4px;
-  color: color-mix(in srgb, var(--color-error-600) 70%, var(--color-text));
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.btn-remove-pair:hover {
-  background: color-mix(in srgb, var(--color-error-600) 40%, var(--color-white));
-}
-.btn-add-pair {
+/* In the custom-fields column, the add button sizes to its label. */
+.add-pair {
   align-self: flex-start;
-  padding: 0.3rem 0.75rem;
-  background: color-mix(in srgb, var(--color-green) 8%, var(--color-white));
-  border: 1px solid color-mix(in srgb, var(--color-green) 40%, var(--color-white));
-  border-radius: 4px;
-  color: var(--color-green);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
 }
-.btn-add-pair:hover {
-  background: color-mix(in srgb, var(--color-green) 18%, var(--color-white));
-}
-
 .sources-list {
   display: flex;
   flex-direction: column;
@@ -661,9 +558,7 @@ code.detail-value {
 }
 
 /* Two nudges inside the OCR review panel: the error sits directly above the
-   list it refers to, and the row tally directly below it. The tally needs its
-   own class — .ocr-review-panel .section-desc would also catch the "Loading…"
-   and empty-state lines, which carry no margin. */
+   list it refers to, and the row tally directly below it. */
 .ocr-review-panel .alert-error {
   margin-bottom: 0.5rem;
 }
@@ -774,10 +669,6 @@ code.detail-value {
   display: flex;
   gap: 0.25rem;
 }
-.mono {
-  font-family: monospace;
-}
-
 .section-heading {
   font-family: var(--font-family-display);
   font-size: 0.78rem;
@@ -1162,34 +1053,4 @@ code.detail-value {
 }
 .neatline-editor .save-msg.save-error {
   color: var(--color-error-600);
-}
-
-/* Buttons — kept local so they match the pre-migration scoped rules */
-.neatline-editor .btn {
-  padding: 0.45rem var(--space-4);
-  border: none;
-  border-radius: 4px;
-  font-size: var(--text-sm);
-  cursor: pointer;
-  font-weight: var(--font-medium);
-}
-.neatline-editor .btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.neatline-editor .btn-primary {
-  background: var(--color-primary);
-  color: var(--color-on-accent);
-}
-.neatline-editor .btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-700);
-  color: var(--color-on-accent);
-}
-.neatline-editor .btn-outline {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-}
-.neatline-editor .btn-outline:hover {
-  background: var(--color-gray-100);
 }

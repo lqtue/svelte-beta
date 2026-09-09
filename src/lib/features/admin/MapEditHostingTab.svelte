@@ -336,7 +336,7 @@
     {/if}
 
     {#if loadingSources}
-      <p class="section-desc">Loading sources…</p>
+      <p class="empty-state">Loading sources…</p>
     {:else}
       <div class="sources-list">
         {#each iiifSources as src (src.id)}
@@ -367,7 +367,7 @@
             </div>
           </div>
         {:else}
-          <p class="section-desc">No IIIF sources yet.</p>
+          <p class="empty-state">No IIIF sources yet.</p>
         {/each}
       </div>
 
@@ -446,12 +446,12 @@
     <div class="subsection-heading">
       R2 / Tiling
       {#if isMirrored}
-        <span class="badge-chip chip-green">Mirrored</span>
+        <span class="badge-chip is-sm chip-green">Mirrored</span>
       {:else}
-        <span class="badge-chip chip-gray">Not mirrored</span>
+        <span class="badge-chip is-sm chip-gray">Not mirrored</span>
       {/if}
     </div>
-    <p class="section-desc">
+    <p class="panel-note">
       Clones the Allmaps annotation to Supabase Storage and sets <code>iiif.maparchive.vn</code> as the
       primary tile source. After clicking, run the printed CLI command to upload tiles.
     </p>
@@ -462,7 +462,7 @@
       <div class="alert alert-success">Annotation saved. Run this to upload tiles:</div>
       <pre class="mirror-cmd">{mirrorResult.tile_command}</pre>
       {#if mirrorResult.download_url}
-        <p class="section-desc">
+        <p class="panel-note">
           Source: <a href={mirrorResult.download_url} target="_blank" class="mono-link"
             >{mirrorResult.download_url}</a
           >
@@ -518,7 +518,7 @@
       />
     </label>
     <div class="georef-links">
-      <a href={annotationUrl} target="_blank" class="link-btn" class:disabled={!annotationUrl}>
+      <a href={annotationUrl} target="_blank" class="btn" class:disabled={!annotationUrl}>
         View Annotation ↗
       </a>
       <a
@@ -526,7 +526,7 @@
           ? `https://editor.allmaps.org/#/collection?url=${encodeURIComponent(editorAllmapsUrl)}`
           : undefined}
         target="_blank"
-        class="link-btn"
+        class="btn"
         class:disabled={!editorAllmapsUrl}
       >
         Open in Allmaps Editor ↗
@@ -537,7 +537,7 @@
   <!-- ── Image Upload ───────────────────────────────────────── -->
   <div class="hosting-subsection">
     <div class="subsection-heading">Image Upload (Internet Archive)</div>
-    <label class="upload-btn" class:disabled={uploading}>
+    <label class="btn upload-btn" class:disabled={uploading}>
       {uploading ? 'Uploading...' : 'Upload Image to IA'}
       <input
         type="file"
@@ -562,7 +562,7 @@
   {#if isSelfHosted}
     <div class="hosting-subsection">
       <div class="subsection-heading">Ground Control Points</div>
-      <p class="section-desc">Place GCPs to refine the georeferencing for this self-hosted map.</p>
+      <p class="panel-note">Place GCPs to refine the georeferencing for this self-hosted map.</p>
       <NeatlineEditor
         mapId={map.id}
         annotationUrl={allmaps_id}

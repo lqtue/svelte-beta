@@ -43,10 +43,10 @@
       {/if}
       <div class="map-badges">
         {#if map.year}
-          <span class="badge year-badge">{map.year}</span>
+          <span class="badge-chip is-sm chip-green">{map.year}</span>
         {/if}
         {#if showSourceBadge && map.collection}
-          <span class="badge source-badge">{shortCollection(map.collection)}</span>
+          <span class="badge-chip is-sm chip-orange">{shortCollection(map.collection)}</span>
         {/if}
       </div>
     </div>
@@ -60,8 +60,7 @@
 
   {#if showFavorite}
     <button
-      class="fav-btn"
-      class:faved={isFavorited}
+      class="ctrl-btn fav-btn"
       on:click|stopPropagation={() => dispatch('toggleFavorite', map.id)}
       aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
     >
@@ -134,26 +133,6 @@
     gap: 0.5rem;
   }
 
-  .badge {
-    font-family: var(--font-family-display);
-    font-size: 0.75rem;
-    font-weight: 800;
-    padding: 0.25rem 0.6rem;
-    background: var(--color-white);
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    box-shadow: 2px 2px 0px var(--shadow-ink);
-  }
-
-  .year-badge {
-    background: var(--color-green);
-    color: var(--color-on-accent);
-  }
-  .source-badge {
-    background: var(--color-orange);
-    color: var(--color-on-accent);
-  }
-
   .map-info {
     padding: 1.25rem;
     flex-grow: 1;
@@ -181,6 +160,8 @@
     margin-top: auto;
   }
 
+  /* Placement and size only — the round face, border and hover are `.ctrl-btn`.
+     It hangs off the card's corner and is 44px, not the 48px map control. */
   .fav-btn {
     position: absolute;
     top: -10px;
@@ -188,22 +169,6 @@
     width: 44px;
     height: 44px;
     font-size: 1.5rem;
-    background: var(--color-white);
-    border: var(--border-thick);
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: var(--shadow-solid-sm);
     z-index: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.1s;
-  }
-
-  .fav-btn:hover {
-    transform: scale(1.1) rotate(10deg);
-  }
-  .fav-btn:active {
-    transform: scale(0.95);
   }
 </style>

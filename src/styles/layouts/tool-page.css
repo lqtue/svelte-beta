@@ -150,11 +150,14 @@
   background: var(--color-gray-400);
 }
 
-.empty-state {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--sb-text-muted);
-  font-style: italic;
+/* `.empty-state` is global — components/feedback.css. */
+/* An empty stage already centres its children with a gap, so the standalone
+   `.is-block` face would add padding on top of that. What the line does need
+   here is a measure — a long `mapsError` set across the full stage is one
+   unreadable line on all four /scan modes. */
+.empty-stage .empty-state {
+  max-width: 34ch;
+  text-align: center;
 }
 
 .hint-bar {

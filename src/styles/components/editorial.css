@@ -168,6 +168,33 @@
 }
 
 /* ----------------------------------------
+   PAGE — the root wrapper of every (editorial) route
+   ----------------------------------------
+   `<div class="page x-page">`. It carries the mount fade, which used to be a
+   `mounted` boolean flipped in onMount and read as `class:mounted` — a round
+   trip through JS for something an animation with `both` fill does on its own,
+   starting from the same invisible first frame. Four pages carried an
+   identical four-line copy of it in their own <style> and five more faded on
+   their own page sheet; this is the one definition.
+   ---------------------------------------- */
+.page {
+  min-height: 100vh;
+  animation: page-fade-in 0.5s ease both;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
+  }
+}
+
+/* ----------------------------------------
    LABEL CHIP — eyebrow label above hero title
    ---------------------------------------- */
 .label-chip {
@@ -204,7 +231,83 @@
   color: var(--color-on-accent);
 }
 .chip-yellow {
+  /* Yellow is the one surface that stays light in both themes, so its ink is
+     always the dark one — never `--color-on-accent`, which flips. */
+  background: var(--color-yellow);
+  color: var(--color-text-on-yellow);
+}
+/* The paper face. This is what `.chip-yellow` used to paint, which is why
+   four components carried a private yellow tint rather than use it. */
+.chip-white {
   background: var(--color-white);
+}
+.chip-gray {
+  background: var(--color-gray-100);
+}
+.chip-red {
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+}
+.chip-orange {
+  background: var(--color-orange);
+  color: var(--color-on-accent);
+}
+
+/* Dense face, for a badge that sits inside a table row or a list line, where
+   the display-size chip and its 2px offset shadow reach into the row below.
+   Three components had a private near-identical copy of this until Sept 2026
+   (MapCard `.badge`, CatalogTable `.badge`, ArchiveMapRows `.type-chip`). */
+.badge-chip.is-sm {
+  font-family: var(--font-family-base);
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------
+   STAT TILE — one number and its caption
+   ----------------------------------------
+   The vertical card face. /about states its numbers as a `<dl>` of wide rows
+   instead, which is a different object and stays in about.css.
+   ---------------------------------------- */
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1.25rem;
+  background: var(--color-white);
+  border: var(--border-thin);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-solid-xs);
+}
+.stat-tile .value {
+  font-family: var(--font-family-display);
+  font-size: var(--stat-value-size, 2.5rem);
+  font-weight: var(--font-extrabold);
+  line-height: 1;
+  color: var(--stat-value-ink, var(--color-primary));
+}
+.stat-tile .label {
+  font-size: 0.8rem;
+  font-weight: var(--font-bold);
+  color: var(--color-gray-500);
+}
+/* Compact face — three across in a narrow panel. */
+.stat-tile.is-sm {
+  --stat-value-size: 1.2rem;
+  align-items: center;
+  padding: 0.75rem 0.25rem;
+  text-align: center;
+}
+.stat-tile.is-sm .value {
+  --stat-value-ink: var(--color-text);
+}
+.stat-tile.is-sm .label {
+  font-size: 0.72rem;
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 /* ----------------------------------------
@@ -249,6 +352,12 @@
 /* ----------------------------------------
    EDITORIAL MAIN — page content wrapper
    ---------------------------------------- */
+/* 1100px is a measure for prose. A dense table is not prose: /admin's scout
+   queue ran at 1400 before it moved inside this wrapper. */
+.editorial-main.is-wide {
+  max-width: 1400px;
+}
+
 .editorial-main {
   max-width: 1100px;
   margin: 0 auto;
@@ -282,7 +391,6 @@
 */
 .on-ink-plate,
 .editorial-footer,
-.about-page .cta-card,
 .about-page .footer,
 .blog-page .footer,
 .blog-post-page .sidebar-contact,

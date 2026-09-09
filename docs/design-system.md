@@ -97,10 +97,10 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `global.css` | root layout | entry point |
 | **components/** | | shared widgets |
 | `buttons.css` | `global.css` | **every button**: the `.chip` / `.action-btn` / `.pill-btn` / `.btn` pill family, `.tool-btn`, `.ctrl-btn`, `.cmp-btn` |
-| `feedback.css` | `global.css` | `.spinner` (the only one) and `.state-msg` |
+| `feedback.css` | `global.css` | `.spinner` (the only one) and `.empty-state` (+ `.is-block`, `.error`) — one placeholder line for loading, empty and failed |
 | `table.css` | `global.css` | `.data-table` and its two densities |
 | `nav-buttons.css` | `global.css` | nav-bar button chrome |
-| `editorial.css` | `global.css` | hero, section-card, chips, footer, nav |
+| `editorial.css` | `global.css` | `.page`, `.editorial-main`, hero, `.section-card`, `.stat-tile`, the chips, footer, nav |
 | `lettering.css` | `global.css` | `.lettering-hydronym` / `.lettering-area` — how a printed sheet sets its own names, paired with `core/utils/mapLettering.ts` |
 | `modal.css` | `global.css` | generic modal scaffolding |
 | `sidebar.css` | `global.css` + `SidebarCard` | sidebar card frame |
@@ -108,7 +108,6 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `catalog.css` | `CatalogGrid`, `CatalogCard`, `/catalog` | map card grid |
 | `search-panel.css` | `features/shared/search/SearchPanel` + its two tabs | unified search overlay |
 | `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the toolbar and cell editors around that table |
-| `tool-sidebar.css` | `TriageSidebar`, `SegSidebar` | tool sidebar form controls |
 | `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate — the card only; its button is a `.chip` |
 | `library.css` | `LibraryGrid`, `StudioMode`, `CreateMode` | project/story library grid |
 | **layouts/** | | page shells |
@@ -135,7 +134,7 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 
 *Pill* — four names, `.action-btn` (large CTA), `.chip` (default), `.pill-btn` (lighter chrome), `.btn` (admin and dialogs) — share one base rule in `buttons.css` and differ only in the six `--btn-*` properties each sets. They are kept as separate names because ~60 files use them and a rename would be a diff nobody could review; prefer `.chip` in new markup. *Dense* — `.tool-btn`, the small flat square for toolbars inside the IIIF tools. *Icon* — `.ctrl-btn`, the 48px round map control, and `.cmp-btn`, the 22px round row toggle.
 
-Three live outside `buttons.css` on purpose: `.sb-btn` (`sidebar.css`, because it runs on the `--sb-*` token scope) and `.tool-run-btn` / `.tool-ghost-btn` (`tool-sidebar.css`, flat dense chrome where a pill would eat the sidebar). **Everything else is in `buttons.css`.** If a component needs a button that is nearly a `.chip`, add the class and override the `--btn-*` properties in the component — do not rebuild the shape. Before Sept 2026 the `.btn` family lived in `admin-modals.css`, which six of its eleven users never imported; `.auth-gate-btn`, the login page's `.auth-btn`, and two copies of `.cmp-btn` were each a hand-rebuilt pill until they were folded in.
+One lives outside `buttons.css` on purpose: `.sb-btn` (`sidebar.css`, because it runs on the `--sb-*` token scope), with `.is-primary/.is-on/.is-success/.is-danger/.is-ghost/.is-block/.is-sm/.is-icon` for its variants. `.tool-run-btn` and `.tool-ghost-btn` were a third home in `tool-sidebar.css` until Sept 2026, when their last caller moved to `.sb-btn` and that sheet was deleted. **Everything else is in `buttons.css`.** If a component needs a button that is nearly a `.chip`, add the class and override the `--btn-*` properties in the component — do not rebuild the shape. Before Sept 2026 the `.btn` family lived in `admin-modals.css`, which six of its eleven users never imported; `.auth-gate-btn`, the login page's `.auth-btn`, and two copies of `.cmp-btn` were each a hand-rebuilt pill until they were folded in.
 
 **Never redefine a global button class in a component `<style>` block.** Svelte's scoping means the local rule silently wins, so nothing looks broken while `.btn primary` means two different things in two files. `ExploreSheet`, `TripComplete` and `TripPlayback` each did this until Sept 2026.
 
@@ -207,6 +206,35 @@ Use the component. The classes below are what it renders — you should not be t
 Plain-text title and no highlight? Then the prop is enough: `<PageHero title="Bold headline" />`.
 
 `.text-highlight` (white fill, black stroke, offset shadow) belongs on one or two words of a hero title — never in body text. Only `.chip-blue`, `.chip-green` and `.chip-yellow` exist; the orange/purple/red chip classes were removed.
+
+### Page shell
+
+Every `(editorial)` route roots at `<div class="page x-page">`, then `PageHero`, then
+`<main class="editorial-main">`. `.page` carries the mount fade as a CSS animation with `both`
+fill and a `prefers-reduced-motion` guard — it was a `mounted` boolean flipped in `onMount` and
+read as `class:mounted` on six routes, which is a round trip through JS on a page that
+server-renders, and four of those routes carried an identical copy of the CSS.
+
+`.editorial-main` caps the measure at 1100px. `.editorial-main.is-wide` opens it to 1400 for a
+dense table; `/admin?tab=scout` is the only caller and prose never takes it.
+
+### Stat tile
+
+`.stat-tile` with `<span class="value">` and `<span class="label">` children. `.is-sm` is the
+compact face — three across in a narrow panel. `/about` states its numbers as a `<dl>` of wide
+rows instead; that is a different object and stays in `about.css`.
+
+### Badges
+
+`.badge-chip` plus one tone: `.chip-blue`, `.chip-green`, `.chip-yellow`, `.chip-orange`,
+`.chip-red`, `.chip-gray`, `.chip-white`. There is no purple. `.chip-yellow` is a filled yellow
+and keeps dark ink in both themes, because yellow is the one surface that stays light;
+`.chip-white` is the paper face — `.chip-yellow` painted white until Sept 2026, which is why four
+components each carried a private yellow tint rather than use it.
+
+`.badge-chip.is-sm` is the dense face for a badge inside a table row or a list line: base font, no
+offset shadow. A display-size chip with a 2px shadow reaches into the row below. Four components
+had a private near-identical copy of it.
 
 ### Section card
 

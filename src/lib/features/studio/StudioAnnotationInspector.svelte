@@ -89,9 +89,7 @@
       </div>
     </div>
   {:else}
-    <div class="empty">
-      <p>Select an annotation to edit its name, notes, and colour.</p>
-    </div>
+    <p class="empty-state is-block">Select an annotation to edit its name, notes, and colour.</p>
   {/if}
 </SidebarCard>
 
@@ -149,13 +147,5 @@
     border-radius: var(--sb-radius-sm);
     cursor: pointer;
     overflow: hidden;
-  }
-
-  .empty {
-    padding: 1rem 0.7rem;
-    font-size: 0.85rem;
-    color: var(--sb-text);
-    opacity: 0.7;
-    line-height: 1.5;
   }
 </style>

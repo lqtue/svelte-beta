@@ -107,7 +107,7 @@
               on:error={(e) => fallbackToSmall(e, selected)}
             />
           {:else}
-            <figcaption class="fs-noscan">No scan preview for this sheet yet.</figcaption>
+            <figcaption class="empty-state">No scan preview for this sheet yet.</figcaption>
           {/if}
         {/key}
       </figure>
@@ -127,8 +127,8 @@
         <p class="fs-desc" class:fs-desc-stand-in={!selected.dc_description}>{blurb}</p>
 
         <div class="fs-actions">
-          <a class="fs-open" href="/explore?map={selected.id}">Open in the viewer</a>
-          <a class="fs-secondary" href="/catalog/{selected.id}">Record</a>
+          <a class="chip primary" href="/explore?map={selected.id}">Open in the viewer</a>
+          <a class="chip" href="/catalog/{selected.id}">Record</a>
           {#if selected.source_url}
             <a
               class="fs-source"
@@ -220,12 +220,6 @@
     display: block;
   }
 
-  .fs-noscan {
-    font-size: var(--text-sm);
-    color: var(--color-gray-500);
-    font-style: italic;
-  }
-
   .fs-brief {
     display: flex;
     flex-direction: column;
@@ -239,6 +233,9 @@
     align-items: flex-start;
   }
 
+  /* The year is stamped on the sheet, not badged beside it: `.fs-year` and
+     `.fs-tile-year` are one gesture at two sizes, and the app badge's offset
+     shadow would lift the stamp off the plate. */
   .fs-year {
     font-family: var(--font-family-display);
     font-weight: var(--font-bold);
@@ -287,35 +284,6 @@
     gap: var(--space-3);
     align-items: center;
     margin-top: auto;
-  }
-
-  .fs-open {
-    font-family: var(--font-family-display);
-    font-weight: var(--font-bold);
-    font-size: var(--text-sm);
-    text-decoration: none;
-    color: var(--color-on-accent);
-    background: var(--color-blue);
-    border: var(--border-thin);
-    border-radius: var(--radius-pill);
-    padding: 0.35rem 0.9rem;
-  }
-
-  .fs-secondary {
-    font-family: var(--font-family-display);
-    font-weight: var(--font-bold);
-    font-size: var(--text-sm);
-    text-decoration: none;
-    color: inherit;
-    background: var(--color-white);
-    border: var(--border-thin);
-    border-radius: var(--radius-pill);
-    padding: 0.35rem 0.9rem;
-  }
-
-  .fs-secondary:hover {
-    background: var(--color-yellow);
-    color: var(--color-text-on-yellow);
   }
 
   .fs-source {
@@ -432,6 +400,8 @@
     font-weight: var(--font-semibold);
   }
 
+  /* Not `.cmp-btn`: its `.on` fills the button, and a favourite here reads as
+     a filled heart glyph on the same white face. */
   .fs-fav {
     position: absolute;
     top: -6px;

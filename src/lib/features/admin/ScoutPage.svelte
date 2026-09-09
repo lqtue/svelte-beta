@@ -228,10 +228,10 @@
 
 <svelte:head><title>Scout · VMA Admin</title></svelte:head>
 
-<main class="scout-page">
-  <header class="page-header">
-    <h1>Scout Review</h1>
-    <p>
+<div class="scout-page">
+  <header class="scout-head">
+    <h2 class="section-title-sm">Scout Review</h2>
+    <p class="section-desc">
       External map candidates discovered via Gallica, Humazur, Rumsey, LoC and the AGS Library.
       Approve → bulk-ingest as draft maps.
     </p>
@@ -242,9 +242,9 @@
   </header>
 
   {#if !roleChecked}
-    <p>Checking access…</p>
+    <p class="empty-state is-block">Checking access…</p>
   {:else if role !== 'admin' && role !== 'mod'}
-    <p>Admin access required.</p>
+    <p class="empty-state is-block">Admin access required.</p>
   {:else}
     <section class="sb-card filters">
       <div class="filter-row">
@@ -366,7 +366,7 @@
     </section>
 
     {#if loading}
-      <p>Loading…</p>
+      <p class="empty-state is-block">Loading…</p>
     {:else if view === 'table'}
       <ScoutTable
         {rows}
@@ -379,7 +379,7 @@
         on:decide={(e) => decide(e.detail.id, e.detail.status, e.detail.note)}
       />
     {:else if !rows.length}
-      <p>No candidates match these filters.</p>
+      <p class="empty-state is-block">No candidates match these filters.</p>
     {:else}
       <section class="grid">
         {#each rows as c, i (c.id)}
@@ -394,4 +394,4 @@
       </section>
     {/if}
   {/if}
-</main>
+</div>

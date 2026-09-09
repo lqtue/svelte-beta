@@ -9,9 +9,6 @@
 <script lang="ts">
   import ToolPanelHeader from './ToolPanelHeader.svelte';
   import '$styles/layouts/tool-page.css';
-  // Every panel body speaks `.tool-section` / `.tool-label`, so the sheet comes
-  // with the frame rather than with whichever panel happened to import it.
-  import '$styles/components/tool-sidebar.css';
 
   export let title: string = '';
   export let onCollapse: (() => void) | null = null;

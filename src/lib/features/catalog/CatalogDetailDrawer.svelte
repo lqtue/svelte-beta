@@ -62,7 +62,7 @@
   <div class="drawer" role="dialog" aria-label="Map details">
     <header class="drawer-head">
       <h2 class="drawer-title">{item.name}</h2>
-      <button class="close-btn" on:click={close} aria-label="Close">×</button>
+      <button class="ctrl-btn close-btn" on:click={close} aria-label="Close">×</button>
     </header>
 
     {#if item.thumbnail}
@@ -71,7 +71,7 @@
       </div>
     {/if}
 
-    <div class="status-pill">{statusLabel()}</div>
+    <div class="badge-chip status-pill">{statusLabel()}</div>
 
     {#if item.dc_description}
       <p class="description">{item.dc_description}</p>
@@ -94,23 +94,25 @@
 
     <div class="actions">
       {#if canEdit}
-        <button type="button" class="act" on:click={() => dispatch('edit', item)}>✎ Edit</button>
+        <button type="button" class="chip act" on:click={() => dispatch('edit', item)}
+          >✎ Edit</button
+        >
       {/if}
       {#if canMap}
-        <a class="act primary" href="/explore?map={item.id}">Map</a>
+        <a class="chip primary act" href="/explore?map={item.id}">Map</a>
       {/if}
       {#if canImage}
-        <a class="act" href="/scan?map={item.id}">Image</a>
+        <a class="chip act" href="/scan?map={item.id}">Image</a>
       {/if}
       {#if canAnnotate}
-        <a class="act" href="/explore?mode=annotate&map={item.id}">✏️ Studio</a>
+        <a class="chip act" href="/explore?mode=annotate&map={item.id}">✏️ Studio</a>
       {/if}
       {#if !isScout && (item.status === 'public' || item.status === 'featured')}
-        <a class="act" href="/catalog/{item.id}">Share page</a>
+        <a class="chip act" href="/catalog/{item.id}">Share page</a>
       {/if}
       {#if isScout && (item._scout?.source_url || item._scout?.manifest_url)}
         <a
-          class="act primary"
+          class="chip primary act"
           href={item._scout.source_url || item._scout.manifest_url}
           target="_blank"
           rel="noopener">↗ Open source</a
@@ -163,22 +165,14 @@
     font-size: 1.1rem;
     line-height: 1.25;
   }
+  /* Size only — the round face and hover are `.ctrl-btn`. 32px, not the 48px
+     map control: it sits on the drawer's header line beside the title. */
   .close-btn {
     flex-shrink: 0;
     width: 32px;
     height: 32px;
-    background: var(--color-white);
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-pill);
     font-size: 1.3rem;
     line-height: 1;
-    font-weight: var(--font-bold);
-    cursor: pointer;
-    padding: 0;
-  }
-  .close-btn:hover {
-    background: var(--color-text);
-    color: var(--color-white);
   }
 
   .thumb-wrap {
@@ -193,17 +187,13 @@
     border-radius: var(--radius-sm);
     display: block;
   }
+  /* A badge, not a control — it states what the sheet is, and nothing happens
+     when you press it. Placement and the soft tint are all that stay local:
+     the shared `.chip-yellow` is a white face, which reads as no badge at all. */
   .status-pill {
     margin: 1rem 1.25rem 0;
-    padding: 0.35rem 0.8rem;
     align-self: flex-start;
     background: var(--sb-accent-yellow);
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-pill);
-    font-size: 0.8rem;
-    font-weight: var(--font-bold);
-    display: inline-block;
-    width: fit-content;
   }
   .description {
     margin: 1rem 1.25rem 0;
@@ -254,35 +244,11 @@
     background: var(--sb-head-bg);
     border-top: var(--border-thin);
   }
+  /* Width only: the actions share the footer row equally and wrap together.
+     Everything else is `.chip` / `.chip.primary`. */
   .act {
     flex: 1;
     min-width: 110px;
-    padding: 0.65rem 0.9rem;
-    background: var(--color-white);
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    font: inherit;
-    font-weight: var(--font-bold);
-    font-size: 0.9rem;
-    text-decoration: none;
-    color: var(--color-text);
-    text-align: center;
-    box-shadow: var(--shadow-solid-xs);
-    cursor: pointer;
-    transition:
-      transform 0.1s,
-      box-shadow 0.1s;
-  }
-  .act:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--shadow-ink);
-  }
-  .act.primary {
-    background: var(--color-text);
-    color: var(--color-white);
-  }
-  .act.primary:hover {
-    background: var(--sb-text-meta);
   }
 
   @keyframes slidein {

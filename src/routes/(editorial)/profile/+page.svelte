@@ -106,7 +106,7 @@
             {role.toUpperCase()}
           </span>
         </div>
-        <button class="sign-out-btn" on:click={handleSignOut}>Sign out</button>
+        <button class="pill-btn" on:click={handleSignOut}>Sign out</button>
       </div>
 
       <div class="stats-section">
@@ -115,13 +115,13 @@
           <div class="loading-pulse">Counting…</div>
         {:else}
           <div class="stats-grid">
-            <div class="stat-card">
-              <span class="stat-value">{stats.pins}</span>
-              <span class="stat-label">Pins placed</span>
+            <div class="stat-tile">
+              <span class="value">{stats.pins}</span>
+              <span class="label">Pins placed</span>
             </div>
-            <div class="stat-card">
-              <span class="stat-value">{stats.traces}</span>
-              <span class="stat-label">Buildings traced</span>
+            <div class="stat-tile">
+              <span class="value">{stats.traces}</span>
+              <span class="label">Buildings traced</span>
             </div>
           </div>
         {/if}
@@ -154,7 +154,7 @@
                 >Switch between English and Tiếng Việt — translation is beta</span
               >
             </div>
-            <button class="pill-btn lang-btn" on:click={toggleLanguage}>
+            <button class="chip primary" on:click={toggleLanguage}>
               {isVietnamese ? '🇬🇧 Switch to English' : '🇻🇳 Tiếng Việt'}
             </button>
           </div>

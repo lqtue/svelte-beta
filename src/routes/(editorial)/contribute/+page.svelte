@@ -6,11 +6,9 @@
 
   const { session, supabase } = getSupabaseContext();
 
-  let mounted = false;
   let role = 'user';
 
   onMount(async () => {
-    mounted = true;
     role = (await fetchUserRole(supabase, session?.user?.id)) ?? 'user';
   });
 </script>
@@ -23,7 +21,7 @@
   />
 </svelte:head>
 
-<div class="page" class:mounted>
+<div class="page">
   <PageHero
     eyebrow="Open contribution"
     sub="Trace a building, anchor a scan, or check what the OCR read. Anyone with an account can contribute; an admin reviews before anything is published. There are only a handful of us, so a single afternoon's work is a visible share of the whole."
@@ -112,15 +110,6 @@
     background-color: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-family-base);
-  }
-
-  .page {
-    min-height: 100vh;
-    opacity: 0;
-    transition: opacity 0.4s ease;
-  }
-  .page.mounted {
-    opacity: 1;
   }
 
   .contribute-grid {

@@ -90,12 +90,12 @@
 
   <main class="editorial-main">
     {#if loading}
-      <div class="library-loading">
+      <div class="empty-state is-block library-loading">
         <div class="spinner"></div>
         <span>Loading…</span>
       </div>
     {:else if items.length === 0}
-      <div class="library-empty">
+      <div class="empty-state is-block library-empty">
         <svg
           width="64"
           height="64"
@@ -113,7 +113,7 @@
         <h2 class="empty-title">{emptyTitle}</h2>
         <p class="empty-text">{emptyText}</p>
         {#if showCreate}
-          <button type="button" class="library-create-btn large" on:click={openCreate}>
+          <button type="button" class="action-btn primary-btn" on:click={openCreate}>
             <svg
               width="18"
               height="18"

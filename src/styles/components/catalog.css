@@ -35,8 +35,12 @@
   border-bottom: var(--border-thin);
 }
 
-/* Make sure images inside fill the space */
-.card-thumb :global(img) {
+/* This is a plain stylesheet, not a Svelte <style> block, so the Svelte-only
+   global() wrapper five rules here carried was an invalid selector and a
+   browser dropped every one of them. Three (.meta, .meta-tag, .description)
+   have a live twin in library.css and are gone; these two are the card's own
+   and now apply. */
+.card-thumb img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -45,7 +49,7 @@
   transition: transform 0.5s ease;
 }
 
-.catalog-card:hover .card-thumb :global(img) {
+.catalog-card:hover .card-thumb img {
   transform: scale(1.05);
 }
 
@@ -67,38 +71,6 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Slot styling helpers */
-.card-body :global(.meta) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  font-family: var(--font-family-base);
-  font-size: 0.8rem;
-}
-
-.card-body :global(.meta-tag) {
-  padding: 0.2rem 0.6rem;
-  background: var(--color-gray-100);
-  border-radius: var(--radius-pill);
-  border: var(--border-thin);
-  color: var(--color-text);
-  font-weight: 700;
-}
-
-.card-body :global(.description) {
-  font-family: var(--font-family-base);
-  font-size: 0.9rem;
-  color: var(--color-text);
-  opacity: 0.8;
-  margin: 0;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

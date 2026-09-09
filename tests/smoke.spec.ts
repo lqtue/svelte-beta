@@ -65,6 +65,46 @@ test('the hero field hands its first keystrokes to the palette', async ({ page }
   await expect(palette).toHaveValue('1882');
 });
 
+/**
+ * Loading the demo and playing it are two different triggers, and they used to
+ * be one: the chunk loads 400px early, which meant the four beats also started
+ * 400px early — off screen, to nobody, and the reader scrolled down into the
+ * composed frame having missed the sheet coming over the city.
+ *
+ * So this parks the page inside the preload lead but outside the viewport: the
+ * canvas proves the map mounted, and no caption may have been spoken yet.
+ */
+test('the how-it-works demo loads early but plays only when scrolled to', async ({ page }) => {
+  await page.goto('/');
+  await hydrated(page);
+
+  const caption = page.locator('.hero-caption p');
+  const stage = page.locator('.hero-demo-stage');
+
+  // The catalog above the section renders after its fetch, which moves the
+  // stage down the page — scroll before that and the offset means nothing.
+  await expect(page.locator('.maps-loading')).toHaveCount(0, { timeout: 20000 });
+
+  // 200px below the fold: inside the 400px lead, outside the viewport.
+  await page.evaluate(() => {
+    const el = document.querySelector('.hero-demo-stage');
+    if (!el) throw new Error('no hero demo stage');
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, top - window.innerHeight - 200);
+  });
+
+  // `.first()`: MapShell paints more than one canvas, and a bare locator on
+  // three of them is a strict-mode violation, not a wait.
+  await expect(stage.locator('canvas').first()).toBeAttached({ timeout: 12000 });
+  // Past the annotation load and the 3s paint cap, so a sequence that was
+  // going to start off screen has had every chance to.
+  await page.waitForTimeout(3500);
+  await expect(caption).toHaveCount(0);
+
+  await stage.scrollIntoViewIfNeeded();
+  await expect(caption).toBeVisible({ timeout: 12000 });
+});
+
 test('catalog search returns maps', async ({ page }) => {
   await page.goto('/catalog');
   await page.getByPlaceholder(/Search by title/i).fill('saigon');

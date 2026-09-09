@@ -58,11 +58,11 @@
 </script>
 
 {#if loading}
-  <div class="state-msg">Loading stories…</div>
+  <p class="empty-state is-block">Loading stories…</p>
 {:else if error}
-  <div class="state-msg error">{error}</div>
+  <p class="empty-state is-block error">{error}</p>
 {:else if stories.length === 0}
-  <div class="state-msg">Queue's clear — no stories waiting on review.</div>
+  <p class="empty-state is-block">Queue's clear — no stories waiting on review.</p>
 {:else}
   <ul class="story-list">
     {#each stories as story (story.id)}
@@ -78,14 +78,22 @@
           {/if}
         </div>
         <div class="story-actions">
-          <button disabled={busyId === story.id} on:click={() => decide(story.id, 'approved')}>
+          <button
+            class="btn btn-sm"
+            disabled={busyId === story.id}
+            on:click={() => decide(story.id, 'approved')}
+          >
             Approve
           </button>
-          <button disabled={busyId === story.id} on:click={() => decide(story.id, 'draft')}>
+          <button
+            class="btn btn-sm"
+            disabled={busyId === story.id}
+            on:click={() => decide(story.id, 'draft')}
+          >
             Send back
           </button>
           <button
-            class="danger"
+            class="btn btn-sm btn-danger"
             disabled={busyId === story.id}
             on:click={() => decide(story.id, 'rejected')}
           >
@@ -145,23 +153,5 @@
     display: flex;
     gap: var(--space-2);
     flex-shrink: 0;
-  }
-
-  .story-actions button {
-    padding: var(--space-2) var(--space-3);
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    background: var(--color-white);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .story-actions button.danger {
-    color: var(--color-primary);
-  }
-
-  .story-actions button:disabled {
-    opacity: 0.5;
-    cursor: default;
   }
 </style>

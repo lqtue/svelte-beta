@@ -48,15 +48,15 @@
   <p class="subtitle">{story.title}</p>
 
   <div class="stats">
-    <div class="stat">
+    <div class="stat-tile is-sm">
       <span class="value">{stopsVisited}</span>
       <span class="label">stops</span>
     </div>
-    <div class="stat">
+    <div class="stat-tile is-sm">
       <span class="value">{distanceLabel}</span>
       <span class="label">walked</span>
     </div>
-    <div class="stat">
+    <div class="stat-tile is-sm">
       <span class="value">{elapsedMinutes}</span>
       <span class="label">minutes</span>
     </div>
@@ -72,8 +72,8 @@
   {/if}
 
   <div class="actions">
-    <button type="button" class="trip-btn is-primary" on:click={handleShare}>Share</button>
-    <button type="button" class="trip-btn is-ghost" on:click={() => dispatch('done')}>Done</button>
+    <button type="button" class="btn btn-primary" on:click={handleShare}>Share</button>
+    <button type="button" class="btn btn-outline" on:click={() => dispatch('done')}>Done</button>
   </div>
 </div>
 
@@ -99,29 +99,6 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
     margin-bottom: 0.9rem;
-  }
-  .stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.1rem;
-    padding: 0.75rem 0.25rem;
-    background: var(--color-white);
-    border: var(--border-thin);
-    border-radius: 12px;
-    box-shadow: var(--shadow-solid-xs);
-  }
-  .stat .value {
-    font-family: var(--sb-font-display);
-    font-size: 1.2rem;
-    font-weight: 800;
-    line-height: 1;
-  }
-  .stat .label {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--sb-text-meta);
   }
 
   .save-row {
@@ -153,27 +130,10 @@
     display: flex;
     gap: 0.5rem;
   }
-  .trip-btn {
+  /* Layout only — a thumb-sized pair filling the sheet's width. */
+  .actions .btn {
     flex: 1;
-    padding: 0.85rem 0.8rem;
-    border-radius: 12px;
-    border: var(--border-thin);
-    font-family: inherit;
-    font-size: 0.95rem;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 3px 3px 0 var(--shadow-ink);
-  }
-  .trip-btn.is-primary {
-    background: var(--sb-accent);
-    color: var(--color-white);
-  }
-  .trip-btn.is-ghost {
-    background: var(--color-white);
-    color: var(--color-text);
-  }
-  .trip-btn:active {
-    transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 var(--shadow-ink);
+    --btn-pad: 0.85rem 0.8rem;
+    --btn-text: 0.95rem;
   }
 </style>

@@ -57,10 +57,10 @@
       title="Back to my projects">← Library</button
     >
 
-    <div class="mode-toggle" role="tablist" aria-label="Editor mode">
+    <div class="sb-pill-row" role="tablist" aria-label="Editor mode">
       <button
         type="button"
-        class="mt-btn"
+        class="sb-pill is-compact"
         class:is-on={mode === 'annotate'}
         role="tab"
         aria-selected={mode === 'annotate'}
@@ -68,7 +68,7 @@
       >
       <button
         type="button"
-        class="mt-btn"
+        class="sb-pill is-compact"
         class:is-on={mode === 'animate'}
         role="tab"
         aria-selected={mode === 'animate'}
@@ -147,38 +147,5 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-  }
-
-  /* Mode toggle in the top bar */
-  .mode-toggle {
-    display: inline-flex;
-    border: var(--sb-border);
-    border-radius: var(--sb-radius-sm);
-    overflow: hidden;
-    background: var(--sb-card-bg);
-  }
-  .mt-btn {
-    appearance: none;
-    border: none;
-    background: transparent;
-    color: var(--sb-text);
-    font-family: var(--sb-font-display);
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 0.25rem 0.7rem;
-    cursor: pointer;
-    transition: background 0.1s;
-  }
-  .mt-btn + .mt-btn {
-    border-left: var(--sb-border);
-  }
-  .mt-btn:hover {
-    background: var(--sb-accent-yellow);
-  }
-  .mt-btn.is-on {
-    background: var(--sb-text);
-    color: var(--sb-card-bg);
   }
 </style>

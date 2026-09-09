@@ -58,7 +58,7 @@
     <span class="run-placeholder">No runs</span>
   {/if}
   <button
-    class="save-btn"
+    class="sb-btn is-primary is-sm"
     on:click={() => dispatch('save')}
     disabled={loading || dirtyCount === 0}
     title="Save all pending text/category edits"
@@ -66,7 +66,7 @@
     Save{dirtyCount > 0 ? ` (${dirtyCount})` : ''}
   </button>
   <button
-    class="save-btn validate-btn"
+    class="sb-btn is-success is-sm"
     on:click={() => dispatch('validateShown')}
     disabled={loading || pendingShown === 0}
     title="Validate every pending row the filters currently show. Undo with ⟲ within 15 minutes."
@@ -75,8 +75,8 @@
   </button>
   <div class="run-bar-spacer"></div>
   <button
-    class="icon-btn text-danger"
-    class:armed={revertArmed}
+    class="sb-btn is-icon revert-btn"
+    class:is-danger={revertArmed}
     on:click={() => dispatch('revert')}
     title={revertArmed
       ? 'Click again to revert everything validated in the last 15 min'
@@ -95,7 +95,12 @@
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
     </svg>
   </button>
-  <button class="icon-btn" on:click={() => dispatch('reload')} disabled={loading} title="Reload">
+  <button
+    class="sb-btn is-icon"
+    on:click={() => dispatch('reload')}
+    disabled={loading}
+    title="Reload"
+  >
     <svg
       width="13"
       height="13"
@@ -138,63 +143,10 @@
   .run-bar-spacer {
     flex: 1;
   }
-  .save-btn {
-    font-family: var(--font-family-base);
-    font-size: 0.7rem;
-    font-weight: var(--font-extrabold);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0.28rem 0.55rem;
-    border: var(--border-thin);
-    border-radius: var(--sb-radius-sm);
-    background: var(--color-yellow);
-    color: var(--color-text-on-yellow);
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    box-shadow: var(--shadow-solid-xs);
-    transition: all 0.1s;
-  }
-  .validate-btn {
-    background: var(--color-success-600);
-    color: var(--color-on-accent);
-  }
-  .save-btn:hover:not(:disabled) {
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--shadow-ink);
-  }
-  .save-btn:active:not(:disabled) {
-    transform: none;
-    box-shadow: none;
-  }
-  .save-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    filter: grayscale(1);
-    box-shadow: none;
-  }
-  .icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border: var(--border-thin);
-    border-radius: var(--radius-sm);
-    background: var(--color-white);
-    cursor: pointer;
-    flex-shrink: 0;
-    color: var(--color-text);
-  }
-  .icon-btn:hover {
-    background: var(--color-gray-100);
-  }
-  .icon-btn.armed {
-    background: var(--tone-red-pale);
-    border-color: var(--tone-red-ink);
-    color: var(--tone-red-ink);
-  }
-  .text-danger {
+  /* Revert rests as a red glyph on a plain button and flips the whole button
+     to `.is-danger` once armed; `:not()` outranks the shared rule either way
+     round in the bundle. */
+  .revert-btn:not(.is-danger) {
     color: var(--color-error-600);
   }
 </style>

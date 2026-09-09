@@ -104,7 +104,7 @@
   {/if}
 
   {#if state.overlays.length === 0}
-    <div class="lsp-empty">
+    <div class="sb-empty">
       Nothing stacked yet. Open <strong>Browse</strong> and tap <strong>+</strong> on a map to add it.
     </div>
   {:else}
@@ -122,7 +122,7 @@
           <div class="lsp-reorder">
             <button
               type="button"
-              class="lsp-action lsp-arrow"
+              class="sb-btn lsp-action lsp-arrow"
               on:click={() => moveUp(i)}
               disabled={i === 0}
               aria-label="Move layer up"
@@ -130,7 +130,7 @@
             >
             <button
               type="button"
-              class="lsp-action lsp-arrow"
+              class="sb-btn lsp-action lsp-arrow"
               on:click={() => moveDown(i)}
               disabled={i === state.overlays.length - 1}
               aria-label="Move layer down"
@@ -141,8 +141,10 @@
           <div class="lsp-body">
             <div class="lsp-name" title={o.ref.name ?? ''}>
               {#if isSideBySide && (i === 0 || i === 1)}
-                <span class="lsp-pane" class:left={i === 0} class:right={i === 1}
-                  >{i === 0 ? 'Top' : 'Bottom'}</span
+                <span
+                  class="badge-chip is-sm lsp-pane"
+                  class:chip-blue={i === 0}
+                  class:chip-orange={i === 1}>{i === 0 ? 'Top' : 'Bottom'}</span
                 >
               {/if}
               {#if yearByMapId.get(o.ref.mapId) != null}
@@ -156,7 +158,7 @@
 
           <button
             type="button"
-            class="lsp-action lsp-vec"
+            class="sb-btn is-icon lsp-action"
             class:is-on={vectorOn.has(o.ref.mapId)}
             on:click={() => dispatch('toggleVectors', { mapId: o.ref.mapId })}
             aria-label="Toggle traced footprints"
@@ -166,7 +168,7 @@
 
           <button
             type="button"
-            class="lsp-action lsp-x"
+            class="sb-btn is-icon lsp-action lsp-x"
             on:click={() => layersStore.removeOverlay(o.id)}
             aria-label="Remove layer"
             title="Remove">×</button
@@ -178,10 +180,10 @@
     {#if topMapId}
       <div class="lsp-links">
         <span class="lsp-links-label" title={topName}>{topName}</span>
-        <a class="lsp-link" href="/scan?map={topMapId}">Scan</a>
-        <a class="lsp-link" href="/explore?mode=annotate&map={topMapId}">Annotate</a>
+        <a class="sb-btn is-sm" href="/scan?map={topMapId}">Scan</a>
+        <a class="sb-btn is-sm" href="/explore?mode=annotate&map={topMapId}">Annotate</a>
         {#if topIsPublished}
-          <a class="lsp-link" href="/catalog/{topMapId}">Share</a>
+          <a class="sb-btn is-sm" href="/catalog/{topMapId}">Share</a>
         {/if}
       </div>
     {/if}
@@ -200,15 +202,6 @@
     font-weight: var(--font-medium);
     color: var(--sb-text-muted);
     margin: 0 0 0.4rem;
-  }
-  .lsp-empty {
-    padding: 1rem;
-    font-size: 0.8rem;
-    color: var(--sb-text-muted);
-    background: var(--sb-bg);
-    border-radius: var(--sb-radius-sm);
-    border: var(--sb-border-soft);
-    text-align: center;
   }
   .lsp-list {
     list-style: none;
@@ -238,22 +231,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .lsp-link {
-    padding: 0.15rem 0.5rem;
-    border: var(--sb-border);
-    border-radius: var(--sb-radius-pill);
-    background: var(--sb-card-bg);
-    color: var(--sb-text);
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .lsp-link:hover {
-    background: var(--sb-accent-yellow);
-    text-decoration: none;
-  }
-
   .lsp-row {
     position: relative;
     display: flex;
@@ -284,28 +261,12 @@
     flex-direction: column;
     gap: 2px;
   }
+  /* Size only — a stacked pair has to fit the row's 52px. */
   .lsp-arrow {
     width: 28px;
     height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-white);
-    border: 1.5px solid var(--color-border);
-    border-radius: 4px;
-    font: inherit;
-    font-size: 0.7rem;
-    line-height: 1;
-    cursor: pointer;
-    color: var(--sb-text);
     padding: 0;
-  }
-  .lsp-arrow:disabled {
-    opacity: 0.3;
-    cursor: default;
-  }
-  .lsp-arrow:not(:disabled):active {
-    background: var(--sb-accent-yellow);
+    font-size: 0.7rem;
   }
 
   .lsp-body {
@@ -337,31 +298,9 @@
     font-weight: var(--font-extrabold);
     color: var(--sb-accent);
   }
+  /* Layout only — the pane tag holds its width against a long sheet name. */
   .lsp-pane {
     flex-shrink: 0;
-    padding: 0.1rem 0.45rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-pill);
-    border: 1.5px solid var(--color-border);
-    font-size: 0.66rem;
-    font-weight: var(--font-extrabold);
-    line-height: 1.2;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    background: var(--color-white);
-    color: var(--sb-text);
-  }
-  .lsp-pane.left {
-    background: var(--sb-accent);
-    color: var(--color-white);
-    border-color: var(--sb-accent);
-  }
-  .lsp-pane.right {
-    background: var(--sb-accent-warm);
-    color: var(--color-white);
-    border-color: var(--sb-accent-warm);
   }
 
   .lsp-pct {
@@ -374,28 +313,16 @@
     text-align: right;
   }
 
-  .lsp-vec {
-    color: var(--sb-text);
-    opacity: 0.55;
-  }
-  .lsp-vec.is-on {
-    opacity: 1;
-    color: var(--sb-success);
-  }
+  /* The footprints toggle is a plain `.sb-btn.is-on` now: it had its own
+     green-on-white "on" face, the only toggle in the app that did not fill.
 
+     The × keeps two things the shared button will not: a 32px touch target,
+     and a press that reads red, because it destroys a layer. */
   .lsp-x {
     flex-shrink: 0;
     width: 32px;
     height: 32px;
-    background: var(--color-white);
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-pill);
-    font: inherit;
     font-size: 1.1rem;
-    font-weight: var(--font-extrabold);
-    line-height: 1;
-    cursor: pointer;
-    padding: 0;
     color: var(--sb-text-meta);
   }
   .lsp-x:active {

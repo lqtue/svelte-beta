@@ -1,8 +1,10 @@
 /*
-  /admin/bulk — bulk map insert grid + generated tiling script.
-  Migrated out of the page's <style> block and tokenised. Scoped under
-  .admin-bulk-page because the class names (.panel, .grid, .status, and the
-  bare `textarea` rule) would otherwise leak site-wide.
+  /admin?tab=bulk — bulk map insert grid + generated tiling script.
+  Layout and position only: `.section-card` / `.section-title-sm` /
+  `.section-desc` come from editorial.css, `.empty-state` from feedback.css,
+  `.btn*` and `.pill-btn` from buttons.css, `.data-table` from table.css.
+  What is left stays scoped under .admin-bulk-page, because `.grid`, `.field`
+  and the bare `textarea` rule would otherwise leak site-wide.
 
   Palette substitutions (nearest token, no exact match in tokens.css):
     #555 → --color-gray-500          #ddd → --color-gray-300
@@ -12,13 +14,11 @@
   #fff and #111 map exactly onto --color-white / --color-text.
 */
 
-.admin-bulk-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--space-8) var(--space-6) var(--space-16);
-  font-family: var(--font-family-base);
-}
-.admin-bulk-page .hero {
+/* No page geometry here: the /admin route wraps every tab in `.editorial-main`,
+   which owns the measure and the padding. This tab is a panel inside it. */
+/* The tab's opening title. `.section-title-sm` / `.section-desc` carry the
+   look; only the back link and the gap below the header are this page's own. */
+.admin-bulk-page .bulk-head {
   margin-bottom: var(--space-8);
 }
 .admin-bulk-page .back-link {
@@ -29,30 +29,14 @@
 .admin-bulk-page .back-link:hover {
   text-decoration: underline;
 }
-.admin-bulk-page h1 {
-  font-family: var(--font-family-display);
-  font-size: 2.25rem;
-  font-weight: var(--font-extrabold);
-  margin: var(--space-2) 0 var(--space-1);
-}
-.admin-bulk-page .lede {
-  color: var(--color-gray-500);
-  margin: 0;
-}
 
-.admin-bulk-page .panel {
-  background: var(--color-white);
-  border: var(--border-thin);
-  box-shadow: 5px 5px 0 var(--shadow-ink);
+/* `.section-card` carries the stock and `.section-title-sm` the heading; the
+   bulk tab only has to stack them and size its own hint line. */
+.admin-bulk-page .section-card {
   padding: var(--space-6);
   margin-bottom: var(--space-6);
 }
-.admin-bulk-page .panel h2 {
-  font-family: var(--font-family-display);
-  font-size: 1.1rem;
-  margin: 0 0 var(--space-4);
-}
-.admin-bulk-page .panel .hint {
+.admin-bulk-page .hint {
   color: var(--color-gray-500);
   font-size: 0.85rem;
   margin: 0 0 var(--space-3);
@@ -139,15 +123,9 @@
 .admin-bulk-page .status-cell .bad {
   color: var(--color-error-600);
 }
-.admin-bulk-page .icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--color-gray-500);
-  font-size: 0.9rem;
-  padding: 0.3rem;
-}
-.admin-bulk-page .icon-btn:hover {
+/* The row-remove ✕ is a `.btn.btn-xs.btn-ghost`; only the danger ink on hover
+   is local, because there is no ghost-danger variant. */
+.admin-bulk-page .status-cell + td .btn:hover {
   color: var(--color-error-600);
 }
 
@@ -173,11 +151,4 @@
   font-family: ui-monospace, Menlo, monospace;
   font-size: 0.78rem;
   line-height: 1.45;
-}
-
-.admin-bulk-page .status {
-  font-size: 0.85rem;
-}
-.admin-bulk-page .status.error {
-  color: var(--color-error-600);
 }

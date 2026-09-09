@@ -14,11 +14,17 @@
     .sb-subtitle     One-line caption near the top of a card body
     .sb-section      Vertical group inside a card body
       .sb-section-label   small uppercase label
+      .sb-step          ordinal badge inside a step's label
     .sb-row          Generic horizontal line (label + value, etc.)
+    .sb-note         Boxed aside inside a card body
+    .sb-more         <details> disclosure ("Coordinates", "Run options")
+    .empty-state.error.is-plate   opt-in boxed face for a feedback error
 
   Inputs
   ──────
     .sb-input, .sb-textarea   Bordered fields with consistent padding.
+    .sb-mono                  Monospace face for a numeric field or readout.
+    .sb-coord-grid            Two-per-line grid of .sb-coord-label fields.
 
   Buttons (single class .sb-btn with modifier flags)
   ──────────────────────────────────────────────────
@@ -196,6 +202,19 @@
 .sb-section + .sb-section {
   margin-top: 0.35rem;
 }
+/* A padded, divided strip — the whole read of the /scan panels, where a
+   sidebar is a stack of bands rather than a column of cards. Two callers:
+   TriageSidebar's steps (on `.sb-section`) and ReviewSidebar's progress line
+   (on `.sb-row`). `flex-shrink: 0` is what the review row needs to keep its
+   band while the list below it scrolls. */
+.sb-section.is-strip,
+.sb-row.is-strip {
+  flex-shrink: 0;
+  padding: 0.85rem 1rem;
+  gap: 0.5rem;
+  border-bottom: var(--sb-border);
+  margin-top: 0;
+}
 .sb-section-label {
   font-family: var(--sb-font-display);
   font-size: 0.66rem;
@@ -203,6 +222,22 @@
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--sb-text-meta);
+}
+/* The ordinal badge on a numbered step's label — the four /scan?mode=triage
+   steps. It sits inside `.sb-section-label`, so it deliberately does not reset
+   the label's uppercase/letter-spacing, only its size, weight and ink. */
+.sb-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-right: 0.3rem;
+  border-radius: 50%;
+  background: var(--sb-text);
+  color: var(--sb-card-bg);
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 .sb-row {
   display: flex;
@@ -221,6 +256,48 @@
   border: var(--sb-border-soft);
   border-radius: var(--sb-radius-sm);
   text-align: center;
+}
+/* A boxed aside: the sentence a panel adds when the state needs explaining
+   ("this crop was adopted automatically", "the job is queued"). */
+.sb-note {
+  margin: 0 0 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--sb-radius);
+  background: var(--color-gray-100);
+  font-size: 0.72rem;
+}
+
+/* A `<details>` that folds away the exact numbers behind a summary line —
+   "Coordinates", "Size … · overlap …", "Run options". */
+.sb-more {
+  margin: 0.35rem 0;
+}
+.sb-more > summary {
+  cursor: pointer;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  padding: 0.2rem 0;
+  user-select: none;
+}
+.sb-more > summary:hover {
+  opacity: 0.9;
+}
+
+/* `.empty-state.error` (components/feedback.css) is inline red text, which is
+   the right face under a list. In a 300px tool panel an error has to read as a
+   plate instead — so this is an opt-in modifier, not a redefinition of
+   `.error`: ReviewSidebar's queue keeps the inline face on purpose.
+   The ink is tool-page.css's `--tone-red-ink` written out, because that sheet
+   is imported per page while this one is always on. */
+.empty-state.error.is-plate {
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--color-error-600) 55%, var(--color-text));
+  background: var(--sb-danger-bg);
+  border: 1.5px solid color-mix(in srgb, var(--color-error-600) 35%, var(--color-white));
+  border-radius: var(--sb-radius-sm);
+  padding: 0.35rem 0.5rem;
 }
 
 /* ── Inputs ──────────────────────────────────────────────────── */
@@ -246,6 +323,15 @@
   background: var(--sb-card-bg);
 }
 
+/* `.sb-input` is sized for one full-width field. This is the size a row of
+   them is typed at — the triage coordinate grids put two per line. */
+.sb-input.is-sm {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.75rem;
+}
+
 .sb-coords {
   display: inline-block;
   font-family: ui-monospace, SFMono-Regular, monospace;
@@ -255,6 +341,33 @@
   border: var(--sb-border);
   border-radius: var(--sb-radius-sm);
   padding: 0.35rem 0.5rem;
+}
+
+/* Mono face on its own, for a field or a count that is a number rather than
+   prose. Declared after `.sb-input` on purpose: same specificity, so the later
+   rule is what lets `class="sb-input sb-mono"` come out monospaced. */
+.sb-mono {
+  font-family: ui-monospace, monospace;
+}
+
+/* A row of labelled numeric fields, two per line — the triage crop's x/y/w/h
+   and the tile size/overlap pair. `.sb-coords` is a single mono readout plate
+   and cannot stand in for it. Field size is `.sb-input.is-sm` above. */
+.sb-coord-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+.sb-coord-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+}
+.sb-coord-label span {
+  width: 3.2rem;
+  text-align: right;
+  color: var(--sb-text-muted);
 }
 
 /* ── Buttons ─────────────────────────────────────────────────── */

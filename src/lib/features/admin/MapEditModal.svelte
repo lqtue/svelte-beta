@@ -217,22 +217,22 @@
 
     <div class="tabs">
       <button
-        class="tab"
+        class="chip"
         class:active={activeTab === 'about'}
         on:click={() => (activeTab = 'about')}>About</button
       >
       <button
-        class="tab"
+        class="chip"
         class:active={activeTab === 'source'}
         on:click={() => (activeTab = 'source')}>Source</button
       >
       <button
-        class="tab"
+        class="chip"
         class:active={activeTab === 'hosting'}
         on:click={() => (activeTab = 'hosting')}>Hosting &amp; Georef</button
       >
       <button
-        class="tab"
+        class="chip"
         class:active={activeTab === 'pipeline'}
         on:click={() => {
           activeTab = 'pipeline';

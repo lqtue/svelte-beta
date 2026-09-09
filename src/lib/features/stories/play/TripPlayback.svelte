@@ -118,7 +118,7 @@
           <div class="head-meta">
             {#if distInfo}
               <span
-                class="dist-chip"
+                class="badge-chip is-sm dist-chip"
                 title={distInfo.meters >= 30 ? 'Walk to this stop' : 'You’re here'}
               >
                 <span class="arrow">{distInfo.arrow}</span>
@@ -126,7 +126,7 @@
                 <span class="comp">{distInfo.label}</span>
               </span>
             {:else}
-              <span class="dist-chip is-muted">Finding GPS…</span>
+              <span class="badge-chip is-sm dist-chip is-muted">Finding GPS…</span>
             {/if}
             <span class="counter">{completedIds.size} / {total}</span>
           </div>
@@ -171,7 +171,7 @@
             autocapitalize="off"
             spellcheck="false"
           />
-          <button type="submit" class="answer-btn">Submit</button>
+          <button type="submit" class="btn btn-primary">Submit</button>
         </form>
         {#if answerStatus === 'wrong'}
           <p class="answer-wrong">Not quite — try again.</p>
@@ -210,16 +210,14 @@
     {/if}
 
     <div class="actions">
-      <button type="button" class="trip-action" disabled={currentIndex <= 0} on:click={goPrev}
+      <button type="button" class="btn" disabled={currentIndex <= 0} on:click={goPrev}
         >← Prev</button
       >
 
       {#if !isCurrentVisited}
-        <button type="button" class="trip-action is-primary" on:click={markVisited}
-          >Mark visited</button
-        >
+        <button type="button" class="btn btn-primary" on:click={markVisited}>Mark visited</button>
       {:else}
-        <button type="button" class="trip-action is-primary" on:click={goNext}>
+        <button type="button" class="btn btn-primary" on:click={goNext}>
           {currentIndex < total - 1 ? 'Next →' : 'Finish →'}
         </button>
       {/if}
@@ -276,15 +274,12 @@
     margin-top: 0.15rem;
     font-size: 0.75rem;
   }
+  /* Shape and tone are the shared badge; these are the two things it does not
+     carry — an icon row inside, and digits that do not jitter as they count. */
   .dist-chip {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.15rem 0.5rem;
-    background: var(--color-white);
-    border: var(--sb-border);
-    border-radius: 999px;
-    font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
   .dist-chip.is-muted {
@@ -370,21 +365,6 @@
     font-size: 0.9rem;
     background: var(--color-white);
   }
-  .answer-btn {
-    padding: 0.55rem 0.9rem;
-    border: var(--border-thin);
-    background: var(--sb-accent);
-    color: var(--color-white);
-    border-radius: 8px;
-    font-family: inherit;
-    font-weight: 700;
-    box-shadow: var(--shadow-solid-xs);
-    cursor: pointer;
-  }
-  .answer-btn:active {
-    transform: translate(2px, 2px);
-    box-shadow: 0 0 0 var(--color-border);
-  }
   .answer-wrong {
     margin: 0;
     font-size: 0.78rem;
@@ -435,29 +415,12 @@
     gap: 0.4rem;
     align-items: stretch;
   }
-  .trip-action {
+  /* Layout only — Prev and the primary action split the row 1 : 1.4. */
+  .actions .btn {
     flex: 1;
-    padding: 0.7rem 0.6rem;
-    border: var(--border-thin);
-    border-radius: 10px;
-    background: var(--color-white);
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 0.85rem;
-    cursor: pointer;
-    box-shadow: var(--shadow-solid-xs);
+    --btn-pad: 0.7rem 0.6rem;
   }
-  .trip-action:active {
-    transform: translate(2px, 2px);
-    box-shadow: 0 0 0 var(--color-border);
-  }
-  .trip-action:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-  .trip-action.is-primary {
-    background: var(--sb-accent);
-    color: var(--color-white);
+  .actions .btn-primary {
     flex: 1.4;
   }
 </style>

@@ -6,55 +6,33 @@
 
   Split out of layouts/create-mode.css; imported by the tool modes that render
   LibraryGrid (/create, /studio).
+
+  Both create buttons are `.action-btn primary-btn` — the private
+  `.library-create-btn` was a fourth copy of the pill.
 */
 
-.library-create-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--color-blue);
-  color: var(--color-on-accent);
-  border: var(--border-thick);
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-pill);
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: var(--shadow-solid-xs);
-  transition: transform 0.1s;
-}
-
-.library-create-btn:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-solid-sm);
-}
-
-.library-create-btn.large {
-  padding: 0.75rem 1.5rem;
-  font-size: 1.1rem;
-}
-
+/* Column stack only, so the icon sits above the copy; the muted type, the
+   centred block and its padding come from `.empty-state.is-block`. */
 .library-loading,
 .library-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 2rem;
   flex: 1;
-  text-align: center;
 }
 
 .empty-title {
   font-family: var(--font-family-display);
   font-weight: 800;
   font-size: 1.5rem;
+  color: var(--color-text);
   margin-bottom: 1rem;
 }
 
 .empty-text {
   max-width: 400px;
   margin-bottom: 2rem;
-  opacity: 0.8;
 }
 
 /* Story Card Custom Styles for CatalogCard slots */
@@ -106,7 +84,11 @@
   overflow: hidden;
 }
 
-.btn-icon-edit {
+/* A 32px square icon button in a card's action corner. No shared primitive is
+   this shape — `.ctrl-btn` is the 48px round map control — so the two keep one
+   face here and differ only in what they tint on hover. */
+.btn-icon-edit,
+.btn-icon-delete {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,21 +107,6 @@
   color: var(--color-blue);
   background: color-mix(in srgb, var(--color-blue) 20%, var(--color-white));
   transform: translate(-1px, -1px);
-}
-
-.btn-icon-delete {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  border: var(--border-thin);
-  background: var(--color-white);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: var(--shadow-solid-xs);
 }
 
 .btn-icon-delete:hover {

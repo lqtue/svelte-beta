@@ -182,7 +182,7 @@
   <!-- Workflow flags -->
   <div class="hosting-subsection">
     <div class="subsection-heading">Workflow stage</div>
-    <p class="section-desc">
+    <p class="panel-note">
       Quick flags for downstream tooling. Catalog visibility (status, featured, public) lives in the
       header bar above.
     </p>
@@ -256,11 +256,11 @@
       {#if ocrMsg}<div class="alert alert-success">{ocrMsg}</div>{/if}
       <div class="ocr-status-box">
         {#if ocrStatus === null}
-          <p class="section-desc">Loading extraction counts…</p>
+          <p class="empty-state">Loading extraction counts…</p>
         {:else if ocrStatus.total === 0}
-          <p class="section-desc">No extractions stored yet for this map.</p>
+          <p class="empty-state">No extractions stored yet for this map.</p>
         {:else}
-          <p class="section-desc">
+          <p class="panel-note">
             <strong>{ocrStatus.total}</strong> extraction{ocrStatus.total === 1 ? '' : 's'} across
             {Object.keys(ocrStatus.runs).length} run{Object.keys(ocrStatus.runs).length === 1
               ? ''
@@ -394,9 +394,9 @@
           {/if}
 
           {#if reviewLoading}
-            <p class="section-desc">Loading…</p>
+            <p class="empty-state is-block">Loading…</p>
           {:else if reviewExtractions.length === 0}
-            <p class="section-desc">
+            <p class="empty-state is-block">
               No extractions match the current filter. Push a run to DB first using <code
                 >ocr.py batch --db</code
               >.
@@ -445,7 +445,7 @@
                 </div>
               {/each}
             </div>
-            <p class="section-desc ocr-review-tally">
+            <p class="panel-note ocr-review-tally">
               {reviewExtractions.length} shown. Edit text/category inline, then click ✓ to validate or
               ✗ to reject.
             </p>

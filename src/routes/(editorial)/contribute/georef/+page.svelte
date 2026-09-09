@@ -17,11 +17,9 @@
   let fixable: GeorefFixItem[] = [];
   let role: 'user' | 'mod' | 'admin' = 'user';
   let loading = true;
-  let mounted = false;
   let fixSearch = '';
 
   onMount(async () => {
-    mounted = true;
     [maps, role] = await Promise.all([
       fetchGeorefQueue(supabase),
       fetchUserRole(supabase, session?.user?.id).then((r) => r ?? 'user'),
@@ -50,7 +48,7 @@
   />
 </svelte:head>
 
-<div class="page" class:mounted>
+<div class="page">
   <PageHero
     sub="Place control points in the Allmaps Editor to anchor each map to real-world coordinates. No specialist software needed — just a browser."
   >
@@ -94,7 +92,7 @@
           Needs georeferencing <span class="count-badge">{pending.length}</span>
         </h2>
         {#if pending.length === 0}
-          <p class="empty-msg">
+          <p class="empty-state">
             Every map is georeferenced. Check back later — new ones land every few weeks.
           </p>
         {:else}
@@ -105,12 +103,7 @@
                   <span class="map-name">{map.name}</span>
                   {#if map.year}<span class="map-year">{map.year}</span>{/if}
                 </div>
-                <a
-                  class="action-btn secondary-btn map-btn"
-                  href={allmapsEditorUrl(map)}
-                  target="_blank"
-                  rel="noopener"
-                >
+                <a class="chip" href={allmapsEditorUrl(map)} target="_blank" rel="noopener">
                   Open in Allmaps
                 </a>
               </li>
@@ -137,7 +130,7 @@
             aria-label="Find a georeferenced map"
           />
           {#if fixShown.length === 0}
-            <p class="empty-msg">No georeferenced map matches.</p>
+            <p class="empty-state">No georeferenced map matches.</p>
           {:else}
             <ul class="map-list done-list">
               {#each fixShown as map (map.id)}
@@ -148,17 +141,12 @@
                     {#if map.status === 'draft'}<span class="map-year">draft</span>{/if}
                   </div>
                   {#if map.editorUrl}
-                    <a
-                      class="action-btn secondary-btn map-btn"
-                      href={map.editorUrl}
-                      target="_blank"
-                      rel="noopener"
-                    >
+                    <a class="chip" href={map.editorUrl} target="_blank" rel="noopener">
                       Fix in Allmaps
                     </a>
                   {:else}
                     <span
-                      class="badge-chip done-chip"
+                      class="badge-chip is-sm"
                       title="R2-only source and no manifest: the editor has nothing to open"
                       >no source</span
                     >
@@ -195,15 +183,6 @@
     background-color: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-family-base);
-  }
-
-  .page {
-    min-height: 100vh;
-    opacity: 0;
-    transition: opacity 0.4s ease;
-  }
-  .page.mounted {
-    opacity: 1;
   }
 
   .chip-back {
@@ -301,25 +280,6 @@
     color: var(--color-text);
     opacity: 0.5;
     flex-shrink: 0;
-  }
-
-  .map-btn {
-    font-size: 0.8125rem;
-    padding: 0.4rem 0.875rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .done-chip {
-    font-size: 0.75rem;
-    flex-shrink: 0;
-  }
-
-  .empty-msg {
-    color: var(--color-text);
-    opacity: 0.6;
-    font-size: 0.9375rem;
-    margin: 0;
   }
 
   .state-card {

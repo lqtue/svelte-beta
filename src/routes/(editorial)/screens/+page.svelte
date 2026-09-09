@@ -108,33 +108,37 @@
   ];
 
   /*
-    The card inventory. Twenty distinct card patterns, four of them reusable and
-    sixteen locked to a single page. This table is the reason this page exists:
-    the duplication is invisible when the definitions sit in sixteen files.
+    The card inventory: seven reusable, seven locked to a single page. This
+    table is the reason this page exists — the duplication is invisible when
+    the definitions sit in fourteen files.
+
+    It is hand-maintained and it does go stale: before the Sept 2026 pass it
+    still advertised seven cards (`.feature-card`, `.mega-card`, `.info-card`,
+    `.layer-card`, `.phase-card`, `.latest-card`, `.user-card`, `.cta-card`)
+    that earlier cleanups had already deleted, which is the exact failure this
+    page is supposed to prevent. Grep before you add a row.
   */
   const CARDS_GLOBAL = [
     ['.section-card', 'components/editorial.css', 'Every editorial page'],
+    [
+      '.stat-tile',
+      'components/editorial.css',
+      'One number and its caption; .is-sm packs three across',
+    ],
     ['.catalog-card', 'components/catalog.css', 'CatalogCard, /catalog'],
+    ['.card', 'components/catalog.css', 'CatalogGrid item'],
     ['.sb-card', 'components/sidebar.css', 'Tool sidebars (needs --sb-* from a parent)'],
-    ['.auth-gate-card', 'components/auth-gate.css', 'AuthGate, /studio, /create'],
+    ['.auth-gate-card', 'components/auth-gate.css', 'AuthGate, /explore?mode=annotate|story'],
+    ['.data-table.is-card', 'components/table.css', 'A table that reads as a card'],
   ];
 
   const CARDS_SCOPED = [
-    ['.feature-card', 'layouts/home.css', '.home-page'],
-    ['.mega-card', 'layouts/home.css', '.home-page'],
     ['.micro-link-card', 'layouts/home.css', '.home-page'],
-    ['.info-card', 'layouts/home.css', '.home-page'],
-    ['.layer-card', 'pages/about.css', '.about-page'],
-    ['.phase-card', 'pages/about.css', '.about-page'],
-    ['.cta-card', 'pages/about.css', '.about-page'],
-    ['.latest-card', 'pages/about.css', '.about-page'],
-    ['.user-card', 'pages/about.css', '.about-page'],
     ['.card', 'pages/admin-scout.css', '.scout-page'],
     ['.sidebar-card', 'pages/blog-post.css', '.blog-post-page'],
     ['.post-card', 'pages/blog.css', '.blog-page'],
     ['.subscribe-card', 'pages/blog.css', '.blog-page'],
     ['.profile-card', 'pages/profile.css', '.profile-page'],
-    ['.stat-card', 'pages/profile.css', '.profile-page'],
     ['.status-row', 'pages/admin-status.css', 'global — /admin?tab=status'],
   ];
 
@@ -208,6 +212,23 @@
       </section>
 
       <section class="sc-section">
+        <h2 class="sc-h2">Page shell</h2>
+        <p class="sc-blurb">
+          Every <code>(editorial)</code> route roots at
+          <code>&lt;div class="page x-page"&gt;</code>, then <code>PageHero</code>, then
+          <code>&lt;main class="editorial-main"&gt;</code>. <code>.page</code> carries the mount
+          fade as a CSS animation with <code>both</code> fill and a
+          <code>prefers-reduced-motion</code> guard — it used to be a <code>mounted</code> boolean
+          flipped in <code>onMount</code> and read as <code>class:mounted</code>, which is a round
+          trip through JS for something the first frame already does, on a page that server-renders.
+          Six routes carried that boolean and four carried an identical copy of the CSS.
+        </p>
+        <p class="sc-blurb">
+          <code>.editorial-main</code> caps the measure at 1100px.
+          <code>.editorial-main.is-wide</code> opens it to 1400 for a dense table —
+          <code>/admin?tab=scout</code> is the only caller, and prose never takes it.
+        </p>
+
         <h2 class="sc-h2">Surface</h2>
         <p class="sc-blurb">
           Borders, shadows and radii. The shadow is always solid, never blurred.
@@ -303,25 +324,62 @@
           <button class="btn btn-primary"><span class="spinner on-ink"></span>&nbsp;Running…</button
           >
         </div>
-        <h3 class="sc-h3">.state-msg</h3>
+        <h3 class="sc-h3">.empty-state</h3>
+        <p class="sc-blurb">
+          One class, two faces. Inline by default — it sits under a list inside a card.
+          <code>.is-block</code> is the standalone face, for when it stands in the space the list
+          would have filled; <code>.error</code> is the failed one. It was three classes (<code
+            >.state-msg</code
+          >, a second <code>.empty-state</code> in
+          <code>layouts/tool-page.css</code>, and a third inside <code>OcrSidebar</code>) until Sept
+          2026.
+        </p>
         <div class="sc-stack">
-          <p class="state-msg">Loading maps…</p>
-          <p class="state-msg">No results.</p>
-          <p class="state-msg error">Couldn't reach the archive.</p>
+          <p class="empty-state">No results.</p>
+          <p class="empty-state is-block">Nothing here yet — try another tab or the catalog.</p>
+          <p class="empty-state is-block error">Couldn't reach the archive.</p>
         </div>
       </section>
 
       <section class="sc-section">
         <h2 class="sc-h2">Chips and badges</h2>
         <p class="sc-blurb">
-          Only <code>.chip-blue</code>, <code>.chip-green</code> and <code>.chip-yellow</code> exist —
-          the orange, purple and red chip classes were removed.
+          <code>.badge-chip</code> plus one tone. Six tones exist; there is no purple.
+          <code>.chip-yellow</code> is a filled yellow and keeps dark ink in both themes —
+          <code>.chip-white</code> is the paper face it used to paint, which is why four components carried
+          a private yellow tint until Sept 2026.
         </p>
         <div class="sc-row">
           <span class="label-chip">Label chip</span>
           <span class="badge-chip chip-blue">Blue</span>
           <span class="badge-chip chip-green">Green</span>
           <span class="badge-chip chip-yellow">Yellow</span>
+          <span class="badge-chip chip-orange">Orange</span>
+          <span class="badge-chip chip-red">Red</span>
+          <span class="badge-chip chip-gray">Gray</span>
+          <span class="badge-chip chip-white">White</span>
+        </div>
+        <h3 class="sc-h3">.badge-chip.is-sm — inside a table row</h3>
+        <p class="sc-blurb">
+          The dense face: base font, no offset shadow. A display-size chip in a table row reaches
+          into the row below. Four components had a private copy of this.
+        </p>
+        <div class="sc-row">
+          <span class="badge-chip is-sm chip-green">1882</span>
+          <span class="badge-chip is-sm chip-orange">Gallica</span>
+          <span class="badge-chip is-sm chip-gray">Cadastral</span>
+        </div>
+        <h3 class="sc-h3">.stat-tile</h3>
+        <div class="sc-row">
+          <span class="stat-tile"
+            ><span class="value">412</span><span class="label">Maps</span></span
+          >
+          <span class="stat-tile is-sm"
+            ><span class="value">3.2 km</span><span class="label">Distance</span></span
+          >
+          <span class="stat-tile is-sm"
+            ><span class="value">7</span><span class="label">Stops</span></span
+          >
         </div>
       </section>
 

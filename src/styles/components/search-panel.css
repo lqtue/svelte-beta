@@ -272,32 +272,8 @@
   flex-wrap: wrap;
 }
 
-.search-panel .badge {
-  display: inline-block;
-  padding: 0.15rem var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: 0.7rem;
-  font-weight: var(--font-bold);
-  line-height: 1.4;
-  border: var(--border-thin);
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.search-panel .year-badge {
-  background: var(--color-orange);
-  color: var(--color-on-accent);
-}
-
-.search-panel .type-badge {
-  background: var(--color-gray-100);
-}
-
-.search-panel .active-badge {
-  background: var(--color-green);
-  color: var(--color-on-accent);
-  border-color: var(--color-green);
-}
+/* The result badges are `.badge-chip.is-sm` + a tone (components/editorial.css).
+   They were a fourth private copy of that shape until Sept 2026. */
 
 /* ---------- Coordinate item ---------- */
 .search-panel .coord-item {

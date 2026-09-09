@@ -44,6 +44,9 @@
 
   let isVietnamese = false;
   let drawerOpen = false;
+  /** ⌘K on a Mac, Ctrl K everywhere else. Corrected after hydration, not at
+      init: a server-rendered text node is reused as it stands. */
+  let paletteKey = '⌘K';
 
   function closeDrawer() {
     drawerOpen = false;
@@ -55,6 +58,7 @@
 
   onMount(() => {
     isVietnamese = document.cookie.includes('googtrans=/en/vi');
+    if (!/mac/i.test(navigator.platform ?? '')) paletteKey = 'Ctrl K';
     // app.html already put the attribute on <html>; this only re-syncs the
     // store with what it wrote, in case this is a fresh document.
     setTheme($theme);
@@ -127,7 +131,7 @@
 
   <!-- Auth + utils -->
   <div class="nav-auth">
-    <button type="button" class="nav-search" on:click={openPalette} title="Search (⌘K)">
+    <button type="button" class="nav-search" on:click={openPalette} title="Search ({paletteKey})">
       <svg
         width="16"
         height="16"
@@ -141,7 +145,7 @@
         <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
       </svg>
       <span class="nav-search-label">Search</span>
-      <kbd class="nav-search-kbd">⌘K</kbd>
+      <kbd class="nav-search-kbd">{paletteKey}</kbd>
     </button>
     <button
       type="button"

@@ -50,24 +50,24 @@
 </script>
 
 <div class="review-panel">
-  <div class="tool-section review-progress">
-    <span class="tool-label">Progress</span>
+  <div class="sb-row is-strip">
+    <span class="sb-grow progress-label">Progress</span>
     <span class="progress-pill">{reviewed} / {total} done</span>
   </div>
 
   {#if footprints.length === 0}
-    <div class="empty">All done for this map.</div>
+    <p class="empty-state is-block">All done for this map.</p>
     {#if total > 0}
       <div class="mark-reviewed-block">
         <button
-          class="btn-mark-reviewed"
+          class="sb-btn is-success is-block"
           disabled={markingReviewed}
           on:click={() => dispatch('markReviewed')}
         >
           {markingReviewed ? 'Saving…' : 'Mark seg reviewed'}
         </button>
         {#if markReviewedError}
-          <p class="mark-reviewed-error">{markReviewedError}</p>
+          <p class="empty-state error">{markReviewedError}</p>
         {/if}
       </div>
     {/if}
@@ -95,14 +95,14 @@
               </select>
               <div class="fp-actions">
                 <button
-                  class="btn-approve"
+                  class="sb-btn is-success is-sm"
                   disabled={approving === fp.id}
                   on:click={() => dispatch('approve', { id: fp.id })}
                 >
                   {approving === fp.id ? '…' : '✓ Approve'}
                 </button>
                 <button
-                  class="btn-reject"
+                  class="sb-btn is-danger is-sm"
                   disabled={approving === fp.id}
                   on:click={() => dispatch('reject', { id: fp.id })}
                 >
@@ -128,12 +128,11 @@
     font-family: var(--font-family-base);
   }
 
-  .review-progress {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
+  /* `.sb-row.is-strip` (sidebar.css) carries the padded divider band; this is
+     only the small meta label `.tool-label` used to supply. */
+  .progress-label {
+    font-size: 0.72rem;
+    color: var(--sb-text-meta);
   }
 
   .progress-pill {
@@ -144,13 +143,6 @@
     border-radius: var(--radius-pill);
     padding: 0.15rem 0.6rem;
     white-space: nowrap;
-  }
-
-  .empty {
-    padding: 2rem 1rem;
-    text-align: center;
-    color: var(--color-gray-500);
-    font-size: 0.875rem;
   }
 
   .fp-list {
@@ -209,50 +201,13 @@
     padding: 0 1rem 0.625rem;
   }
 
+  /* Grid, not flex: the two buttons share the row evenly without either of
+     them needing a `flex` of its own on top of `.sb-btn`. */
   .fp-actions {
-    width: 100%;
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 0.4rem;
     padding-top: 0.5rem;
-  }
-
-  .btn-approve,
-  .btn-reject {
-    flex: 1;
-    padding: 0.35rem 0;
-    font-size: 0.75rem;
-    font-weight: var(--font-bold);
-    border: none;
-    border-radius: var(--sb-radius-sm);
-    cursor: pointer;
-    font-family: inherit;
-    transition: opacity 0.15s;
-  }
-
-  .btn-approve:disabled,
-  .btn-reject:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-approve {
-    background: var(--tone-green-ink);
-    color: var(--tone-green-pale);
-  }
-
-  .btn-approve:hover:not(:disabled) {
-    background: var(--color-success-600);
-    color: var(--color-on-accent);
-  }
-
-  .btn-reject {
-    background: var(--tone-red-ink);
-    color: var(--tone-red-pale);
-  }
-
-  .btn-reject:hover:not(:disabled) {
-    background: var(--color-error-600);
-    color: var(--color-on-accent);
   }
 
   .type-select {
@@ -278,30 +233,5 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-  }
-  .btn-mark-reviewed {
-    width: 100%;
-    padding: 0.5rem;
-    font-size: 0.8rem;
-    font-weight: var(--font-bold);
-    font-family: inherit;
-    background: var(--tone-green-ink);
-    color: var(--color-white);
-    border: none;
-    border-radius: var(--sb-radius-sm);
-    cursor: pointer;
-  }
-  .btn-mark-reviewed:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .btn-mark-reviewed:hover:not(:disabled) {
-    background: var(--color-success-600);
-    color: var(--color-on-accent);
-  }
-  .mark-reviewed-error {
-    font-size: 0.72rem;
-    color: var(--color-error-600);
-    margin: 0;
   }
 </style>

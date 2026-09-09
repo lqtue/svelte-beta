@@ -125,99 +125,101 @@
   <meta name="twitter:description" content={blurb} />
 </svelte:head>
 
-<PageHero eyebrow="Archive" title={map.name} sub={subtitle} />
+<div class="page">
+  <PageHero eyebrow="Archive" title={map.name} sub={subtitle} />
 
-<main class="editorial-page share-page">
-  {#if shareImage}
-    <img class="share-image" src={shareImage} alt={map.name} loading="lazy" />
-  {/if}
+  <main class="editorial-main share-page">
+    {#if shareImage}
+      <img class="share-image" src={shareImage} alt={map.name} loading="lazy" />
+    {/if}
 
-  {#each paragraphs as para, i (i)}
-    <p class="share-blurb">{para}</p>
-  {/each}
+    {#each paragraphs as para, i (i)}
+      <p class="share-blurb">{para}</p>
+    {/each}
 
-  <div class="share-actions">
-    <!-- A map that has not been georeferenced cannot be laid on the world, but it
+    <div class="share-actions">
+      <!-- A map that has not been georeferenced cannot be laid on the world, but it
          is still a scanned map we host: /scan opens it in the IIIF viewer. The
          label already said "viewer"; only the destination was missing. -->
-    <a class="pill-btn" href={map.georef_done ? `/explore?map=${map.id}` : `/scan?map=${map.id}`}>
-      {map.georef_done ? 'Open on the map' : 'Open in the viewer'}
-    </a>
-    <a class="pill-btn" href="/catalog">Browse the archive</a>
-    {#if map.source_url}
-      <a class="pill-btn" href={map.source_url} target="_blank" rel="noopener noreferrer">
-        View the original at {map.holding_institution ?? sourceHost}
+      <a class="pill-btn" href={map.georef_done ? `/explore?map=${map.id}` : `/scan?map=${map.id}`}>
+        {map.georef_done ? 'Open on the map' : 'Open in the viewer'}
       </a>
-    {/if}
-  </div>
-
-  {#if tileUrl}
-    <section class="share-trace">
-      <h2>Trace this sheet in OpenHistoricalMap</h2>
-      <p>
-        The sheet is served as warped map tiles, so it can sit under the OpenHistoricalMap editor
-        while you draw. The button opens the editor with it already set as the background; if the
-        editor does not pick it up, add it by hand under Background → Custom with this URL.
-      </p>
-      <div class="share-actions">
-        <a class="pill-btn" href={ohmUrl} target="_blank" rel="noopener"
-          >Open in OpenHistoricalMap</a
-        >
-        <button class="pill-btn" type="button" on:click={copyTileUrl}>
-          {copied ? 'Copied' : 'Copy tile URL'}
-        </button>
-        {#if canFixGeoref && editorUrl}
-          <a class="pill-btn" href={editorUrl} target="_blank" rel="noopener">
-            Fix georeference in Allmaps
-          </a>
-        {/if}
-      </div>
-      {#if canFixGeoref && !editorUrl}
-        <p class="share-georef-warn">
-          No IIIF manifest or original image source on this map, so the Allmaps Editor has nothing
-          to open. Add one in the catalog edit modal first.
-        </p>
+      <a class="pill-btn" href="/catalog">Browse the archive</a>
+      {#if map.source_url}
+        <a class="pill-btn" href={map.source_url} target="_blank" rel="noopener noreferrer">
+          View the original at {map.holding_institution ?? sourceHost}
+        </a>
       {/if}
-      {#if canFixGeoref && map.annotation_url}
-        <p class="share-georef-warn">
-          This map renders from our own mirrored annotation, so an edit in Allmaps will not show
-          here until someone runs <strong>Fetch latest from Allmaps</strong> in the catalog edit modal.
+    </div>
+
+    {#if tileUrl}
+      <section class="share-trace">
+        <h2>Trace this sheet in OpenHistoricalMap</h2>
+        <p>
+          The sheet is served as warped map tiles, so it can sit under the OpenHistoricalMap editor
+          while you draw. The button opens the editor with it already set as the background; if the
+          editor does not pick it up, add it by hand under Background → Custom with this URL.
         </p>
-      {/if}
-      <code class="share-tile-url">{tileUrl}</code>
-    </section>
-  {/if}
-
-  {#if places.length}
-    <section class="share-places">
-      <h2>Places named on this sheet</h2>
-      <ul>
-        {#each places as p (p.name_key)}
-          <li><a href={placeHref(p.name_key)}>{p.name}</a></li>
-        {/each}
-      </ul>
-      <p class="share-places-note">
-        Read by optical character recognition from the sheet itself, then corrected by hand where a
-        reviewer has reached it.
-      </p>
-    </section>
-  {/if}
-
-  {#if facts(map).length}
-    <dl class="share-facts">
-      {#each facts(map) as [label, value] (label)}
-        <div class="share-fact">
-          <dt>{label}</dt>
-          <dd>{value}</dd>
+        <div class="share-actions">
+          <a class="pill-btn" href={ohmUrl} target="_blank" rel="noopener"
+            >Open in OpenHistoricalMap</a
+          >
+          <button class="pill-btn" type="button" on:click={copyTileUrl}>
+            {copied ? 'Copied' : 'Copy tile URL'}
+          </button>
+          {#if canFixGeoref && editorUrl}
+            <a class="pill-btn" href={editorUrl} target="_blank" rel="noopener">
+              Fix georeference in Allmaps
+            </a>
+          {/if}
         </div>
-      {/each}
-    </dl>
-  {/if}
-</main>
+        {#if canFixGeoref && !editorUrl}
+          <p class="share-georef-warn">
+            No IIIF manifest or original image source on this map, so the Allmaps Editor has nothing
+            to open. Add one in the catalog edit modal first.
+          </p>
+        {/if}
+        {#if canFixGeoref && map.annotation_url}
+          <p class="share-georef-warn">
+            This map renders from our own mirrored annotation, so an edit in Allmaps will not show
+            here until someone runs <strong>Fetch latest from Allmaps</strong> in the catalog edit modal.
+          </p>
+        {/if}
+        <code class="share-tile-url">{tileUrl}</code>
+      </section>
+    {/if}
+
+    {#if places.length}
+      <section class="share-places">
+        <h2>Places named on this sheet</h2>
+        <ul>
+          {#each places as p (p.name_key)}
+            <li><a href={placeHref(p.name_key)}>{p.name}</a></li>
+          {/each}
+        </ul>
+        <p class="share-places-note">
+          Read by optical character recognition from the sheet itself, then corrected by hand where
+          a reviewer has reached it.
+        </p>
+      </section>
+    {/if}
+
+    {#if facts(map).length}
+      <dl class="share-facts">
+        {#each facts(map) as [label, value] (label)}
+          <div class="share-fact">
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        {/each}
+      </dl>
+    {/if}
+  </main>
+</div>
 
 <style>
   .share-trace {
-    margin: 0 0 var(--space-6);
+    margin: 0;
     text-align: left;
   }
   .share-trace h2 {
@@ -246,7 +248,7 @@
   }
 
   .share-places {
-    margin: var(--space-6) 0 0;
+    margin: 0;
     text-align: left;
   }
   .share-places h2 {
@@ -280,10 +282,13 @@
     color: var(--color-gray-500);
   }
 
+  /* `.editorial-main` (editorial.css) carries the centring, the padding and
+     the column; only the narrower measure and the tighter rhythm — the direct
+     children here include the paragraphs of one description, not cards — are
+     this page's own. */
   .share-page {
     max-width: 56rem;
-    margin: 0 auto;
-    padding: var(--space-6) var(--space-4) var(--space-8);
+    gap: var(--space-6);
   }
 
   .share-image {
@@ -294,7 +299,7 @@
   }
 
   .share-blurb {
-    margin: var(--space-4) 0;
+    margin: 0;
     font-size: var(--text-lg);
     line-height: 1.6;
     color: var(--color-text);
@@ -304,7 +309,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
-    margin-bottom: var(--space-6);
   }
 
   .share-facts {

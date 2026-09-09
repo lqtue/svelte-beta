@@ -124,7 +124,7 @@
       <div class="empty-stage">
         <p>Pick a map to inspect its scan.</p>
         {#if mapsError}
-          <p class="stage-error">Couldn't load the map list: {mapsError}</p>
+          <p class="empty-state error">Couldn't load the map list: {mapsError}</p>
         {/if}
         <a href="/catalog" class="catalog-link">Browse the catalog →</a>
       </div>
@@ -155,11 +155,5 @@
   .inspect-link.primary {
     background: var(--color-text);
     color: var(--color-white);
-  }
-  .stage-error {
-    font-size: 0.8rem;
-    color: var(--tone-red-ink);
-    max-width: 34ch;
-    text-align: center;
   }
 </style>

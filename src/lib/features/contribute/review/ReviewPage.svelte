@@ -189,7 +189,7 @@
 </svelte:head>
 
 {#if kind === 'stories'}
-  <div class="page">
+  <div class="review-column">
     <header class="page-header">
       <a href="/scan?mode=review" class="back-link">← Footprint queue</a>
       <h1>Story submissions</h1>
@@ -236,7 +236,7 @@
             <EmptyPanel message={loadError} />
           {:else}
             {#if updateError}
-              <p class="panel-error">{updateError}</p>
+              <p class="empty-state error panel-error">{updateError}</p>
             {/if}
             <ReviewSidebar
               {footprints}
@@ -279,7 +279,7 @@
               : 'Pick a sheet from the queue to start reviewing.'}
           </p>
           {#if queueError}
-            <p class="stage-error">Couldn't load the queue: {queueError}</p>
+            <p class="empty-state error">Couldn't load the queue: {queueError}</p>
           {/if}
           <a href="/scan?mode=review&kind=stories" class="catalog-link">Story queue →</a>
         </div>
@@ -289,8 +289,9 @@
 {/if}
 
 <style>
-  /* The stories queue has no sheet and no canvas — a plain page, not a tool. */
-  .page {
+  /* The stories queue has no sheet and no canvas — a plain column, not a tool.
+     Not `.page`: that is the global editorial shell (100vh + fade) now. */
+  .review-column {
     max-width: 680px;
     margin: 0 auto;
     padding: 2rem 1.5rem 4rem;
@@ -309,16 +310,8 @@
     font-size: 0.75rem;
   }
 
+  /* Placement only — the face is `.empty-state.error`. */
   .panel-error {
     margin: 0.5rem 0.75rem 0;
-    font-size: 0.75rem;
-    color: var(--tone-red-ink);
-  }
-
-  .stage-error {
-    font-size: 0.8rem;
-    color: var(--tone-red-ink);
-    max-width: 34ch;
-    text-align: center;
   }
 </style>

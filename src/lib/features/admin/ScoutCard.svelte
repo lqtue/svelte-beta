@@ -93,11 +93,11 @@
     <h3 class="title" title={candidate.title}>{candidate.title}</h3>
     <div class="meta">
       <span class="badge-chip chip-blue">{candidate.category || '?'}</span>
-      <span class="badge-chip chip-yellow">{candidate.source}</span>
-      {#if candidate.year}<span class="badge-chip chip-yellow">{candidate.year}</span>{/if}
+      <span class="badge-chip chip-white">{candidate.source}</span>
+      {#if candidate.year}<span class="badge-chip chip-white">{candidate.year}</span>{/if}
       {#if !hasImageSource(candidate)}
         <span
-          class="badge-chip chip-yellow is-flag"
+          class="badge-chip chip-white is-flag"
           title="No IIIF manifest or image URL — ingest will refuse it"
         >
           no image

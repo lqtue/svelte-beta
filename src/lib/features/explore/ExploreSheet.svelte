@@ -26,8 +26,8 @@
     elsewhere, or suggest a source we should add.
   </p>
   <div class="actions">
-    <a class="sheet-btn primary" href={scoutHref}>Suggest a map here</a>
-    <button type="button" class="sheet-btn ghost" on:click={() => dispatch('jumpToSaigon')}>
+    <a class="sb-btn is-primary" href={scoutHref}>Suggest a map here</a>
+    <button type="button" class="sb-btn" on:click={() => dispatch('jumpToSaigon')}>
       Jump to Saigon
     </button>
   </div>
@@ -77,29 +77,8 @@
     gap: 0.5rem;
     flex-wrap: wrap;
   }
-  .sheet-btn {
+  /* Layout only — the two ways out share the card's width. */
+  .actions .sb-btn {
     flex: 1;
-    padding: 0.55rem 0.7rem;
-    border: var(--border-thin);
-    border-radius: var(--sb-radius);
-    font-family: inherit;
-    font-size: 0.86rem;
-    font-weight: var(--font-bold);
-    cursor: pointer;
-    text-decoration: none;
-    text-align: center;
-    box-shadow: var(--shadow-solid-xs);
-    color: var(--sb-text);
-  }
-  .sheet-btn.primary {
-    background: var(--sb-accent-warm);
-    color: var(--color-white);
-  }
-  .sheet-btn.ghost {
-    background: var(--sb-card-bg);
-  }
-  .sheet-btn:active {
-    transform: translate(2px, 2px);
-    box-shadow: none;
   }
 </style>

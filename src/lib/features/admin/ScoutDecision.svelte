@@ -19,6 +19,15 @@
     'wrong period',
   ];
   export const APPROVE_REASONS = ['priority sheet', 'fills a gap', 'better copy'];
+
+  /** The shared badge tone for each resolved verdict — `.sd-verdict` used to
+   *  restate `.chip-green` / `.chip-red` / `.chip-blue` under its own name. */
+  const VERDICT_TONE: Record<Verdict | 'ingested', string> = {
+    pending: '',
+    approved: 'chip-green',
+    rejected: 'chip-red',
+    ingested: 'chip-blue',
+  };
 </script>
 
 <script lang="ts">
@@ -112,7 +121,7 @@
   </div>
 {:else}
   <div class="sd-actions">
-    <span class="sd-verdict is-{status}">{status}</span>
+    <span class="badge-chip is-sm {VERDICT_TONE[status]}">{status}</span>
     {#if status !== 'ingested'}
       <button
         type="button"

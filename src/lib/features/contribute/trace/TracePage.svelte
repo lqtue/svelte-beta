@@ -244,7 +244,7 @@
         </svg>
         <p>Pick a map to start tracing.</p>
         {#if mapsError}
-          <p class="stage-error">{mapsError}</p>
+          <p class="empty-state error">{mapsError}</p>
         {/if}
         <a href="/catalog" class="catalog-link">Browse the catalog →</a>
       </div>
@@ -337,12 +337,3 @@
     </footer>
   {/if}
 </div>
-
-<style>
-  .stage-error {
-    font-size: 0.8rem;
-    color: var(--tone-red-ink);
-    max-width: 34ch;
-    text-align: center;
-  }
-</style>

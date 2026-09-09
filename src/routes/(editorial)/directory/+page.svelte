@@ -12,11 +12,9 @@
 
   const { session, supabase } = getSupabaseContext();
 
-  let mounted = false;
   let role: string | null = null;
 
   onMount(async () => {
-    mounted = true;
     role = await fetchUserRole(supabase, session?.user?.id);
   });
 
@@ -39,7 +37,7 @@
   />
 </svelte:head>
 
-<div class="page directory-page" class:mounted>
+<div class="page directory-page">
   <PageHero
     eyebrow="Directory"
     sub="Every page in the archive, in one list. The same list ⌘K searches — so if you would rather type than click, press it from anywhere."
@@ -81,15 +79,6 @@
 </div>
 
 <style>
-  .page {
-    min-height: 100vh;
-    opacity: 0;
-    transition: opacity 0.4s ease;
-  }
-  .page.mounted {
-    opacity: 1;
-  }
-
   /* .section-card-header is sized for a title plus a paragraph; here it holds
      one word, so the gap below it comes back down. */
   .directory-page :global(.section-card-header) {

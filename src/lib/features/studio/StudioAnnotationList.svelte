@@ -294,7 +294,8 @@
     border: var(--sb-border);
     flex-shrink: 0;
   }
-  /* Feature-type badges. The three inks are the same ones `overpass.ts` hands
+  /* Feature-type badges. Deliberately not `.badge-chip`: this is a round 22px
+     swatch, and its three inks are the same ones `overpass.ts` hands
      OpenLayers, so a badge and its shape on the map agree. Yellow is a light
      surface, so that one badge takes dark type. */
   .type-point {

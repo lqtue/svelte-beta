@@ -1,16 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { CATEGORY_LABELS, CATEGORY_COLORS, posts } from '../posts';
-  import { onMount } from 'svelte';
   import '$styles/pages/blog-post.css';
 
   export let data: PageData;
   $: post = data.post;
-
-  let mounted = false;
-  onMount(() => {
-    mounted = true;
-  });
 
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -32,7 +26,7 @@
   <meta name="description" content={post.excerpt} />
 </svelte:head>
 
-<div class="page blog-post-page" class:mounted>
+<div class="page blog-post-page">
   <div class="layout">
     <!-- ARTICLE -->
     <article class="article">
@@ -74,8 +68,8 @@
             archive.
           </p>
           <div class="footer-cta-links">
-            <a href="/contribute" class="cta-btn primary">Start contributing</a>
-            <a href="/about" class="cta-btn secondary">Read the project overview</a>
+            <a href="/contribute" class="action-btn primary-btn">Start contributing</a>
+            <a href="/about" class="action-btn secondary-btn">Read the project overview</a>
           </div>
         </div>
       </footer>

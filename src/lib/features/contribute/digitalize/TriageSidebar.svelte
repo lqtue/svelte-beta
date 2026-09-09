@@ -1,27 +1,28 @@
 <!--
   TriageSidebar.svelte — Left panel for the Triage phase of /scan?mode=triage.
 
-  Shows neatline config (x/y/w/h inputs), tile config (target calls, live stats),
-  per-tile priority legend, run controls, and existing run history.
+  The verdict plate (accept / update the saved triage) plus the four steps,
+  each its own component: Layout · Crop · Tiles · Run OCR. This file keeps only
+  what more than one of them needs — `triageDirty` and `neatlineValid`, which
+  the verdict button and the run button both read, so they are computed once
+  here and passed down rather than recomputed in a child.
 
   All triage params are bound two-way from the parent page.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import '$styles/layouts/tool-page.css';
-  import '$styles/components/tool-sidebar.css';
   import type { TileOverrides } from './tileParams';
-  import { buildTileGrid } from './tileParams';
   import {
-    LAYOUT_CATEGORIES,
-    LAYOUT_COLORS,
-    LAYOUT_LABELS,
     TRIAGE_STATE_LABELS,
     triageState,
-    type LayoutCategory,
     type LayoutRegion,
     type SavedTriage,
   } from '$lib/data/maps/triageTypes';
+  import TriageLayoutStep from './TriageLayoutStep.svelte';
+  import TriageCropStep from './TriageCropStep.svelte';
+  import TriageTilesStep from './TriageTilesStep.svelte';
+  import TriageRunStep from './TriageRunStep.svelte';
 
   export let imgWidth: number = 0;
   export let imgHeight: number = 0;
@@ -61,51 +62,8 @@
   export let layoutJob: { status: string; error?: string | null } | null = null;
 
   const dispatch = createEventDispatcher<{
-    runOcr: void;
     saveTriage: void;
-    suggestTriage: void;
-    detectLayout: void;
-    regionsChange: LayoutRegion[];
-    selectRegion: number | null;
-    loadRun: { runId: string };
   }>();
-
-  function setCategory(idx: number, category: LayoutCategory) {
-    dispatch(
-      'regionsChange',
-      layoutRegions.map((r, i) => (i === idx ? { ...r, category, source: 'human' as const } : r))
-    );
-  }
-
-  function removeRegion(idx: number) {
-    dispatch(
-      'regionsChange',
-      layoutRegions.filter((_, i) => i !== idx)
-    );
-    if (selectedRegion === idx) dispatch('selectRegion', null);
-  }
-
-  /** A new region starts as the middle half of the sheet — big enough to grab,
-   *  small enough that it is obviously a placeholder to be dragged. */
-  function addRegion() {
-    const w = Math.round(imgWidth / 2);
-    const h = Math.round(imgHeight / 2);
-    const next: LayoutRegion[] = [
-      ...layoutRegions,
-      {
-        category: 'legend',
-        bbox: [Math.round(w / 2), Math.round(h / 2), w, h],
-        confidence: 1,
-        source: 'human',
-      },
-    ];
-    dispatch('regionsChange', next);
-    dispatch('selectRegion', next.length - 1);
-  }
-
-  function useAsNeatline(r: LayoutRegion) {
-    neatline = [...r.bbox] as [number, number, number, number];
-  }
 
   $: mainMap = layoutRegions.find((r) => r.category === 'main_map') ?? null;
 
@@ -117,32 +75,6 @@
     ? new Date(savedTriage.validated_at).toLocaleDateString()
     : '';
 
-  // Local neatline inputs (separate vars to avoid array reactivity issues)
-  let nx = 0,
-    ny = 0,
-    nw = 0,
-    nh = 0;
-
-  // Sync local inputs from prop (when TriageTool updates via drag)
-  // Guard prevents overwriting user's in-progress typing on every bind:neatline round-trip.
-  $: if (
-    neatline &&
-    (neatline[0] !== nx || neatline[1] !== ny || neatline[2] !== nw || neatline[3] !== nh)
-  ) {
-    nx = neatline[0];
-    ny = neatline[1];
-    nw = neatline[2];
-    nh = neatline[3];
-  }
-
-  function onNeatlineInput() {
-    neatline = [Math.round(nx), Math.round(ny), Math.round(nw), Math.round(nh)];
-  }
-
-  function resetFullImage() {
-    neatline = [0, 0, imgWidth, imgHeight];
-  }
-
   $: neatlineValid =
     !neatline ||
     (neatline[0] >= 0 &&
@@ -152,11 +84,6 @@
       neatline[2] > 0 &&
       neatline[3] > 0);
 
-  // Tile count computed locally
-  $: tileCount =
-    neatline && tileSize > 0 ? buildTileGrid(...neatline, tileSize, overlap).length : 0;
-
-  // Tile priority counts
   // Compared field by field rather than by JSON.stringify: tileOverrides key order
   // is insertion order, so two identical grids built by different click paths
   // stringify differently and would read as unsaved for ever.
@@ -167,28 +94,13 @@
     savedTriage.overlap !== overlap ||
     Object.keys(savedTriage.tile_overrides ?? {}).length !== Object.keys(tileOverrides).length ||
     Object.entries(tileOverrides).some(([k, v]) => savedTriage?.tile_overrides?.[k] !== v);
-
-  $: lowResCount = Object.values(tileOverrides).filter((v) => v === 'low_res').length;
-  $: skipCount = Object.values(tileOverrides).filter((v) => v === 'skip').length;
-  $: normalCount = tileCount - lowResCount - skipCount;
-
-  const LOW_RES_RENDER = 512;
-  const TARGET_TILES = 12;
-
-  function suggestTileParams() {
-    if (!neatline) return;
-    const area = neatline[2] * neatline[3];
-    const raw = Math.sqrt(area / TARGET_TILES);
-    tileSize = Math.max(512, Math.round(raw / 200) * 200);
-    overlap = Math.max(0, Math.round((tileSize * 0.1) / 50) * 50);
-  }
 </script>
 
 <div class="triage-sidebar">
   <!-- Where this sheet stands, and the one button that moves it. It used to be
        step 4, four scrolls down, which is a strange place for the only decision
        on the page: everything above it is a proposal you are agreeing to. -->
-  <div class="tool-section ts-verdict" class:is-ready={savedState === 'ready'}>
+  <div class="sb-section is-strip ts-verdict" class:is-ready={savedState === 'ready'}>
     <div class="ts-verdict-line">
       {#if savedState === 'ready'}
         Accepted{acceptedOn ? ` ${acceptedOn}` : ''} — the batch script will take this sheet.
@@ -201,11 +113,12 @@
       {/if}
     </div>
     {#if saveTriageError}
-      <div class="tool-error">{saveTriageError}</div>
+      <div class="empty-state error is-plate">{saveTriageError}</div>
     {/if}
     <button
-      class:tool-run-btn={triageDirty}
-      class:tool-ghost-btn={!triageDirty}
+      class="sb-btn is-block"
+      class:is-primary={triageDirty}
+      class:is-ghost={!triageDirty}
       on:click={() => dispatch('saveTriage')}
       disabled={savingTriage || !neatlineValid || !neatline}
     >
@@ -221,301 +134,62 @@
     </button>
   </div>
 
-  <!-- Layout -->
-  <div class="tool-section">
-    <div class="tool-section-header">
-      <div class="tool-section-title"><span class="ts-step">1</span> Layout</div>
-      <button
-        class="tool-ghost-btn"
-        on:click={() => dispatch('detectLayout')}
-        disabled={detectingLayout || !imgWidth}
-      >
-        {detectingLayout ? 'Queued…' : layoutRegions.length ? 'Re-detect' : 'Detect'}
-      </button>
-    </div>
+  <TriageLayoutStep
+    {imgWidth}
+    {imgHeight}
+    {layoutRegions}
+    {selectedRegion}
+    {detectingLayout}
+    {layoutError}
+    {layoutJob}
+    on:detectLayout
+    on:regionsChange
+    on:selectRegion
+  />
 
-    <p class="ts-hint">
-      What the sheet is made of. A worker asks the model once, at low resolution; the answer lands
-      here for you to correct. Dashed edges are its proposal, solid ones yours.
-    </p>
+  <TriageCropStep
+    {imgWidth}
+    {imgHeight}
+    bind:neatline
+    {neatlineValid}
+    {mainMap}
+    neatlineSrc={savedTriage?.neatline_src}
+    {suggesting}
+    {suggestError}
+    on:suggestTriage
+  />
 
-    {#if layoutJob && ['queued', 'claimed', 'running'].includes(layoutJob.status)}
-      <p class="ts-note">
-        Layout job {layoutJob.status} — nothing happens until a worker claims it.
-      </p>
-    {:else if layoutJob?.status === 'failed'}
-      <p class="tool-error">Layout job failed: {layoutJob.error ?? 'no reason recorded'}</p>
-    {/if}
-    {#if layoutError}<p class="tool-error">{layoutError}</p>{/if}
+  <TriageTilesStep {neatline} bind:tileSize bind:overlap {tileOverrides} />
 
-    {#if layoutRegions.length}
-      <ul class="ts-regions">
-        {#each layoutRegions as r, i (i)}
-          <li class:selected={selectedRegion === i}>
-            <button
-              class="ts-region-row"
-              on:click={() => dispatch('selectRegion', selectedRegion === i ? null : i)}
-            >
-              <span class="ts-swatch" style="background: {LAYOUT_COLORS[r.category]}"></span>
-              <select
-                value={r.category}
-                on:click|stopPropagation
-                on:change={(e) => setCategory(i, e.currentTarget.value as LayoutCategory)}
-                class="ts-region-cat"
-              >
-                {#each LAYOUT_CATEGORIES as c (c)}
-                  <option value={c}>{LAYOUT_LABELS[c]}</option>
-                {/each}
-              </select>
-              <span class="ts-region-size">{r.bbox[2]}×{r.bbox[3]}</span>
-              {#if r.source === 'model'}
-                <span class="ts-region-conf" title="model confidence"
-                  >{Math.round(r.confidence * 100)}%</span
-                >
-              {/if}
-            </button>
-            <button
-              class="ts-region-del"
-              title="Remove this region"
-              on:click={() => removeRegion(i)}>×</button
-            >
-          </li>
-        {/each}
-      </ul>
-
-      <div class="ts-region-actions">
-        <button class="tool-ghost-btn" on:click={addRegion} disabled={!imgWidth}>Add region</button>
-      </div>
-    {:else if !detectingLayout}
-      <div class="ts-region-actions">
-        <button class="tool-ghost-btn" on:click={addRegion} disabled={!imgWidth}
-          >Add one by hand</button
-        >
-      </div>
-    {/if}
-  </div>
-
-  <!-- Neatline -->
-  <div class="tool-section">
-    <div class="tool-section-header">
-      <div class="tool-section-title"><span class="ts-step">2</span> Crop</div>
-      {#if mainMap}
-        <button class="tool-ghost-btn" on:click={() => useAsNeatline(mainMap)}>Main map</button>
-      {/if}
-      <button
-        class="tool-ghost-btn"
-        on:click={() => dispatch('suggestTriage')}
-        disabled={suggesting || !imgWidth}
-      >
-        {suggesting ? 'Reading…' : 'Suggest'}
-      </button>
-      <button class="tool-ghost-btn" on:click={resetFullImage} disabled={!imgWidth}
-        >Full image</button
-      >
-    </div>
-    {#if savedTriage?.neatline_src === 'main_map'}
-      <p class="ts-note">
-        This crop is the layout pass's <strong>main map</strong> region, adopted automatically — nobody
-        drew it. Check it against the sheet.
-      </p>
-    {/if}
-    <details class="ts-more">
-      <summary>Coordinates</summary>
-      <div class="tool-coord-grid">
-        <label class="tool-coord-label">
-          <span>X</span>
-          <input
-            type="number"
-            bind:value={nx}
-            on:change={onNeatlineInput}
-            class="tool-num-input"
-            min="0"
-            max={imgWidth}
-          />
-        </label>
-        <label class="tool-coord-label">
-          <span>Y</span>
-          <input
-            type="number"
-            bind:value={ny}
-            on:change={onNeatlineInput}
-            class="tool-num-input"
-            min="0"
-            max={imgHeight}
-          />
-        </label>
-        <label class="tool-coord-label">
-          <span>W</span>
-          <input
-            type="number"
-            bind:value={nw}
-            on:change={onNeatlineInput}
-            class="tool-num-input"
-            min="1"
-            max={imgWidth}
-          />
-        </label>
-        <label class="tool-coord-label">
-          <span>H</span>
-          <input
-            type="number"
-            bind:value={nh}
-            on:change={onNeatlineInput}
-            class="tool-num-input"
-            min="1"
-            max={imgHeight}
-          />
-        </label>
-      </div>
-      <div class="tool-hint">
-        {imgWidth} × {imgHeight} px sheet. Paste x,y,w,h from another tool.
-      </div>
-    </details>
-    {#if !neatlineValid}
-      <div class="tool-error">Neatline exceeds image bounds.</div>
-    {/if}
-    {#if suggestError}
-      <div class="tool-error">{suggestError}</div>
-    {/if}
-    <div class="tool-hint">Drag the amber rectangle on the canvas to adjust.</div>
-  </div>
-
-  <!-- Tile config -->
-  <div class="tool-section">
-    <div class="tool-section-header">
-      <div class="tool-section-title">
-        <span class="ts-step">3</span> Tiles
-        <span class="tool-hint-inline tool-mono">({tileCount})</span>
-      </div>
-      <button class="tool-ghost-btn" on:click={suggestTileParams} disabled={!neatline}
-        >Suggest</button
-      >
-    </div>
-    <details class="ts-more">
-      <summary>Size {tileSize} · overlap {overlap}</summary>
-      <div class="tool-coord-grid">
-        <label class="tool-coord-label">
-          <span>Size</span>
-          <input
-            type="number"
-            bind:value={tileSize}
-            class="tool-num-input"
-            min="512"
-            max="8192"
-            step="100"
-          />
-        </label>
-        <label class="tool-coord-label">
-          <span>Overlap</span>
-          <input
-            type="number"
-            bind:value={overlap}
-            class="tool-num-input"
-            min="0"
-            max="1200"
-            step="50"
-          />
-        </label>
-      </div>
-    </details>
-    <div class="ts-priority-caption">Priority — click tiles on the map</div>
-    <div class="ts-priority-legend">
-      <div class="ts-priority-row">
-        <span class="ts-swatch ts-swatch--normal"></span>
-        <span class="ts-priority-label">Normal</span>
-        <span class="ts-priority-count">{normalCount > 0 ? normalCount : '–'}</span>
-        <span class="ts-priority-detail">full res</span>
-      </div>
-      <div class="ts-priority-row">
-        <span class="ts-swatch ts-swatch--low-res"></span>
-        <span class="ts-priority-label">Low-res</span>
-        <span class="ts-priority-count">{lowResCount > 0 ? lowResCount : '–'}</span>
-        <span class="ts-priority-detail">{LOW_RES_RENDER}px · title, legend</span>
-      </div>
-      <div class="ts-priority-row">
-        <span class="ts-swatch ts-swatch--skip"></span>
-        <span class="ts-priority-label">Skip</span>
-        <span class="ts-priority-count">{skipCount > 0 ? skipCount : '–'}</span>
-        <span class="ts-priority-detail">empty / border</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Run config -->
-  <div class="tool-section">
-    <div class="tool-section-title"><span class="ts-step">4</span> Run OCR</div>
-    <details class="ts-more">
-      <summary>Run options</summary>
-      <label class="tool-field">
-        <span class="tool-label">Run ID</span>
-        <input
-          type="text"
-          bind:value={runId}
-          class="tool-text-input tool-mono"
-          placeholder="auto-generated"
-        />
-      </label>
-      <label class="tool-field">
-        <span class="tool-label">Min confidence <strong>{minConfidence.toFixed(2)}</strong></span>
-        <input
-          type="range"
-          bind:value={minConfidence}
-          min="0"
-          max="1"
-          step="0.05"
-          class="tool-range"
-        />
-      </label>
-    </details>
-
-    {#if ocrError}
-      <div class="tool-error">{ocrError}</div>
-    {/if}
-
-    {#if queuedJobId}
-      <div class="tool-hint">
-        Queued as job <code>{queuedJobId.slice(0, 8)}</code>. A worker has to claim it:
-        <code>python work/worker/vma_worker.py --kinds ocr</code>
-      </div>
-    {/if}
-
-    <!-- Exactly one primary button at a time, and it is whichever step is next:
-         Save while the triage is unsaved, Run once it is on the server. -->
-    <button
-      class:tool-run-btn={!triageDirty}
-      class:tool-ghost-btn={triageDirty}
-      on:click={() => dispatch('runOcr')}
-      disabled={ocrRunning || !neatlineValid || !imgWidth}
-    >
-      {#if ocrRunning}
-        <span class="spinner on-ink"></span> Queueing…
-      {:else}
-        Run OCR
-      {/if}
-    </button>
-    <div class="tool-hint">Queues a job — a worker runs it and the stage flips to ocr_done.</div>
-  </div>
-
-  <!-- Run history -->
-  {#if Object.keys(runs).length > 0}
-    <div class="tool-section">
-      <div class="tool-section-title">Existing runs</div>
-      {#each Object.entries(runs).reverse() as [rid, info] (rid)}
-        <div class="ts-run-row">
-          <div class="ts-run-meta">
-            <code class="ts-run-id">{rid}</code>
-            <span class="ts-run-n">{info.n} items</span>
-          </div>
-          <button class="tool-ghost-btn" on:click={() => dispatch('loadRun', { runId: rid })}>
-            Review →
-          </button>
-        </div>
-      {/each}
-    </div>
-  {/if}
+  <TriageRunStep
+    {imgWidth}
+    bind:runId
+    bind:minConfidence
+    {ocrRunning}
+    {ocrError}
+    {queuedJobId}
+    {runs}
+    {triageDirty}
+    {neatlineValid}
+    on:runOcr
+    on:loadRun
+  />
 </div>
 
 <style>
+  /* Section / field / button primitives live in $styles/components/sidebar.css
+     (`.sb-*`); the padded, divided band each step wears is `.sb-section.is-strip`
+     there, and the boxed error face is `.empty-state.error.is-plate`. Only the
+     verdict is declared here. */
+  .triage-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
   /* The verdict sits above the steps and outweighs them: it is the only thing
      on this panel that changes what happens to the sheet. */
   .ts-verdict {
@@ -532,223 +206,5 @@
     font-size: 0.78rem;
     line-height: 1.35;
     margin-bottom: 0.5rem;
-  }
-
-  /* Every number that used to sit open in the panel. Kept, not deleted: a
-     wrong crop is typed here when the drag will not land on the pixel. */
-  .ts-more {
-    margin: 0.35rem 0;
-  }
-  .ts-more > summary {
-    cursor: pointer;
-    font-size: 0.72rem;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    opacity: 0.55;
-    padding: 0.2rem 0;
-    user-select: none;
-  }
-  .ts-more > summary:hover {
-    opacity: 0.9;
-  }
-
-  /* A small ordinal, so the panel reads as four steps rather than eight
-     equally-weighted boxes of readouts and controls. */
-  .ts-step {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.15rem;
-    height: 1.15rem;
-    margin-right: 0.3rem;
-    border-radius: 50%;
-    background: var(--color-text);
-    color: var(--color-white);
-    font-size: 0.68rem;
-    font-weight: 700;
-  }
-
-  /* ── Layout regions ───────────────────────────────────────────────────── */
-  .ts-hint {
-    margin: 0 0 0.5rem;
-    font-size: 0.72rem;
-    line-height: 1.45;
-    opacity: 0.65;
-  }
-  .ts-note {
-    margin: 0 0 0.5rem;
-    padding: 0.4rem 0.5rem;
-    border-radius: var(--radius-sm);
-    background: var(--color-gray-100);
-    font-size: 0.72rem;
-  }
-  .ts-regions {
-    list-style: none;
-    margin: 0 0 0.5rem;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .ts-regions li {
-    display: flex;
-    align-items: center;
-    border-radius: var(--radius-sm);
-  }
-  .ts-regions li.selected {
-    background: var(--color-gray-100);
-  }
-  .ts-region-row {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    min-width: 0;
-    padding: 0.25rem 0.3rem;
-    border: none;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .ts-swatch {
-    flex: none;
-    width: 9px;
-    height: 9px;
-    border-radius: 2px;
-  }
-  .ts-region-cat {
-    flex: 1;
-    min-width: 0;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    background: none;
-    color: inherit;
-    font: inherit;
-    font-size: 0.74rem;
-    cursor: pointer;
-  }
-  .ts-region-cat:hover {
-    border-color: var(--color-border);
-  }
-  .ts-region-size,
-  .ts-region-conf {
-    flex: none;
-    font-size: 0.66rem;
-    font-variant-numeric: tabular-nums;
-    opacity: 0.55;
-  }
-  .ts-region-del {
-    flex: none;
-    width: 1.4rem;
-    padding: 0;
-    border: none;
-    background: none;
-    color: inherit;
-    font-size: 1rem;
-    line-height: 1;
-    opacity: 0.4;
-    cursor: pointer;
-  }
-  .ts-region-del:hover {
-    opacity: 1;
-    color: var(--color-error-600);
-  }
-  .ts-region-actions {
-    display: flex;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-  }
-
-  .ts-priority-caption {
-    margin: 0.6rem 0 0.3rem;
-    font-size: 0.72rem;
-    font-weight: 600;
-    opacity: 0.6;
-  }
-
-  /* Section / field / button primitives live in $styles/components/tool-sidebar.css
-     (`.tool-*`). Only the triage-specific pieces are declared here. */
-  .triage-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
-  }
-
-  .ts-priority-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .ts-priority-row {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.75rem;
-  }
-
-  .ts-swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 2px;
-    border: 1.5px solid;
-    flex-shrink: 0;
-  }
-
-  /* Swatches mirror TriageTool's OpenLayers tile styles. Both sides now read
-     the same inks — the tool through `INK`, this through the tokens — so the
-     swatch cannot drift from the tile it stands for. */
-  .ts-swatch--normal {
-    background: transparent;
-    border-color: color-mix(in srgb, var(--color-yellow) 35%, transparent);
-  }
-  .ts-swatch--low-res {
-    background: color-mix(in srgb, var(--color-yellow) 18%, transparent);
-    border-color: var(--color-yellow);
-  }
-  .ts-swatch--skip {
-    background: color-mix(in srgb, var(--rule) 28%, transparent);
-    border-color: var(--rule);
-  }
-
-  .ts-priority-label {
-    font-weight: var(--font-semibold);
-    min-width: 56px;
-  }
-  .ts-priority-count {
-    font-family: ui-monospace, monospace;
-    min-width: 24px;
-    font-size: 0.72rem;
-  }
-  .ts-priority-detail {
-    opacity: 0.5;
-    font-size: 0.68rem;
-  }
-
-  .ts-run-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.3rem 0;
-  }
-
-  .ts-run-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-  }
-  .ts-run-id {
-    font-size: 0.7rem;
-    opacity: 0.7;
-  }
-  .ts-run-n {
-    font-size: 0.7rem;
-    opacity: 0.5;
   }
 </style>

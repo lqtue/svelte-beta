@@ -19,7 +19,7 @@
 <div class="cli-block">
   <div class="cli-header">
     <span class="cli-label">{label}</span>
-    <button type="button" class="cli-copy-btn" on:click={copy}>
+    <button type="button" class="sb-btn is-sm" on:click={copy}>
       {copied ? '✓ Copied' : 'Copy'}
     </button>
   </div>
@@ -46,20 +46,6 @@
     font-size: 0.68rem;
     font-weight: 700;
     color: var(--color-blue);
-  }
-  .cli-copy-btn {
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0.15rem 0.45rem;
-    border: 1px solid var(--color-blue);
-    border-radius: var(--sb-radius-sm);
-    background: transparent;
-    color: var(--color-blue);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .cli-copy-btn:hover {
-    background: color-mix(in srgb, var(--color-blue) 15%, var(--color-white));
   }
   .cli-code {
     font-family: ui-monospace, SFMono-Regular, monospace;

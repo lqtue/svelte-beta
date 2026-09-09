@@ -1,6 +1,5 @@
-.profile-page {
-  min-height: 100vh;
-}
+/* No page-root rule: `.page` (components/editorial.css) carries the height
+   and the mount fade. */
 
 .profile-page .profile-card {
   background: var(--color-white);
@@ -86,26 +85,6 @@
   border-color: var(--color-border);
 }
 
-.profile-page .sign-out-btn {
-  padding: 0.6rem 1.25rem;
-  background: var(--color-white);
-  border: var(--border-thin);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-family-display);
-  font-weight: var(--font-bold);
-  color: var(--color-text);
-  box-shadow: var(--shadow-solid-sm);
-  cursor: pointer;
-  transition:
-    transform 0.1s,
-    box-shadow 0.1s;
-}
-
-.profile-page .sign-out-btn:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 4px 4px 0 var(--shadow-ink);
-}
-
 .profile-page .stats-section {
   padding: 2rem;
 }
@@ -137,30 +116,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1.5rem;
-}
-
-.profile-page .stat-card {
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem;
-  background: var(--color-bg);
-  border: var(--border-thin);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-solid-sm);
-}
-
-.profile-page .stat-value {
-  font-family: var(--font-family-display);
-  font-size: 2.5rem;
-  font-weight: var(--font-extrabold);
-  color: var(--color-primary);
-}
-
-.profile-page .stat-label {
-  font-size: 0.875rem;
-  font-weight: var(--font-bold);
-  color: var(--color-gray-500);
-  margin-top: 0.25rem;
 }
 
 .profile-page .settings-section {
@@ -198,12 +153,6 @@
 .profile-page .setting-desc {
   font-size: 0.85rem;
   color: var(--color-gray-500);
-}
-
-.profile-page .lang-btn {
-  background: var(--color-blue);
-  color: var(--color-on-accent);
-  border: none;
 }
 
 /* Staff-only shortcuts, shown on /profile when the role is admin or mod.

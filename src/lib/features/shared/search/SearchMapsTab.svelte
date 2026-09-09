@@ -93,16 +93,18 @@
           <div class="result-row">
             <span class="result-title">{map.name}</span>
             {#if map.id === selectedMapId}
-              <span class="badge active-badge">Active</span>
+              <span class="badge-chip is-sm chip-green">Active</span>
             {/if}
           </div>
           <div class="result-meta">
-            {#if map.year}<span class="badge year-badge">{map.year}</span>{/if}
-            {#if map.location}<span class="badge type-badge">{map.location}</span>{/if}
+            {#if map.year}<span class="badge-chip is-sm chip-orange">{map.year}</span>{/if}
+            {#if map.location}<span class="badge-chip is-sm chip-gray">{map.location}</span>{/if}
             {#if map._ocrd}
-              <span class="badge done-badge" title="Has OCR extractions">OCR'd</span>
+              <span class="badge-chip is-sm chip-green" title="Has OCR extractions">OCR'd</span>
             {:else if map._triaged}
-              <span class="badge triaged-badge" title="Triage saved, not yet OCR'd">Triaged</span>
+              <span class="badge-chip is-sm chip-yellow" title="Triage saved, not yet OCR'd"
+                >Triaged</span
+              >
             {/if}
           </div>
         </div>
@@ -126,9 +128,9 @@
       </div>
     {/each}
   {:else if mapsQuery.trim()}
-    <p class="empty-msg">No maps match “{mapsQuery}”.</p>
+    <p class="empty-state is-block">No maps match “{mapsQuery}”.</p>
   {:else}
-    <p class="empty-msg">No maps loaded yet.</p>
+    <p class="empty-state is-block">No maps loaded yet.</p>
   {/if}
 </div>
 
@@ -143,14 +145,6 @@
   }
 
   /* Progress over a long pass reads better as one strong mark than two weak
-     ones, so OCR'd wins and Triaged only shows on sheets not yet read. */
-  .done-badge {
-    background: var(--color-green);
-    color: var(--color-on-accent);
-  }
-
-  .triaged-badge {
-    background: var(--color-yellow);
-    color: var(--color-text-on-yellow);
-  }
+     ones, so OCR'd wins the green tone and Triaged only shows on sheets not
+     yet read. */
 </style>

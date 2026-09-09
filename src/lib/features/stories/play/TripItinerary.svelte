@@ -25,7 +25,7 @@
         <span class="li-title">
           {#if revealed}{pt.title}{:else}Stop {i + 1} · ???{/if}
         </span>
-        {#if isCur}<span class="li-tag">now</span>{/if}
+        {#if isCur}<span class="badge-chip is-sm chip-blue li-tag">now</span>{/if}
       </li>
     {/each}
   </ol>
@@ -95,15 +95,8 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* Layout only — the tag must not be squeezed by a long stop title. */
   .li-tag {
     flex-shrink: 0;
-    padding: 0.1rem 0.5rem;
-    background: var(--sb-accent);
-    color: var(--color-white);
-    border-radius: 99px;
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
   }
 </style>

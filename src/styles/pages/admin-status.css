@@ -5,6 +5,11 @@
   card: a red left edge never carries information the sentence does not.
 */
 
+/* The tab's own opening title, above the sections. */
+.status-head {
+  margin-bottom: var(--space-8);
+}
+
 .status-bar {
   display: flex;
   align-items: center;
@@ -13,44 +18,9 @@
   margin-bottom: var(--space-8);
 }
 
-.status-refresh {
-  padding: var(--space-2) var(--space-6);
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-pill);
-  font-family: var(--font-family-base);
-  font-weight: var(--font-bold);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  box-shadow: var(--shadow-solid-xs);
-  transition:
-    transform 0.1s,
-    box-shadow 0.1s,
-    background 0.1s;
-}
-.status-refresh:hover:not(:disabled) {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-solid-sm);
-}
-.status-refresh:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .status-checked {
   font-size: var(--text-sm);
   opacity: 0.65;
-}
-
-.status-note {
-  font-size: var(--text-lg);
-  padding: var(--space-8) 0;
-}
-.status-note-bad {
-  color: var(--color-primary);
-  font-weight: var(--font-semibold);
 }
 
 /* ── the one thing to look at first ──────────────────────────────────────── */
@@ -93,19 +63,11 @@
   margin-bottom: var(--space-12);
 }
 
-.status-section-title {
-  font-family: var(--font-family-display);
-  font-size: var(--text-2xl);
-  font-weight: var(--font-extrabold);
-  margin: 0 0 var(--space-2);
-}
-
-.status-section-blurb {
-  margin: 0 0 var(--space-6);
-  font-size: var(--text-base);
-  opacity: 0.75;
+/* `.section-desc` carries the look; a status blurb is a paragraph of prose, so
+   it keeps its own measure and the gap down to the row grid. */
+.status-blurb {
+  margin-bottom: var(--space-6);
   max-width: 60ch;
-  line-height: 1.5;
 }
 
 .status-rows {

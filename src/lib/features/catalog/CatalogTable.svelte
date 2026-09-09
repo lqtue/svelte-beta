@@ -219,11 +219,11 @@
               <td title={item.collection || ''} class="collection-col">{item.collection || '—'}</td>
               <td class="status-col">
                 {#if isScout}
-                  <span class="badge scout">scout</span>
+                  <span class="badge-chip is-sm scout">scout</span>
                 {:else if (item as any).georef_done}
-                  <span class="badge status-map" title="Available on map">Map</span>
+                  <span class="badge-chip is-sm status-map" title="Available on map">Map</span>
                 {:else}
-                  <span class="badge status-img" title="Static image only">Image</span>
+                  <span class="badge-chip is-sm chip-gray" title="Static image only">Image</span>
                 {/if}
               </td>
             </tr>
@@ -271,6 +271,8 @@
   .ct tbody tr:hover .title-link {
     text-decoration: underline;
   }
+  /* Not `.chip.ghost`: this is a dense inline affordance inside a table cell,
+     and the shared pill's 2.5rem min-height would set the row height. */
   .tag-chip {
     background: transparent;
     border: 1.5px solid transparent;
@@ -313,23 +315,14 @@
     text-align: right;
     white-space: nowrap;
   }
-  .badge {
-    display: inline-block;
-    padding: 0.05rem 0.4rem;
-    font-size: 0.7rem;
-    font-weight: var(--font-bold);
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--color-border);
-    margin-left: 0.2rem;
-  }
-  .badge.scout {
+  /* Two tones only: both are tints of a token, and the shared `.chip-green` /
+     `.chip-yellow` are a solid fill and a white face — too loud and too blank
+     for a badge repeated down every row. */
+  .scout {
     background: var(--sb-accent-yellow);
   }
-  .badge.status-map {
+  .status-map {
     background: var(--sb-badge-map);
-  }
-  .badge.status-img {
-    background: var(--sb-thumb-bg);
   }
   .group-row {
     cursor: pointer;

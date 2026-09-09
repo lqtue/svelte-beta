@@ -25,13 +25,22 @@
   }
 }
 
-/* Placeholder line for a list that is loading, empty, or failed. */
-.state-msg {
-  padding: var(--space-6) 0;
-  text-align: center;
+/* Placeholder line for a list that is loading, empty, or failed. One class,
+   two faces: inline by default (it sits under a list inside a sidebar card),
+   `.is-block` when it stands alone in the space the list would have filled.
+   It was `.state-msg` here, `.empty-state` in tool-page.css and a third copy
+   inside OcrSidebar until Sept 2026. */
+.empty-state {
+  margin: 0;
+  font-size: 0.85rem;
   color: var(--color-gray-500);
 }
 
-.state-msg.error {
+.empty-state.is-block {
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+.empty-state.error {
   color: var(--color-error-600);
 }
