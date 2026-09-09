@@ -85,7 +85,7 @@ The group in parentheses is the SvelteKit layout group, not part of the URL. Bot
 | `/scan` | (app) | `+page.svelte` + `ImageShell` | none |
 | `/scan?mode=triage` | (app) | `+page.svelte` + `TriageTool` / `OcrBboxTool` / `SegSidebar` | auth |
 | `/scan?mode=trace` | (app) | `+page.svelte` + `TraceTool` | auth |
-| `/scan?mode=review` | (app) | `+page.svelte` + `ReviewMode` | mod/admin |
+| `/scan?mode=review` | (app) | `+page.svelte` + `ReviewPage` | mod/admin |
 
 Every route is in one of the two groups — `/scan?mode=review` moved into `(app)` in Aug 2026.
 

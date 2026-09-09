@@ -38,6 +38,9 @@ export interface LabelMapInfo {
 	description?: string;
 	/** True once this sheet has any `ocr_extractions` row. */
 	hasOcr?: boolean;
+	/** Short rail badge, only ever set by a caller that supplies its own list
+	 *  (the review queue's pending count). `fetchLabelMaps` never sets it. */
+	badge?: string;
 }
 
 export async function fetchLabelMaps(supabase: SupabaseClient<Database>): Promise<LabelMapInfo[]> {
@@ -205,7 +208,7 @@ interface MapJoinRow {
 
 // ── Review helpers ────────────────────────────────────────────────────────────
 
-// SamFootprint = FootprintSubmission; kept for backward compat with ReviewMode/ReviewTool/ReviewSidebar
+// SamFootprint = FootprintSubmission; kept for backward compat with ReviewTool/ReviewSidebar
 export type SamFootprint = FootprintSubmission;
 
 export async function fetchSubmittedFootprints(

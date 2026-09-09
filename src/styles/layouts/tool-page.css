@@ -1,6 +1,9 @@
 /*
   tool-page.css — layout for the ImageShell tool pages (/scan) and the frame
-  their sidebars sit in: .tool-page, .panel, .panel-header, .bottom-bar.
+  their sidebars sit in: .tool-page, .panel, .bottom-bar. The crown inside a
+  panel is `.sb-bar` (sidebar.css), the same one /explore's rails wear —
+  `.panel-header`, `.panel-mode-label`, `.collapse-btn` and `.home-link` were a
+  second copy of it and are gone.
 
   Colour, border weight, radius and type come from sidebar.css's `--sb-*`
   scale, the same one /explore's panels use — this file owns position and size
@@ -43,33 +46,6 @@
   font-family: var(--font-family-base);
 }
 
-/* ── Home link (inside sidebar panel-header) ─────────────────────────────── */
-.home-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.5rem 0.3rem 0.3rem;
-  border-radius: var(--sb-radius-sm);
-  color: var(--sb-text);
-  text-decoration: none;
-  transition:
-    background 0.08s,
-    transform 0.1s;
-  flex-shrink: 0;
-  font-family: var(--sb-font-display);
-  font-size: 0.72rem;
-  font-weight: var(--font-extrabold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-.home-link:hover {
-  background: var(--sb-accent-yellow);
-  transform: translateX(-1px);
-}
-
 /* ── Map list (georef picker) ────────────────────────────────────────────── */
 .map-list {
   list-style: none;
@@ -88,57 +64,6 @@
   border-right: var(--border-thick);
   overflow: hidden;
   min-width: 0;
-}
-.panel-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.75rem;
-  background: var(--sb-card-bg);
-  border-bottom: var(--sb-border);
-  flex-shrink: 0;
-  font-family: var(--sb-font-display);
-}
-/* Right-aligned, unlike .sb-bar-title: the left of this crown is the way back
-   to /contribute, so the mode name takes the other end. */
-.panel-mode-label {
-  flex: 1;
-  font-family: var(--sb-font-display);
-  font-size: 0.72rem;
-  font-weight: var(--font-extrabold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--sb-text-meta);
-  text-align: right;
-  margin-right: 0.5rem;
-  pointer-events: none;
-}
-/* Pinned right, the way .sb-bar's collapse control sits: the mode label is
-   flex:1 but a tool without a title leaves it empty, and without this the
-   button slides in next to the back link. */
-.panel-header .collapse-btn {
-  margin-left: auto;
-}
-.collapse-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: var(--sb-border);
-  border-radius: var(--sb-radius-pill);
-  background: var(--sb-card-bg);
-  cursor: pointer;
-  color: var(--sb-text);
-  transition: background 0.08s;
-}
-.collapse-btn:hover {
-  background: var(--sb-accent-yellow);
-}
-@media (max-width: 900px) {
-  .collapse-btn {
-    display: none;
-  }
 }
 
 .panel-empty {

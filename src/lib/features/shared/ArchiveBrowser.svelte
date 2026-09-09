@@ -1,29 +1,46 @@
 <!--
-  ExploreArchiveBrowser.svelte — the "Browse the full archive" branch of
-  ExploreBrowsePanel.
+  ArchiveBrowser.svelte — search box, three facet dropdowns, count and rows.
 
-  Driven by the shared catalog engine (`$lib/features/shared/catalogSearch`) — the same
-  full-text search + facet logic that powers /catalog — restricted to
-  georeferenced maps since only those can overlay. Draft visibility is enforced
-  server-side by role, so this doesn't need its own status filter.
+  Driven by the shared catalog engine (`$lib/features/shared/catalogSearch`) —
+  the same full-text search + facet logic that powers /catalog. Draft visibility
+  is enforced server-side by role, so this doesn't need its own status filter.
+
+  It is the "Browse the full archive" branch of ExploreBrowsePanel and, since
+  Sept 2026, the map picker in the /scan left rail — which is why it moved out
+  of `features/explore/`. The /scan rail used to render `SearchMapsTab`, whose
+  every rule is scoped under `.search-panel`: outside that container the list
+  drew with no borders, no hover and titles at the inherited display size.
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { createCatalogSearch, type LabelHit } from '$lib/features/shared/catalogSearch';
   import LabelHits from '$lib/features/shared/LabelHits.svelte';
-  import ExploreMapRows from './ExploreMapRows.svelte';
+  import ArchiveMapRows from './ArchiveMapRows.svelte';
 
   const dispatch = createEventDispatcher<{ pickLabel: LabelHit }>();
 
   /** Oldest → newest comparator, supplied by the parent so both modes sort alike. */
   export let sortRows: (a: any, b: any) => number;
+  /** Only maps that can be laid on the world. False for /scan?mode=inspect,
+   *  where an ungeoreferenced scan is exactly what is being looked at. */
+  export let requireGeoref = true;
+  /** When set, only these ids are offered — the /scan?mode=review queue. */
+  export let filterIds: string[] | null = null;
+  /** Passed through to the rows; see `ArchiveMapRows`. */
+  export let activeIds: string[] | null = null;
+  export let badges: Record<string, string> = {};
+  /** Label hits open /explore at a spot, which a /scan tool cannot do. */
+  export let showLabels = true;
 
-  const search = createCatalogSearch({ requireGeoref: true });
+  const search = createCatalogSearch({ requireGeoref });
   const { query, results, loading, areaChoices, typeChoices, periodChoices, selected, labels } =
     search;
   onMount(() => search.start());
 
-  $: shownRows = [...$results].sort(sortRows);
+  $: allowed = filterIds ? new Set(filterIds) : null;
+  $: shownRows = (allowed ? $results.filter((r) => allowed.has(r.id)) : [...$results]).sort(
+    sortRows
+  );
 
   $: hasFilters =
     !!$query.trim() ||
@@ -110,11 +127,13 @@
   {/if}
 </div>
 
-<LabelHits hits={$labels} mode="pick" on:pick={(e) => dispatch('pickLabel', e.detail)} />
+{#if showLabels}
+  <LabelHits hits={$labels} mode="pick" on:pick={(e) => dispatch('pickLabel', e.detail)} />
+{/if}
 
 {#if shownRows.length}
-  <ExploreMapRows rows={shownRows} on:pick on:remove />
-{:else if !$labels.length}
+  <ArchiveMapRows rows={shownRows} {activeIds} {badges} on:pick on:remove />
+{:else if !showLabels || !$labels.length}
   <p class="empty">No maps match those filters.</p>
 {/if}
 

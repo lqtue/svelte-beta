@@ -4,13 +4,13 @@
 
   Default view: just the maps that cover the user's location (GPS coverage),
   with a big tick-circle first cell for add/remove. "Browse the full archive →"
-  swaps in ExploreArchiveBrowser (shared catalog engine + facets). Both modes
-  render the same ExploreMapRows — tap to add, tap again to remove.
+  swaps in ArchiveBrowser (shared catalog engine + facets). Both modes
+  render the same ArchiveMapRows — tap to add, tap again to remove.
 -->
 <script lang="ts">
   import type { ResolvedMap } from './spatialLookup';
-  import ExploreMapRows from './ExploreMapRows.svelte';
-  import ExploreArchiveBrowser from './ExploreArchiveBrowser.svelte';
+  import ArchiveMapRows from '$lib/features/shared/ArchiveMapRows.svelte';
+  import ArchiveBrowser from '$lib/features/shared/ArchiveBrowser.svelte';
 
   export let matches: ResolvedMap[] = [];
   // Admins/mods may browse draft maps in the viewer; everyone else is
@@ -66,9 +66,9 @@
   </div>
 
   {#if expanded}
-    <ExploreArchiveBrowser sortRows={byYear} on:pick on:remove on:pickLabel />
+    <ArchiveBrowser sortRows={byYear} on:pick on:remove on:pickLabel />
   {:else if visibleMatches.length}
-    <ExploreMapRows rows={visibleMatches} on:pick on:remove />
+    <ArchiveMapRows rows={visibleMatches} on:pick on:remove />
   {/if}
 
   <button type="button" class="browse-toggle" on:click={() => (expanded = !expanded)}>

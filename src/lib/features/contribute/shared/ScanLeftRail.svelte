@@ -8,19 +8,32 @@
   sidebar. That is what lets a mode change swap one panel instead of rebuilding
   the page, and it puts the sheet list somewhere other than on top of the sheet.
 
+  It is built from the same two pieces as `ExploreSidebar`: a `.sb-bar` crown
+  (via `ToolSidebarShell`) over `SidebarCard`s, with the same titles — "Browse
+  the archive" and "My layers". The body used to be a bare picker over flat
+  `.tool-section` strips, which is what made the /scan rail read as a different
+  component from the /explore one even though both crowns were already the same
+  rule set. There is no draggable splitter here: the layers card is two or three
+  rows, so there is nothing to trade height with.
+
   Slots:
     default — extra cards under Layers, for a mode with left-rail content of
-              its own.
+              its own. Wrap it in a `SidebarCard` to match the two above.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import ToolSidebarShell from './ToolSidebarShell.svelte';
   import ToolMapPicker from './ToolMapPicker.svelte';
+  import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';
   import '$styles/layouts/tool-page.css';
   import '$styles/components/tool-sidebar.css';
 
   export let selectedMapId: string | null = null;
+  /** Caller-supplied map list; see `ToolMapPicker`. Null means "load them all". */
+  export let maps: LabelMapInfo[] | null = null;
+  /** Only maps that can be laid on the world; see `ToolMapPicker`. */
+  export let requireGeoref = true;
   /** One switchable thing drawn over the scan. `color` draws the swatch that
    *  ties the row to what is on the canvas. */
   export let layers: { id: string; label: string; on: boolean; color?: string }[] = [];
@@ -38,11 +51,14 @@
 </script>
 
 <ToolSidebarShell title="Map" {onCollapse}>
-  <ToolMapPicker {selectedMapId} on:select on:loaded on:error />
+  <div class="rail-cards">
+    <SidebarCard title="Browse the archive" grow={1} flush={true}>
+      <ToolMapPicker {selectedMapId} {maps} {requireGeoref} on:select on:loaded on:error />
+    </SidebarCard>
 
-  {#if layers.length}
-    <div class="tool-section rail-layers">
-      <div class="tool-section-title">Layers</div>
+    <!-- Fixed height, not a share of the rail: this card is a handful of rows and
+       the picker is the list that wants the space. -->
+    <SidebarCard title="My layers" grow={0} flush={true} scroll={false} padded={true}>
       {#each layers as l (l.id)}
         <label class="rail-layer">
           <input
@@ -56,34 +72,39 @@
           <span class="rail-layer-name">{l.label}</span>
         </label>
       {/each}
-    </div>
-  {/if}
 
-  <!-- Outside the layer card on purpose: a mode with nothing drawn over the
-       scan (trace) still wants to dim the paper. -->
-  <div class="tool-section rail-layers">
-    <label class="rail-opacity">
-      <span class="tool-label">Scan</span>
-      <input type="range" min="0.15" max="1" step="0.05" bind:value={imageOpacity} />
-      <span class="tool-value tool-mono">{Math.round(imageOpacity * 100)}%</span>
-    </label>
+      <!-- Always shown, even with nothing over the scan: a mode that draws
+         nothing (trace) still wants to dim the paper. -->
+      <label class="rail-opacity">
+        <span class="sb-section-label">Scan</span>
+        <input type="range" min="0.15" max="1" step="0.05" bind:value={imageOpacity} />
+        <span class="rail-value">{Math.round(imageOpacity * 100)}%</span>
+      </label>
+    </SidebarCard>
+
+    <!-- Bare, not wrapped: a caller whose extra row is conditional would
+         otherwise leave an empty card sitting at the foot of the rail. Pass a
+         `SidebarCard` if you want one. -->
+    <slot />
   </div>
-
-  <slot />
 </ToolSidebarShell>
 
 <style>
-  /* The picker flexes and scrolls; the layer card is fixed at the bottom of the
-     rail so the toggles do not scroll away on a long map list. */
-  .rail-layers {
-    flex-shrink: 0;
-    border-top: var(--sb-border);
+  /* `.sb-card.is-flush` drops the card margin so the cards run edge to edge, as
+     they do on /explore; the gap stands in for that rail's splitter. */
+  .rail-cards {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-bottom: 0.35rem;
   }
+
   .rail-layer {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.25rem 0;
     cursor: pointer;
     font-size: 0.8rem;
   }
@@ -92,7 +113,7 @@
     height: 10px;
     border-radius: 2px;
     flex-shrink: 0;
-    box-shadow: 0 0 0 1px var(--sb-border);
+    box-shadow: 0 0 0 1px var(--color-border);
   }
   .rail-layer-name {
     flex: 1;
@@ -106,5 +127,12 @@
   .rail-opacity input[type='range'] {
     flex: 1;
     min-width: 0;
+  }
+  .rail-value {
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    color: var(--sb-text-meta);
+    min-width: 3ch;
+    text-align: right;
   }
 </style>

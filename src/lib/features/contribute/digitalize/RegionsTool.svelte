@@ -196,6 +196,32 @@
       selected = idx;
       dispatch('select', idx);
     });
+
+    // Fill and configure what was just built, rather than leaving it to the
+    // reactive blocks below.
+    //
+    // They gate on `initialized` / `source` / `rectEditor`, which this function
+    // assigns from inside a call Svelte cannot order around, so on a *remount*
+    // — switching to OCR Review and back, where ImageShell is never torn down
+    // and the context is already there — every one of them runs before this
+    // function and sees nothing to do. Nothing changes afterwards to re-run
+    // them either: `regions` is whatever it already was. The layer went on the
+    // map empty and the layout regions simply did not draw, while the sidebar
+    // still listed all six and the rail's toggle still said they were on.
+    //
+    // On a first mount the context arrives as null and the blocks get a second
+    // pass for free, which is why this only ever broke the second visit.
+    rebuild();
+    layer.setVisible(visible);
+    bodyTranslate.setActive(visible && selected !== null);
+    syncEditor();
+  }
+
+  /** Handles follow the selected region; nothing selected means none shown. */
+  function syncEditor() {
+    if (!rectEditor) return;
+    const r = visible && selected !== null ? regions[selected] : null;
+    rectEditor.show(r ? String(selected) : null, r ? rectOf(r) : null);
   }
 
   // Only the selected region is draggable: without this, brushing a region on
@@ -206,9 +232,11 @@
     void regions;
     rebuild();
   }
-  $: if (rectEditor) {
-    const r = visible && selected !== null ? regions[selected] : null;
-    rectEditor.show(r ? String(selected) : null, r ? rectOf(r) : null);
+  $: {
+    void regions;
+    void selected;
+    void visible;
+    syncEditor();
   }
   $: if (source) {
     void selected;

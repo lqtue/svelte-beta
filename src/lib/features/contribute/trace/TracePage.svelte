@@ -198,11 +198,7 @@
 
     <!-- Right: the tracing work. -->
     <svelte:fragment slot="right-sidebar">
-      <ToolSidebarShell
-        title="Trace"
-        showBack={false}
-        onCollapse={() => (rightSidebarCollapsed = true)}
-      >
+      <ToolSidebarShell title="Trace" onCollapse={() => (rightSidebarCollapsed = true)}>
         {#if currentMap}
           <TraceSidebar
             {traceCategories}

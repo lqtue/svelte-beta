@@ -12,7 +12,7 @@
   export let total = 0;
   export let reviewed = 0;
   export let approving: string | null = null; // id currently being saved
-  /** Pipeline mutation state — owned by ReviewMode, mirrored here for the button. */
+  /** Pipeline mutation state — owned by ReviewPage, mirrored here for the button. */
   export let markingReviewed = false;
   export let markReviewedError = '';
 
@@ -49,9 +49,9 @@
   }
 </script>
 
-<aside class="review-sidebar">
-  <div class="sidebar-header">
-    <h2>Needs Review</h2>
+<div class="review-panel">
+  <div class="tool-section review-progress">
+    <span class="tool-label">Progress</span>
     <span class="progress-pill">{reviewed} / {total} done</span>
   </div>
 
@@ -115,36 +115,25 @@
       {/each}
     </ul>
   {/if}
-</aside>
+</div>
 
 <style>
-  .review-sidebar {
-    width: 280px;
-    flex-shrink: 0;
-    background: var(--color-white);
-    border-left: var(--border-thin);
+  /* `.panel` (ToolSidebarShell) owns the frame; this is only the body. */
+  .review-panel {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     font-family: var(--font-family-base);
   }
 
-  .sidebar-header {
-    padding: 1rem;
-    border-bottom: var(--border-thin);
+  .review-progress {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-  }
-
-  h2 {
-    margin: 0;
-    font-size: 0.875rem;
-    font-weight: var(--font-bold);
-    color: var(--color-text);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
   }
 
   .progress-pill {

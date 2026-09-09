@@ -1,21 +1,31 @@
 <!--
-  ExploreMapRows.svelte — the tap-to-toggle map row list shared by both
-  /explore browse modes (GPS coverage and the full archive browser).
+  ArchiveMapRows.svelte — the tap-to-toggle map row list. Both /explore browse
+  modes (GPS coverage and the full archive browser) use it, and so does the
+  /scan left rail.
 
-  Rows behave identically in both: tap to add as a layer, tap again to remove.
+  On /explore a row is "on" when the map is in the layer stack, and tapping an
+  on row removes it. A /scan tool has no layer stack — it has one open sheet —
+  so it passes `activeIds` and gets a radio: the open sheet ticks, and tapping
+  it again is a no-op rather than a remove nothing can undo.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { layersStore } from '$lib/map/stores/layersStore';
 
   export let rows: any[] = [];
+  /** Ids to draw as "on". Null (the default) means the /explore layer stack,
+   *  and restores tap-again-to-remove. */
+  export let activeIds: string[] | null = null;
+  /** id → short text drawn at the end of the row. The catalog rows carry no
+   *  pass progress, so /scan supplies "OCR'd" / "12 pending" from its own list. */
+  export let badges: Record<string, string> = {};
 
   const dispatch = createEventDispatcher<{
     pick: { map: any };
     remove: { mapId: string };
   }>();
 
-  $: stackedIds = new Set($layersStore.overlays.map((o) => o.ref.mapId));
+  $: stackedIds = new Set(activeIds ?? $layersStore.overlays.map((o) => o.ref.mapId));
 
   // Stable colour per map_type so the type chip is scannable. Hashes the
   // string to a hue (golden-angle stepped to keep adjacent types distinct).
@@ -32,6 +42,10 @@
   }
 
   function onRowClick(map: any) {
+    if (activeIds) {
+      if (!stackedIds.has(map.id)) dispatch('pick', { map });
+      return;
+    }
     if (stackedIds.has(map.id)) dispatch('remove', { mapId: map.id });
     else dispatch('pick', { map });
   }
@@ -73,7 +87,9 @@
         <span class="year-cell">{m.year ?? '—'}</span>
         <span class="name">{m.name}</span>
         <span class="type-cell">
-          {#if m.map_type}
+          {#if badges[m.id]}
+            <span class="type-chip is-badge">{badges[m.id]}</span>
+          {:else if m.map_type}
             <span class="type-chip" style={typeStyle(m.map_type)}>{m.map_type}</span>
           {/if}
         </span>
@@ -153,6 +169,11 @@
     display: flex;
     justify-content: flex-end;
     min-width: 0;
+  }
+  /* Progress, not classification — it reads as a state, not a category. */
+  .type-chip.is-badge {
+    background: var(--sb-badge-map);
+    text-transform: none;
   }
   .type-chip {
     padding: 0.15rem var(--space-2);

@@ -380,6 +380,12 @@
 
     syncFeatures();
     syncHandles();
+    // Same reason the two lines above are here: the `$: if (initialized)` block
+    // that owns the interaction split has already run by the time a *remount*
+    // reaches this function, so the four interactions would keep the defaults
+    // they were constructed with — a live Draw tool on a panel that is not in
+    // draw mode.
+    toggleDrawMode(drawMode);
   }
 
   onDestroy(() => {

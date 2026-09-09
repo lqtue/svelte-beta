@@ -1,15 +1,20 @@
 <!--
-  ToolMapPicker.svelte — the map picker shared by the contribute IIIF-canvas
-  tools, rendered inline in `ScanLeftRail`.
+  ToolMapPicker.svelte — the map picker in the /scan left rail, rendered inline
+  by `ScanLeftRail`.
 
-  Owns the map list: loads it via fetchLabelMaps() and adapts LabelMapInfo to
-  the MapListItem shape the list expects, so callers need neither a loadMaps()
-  copy nor an `as any` cast.
+  It is `ArchiveBrowser` — the very component /explore's Browse pane uses, moved
+  to `features/shared` for the purpose. Search box, three facet dropdowns, the
+  count, and rows with the year, the title and a type chip. It used to render
+  `SearchMapsTab`, which looked nothing like it: every rule in
+  `search-panel.css` is scoped under `.search-panel`, so outside that floating
+  container the rows drew with no border, no hover and titles at the inherited
+  display size.
 
-  It used to render `MapSearchBar` — a trigger floating over the canvas that
-  opened the whole search panel — so "which sheet am I on?" sat on top of the
-  sheet and cost two clicks. It now renders that panel's own maps tab straight
-  into the rail, which is the same list without the overlay.
+  The rows come from the catalog engine; the *list* still comes from
+  `fetchLabelMaps` (or a caller's own), because the catalog knows nothing about
+  triage or OCR progress and the picker must hand back a `LabelMapInfo`. So the
+  list supplies the badge text and the lookup, and the browser supplies the rows
+  and the filtering.
 
   Dispatches:
     loaded { maps }        — after the list arrives
@@ -18,17 +23,20 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import SearchMapsTab from '$lib/features/shared/search/SearchMapsTab.svelte';
-  // The list's styles ship with the panel that used to own it.
-  import '$styles/components/search-panel.css';
+  import ArchiveBrowser from '$lib/features/shared/ArchiveBrowser.svelte';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { triageState } from '$lib/data/maps/triageTypes';
   import { fetchLabelMaps } from '$lib/data/supabase/footprints';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';
-  import type { MapListItem } from '$lib/data/maps/types';
 
-  /** Currently selected map id, for the search bar's active state. */
+  /** Currently selected map id — the row that ticks. */
   export let selectedMapId: string | null = null;
+  /** Caller-supplied list. When set the picker offers only these and skips the
+   *  fetch — the review queue is "sheets with pending polygons", not every
+   *  georeferenced sheet. */
+  export let maps: LabelMapInfo[] | null = null;
+  /** Only maps that can be laid on the world. False for /scan?mode=inspect. */
+  export let requireGeoref = true;
 
   const dispatch = createEventDispatcher<{
     loaded: { maps: LabelMapInfo[] };
@@ -38,72 +46,67 @@
 
   const { supabase } = getSupabaseContext();
 
-  let maps: LabelMapInfo[] = [];
+  let loaded: LabelMapInfo[] = [];
+  $: list = maps ?? loaded;
+  $: byId = new Map(list.map((m) => [m.id, m]));
 
-  // LabelMapInfo → the MapListItem fields MapSearchBar actually reads.
-  // `year`, `location` and `dc_description` are what SearchMapsTab filters and
-  // badges on; leaving them out (as this did until 2026-09-04) made the
-  // "Filter by title, city, or year" box silently unable to match two of the
-  // three, and meant no badge ever drew.
-  $: listItems = maps.map((m): MapListItem => ({
-    id: m.id,
-    name: m.name,
-    allmaps_id: m.allmapsId,
-    iiif_image: m.iiifImage,
-    year: m.year,
-    location: m.location,
-    dc_description: m.description,
-    // A proposal nobody has accepted is not triaged — that is the whole point
-    // of `validated_at`, and `triageState` is the one place the rule lives.
-    _triaged: triageState(m.triage) === 'ready',
-    _ocrd: m.hasOcr,
-  }));
+  // Over a 39-sheet pass "which have I already done?" is the column that
+  // decides what to open next. A proposal nobody has accepted is not triaged —
+  // that is the whole point of `validated_at`, and `triageState` is the one
+  // place the rule lives. One strong mark beats two weak ones, so OCR'd wins.
+  $: badges = Object.fromEntries(
+    list.flatMap((m) => {
+      const text =
+        m.badge ?? (m.hasOcr ? "OCR'd" : triageState(m.triage) === 'ready' ? 'Triaged' : '');
+      return text ? [[m.id, text] as [string, string]] : [];
+    })
+  );
 
-  function handleSelect(e: CustomEvent<{ map: MapListItem }>) {
-    const picked = maps.find((m) => m.id === e.detail.map.id);
+  // Oldest → newest, the way /explore's Browse pane sorts.
+  const byYear = (a: any, b: any) => (a.year ?? 9999) - (b.year ?? 9999);
+
+  function handlePick(e: CustomEvent<{ map: { id: string } }>) {
+    const picked = byId.get(e.detail.map.id);
     if (picked) dispatch('select', { map: picked });
   }
 
   onMount(async () => {
+    if (maps) return;
     try {
-      maps = await fetchLabelMaps(supabase);
-      dispatch('loaded', { maps });
+      loaded = await fetchLabelMaps(supabase);
+      dispatch('loaded', { maps: loaded });
     } catch (err: any) {
       dispatch('error', { message: err?.message ?? 'Failed to load maps' });
     }
   });
 </script>
 
-<!-- showCompare={false}: the ⇄ button adds to `layersStore`, the /explore layer
-     stack. These tools run on an ImageShell and have no geo map, so it was a
-     dead control taking a third of every row.
-     autofocus={false}: the rail is on screen from load, and a picker that grabs
-     the caret means every page starts with the keyboard in a filter box. -->
+<!-- `filterIds` keeps the browser to sheets the tool can actually open: the
+     catalog engine reaches the whole corpus, `list` is this rail's slice of it.
+     showLabels={false}: a label hit flies /explore to a spot, which an
+     ImageShell tool has nowhere to go with. -->
 <div class="tool-map-picker">
-  <SearchMapsTab
-    maps={listItems}
-    {selectedMapId}
-    showCompare={false}
-    autofocus={false}
-    on:selectMap={handleSelect}
+  <ArchiveBrowser
+    sortRows={byYear}
+    {requireGeoref}
+    filterIds={list.map((m) => m.id)}
+    activeIds={selectedMapId ? [selectedMapId] : []}
+    {badges}
+    showLabels={false}
+    on:pick={handlePick}
   />
 </div>
 
 <style>
-  /* SearchMapsTab was written for a fixed-height panel; in the rail it is the
-     part that flexes, so the list scrolls and the filter box stays put. */
+  /* The browser was written for a card body that scrolls; in the rail it is the
+     part that flexes, so the rows scroll and the filters stay put. */
   .tool-map-picker {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    padding: 0.75rem;
-    gap: 0.4rem;
-  }
-  .tool-map-picker :global(.results-list) {
-    flex: 1;
-    min-height: 0;
     overflow-y: auto;
-    max-height: none;
+    padding: 0.6rem 0.65rem;
+    gap: 0.5rem;
   }
 </style>

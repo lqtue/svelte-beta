@@ -9,15 +9,16 @@
 <script lang="ts">
   import ToolPanelHeader from './ToolPanelHeader.svelte';
   import '$styles/layouts/tool-page.css';
+  // Every panel body speaks `.tool-section` / `.tool-label`, so the sheet comes
+  // with the frame rather than with whichever panel happened to import it.
+  import '$styles/components/tool-sidebar.css';
 
   export let title: string = '';
   export let onCollapse: (() => void) | null = null;
-  /** Left rail carries the way back out; the right panel is a work surface. */
-  export let showBack = true;
 </script>
 
 <aside class="panel">
-  <ToolPanelHeader {title} {onCollapse} {showBack} />
+  <ToolPanelHeader {title} {onCollapse} />
   <slot />
   {#if $$slots.footer}
     <div class="panel-footer">
@@ -29,8 +30,8 @@
 <style>
   .panel-footer {
     padding: 0.75rem;
-    background: var(--color-white);
-    border-top: var(--border-thick);
+    background: var(--sb-card-bg);
+    border-top: var(--sb-border);
     flex-shrink: 0;
     display: flex;
     justify-content: center;

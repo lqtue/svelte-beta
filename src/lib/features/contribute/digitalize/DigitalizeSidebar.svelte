@@ -58,7 +58,7 @@
   const dispatch = createEventDispatcher<{ phaseChange: { phase: typeof phase } }>();
 </script>
 
-<ToolSidebarShell title="Triage" showBack={false} {onCollapse}>
+<ToolSidebarShell title="Triage" {onCollapse}>
   {#if !mapId}
     <EmptyPanel
       message={compact ? 'Select a map first.' : 'Pick a map to start.'}
