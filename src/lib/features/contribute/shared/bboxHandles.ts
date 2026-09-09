@@ -172,13 +172,22 @@ export function createRectEditor(
     const feat = e.features.getArray()[0];
     if (feat && opts.onDragStart) opts.onDragStart(feat.get('bboxId') as string);
   });
-  // Live preview. Only the box is redrawn — repositioning the handles here would
-  // move the one under the pointer and fight the drag.
+  // Live preview. The three corners that are *not* under the pointer are
+  // carried along with the box; the dragged one is left to OL, because writing
+  // its position from underneath fights the drag.
   translate.on('translating', (e: any) => {
-    if (!opts.onDrag) return;
     const feat = e.features.getArray()[0];
     const next = feat && draggedRect(feat);
-    if (next) opts.onDrag(next.bboxId, next.rect);
+    if (!next) return;
+    const { x, y, w, h } = next.rect;
+    updateHandlePositions(
+      source.getFeatures().filter((f) => f !== feat),
+      x,
+      y,
+      w,
+      h
+    );
+    if (opts.onDrag) opts.onDrag(next.bboxId, next.rect);
   });
   translate.on('translateend', (e: any) => {
     const feat = e.features.getArray()[0];
@@ -332,10 +341,12 @@ export function createObbEditor(
   const layer = new VectorLayer({ source, zIndex: opts.zIndex ?? 9, style: opts.style });
   map.addLayer(layer);
 
-  function place(bboxId: string, obb: Obb) {
+  /** `except` is the handle under the pointer, which OL is already moving. */
+  function place(bboxId: string, obb: Obb, except?: Feature) {
     const existing = source.getFeatures();
     if (existing.length === 4 && existing[0].get('bboxId') === bboxId) {
       for (const feat of existing) {
+        if (feat === except) continue;
         const [x, y] = obbCorner(obb, feat.get('obbCorner') as ObbCorner);
         (feat.getGeometry() as Point).setCoordinates([x, -y]);
       }
@@ -368,13 +379,14 @@ export function createObbEditor(
     const feat = e.features.getArray()[0];
     if (feat && opts.onDragStart) opts.onDragStart(feat.get('bboxId') as string);
   });
-  // Live preview. The handles are deliberately left alone: repositioning the one
-  // under the pointer fights the drag.
+  // Live preview. The three corners that are not under the pointer follow the
+  // rectangle; the dragged one is left to OL, or the write fights the drag.
   translate.on('translating', (e: any) => {
-    if (!opts.onDrag) return;
     const feat = e.features.getArray()[0];
     const next = feat && dragged(feat);
-    if (next) opts.onDrag(next.bboxId, next.obb);
+    if (!next) return;
+    place(next.bboxId, next.obb, feat);
+    if (opts.onDrag) opts.onDrag(next.bboxId, next.obb);
   });
   translate.on('translateend', (e: any) => {
     const feat = e.features.getArray()[0];

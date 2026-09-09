@@ -116,8 +116,38 @@
     return { x: r.bbox[0], y: r.bbox[1], w: r.bbox[2], h: r.bbox[3] };
   }
 
+  /**
+   * The drag in flight. `regions` is what the corner editor resolves each drag
+   * against, so it must stay where the drag started — the same reason
+   * `OcrBboxTool` keeps a `preview` and reads `storedObb` for its anchor.
+   * Nothing here dispatches; `commit` clears it.
+   */
+  let preview: number | null = null;
+
+  function featureFor(idx: number): Feature | undefined {
+    return source?.getFeatures().find((f) => f.get('idx') === idx);
+  }
+
+  /**
+   * Draw the rectangle a drag is heading for, without committing it.
+   *
+   * `geom` is false for a body drag, where OL is moving the polygon itself and
+   * writing its coordinates from underneath would fight the interaction; it is
+   * true for a corner drag, where the polygon is not the feature being dragged.
+   */
+  function previewRegion(idx: number, rect: Rect, geom: boolean) {
+    preview = idx;
+    if (geom) {
+      const geometry = featureFor(idx)?.getGeometry() as Polygon | undefined;
+      geometry?.setCoordinates([toOlRing(rect.x, rect.y, rect.w, rect.h)]);
+    } else {
+      rectEditor?.move(rect);
+    }
+  }
+
   /** A corrected region is a human's, whatever it started as. */
   function commit(idx: number, rect: Rect) {
+    preview = null;
     const next = regions.map((r, i) =>
       i === idx
         ? {
@@ -168,10 +198,16 @@
     });
     olMap.addLayer(layer);
 
-    bodyTranslate = new Translate({ layers: [layer] });
+    // `hitTolerance` matches OcrBboxTool — a 2px edge is not a target.
+    bodyTranslate = new Translate({ layers: [layer], hitTolerance: 6 });
+    // OL moves the polygon itself; this only has to carry the handles with it.
+    bodyTranslate.on('translating', () => {
+      const feat = selected === null ? undefined : featureFor(selected);
+      if (!feat || selected === null) return;
+      previewRegion(selected, fromOlExtent((feat.getGeometry() as Polygon).getExtent()), false);
+    });
     bodyTranslate.on('translateend', () => {
-      const feats = source!.getFeatures().filter((f) => f.get('idx') === selected);
-      const feat = feats[0];
+      const feat = selected === null ? undefined : featureFor(selected);
       if (!feat || selected === null) return;
       commit(selected, clamp(fromOlExtent((feat.getGeometry() as Polygon).getExtent())));
     });
@@ -185,12 +221,18 @@
         return regions[idx] ? rectOf(regions[idx]) : null;
       },
       clamp,
+      // The region follows the corner. Without this only the handle moved and
+      // the rectangle jumped on release.
+      onDrag: (id, rect) => previewRegion(Number(id), rect, true),
       onChange: (id, rect) => commit(Number(id), rect),
     });
 
     clickKey = olMap.on('singleclick', (event: { pixel: number[] }) => {
       const feat = olMap.forEachFeatureAtPixel(event.pixel, (f: unknown) => f as Feature, {
         layerFilter: (l: unknown) => l === layer,
+        // Regions have gaps between them, so an exact hit test means a click a
+        // few pixels outside a title block deselects instead of selecting.
+        hitTolerance: 6,
       });
       const idx = feat ? (feat.get('idx') as number) : null;
       selected = idx;
@@ -220,6 +262,8 @@
   /** Handles follow the selected region; nothing selected means none shown. */
   function syncEditor() {
     if (!rectEditor) return;
+    // Not mid-drag: repositioning the handle under the pointer fights the drag.
+    if (preview !== null) return;
     const r = visible && selected !== null ? regions[selected] : null;
     rectEditor.show(r ? String(selected) : null, r ? rectOf(r) : null);
   }

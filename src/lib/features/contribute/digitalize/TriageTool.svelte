@@ -119,7 +119,18 @@
     olMap.addLayer(tileLayer);
 
     // ── Body translate: move whole neatline ──
-    bodyTranslate = new Translate({ layers: [neatlineLayer] });
+    // `hitTolerance` matches OcrBboxTool: the dashed edge is 2.5px and an exact
+    // hit test makes it a game.
+    bodyTranslate = new Translate({ layers: [neatlineLayer], hitTolerance: 6 });
+    // Live: OL is already moving the polygon, so this only has to carry the
+    // handles and re-flow the grid the neatline decides. Deliberately no
+    // dispatch — `neatline` is the drag anchor and must not move until the
+    // pointer is up.
+    bodyTranslate.on('translating', () => {
+      const feat = neatlineSource!.getFeatureById('neatline');
+      if (!feat) return;
+      previewNeatline(fromOlExtent((feat.getGeometry() as Polygon).getExtent()), false);
+    });
     bodyTranslate.on('translateend', () => {
       const feat = neatlineSource!.getFeatureById('neatline');
       if (!feat) return;
@@ -138,6 +149,10 @@
       style: handleStyle,
       getRect: () => (neatline ? rectOf(neatline) : null),
       clamp: (r) => rectOf(clamp(r.x, r.y, r.w, r.h)),
+      // The box and its grid follow the corner. Without this only the handle
+      // moved and everything else jumped on release, which is what made
+      // cropping a neatline a guess-and-check.
+      onDrag: (_id, rect) => previewNeatline(rect, true),
       onChange: (_id, rect) => {
         const neatlineFeat = neatlineSource!.getFeatureById('neatline');
         if (neatlineFeat) applyNeatline([rect.x, rect.y, rect.w, rect.h], neatlineFeat);
@@ -180,6 +195,24 @@
     const cw = Math.max(1, Math.min(imgWidth - cx, w));
     const ch = Math.max(1, Math.min(imgHeight - cy, h));
     return [cx, cy, cw, ch];
+  }
+
+  /**
+   * Draw the rectangle a drag is heading for, without committing it.
+   *
+   * `neatline` is the prop the corner editor resolves each drag against, so it
+   * must stay where the drag started — the same reason `OcrBboxTool` keeps a
+   * `preview` and reads `storedObb` for its anchor. Nothing here dispatches.
+   *
+   * `geom` is false for a body drag, where OL is moving the polygon itself and
+   * writing its coordinates from underneath would fight the interaction; it is
+   * true for a corner drag, where the polygon is not the feature being dragged.
+   */
+  function previewNeatline(r: Rect, geom: boolean) {
+    const nl: [number, number, number, number] = [r.x, r.y, r.w, r.h];
+    if (geom) syncNeatlineGeom(nl);
+    else rectEditor?.move(r);
+    rebuildTileFeatures(nl);
   }
 
   function applyNeatline(nl: [number, number, number, number], feat: Feature) {
