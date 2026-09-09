@@ -5,14 +5,16 @@
   everything that isn't a layer row or a catalog row:
     • Display mode (Stacked / Lens / Side-by-side)
     • Base map (Maps / Satellite / None)
-    • Location search (Nominatim)
     • My Location (GPS toggle)
+    • Location search (Nominatim) — `PlaceSearchBar`, and `showSearch={false}`
+      drops it: /explore's right rail carries one at the top of the rail
+      instead, so the Control tab would have shown a second.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { layersStore } from '$lib/map/stores/layersStore';
   import type { ViewMode } from '$lib/map/types';
-  import LocationSearch from '$lib/ui/LocationSearch.svelte';
+  import PlaceSearchBar from './PlaceSearchBar.svelte';
   import { getShellContext } from '$lib/map/shell/context';
 
   const { layerStore } = getShellContext();
@@ -24,6 +26,8 @@
   /** Show the "Legend points" toggle (only when the active overlay has legend data). */
   export let legendPointsAvailable: boolean = false;
   export let showLegendPoints: boolean = false;
+  /** Render the place search. False where the caller already has one. */
+  export let showSearch: boolean = true;
 
   const dispatch = createEventDispatcher<{
     changeViewMode: { mode: ViewMode };
@@ -70,19 +74,6 @@
   function clearCustomUrl() {
     customUrlDraft = '';
     layerStore.setCustomBaseUrl(null);
-  }
-
-  let locQuery = '';
-  function onPickLocation(
-    e: CustomEvent<{
-      lat: number;
-      lng: number;
-      label: string;
-      bbox?: [number, number, number, number];
-    }>
-  ) {
-    dispatch('pickLocation', e.detail);
-    locQuery = '';
   }
 </script>
 
@@ -169,38 +160,10 @@
       </svg>
       <span>{gpsActive ? 'GPS on' : 'My location'}</span>
     </button>
-    <label class="mo-search is-compact mcp-grow">
-      <svg
-        class="mo-search-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <circle cx="11" cy="11" r="7" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-      <input
-        class="mo-search-input"
-        type="search"
-        placeholder="Search a place…"
-        bind:value={locQuery}
-      />
-      {#if locQuery}
-        <button
-          type="button"
-          class="mo-search-clear"
-          on:click={() => (locQuery = '')}
-          aria-label="Clear">×</button
-        >
-      {/if}
-    </label>
   </div>
-  {#if locQuery}
-    <LocationSearch query={locQuery} on:pickLocation={onPickLocation} />
+
+  {#if showSearch}
+    <PlaceSearchBar on:pickLocation={(e) => dispatch('pickLocation', e.detail)} />
   {/if}
 </div>
 

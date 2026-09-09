@@ -27,16 +27,29 @@
          path. Warming them costs one connection each. -->
     <link rel="preconnect" href="https://iiif.maparchive.vn" crossorigin />
     <link rel="preconnect" href="https://trioykjhhwrruwjsklfo.supabase.co" crossorigin />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Inter as a variable axis, not four static cuts: `wght@400..800` is one
-         file per unicode subset instead of four, which took the stylesheet from
-         40 @font-face rules to 16. Be Vietnam Pro has no variable build, so it
-         stays static — 600/700/800, the three weights headings and chrome
-         actually use. -->
+    <!-- The fonts are ours now — `src/styles/fonts.css`, files in
+         `static/fonts/`. They used to come from `fonts.googleapis.com`: a
+         render-blocking stylesheet on one third-party origin pointing at files
+         on another, so two handshakes and an extra round trip stood between the
+         HTML and the first painted word. That is what the two `preconnect`
+         hints here were for, and both are gone with it.
+
+         These two are on every page above the fold — body text and the display
+         face — and they are the only ones worth preloading: the rest of the
+         subsets are fetched only if a page needs them. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Be+Vietnam+Pro:wght@600;700;800&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      href="/fonts/inter-400-800-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/be-vietnam-pro-800-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
     />
     %sveltekit.head%
   </head>

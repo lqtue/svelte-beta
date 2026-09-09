@@ -133,11 +133,24 @@ test('an overlay renders on the map', async ({ page }) => {
   const { maps } = await res.json();
   test.skip(!maps?.length, 'no georeferenced map in the catalogue');
 
+  // The left rail is two tabs since Sept 2026 and the layer stack lives on the
+  // Picked one, so which tab is up decides whether `.lsp-text` exists at all.
+  // Arriving with a stack selects Picked — except while the first-run tour is
+  // running, which owns the tab so it can point at the pane each step
+  // describes, and whose first step is Browse. Ack it the way a returning
+  // visitor would have, as the sibling test below does: the subject here is
+  // that `?map=` renders an overlay and reaches the stack, not the tour.
+  await page.addInitScript(() => localStorage.setItem('vma-explore-tour-ack-v1', 'true'));
+
   // The overlay comes from the ?map= query param; the #hash only mirrors view state.
   await page.goto(`/explore?map=${maps[0].id}`);
   await expect(page.locator('.shell-map canvas').first()).toBeVisible({ timeout: 20_000 });
   // layersStore is the single source of truth; LayerStackPanel renders it.
-  await expect(page.locator('.lsp-text').first()).toBeVisible({ timeout: 20_000 });
+  // `.lsp-name` is the sheet's name in a row — it was `.lsp-text` until the
+  // panel's rows were restructured (Sept 2026) into a name-and-controls line
+  // over an opacity line. `.lsp-row` would pass on an empty `<li>`; the name
+  // is what proves the overlay actually reached the store.
+  await expect(page.locator('.lsp-name').first()).toBeVisible({ timeout: 20_000 });
 });
 
 test('picking a map writes ?map= and tallies the open', async ({ page }) => {

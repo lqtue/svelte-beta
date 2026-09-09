@@ -138,7 +138,12 @@
     currentStep = i;
     const s = TOUR_STEPS[i];
     if (!s) return;
-    if (isMobile) dispatch('setDrawer', { drawer: s.drawer });
+    // Both viewports have to be *showing* the pane the step describes: on
+    // mobile that is the drawer, on desktop the left rail's tab. driver's
+    // overlay swallows every click outside the highlight, so a step pointed at
+    // a pane that is not mounted is a dead end. `waitForElement` below covers
+    // the gap between this dispatch and Svelte mounting the pane.
+    dispatch('setDrawer', { drawer: s.drawer });
     captureBaseline();
   }
 
@@ -172,6 +177,10 @@
       stageRadius: 12,
       animate: true,
       allowClose: true,
+      // The pane a step points at is mounted by the dispatch in `applyStep`,
+      // one Svelte flush later. driver waits for it instead of falling back to
+      // its centre-screen dummy element.
+      waitForElement: 600,
       doneBtnText: 'Got it',
       nextBtnText: 'Skip step →',
       prevBtnText: '← Back',
@@ -186,6 +195,23 @@
         },
       })),
       onDestroyStarted: () => finish(),
+      // Taking over next/prev means driver no longer advances by itself, so
+      // both call `applyStep` — which is what opens the step's pane and
+      // re-captures its baseline. Manual clicks and auto-advance now travel
+      // the same road.
+      onNextClick: () => {
+        if (currentStep >= TOUR_STEPS.length - 1) {
+          finish();
+          return;
+        }
+        applyStep(currentStep + 1);
+        driverObj?.moveNext();
+      },
+      onPrevClick: () => {
+        if (currentStep <= 0) return;
+        applyStep(currentStep - 1);
+        driverObj?.movePrevious();
+      },
     });
 
     // Eager baseline for step 0 — wired BEFORE subscriptions so the

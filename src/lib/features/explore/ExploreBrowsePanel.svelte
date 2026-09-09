@@ -9,6 +9,7 @@
 -->
 <script lang="ts">
   import type { ResolvedMap } from './spatialLookup';
+  import type { CatalogSearchController } from '$lib/features/shared/catalogSearch';
   import ArchiveMapRows from '$lib/features/shared/ArchiveMapRows.svelte';
   import ArchiveBrowser from '$lib/features/shared/ArchiveBrowser.svelte';
 
@@ -22,6 +23,10 @@
   // empty matches, since that hides the location's "no map here" status
   // after the tour ends.
   export let forceExpanded = false;
+  // The desktop rail owns one filter bar above its two tabs and hands the
+  // engine down; the mobile drawer has no such bar, so null leaves the browser
+  // to create and render its own.
+  export let search: CatalogSearchController | null = null;
 
   let expanded = false;
 
@@ -66,7 +71,14 @@
   </div>
 
   {#if expanded}
-    <ArchiveBrowser sortRows={byYear} on:pick on:remove on:pickLabel />
+    <ArchiveBrowser
+      sortRows={byYear}
+      {search}
+      showFilters={search === null}
+      on:pick
+      on:remove
+      on:pickLabel
+    />
   {:else if visibleMatches.length}
     <ArchiveMapRows rows={visibleMatches} on:pick on:remove />
   {/if}

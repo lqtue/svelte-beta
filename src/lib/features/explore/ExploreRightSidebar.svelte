@@ -1,15 +1,24 @@
 <!--
-  ExploreRightSidebar.svelte — the right rail on /explore.
+  ExploreRightSidebar.svelte — desktop right rail for /explore.
 
-  The left rail is the archive (Browse + Layers); this one is about the sheet
-  on top of the stack and the view onto it. Three tabs, one visible at a time:
+  Mirrors ExploreSidebar exactly: crown, one search bar, a .sb-pill tab strip,
+  one card that swaps its body. Left rail is the archive; this one is the sheet
+  on top of the stack.
 
-    Legend    the numbered-legend index, each row a place to fly to
-    Controls  LayerControlsPanel — display mode, base map, place search, GPS
-    Info      the top overlay's catalogue metadata
+    ┌ This sheet ─────────────────── ⇥ ┐
+    │ ⌕ Search a place…                │  PlaceSearchBar
+    │ ( Info ) ( Legend ) ( Control )  │
+    │ …metadata, legend rows, controls…│
+    └──────────────────────────────────┘
 
-  Mobile keeps its own drawers (ExplorePage fills the `mobile-*` slots), so
-  this component is desktop-only.
+  The search is at the top rather than inside Control because it is how you get
+  anywhere on the map — the same job the left rail's filter bar does for the
+  archive. `LayerControlsPanel` therefore takes `showSearch={false}` here, or
+  the Control tab would show a second one.
+
+  Info carries TopSheetActions (⬡ Traced · Scan · Annotate · Share). Those four
+  sat above the tab strip until Sept 2026, where they pushed the tabs down and
+  belonged to no tab.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
@@ -17,6 +26,8 @@
   import type { MapListItem } from '$lib/data/maps/types';
   import LayerControlsPanel from '$lib/features/shared/LayerControlsPanel.svelte';
   import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
+  import TopSheetActions from '$lib/features/shared/TopSheetActions.svelte';
+  import PlaceSearchBar from '$lib/features/shared/PlaceSearchBar.svelte';
 
   const dispatch = createEventDispatcher<{
     toggleCollapse: void;
@@ -24,6 +35,7 @@
     pickLocation: { lat: number; lng: number; label: string };
     toggleGps: void;
     toggleLegendPoints: void;
+    toggleVectors: { mapId: string };
   }>();
 
   export let viewMode: ViewMode = 'overlay';
@@ -33,14 +45,16 @@
   /** Same map, resolved against the loaded list, for the Info tab. */
   export let map: MapListItem | null = null;
   export let showLegendPoints = false;
+  /** Whether the top sheet's traced fabric is drawn — owned by the page. */
+  export let vectorsOn = false;
 
-  type Tab = 'legend' | 'controls' | 'info';
+  type Tab = 'info' | 'legend' | 'control';
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'legend', label: 'Legend' },
-    { key: 'controls', label: 'Controls' },
     { key: 'info', label: 'Info' },
+    { key: 'legend', label: 'Legend' },
+    { key: 'control', label: 'Control' },
   ];
-  let tab: Tab = 'controls';
+  let tab: Tab = 'info';
 
   type LegendPoint = {
     n: number;
@@ -79,6 +93,8 @@
 
   $: legendRows = mapId && mapId === legendFor ? legend : [];
 
+  $: published = map?.status === 'public' || map?.status === 'featured';
+
   $: infoRows = map
     ? ([
         ['Year', map.year_label ?? (map.year ? String(map.year) : '')],
@@ -114,6 +130,10 @@
     </button>
   </div>
 
+  <div class="rail-filters">
+    <PlaceSearchBar on:pickLocation={(e) => dispatch('pickLocation', e.detail)} />
+  </div>
+
   <div class="sb-pill-row tab-strip" role="tablist">
     {#each TABS as t (t.key)}
       <button
@@ -128,68 +148,18 @@
   </div>
 
   <div class="card-wrap">
-    {#if tab === 'controls'}
-      <SidebarCard grow={1} flush={true}>
-        <LayerControlsPanel
-          {viewMode}
-          {gpsActive}
-          legendPointsAvailable={false}
-          on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)}
-          on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
-          on:toggleGps={() => dispatch('toggleGps')}
-        />
-      </SidebarCard>
-    {:else if tab === 'legend'}
-      <SidebarCard grow={1} flush={true} padded={true}>
-        {#if !mapId}
-          <p class="sb-empty">Add a map layer to read its legend.</p>
-        {:else}
-          {#if legendLoading}
-            <p class="sb-empty">Reading the legend…</p>
-          {:else if legendRows.length === 0}
-            <p class="sb-empty">This sheet has no numbered legend.</p>
-          {:else}
-            <button
-              type="button"
-              class="sb-btn is-sm is-block"
-              class:is-on={showLegendPoints}
-              on:click={() => dispatch('toggleLegendPoints')}
-              title="Show numbered legend references on the map"
-            >
-              {showLegendPoints ? 'Legend points on' : 'Show legend points'}
-            </button>
-            <ul class="lg-list">
-              {#each legendRows as p (p.n)}
-                <li>
-                  <button
-                    type="button"
-                    class="lg-row"
-                    title={p.accuracy_m ? `Within about ${p.accuracy_m} m` : 'Fly to this place'}
-                    on:click={() =>
-                      dispatch('pickLocation', {
-                        lat: p.lat,
-                        lng: p.lng,
-                        label: p.name ?? `№${p.n}`,
-                      })}
-                  >
-                    <span class="lg-n">{p.n}</span>
-                    <span class="lg-name">
-                      {p.name ?? '—'}{#if p.vn}<em> · {p.vn}</em>{/if}
-                    </span>
-                    {#if p.grid}<span class="lg-grid">{p.grid}</span>{/if}
-                  </button>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        {/if}
-      </SidebarCard>
-    {:else}
-      <SidebarCard grow={1} flush={true} padded={true}>
+    <SidebarCard grow={1} flush={true} padded={tab !== 'control'}>
+      {#if tab === 'info'}
         {#if !map}
           <p class="sb-empty">Add a map layer to see its details.</p>
         {:else}
           <h3 class="if-name">{map.name}</h3>
+          <TopSheetActions
+            {mapId}
+            {published}
+            {vectorsOn}
+            on:toggleVectors={(e) => dispatch('toggleVectors', e.detail)}
+          />
           <dl class="if-dl">
             {#each infoRows as [label, value] (label)}
               <dt>{label}</dt>
@@ -199,17 +169,72 @@
           {#if map.dc_description}
             <p class="if-desc">{map.dc_description}</p>
           {/if}
-          <div class="if-links">
-            <a class="sb-btn is-sm" href={`/catalog/${map.id}`}>Catalogue page</a>
-            {#if map.source_url}
+          {#if map.source_url}
+            <div class="if-links">
+              <!-- No catalogue-page link here: that is TopSheetActions' Share,
+                   a few rows up the same tab. -->
               <a class="sb-btn is-sm" href={map.source_url} target="_blank" rel="noopener">
                 Holding library
               </a>
-            {/if}
-          </div>
+            </div>
+          {/if}
         {/if}
-      </SidebarCard>
-    {/if}
+      {:else if tab === 'legend'}
+        {#if !mapId}
+          <p class="sb-empty">Add a map layer to read its legend.</p>
+        {:else if legendLoading}
+          <p class="sb-empty">Reading the legend…</p>
+        {:else if legendRows.length === 0}
+          <p class="sb-empty">This sheet has no numbered legend.</p>
+        {:else}
+          <button
+            type="button"
+            class="sb-btn is-sm is-block"
+            class:is-on={showLegendPoints}
+            on:click={() => dispatch('toggleLegendPoints')}
+            title="Show numbered legend references on the map"
+          >
+            {showLegendPoints ? 'Legend points on' : 'Show legend points'}
+          </button>
+          <ul class="lg-list">
+            {#each legendRows as p (p.n)}
+              <li>
+                <button
+                  type="button"
+                  class="lg-row"
+                  title={p.accuracy_m ? `Within about ${p.accuracy_m} m` : 'Fly to this place'}
+                  on:click={() =>
+                    dispatch('pickLocation', {
+                      lat: p.lat,
+                      lng: p.lng,
+                      label: p.name ?? `№${p.n}`,
+                    })}
+                >
+                  <span class="lg-n">{p.n}</span>
+                  <span class="lg-name">
+                    {p.name ?? '—'}{#if p.vn}<em> · {p.vn}</em>{/if}
+                  </span>
+                  {#if p.grid}<span class="lg-grid">{p.grid}</span>{/if}
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      {:else}
+        <!-- `showSearch={false}`: the rail's own search bar is at the top.
+             `legendPointsAvailable={false}`: the Legend tab carries that
+             toggle, beside the list it switches on. -->
+        <LayerControlsPanel
+          {viewMode}
+          {gpsActive}
+          showSearch={false}
+          legendPointsAvailable={false}
+          on:changeViewMode={(e) => dispatch('changeViewMode', e.detail)}
+          on:pickLocation={(e) => dispatch('pickLocation', e.detail)}
+          on:toggleGps={() => dispatch('toggleGps')}
+        />
+      {/if}
+    </SidebarCard>
   </div>
 </aside>
 
@@ -224,6 +249,13 @@
     min-width: 0;
   }
 
+  .rail-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.45rem 0.6rem 0.5rem;
+  }
+
   .tab-strip {
     padding: 0 0.45rem 0.35rem;
   }
@@ -233,7 +265,6 @@
     min-height: 0;
     overflow: hidden;
   }
-
   /* Legend */
   .lg-list {
     list-style: none;

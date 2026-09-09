@@ -3,6 +3,7 @@
 //
 //   node --env-file=.env scripts/enqueue_ocr_all.mjs [--dry] [--force] [--limit N]
 //                                                    [--untriaged] [--model NAME]
+//                                                    [--map <id|id-prefix>]
 //                                                    [--tile-metres M] [--single-pass]
 //
 // Label search (`/api/search?include=labels`, mig 065) is only as good as the
@@ -31,6 +32,10 @@ const force = args.includes('--force');
 const limitIdx = args.indexOf('--limit');
 const limit = limitIdx > -1 ? Number(args[limitIdx + 1]) : Infinity;
 const untriaged = args.includes('--untriaged');
+// One sheet only, by id or id prefix. A re-scanned sheet needs re-queuing on its
+// own; every other selector here is corpus-wide.
+const mapIdx = args.indexOf('--map');
+const onlyMap = mapIdx > -1 ? args[mapIdx + 1] : null;
 // Queue proposals nobody has accepted yet. The point of the accept step is that
 // a bad crop is caught before it is paid for, so this is opt-in.
 const unvalidated = args.includes('--unvalidated');
@@ -145,6 +150,7 @@ const nNeedsLayout = maps.filter(
 ).length;
 
 const todo = maps
+  .filter((m) => !onlyMap || m.id === onlyMap || m.id.startsWith(onlyMap))
   .filter((m) => !inFlight.has(m.id) && (force || !hasOcr.has(m.id)))
   .filter((m) => untriaged || triageOf(m))
   .slice(0, limit);

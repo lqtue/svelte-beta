@@ -1,0 +1,70 @@
+<!--
+  PlaceSearchBar.svelte — the Nominatim place search: the field, its clear
+  button, and the results list under it.
+
+  It was inline in LayerControlsPanel until Sept 2026, when /explore's right
+  rail wanted it at the top — mirroring the left rail, whose crown is also a
+  search bar. The panel still renders one on mobile (`showSearch`), so the
+  markup had to have one home rather than two.
+
+  `.mo-search` is global (`$styles/components/modal.css`), hence the thin
+  scoped block.
+-->
+<script lang="ts">
+  import { createEventDispatcher } from 'svelte';
+  import LocationSearch from '$lib/ui/LocationSearch.svelte';
+
+  type Pick = { lat: number; lng: number; label: string; bbox?: [number, number, number, number] };
+  const dispatch = createEventDispatcher<{ pickLocation: Pick }>();
+
+  export let placeholder = 'Search a place…';
+
+  let query = '';
+
+  function onPick(e: CustomEvent<Pick>) {
+    query = '';
+    dispatch('pickLocation', e.detail);
+  }
+</script>
+
+<div class="psb">
+  <label class="mo-search is-compact">
+    <svg
+      class="mo-search-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+    <input
+      class="mo-search-input"
+      type="search"
+      {placeholder}
+      aria-label={placeholder}
+      bind:value={query}
+    />
+    {#if query}
+      <button type="button" class="mo-search-clear" on:click={() => (query = '')} aria-label="Clear"
+        >×</button
+      >
+    {/if}
+  </label>
+  {#if query}
+    <LocationSearch {query} on:pickLocation={onPick} />
+  {/if}
+</div>
+
+<style>
+  .psb {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+</style>

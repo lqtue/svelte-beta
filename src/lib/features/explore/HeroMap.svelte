@@ -8,16 +8,18 @@
   globals, so a visit to the home page cannot rearrange the reader's /explore
   layer stack.
 
-  It is **not** the front page's header any more. The header is two stills of
-  this very map — `hero-now.webp` and `hero-1882.webp`, both photographed out
-  of this section by `scripts/gen-hero-still.mjs` and cross-faded by a slider —
+  It is **not** the front page's header any more. The header is two stills —
+  `hero-now.webp` and `hero-1882.webp`, photographed out of this section by
+  `scripts/gen-hero-still.mjs` and cross-faded by a slider, though they predate
+  the refit below and hold the sheet closer than this does —
   and this plays further down, mounted by `HeroDemo.svelte` only once the
   reader scrolls it into view, so OpenLayers, ol-pmtiles, Allmaps and ~390 kB
   of basemap are never fetched by a visitor who does not reach it.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import type OlMap from 'ol/Map';
+  import { transformExtent } from 'ol/proj';
   import { PUBLIC_SUPABASE_URL } from '$env/static/public';
   import { fade, fly } from 'svelte/transition';
   import MapShell from '$lib/map/shell/MapShell.svelte';
@@ -42,11 +44,27 @@
    */
   $: source = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/annotations/${mapId}.json`;
   /**
-   * Where the camera sits, pinned — the Charner canal and the blocks either
-   * side of it, rather than the sheet's bbox centre, which framed the whole
-   * sheet, most of it margin.
+   * What to frame: the sheet's own `maps.bbox` and the angle to hold it at.
+   *
+   * It was a pinned camera — a centre and a zoom on the Charner canal — which
+   * meant the demo opened on a detail and the reader never saw what a sheet
+   * is. The whole sheet, with a margin around it, is the subject; the frame
+   * follows from the stage's size rather than from a zoom number that is only
+   * right at one window width.
+   *
+   * `rotation` is still by hand: it lays the portrait sheet's long axis across
+   * a landscape frame, and no bbox implies it.
    */
-  export let view: { lng: number; lat: number; zoom: number; rotation: number };
+  export let view: { bbox: [number, number, number, number]; rotation: number };
+  /**
+   * Whether the four beats may start. The map mounts, fetches its tiles and
+   * parses the annotation without waiting for this — that work is worth doing
+   * before the reader arrives. The sequence is not: played off screen it is a
+   * demonstration nobody sees, and what the reader scrolls into is the frame
+   * the demonstration was supposed to arrive at. `HeroDemo` turns it on when
+   * the stage is actually in the viewport.
+   */
+  export let play = true;
 
   /**
    * One line per beat, shown alone. They are claims about the archive, so the
@@ -63,20 +81,19 @@
   /** Longest the slider will ever wait, however the sequence goes. */
   const FAILSAFE_MS = 12000;
 
-  /** Set once the sequence has played in this tab. */
-  const PLAYED_KEY = 'vma-hero-played-v1';
-
-  function played(): boolean {
-    try {
-      return sessionStorage.getItem(PLAYED_KEY) === '1';
-    } catch {
-      return false;
-    }
-  }
-
   let live = false;
   let stage = -1;
-  let immediate = false;
+  /*
+   * There was an `immediate` flag here, fed by `vma-hero-played-v1` in
+   * sessionStorage, that composed the final frame at once on a revisit within
+   * the same tab. Both are gone as of Sept 2026: the four beats are the
+   * argument the front page is making, and a reader coming back to it — or
+   * anyone reloading to look at the thing — was handed the conclusion with the
+   * reasoning cut out. The sequence plays on every visit.
+   *
+   * `prefers-reduced-motion` still composes the frame at once. That check
+   * lives in `HeroSequence`, which owns it, and is not this.
+   */
 
   /**
    * Null until the reader moves the slider — see HeroSequence.overlayOpacity.
@@ -89,18 +106,28 @@
 
   /** The one place `stage` moves. */
   function setStage(index: number) {
+    // eslint-disable-next-line svelte/infinite-reactive-loop
     stage = index;
   }
   $: caption = stage >= 0 && stage < captions.length ? captions[stage] : null;
 
+  /**
+   * How much air to leave around the sheet, as a share of its own size on each
+   * side — a share rather than a pixel inset, so it holds at every stage size,
+   * and enough to read as a margin rather than a crop. `view.bbox` is already
+   * the whole scan, so the paper's own blank edge is doing some of the work.
+   */
+  const FIT_PAD = 0.06;
+
   const mapStore = createMapStore({
-    lng: view.lng,
-    lat: view.lat,
-    // A quarter turn lays the portrait sheet's long axis across a landscape
-    // frame. OL keeps basemap labels upright regardless, so the modern city
-    // stays readable.
+    // A first guess only — `fitSheet` replaces it as soon as the map exists.
+    // The stage is under the still image until then, so nobody sees it.
+    lng: (view.bbox[0] + view.bbox[2]) / 2,
+    lat: (view.bbox[1] + view.bbox[3]) / 2,
+    // OL keeps basemap labels upright regardless of this, so the modern city
+    // stays readable at any angle.
     rotation: view.rotation,
-    zoom: view.zoom,
+    zoom: 14,
   });
   /**
    * Satellite, not the vector streets. The streets style is deliberately quiet
@@ -119,37 +146,65 @@
 
   let olMap: OlMap | null = null;
   $: if (olMap) setVisibleBasemap(olMap, BASEMAP);
+  $: if (olMap) fitSheet(olMap);
+
+  /**
+   * The whole sheet, with a margin, at the stage's own aspect ratio. `fit`
+   * works in the view's rotated frame, so holding the sheet at an angle costs
+   * nothing here.
+   *
+   * ponytail: fitted once, when the map appears. Not on resize — a refit would
+   * also undo a reader who has panned or ⌘-zoomed, and the frame only has to
+   * be right for the beats. Re-fit on `change:size` the day the stage becomes
+   * resizable.
+   */
+  function fitSheet(m: OlMap) {
+    const size = m.getSize();
+    if (!size) return;
+    const [minX, minY, maxX, maxY] = transformExtent(
+      view.bbox,
+      'EPSG:4326',
+      m.getView().getProjection()
+    );
+    const padX = (maxX - minX) * FIT_PAD;
+    const padY = (maxY - minY) * FIT_PAD;
+    m.getView().fit([minX - padX, minY - padY, maxX + padX, maxY + padY], { duration: 0 });
+  }
 
   onMount(() => {
-    immediate = played();
-
     // Let the section paint before pulling in OpenLayers. `requestIdleCallback`
     // is Safari 18+, hence the timeout fallback.
     const idle =
       window.requestIdleCallback?.(() => (live = true), { timeout: 1200 }) ??
       window.setTimeout(() => (live = true), 400);
 
-    // The slider must arrive even when the sequence never does: an annotation
-    // that 404s, WebGL refused, a tab woken from the back-forward cache.
-    const failsafe = window.setTimeout(() => {
-      if (stage < captions.length) setStage(captions.length);
-    }, FAILSAFE_MS);
-
     return () => {
       if (window.cancelIdleCallback && typeof idle === 'number') window.cancelIdleCallback(idle);
       clearTimeout(idle as number);
-      clearTimeout(failsafe);
     };
   });
 
-  // Remember only once the reader has actually seen it through.
-  $: if (settled) {
-    try {
-      sessionStorage.setItem(PLAYED_KEY, '1');
-    } catch {
-      /* storage blocked: they get the sequence again, which is no worse */
-    }
+  /**
+   * The slider must arrive even when the sequence never does: an annotation
+   * that 404s, WebGL refused, a tab woken from the back-forward cache.
+   *
+   * Armed on `play`, not on mount. On mount it fired 12 s after the page
+   * loaded whether or not anyone had reached the section — which marked the
+   * hero `settled` before anyone had scrolled to the section, so a reader who
+   * left the front page open and then came down to it got the composed frame
+   * and never saw the sequence at all.
+   */
+  let failsafe = 0;
+  // Not a loop: the block's only dependencies are `play` and `failsafe`, and
+  // setting `failsafe` is what closes it. The timer moves `stage`, which this
+  // does not read.
+  $: if (play && !failsafe) {
+    failsafe = window.setTimeout(() => {
+      // eslint-disable-next-line svelte/infinite-reactive-loop
+      if (stage < captions.length) setStage(captions.length);
+    }, FAILSAFE_MS);
   }
+  onDestroy(() => clearTimeout(failsafe));
 </script>
 
 <div class="hero-map">
@@ -164,12 +219,7 @@
       wheelZoom={false}
       bind:map={olMap}
     >
-      <HeroSequence
-        {source}
-        {overlayOpacity}
-        {immediate}
-        on:stage={(e) => setStage(e.detail.index)}
-      />
+      <HeroSequence {source} {overlayOpacity} {play} on:stage={(e) => setStage(e.detail.index)} />
       <FootprintsLayer
         mapIds={stage >= 2 ? [mapId] : []}
         status="submitted"

@@ -12,6 +12,10 @@
  *   hero-now.webp   the modern city alone — the sequence's first beat
  *   hero-1882.webp  the composed frame: sheet, traced plots, placed labels
  *
+ * Each is written twice, at 1600 and at 800 (`hero-now-800.webp`), which is the
+ * `srcset` the header offers. Both cuts are regenerated together — a stale 800
+ * beside a fresh 1600 is a phone showing last week's frame.
+ *
  * The two passes are separate page loads rather than two moments in one, and
  * the first one **aborts the annotation request** on purpose. That is not a
  * trick to save a download — it is what makes the shot deterministic:
@@ -23,6 +27,11 @@
  *
  * Re-run it whenever `HERO_SHEET` on the home page changes, or when the fabric
  * is regenerated (`scripts/gen-hero-fabric.mjs`) and the drawing moves.
+ *
+ * **The committed stills are older than the current demo camera.** The live
+ * section was refitted to frame the whole sheet; the header was deliberately
+ * left on the earlier pinned close-up. Running this replaces the header with
+ * the wide view — which is a decision to make, not a fix to apply.
  *
  *   npm run dev                     # or point HERO_BASE_URL at a preview
  *   node scripts/gen-hero-still.mjs
@@ -43,6 +52,15 @@ const BASE = process.env.HERO_BASE_URL ?? 'http://localhost:5173';
 /** What the `<img>`s on the home page declare. Keep these in step. */
 const WIDTH = 1600;
 const HEIGHT = 900;
+
+/**
+ * The second cut, written beside each full-size still as `<name>-800.webp` and
+ * offered as the small end of the header's `srcset`. The header image is
+ * full-bleed, so a 390px phone was being handed 1600px of picture — the two
+ * stills alone were a third of the front page's weight at rest, most of it
+ * pixels the screen cannot draw. Same frame, half the edge, a quarter the area.
+ */
+const SMALL_WIDTH = 800;
 
 /** The sequence is four beats plus fades; this is the ceiling, not the wait. */
 const SETTLE_TIMEOUT_MS = 90_000;
@@ -91,13 +109,19 @@ async function shoot(name, ready, { blockAnnotation = false } = {}) {
   await page.close();
 
   // `thumbnail` crops to the exact frame rather than letterboxing it — the
-  // stage is already 16:9, so this is a resize with a rounding tolerance.
-  const resized = join(tmp, `${name}-resized.png`);
-  const out = join(ROOT, `static/images/${name}.webp`);
-  const size = [String(WIDTH), '--height', String(HEIGHT), '--crop', 'centre'];
-  execFileSync('vips', ['thumbnail', raw, resized, ...size]);
-  execFileSync('cwebp', ['-q', '78', '-m', '6', resized, '-o', out]);
-  console.log(`${out} — ${(statSync(out).size / 1024).toFixed(0)} kB`);
+  // stage is already 16:9, so this is a resize with a rounding tolerance. Both
+  // cuts come off the same 2x screenshot rather than one off the other, so the
+  // small one is a downscale of the capture and not of a lossy WebP.
+  for (const width of [WIDTH, SMALL_WIDTH]) {
+    const height = Math.round((width * HEIGHT) / WIDTH);
+    const stem = width === WIDTH ? name : `${name}-${width}`;
+    const resized = join(tmp, `${stem}-resized.png`);
+    const out = join(ROOT, `static/images/${stem}.webp`);
+    const size = [String(width), '--height', String(height), '--crop', 'centre'];
+    execFileSync('vips', ['thumbnail', raw, resized, ...size]);
+    execFileSync('cwebp', ['-q', '78', '-m', '6', resized, '-o', out]);
+    console.log(`${out} — ${(statSync(out).size / 1024).toFixed(0)} kB`);
+  }
 }
 
 try {

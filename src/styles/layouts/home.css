@@ -23,29 +23,8 @@
  * *containers* on this page, which is what was eating the space.
  */
 
-/* ========================================
-   PAGE ROOT
-   ======================================== */
-/* The page fades in once. This used to be a `mounted` boolean flipped in
-   onMount and read as `class:mounted` — a round trip through JS for something
-   an animation with `both` fill does on its own, starting from the same
-   invisible first frame. */
-.home-page {
-  min-height: 100vh;
-  animation: home-fade-in 0.5s ease both;
-}
-
-@keyframes home-fade-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-page {
-    animation: none;
-  }
-}
+/* No page-root rule: height and the mount fade are `.page`'s
+   (components/editorial.css), which this page's root carries too. */
 
 /* ========================================
    HERO SECTION
@@ -70,12 +49,20 @@
 }
 
 /* The header images — two of them, stacked, the 1882 one over the modern city
-   with its opacity on the slider. Both are the frame `HeroDemo` opens on, so
-   the section further down is a continuation of the picture rather than a
-   second one. `object-position` keeps the interesting half of a 16:9 still on
+   with its opacity on the slider. They are one frame in two states, which is
+   why the slider works; they are no longer the frame `HeroDemo` opens on,
+   since the live section was refitted to the whole sheet and the header was
+   deliberately left as it was. `object-position` keeps the interesting half of a 16:9 still on
    screen when the header crops it taller or narrower than that.
 
    No transition on the opacity: it is dragged, not toggled. */
+/* One box for the pair, carrying the accessible name — the two images inside
+   are two states of one picture, so only the wrapper is announced. */
+.home-page .hero-stills {
+  position: absolute;
+  inset: 0;
+}
+
 .home-page .hero-still {
   position: absolute;
   inset: 0;
@@ -231,9 +218,13 @@
 
 /* An empty field is the hardest thing to fill. Four terms that currently
    return something turn the blank box into a demonstration. */
+/* A list, so a screen reader counts the suggestions. Flex already lays them in
+   a row; the reset is only there because it is a `<ul>` now. */
 .home-page .hero-tries {
   pointer-events: auto;
   margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
@@ -419,70 +410,29 @@
   font-weight: 400;
 }
 
-/* Buttons keep the house chrome — a call to action is meant to be an object. */
-.home-page .action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1.75rem;
-  font-family: var(--font-family-display);
-  font-size: 1.0625rem;
-  font-weight: 800;
-  border: var(--border-thick);
-  border-radius: var(--radius-pill);
-  text-decoration: none;
-  cursor: pointer;
-  transition: filter 0.1s;
-  width: max-content;
-}
+/* No `.action-btn` rule here: this page re-declared the whole pill — shape,
+   chrome, brightness hover and the red `.primary-btn` face — on top of the one
+   in components/buttons.css, which already paints all of it. */
 
-.home-page .action-btn:hover {
-  filter: brightness(0.95);
-}
-.home-page .action-btn:active {
-  filter: brightness(0.9);
-}
-.home-page .primary-btn {
-  background: var(--color-primary);
-  color: var(--color-on-accent);
-}
-
-/* States */
-.home-page .maps-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: color-mix(in srgb, var(--color-text) 64%, var(--color-white));
-}
-
-/* No dashed outline. An empty state is an absence — drawing a box around it
-   makes the absence louder than the page it sits in. */
+/* States. The placeholder itself — padding, centring and the muted ink — is
+   `.empty-state.is-block` in components/feedback.css; the loading line uses it
+   too. No dashed outline: an empty state is an absence, and drawing a box
+   around it makes the absence louder than the page it sits in. Local is only
+   the stack of a heading over its lines. */
 .home-page .empty-state {
-  padding: 3rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  max-width: 52ch;
 }
 
 .home-page .empty-state h3 {
   margin: 0;
   font-family: var(--font-family-display);
   font-size: 1.25rem;
+  color: var(--color-text);
 }
 .home-page .empty-state p {
   margin: 0;
-  font-weight: 400;
-  color: color-mix(in srgb, var(--color-text) 76%, var(--color-white));
-}
-
-.home-page .empty-state p + p {
-  font-size: 0.9rem;
-  opacity: 0.75;
 }
 
 .home-page .action-footer {
@@ -737,7 +687,6 @@
    with the page turns into a hole punched in the light-green face. */
 .home-page .home-cta-btn {
   margin-top: 0.25rem;
-  justify-content: center;
   background: var(--color-white);
   color: var(--color-text);
 }

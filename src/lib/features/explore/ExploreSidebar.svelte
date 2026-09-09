@@ -1,31 +1,39 @@
 <!--
   ExploreSidebar.svelte — desktop left rail for /explore.
 
-  Two-pane vertical layout: Browse → Layers, defaulting to a 50 / 50 split,
-  separated by a 4px draggable splitter that re-allocates flex weight between
-  them (their combined height stays constant). State persists in localStorage
-  under `vma-explore-sidebar-ratios-v2`.
+  One filter bar over two tabs (Sept 2026 — it was two stacked cards with a
+  draggable splitter and persisted weights):
+
+    ┌ Explore ──────────────────── ⇤ ┐
+    │ 🔍 search · area · type · period │  one ArchiveFilters, shared
+    │ ( All )  ( Picked 3 )            │  .sb-pill strip, as the right rail
+    │ …the archive, or the layer stack… │
+    └──────────────────────────────────┘
+
+  The rail owns the search engine so both tabs answer to the same query: the
+  All tab hands it to `ArchiveBrowser`, and the Picked tab narrows the layer
+  stack to the sheets the query still matches (`filterIds`). With no query and
+  no facet chosen, Picked shows the whole stack.
 
   Controls moved to the right rail (ExploreRightSidebar) in Sept 2026 — this
   rail is the archive, that one is the sheet on top of the stack.
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { browser } from '$app/environment';
   import type { ViewMode } from '$lib/map/types';
   import type { MapListItem } from '$lib/data/maps/types';
+  import { layersStore } from '$lib/map/stores/layersStore';
+  import ArchiveFilters from '$lib/features/shared/ArchiveFilters.svelte';
   import LayerStackPanel from '$lib/features/shared/LayerStackPanel.svelte';
   import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
   import ExploreBrowsePanel from './ExploreBrowsePanel.svelte';
-  import type { LabelHit } from '$lib/features/shared/catalogSearch';
+  import { createCatalogSearch, type LabelHit } from '$lib/features/shared/catalogSearch';
   import type { ResolvedMap } from './spatialLookup';
-  import { readJson, writeJson } from '$lib/core/utils/persistence/storage';
 
   const dispatch = createEventDispatcher<{
     toggleCollapse: void;
     pickMap: any;
     pickLabel: LabelHit;
-    toggleVectors: { mapId: string };
     removeOverlay: { mapId: string };
     zoomToOverlay: { mapId: string };
   }>();
@@ -33,70 +41,75 @@
   export let viewMode: ViewMode = 'overlay';
   export let mapList: MapListItem[] = [];
   /** Map ids whose traced fabric is drawn; owned by the page. */
-  export let vectorMapIds: string[] = [];
   export let matches: ResolvedMap[] = [];
   export let forceBrowseExpanded = false;
   export let role: 'user' | 'mod' | 'admin' = 'user';
+  /** True while the product tour is pending or open. It sets `tab` itself, per
+   *  step, so the auto-switch below must stand aside for it. */
+  export let tourActive = false;
 
-  $: hasMatches = matches.length > 0;
+  type Tab = 'all' | 'picked';
+  const TABS: { key: Tab; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'picked', label: 'Picked' },
+  ];
+  /** Which tab is showing. Bound by the page so the product tour can point at
+   *  the pane its step describes. */
+  export let tab: Tab = 'all';
 
-  // Flex weights for the two cards (browse / layers). Default 50 / 50.
-  const STORAGE_KEY = 'vma-explore-sidebar-ratios-v2';
-  let ratios = [50, 50];
-
-  onMount(() => {
-    if (!browser) return;
-    const parsed = readJson<unknown>(STORAGE_KEY, null);
-    if (
-      Array.isArray(parsed) &&
-      parsed.length === 2 &&
-      parsed.every((n) => typeof n === 'number')
-    ) {
-      ratios = parsed as [number, number];
-    }
-  });
-
-  function persist() {
-    if (browser) writeJson(STORAGE_KEY, ratios);
+  /**
+   * Arriving with sheets already on the map — a share link's `?map=`, or the
+   * stack `layersStore` restored from localStorage — should land on them, not
+   * on the archive. The stack does not exist yet when this mounts (the page
+   * resolves `?map=` asynchronously), so this waits for the first non-empty
+   * reading rather than checking once in `onMount`.
+   *
+   * Three things must not trigger it:
+   *
+   *   - the reader adding a sheet themselves. The rows are tap-to-add /
+   *     tap-again-to-remove, so switching away would pull the list out from
+   *     under the second tap;
+   *   - the tour, which drives `tab` from the page through its own steps and
+   *     owns it outright while running. That is what `tourActive` is for: the
+   *     two assignments raced and made `tests/smoke.spec.ts:125` flap, passing
+   *     or failing on whichever landed last;
+   *   - anything at all after the first switch.
+   */
+  let tabSettled = false;
+  function chooseTab(next: Tab) {
+    tabSettled = true;
+    tab = next;
+  }
+  function pickMap(detail: unknown) {
+    tabSettled = true;
+    dispatch('pickMap', detail);
   }
 
-  let containerEl: HTMLElement | null = null;
-  let dragging = false;
-  let startY = 0;
-  let startA = 0;
-  let startB = 0;
+  // Only maps that can be laid on the world — the viewer can overlay nothing
+  // else. `requireGeoref` therefore lives here rather than on the browser.
+  const search = createCatalogSearch({ requireGeoref: true });
+  const { query, results, selected } = search;
+  onMount(() => search.start());
 
-  function onSplitterDown(e: PointerEvent) {
-    dragging = true;
-    startY = e.clientY;
-    startA = ratios[0];
-    startB = ratios[1];
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    e.preventDefault();
-    window.addEventListener('pointermove', onSplitterMove);
-    window.addEventListener('pointerup', onSplitterUp, { once: true });
-  }
-  function onSplitterMove(e: PointerEvent) {
-    if (!dragging || !containerEl) return;
-    const totalPx = containerEl.getBoundingClientRect().height;
-    if (!totalPx) return;
-    const deltaPx = e.clientY - startY;
-    const pairWeight = startA + startB;
-    const pairPx = (pairWeight / 100) * totalPx;
-    if (pairPx <= 0) return;
-    const deltaWeight = (deltaPx / pairPx) * pairWeight;
-    const minW = 6;
-    const newA = Math.max(minW, Math.min(pairWeight - minW, startA + deltaWeight));
-    ratios = [newA, pairWeight - newA];
-  }
-  function onSplitterUp() {
-    dragging = false;
-    persist();
-    window.removeEventListener('pointermove', onSplitterMove);
+  $: filterActive =
+    !!$query.trim() ||
+    ($selected.area?.length ?? 0) > 0 ||
+    ($selected.type?.length ?? 0) > 0 ||
+    ($selected.period?.length ?? 0) > 0;
+
+  $: stackedMapIds = $layersStore.overlays.map((o) => o.ref.mapId);
+  $: matchedIds = new Set($results.map((r) => r.id));
+  /** Null while nothing is filtered, so Picked shows the whole stack. */
+  $: pickedFilterIds = filterActive ? stackedMapIds.filter((id) => matchedIds.has(id)) : null;
+
+  // Deliberately does not read `tab`, so assigning it cannot re-trigger this.
+  $: if (!tabSettled && !tourActive && stackedMapIds.length) {
+    tabSettled = true;
+    tab = 'picked';
   }
 </script>
 
-<aside class="panel" bind:this={containerEl}>
+<aside class="panel">
   <div class="sb-bar">
     <span class="sb-bar-title">Explore</span>
     <button
@@ -120,40 +133,47 @@
     </button>
   </div>
 
-  <div class="card-wrap" style="flex: {ratios[0]} 1 0;" data-tour="browse">
-    <SidebarCard
-      title={hasMatches ? 'Maps at this location' : 'Browse the archive'}
-      grow={1}
-      flush={true}
-    >
-      <ExploreBrowsePanel
-        {matches}
-        {role}
-        forceExpanded={forceBrowseExpanded}
-        on:pick={(e) => dispatch('pickMap', e.detail)}
-        on:pickLabel={(e) => dispatch('pickLabel', e.detail)}
-        on:remove={(e) => dispatch('removeOverlay', e.detail)}
-      />
-    </SidebarCard>
+  <div class="rail-filters">
+    <ArchiveFilters {search} />
   </div>
 
-  <div
-    class="splitter"
-    class:is-active={dragging}
-    role="separator"
-    aria-orientation="horizontal"
-    on:pointerdown={onSplitterDown}
-  ></div>
+  <div class="sb-pill-row tab-strip" role="tablist">
+    {#each TABS as t (t.key)}
+      <button
+        type="button"
+        class="sb-pill is-compact"
+        class:is-on={tab === t.key}
+        role="tab"
+        aria-selected={tab === t.key}
+        on:click={() => chooseTab(t.key)}
+      >
+        {t.label}{#if t.key === 'picked' && stackedMapIds.length}<span class="tab-count"
+            >&nbsp;{stackedMapIds.length}</span
+          >{/if}
+      </button>
+    {/each}
+  </div>
 
-  <div class="card-wrap" style="flex: {ratios[1]} 1 0;" data-tour="layers">
-    <SidebarCard title="My layers" grow={1} flush={true}>
-      <LayerStackPanel
-        {viewMode}
-        {mapList}
-        {vectorMapIds}
-        on:zoomToOverlay={(e) => dispatch('zoomToOverlay', e.detail)}
-        on:toggleVectors={(e) => dispatch('toggleVectors', e.detail)}
-      />
+  <div class="card-wrap" data-tour={tab === 'all' ? 'browse' : 'layers'}>
+    <SidebarCard grow={1} flush={true}>
+      {#if tab === 'all'}
+        <ExploreBrowsePanel
+          {matches}
+          {role}
+          {search}
+          forceExpanded={forceBrowseExpanded || filterActive}
+          on:pick={(e) => pickMap(e.detail)}
+          on:pickLabel={(e) => dispatch('pickLabel', e.detail)}
+          on:remove={(e) => dispatch('removeOverlay', e.detail)}
+        />
+      {:else}
+        <LayerStackPanel
+          {viewMode}
+          {mapList}
+          filterIds={pickedFilterIds}
+          on:zoomToOverlay={(e) => dispatch('zoomToOverlay', e.detail)}
+        />
+      {/if}
     </SidebarCard>
   </div>
 </aside>
@@ -169,34 +189,26 @@
     min-width: 0;
   }
 
-  .card-wrap {
+  .rail-filters {
     display: flex;
-    min-height: 0;
-    overflow: hidden;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.45rem 0.6rem 0.5rem;
   }
 
-  .splitter {
-    flex: 0 0 6px;
-    margin: 0.15rem 0;
-    background: transparent;
-    cursor: row-resize;
-    position: relative;
-    touch-action: none;
+  .tab-strip {
+    padding: 0 0.45rem 0.35rem;
   }
-  .splitter::before {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 36px;
-    height: 3px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--color-text) 8%, transparent);
-    transition: background 0.15s;
+  /* The count rides the pill's own ink in both states, so it needs no colour
+     of its own — only steady digit widths. */
+  .tab-count {
+    font-variant-numeric: tabular-nums;
   }
-  .splitter:hover::before,
-  .splitter.is-active::before {
-    background: var(--sb-accent-warm);
+
+  .card-wrap {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 </style>

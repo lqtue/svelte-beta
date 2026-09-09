@@ -69,6 +69,40 @@ export async function fetchFeaturedMaps(
   return (data as unknown as DbRow[]).map(toMapListItem);
 }
 
+/**
+ * How many maps a reader can actually see. `head: true` asks for the count and
+ * no rows at all — the front page quoted this number by fetching the whole
+ * catalog and reading `.length`.
+ */
+export async function fetchPublishedMapCount(supabase: SupabaseClient<Database>): Promise<number> {
+  const { count, error } = await supabase
+    .from('maps')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['public', 'featured']);
+
+  if (error) {
+    console.error('fetchPublishedMapCount:', error);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/** The named maps, in one query. For a list of ids you already hold — favorites. */
+export async function fetchMapsByIds(
+  supabase: SupabaseClient<Database>,
+  ids: string[]
+): Promise<MapListItem[]> {
+  if (!ids.length) return [];
+
+  const { data, error } = await supabase.from('maps').select(LIST_COLUMNS).in('id', ids);
+
+  if (error) {
+    console.error('fetchMapsByIds:', error);
+    return [];
+  }
+  return (data as unknown as DbRow[]).map(toMapListItem);
+}
+
 /** Maps that have been georeferenced (have allmaps_id OR annotation_url). For view/overlay mode. */
 export async function fetchGeoreferencedMaps(
   supabase: SupabaseClient<Database>

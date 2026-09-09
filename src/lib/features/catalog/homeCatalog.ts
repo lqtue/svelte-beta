@@ -1,24 +1,27 @@
 /**
- * What the front page needs from the archive, in two calls.
+ * What the front page still needs from the browser.
  *
- * Lifted out of `(editorial)/+page.svelte`: routes are load-and-wire, and a
- * session cache with a fallback path is neither. Nothing here is home-specific
- * except the 400px thumbnail width, which is what `FeaturedSheet` renders.
+ * The catalogue itself moved to `(editorial)/+page.server.ts` — it is the same
+ * for every reader, so it belongs in the HTML. What is left is the part that
+ * cannot be: the signed-in reader's favorites, and the thumbnails a map has to
+ * be asked for one annotation at a time.
+ *
+ * Nothing here is home-specific except the 400px thumbnail width, which is
+ * what `FeaturedSheet` renders.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/data/supabase/types';
 import type { MapListItem } from '$lib/data/maps/types';
-import { fetchMaps, fetchFeaturedMaps } from '$lib/data/maps/service';
+import { fetchMapsByIds } from '$lib/data/maps/service';
 import { fetchFavorites } from '$lib/data/supabase/favorites';
 import { annotationUrlForSource } from '$lib/core/iiif/annotationUrl';
 
 type Client = SupabaseClient<Database>;
 
-export interface HomeCatalog {
+export interface HomeFavorites {
   maps: MapListItem[];
-  featured: MapListItem[];
-  favoriteIds: string[];
+  ids: string[];
 }
 
 /**
@@ -64,15 +67,16 @@ async function fetchThumbnailUrl(source: string): Promise<string | null> {
   return url;
 }
 
-/** Catalog, featured set and the reader's favorites, in one round trip. */
-export async function loadHomeCatalog(supabase: Client, userId?: string): Promise<HomeCatalog> {
-  const [maps, featured, favoriteIds] = await Promise.all([
-    fetchMaps(supabase),
-    fetchFeaturedMaps(supabase),
-    userId ? fetchFavorites(supabase, userId) : Promise.resolve<string[]>([]),
-  ]);
-  // An archive with nothing flagged featured still has a front page.
-  return { maps, featured: featured.length > 0 ? featured : maps.slice(0, 6), favoriteIds };
+/**
+ * The reader's favorites, and only those maps. It used to fetch the whole
+ * catalogue and filter it in the browser, which is the same rows every visitor
+ * already has in the page — for a handful of ids.
+ */
+export async function loadFavorites(supabase: Client, userId?: string): Promise<HomeFavorites> {
+  if (!userId) return { maps: [], ids: [] };
+
+  const ids = await fetchFavorites(supabase, userId);
+  return { maps: await fetchMapsByIds(supabase, ids), ids };
 }
 
 /**

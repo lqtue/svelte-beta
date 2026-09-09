@@ -1,35 +1,54 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import type { PageData } from './$types';
   import type { MapListItem } from '$lib/data/maps/types';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { addFavorite, removeFavorite } from '$lib/data/supabase/favorites';
-  import { loadHomeCatalog, resolveThumbnails } from '$lib/features/catalog/homeCatalog';
+  import { loadFavorites, resolveThumbnails } from '$lib/features/catalog/homeCatalog';
   import FeaturedSheet from '$lib/features/catalog/FeaturedSheet.svelte';
   import HeroDemo from '$lib/features/explore/HeroDemo.svelte';
   import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
+  import PaletteSearchField from '$lib/ui/PaletteSearchField.svelte';
   import { openPaletteWith } from '$lib/core/utils/commandPalette';
   import { tweenValue } from '$lib/core/utils/tween';
   import '$styles/layouts/home.css';
 
   const { supabase, session } = getSupabaseContext();
 
-  let maps: MapListItem[] = [];
-  let featuredMaps: MapListItem[] = [];
+  /** The featured sheets and the count, server-rendered — see `+page.server.ts`. */
+  export let data: PageData;
+
+  let favoriteMaps: MapListItem[] = [];
   let favoriteIds: string[] = [];
   let thumbnails: Map<string, string> = new Map();
-  let loading = true;
+  /** Only the Favorites tab ever waits: the featured set is already in the HTML. */
+  let loadingFavorites = false;
   let filterCollection: 'featured' | 'favorites' = 'featured';
 
   /**
-   * The sheet the "how this works" section plays and the frame it opens on —
-   * both of them read off an /explore URL, which is the only tool needed for
-   * either:
+   * The sheet the "how this works" section plays, and how to hold it.
    *
-   *   1. open /explore, stack the sheet, and set the camera (drag to pan,
-   *      scroll to zoom, ⌘/ctrl-drag to rotate),
-   *   2. copy the address bar — it reads
-   *      `/explore?map=<id>#@<lat>,<lng>,<zoom>z,<rotation>r`,
-   *   3. `id` is that `map=`, and `view` is those four numbers.
+   * `bbox` is what to frame, so the demo shows the whole sheet with a margin
+   * rather than a pinned detail of it — `HeroMap.fitSheet` works out the zoom
+   * from the stage's own size, which is the only way one number is right on a
+   * phone and on a 27-inch screen at once.
+   *
+   * It is **not** `maps.bbox`. That column is the bbox of the georeferenced
+   * *mask*; what the warped layer actually draws is the whole scan — paper
+   * edges, shelfmark, legend — which here runs 830 m further east than the
+   * mask does, so fitting the column cropped the bottom of the sheet. These
+   * are the scan's four corners `(0,0)…(width,height)` put through the
+   * annotation's own transform. Swapping the sheet means recomputing them;
+   * the cheap check is the shot itself, since anything clipped is visible in
+   * `hero-1882.webp`.
+   *
+   * `rotation` holds the sheet square in the frame, which for this one is
+   * essentially a quarter turn: the scan's own x-axis runs north, so at
+   * rotation 0 the sheet stands on end and a 16:9 stage is mostly margin.
+   * /explore is where to find it for another sheet — ⌘/ctrl-drag until the
+   * sheet sits square, then take the `r` out of the address bar
+   * (`#@<lat>,<lng>,<zoom>z,<rotation>r`).
    *
    * The sheet has to be georeferenced and mirrored (publishing enqueues
    * `mirror_annotation`), because HeroMap plays our own copy of the annotation.
@@ -43,7 +62,10 @@
    */
   const HERO_SHEET = {
     id: '0e02b9d9-9d40-4cca-8e41-8c8373d54d3b',
-    view: { lng: 106.706116, lat: 10.772994, zoom: 16.75, rotation: 2.4014 },
+    view: {
+      bbox: [106.687488, 10.759901, 106.716015, 10.797223] as [number, number, number, number],
+      rotation: 1.5772,
+    },
   };
 
   /**
@@ -52,14 +74,27 @@
    * JavaScript with ~390 kB of basemap behind it — before the masthead had
    * painted. It is two stills now, cross-faded by the slider in the column,
    * and the real map plays further down in `HeroDemo` for a reader who
-   * scrolls to it. Both come out of the same frame of that demo, which is why
-   * the two ends of the slider line up to the pixel.
+   * scrolls to it. The two come out of one shoot, which is why the ends of the
+   * slider line up to the pixel.
    *
-   * Regenerate with `node scripts/gen-hero-still.mjs` after changing
-   * `HERO_SHEET`, or the header shows a frame the demo no longer opens on.
+   * They are a **pinned close-up, kept on purpose**. `HERO_SHEET` below now
+   * frames the whole sheet, and the live section was refitted to it; the
+   * header was left as it was. So `scripts/gen-hero-still.mjs`, which shoots
+   * the live section, would replace these with the wide view — a decision,
+   * not a repair. Re-run it only when you want the header to follow the demo
+   * again.
    */
   const HERO_NOW = '/images/hero-now.webp';
   const HERO_1882 = '/images/hero-1882.webp';
+
+  /**
+   * The header image is full-bleed, so a 390px phone was being handed the whole
+   * 1600px frame — 331 kB for the pair, a third of the front page at rest, most
+   * of it pixels the screen cannot draw. `gen-hero-still.mjs` writes an 800px
+   * cut beside each one; this is the naming convention, in the one place that
+   * needs to know it.
+   */
+  const twoCuts = (src: string) => `${src.replace('.webp', '-800.webp')} 800w, ${src} 1600w`;
 
   /**
    * How much of the 1882 sheet the header shows: 1 is the sheet, 0 is the
@@ -69,19 +104,37 @@
   let heroSheet = 1;
 
   /**
-   * The header demonstrates itself once. A slider that nobody drags is a
-   * slider nobody knows is there, and this one carries the whole idea of the
-   * archive — so shortly after the page settles it sweeps down to the imagery
-   * and back, then leaves the control alone for good.
+   * The header shows what it does, and keeps showing it until someone takes
+   * the control. A slider that nobody drags is a slider nobody knows is there,
+   * and this one carries the whole idea of the archive, so shortly after the
+   * page settles it starts crossing between the 1882 sheet and the imagery and
+   * goes on doing that until the reader's first touch.
    *
-   * The sweep stops dead on the reader's first touch: a control that keeps
-   * animating under a finger is fighting the person using it. It runs once a
-   * tab (`vma-hero-swept-v1`), never under `prefers-reduced-motion`, and never
-   * again after that — it is an introduction, not an idle animation.
+   * Two earlier versions, both wrong in the same direction: it ran once a tab
+   * behind `vma-hero-swept-v1` (so anyone who had already opened the front page
+   * in that tab never saw it — which is everyone testing it), and then once per
+   * load (so anyone who looked away for four seconds missed it and had no way
+   * to ask for it again). Explicitly requested to run until dragged, Sept 2026.
+   *
+   * The three parts not to "simplify":
+   *   - it stops dead on the reader's first `pointerdown` or `keydown`, and
+   *     never restarts. A control that keeps animating under a finger is
+   *     fighting the person using it, and that first touch is the whole reason
+   *     the loop exists;
+   *   - it never runs under `prefers-reduced-motion`;
+   *   - it holds at each end. Without the dwell it is a metronome, and the two
+   *     states it is comparing never actually sit still long enough to be read.
+   *
+   * On WCAG 2.2.2 (moving content over five seconds needs a way to stop it):
+   * the slider is that mechanism — it is visible, it is the obvious thing to
+   * grab, and touching it ends the motion for good. `prefers-reduced-motion`
+   * covers the vestibular case ahead of that.
    */
-  const SWEEP_KEY = 'vma-hero-swept-v1';
   const SWEEP_DELAY_MS = 1100;
+  /** Time moving, both legs together. The dwell is on top of this. */
   const SWEEP_MS = 2800;
+  /** Rest at each end, so both states can actually be looked at. */
+  const SWEEP_HOLD_MS = 900;
   /** How far down the sweep goes. Not 0: the point is "this moves", not "look at a satellite photo". */
   const SWEEP_FLOOR = 0.12;
 
@@ -89,23 +142,26 @@
 
   function sweepHeroSlider(): (() => void) | undefined {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    try {
-      if (sessionStorage.getItem(SWEEP_KEY) === '1') return;
-      sessionStorage.setItem(SWEEP_KEY, '1');
-    } catch {
-      /* storage blocked: they get the sweep again next load, which is no worse */
-    }
+
+    const leg = SWEEP_MS / 2;
+    const cycle = SWEEP_MS + SWEEP_HOLD_MS * 2;
 
     let frame = 0;
     const timer = window.setTimeout(() => {
       const start = performance.now();
       const step = (now: number) => {
         if (heroTouched) return;
-        const t = Math.min(1, (now - start) / SWEEP_MS);
-        // Down and back in one pass: a triangle through the same easing curve
-        // the studio timeline uses, so the turn at the bottom is not a corner.
-        heroSheet = tweenValue(1, SWEEP_FLOOR, t < 0.5 ? t * 2 : (1 - t) * 2);
-        if (t < 1) frame = requestAnimationFrame(step);
+        // One cycle: down, dwell on the imagery, back up, dwell on the sheet.
+        // `k` is 0 at the sheet and 1 at the imagery; the easing is the curve
+        // the studio timeline uses, so neither turn is a corner.
+        const at = (now - start) % cycle;
+        let k: number;
+        if (at < leg) k = at / leg;
+        else if (at < leg + SWEEP_HOLD_MS) k = 1;
+        else if (at < SWEEP_MS + SWEEP_HOLD_MS) k = 1 - (at - leg - SWEEP_HOLD_MS) / leg;
+        else k = 0;
+        heroSheet = tweenValue(1, SWEEP_FLOOR, k);
+        frame = requestAnimationFrame(step);
       };
       frame = requestAnimationFrame(step);
     }, SWEEP_DELAY_MS);
@@ -135,52 +191,61 @@
   const HERO_TRIES = ['Chợ Lớn', 'Bến Thành', 'Catinat', '1882'];
 
   /**
-   * Both search fields on this page are handoffs, not searches: the first
-   * character opens the real palette carrying what was typed, and the field
-   * clears behind it. Two fields, one draft — they are never on screen
-   * together, and a stale character left in the other one would be a ghost.
+   * The key that opens the palette. Set in `onMount` rather than at init: the
+   * page server-renders, and hydration reuses a text node without re-reading
+   * it — so the correction has to happen after, as a normal update.
    */
-  let searchDraft = '';
-
-  function handOffSearch() {
-    const typed = searchDraft.trim();
-    if (!typed) return;
-    searchDraft = '';
-    openPaletteWith(typed);
-  }
+  let paletteKey = '⌘K';
 
   /**
-   * Live once the catalog lands. The fallback is only ever read in the seconds
-   * before it does, or if the fetch fails — the alternative to a slightly stale
-   * number there is the sentence claiming the archive holds zero sheets.
+   * Counted by the server, so it is right in the HTML a crawler reads. The
+   * fallback covers a failed query rather than a slow one — the alternative is
+   * a sentence claiming the archive holds zero sheets.
    */
   const MAP_COUNT_FALLBACK = 39;
-  $: mapCount = maps.length || MAP_COUNT_FALLBACK;
+  $: mapCount = data.mapCount || MAP_COUNT_FALLBACK;
 
-  $: favoriteMaps = maps.filter((m) => favoriteIds.includes(m.id));
-  $: displayedMaps = filterCollection === 'featured' ? featuredMaps : favoriteMaps;
+  /**
+   * One sentence, three places: the meta description, the OG card and the
+   * Twitter card. It used to carry the sheet count as a literal three lines
+   * under the constant that already held it, which is the kind of pair that
+   * drifts the day a fortieth sheet publishes.
+   */
+  $: metaDescription =
+    `A small volunteer archive of historical maps of Vietnam — Saigon, Huế and Hanoi so far. ` +
+    `${mapCount} sheets are georeferenced and readable in a browser; tracing and label work have only just started.`;
 
-  async function loadCatalog() {
-    let visible: MapListItem[] = [];
+  /**
+   * Absolute, because a share card is read by a crawler with no page to resolve
+   * a relative path against. Off `$page.url` rather than a hardcoded host, so
+   * a preview deploy links to itself and the production domain is not a
+   * constant that has to be maintained in a second place.
+   */
+  $: shareImage = new URL(HERO_1882, $page.url).href;
+  $: canonical = new URL('/', $page.url).href;
+
+  $: displayedMaps = filterCollection === 'featured' ? data.featured : favoriteMaps;
+
+  /**
+   * Two client-side jobs, and neither blocks the page: the reader's favorites,
+   * and the thumbnails for maps whose `thumbnail` column is empty — those have
+   * to be read out of an annotation one at a time.
+   */
+  async function loadReaderData() {
+    thumbnails = await resolveThumbnails(data.featured);
+
+    if (!session?.user?.id) return;
+    loadingFavorites = true;
     try {
-      const catalog = await loadHomeCatalog(supabase, session?.user?.id);
-      maps = catalog.maps;
-      featuredMaps = catalog.featured;
-      favoriteIds = catalog.favoriteIds;
-
-      // Only what this page can put on screen is worth a network round trip.
-      const featuredIds = new Set(catalog.featured.map((m) => m.id));
-      visible = catalog.maps.filter(
-        (m) => featuredIds.has(m.id) || catalog.favoriteIds.includes(m.id)
-      );
+      const favorites = await loadFavorites(supabase, session.user.id);
+      favoriteMaps = favorites.maps;
+      favoriteIds = favorites.ids;
+      thumbnails = new Map([...thumbnails, ...(await resolveThumbnails(favorites.maps))]);
     } catch (err) {
-      console.error('Failed to load map catalog:', err);
+      console.error('Failed to load favorites:', err);
     } finally {
-      // Before the thumbnails, not after: the sheet renders from the DB
-      // `thumbnail` column where there is one, and fills in as the rest resolve.
-      loading = false;
+      loadingFavorites = false;
     }
-    thumbnails = await resolveThumbnails(visible);
   }
 
   async function toggleFavorite(mapId: string) {
@@ -202,23 +267,46 @@
       return;
     }
 
-    // A map favorited from outside the featured set has no thumbnail yet.
-    const added = !wasFavorited && maps.find((m) => m.id === mapId);
-    if (added && !thumbnails.has(mapId)) {
-      thumbnails = new Map([...thumbnails, ...(await resolveThumbnails([added]))]);
+    // Keep the Favorites tab in step without a round trip. Anything favorited
+    // from this page is on it, so the record is already here.
+    if (wasFavorited) {
+      favoriteMaps = favoriteMaps.filter((m) => m.id !== mapId);
+      return;
     }
+    const added = data.featured.find((m) => m.id === mapId);
+    if (added && !favoriteMaps.some((m) => m.id === mapId)) favoriteMaps = [...favoriteMaps, added];
   }
 
-  onMount(loadCatalog);
+  onMount(loadReaderData);
   onMount(sweepHeroSlider);
+  onMount(() => {
+    if (!/mac/i.test(navigator.platform ?? '')) paletteKey = 'Ctrl K';
+  });
 </script>
 
+<!-- The front page had a title and a description and nothing else, so the one
+     URL people actually paste — the root — rendered as a bare link everywhere,
+     while `/catalog/[id]` posted a proper card. Same tags, same shape. -->
 <svelte:head>
   <title>Vietnam Map Archive — historical maps of Vietnam, open and georeferenced</title>
+  <meta name="description" content={metaDescription} />
+  <link rel="canonical" href={canonical} />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Vietnam Map Archive" />
+  <meta property="og:url" content={canonical} />
+  <meta property="og:title" content="Vietnam Map Archive" />
+  <meta property="og:description" content={metaDescription} />
+  <meta property="og:image" content={shareImage} />
+  <meta property="og:image:width" content="1600" />
+  <meta property="og:image:height" content="900" />
   <meta
-    name="description"
-    content="A small volunteer archive of historical maps of Vietnam — Saigon, Huế and Hanoi so far. 39 sheets are georeferenced and readable in a browser; tracing and label work have only just started."
+    property="og:image:alt"
+    content="The 1882 cadastral survey of Saigon laid over the modern city"
   />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Vietnam Map Archive" />
+  <meta name="twitter:description" content={metaDescription} />
+  <meta name="twitter:image" content={shareImage} />
 </svelte:head>
 
 <div class="page home-page">
@@ -226,27 +314,41 @@
     <!-- Two stills of one frame, the slider below fading between them. The
          city sits underneath and only shows as the sheet comes off it, so it
          is `low` priority — the sheet is the LCP element and nothing else on
-         this page should compete with it. `alt=""` on the lower one for the
-         same reason: it is one picture with two states, not two pictures. -->
-    <img
-      class="hero-still"
-      src={HERO_NOW}
-      alt=""
-      width="1600"
-      height="900"
-      fetchpriority="low"
-      decoding="async"
-    />
-    <img
-      class="hero-still"
-      src={HERO_1882}
-      alt="The 1882 cadastral survey of Saigon laid over the modern city"
-      width="1600"
-      height="900"
-      fetchpriority="high"
-      decoding="async"
-      style:opacity={heroSheet}
-    />
+         this page should compete with it.
+
+         One name for the pair, on the wrapper: it is a single picture in two
+         states, and either one can be the visible one. Describing only the
+         1882 layer left a reader who had dragged the slider to Today looking
+         at an image with no description at all. -->
+    <div
+      class="hero-stills"
+      role="img"
+      aria-label="The 1882 cadastral survey of Saigon laid over the modern city, fading between the two"
+    >
+      <img
+        class="hero-still"
+        src={HERO_NOW}
+        srcset={twoCuts(HERO_NOW)}
+        sizes="100vw"
+        alt=""
+        width="1600"
+        height="900"
+        fetchpriority="low"
+        decoding="async"
+      />
+      <img
+        class="hero-still"
+        src={HERO_1882}
+        srcset={twoCuts(HERO_1882)}
+        sizes="100vw"
+        alt=""
+        width="1600"
+        height="900"
+        fetchpriority="high"
+        decoding="async"
+        style:opacity={heroSheet}
+      />
+    </div>
     <div class="hero-still-scrim" aria-hidden="true"></div>
     <!-- The imagery is on screen whenever the slider is off 1882, so its
          credit has to be too. The live map below gets OL's own attribution
@@ -261,41 +363,22 @@
       <p class="hero-subtitle">
         {mapCount} sheets of Saigon, Huế and Hanoi — 1791 to 1968 — laid back over the ground they drew.
       </p>
-      <!-- Re-pinned to the light face: the field is a paper plate sitting on
-           the masthead's dark ground, so it must not inherit its paper ink. -->
-      <div class="hero-search on-light-plate">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
-        </svg>
-        <input
-          class="hero-search-input"
-          type="search"
-          autocomplete="off"
-          placeholder="Search a place, a sheet, a name off a map"
-          aria-label="Search a place, a sheet, or a name off a map"
-          bind:value={searchDraft}
-          on:input={handOffSearch}
-        />
-        <kbd>⌘K</kbd>
-      </div>
+      <!-- The field is a paper plate sitting on the masthead's dark ground, so
+           `on-light-plate` inside the component keeps it off the paper ink. -->
+      <PaletteSearchField kbd={paletteKey} />
 
-      <p class="hero-tries">
-        <span class="hero-tries-label">Try</span>
+      <!-- A list, not a paragraph: four buttons in a row are four items, and a
+           screen reader should be able to say how many there are. -->
+      <ul class="hero-tries" aria-label="Searches to try">
+        <li class="hero-tries-label" aria-hidden="true">Try</li>
         {#each HERO_TRIES as term (term)}
-          <button type="button" class="hero-try" on:click={() => openPaletteWith(term)}>
-            {term}
-          </button>
+          <li>
+            <button type="button" class="hero-try" on:click={() => openPaletteWith(term)}>
+              {term}
+            </button>
+          </li>
         {/each}
-      </p>
+      </ul>
 
       <!-- The archive's whole gesture in one control: drag from today back to
            1882. It is in the column, not on a plate over the map, so it shares
@@ -321,7 +404,7 @@
 
   <main class="main">
     <!-- ============ THE CATALOG ============ -->
-    <section class="home-section" id="view-mode">
+    <section class="home-section" id="catalog">
       <div class="section-head">
         <div class="section-head-text">
           <h2 class="feature-title">The Catalog</h2>
@@ -331,25 +414,29 @@
             to the library or collection that holds it.
           </p>
         </div>
-        <ChunkyTabs
-          tabs={[
-            { value: 'featured', label: 'Featured' },
-            { value: 'favorites', label: 'Favorites' },
-          ]}
-          active={filterCollection}
-          on:change={(e) => (filterCollection = e.detail as typeof filterCollection)}
-        />
+        <!-- Only a signed-in reader has favorites, and the tab used to be there
+             for everyone else too — a second tab whose whole content was a note
+             saying to sign in. -->
+        {#if session}
+          <ChunkyTabs
+            tabs={[
+              { value: 'featured', label: 'Featured' },
+              { value: 'favorites', label: 'Favorites' },
+            ]}
+            active={filterCollection}
+            on:change={(e) => (filterCollection = e.detail as typeof filterCollection)}
+          />
+        {/if}
       </div>
 
-      {#if loading}
-        <div class="maps-loading">
-          <span>Opening the archive…</span>
-        </div>
-      {:else if filterCollection === 'favorites' && !session}
-        <div class="empty-state">
+      <!-- No loading state for the featured set: it is in the HTML. Favorites
+           are the only thing this page still waits for. -->
+      {#if filterCollection === 'favorites' && loadingFavorites}
+        <p class="empty-state is-block">Opening the archive…</p>
+      {:else if filterCollection === 'favorites' && displayedMaps.length === 0}
+        <div class="empty-state is-block">
           <h3>No favorites yet.</h3>
           <p>Heart any map and it lands here, on every device you sign in from.</p>
-          <p>Sign in from the top nav.</p>
         </div>
       {:else if displayedMaps.length > 0}
         <FeaturedSheet
@@ -360,7 +447,7 @@
           on:toggleFavorite={(e) => toggleFavorite(e.detail)}
         />
       {:else}
-        <div class="empty-state">
+        <div class="empty-state is-block">
           <h3>Nothing here yet.</h3>
           <p>No maps match this view — try another tab or the catalog.</p>
         </div>
@@ -379,7 +466,12 @@
          The animated hero, moved out of the header. Same map, same four beats;
          the difference is that a reader who never scrolls this far never pays
          for OpenLayers. -->
-    <HeroDemo mapId={HERO_SHEET.id} view={HERO_SHEET.view} still={HERO_1882} />
+    <HeroDemo
+      mapId={HERO_SHEET.id}
+      view={HERO_SHEET.view}
+      still={HERO_1882}
+      stillSrcset={twoCuts(HERO_1882)}
+    />
 
     <!-- ============ THE BAND ============
          Tools, Contribute and the two standing notes were four bordered cards
@@ -387,7 +479,7 @@
          between them, which is one band's worth of content, so that is what
          they are now. -->
     <div class="home-band">
-      <section class="band-col" id="create-mode">
+      <section class="band-col" id="tools">
         <h2 class="band-title">
           Tools <span class="fun-badge">Beta</span>
         </h2>
@@ -411,7 +503,7 @@
         </div>
       </section>
 
-      <section class="band-col" id="contribute-mode">
+      <section class="band-col" id="contribute">
         <h2 class="band-title">Contribute</h2>
         <p class="band-desc">
           The archive is built by volunteers, and there are not many of us yet. Your name stays on
@@ -472,29 +564,7 @@
       <p class="home-cta-sub">
         Most people come for one street and stay for the city. {mapCount} sheets, 1791 to 1968.
       </p>
-      <div class="hero-search home-cta-search on-light-plate">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
-        </svg>
-        <input
-          class="hero-search-input"
-          type="search"
-          autocomplete="off"
-          placeholder="Search a place, a sheet, a name off a map"
-          aria-label="Search a place, a sheet, or a name off a map"
-          bind:value={searchDraft}
-          on:input={handOffSearch}
-        />
-      </div>
+      <PaletteSearchField variant="home-cta-search" />
       <a href="/explore" class="action-btn home-cta-btn on-light-plate">Open the map</a>
     </section>
   </main>

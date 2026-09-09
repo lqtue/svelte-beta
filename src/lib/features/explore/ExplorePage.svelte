@@ -35,6 +35,7 @@
   import PressPanel from '$lib/features/explore/PressPanel.svelte';
   import StoryPlayback from '$lib/features/stories/shared/StoryPlayback.svelte';
   import LayerStackPanel from '$lib/features/shared/LayerStackPanel.svelte';
+  import TopSheetActions from '$lib/features/shared/TopSheetActions.svelte';
   import LayerControlsPanel from '$lib/features/shared/LayerControlsPanel.svelte';
 
   import ExploreSidebar from '$lib/features/explore/ExploreSidebar.svelte';
@@ -74,6 +75,9 @@
   let rightSidebarCollapsed = false;
   let isMobile = false;
   let openDrawer: 'none' | 'layers' | 'controls' | 'browse' | 'legacy' = 'none';
+  /** Which tab the desktop left rail shows. Here rather than inside the rail
+   *  because the tour has to open the pane each of its steps talks about. */
+  let sidebarTab: 'all' | 'picked' = 'all';
 
   // ── Explore-specific state ─────────────────────────────────────
   let choseMode = false;
@@ -401,12 +405,12 @@
       <ExploreSidebar
         {viewMode}
         {mapList}
-        {vectorMapIds}
         {matches}
         {role}
         forceBrowseExpanded={mode === 'all'}
+        bind:tab={sidebarTab}
+        tourActive={tourOpen || tourPending}
         on:zoomToOverlay={handleZoomToOverlay}
-        on:toggleVectors={handleToggleVectors}
         on:pickMap={handlePickMap}
         on:pickLabel={handlePickLabel}
         on:removeOverlay={handleRemoveOverlay}
@@ -421,21 +425,24 @@
         mapId={activeOverlayMapId}
         map={activeOverlayMap}
         {showLegendPoints}
+        vectorsOn={!!activeOverlayMapId && vectorMapIds.includes(activeOverlayMapId)}
         on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
         on:pickLocation={handlePickLocation}
         on:toggleGps={toggleGps}
         on:toggleLegendPoints={() => (showLegendPoints = !showLegendPoints)}
+        on:toggleVectors={handleToggleVectors}
         on:toggleCollapse={() => (rightSidebarCollapsed = true)}
       />
     </svelte:fragment>
 
     <svelte:fragment slot="mobile-layers">
       <div class="mobile-pane" data-tour="layers-mobile">
-        <LayerStackPanel
-          {viewMode}
-          {mapList}
-          {vectorMapIds}
-          on:zoomToOverlay={handleZoomToOverlay}
+        <LayerStackPanel {viewMode} {mapList} on:zoomToOverlay={handleZoomToOverlay} />
+        <TopSheetActions
+          mapId={activeOverlayMapId}
+          published={activeOverlayMap?.status === 'public' ||
+            activeOverlayMap?.status === 'featured'}
+          vectorsOn={!!activeOverlayMapId && vectorMapIds.includes(activeOverlayMapId)}
           on:toggleVectors={handleToggleVectors}
         />
       </div>
@@ -536,6 +543,12 @@
     {layerStore}
     {isMobile}
     on:close={() => (tourOpen = false)}
-    on:setDrawer={(e) => (openDrawer = e.detail.drawer)}
+    on:setDrawer={(e) => {
+      // The drawers are the mobile face of the same three panes; on desktop the
+      // Browse and Layers steps live in the left rail's two tabs.
+      if (isMobile) openDrawer = e.detail.drawer;
+      if (e.detail.drawer === 'browse') sidebarTab = 'all';
+      else if (e.detail.drawer === 'layers') sidebarTab = 'picked';
+    }}
   />
 </div>

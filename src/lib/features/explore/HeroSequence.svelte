@@ -49,11 +49,17 @@
    */
   export let overlayOpacity: number | null = null;
   /**
-   * Skip the beats and compose the final frame at once. Set on a revisit
-   * within the same tab: the sequence is an introduction, and being introduced
-   * twice is being delayed.
+   * Whether the beats may start. Everything before them — the warped layer, the
+   * annotation, the first `rendercomplete` — happens regardless, so the sheet
+   * is decoded and the tiles are in cache by the time this turns on. It gates
+   * the cues alone: a sequence that plays off screen is one the reader never
+   * sees, and they arrive at its last frame instead of its first.
+   *
+   * `prefers-reduced-motion` ignores it: that path is not an animation, it
+   * composes the finished frame, which is what the still image underneath
+   * already shows.
    */
-  export let immediate = false;
+  export let play = true;
 
   const dispatch = createEventDispatcher<{ stage: { index: number } }>();
   const { map: mapWritable } = getShellContext();
@@ -76,6 +82,9 @@
   let timers: number[] = [];
   let stage = -1;
   let labelsRequested = false;
+  /** Loaded and painted, waiting only on `play`. */
+  let armed = false;
+  let beatsStarted = false;
 
   const reduced =
     typeof window !== 'undefined' &&
@@ -170,9 +179,9 @@
     // `rendercomplete` fires when the layers have finished loading for the
     // current view; the cap is there because a single stalled tile must not
     // hold the whole page hostage.
-    if (!reduced && !immediate) await waitForPaint(m, PAINT_CAP_MS);
+    if (!reduced) await waitForPaint(m, PAINT_CAP_MS);
 
-    if (reduced || immediate) {
+    if (reduced) {
       (sheet as unknown as { setOpacity(n: number): void }).setOpacity(sheetOpacity);
       m.render();
       setStage(BEATS.length - 1);
@@ -180,10 +189,22 @@
       return;
     }
 
-    // Cues on timers, fades on rAF. The two used to share one rAF loop, and a
-    // browser that throttles animation frames — a background tab, a page it has
-    // decided is not visible — then delayed the last cue by half a minute. A
-    // timer is the wrong tool for a fade and the right one for "now say this".
+    armed = true;
+  }
+
+  // The last gate: loaded, painted, and now on screen.
+  $: if (armed && play && !beatsStarted) {
+    beatsStarted = true;
+    runBeats();
+  }
+
+  /**
+   * Cues on timers, fades on rAF. The two used to share one rAF loop, and a
+   * browser that throttles animation frames — a background tab, a page it has
+   * decided is not visible — then delayed the last cue by half a minute. A
+   * timer is the wrong tool for a fade and the right one for "now say this".
+   */
+  function runBeats() {
     BEATS.forEach((at, i) => {
       timers.push(
         window.setTimeout(() => {

@@ -3,92 +3,47 @@
   and the mobile "Layers" drawer.
 
   Behavior:
-    • Whole row is the opacity slider (pointer drag, 6px threshold so taps
-      still register as zoom-to-overlay).
+    • Two lines per layer: name + actions on top, a native range slider for
+      opacity underneath. The name is the zoom-to-overlay button. It was one
+      line with the whole row as a drag surface until Sept 2026 — which cost
+      every sheet its name to an ellipsis and gave the row three gestures.
     • Reorder via ▲ / ▼ buttons (works on touch and mouse).
-    • Remove (×) only — no hide/show.
-    • Display mode + Base picker live in LayerControlsPanel, not here.
-    • A "this map" strip under the list links out to the sheet's other pages.
-      /explore had zero outbound links until Sept 2026: someone could open a
-      map here and be offered no way to read its scan, share it or annotate it.
+    • Per-row eye toggles visibility (LayerRenderer honours `visible`);
+      remove (×) drops the layer.
+    • Display mode + Base picker live in LayerControlsPanel, not here; the
+      "this sheet" action strip is TopSheetActions, in the right rail.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { layersStore, clamp01 } from '$lib/map/stores/layersStore';
+  import { layersStore } from '$lib/map/stores/layersStore';
   import type { ViewMode } from '$lib/map/types';
   import type { MapListItem } from '$lib/data/maps/types';
 
   export let viewMode: ViewMode = 'overlay';
   /** Catalog list used to enrich rows with year. */
   export let mapList: MapListItem[] = [];
+  /** When set, only layers for these map ids are listed — /explore's left rail
+   *  passes the sheets its shared search bar still matches. Null (the default)
+   *  is the whole stack. Same name and meaning as `ArchiveBrowser.filterIds`. */
+  export let filterIds: string[] | null = null;
 
-  const dispatch = createEventDispatcher<{
-    zoomToOverlay: { mapId: string };
-    toggleVectors: { mapId: string };
-  }>();
-
-  /** Map ids whose traced fabric is currently drawn, owned by the page. */
-  export let vectorMapIds: string[] = [];
-  $: vectorOn = new Set(vectorMapIds);
+  const dispatch = createEventDispatcher<{ zoomToOverlay: { mapId: string } }>();
 
   $: state = $layersStore;
   $: isSideBySide = viewMode === 'dual';
 
-  /** The sheet the strip talks about: whatever is on top of the stack. */
-  $: topMapId = state.overlays[0]?.ref.mapId ?? null;
-  $: topMap = topMapId ? (mapList.find((m) => m.id === topMapId) ?? null) : null;
-  $: topName = state.overlays[0]?.ref.name ?? topMap?.name ?? 'this map';
-  /** A draft has no share page — /map/[id] 404s on anything unpublished. */
-  $: topIsPublished = topMap?.status === 'public' || topMap?.status === 'featured';
+  /** Rows carry their index in the *stack*, not in the filtered list: reorder,
+   *  the disabled arrows and the Top/Bottom badges all mean stack position. */
+  $: shown = filterIds ? new Set(filterIds) : null;
+  $: rows = state.overlays
+    .map((o, i) => ({ o, i }))
+    .filter(({ o }) => !shown || shown.has(o.ref.mapId));
 
   $: yearByMapId = (() => {
     const m = new Map<string, number | string>();
     for (const item of mapList) if (item?.id && item.year != null) m.set(item.id, item.year as any);
     return m;
   })();
-
-  // ── Per-row drag-to-opacity ──────────────────────────────────────
-  const DRAG_THRESHOLD_PX = 6;
-  let pressId: string | null = null;
-  let pressStartX = 0;
-  let dragging = false;
-
-  function setOpacityFromPointer(rowEl: HTMLElement, id: string, e: PointerEvent) {
-    const rect = rowEl.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const pct = clamp01(x / rect.width);
-    const snapped = Math.round(pct * 20) / 20; // 5% steps
-    layersStore.setOpacity(id, snapped);
-  }
-
-  function onRowPointerDown(id: string, e: PointerEvent) {
-    if ((e.target as HTMLElement).closest('.lsp-action')) return;
-    const row = e.currentTarget as HTMLElement;
-    pressId = id;
-    pressStartX = e.clientX;
-    dragging = false;
-    try {
-      row.setPointerCapture(e.pointerId);
-    } catch {}
-  }
-  function onRowPointerMove(id: string, e: PointerEvent) {
-    if (pressId !== id) return;
-    if (!dragging && Math.abs(e.clientX - pressStartX) >= DRAG_THRESHOLD_PX) dragging = true;
-    if (dragging) setOpacityFromPointer(e.currentTarget as HTMLElement, id, e);
-  }
-  function onRowPointerUp(id: string, e: PointerEvent) {
-    if (pressId !== id) return;
-    const row = e.currentTarget as HTMLElement;
-    try {
-      row.releasePointerCapture(e.pointerId);
-    } catch {}
-    if (!dragging) {
-      const ov = state.overlays.find((o) => o.id === id);
-      if (ov) dispatch('zoomToOverlay', { mapId: ov.ref.mapId });
-    }
-    pressId = null;
-    dragging = false;
-  }
 
   function moveUp(i: number) {
     if (i > 0) layersStore.reorderOverlay(i, i - 1);
@@ -100,29 +55,23 @@
 
 <div class="lsp">
   {#if state.overlays.length > 0}
-    <div class="lsp-sub">Drag a row for opacity · tap to zoom</div>
+    <div class="lsp-sub">Tap a name to zoom · drag for opacity · eye hides a layer</div>
   {/if}
 
   {#if state.overlays.length === 0}
     <div class="sb-empty">
       Nothing stacked yet. Open <strong>Browse</strong> and tap <strong>+</strong> on a map to add it.
     </div>
+  {:else if rows.length === 0}
+    <div class="sb-empty">No stacked map matches those filters.</div>
   {:else}
     <ul class="lsp-list">
-      {#each state.overlays as o, i (o.id)}
-        <li
-          class="lsp-row"
-          class:dragging={pressId === o.id && dragging}
-          style="--fill: {Math.round(o.opacity * 100)}%"
-          on:pointerdown={(e) => onRowPointerDown(o.id, e)}
-          on:pointermove={(e) => onRowPointerMove(o.id, e)}
-          on:pointerup={(e) => onRowPointerUp(o.id, e)}
-          on:pointercancel={(e) => onRowPointerUp(o.id, e)}
-        >
+      {#each rows as { o, i } (o.id)}
+        <li class="lsp-row" class:is-hidden={!o.visible}>
           <div class="lsp-reorder">
             <button
               type="button"
-              class="sb-btn lsp-action lsp-arrow"
+              class="sb-btn lsp-arrow"
               on:click={() => moveUp(i)}
               disabled={i === 0}
               aria-label="Move layer up"
@@ -130,7 +79,7 @@
             >
             <button
               type="button"
-              class="sb-btn lsp-action lsp-arrow"
+              class="sb-btn lsp-arrow"
               on:click={() => moveDown(i)}
               disabled={i === state.overlays.length - 1}
               aria-label="Move layer down"
@@ -139,7 +88,7 @@
           </div>
 
           <div class="lsp-body">
-            <div class="lsp-name" title={o.ref.name ?? ''}>
+            <div class="lsp-top">
               {#if isSideBySide && (i === 0 || i === 1)}
                 <span
                   class="badge-chip is-sm lsp-pane"
@@ -150,43 +99,71 @@
               {#if yearByMapId.get(o.ref.mapId) != null}
                 <span class="lsp-year">{yearByMapId.get(o.ref.mapId)}</span>
               {/if}
-              <span class="lsp-text">{o.ref.name ?? o.ref.mapId.slice(0, 8)}</span>
+              <button
+                type="button"
+                class="lsp-name"
+                on:click={() => dispatch('zoomToOverlay', { mapId: o.ref.mapId })}
+                title="Zoom to {o.ref.name ?? 'this layer'}"
+                >{o.ref.name ?? o.ref.mapId.slice(0, 8)}</button
+              >
+
+              <button
+                type="button"
+                class="sb-btn is-icon lsp-eye"
+                class:is-on={o.visible}
+                on:click={() => layersStore.setVisible(o.id, !o.visible)}
+                aria-label={o.visible ? 'Hide layer' : 'Show layer'}
+                aria-pressed={o.visible}
+                title={o.visible ? 'Hide this layer' : 'Show this layer'}
+              >
+                <!-- A real eye, not a glyph: ◉/◌ said nothing, and a tooltip
+                     is no help on a touch screen. -->
+                <svg
+                  viewBox="0 0 24 24"
+                  width="15"
+                  height="15"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M1.5 12S5.2 5.5 12 5.5 22.5 12 22.5 12 18.8 18.5 12 18.5 1.5 12 1.5 12z"
+                  />
+                  <circle cx="12" cy="12" r="3" />
+                  {#if !o.visible}
+                    <path d="M3 21 21 3" />
+                  {/if}
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                class="sb-btn is-icon lsp-x"
+                on:click={() => layersStore.removeOverlay(o.id)}
+                aria-label="Remove layer"
+                title="Remove">×</button
+              >
+            </div>
+
+            <div class="lsp-bottom">
+              <input
+                class="lsp-range"
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={o.opacity}
+                aria-label="Opacity"
+                on:input={(e) => layersStore.setOpacity(o.id, Number(e.currentTarget.value))}
+              />
+              <span class="lsp-pct">{Math.round(o.opacity * 100)}%</span>
             </div>
           </div>
-
-          <div class="lsp-pct">{Math.round(o.opacity * 100)}%</div>
-
-          <button
-            type="button"
-            class="sb-btn is-icon lsp-action"
-            class:is-on={vectorOn.has(o.ref.mapId)}
-            on:click={() => dispatch('toggleVectors', { mapId: o.ref.mapId })}
-            aria-label="Toggle traced footprints"
-            aria-pressed={vectorOn.has(o.ref.mapId)}
-            title="Traced footprints">⬡</button
-          >
-
-          <button
-            type="button"
-            class="sb-btn is-icon lsp-action lsp-x"
-            on:click={() => layersStore.removeOverlay(o.id)}
-            aria-label="Remove layer"
-            title="Remove">×</button
-          >
         </li>
       {/each}
     </ul>
-
-    {#if topMapId}
-      <div class="lsp-links">
-        <span class="lsp-links-label" title={topName}>{topName}</span>
-        <a class="sb-btn is-sm" href="/scan?map={topMapId}">Scan</a>
-        <a class="sb-btn is-sm" href="/explore?mode=annotate&map={topMapId}">Annotate</a>
-        {#if topIsPublished}
-          <a class="sb-btn is-sm" href="/catalog/{topMapId}">Share</a>
-        {/if}
-      </div>
-    {/if}
   {/if}
 </div>
 
@@ -212,47 +189,19 @@
     gap: 0.5rem;
   }
 
-  /* Way out of the viewer, for the sheet currently on top. */
-  .lsp-links {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    margin-top: 0.6rem;
-    padding-top: 0.55rem;
-    border-top: var(--sb-border-soft);
-  }
-  .lsp-links-label {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.66rem;
-    color: var(--sb-text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   .lsp-row {
-    position: relative;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 0.5rem;
-    padding: 0.55rem 0.55rem;
-    min-height: 52px;
-    background: linear-gradient(
-      to right,
-      var(--sb-accent-fill) 0,
-      var(--sb-accent-fill) var(--fill),
-      var(--sb-bg) var(--fill),
-      var(--sb-bg) 100%
-    );
+    padding: 0.5rem;
+    background: var(--sb-bg);
     border: 1.5px solid var(--color-border);
     border-radius: var(--radius-sm);
-    touch-action: pan-y;
-    user-select: none;
-    cursor: ew-resize;
   }
-  .lsp-row.dragging {
-    box-shadow: 0 0 0 3px var(--sb-accent-glow);
+  /* A hidden layer keeps its name, slider and % — the row is still the
+     control, so it dims rather than disappearing. */
+  .lsp-row.is-hidden .lsp-body {
+    opacity: 0.45;
   }
 
   .lsp-reorder {
@@ -261,7 +210,7 @@
     flex-direction: column;
     gap: 2px;
   }
-  /* Size only — a stacked pair has to fit the row's 52px. */
+  /* Size only — a stacked pair has to fit the two-line row. */
   .lsp-arrow {
     width: 28px;
     height: 22px;
@@ -274,22 +223,34 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.3rem;
   }
-  .lsp-name {
-    font-size: 0.88rem;
-    font-weight: var(--font-bold);
-    color: var(--sb-text);
+  .lsp-top {
     display: flex;
     align-items: center;
     gap: 0.4rem;
     min-width: 0;
   }
-  .lsp-text {
+  /* The zoom target is the name itself, so it is a button that looks like
+     text — the row is no longer a click surface. */
+  .lsp-name {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: var(--font-bold);
+    color: var(--sb-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    cursor: zoom-in;
+  }
+  .lsp-name:hover {
+    color: var(--sb-accent);
   }
   .lsp-year {
     flex-shrink: 0;
@@ -303,26 +264,40 @@
     flex-shrink: 0;
   }
 
+  .lsp-bottom {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .lsp-range {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    accent-color: var(--sb-accent);
+  }
   .lsp-pct {
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: var(--font-extrabold);
-    color: var(--sb-text);
-    min-width: 38px;
+    color: var(--sb-text-meta);
+    min-width: 4ch;
     text-align: right;
   }
 
-  /* The footprints toggle is a plain `.sb-btn.is-on` now: it had its own
-     green-on-white "on" face, the only toggle in the app that did not fill.
+  .lsp-eye {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+  }
 
-     The × keeps two things the shared button will not: a 32px touch target,
+  /* The × keeps two things the shared button will not: a 28px touch target,
      and a press that reads red, because it destroys a layer. */
   .lsp-x {
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    font-size: 1.1rem;
+    width: 28px;
+    height: 28px;
+    font-size: 1.05rem;
     color: var(--sb-text-meta);
   }
   .lsp-x:active {
