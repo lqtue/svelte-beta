@@ -447,8 +447,14 @@
           </div>
           <div class="sc-stage sc-stage-narrow">
             <CatalogCard title="Plan Cadastral, 1882" href="#">
+              <!-- The `.meta` wrapper is the caller's job: CatalogCard drops this slot
+                   straight into `.card-body`, which is a column flex, so bare spans
+                   render full-width one per line. LibraryGrid wraps it the same way. -->
               <svelte:fragment slot="meta">
-                <span class="meta-tag">1882</span><span class="meta-tag">Cadastral</span>
+                <div class="meta">
+                  <span class="badge-chip is-sm chip-gray">1882</span>
+                  <span class="badge-chip is-sm chip-gray">Cadastral</span>
+                </div>
               </svelte:fragment>
               <svelte:fragment slot="description">A fixture, not a real record.</svelte:fragment>
             </CatalogCard>

@@ -309,9 +309,12 @@
     >
 
     <svelte:fragment slot="meta" let:item>
-      <span class="meta-tag">{featureCount(item)} feature{featureCount(item) !== 1 ? 's' : ''}</span
+      <span class="badge-chip is-sm chip-gray"
+        >{featureCount(item)} feature{featureCount(item) !== 1 ? 's' : ''}</span
       >
-      <span class="meta-tag date">{new Date(item.updatedAt).toLocaleDateString('en-GB')}</span>
+      <span class="badge-chip is-sm chip-gray"
+        >{new Date(item.updatedAt).toLocaleDateString('en-GB')}</span
+      >
     </svelte:fragment>
 
     <svelte:fragment slot="description" let:item>

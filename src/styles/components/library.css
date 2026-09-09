@@ -1,7 +1,7 @@
 /*
   library.css — project/story library grid shown by $lib/ui/LibraryGrid.svelte
   (the story- and annotate-mode landing screens): create button, empty + loading
-  states, and the CatalogCard slot styles (thumb, meta tags, description,
+  states, and the CatalogCard slot styles (thumb, meta row, description,
   edit/delete icon buttons).
 
   Split out of layouts/create-mode.css; imported by the tool modes that render
@@ -54,25 +54,11 @@
   margin-bottom: 0.5rem;
 }
 
-.meta-tag {
-  font-size: 0.75rem;
-  padding: 0.15rem 0.4rem;
-  background: var(--color-gray-100);
-  border: var(--border-thin);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-.meta-tag.publish-status {
-  background: var(--color-white);
-}
-
-.meta-tag.publish-status.published {
-  background: var(--sb-success-bg);
-  color: var(--sb-success);
-  border-color: var(--sb-success);
-}
+/* `.meta-tag` and its two publish-status faces lived here until Sept 2026. The
+   card tags are `.badge-chip is-sm` from editorial.css now — `chip-gray` for a
+   plain tag, `chip-white`/`chip-green` for the story's publish state — so the
+   library grid stops carrying a fourth dense-badge vocabulary. `.meta` stays:
+   it is the slot's own flex row, not a badge. */
 
 .description {
   font-size: 0.85rem;

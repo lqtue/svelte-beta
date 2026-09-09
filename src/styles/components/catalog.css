@@ -38,8 +38,9 @@
 /* This is a plain stylesheet, not a Svelte <style> block, so the Svelte-only
    global() wrapper five rules here carried was an invalid selector and a
    browser dropped every one of them. Three (.meta, .meta-tag, .description)
-   have a live twin in library.css and are gone; these two are the card's own
-   and now apply. */
+   had a live twin in library.css and are gone; these two are the card's own
+   and now apply. (.meta-tag has since gone from there too — the card tags are
+   `.badge-chip is-sm` now.) */
 .card-thumb img {
   position: absolute;
   inset: 0;

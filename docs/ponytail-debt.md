@@ -3,9 +3,11 @@
 Deliberate shortcuts marked with `ponytail:` comments. Each names its ceiling
 and the trigger to revisit. Regenerate: `/ponytail-debt`. Never hand-edit.
 
-Scanned 2026-09-09. **The previous ledger listed 12 markers; there are 47.** It
-had drifted badly — see *Ledger hygiene* at the foot for what was stale and for
-the scan pattern, which was also missing five markers by construction.
+Scanned **2026-09-10**. **47 markers, 10 with no trigger — unchanged from the
+2026-09-09 scan.** No row went stale and no new marker appeared, so every row
+below still points at a live comment. See *Ledger hygiene* at the foot for the
+scan pattern (the skill's own regex misses Python and SQL markers) and for the
+one row whose source comment is stale.
 
 ## src/lib/core/geo/wkb.ts
 
@@ -167,16 +169,25 @@ the scan pattern, which was also missing five markers by construction.
 
 ---
 
-**47 markers, 11 with no trigger.**
+**47 markers, 10 with no trigger.**
 
 ## Ledger hygiene
 
-Two things this regeneration found, both worth knowing before the next one:
+**The 2026-09-10 scan found no drift.** Same 47 markers, same files, same lines
+as 2026-09-09 — the UI consistency pass and the `TriageSidebar` extraction that
+ran between the two scans touched no `ponytail:` comment. (`work/cleanup/TODO.md`
+had expected the extraction to move some; `TriageSidebar` never carried one. The
+only marker anywhere under the triage tools is `ocrReviewController.ts`, which
+was not part of the cut.)
 
-**The previous ledger was 35 markers short and carried a dead row.** It listed
+**One count was wrong last time:** the footer said 11 with no trigger; there are
+10. Corrected here. Nothing regenerates this file automatically, so it only tells
+the truth right after `/ponytail-debt` runs.
+
+**The 2026-09-09 scan's other finding still stands:** the ledger before it was 35
+markers short and carried a dead row for
 `src/routes/api/admin/maps/[id]/ocr/+server.ts:80`, where no `ponytail:` comment
-survives. Nothing regenerates this file automatically, so it only tells the truth
-right after `/ponytail-debt` runs.
+survives.
 
 **The scan pattern in the skill misses Python and SQL markers.** It requires a
 comment prefix (`#`, `//`, `/*`, `*`, `<!--`), which drops every marker written

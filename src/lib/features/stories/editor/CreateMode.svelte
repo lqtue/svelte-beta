@@ -402,9 +402,17 @@
     </svelte:fragment>
 
     <svelte:fragment slot="meta" let:item>
-      <span class="meta-tag">{item.points.length} point{item.points.length !== 1 ? 's' : ''}</span>
-      <span class="meta-tag date">{new Date(item.updatedAt).toLocaleDateString('en-GB')}</span>
-      <span class="meta-tag publish-status" class:published={item.status === 'approved'}>
+      <span class="badge-chip is-sm chip-gray"
+        >{item.points.length} point{item.points.length !== 1 ? 's' : ''}</span
+      >
+      <span class="badge-chip is-sm chip-gray"
+        >{new Date(item.updatedAt).toLocaleDateString('en-GB')}</span
+      >
+      <span
+        class="badge-chip is-sm"
+        class:chip-green={item.status === 'approved'}
+        class:chip-white={item.status !== 'approved'}
+      >
         {item.status === 'approved'
           ? 'Public'
           : item.status === 'submitted'

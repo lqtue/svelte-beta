@@ -83,10 +83,14 @@ Never reach into the DOM to do what the template can do. `bind:this` +
 
 ## Size and cleanup
 
-- **A component should fit on one screen.** Average here is ~220 lines; seven
-  are over 500 (`TriageSidebar` 754, `DigitalizePage` 636, `OcrSidebar` 617,
-  `CreateMode` 583, `MapEditHostingTab` 574, `CommandPalette` 543). Do not add
-  to that list — extract the panel, the table, the controller.
+- **A component should fit on one screen.** Average here is ~210 lines (146
+  components, 30.5k lines); **nine** are over 500: `screens/+page.svelte` 647,
+  `DigitalizePage` 629, `CreateMode` 591, `OcrSidebar` 588,
+  `MapEditHostingTab` 574, `(editorial)/+page.svelte` 571, `ExplorePage` 560,
+  `CommandPalette` 554, `NavBar` 536. Do not add to that list — extract the
+  panel, the table, the controller. (`TriageSidebar` was the worst at 833 and
+  came off the list in Sept 2026: five files, 221 + four steps. It is the
+  worked example of the cut this bullet is asking for.)
 - **Every subscription, listener, timer and observer is torn down** in
   `onDestroy` or by the action's return. The tree currently has **zero**
   unpaired `addEventListener` and **zero** uncleared `setInterval`; that is a
