@@ -238,7 +238,7 @@ institution holding the paper, under that institution's terms, recorded per
 sheet and shown on its catalogue page. Check there before reusing an image.
 
 The basemap is built from OpenStreetMap data (© OpenStreetMap contributors,
-ODbL); the satellite imagery is Esri's. [`LICENSE`](LICENSE) has all of it in
-full.
+ODbL); the satellite imagery is Esri's. [`NOTICE.md`](NOTICE.md) has all of it
+in full.
 
 Questions: **vietnamma.project@gmail.com**
