@@ -1,147 +1,231 @@
 # Vietnam Map Archive
 
-A SvelteKit 5 application for exploring and recovering georeferenced historical maps of Saigon/Ho Chi Minh City. Built with Allmaps, OpenLayers and Supabase — map visualization, crowdsourced labeling, and an AI-assisted digitization pipeline.
+**[maparchive.vn](https://maparchive.vn)**
 
-## Features
+Historical maps of Vietnam, put back in place. We take scans of old city plans,
+pin them to real coordinates so they line up with the city as it is now, and
+read the names and shapes printed on them — so a street name from an 1882
+survey becomes something you can search for, and a building traced off a 1959
+sheet becomes a shape with a location.
 
-- **Historical map viewer** — stack up to 10 georeferenced maps over a modern basemap, with per-layer opacity and three display modes: Stacked, Lens, Side-by-side
-- **Unified catalog search** — Postgres `tsvector` full-text search across maps + scout candidates, with faceted filters
-- **Stories** — author guided, location-aware tours (`/create`) and play them back (`/trip/[id]`)
-- **Annotation studio** — draw and label features with full undo/redo, plus timeline animation
-- **Triage + OCR + Trace** — crowdsourced HITL pipeline: neatline + tile-priority triage, Gemini Flash OCR review, polygon/line tracing on IIIF map scans
-- **MapSAM2 vectorization** — fine-tuned SAM2 inference for cadastral footprints, with human review
-- **Scout** — discover and import IIIF maps from external collections (BnF, Rumsey, Humazur…)
-- **Auto-georef sync** — every map gets a pre-registered Allmaps ID on insert; a probe job flips `georef_done = true` when a volunteer finishes the georef in the Allmaps Editor
+Saigon in the French colonial period is where the work goes deepest; Hanoi, Huế
+and the rest of the country are in the archive too. A SvelteKit application over
+[Allmaps](https://allmaps.org), [OpenLayers](https://openlayers.org) and
+Supabase, with an OCR and segmentation pipeline behind it, all of it
+human-reviewed before anything is published.
 
-## Quick Start
+Version history: **[maparchive.vn/changelog](https://maparchive.vn/changelog)**
+in plain language, [`CHANGELOG.md`](CHANGELOG.md) with the engineering detail.
+Currently **7.0**.
+
+---
+
+## What it does
+
+- **Stack sheets over the modern city** — up to ten georeferenced maps at once, each with its own opacity, in three display modes: Stacked, Lens and Side-by-side.
+- **Search inside the maps** — one search box over the catalogue, the gazetteer of attested place names, and the labels read off the sheets themselves. A label hit opens the map at the spot.
+- **A page per place name** — every spelling a place was printed under, grouped, with the sheets that carry it.
+- **Read the names off a sheet** — a triage pass a person accepts, then Gemini Flash over IIIF tiles, then row-by-row human review. Nothing published is unreviewed.
+- **Trace what is drawn on it** — buildings, roads and waterways, by hand or seeded from a fine-tuned SAM2, both ending in the same review queue.
+- **Tell a story on the map** — author a route with stops and text, publish it, play it back at `/trip/<id>` (which is what printed QR codes point at).
+- **Find more maps** — Scout crawls external IIIF collections (BnF Gallica, David Rumsey, Humazur, AGS Library…) and surfaces candidates for one-click import.
+
+Everything above is a public read; contributing needs an account, and the
+pipelines need staff.
+
+## Quick start
 
 ```bash
 npm install
-npm run dev
-npm run check     # type-check — the primary verification gate
-npm run lint      # prettier --check . && eslint .
-npm run test      # Playwright smoke suite (read-only, hits the real project)
+npm run dev          # http://localhost:5173
 ```
 
-## Tech Stack
+The dev server talks to the real Supabase project, so a fresh clone gets the
+live archive read-only. Writes need the local stack (below).
 
-| Category | Technology |
-| --- | --- |
-| Framework | SvelteKit 5 (legacy Svelte syntax — `$:`, `export let`, not runes) |
-| Language | TypeScript |
-| Maps | OpenLayers 10 (the only map engine) |
-| Georeferencing | Allmaps (`@allmaps/openlayers`, `@allmaps/annotation`, `@allmaps/id`, `@allmaps/transform`) |
-| Backend | Supabase (Postgres + Auth + Storage) |
-| Storage | Cloudflare R2 (self-hosted IIIF tiles via the worker at `iiif.maparchive.vn`) |
-| Deployment | Cloudflare Pages |
-| OCR | Gemini Flash (`work/ocr/`) |
-| Segmentation | Fine-tuned SAM2 (`work/MapSAM2/`) |
+### Verification
+
+```bash
+npm run check        # type-check — the primary gate, kept at 0 errors / 0 warnings
+npm run lint         # prettier --check . && eslint .
+npm run test         # 169 tests: 10 read-only Playwright smokes + 159 pure checks
+npm run db:test      # start a local Supabase stack and seed it
+npm run test:write   # write-path smokes, local stack only — refuses a non-loopback URL
+```
+
+`npm run test` is mostly not a browser suite. The pure checks ride the Playwright
+runner because it is already installed, and they pin the things that fail
+*quietly*: the two copies of the tile-density signal (one TypeScript for the
+browser, one Python for the worker) against identical bytes, the grid arithmetic
+that decides where a street from a printed index lands, the palette against WCAG
+AA in both themes, and the predicate that decides whether an OCR run is allowed
+to spend money.
+
+## How it fits together
+
+Two map surfaces, and every tool is a mode of one of them:
+
+- **`/explore`** — the geographic surface. One OpenLayers map owned by `MapShell`, warped historical sheets over a self-hosted vector basemap. Modes: `browse`, `studio`, `story`.
+- **`/scan`** — the pixel surface. `ImageShell` over a IIIF canvas, for work in a scan's own coordinates. Modes: `inspect`, `triage`, `trace`, `review`.
+
+Modes are query parameters rather than routes on purpose: the map, the basemap
+and the warped tiles stay loaded across a mode change instead of being torn down
+and rebuilt.
+
+Source is layered, and the rule is enforced by lint rather than by review:
+
+```
+core → data → map → features → routes
+```
+
+`core` is pure (no OpenLayers, no Supabase), `ui` is leaf primitives with no
+domain imports, `$lib/server` is blocked from the client by SvelteKit itself, and
+routes stay thin — load and wire, no business logic. A feature may reach another
+feature only through a declared seam.
 
 ## Routes
 
-| Route | Description |
+| Route | What it is |
 | --- | --- |
-| `/` | Home + featured maps |
-| `/catalog` | Faceted catalog with unified FTS search (plus scout candidates for mods/admins) |
-| `/explore` | Browse maps, stack overlays, play stories |
-| `/studio` | Free-form annotation + timeline animation |
-| `/create` | Author guided stories |
+| `/` | The archive's front page: a slider between 1882 and today, featured sheets, and a live demo of the pipeline further down |
+| `/catalog` | Faceted catalogue with full-text search; inline map editing for staff |
+| `/catalog/[id]` | One sheet's share page, server-rendered for crawlers and link previews |
+| `/catalog/place/[name]` | The gazetteer: one page per attested place name |
+| `/explore` | The map viewer — browse, annotate (Studio), author stories |
+| `/scan` | The scan viewer — inspect, triage, trace, review |
 | `/trip/[id]` | Story playback |
-| `/image` | IIIF inspector |
-| `/contribute` | Contribute hub |
-| `/contribute/georef` | Submit georeferencing via the Allmaps Editor |
-| `/contribute/trace` | Polygon/line tracing of footprints (roads, waterways, buildings) |
-| `/contribute/digitalize` | Two-phase HITL: triage (neatline + tile grid) → OCR review |
-| `/contribute/review` | HITL review of SAM2 footprints |
-| `/admin/bulk` | Bulk map creation + tiling script generator |
-| `/admin/scout` | Review and approve scout-discovered IIIF maps |
-| `/login`, `/profile`, `/blog`, `/about` | Account + editorial pages |
+| `/contribute` | How to help |
+| `/contribute/georef` | Georeference a sheet in the Allmaps Editor |
+| `/admin` | One staff console: `?tab=bulk` · `?tab=scout` · `?tab=status` |
+| `/changelog` | Version history |
+| `/directory` | Every page in the archive, in one list |
+| `/screens` | Every design-system component, from fixtures — look here before building a second one |
+| `/about`, `/blog`, `/blog/[slug]`, `/login`, `/profile` | Editorial and account pages |
 
-There is no `/admin` index route — admin map CRUD is gated inline inside `/catalog` when `role === 'admin' | 'mod'`. Retired paths 301-redirect via `src/hooks.server.ts`: `/view` → `/explore`, `/annotate` → `/studio`, `/contribute/label` → `/contribute/digitalize`.
+Retired paths 301 in `src/hooks.server.ts`, including `/view`, `/studio`,
+`/create`, `/image`, the old `/contribute/*` tools, `/admin/*`, and the
+id-carrying `/map/<id>` and `/place/<name>`. Old links and printed references
+still land somewhere real.
 
-## Authentication
+`vmabeta.pages.dev` 301s to `maparchive.vn` — one address for the site. Preview
+deploys at `<hash>.vmabeta.pages.dev` are matched exactly and stay reachable.
 
-Email magic link only — no passwords, no OAuth. New accounts are created on first sign-in. Roles (`user`, `mod`, `admin`) live in the `profiles` table.
+## Accounts and roles
 
-## Adding Maps
+Sign-in is **Google OAuth** — no passwords to store or leak. An account is
+created on first sign-in. Roles live in `profiles`: `user`, `mod`, `admin`. Draft
+sheets are readable by any signed-in user and never anonymously; publishing
+requires that a sheet is actually georeferenceable.
 
-Three ingest paths:
+## Adding maps
 
-1. **Admin UI (`/catalog` map sheet)** — paste a IIIF manifest URL (BnF Gallica, Internet Archive, David Rumsey, EFEO, Humazur…). The server parses the manifest, derives the canonical IIIF image-service URL, and auto-derives `allmaps_id` via `@allmaps/id` (SHA-1 hex, first 16). The Allmaps annotation server is probed; if an annotation already exists, `georef_done` is flagged.
-2. **Bulk (`/admin/bulk` + `scripts/bulk_upload_local.sh`)** — for self-hosted scans. The UI generates a tiling script (R2 worker); the shell script inserts `maps` + `map_iiif_sources` rows, derives `allmaps_id`, and writes the thumbnail.
-3. **Scout (`/admin/scout`)** — `scripts/scout_*.mjs` crawl external IIIF endpoints, surface candidates with similarity scores, and admins one-click ingest into `maps`.
+Status is the only visibility model: `draft → public → featured`. Publishing a
+sheet enqueues its own follow-up work — mirroring the annotation, tiling to R2 —
+rather than leaving someone to remember it.
 
-Status lifecycle: `draft → public → featured`. Georef state is tracked separately on `maps.georef_done`.
+1. **From a IIIF manifest** (`/catalog`, staff) — paste a manifest URL from Gallica, the Internet Archive, Rumsey, EFEO, Humazur. The server parses it, derives the canonical image-service URL and the Allmaps ID, and probes the annotation server to see whether it is already georeferenced.
+2. **In bulk** (`/admin?tab=bulk` + `scripts/bulk_upload_local.sh`) — for our own scans. Rows, tiles and thumbnail in one pass.
+3. **From Scout** (`/admin?tab=scout`) — `scripts/scout_*.mjs` crawl external IIIF endpoints; a moderator records why a candidate is worth having and imports it.
 
-### Sync georef from Allmaps
+Georeferencing happens in the Allmaps Editor, which has no webhook, so a
+`sync_allmaps` job picks the finished work up. `/admin?tab=status` is where you
+see what is stuck.
 
-The Allmaps Editor has no webhook, so volunteers' work is picked up by a probe that hits `https://annotations.allmaps.org/images/{allmaps_id}` for every map with `georef_done = false`:
+## Pipelines
+
+Nothing runs on the web server. A route that starts pipeline work inserts a
+`pipeline_jobs` row and returns 202; a worker claims it.
 
 ```bash
-node scripts/sync_allmaps_georef.mjs --apply           # all pending maps
-node scripts/sync_allmaps_georef.mjs --map-id <id> --apply
+source work/ocr/.venv/bin/activate
+python work/worker/vma_worker.py --worker $(hostname)   # poll forever
+python work/worker/vma_worker.py --once                 # drain one job
 ```
 
-Or click **Sync georef from Allmaps** on `/admin/bulk`. The same job is exposed at `POST /api/admin/maps/sync-georef` for cron / Cloudflare scheduled triggers.
+The worker needs `VMA_API_URL` and `VMA_WORKER_KEY` and **no database
+credentials** — claiming a job and reporting its results both go through
+`/api/pipeline/*`. It takes whatever kinds the machine can run, so a worker left
+running finishes what publishing enqueued.
 
-### Backfill `allmaps_id`
+- **OCR** — `work/ocr/`, its own venv. Gemini Flash over IIIF tiles into `ocr_extractions`, reviewed at `/scan?mode=triage`. Prompt changes are gated on a measured quality baseline, not on how the output looks: `work/ocr/EVAL-BASELINE.md`.
+- **Segmentation** — `work/MapSAM2/`, a fine-tuned SAM2 fork. Runs on Colab, where the GPU is, using the same worker with `--kinds seg`. Polygons land in `footprint_submissions` and are reviewed at `/scan?mode=review`.
 
-For rows imported before auto-derive was wired in:
+The two meet on one full-image pixel grid, which is what lets an OCR label be
+joined to the shape it names.
 
-```bash
-node scripts/backfill_allmaps_ids.mjs            # dry-run audit
-node scripts/backfill_allmaps_ids.mjs --apply    # write
+## Environment
+
+```
+PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY   # the publishable key
+SUPABASE_SERVICE_KEY                            # admin API routes only — the secret key
+IA_S3_ACCESS_KEY, IA_S3_SECRET_KEY              # Internet Archive upload
+VMA_API_URL, VMA_WORKER_KEY                     # worker machines only, never the web app
 ```
 
-## Environment Variables
-
-```
-PUBLIC_SUPABASE_URL        # Supabase project URL
-PUBLIC_SUPABASE_ANON_KEY   # Supabase anon (publishable) key
-SUPABASE_SERVICE_KEY       # Service role key — admin API routes only
-IA_S3_ACCESS_KEY           # Internet Archive upload
-IA_S3_SECRET_KEY           # Internet Archive upload
-```
+`.env.example` has the shape. Worker keys are minted with
+`scripts/mint-worker-key.mjs`.
 
 ## Deployment
 
 ```bash
-npm run build
-npm run deploy                                    # Cloudflare Pages via wrangler
-npx wrangler pages dev .svelte-kit/cloudflare     # Local Cloudflare preview
+npm run deploy                                    # build + wrangler pages deploy
+npx wrangler pages dev .svelte-kit/cloudflare     # local Cloudflare preview
 ```
 
-Pages config lives in the root `wrangler.toml`; the R2 tile worker has its own under `worker/`.
+Three rules, each of which cost a run of dead builds to learn — the full account
+is in [`docs/deploy.md`](docs/deploy.md):
 
-## ML Pipelines
+- **There is no root `wrangler.toml`, on purpose.** One that carries `pages_build_output_dir` replaces the dashboard's entire environment, secrets included. The R2 tile worker's own `worker/wrangler.toml` is separate and fine.
+- **Environment lives in the Cloudflare dashboard**, per environment, and resolves at build time through `$env/static/private`. Every environment that builds needs all of it present.
+- **Never import a Node builtin bare.** `import('path')` fails the Functions bundle and publishes nothing; use the `node:` prefix.
 
-Both pipelines live outside the SvelteKit app and read/write Supabase via the service key.
-
-- **OCR** — `work/ocr/` (venv at `work/ocr/.venv`). Gemini Flash over IIIF tiles → `ocr_extractions`. Reviewed and edited in `/contribute/digitalize`.
-- **MapSAM2** — `work/MapSAM2/`. Fine-tuned SAM2 fork, run on Colab against an upstream clone. Tile-level polygon inference → `footprint_submissions`. Reviewed in `/contribute/review`.
-
-See `docs/pipelines.md` for the command reference, `work/MapSAM2/TECHNICAL.md` for SAM2 training/inference detail, and `work/ocr/EVAL-BASELINE.md` for the measured OCR quality gate.
+A blank page in the minute after a deploy is edge propagation, not a bug. Wait,
+hard-reload, then debug.
 
 ## Documentation
 
-Start with `CLAUDE.md` — it is the map of the repo and the rules, written for both people and coding agents. Then:
+Start with **[`CLAUDE.md`](CLAUDE.md)** — the map of the repo and its rules,
+written for both people and coding agents. Then:
 
 | Doc | What it is |
 | --- | --- |
-| `docs/ROADMAP.md` | The one tracker. Ship/harden, architecture steps, OCR↔SAM2 product, burn-down |
+| `docs/ROADMAP.md` | The one tracker: ship/harden, architecture, the OCR↔SAM2 product, burn-down |
 | `docs/system-guidelines.md` | Layering rule, page structure, component patterns, known debt (§11) |
-| `docs/db-guidelines.md` | Schema conventions every migration follows, plus the table-by-table reference (§11) |
-| `docs/api.md` | Every server route, its auth class and its contract |
-| `docs/deploy.md` | Cloudflare Pages: env in the dashboard, no root `wrangler.toml`, the blank-page effect |
-| `docs/design-system.md` | Tokens, the CSS file map, page template |
-| `docs/digitalize-guide.md` | Operator guide for `/contribute/digitalize` |
-| `docs/pipelines.md` | OCR + MapSAM2 command reference and rationale |
-| `docs/admin-tooling.md` | MapEditModal, Bulk Upload, Scout, R2 worker |
-| `docs/time-machine-plan.md`, `docs/platform-design.md` | Track E engineering plan; the shared-platform proposal |
+| `docs/db-guidelines.md` | Schema conventions every migration follows, table by table |
+| `docs/api.md` | Every server route, its auth class, its contract |
+| `docs/deploy.md` | Cloudflare Pages, and the ten dead builds behind each rule |
+| `docs/design-system.md` | Tokens, the CSS file map, the page template |
+| `docs/digitalize-guide.md` | Operator guide for triage — including the failure modes that return plausible output while dropping data |
+| `docs/pipelines.md` | OCR + MapSAM2 commands, and what not to re-attempt |
+| `docs/admin-tooling.md` | Map editing, bulk upload, Scout, the R2 worker |
+| `docs/time-machine-plan.md`, `docs/platform-design.md` | The temporal-fabric plan; the shared-platform proposal |
 | `docs/strategy.md`, `docs/theory.md`, `docs/user-guide.md` | Vision and outward-facing prose |
-| `docs/archive/` | Frozen. Historical plans, application material, the August 2026 cleanup record |
-| `work/MapSAM2/TECHNICAL.md`, `work/ocr/EVAL-BASELINE.md` | Model notes and the measured OCR quality gate |
+| `docs/journals/` | Dated research notes |
+| `work/MapSAM2/TECHNICAL.md`, `work/ocr/EVAL-BASELINE.md` | Model notes; the measured OCR quality gate |
+| `docs/archive/` | Frozen. Historical plans and the record of the August 2026 cleanup — not current |
 
-## License
+## Stack
 
-[Add license]
+SvelteKit 2 with Svelte 5 in **legacy syntax** (`$:`, `export let`, stores — not
+runes; the house style is in `CLAUDE.md`). TypeScript. OpenLayers 10 as the only
+map engine, with `@allmaps/openlayers` warping the historical sheets. Supabase
+for Postgres, auth and storage, with status transitions written as Postgres
+functions rather than in the API. Cloudflare Pages for the app, R2 for IIIF tiles
+and for the ~348 MB PMTiles basemap that spans Hanoi to the Mekong — no
+third-party tile service, no API key, no usage policy to outgrow. Fonts are
+self-hosted too.
+
+## Contributing
+
+The archive is worth more with more sheets in it and more names read off them.
+`/contribute` says what needs doing; georeferencing needs no code, and
+`docs/digitalize-guide.md` is the operator guide for the reading pipeline.
+
+## Licence
+
+Not yet chosen, which by default means all rights reserved. If you want to reuse
+any of this, ask: **vietnamma.project@gmail.com**.
+
+The maps themselves are a separate question — each sheet carries its own
+holding institution and rights, recorded per row and shown on its catalogue
+page.
