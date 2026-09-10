@@ -888,3 +888,35 @@ source-pixel space and would need the same two multipliers.
 Still above the 1.1 m/px line, so it stays on the coarse list — 25% less
 severe, at no cost, and the last row of that audit that could be closed without
 buying anything.
+
+## 2026-09-10 — the 1968 800-tile pass finished, and G's extrapolation was low
+
+`body-1968-20260910g-t800` was stopped at 72 of 96 calls to hold a USD 3
+ceiling. Resumed on its own run dir (the 204 tiles on disk are detected as
+done), it took the remaining **24 calls for USD 0.7293** — the 72-call prefix
+of `calls.jsonl` still reprices to 1.8364, so the two halves are directly
+comparable. 1054 raw → **773 unique** at the 0.5 floor.
+
+| over the whole sheet, 367 printed names | `name_recall` | body labels |
+|---|---|---|
+| `…910a`, tile 1120, `main_map` | 0.3270 (120) | 289 |
+| G's union of three passes | 0.3978 (146) | — |
+| **the 800 pass alone, complete** | **0.4632 (170)** | 439 |
+| **union of all three, `_union-0910-t800full`** | **0.4959 (182)** | 524 |
+
+`agreement` 0.9402 at ±1 cell on 234 matched, 290 labels not in the directory.
+
+**The extrapolation was wrong in the direction that matters.** G projected
+0.375–0.385 for a complete 800 pass, reasoning that the four unrun rows were
+"the sheet's southern edge where the directory is thinnest". They were not: the
+last 24 calls added **+36 printed names** for USD 0.7293, which is **USD 0.020
+per name** against the USD 0.09 measured over the first twelve rows — the best
+value anything has returned on this sheet, four times over. The thin part of
+that projection was the assumption, not the paper.
+
+Total for the sheet: G's 2.2544 plus this 0.7293 is **USD 2.98**, and 0.3270 →
+0.4959, +62 printed names.
+
+The merge is a plain union (`ocr.py merge`, three runs, 1439 labels → 990, 427
+seen by more than one pass), not a vote — the shifted second 800 pass that
+would make a vote meaningful is the next step, not this one.
