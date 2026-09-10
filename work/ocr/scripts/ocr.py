@@ -170,6 +170,46 @@ def clahe_prep(args: argparse.Namespace):
     return lambda img: apply_clahe(img, clip, grid)
 
 
+def _tile_cache_path(tile_cache_dir: Path, tile_key: str, render: int) -> Path:
+    """Where a tile rendered at `render` px lives. The render size is part of the
+    name because a tile is not one image: the same crop at 1024 and at 2048 are
+    different pictures of it."""
+    return tile_cache_dir / f"{tile_key}@{render}_tile.png"
+
+
+def _cached_tile(tile_cache_dir: Path, tile_key: str, render: int) -> Image.Image | None:
+    """The cached PNG for this tile *at this render size*, or None to fetch it.
+
+    The key was `x_y_w_h` alone until 2026-09-10, with no render size in it, so
+    any sheet tiled once was served from cache no matter what `--render-size`,
+    `--low-res-render` or `--adaptive` asked for afterwards. The flags were not
+    overridden, they were silently ignored, and a run that changed one reported
+    a number it had not measured — which is the worst shape a bug can take in a
+    pipeline whose whole job is producing numbers. Measured on the 1882 gate
+    sheet: a 2400 px and a 1024 px render of the same frame also tokenise to the
+    same ~1032 input tokens, so the cache was hiding a knob that is inert at the
+    API anyway. Two separate reasons not to trust an old render-size result.
+
+    A legacy file is read and reused when it happens to hold the right size, and
+    otherwise ignored — deliberately not renamed. Renaming would be tidier and
+    is lossless, but these directories are shared with a running worker and with
+    other sessions, and a cache that moves under a concurrent reader is a worse
+    problem than a few files with uninformative names.
+    """
+    from PIL import Image as PILImage  # imported per-function, as elsewhere here
+
+    path = _tile_cache_path(tile_cache_dir, tile_key, render)
+    if path.exists():
+        return PILImage.open(path).convert("RGB")
+
+    legacy = tile_cache_dir / f"{tile_key}_tile.png"
+    if legacy.exists():
+        img = PILImage.open(legacy).convert("RGB")
+        if max(img.size) == render:
+            return img
+    return None
+
+
 def cmd_run(args: argparse.Namespace) -> None:
     # Resolve IIIF base
     iiif_base = args.iiif_base
@@ -259,7 +299,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         # Save JSON (in versioned run dir)
         json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2))
         # Tile image cached at map level (shared across runs)
-        tile_img_path = tile_cache_dir / f"{tile_key}_tile.png"
+        tile_img_path = _tile_cache_path(tile_cache_dir, tile_key, max(image.size))
         if not tile_img_path.exists():
             image.save(tile_img_path)
 
@@ -445,8 +485,59 @@ def cmd_batch(args: argparse.Namespace) -> None:
             print(f"  Adaptive Tiling: Constraining grid to map bound {grid_region}")
 
     # 2. Auto-scale tile size to hit target call count
+    # ── Ground-distance tiling ────────────────────────────────────────────────
+    # `--tile-metres` sizes the grid from the sheet's own georeference instead of
+    # from a pixel count someone worked out by hand. It is the flag
+    # `docs/pipelines.md` step 3 has referred to since it was written, and the
+    # first thing on the Python side that can see the ground.
+    #
+    # Sized off `grid_region` when a crop is already known — which means a
+    # --smart-grid crop is too late to be seen here, exactly as it is for
+    # --target-calls below. Pass --crop if the neatline matters to the sizing.
+    tile_metres = getattr(args, "tile_metres", None)
+    sized_from_scale = False
+    scale_fit = None
+    if tile_metres and not local_image and args.map_id:
+        from scale import (
+            COARSE_SCAN_METRES_PER_PX,
+            DEFAULT_OVERLAP_RATIO,
+            annotation_for_map,
+            metres_per_pixel,
+            tile_size_for,
+        )
+
+        ann = annotation_for_map(args.map_id)
+        fit = scale_fit = metres_per_pixel(ann) if ann else None
+        if fit is None:
+            print("  --tile-metres: no usable georeference on this map "
+                  "(4+ GCPs needed) — keeping --tile-size")
+        elif not fit.trustworthy:
+            print(f"  --tile-metres: {fit}\n"
+                  "     too anisotropic to size from — keeping --tile-size")
+        else:
+            region_w = grid_region[2] if grid_region else img_w
+            region_h = grid_region[3] if grid_region else img_h
+            plan = tile_size_for(
+                fit.mean, region_w, region_h,
+                target_metres=tile_metres,
+                overlap_ratio=DEFAULT_OVERLAP_RATIO,
+            )
+            tile_size = plan.tile
+            overlap = int(plan.tile * DEFAULT_OVERLAP_RATIO)
+            render_size = plan.render
+            sized_from_scale = True
+            print(f"  Scale: {fit}")
+            print(f"  Sizing: {plan}  (--overlap ignored; {DEFAULT_OVERLAP_RATIO:.0%} of the tile)")
+            if fit.mean > COARSE_SCAN_METRES_PER_PX:
+                print(f"  ⚠ Coarse scan: {fit.mean:.2f} m in every source pixel. The frame is "
+                      "normalised to a fixed patch budget before the model sees it, so no "
+                      "tile size or render size recovers ink the scan never captured — "
+                      "expect low recall and look for a better source before spending more.")
+
     target_calls = getattr(args, "target_calls", None)
-    if target_calls and not local_image:
+    if target_calls and sized_from_scale:
+        print("  --target-calls ignored: --tile-metres already sized the grid.")
+    elif target_calls and not local_image:
         region_w = grid_region[2] if grid_region else img_w
         region_h = grid_region[3] if grid_region else img_h
         tile_size, overlap, render_size = auto_tile_params(
@@ -677,23 +768,31 @@ def cmd_batch(args: argparse.Namespace) -> None:
             for tile in row_tiles:
                 x, y, w, h = tile
                 tile_key = f"{x}_{y}_{w}_{h}"
-                tile_img_path = tile_cache_dir / f"{tile_key}_tile.png"
                 try:
-                    if tile_img_path.exists():
-                        img = PILImage.open(tile_img_path).convert("RGB")
-                    else:
-                        tile_priority = _priority(x, y)
-                        if tile_priority == "low_res":
-                            rs = low_res_render
-                        elif use_adaptive:
+                    # The render size has to be known before the cache is asked,
+                    # because it is part of the key. Under --adaptive it is data
+                    # dependent, so try both sizes the density rule can return
+                    # before paying for the 512 px probe that decides between
+                    # them — a cached tile is still free, just not free to find.
+                    tile_priority = _priority(x, y)
+                    if tile_priority == "low_res":
+                        rs = low_res_render
+                        img = _cached_tile(tile_cache_dir, tile_key, rs)
+                    elif use_adaptive:
+                        img = (_cached_tile(tile_cache_dir, tile_key, 2048)
+                               or _cached_tile(tile_cache_dir, tile_key, 1024))
+                        rs = max(img.size) if img else None
+                        if rs is None:
                             preview = fetch_crop(iiif_base, x, y, w, h, size=512,
                                                  quality=iiif_quality)
                             rs = adaptive_render_size(preview, low=1024, high=2048)
-                        else:
-                            rs = render_size
+                    else:
+                        rs = render_size
+                        img = _cached_tile(tile_cache_dir, tile_key, rs)
+                    if img is None:
                         img = fetch_crop(iiif_base, x, y, w, h, size=rs,
                                          local_image=local_image, quality=iiif_quality)
-                        img.save(tile_img_path)
+                        img.save(_tile_cache_path(tile_cache_dir, tile_key, max(img.size)))
                     row_images.append(clahe(img) if clahe else img)
                     row_order.append(tile)
                 except Exception as e:
@@ -784,14 +883,12 @@ def cmd_batch(args: argparse.Namespace) -> None:
             json_path = out_dir / f"{tile_key}.json"
 
             try:
-                tile_img_path = tile_cache_dir / f"{tile_key}_tile.png"
-                if tile_img_path.exists():
-                    image = PILImage.open(tile_img_path).convert("RGB")
-                else:
-                    tile_rs = low_res_render if _priority(x, y) == "low_res" else render_size
+                tile_rs = low_res_render if _priority(x, y) == "low_res" else render_size
+                image = _cached_tile(tile_cache_dir, tile_key, tile_rs)
+                if image is None:
                     image = fetch_crop(iiif_base, x, y, w, h, size=tile_rs,
                                        local_image=local_image, quality=iiif_quality)
-                    image.save(tile_img_path)
+                    image.save(_tile_cache_path(tile_cache_dir, tile_key, max(image.size)))
                 if clahe:
                     image = clahe(image)
 
@@ -948,6 +1045,8 @@ def cmd_batch(args: argparse.Namespace) -> None:
         "tile_overrides": tile_overrides or None,
         "low_res_render": low_res_render if tile_overrides else None,
         "target_calls": getattr(args, "target_calls", None),
+        "tile_metres": tile_metres,
+        "metres_per_pixel": round(scale_fit.mean, 4) if scale_fit else None,
         "smart_grid": getattr(args, "smart_grid", False),
         "clahe": [args.clahe_clip, args.clahe_grid] if getattr(args, "clahe", False) else False,
         "prior_run": getattr(args, "prior_run", None),
@@ -992,6 +1091,15 @@ def cmd_preview(args: argparse.Namespace) -> None:
 # Narrowest full-sheet render the scout will look at. Below this a street name is
 # a few pixels tall and the layout/OCR passes return plausible nothing.
 SCOUT_MIN_WIDTH = 1024
+
+# Narrowest overview the density pre-pass may be computed from. Not a taste
+# call: measured on the 1882 Saigon cadastral, mean density of centre tiles vs
+# edge tiles ran 0.019 vs 0.134 at 600px, 0.044 vs 0.129 at 1024px and 0.106 vs
+# 0.140 at 1513px — inverted every time, so --auto-priority would have skipped
+# exactly the tiles worth reading. Only at 2048 does it come right (0.166 vs
+# 0.139). The same number is hardcoded as OVERVIEW_WIDTH in cmd_batch; this is
+# the floor the scout checks before it dares propose a priority grid.
+PRIORITY_MIN_OVERVIEW_WIDTH = 2048
 
 CATEGORY_MIN_CONF: dict[str, float] = {
     "street":      0.40,
@@ -1719,24 +1827,28 @@ def cmd_stitch(args: argparse.Namespace) -> None:
     for crop in crop_list:
         tx, ty, tw, th = crop
         tile_key = f"{tx}_{ty}_{tw}_{th}"
-        # Check map-level cache first, then run dir (legacy)
-        tile_img_path = tile_cache_dir / f"{tile_key}_tile.png"
-        if not tile_img_path.exists():
-            tile_img_path = out_dir / f"{tile_key}_tile.png"
+        adaptive = getattr(args, "adaptive", False)
+        rs = None if adaptive else render_size
+        # Map-level cache first, then the run dir (legacy layout).
+        img = _cached_tile(tile_cache_dir, tile_key, rs) if rs else (
+            _cached_tile(tile_cache_dir, tile_key, 2048)
+            or _cached_tile(tile_cache_dir, tile_key, 1024)
+        )
+        if img is None:
+            legacy = out_dir / f"{tile_key}_tile.png"
+            if legacy.exists():
+                img = PILImage.open(legacy).convert("RGB")
 
-        if tile_img_path.exists():
-            tile_images[tile_key] = PILImage.open(tile_img_path).convert("RGB")
+        if img is not None:
+            tile_images[tile_key] = img
         elif iiif_base:
             print(f"  Fetching tile {tx},{ty},{tw},{th} ...")
-            adaptive = getattr(args, "adaptive", False)
-            if adaptive:
+            if rs is None:
                 preview = fetch_crop(iiif_base, tx, ty, tw, th, size=512, quality=iiif_quality)
                 rs = adaptive_render_size(preview)
                 print(f"    density={estimate_density(preview):.2f} → {rs}px", end=" ")
-            else:
-                rs = render_size
             img = fetch_crop(iiif_base, tx, ty, tw, th, size=rs, quality=iiif_quality)
-            img.save(tile_cache_dir / f"{tile_key}_tile.png")
+            img.save(_tile_cache_path(tile_cache_dir, tile_key, max(img.size)))
             tile_images[tile_key] = img
         else:
             print(f"  No image for tile {tile_key} — skipping")
@@ -2450,6 +2562,111 @@ def cmd_scout(args: argparse.Namespace) -> None:
 
     print(f"  Found {len(items)} macro features.")
 
+    # ── Tiling and priority proposal ──────────────────────────────────────────
+    # The scout already holds a full-sheet overview and the layout regions, so it
+    # already holds everything a tiling decision needs. Before this, a tile size
+    # was picked by hand per sheet and the priority grid was derived inside the
+    # batch run — at spend time, where nobody reviews it. Emitting both here
+    # makes them a proposal someone accepts, which is the shape the rest of
+    # triage already has.
+    tiling = None
+    priorities = None
+    proposal_note = None
+    overview = images[-1]
+
+    if overview.size[0] < PRIORITY_MIN_OVERVIEW_WIDTH:
+        proposal_note = (
+            f"overview is {overview.size[0]}px wide, under the "
+            f"{PRIORITY_MIN_OVERVIEW_WIDTH}px the density signal needs — no priority "
+            "proposal (below it the signal inverts and rates the dense centre "
+            "*below* the margins, which would skip the tiles worth reading)"
+        )
+        print(f"  Proposal: {proposal_note}")
+    elif not args.map_id:
+        proposal_note = "no --map-id, so no georeference to size from"
+    else:
+        from scale import (
+            COARSE_SCAN_METRES_PER_PX,
+            DEFAULT_OVERLAP_RATIO,
+            DEFAULT_TILE_METRES,
+            annotation_for_map,
+            metres_per_pixel,
+            tile_size_for,
+        )
+        from supabase_client import save_triage_grid
+
+        ann = annotation_for_map(args.map_id)
+        fit = metres_per_pixel(ann) if ann else None
+        if fit is None:
+            proposal_note = "no usable georeference (3+ non-collinear GCPs needed)"
+            print(f"  Proposal: {proposal_note}")
+        else:
+            # main_map beats the content bound, for the same reason `tilingCrop`
+            # in triageTypes.ts says so: the neatline is the printed border, and
+            # a legend printed inside it is inside the neatline too.
+            main = next((r for r in regions if r["category"] == "main_map"), None)
+            if main:
+                crop = tuple(main["bbox"])
+                crop_src = "main_map region"
+            elif global_bound:
+                crop = tuple(int(v) for v in global_bound)
+                crop_src = "map content bound"
+            else:
+                crop = (0, 0, full_w, full_h)
+                crop_src = "whole sheet"
+
+            target = args.tile_metres or DEFAULT_TILE_METRES
+            plan = tile_size_for(fit.mean, crop[2], crop[3], target_metres=target,
+                                 overlap_ratio=DEFAULT_OVERLAP_RATIO)
+            overlap_px = int(plan.tile * DEFAULT_OVERLAP_RATIO)
+            tiles = list(tile_grid(full_w, full_h, tile=plan.tile,
+                                   overlap=overlap_px, region=crop))
+            densities = compute_tile_densities(overview, tiles, full_w, full_h)
+            priorities = auto_tile_overrides(
+                densities,
+                skip_below=args.skip_below,
+                low_res_below=args.low_res_below,
+            )
+            tiling = {
+                "metres_per_pixel": round(fit.mean, 4),
+                "metres_per_pixel_x": round(fit.mx, 4),
+                "metres_per_pixel_y": round(fit.my, 4),
+                "anisotropy": round(fit.anisotropy, 4),
+                "n_gcps": fit.n_gcps,
+                "transformation": fit.transformation,
+                "crop": list(crop),
+                "crop_source": crop_src,
+                "tile_size": plan.tile,
+                "overlap": overlap_px,
+                "render_size": plan.render,
+                "tile_metres": round(plan.metres_per_tile, 1),
+                "target_metres": target,
+                "holds_target": plan.holds_target,
+                "n_tiles": plan.n_tiles,
+                "coarse_scan": fit.mean > COARSE_SCAN_METRES_PER_PX,
+                "overview_width": overview.size[0],
+            }
+            n_skip = sum(1 for v in priorities.values() if v == "skip")
+            n_low = sum(1 for v in priorities.values() if v == "low_res")
+            print(f"  Scale: {fit}")
+            print(f"  Tiling ({crop_src}): {plan}")
+            print(f"  Priority: {len(tiles)} tiles -> {n_skip} skip, {n_low} low_res, "
+                  f"{len(tiles) - n_skip - n_low} full")
+            if fit.mean > COARSE_SCAN_METRES_PER_PX:
+                print(f"  ⚠ Coarse scan ({fit.mean:.2f} m per source pixel): no tile size "
+                      "recovers ink the scan never captured. Look for a better source.")
+
+            if getattr(args, "save_triage", False):
+                save_triage_grid(args.map_id, {
+                    "tile_size": plan.tile,
+                    "overlap": overlap_px,
+                    "crop": list(crop),
+                    "priorities": priorities,
+                    "source": "scout",
+                })
+                print("  Saved the proposed grid to maps.triage "
+                      "(still needs accepting in triage — this is a proposal, not a run)")
+
     # Save results
     map_label = args.map_id or "unknown"
     run_dir = make_run_dir(map_label, args.run_id)
@@ -2462,6 +2679,9 @@ def cmd_scout(args: argparse.Namespace) -> None:
         "map_content_bbox": list(global_bound) if global_bound else None,
         "cartouche_bbox": list(global_cartouche) if global_cartouche else None,
         "regions": regions,
+        "tiling": tiling,
+        "priorities": priorities,
+        "proposal_note": proposal_note,
         "metadata": metadata,
         "extractions": [{**e, "global_bbox": list(e["global_bbox"])} for e in items],
     }, indent=2, ensure_ascii=False))
@@ -2524,6 +2744,71 @@ def cmd_scout(args: argparse.Namespace) -> None:
             print("  No main_map region — the crop is left for a person to draw")
 
     return {"content": global_bound, "cartouche": global_cartouche, "regions": regions}
+
+
+def cmd_scale(args: argparse.Namespace) -> None:
+    """Print the sheet's scale and the tiling it implies. Spends nothing.
+
+    The whole point of a proposal you can read before you pay for it: two HTTP
+    GETs, no model call, no tile fetch. `--all` sweeps every georeferenced map
+    so the coarse scans in the corpus can be found without opening 39 runs.
+    """
+    import requests
+
+    from scale import (
+        COARSE_SCAN_METRES_PER_PX,
+        DEFAULT_OVERLAP_RATIO,
+        DEFAULT_TILE_METRES,
+        annotation_for_map,
+        metres_per_pixel,
+        tile_size_for,
+    )
+    from supabase_client import _headers, _load_config
+
+    if args.all:
+        url, key = _load_config()
+        resp = requests.get(
+            f"{url}/rest/v1/maps",
+            params={"select": "id,name,year,allmaps_id,annotation_url",
+                    "allmaps_id": "not.is.null", "order": "year"},
+            headers=_headers(key), timeout=30,
+        )
+        resp.raise_for_status()
+        targets = [(r["id"], f"{r.get('year') or '????'} {r.get('name') or r['id'][:8]}")
+                   for r in resp.json()]
+    else:
+        if not args.map_id:
+            raise SystemExit("Provide --map-id or --all")
+        targets = [(args.map_id, args.map_id[:8])]
+
+    target_metres = args.tile_metres or DEFAULT_TILE_METRES
+    coarse: list[str] = []
+    for map_id, label in targets:
+        ann = annotation_for_map(map_id)
+        fit = metres_per_pixel(ann) if ann else None
+        if fit is None:
+            print(f"{label}: no usable georeference (4+ GCPs needed)")
+            continue
+        source = ann["items"][0]["target"]["source"] if ann.get("items") else {}
+        w, h = source.get("width"), source.get("height")
+        print(f"{label}: {fit}")
+        if not (w and h):
+            print("   annotation carries no source dimensions — cannot size")
+            continue
+        plan = tile_size_for(fit.mean, w, h, target_metres=target_metres,
+                             overlap_ratio=DEFAULT_OVERLAP_RATIO)
+        print(f"   {w}x{h}px -> {plan}")
+        # When a bound bound first, the target that *would* hold is the one worth
+        # printing: the operator's next command, not the one they just typed.
+        suggested = plan.metres_per_tile if not plan.holds_target else target_metres
+        print(f"   ocr.py batch --map-id {map_id} --tile-metres {suggested:.0f}")
+        if fit.mean > COARSE_SCAN_METRES_PER_PX:
+            coarse.append(f"{label} ({fit.mean:.2f} m/px)")
+
+    if coarse:
+        print(f"\nCoarse scans — a better source beats a bigger budget ({len(coarse)}):")
+        for c in coarse:
+            print(f"  {c}")
 
 
 def cmd_list_models(args: argparse.Namespace) -> None:
@@ -3150,9 +3435,18 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Auto-scale render size by tile density (dense=2048, sparse=1024). "
                               "Only fetches a 512px preview for uncached tiles; already-cached "
                               "tiles use their stored resolution.")
+    p_batch.add_argument("--tile-metres", type=float,
+                         help="Size the tile grid to hold this much ground per call, read "
+                              "from the sheet's own georeference (1400 is the measured "
+                              "value; see docs/pipelines.md step 3). Overrides --tile-size, "
+                              "--overlap and --render-size, and wins over --target-calls. "
+                              "Needs 4+ GCPs on the map; falls back to --tile-size and says "
+                              "so when the georeference cannot support it.")
     p_batch.add_argument("--target-calls", type=int,
                          help="Auto-scale tile size to hit this many API calls "
-                              "(e.g. --target-calls 12). Adjusts render size proportionally.")
+                              "(e.g. --target-calls 12). Adjusts render size proportionally. "
+                              "Only sizes *up* from --tile-size, so it can make a run cheaper "
+                              "and never finer — prefer --tile-metres.")
     p_batch.add_argument("--smart-grid", action="store_true",
                          help="Detect neatline from overview image and crop grid to content area")
     p_batch.add_argument("--skip-sparse", action="store_true",
@@ -3241,8 +3535,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_scout.add_argument("--prompt", default="scout", help="Prompt version key (default 'scout')")
     p_scout.add_argument("--run-id", help="Run identifier")
     p_scout.add_argument("--preview", action="store_true", help="Save PNG preview with bbox overlay")
+    p_scout.add_argument("--tile-metres", type=float,
+                         help="Ground per call to propose a tile grid for (default 1400)")
+    p_scout.add_argument("--skip-below", type=float, default=0.01,
+                         help="Text-density fraction below which a tile is proposed skip "
+                              "(default 0.01, same as batch --auto-priority)")
+    p_scout.add_argument("--low-res-below", type=float, default=0.08,
+                         help="Text-density fraction below which a tile is proposed low_res "
+                              "(default 0.08, same as batch --auto-priority)")
     p_scout.add_argument("--save-triage", action="store_true",
-                         help="Write the detected regions to maps.triage.regions (needs --map-id)")
+                         help="Write the detected regions to maps.triage.regions, and the "
+                              "proposed tile grid + priorities to maps.triage.grid "
+                              "(needs --map-id). Still a proposal — triage has to accept it.")
     p_scout.set_defaults(func=cmd_scout)
 
     # preview
@@ -3270,6 +3574,16 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("self-check",
                    help="Check the pure helpers on the automated path"
                    ).set_defaults(func=cmd_self_check)
+
+    p_sc = sub.add_parser("scale",
+                          help="Print a sheet's metres-per-pixel and the tiling it implies "
+                               "(no API calls, no tile fetches)")
+    p_sc.add_argument("--map-id", help="Supabase maps.id UUID")
+    p_sc.add_argument("--all", action="store_true",
+                      help="Every georeferenced map, oldest first")
+    p_sc.add_argument("--tile-metres", type=float,
+                      help="Ground per call to size for (default 1400)")
+    p_sc.set_defaults(func=cmd_scale)
 
     p_lm = sub.add_parser("list-models", help="List available Gemini models")
     p_lm.set_defaults(func=cmd_list_models)

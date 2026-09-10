@@ -454,7 +454,95 @@ it before touching the core loop.
 - **The selected prompt only started reaching the row-sequence path on 2026-09-08.** `extract_labels_sequence()` carried a hardcoded fallback prompt naming an "1882 Saigon cadastral map" and `cmd_batch` passed no prompt, so the production default sent that fallback for every sheet — 1968 Vietnamese ones included — while each tile's `_meta` recorded `"prompt": "v8"`. The caller now composes `PROMPTS[<version>] + sequence_frame_rules(n)`, `user_prompt` has no default, and `test_prompt_plumbing.py` fails if either regresses. Every run before that date was v8 in name only; do not read `_meta.prompt` on an older run as evidence of which prompt was sent.
 - `clean` writes to `ocr_extractions` (correct target for the digitalize review UI); legacy `dedup` writes to `label_pins`.
 
-Scripts: `ocr.py` (CLI), `gemini_client.py` (key rotation + retries), `iiif_tiles.py` (crop fetch, IA fallback, IIIF v2/v3 detection), `supabase_client.py` (direct REST), `prompt.py`, `local_vision.py`, `join_labels.py`, `eval.py` + `eval_metrics.py`, `cache.py`.
+### Sizing a grid from the sheet's own scale (2026-09-10)
+
+`work/ocr/scripts/scale.py` reads the ground control points off the map's Allmaps
+annotation and returns metres per source pixel. The annotation was already being
+fetched — `iiif_tiles.get_iiif_base_from_allmaps` pulls it and reads one field —
+so the scale cost nothing new to obtain. Three sheets, all confirmed against
+tile sizes that had been chosen by hand: 1882 cadastral 0.343 m/px, 1959 Đô
+thành Sài Gòn 0.999, 1968 Sài Gòn 1.273.
+
+```bash
+# What a run would do, for nothing: two HTTP GETs, no model call, no tile fetch.
+python work/ocr/scripts/ocr.py scale --map-id <uuid>
+python work/ocr/scripts/ocr.py scale --all          # every georeferenced sheet
+
+# Size the grid from the ground instead of from a pixel count picked by hand.
+python work/ocr/scripts/ocr.py batch --map-id <uuid> --tile-metres 1400
+```
+
+`--tile-metres` overrides `--tile-size`, `--overlap` and `--render-size`, wins
+over `--target-calls`, and falls back to `--tile-size` *and says so* when the
+georeference cannot support it. Three GCPs are enough (thirteen sheets in the
+corpus carry exactly three); what it refuses is control points that are nearly
+collinear, since those fit a line and the cross-axis scale they imply is noise.
+The derived `tile_size`, `overlap`, `render_size`, `tile_metres` and
+`metres_per_pixel` all land in the run's `run_config.json`.
+
+Two bounds are worth knowing because they change what the flag does rather than
+just trimming it. A **tile floor of 640 px** stops a coarse sheet asking for an
+absurd grid: the 1930 Giadinh survey is 8.5 m in every pixel, where 1400 m of
+ground is a 167 px tile and 8,175 calls to read a road map whose labels are
+towns. When the floor binds, `TileFit.holds_target` is false and the tool prints
+the target that *would* hold. And above **1.1 m per source pixel** the scan is
+the ceiling and no flag moves it — `ocr.py scale --all` ends with that list (16
+of the georeferenced sheets, today). 1959 at 0.999 m/px reads 0.712 of its
+printed names in one pass; 1968 at 1.273 reads 0.327. Two points, so treat it as
+a flag to raise at triage, not a refusal.
+
+**The scout now proposes the grid and the priorities.** It already fetched a
+full-sheet overview and located the layout regions, which is everything a tiling
+decision needs, so `scout` writes `tiling` and `priorities` into `scout.json`
+(and to `maps.triage` with `--save-triage`) instead of leaving the tile size to
+be picked by hand and the priority grid to be derived inside the batch run, at
+spend time, where nobody reviews it. It crops to `main_map` when the layout pass
+found one, for the same reason `tilingCrop` does. It refuses to propose
+priorities from an overview under 2048 px wide: below that the density signal
+**inverts** and rates the dense city centre lower than the margins, so the
+proposal would skip exactly the tiles worth reading.
+
+### Two corrections this work forced (2026-09-10)
+
+**`--render-size` was inert, twice over, and every render-size result before this
+date is void.** First the cache: the tile PNG key was `x_y_w_h_tile.png` with no
+render size in it, so once a sheet had been tiled *any* later run was served
+those bytes no matter what `--render-size`, `--low-res-render` or `--adaptive`
+asked for. Not overridden — silently ignored, which means a run that changed one
+reported a number it had not measured. The key now carries the rendered width
+(`x_y_w_h@1024_tile.png`), a legacy file is reused only when it happens to hold
+the requested size, and `work/ocr/scripts/test_tile_cache.py` is the check that
+fails if the render size falls out of the key again. Legacy files are read but
+deliberately never renamed: these directories are shared with a running worker.
+
+Second, and more surprising: **render size barely matters at the API.** Measured
+on the 1882 gate sheet, a 2400 px frame and a 1024 px frame of the same tile
+cost the same ~1032 input tokens, because the image is normalised to a patch
+budget before the model sees it (1032 tokens is four 768 px patches, so the
+effective ceiling is around 1536 px — that step is inferred from the token
+count, not measured directly). Scores moved a wash: matched 71 → 73,
+`text_recall@0.3` 0.906 → 0.878, 13% more wall clock. `scale.py` therefore caps
+render at 1536 as a *cost* measure and never upsamples.
+
+The useful consequence is the one to carry forward. If the frame is normalised
+to a fixed budget whatever its pixel size, then the only thing setting how much
+detail reaches the model is how much **ground** is inside the frame — which is
+why tile size is the lever this document has always said it is, and why no flag
+rescues a coarse scan.
+
+**And one number in this file is not settled.** § *Full resolution* above says
+the 1959 sheet is 2.80 m/px at source; the GCP fit says 0.999, and 0.999 is what
+the sheet's own extent implies (14,000 px across roughly 14 km of city). The two
+figures come from different methods — `collection_aoi.mjs` divides an AOI's
+ground area by its pixel area, which is local to that rectangle, while
+`scale.py` fits an affine over the whole sheet's control points — and they have
+never been compared on identical input. Until they are, treat the derived claims
+in that paragraph (the "6.5 m/px delivered", "cannot resolve a street name") as
+unverified, and do not delete either implementation on the strength of the
+other. A parity fixture pinning the two, in the shape of
+`tests/density-parity.spec.ts`, is the next thing this needs.
+
+Scripts: `ocr.py` (CLI), `gemini_client.py` (key rotation + retries), `iiif_tiles.py` (crop fetch, IA fallback, IIIF v2/v3 detection), `supabase_client.py` (direct REST), `prompt.py`, `local_vision.py`, `join_labels.py`, `eval.py` + `eval_metrics.py`, `cache.py`, `scale.py` (metres per pixel from the georeference; `python scale.py` self-checks). Self-checks, all offline: `python scale.py`, `python eval_metrics.py`, `python test_prompt_plumbing.py`, `python test_tile_cache.py`.
 
 ## MapSAM2 inference (`work/MapSAM2/`)
 
@@ -573,9 +661,9 @@ pass a — free in tokens, but counted by the merge as an independent voter, whi
 inflates `n_passes` and reverts the three-voter tie-break that took
 diacritic_recall from 0.864 to 0.955.
 
-**"Full resolution" is `tile_size / render_size`, and the default is not 1:1.** A tile is `--tile-size` source pixels rendered to `--render-size` before the model sees it, so what Gemini reads is the sheet's own ground resolution times that ratio. The stock 2400/1024 is a 2.34x downsample *on top of* the scan: on the 1959 Đô thành Sài Gòn sheet (2.80 m/px source) it delivers 6.5 m/px, which cannot resolve a street name. Until 2026-09-04 `vma_worker.py` did not pass `--render-size` at all, so **every queued OCR job ran at that ratio regardless of payload** — that was fixed on 2026-09-04, and since the 2026-09-08 audit the worker's own default is `max(tile_size, 1024)`, so a stock 2400 tile renders 1:1 without the payload saying anything. Nothing above 1:1 buys real detail; past it the scan is the ceiling. Rendering 1:1 costs tiles, which is what cropping to a study area pays for — see `work/analysis/district4/README.md` for the worked case.
+**"Full resolution" is `tile_size / render_size`, and the default is not 1:1.** A tile is `--tile-size` source pixels rendered to `--render-size` before the model sees it, so what Gemini reads is the sheet's own ground resolution times that ratio. The stock 2400/1024 is a 2.34x downsample *on top of* the scan: on the 1959 Đô thành Sài Gòn sheet (2.80 m/px source) it delivers 6.5 m/px, which cannot resolve a street name. Until 2026-09-04 `vma_worker.py` did not pass `--render-size` at all, so **every queued OCR job ran at that ratio regardless of payload** — that was fixed on 2026-09-04, and since the 2026-09-08 audit the worker's own default is `max(tile_size, 1024)`, so a stock 2400 tile renders 1:1 without the payload saying anything. Nothing above 1:1 buys real detail; past it the scan is the ceiling. **And as of 2026-09-10, rather less than 1:1 buys anything either** — see the correction two paragraphs down before planning a render change. Rendering 1:1 costs tiles, which is what cropping to a study area pays for — see `work/analysis/district4/README.md` for the worked case.
 
-**But resolution was the smaller half.** Measured on the 1959 Đô thành Sài Gòn sheet, same crop and same 1:1 rendering, changing only `--tile-size` and counting distinct labels that warp back inside the study area: 2048 px (5.7 km of ground per call) found 1; 1024 px (2.9 km) found 2; ~500 px (1.4 km) found 6, and 5 on a repeat. Five to six times the yield off an unchanged scan, and only the finest runs read `QUẬN 4` printed on the sheet. Across a whole six-sheet collection the same change gave **+19%**, not 5x — the gain appears only where the ground per call actually drops a lot, and repeats of one configuration differ by a label or two, so do not read a single run's small difference as a result. Rendering was ruled out separately — 1024 px rendered 1:1 and at 2x gave byte-identical output, so upsampling past the scan buys nothing. **What starves a read is one call covering too much ground, and a fixed pixel tile is a different amount of ground on every sheet** (2048 px is 1.7 km on the 1923 sheet, 5.7 km on the 1959 one). That is why coarse sheets look empty and get blamed on their scans. `scripts/collection_aoi.mjs --tile-metres` (default 1400) sizes the tile per sheet from its own m/px; `enqueue_ocr_all.mjs` still takes a fixed `--tile-size` and would benefit from the same treatment. Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
+**But resolution was the smaller half.** Measured on the 1959 Đô thành Sài Gòn sheet, same crop and same 1:1 rendering, changing only `--tile-size` and counting distinct labels that warp back inside the study area: 2048 px (5.7 km of ground per call) found 1; 1024 px (2.9 km) found 2; ~500 px (1.4 km) found 6, and 5 on a repeat. Five to six times the yield off an unchanged scan, and only the finest runs read `QUẬN 4` printed on the sheet. Across a whole six-sheet collection the same change gave **+19%**, not 5x — the gain appears only where the ground per call actually drops a lot, and repeats of one configuration differ by a label or two, so do not read a single run's small difference as a result. Rendering was ruled out separately — 1024 px rendered 1:1 and at 2x gave byte-identical output, so upsampling past the scan buys nothing. **What starves a read is one call covering too much ground, and a fixed pixel tile is a different amount of ground on every sheet** (2048 px is 1.7 km on the 1923 sheet, 5.7 km on the 1959 one). That is why coarse sheets look empty and get blamed on their scans. `ocr.py batch --tile-metres` (default 1400) sizes the tile per sheet from its own m/px, read from the sheet's georeference — see *Sizing a grid from the sheet's own scale* below. `scripts/collection_aoi.mjs --tile-metres` does the same thing for a collection sweep, by a different method, and the two do not yet agree; that is recorded below too. `enqueue_ocr_all.mjs` still takes a fixed `--tile-size`. Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
 
 ## Coordinate contract
 
