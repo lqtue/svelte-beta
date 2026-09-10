@@ -135,6 +135,8 @@
   let showLegendPoints = false;
   /** The spot a search hit sent us to, pulsed once so it is findable. */
   let focusPoint: { lng: number; lat: number } | null = null;
+  /** Which legend row is lit, bound from the right rail so Escape clears it. */
+  let legendN: number | null = null;
   /** Overlay maps whose reviewed footprints are drawn on the ground. */
   let vectorMapIds: string[] = [];
   /** The place and year the press panel is showing, if any. */
@@ -258,10 +260,12 @@
   }
 
   // ── Catalog / sidebar event handlers ───────────────────────────
-  function handlePickLocation(e: CustomEvent<{ lat: number; lng: number; bbox?: Bbox }>) {
-    const { lat, lng, bbox } = e.detail;
+  function handlePickLocation(
+    e: CustomEvent<{ lat: number; lng: number; bbox?: Bbox; zoom?: number }>
+  ) {
+    const { lat, lng, bbox, zoom } = e.detail;
     if (bbox) setViewFromBounds(bbox);
-    else mapStore.setView({ lng, lat, zoom: 15 });
+    else mapStore.setView({ lng, lat, zoom: zoom ?? 15 });
     // The camera alone leaves the reader guessing which of the hundred things
     // under the crosshair they searched for — the same reason a label hit
     // pulses. A bbox pick pulses at its centre, which is where it centred.
@@ -304,6 +308,14 @@
    */
   function handleKeydown(e: KeyboardEvent) {
     if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+
+    // Escape puts out whatever is lit: the pulse and the legend row behind it.
+    if (e.key === 'Escape') {
+      focusPoint = null;
+      legendN = null;
+      return;
+    }
+
     const top = $layersStore.overlays[0];
     if (!top) return;
 
@@ -430,11 +442,13 @@
         mapId={activeOverlayMapId}
         map={activeOverlayMap}
         {showLegendPoints}
+        bind:selectedN={legendN}
         vectorsOn={!!activeOverlayMapId && vectorMapIds.includes(activeOverlayMapId)}
         on:changeViewMode={(e) => layerStore.setViewMode(e.detail.mode)}
         on:pickLocation={handlePickLocation}
         on:toggleGps={toggleGps}
         on:toggleLegendPoints={() => (showLegendPoints = !showLegendPoints)}
+        on:clearFocus={() => (focusPoint = null)}
         on:toggleVectors={handleToggleVectors}
         on:toggleCollapse={() => (rightSidebarCollapsed = true)}
       />

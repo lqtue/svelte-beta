@@ -33,13 +33,15 @@
   import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
   import TopSheetActions from '$lib/features/shared/TopSheetActions.svelte';
   import PlaceSearchBar from '$lib/features/shared/PlaceSearchBar.svelte';
+  import { LABEL_ZOOM } from '$lib/features/explore/exploreUrl';
 
   const dispatch = createEventDispatcher<{
     toggleCollapse: void;
     changeViewMode: { mode: ViewMode };
-    pickLocation: { lat: number; lng: number; label: string };
+    pickLocation: { lat: number; lng: number; label: string; zoom?: number };
     toggleGps: void;
     toggleLegendPoints: void;
+    clearFocus: void;
     toggleVectors: { mapId: string };
   }>();
 
@@ -74,6 +76,11 @@
   let legend: LegendPoint[] = [];
   let legendFor = '';
   let legendLoading = false;
+  /**
+   * The row the reader last flew to — the list's half of the map's pulse.
+   * Bound by the page so Escape can clear both at once.
+   */
+  export let selectedN: number | null = null;
 
   async function loadLegend(id: string) {
     // ponytail: the same GET LegendPointsLayer makes, so a sheet with the tab
@@ -97,6 +104,25 @@
   $: if (tab === 'legend' && mapId && mapId !== legendFor) void loadLegend(mapId);
 
   $: legendRows = mapId && mapId === legendFor ? legend : [];
+  $: if (mapId !== legendFor) selectedN = null;
+
+  function flyToLegend(p: LegendPoint) {
+    // Tap the lit row again to put it out — the same gesture that lit it.
+    if (selectedN === p.n) {
+      selectedN = null;
+      dispatch('clearFocus');
+      return;
+    }
+    selectedN = p.n;
+    // A legend number is a point on the sheet, so it lands at a label hit's
+    // zoom rather than a Nominatim place's wider 15.
+    dispatch('pickLocation', {
+      lat: p.lat,
+      lng: p.lng,
+      label: p.name ?? `№${p.n}`,
+      zoom: LABEL_ZOOM,
+    });
+  }
 
   $: published = map?.status === 'public' || map?.status === 'featured';
 
@@ -228,13 +254,14 @@
                 <button
                   type="button"
                   class="lg-row"
-                  title={p.accuracy_m ? `Within about ${p.accuracy_m} m` : 'Fly to this place'}
-                  on:click={() =>
-                    dispatch('pickLocation', {
-                      lat: p.lat,
-                      lng: p.lng,
-                      label: p.name ?? `№${p.n}`,
-                    })}
+                  class:is-on={selectedN === p.n}
+                  aria-current={selectedN === p.n ? 'true' : undefined}
+                  title={selectedN === p.n
+                    ? 'Clear this highlight'
+                    : p.accuracy_m
+                      ? `Within about ${p.accuracy_m} m`
+                      : 'Fly to this place'}
+                  on:click={() => flyToLegend(p)}
                 >
                   <span class="lg-n">{p.n}</span>
                   <span class="lg-name">
@@ -291,6 +318,10 @@
   }
   .lg-row:hover {
     background: var(--sb-row-hover);
+  }
+  /* Same yellow as the map's pulse ring, so the row and the spot read as one. */
+  .lg-row.is-on {
+    background: var(--sb-accent-yellow);
   }
   .lg-n {
     flex: 0 0 1.4rem;
