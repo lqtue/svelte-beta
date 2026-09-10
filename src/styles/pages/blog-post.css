@@ -382,3 +382,169 @@ body {
     margin: 1.5rem 1.5rem 0;
   }
 }
+
+/* ── FIGURES, CHARTS AND TABLES IN A POST BODY ────────────────────────────
+   A post's content is raw HTML from posts.ts, so these cannot be scoped
+   styles — they live here, keyed on `.article-body`, and every colour goes
+   through a token so a figure flips with the theme like the prose does.
+   The `f-*` vocabulary is the one set of SVG classes posts draw with. */
+.blog-post-page .article-body figure {
+  margin: 0 0 1.75rem;
+}
+
+.blog-post-page .article-body figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: var(--border-thick);
+  border-radius: 4px;
+}
+
+.blog-post-page .article-body .fig-plate {
+  border: var(--border-thick);
+  border-radius: 4px;
+  background: var(--color-white);
+  padding: 1.25rem 1rem 0.85rem;
+  overflow-x: auto;
+}
+
+.blog-post-page .article-body .fig-plate svg {
+  display: block;
+  width: 100%;
+  min-width: 560px;
+  height: auto;
+  margin: 0 auto;
+  color: var(--color-text);
+}
+
+.blog-post-page .article-body figcaption {
+  margin-top: 0.7rem;
+  font-family: var(--font-family-base);
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--color-gray-500);
+}
+
+.blog-post-page .article-body figcaption strong {
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+/* SVG drawing vocabulary */
+.blog-post-page .article-body .f-box {
+  fill: var(--color-white);
+  stroke: var(--color-border);
+  stroke-width: 1.5;
+}
+.blog-post-page .article-body .f-box-person {
+  stroke: var(--color-blue);
+  stroke-width: 3;
+}
+.blog-post-page .article-body .f-box-quiet {
+  fill: var(--color-gray-100);
+  stroke: var(--color-border);
+  stroke-width: 1.5;
+}
+.blog-post-page .article-body .f-t {
+  fill: currentColor;
+  font-family: var(--font-family-base);
+}
+.blog-post-page .article-body .f-title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.blog-post-page .article-body .f-sub {
+  font-size: 10.5px;
+  fill: var(--color-gray-500);
+}
+.blog-post-page .article-body .f-lab {
+  font-size: 9.5px;
+  font-family: monospace;
+  letter-spacing: 0.05em;
+  fill: var(--color-gray-500);
+}
+.blog-post-page .article-body .f-lane {
+  font-family: var(--font-family-display);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  fill: var(--color-gray-500);
+}
+.blog-post-page .article-body .f-num {
+  font-family: var(--font-family-display);
+  font-size: 19px;
+  font-weight: 800;
+  fill: currentColor;
+}
+.blog-post-page .article-body .f-line {
+  stroke: var(--color-gray-500);
+  stroke-width: 1.5;
+  fill: none;
+}
+.blog-post-page .article-body .f-hair {
+  stroke: var(--color-gray-300);
+  stroke-width: 1;
+  fill: none;
+}
+.blog-post-page .article-body .f-head {
+  fill: var(--color-gray-500);
+}
+.blog-post-page .article-body .f-red {
+  fill: var(--color-primary);
+}
+.blog-post-page .article-body .f-green {
+  fill: var(--color-green);
+}
+.blog-post-page .article-body .f-blue {
+  fill: var(--color-blue);
+}
+.blog-post-page .article-body .f-ochre {
+  fill: var(--color-yellow);
+}
+.blog-post-page .article-body .f-quiet {
+  fill: var(--color-gray-100);
+  stroke: var(--color-gray-300);
+  stroke-width: 1;
+}
+
+/* Number tables */
+.blog-post-page .article-body .table-wrap {
+  overflow-x: auto;
+  margin: 0 0 1.75rem;
+}
+
+.blog-post-page .article-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.blog-post-page .article-body th,
+.blog-post-page .article-body td {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--color-gray-300);
+  font-variant-numeric: tabular-nums;
+}
+
+.blog-post-page .article-body th {
+  font-family: var(--font-family-display);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+  border-bottom: var(--border-thin);
+  white-space: nowrap;
+}
+
+.blog-post-page .article-body td.n {
+  font-family: monospace;
+}
+
+@media (max-width: 600px) {
+  .blog-post-page .article-body .fig-plate {
+    padding: 1rem 0.6rem 0.7rem;
+  }
+}

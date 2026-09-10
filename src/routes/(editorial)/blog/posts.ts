@@ -16,6 +16,247 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
   {
+    slug: 'measuring-the-ocr-2026-09',
+    title: 'The Gate That Could Not Read Vietnamese, and the One Printed on the Sheet Itself',
+    date: '2026-09-10',
+    category: 'research',
+    excerpt:
+      'A fix that recovered a third more street names moved every number on our official quality gate by exactly zero. So we built a new gate out of the street directory the sheets already print — free ground truth, no human labelling — and it immediately found a published, georeferenced sheet that had never really been read.',
+    content: `
+<p>This is a post about measurement rather than about a model. The reading itself is in decent shape; what was broken was our ability to tell.</p>
+
+<h2>What "reading a sheet" actually involves</h2>
+<p>A scanned city plan arrives as one enormous photograph — the 1959 <em>Đô thành Sài Gòn</em> sheet is about 13,000 pixels across. Nothing reads that whole. It gets cut into tiles and read a strip at a time, and either side of that sit two steps that need a person: someone accepting the crop before any money is spent, and someone accepting the labels afterwards.</p>
+
+<figure>
+  <div class="fig-plate">
+    <svg viewBox="0 0 700 650" role="img" aria-label="Nine steps from scanned sheet to published label: scan, layout pass, triage by a person, job queued, body pass, tidy up, the extractions table, review by a person, and publication.">
+      <defs>
+        <marker id="bp-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path class="f-head" d="M 0 1 L 10 5 L 0 9 z"></path>
+        </marker>
+      </defs>
+
+      <text class="f-t f-lane" x="14" y="14">FROM PHOTOGRAPH TO SEARCHABLE NAME</text>
+
+      <text class="f-t f-num" x="42" y="58" text-anchor="end">1</text>
+      <rect class="f-box-quiet" x="60" y="24" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="47">The scanned sheet</text>
+      <text class="f-t f-sub" x="76" y="64">One photograph, roughly 13,000 pixels across. Too big to read whole.</text>
+
+      <text class="f-t f-num" x="42" y="124">2</text>
+      <rect class="f-box" x="60" y="90" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="113">Layout pass</text>
+      <text class="f-t f-sub" x="76" y="130">One low-resolution look: where is the map, the legend, the inset, the street directory?</text>
+      <text class="f-t f-lab f-red" x="644" y="113" text-anchor="end">MACHINE · $0.01</text>
+
+      <text class="f-t f-num" x="42" y="190">3</text>
+      <rect class="f-box f-box-person" x="60" y="156" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="179">Triage</text>
+      <text class="f-t f-sub" x="76" y="196">A person accepts the crop and the tile grid. Nothing is queued without this.</text>
+      <text class="f-t f-lab f-blue" x="644" y="179" text-anchor="end">PERSON</text>
+
+      <text class="f-t f-num" x="42" y="256">4</text>
+      <rect class="f-box-quiet" x="60" y="222" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="245">The job waits</text>
+      <text class="f-t f-sub" x="76" y="262">Pressing Run OCR writes a row in a queue. A worker somewhere has to pick it up.</text>
+
+      <text class="f-t f-num" x="42" y="322">5</text>
+      <rect class="f-box" x="60" y="288" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="311">The body pass</text>
+      <text class="f-t f-sub" x="76" y="328">One call per row of tiles. Each label comes back as text, a box, an angle and a kind.</text>
+      <text class="f-t f-lab f-red" x="644" y="311" text-anchor="end">MACHINE · $$</text>
+
+      <text class="f-t f-num" x="42" y="388">6</text>
+      <rect class="f-box" x="60" y="354" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="377">Tidy up</text>
+      <text class="f-t f-sub" x="76" y="394">Merge the same label read twice on two overlapping tiles. Free — no model call.</text>
+
+      <text class="f-t f-num" x="42" y="454">7</text>
+      <rect class="f-box-quiet" x="60" y="420" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="443">The table</text>
+      <text class="f-t f-sub" x="76" y="460">One row per label, each carrying its position on the full sheet.</text>
+
+      <text class="f-t f-num" x="42" y="520">8</text>
+      <rect class="f-box f-box-person" x="60" y="486" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="509">Review</text>
+      <text class="f-t f-sub" x="76" y="526">A person validates, corrects or rejects, row by row. This is the slow step.</text>
+      <text class="f-t f-lab f-blue" x="644" y="509" text-anchor="end">PERSON</text>
+
+      <text class="f-t f-num" x="42" y="586">9</text>
+      <rect class="f-box" x="60" y="552" width="600" height="52" rx="3"></rect>
+      <text class="f-t f-title" x="76" y="575">On the map</text>
+      <text class="f-t f-sub" x="76" y="592">Searchable labels, a page per place name, links to the traced shapes underneath.</text>
+
+      <line class="f-line" x1="360" y1="76" x2="360" y2="88" marker-end="url(#bp-ar)"></line>
+      <line class="f-line" x1="360" y1="142" x2="360" y2="154" marker-end="url(#bp-ar)"></line>
+      <line class="f-line" x1="360" y1="208" x2="360" y2="220" marker-end="url(#bp-ar)"></line>
+      <line class="f-line" x1="360" y1="274" x2="360" y2="286" marker-end="url(#bp-ar)"></line>
+      <line class="f-line" x1="360" y1="340" x2="360" y2="352" marker-end="url(#bp-ar)"></line>
+      <line class="f-line" x1="360" y1="406" x2="360" y2="418" marker-end="url(#bp-ar)"></line>
+      <line class="f-line" x1="360" y1="472" x2="360" y2="484" marker-end="url(#bp-ar)"></line>
+      <line class="f-line" x1="360" y1="538" x2="360" y2="550" marker-end="url(#bp-ar)"></line>
+
+      <text class="f-t f-sub" x="14" y="634">A blue edge marks a step that needs a person. Steps 2 and 5 are the only ones that cost money.</text>
+    </svg>
+  </div>
+  <figcaption><strong>The pipeline, nine steps.</strong> Two of them are human. The one that scales with cost is step 5, and how finely the sheet was cut up in step 3 decides what step 5 can see.</figcaption>
+</figure>
+
+<h2>What the output actually looks like</h2>
+<p>Here is one tile of the 1959 sheet — about a square kilometre of Chợ Lớn — with every label the pass returned drawn over it. The sheet is printed in red, so the machine's marks are in blue.</p>
+
+<figure>
+  <img
+    src="/images/blog/ocr-1959-labels-tile.jpg"
+    alt="One tile of the 1959 Đô thành Sài Gòn sheet with 161 OCR label boxes drawn over it in blue: 70 thick boxes around assembled street names such as Đường Nguyễn Trãi and Đại Lộ Hùng Vương, and 91 thin boxes around single-word fragments."
+    loading="lazy"
+    width="1080"
+    height="1080"
+  />
+  <figcaption><strong>161 labels on one tile.</strong> The 70 thick boxes are assembled names — <em>Đường Nguyễn Trãi</em>, <em>Đại Lộ Hùng Vương</em>, <em>Đại Lộ Đồng Khánh</em>. The 91 thin ones are single words: a street name set along its own street, broken by the buildings drawn across it, and returned in pieces. Both are counted, and telling them apart is most of what "quality" means here.</figcaption>
+</figure>
+
+<h2>The gate that moved by zero</h2>
+<p>Our official quality gate is 85 labels a person checked by hand, on one 1882 French sheet. Every core change to the pipeline has been scored against it, and it has correctly rejected two changes that made things worse — including, last month, a prompt fix that was itself correct.</p>
+<p>Then we fixed a deduplication bug. The merge step had been quietly deleting real streets: <em>Lê Lợi</em>, <em>Hàm Nghi</em>, <em>Công Lý</em> and <em>Phan Chu Trinh</em> — four of the most prominent streets on the 1959 sheet — were simply not in the database, while the row count looked entirely healthy. Fixing it recovered a third more distinct names.</p>
+<p>Re-scored on the gate, that fix moved recall, character accuracy, box overlap and category accuracy by <strong>exactly zero</strong>.</p>
+<p>It could not have done otherwise. <em>Rue Catinat</em> and <em>Rue Charner</em> survive a character comparison; <em>Đại Lộ Lê Lợi</em> and <em>Đại Lộ Lê Lai</em> differ by one letter and a diacritic. A gate built on one French sheet cannot see a Vietnamese failure, and for a year we had been steering by it.</p>
+
+<h2>The gate the sheets print themselves</h2>
+<p>The replacement was already on the paper. Many of these sheets print their own street directory in the margin: every street name, and the grid square it sits in. That is ground truth, written by the surveyors, and it costs about three cents to read.</p>
+<p>Two numbers come out of comparing it to what the body pass found. <strong>How many of the names the sheet says it prints did we actually read?</strong> And <strong>of those, how many sit in the square the index claims?</strong> The second is worth having because it is two unrelated readings of one sheet checking each other — it scores the body pass, the index pass and the printed grid at once.</p>
+<p>Same dedupe fix, seen by the new gate: names found rose from <strong>0.7493 to 0.7947</strong>. It saw what the old gate structurally could not.</p>
+<p>Then we pointed it at a second sheet.</p>
+
+<figure>
+  <div class="fig-plate">
+    <svg viewBox="0 0 700 250" role="img" aria-label="On the 1959 sheet, 298 of 375 printed street names were found. On the 1968 sheet, 9 of 367 were found.">
+      <text class="f-t f-lane" x="14" y="16">OF THE STREET NAMES A SHEET PRINTS, HOW MANY DID WE READ?</text>
+
+      <text class="f-t f-title" x="14" y="46">1959 Đô thành Sài Gòn</text>
+      <rect class="f-quiet" x="170" y="56" width="490" height="24" rx="2"></rect>
+      <text class="f-t f-lab" x="163" y="72" text-anchor="end">printed</text>
+      <text class="f-t f-sub" x="668" y="72" text-anchor="end">375</text>
+      <rect class="f-green" x="170" y="86" width="389" height="24" rx="2"></rect>
+      <text class="f-t f-lab" x="163" y="102" text-anchor="end">read</text>
+      <text class="f-t f-title f-green" x="567" y="103">298 · 79%</text>
+
+      <line class="f-hair" x1="14" y1="132" x2="686" y2="132"></line>
+
+      <text class="f-t f-title" x="14" y="160">1968 Sài Gòn</text>
+      <rect class="f-quiet" x="170" y="170" width="480" height="24" rx="2"></rect>
+      <text class="f-t f-lab" x="163" y="186" text-anchor="end">printed</text>
+      <text class="f-t f-sub" x="658" y="186" text-anchor="end">367</text>
+      <rect class="f-red" x="170" y="200" width="12" height="24" rx="2"></rect>
+      <text class="f-t f-lab" x="163" y="216" text-anchor="end">read</text>
+      <text class="f-t f-title f-red" x="190" y="217">9 · 2.5%</text>
+
+      <text class="f-t f-sub" x="14" y="243">Both sheets are published and georeferenced. Both have been in the archive for months.</text>
+    </svg>
+  </div>
+  <figcaption><strong>The 1968 sheet has effectively never been read.</strong> It holds 14 body labels in total. That was a suspicion before this week; it is a number now, with a baseline recorded, so the next pass on it can be scored the moment it finishes.</figcaption>
+</figure>
+
+<h2>Accuracy was never the problem</h2>
+<p>Of the labels the model does return, the quality is fine. Against the 85 hand-checked ones, running the sheet twice on offset tile grids and merging by vote reads:</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>What is measured</th><th>Result</th><th>Read it as</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Labels found, loose box</td><td class="n">0.906</td><td>90.6% of the checked labels were found</td></tr>
+      <tr><td>Labels found, tight box</td><td class="n">75 / 85</td><td>The gap is box tightness, not missed words</td></tr>
+      <tr><td>Character accuracy</td><td class="n">0.979</td><td>Two characters wrong in a hundred</td></tr>
+      <tr><td>Kind of thing (street, building, …)</td><td class="n">0.880</td><td>Most errors are building versus institution</td></tr>
+      <tr><td>Angle of the lettering</td><td class="n">3.49°</td><td>Good enough to draw with</td></tr>
+      <tr><td>Precision</td><td class="n">—</td><td>Deliberately ignored; see below</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p>Precision is uninterpretable here and it is worth saying why. The checked list is a <em>partial</em> sample of the labels on the sheet, so a correct reading that happens to be missing from it counts as an error. Anything that raises recall lowers precision. We do not tune against it, and a drop in it is not a regression.</p>
+<p>The one accuracy result that does look like a real defect is a single sheet losing its accents. Vietnamese sheets keep 76–100% of their diacritics, French sheets run 23–42% — and the 1895 sits at 8–14%, on the same model, the same prompt and the same language as its three neighbours.</p>
+
+<figure>
+  <div class="fig-plate">
+    <svg viewBox="0 0 700 240" role="img" aria-label="Diacritic retention by sheet: the two Vietnamese sheets run 0.76 to 1.00, three French sheets run 0.23 to 0.42, and the 1895 French sheet sits alone at 0.08 to 0.14.">
+      <text class="f-t f-lane" x="14" y="16">SHARE OF ACCENTS KEPT, BY SHEET</text>
+
+      <line class="f-hair" x1="150" y1="34" x2="150" y2="196"></line>
+      <line class="f-hair" x1="277" y1="34" x2="277" y2="196"></line>
+      <line class="f-hair" x1="405" y1="34" x2="405" y2="196"></line>
+      <line class="f-hair" x1="532" y1="34" x2="532" y2="196"></line>
+      <line class="f-hair" x1="660" y1="34" x2="660" y2="196"></line>
+
+      <rect class="f-green" x="558" y="46" width="102" height="14" rx="7"></rect>
+      <text class="f-t f-lab" x="143" y="57" text-anchor="end">1959 · Vietnamese</text>
+
+      <rect class="f-green" x="538" y="72" width="122" height="14" rx="7"></rect>
+      <text class="f-t f-lab" x="143" y="83" text-anchor="end">1968 · Vietnamese</text>
+
+      <rect class="f-blue" x="308" y="98" width="56" height="14" rx="7"></rect>
+      <text class="f-t f-lab" x="143" y="109" text-anchor="end">1882 · French</text>
+
+      <rect class="f-blue" x="303" y="124" width="41" height="14" rx="7"></rect>
+      <text class="f-t f-lab" x="143" y="135" text-anchor="end">1942 · French</text>
+
+      <rect class="f-blue" x="267" y="150" width="92" height="14" rx="7"></rect>
+      <text class="f-t f-lab" x="143" y="161" text-anchor="end">1923 · French</text>
+
+      <rect class="f-red" x="191" y="176" width="31" height="14" rx="7"></rect>
+      <text class="f-t f-lab f-red" x="143" y="187" text-anchor="end">1895 · French</text>
+      <text class="f-t f-sub f-red" x="232" y="187">alone, and unexplained</text>
+
+      <text class="f-t f-lab" x="150" y="212" text-anchor="middle">0</text>
+      <text class="f-t f-lab" x="277" y="212" text-anchor="middle">0.25</text>
+      <text class="f-t f-lab" x="405" y="212" text-anchor="middle">0.50</text>
+      <text class="f-t f-lab" x="532" y="212" text-anchor="middle">0.75</text>
+      <text class="f-t f-lab" x="660" y="212" text-anchor="middle">1.0</text>
+      <text class="f-t f-sub" x="14" y="234">Each bar is the range measured across that sheet's runs. Diacritics track the sheet's language, hard — not the run.</text>
+    </svg>
+  </div>
+  <figcaption><strong>One sheet against three controls.</strong> A single anomaly with the variables held still is the most useful kind of lead. It may turn out to be scan quality rather than anything in the model.</figcaption>
+</figure>
+
+<h2>The real state of the archive's text</h2>
+<p>Which brings us to the finding that matters. Reading is accurate; coverage is largely unmeasured. Of the 39 published sheets, seven print a directory, and two of those have had it read.</p>
+
+<figure>
+  <div class="fig-plate">
+    <svg viewBox="0 0 700 140" role="img" aria-label="Of 39 published sheets, 2 have a measured score, 5 print a directory that has not been read yet, and 32 print none at all.">
+      <text class="f-t f-lane" x="14" y="16">39 PUBLISHED SHEETS · CAN WE SCORE THEM?</text>
+
+      <rect class="f-green" x="20" y="30" width="34" height="34"></rect>
+      <rect class="f-ochre" x="54" y="30" width="85" height="34"></rect>
+      <rect class="f-quiet" x="139" y="30" width="541" height="34"></rect>
+
+      <rect class="f-green" x="20" y="86" width="11" height="11"></rect>
+      <text class="f-t f-title" x="38" y="96">2 scored</text>
+      <text class="f-t f-sub" x="38" y="112">79% and 2.5%</text>
+
+      <rect class="f-ochre" x="230" y="86" width="11" height="11"></rect>
+      <text class="f-t f-title" x="248" y="96">5 one step away</text>
+      <text class="f-t f-sub" x="248" y="112">they print a directory; about $0.03 each to read</text>
+
+      <rect class="f-quiet" x="496" y="86" width="11" height="11"></rect>
+      <text class="f-t f-title" x="514" y="96">32 unknowable</text>
+      <text class="f-t f-sub" x="514" y="112">no printed index — no denominator</text>
+    </svg>
+  </div>
+  <figcaption><strong>The coverage gap.</strong> A sheet with no printed directory can still be read — it just cannot be graded without a person sitting down and checking labels by hand, which is exactly the cost the new gate was built to avoid.</figcaption>
+</figure>
+
+<p>So the work in front of us is not a better prompt. It is five index reads at three cents each, a body pass on a sheet that has a scoreboard and nothing on it, and a review queue that stands at 2 accepted rows out of 1,663 on the 1959 sheet.</p>
+
+<h2>Two things we got wrong along the way</h2>
+<p>The row count. It was the number we watched, and it is the number that hid the bug: a wrong merge removes a name while a shattered label adds rows, and both move the total in a direction that looks fine. The 1959 sheet held 452 street rows and 367 distinct names against a printed claim of 384 — a good-looking result with four of the city's main avenues missing from it. Count distinct names, never rows.</p>
+<p>And the cleanup. Getting to the numbers above meant deleting 627 superseded rows from the live table. Human review decisions were carried across first — 26 of 60 transferred, the other 34 being rejections of duplicate numerals the new run no longer produces — and the full pre-change snapshot is on disk, so it is reversible. It was still a destructive write made without pausing to ask.</p>
+		`,
+  },
+  {
     slug: 'routes-design-ocr-2026-09',
     title: 'Sixteen Pages, One Palette, and an OCR Change That Failed Its Own Test',
     date: '2026-09-08',
