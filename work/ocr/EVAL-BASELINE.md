@@ -669,3 +669,71 @@ full sheet 24 -> 35. **The expectation is that a re-run beats 75/85, not that it
 reproduces it**, because the recipe of record was also losing area. Re-running
 the gate sheet is the next measurement, and the ~11 new tiles per pass are new
 geometry, so they are cache misses and it will not be free.
+
+## 2026-09-10 — the 1882 re-gate: the fix is right, and this gate cannot see it
+
+Ran the recipe of record against the fixed `--grid-offset` (`b532d3b9`).
+Projected USD 0.71 on the billed basis, actual **USD 0.6686** (pass 1 0.1799,
+pass 2 0.4887, merge free), 16.7 min. Tiles per run 54 -> 65, calls 18 -> 25.
+
+| | matched / 85 |
+|---|---|
+| record `rr0910` | 75 |
+| fixed `regate0910` | **76** |
+| control `regate0910-ctrl` — same pass 1, *old* inset pass 2 off disk | **76** |
+| the offset pass alone, before -> after | **42 -> 73** |
+
+**The offset pass now genuinely reads the sheet** — 42/85 to 73/85 standalone,
+`text_recall@0.3` 0.5176 -> 0.8824. That is the fix working exactly as
+`b532d3b9` describes.
+
+**And it is worth zero labels on this gate.** The control run — the same pass 1
+merged with the *old* broken pass-2 output — also reaches 76/85, gains the same
+single label (`COLLÈGE D'ADRAN`) and loses none. Two reasons, both measured:
+
+- The strip that was never read is the leading 1200 px in x and y, which on this
+  sheet is the top and left margin. Only **7 of the 85 ground-truth labels** sit
+  in it, and pass 1 always covered it, so all seven were already found. 78 of 85
+  are inside what the broken pass 2 had already tiled.
+- The gate's ceiling is **box convention, not coverage**. All 9 remaining misses
+  have a prediction sitting on them (best IoU 0.09-0.50), six of those are
+  character-identical or differ only by a diacritic the ground truth itself
+  drops, and `text_recall@0.3` is unchanged at 0.9059.
+
+What the fix did recover is real and this gate is blind to it: the strip is the
+margin, so the fixed merge picks up `REGISTRE DU CADASTRE`, the Boilloux
+imprint, five whole-string legend rows and **20 cadastral street numbers** —
+none of which a ground truth of 85 French street and institution names can
+score. The -4 distinct cores and -68 rows are mostly the vote collapsing
+duplicates it can now see twice (189 of 471 multi-pass, against 160 of 513)
+plus fragments a one-voter region used to leave behind.
+
+**So `b532d3b9`'s commit message set the wrong expectation.** It said a re-run
+should beat 75/85 because the recipe of record was losing area too. The premise
+was right and the prediction did not follow: the recipe was losing *margin*
+area, and margin content is not what these 85 labels are. Scoring a coverage
+change needs a ground truth that includes margin content, or a coverage measure
+reported separately from `name_recall`.
+
+### Two faults found in the process, neither of them `b532d3b9`
+
+1. **The +1 label is a confound, and no two runs on a sheet are byte-comparable
+   until it is fixed.** `_cached_tile` reads `{key}@{requested_render}` while the
+   save path writes `{key}@{max(img.size)}`, and `fetch_crop` defaults to
+   width-only (`{size},`), so any tile taller than it is wide — the whole
+   right-edge column of a grid — is written under one name and looked for under
+   another. It is re-fetched every run, and the re-fetched bytes differ from the
+   legacy file at the same size after the `2cf6dd02` pyramid change. Four of
+   pass 1's ten calls were re-paid and returned slightly different output, and
+   that is where `COLLÈGE D'ADRAN` came from. Treat 75 -> 76 as noise.
+2. **A row group discards 22% of what it pays for.** Row grouping is
+   `range(0, len(row), 3)` in slices of 4, so a 7-tile row is `[0:4] [3:7]
+   [6:7]`; each group rewrites the per-tile JSON for its own frames, so a later
+   group overwrites a shared tile, and the trailing single-frame group — here the
+   402 px right-edge sliver rendered 1024x6113 — returns 0 every time and wipes
+   what `[3:7]` found for that tile. Replayed from `outputs/.cache`: pass 2's
+   calls returned 362 extractions and 284 reached disk, 78 lost; pass 1 315 ->
+   263. About 1 label and 5 wasted calls per run.
+
+Both are being fixed separately. Until the first one is, **do not compare two
+runs on one sheet and attribute a one- or two-label difference to anything.**

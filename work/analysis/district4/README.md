@@ -48,10 +48,10 @@ scan exists.
 
 | Year | Ground resolution over D4 | Covers | Sheet | Scan (px) |
 |------|--------------------------|--------|-------|-----------|
-| 1882 | 0.34 m/px | 21% | Plan Cadastral de la ville de Saigon | not established from the repo |
-| 1923 | 0.85 m/px | 56% | Saigon - Cholon | not established from the repo |
-| 1968 | 1.27 m/px | 66% | Sài Gòn — Việt Nam City Maps 1:12,500 | not established from the repo |
-| 1895 | 1.68 m/px | 100% | Plan des environs de Saïgon | not established from the repo |
+| 1882 | 0.34 m/px | 21% | Plan Cadastral de la ville de Saigon | 12102×8982 |
+| 1923 | 0.85 m/px | 56% | Saigon - Cholon | 16064×14027 |
+| 1968 | 1.27 m/px | 66% | Sài Gòn — Việt Nam City Maps 1:12,500 | 10816×13523 |
+| 1895 | 1.68 m/px | 100% | Plan des environs de Saïgon | 13654×8964 |
 | 1942 | 1.69 m/px | 95% | Plan de Saigon - Cho Lon | 7479×6314 (confirmed — its own layout job, run 2026-09-05, reports this `source_size`) |
 | 1959 | 2.80 m/px | 97% | Đô thành Sài Gòn | 5000×3790, Virtual Saigon/IRD — **superseded, see below** |
 
@@ -344,3 +344,35 @@ the roadmap has been waiting on (C5, "blocked on data, not code"): ~20
 hand-checked tiles is exactly what comes out of reviewing eight sheets over one
 neighbourhood. Export them before re-running MapSAM2, and record the numbers in
 `work/ocr/EVAL-BASELINE.md` — including a null result.
+
+## 2026-09-10, later — the four unestablished scans, and 1942 is not settled
+
+A corpus-wide audit (`ocr.py scale --all`, cross-checked against each sheet's
+annotation `target.source`, its `maps.iiif_image` `info.json` and every
+reachable `map_iiif_sources` row) filled in the four `Scan (px)` cells this
+revision had to leave open: **1882 12102×8982, 1923 16064×14027, 1968 Sài Gòn
+10816×13523, 1895 13654×8964.** On all of them those three sources agree
+exactly, so the 1959 fault does not repeat anywhere in the corpus.
+
+**The claim above that 1942 is "the one confirmed thin sheet left" is too
+strong.** Its 7479×6314 is what we hold, but its Gallica row sits at
+`sort_order` 1 and is unmeasured, and Gallica was unreachable during the audit.
+`scripts/tile_map.sh` cuts each R2 pyramid from the then-primary source's
+`full/full`, so where the Gallica row is `sort_order` 0 the dimensions we hold
+*are* Gallica's native maximum by construction — but 1942 is not one of those.
+Read it as **unresolved, one `curl` away from an answer**, not as confirmed.
+
+**1895 reads 1.68 here and 1.709 in the audit, on the same 13654×8964 scan.**
+That is not a second 1959: it is this file's District-4-local area ratio against
+a whole-sheet affine over 11 thin-plate-spline control points. 1.7% apart, and
+`tests/mpp-parity.spec.ts` measures 0.24% between the same two estimators on a
+helmert sheet, so a thin-plate fit drifting a little further is expected.
+
+The audit's own finding, for the record: of 25 sheets above 1.1 m/px, 14 are
+genuinely the paper they were printed on, 9 are unresolved, and **2 are cases of
+the pipeline reading a smaller copy than the institution serves** — the 1863
+Palanca Gutierrez Huế sheet (we read 4876×8396, Humazur serves 6501×11195, a
+clean 4/3 downscale whose `source_url` already points at the larger copy) and
+the 1968 Huế 1:50,000 Sheet 6541 IV (we read a 0.9 MB JP2 at 1660×2147 where
+UTexas holds an 11.2 MB JPEG). Neither is an acquisition; the first is a
+re-mirror from a source already recorded. Full table in the audit report.
