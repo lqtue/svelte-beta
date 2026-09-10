@@ -1,0 +1,97 @@
+{
+  "_note": "see tests/mpp-parity.spec.ts for what this pins and where it came from",
+  "sheet": "L7014 sheet 6330-4 (1:50,000 Vietnam topographic series)",
+  "provenance": "l7014_data/annotations/6330-4.json, removed from the tree in 27f8e79f; recovered with `git show 27f8e79f^:l7014_data/annotations/6330-4.json`",
+  "iiif_info": {
+    "width": 3510,
+    "height": 3696
+  },
+  "gcp_bbox": [106.5, 10.75, 106.75, 11.0],
+  "aoi_geojson": "work/analysis/district4/district4.geojson",
+  "python_scale_fit": {
+    "mx": 8.393601,
+    "my": 8.697448,
+    "mean": 8.545525,
+    "anisotropy": 0.035556,
+    "n_gcps": 4,
+    "transformation": "polynomial"
+  },
+  "annotation": {
+    "@context": [
+      "http://www.w3.org/ns/anno.jsonld",
+      "http://geojson.org/geojson-ld/geojson-context.jsonld",
+      "http://iiif.io/api/presentation/3/context.json"
+    ],
+    "id": "https://iiif.archive.org/image/iiif/2/vma-l7014-63304%2F6330-4.jpg/annotation",
+    "type": "AnnotationPage",
+    "items": [
+      {
+        "id": "https://iiif.archive.org/image/iiif/2/vma-l7014-63304%2F6330-4.jpg/annotation/0",
+        "type": "Annotation",
+        "motivation": "georeferencing",
+        "target": {
+          "type": "SpecificResource",
+          "source": {
+            "id": "https://iiif.archive.org/image/iiif/2/vma-l7014-63304%2F6330-4.jpg",
+            "type": "ImageService2",
+            "width": 3510,
+            "height": 3696
+          },
+          "selector": {
+            "type": "SvgSelector",
+            "value": "<svg><polygon points=\"126,184 3384,194 3374,3437 119,3328\" /></svg>"
+          }
+        },
+        "body": {
+          "type": "FeatureCollection",
+          "transformation": {
+            "type": "polynomial",
+            "order": 1
+          },
+          "features": [
+            {
+              "type": "Feature",
+              "properties": {
+                "resourceCoords": [126, 184]
+              },
+              "geometry": {
+                "type": "Point",
+                "coordinates": [106.5, 11.0]
+              }
+            },
+            {
+              "type": "Feature",
+              "properties": {
+                "resourceCoords": [3384, 194]
+              },
+              "geometry": {
+                "type": "Point",
+                "coordinates": [106.75, 11.0]
+              }
+            },
+            {
+              "type": "Feature",
+              "properties": {
+                "resourceCoords": [3374, 3437]
+              },
+              "geometry": {
+                "type": "Point",
+                "coordinates": [106.75, 10.75]
+              }
+            },
+            {
+              "type": "Feature",
+              "properties": {
+                "resourceCoords": [119, 3328]
+              },
+              "geometry": {
+                "type": "Point",
+                "coordinates": [106.5, 10.75]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -43,3 +43,53 @@ pathlib.Path('../../../tests/fixtures/tile-density-1882.json').write_text(json.d
 }))
 PY
 ```
+
+## `mpp-parity-l7014-6330-4.json`
+
+The real georeference annotation of **L7014 sheet 6330-4** (1:50,000 Vietnam
+topographic series, 3510×3696 px, four graticule GCPs, first-order polynomial),
+plus the sheet's IIIF dimensions and the fit `work/ocr/scripts/scale.py`
+produces from it. `tests/mpp-parity.spec.ts` compares that fit with the
+area-ratio estimator inside `scripts/collection_aoi.mjs`, run offline through
+`mppAoiHarness.mjs`.
+
+Two things about the choice of sheet, both deliberate:
+
+- **It is not the 1959 sheet**, which is the one whose m/px is in dispute. No
+  annotation is cached anywhere in the tree — both implementations fetch theirs
+  at run time — so the disputed sheet's GCPs cannot be had offline. These five
+  L7014 annotations, removed from the tree in `27f8e79f`, are the only real ones
+  available.
+- **6330-4 specifically**, because its graticule (106.5–106.75 E, 10.75–11.0 N)
+  contains `work/analysis/district4/district4.geojson`. The AOI the area ratio
+  is measured over is therefore the repo's own study-area polygon, unchanged,
+  rather than a rectangle chosen to make a number come out.
+
+Regenerate only if `scale.py`'s fit changes on purpose:
+
+```bash
+git show 27f8e79f^:l7014_data/annotations/6330-4.json > /tmp/ann.json
+work/ocr/.venv/bin/python - <<'PY'
+import json, sys
+sys.path.insert(0, 'work/ocr/scripts')
+from scale import metres_per_pixel
+ann = json.load(open('/tmp/ann.json'))
+src = ann['items'][0]['target']['source']
+lonlat = [f['geometry']['coordinates'] for f in ann['items'][0]['body']['features']]
+fit = metres_per_pixel(ann)
+json.dump({
+    '_note': 'see tests/mpp-parity.spec.ts for what this pins and where it came from',
+    'sheet': 'L7014 sheet 6330-4 (1:50,000 Vietnam topographic series)',
+    'provenance': 'l7014_data/annotations/6330-4.json, removed from the tree in 27f8e79f; '
+                  'recovered with `git show 27f8e79f^:l7014_data/annotations/6330-4.json`',
+    'iiif_info': {'width': src['width'], 'height': src['height']},
+    'gcp_bbox': [min(p[0] for p in lonlat), min(p[1] for p in lonlat),
+                 max(p[0] for p in lonlat), max(p[1] for p in lonlat)],
+    'aoi_geojson': 'work/analysis/district4/district4.geojson',
+    'python_scale_fit': {'mx': round(fit.mx, 6), 'my': round(fit.my, 6),
+                         'mean': round(fit.mean, 6), 'anisotropy': round(fit.anisotropy, 6),
+                         'n_gcps': fit.n_gcps, 'transformation': fit.transformation},
+    'annotation': ann,
+}, open('tests/fixtures/mpp-parity-l7014-6330-4.json', 'w'), indent=1, ensure_ascii=False)
+PY
+```
