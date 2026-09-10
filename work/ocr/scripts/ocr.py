@@ -583,16 +583,28 @@ def cmd_batch(args: argparse.Namespace) -> None:
 
     # Second pass of the two-pass recipe: same grid, moved half a tile in both
     # axes so every seam lands where the first pass had tile interior. Not meant
-    # to stand alone (28/43 on its own — it skips the outer strip); merged with
-    # the unshifted pass by `ocr.py merge` it read 41/43. See EVAL-BASELINE.md.
+    # to stand alone (28/43 on its own); merged with the unshifted pass by
+    # `ocr.py merge` it read 41/43. See EVAL-BASELINE.md.
+    #
+    # The offset is a phase shift of the grid, handed to `tile_grid`, and it
+    # does **not** move or shrink the region. Until 2026-09-10 this line did
+    # the shift by insetting the region — `(rx + off, ry + off, rw - off,
+    # rh - off)` — which held the far edge but shortened the tiled extent by
+    # `off` in both axes. Two things followed: the leading `off`-wide strip of
+    # the region was never read on pass 2 at all, and whenever the shortened
+    # extent dropped below a step boundary the pass lost a whole row or column.
+    # On the 1882 gate sheet's `main_map` crop (459,413,11073,7913 at tile
+    # 2400 / overlap 300) that was 20 tiles where pass 1 had 24, covering 76%
+    # of the crop, and pass 2 came back with 255 labels against the 328 the
+    # uncropped run read — the whole of the fleet payload's 68/85 against the
+    # recipe of record's 75/85. See `test_grid_offset.py`.
     grid_offset = getattr(args, "grid_offset", 0) or 0
     if grid_offset:
-        rx, ry, rw, rh = grid_region or (0, 0, img_w, img_h)
-        grid_region = (rx + grid_offset, ry + grid_offset, rw - grid_offset, rh - grid_offset)
-        print(f"  Grid offset {grid_offset}px → region {grid_region}")
+        print(f"  Grid offset {grid_offset}px → grid phase-shifted inside region "
+              f"{grid_region or (0, 0, img_w, img_h)}")
 
     tiles = list(tile_grid(img_w, img_h, tile=tile_size, overlap=overlap,
-                           region=grid_region))
+                           region=grid_region, offset=grid_offset))
     total_before_filter = len(tiles)
 
     # 4. Density-based skip (text-specific local variance)
@@ -698,11 +710,19 @@ def cmd_batch(args: argparse.Namespace) -> None:
     # this run generated itself (auto-priority, AOI) are already on this grid.
     priority_at = origin_keyed_overrides(
         tile_overrides, grid_offset if human_overrides else 0)
+    # One tile of the shifted pass is *not* on the shifted lattice: the one that
+    # straddles the region's start, which `tile_grid` clips back to the region
+    # origin so the leading strip is read at all. Its origin is the unshifted
+    # one, so it needs the unshifted keys. Kept as a separate fallback dict
+    # because the two lattices must stay disjoint (`ocr.py self-check`).
+    priority_unshifted = (origin_keyed_overrides(tile_overrides, 0)
+                          if human_overrides and grid_offset else {})
 
     def _priority(x: int, y: int) -> str | None:
-        return priority_at.get((int(x), int(y)))
+        key = (int(x), int(y))
+        return priority_at.get(key) or priority_unshifted.get(key)
 
-    if any(v == "skip" for v in priority_at.values()):
+    if any(v == "skip" for v in (*priority_at.values(), *priority_unshifted.values())):
         before = len(tiles)
         tiles = [t for t in tiles if _priority(t[0], t[1]) != "skip"]
         n_low = sum(1 for v in priority_at.values() if v == "low_res")
@@ -3413,7 +3433,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--render-size", type=int, default=1024, help="Rendered pixel width per tile (default 1024)")
     p_batch.add_argument("--concurrency", type=int, default=3, help="Max concurrent Gemini calls (default 3)")
     p_batch.add_argument("--grid-offset", type=int, default=0,
-                         help="Shift the tile grid by this many source px in x and y (second pass of the two-pass recipe; tile_size/2)")
+                         help="Phase-shift the tile grid by this many source px in x and y, covering the same region (second pass of the two-pass recipe; tile_size/2)")
     p_batch.add_argument("--limit", type=int, help="Max tiles to process (for testing)")
     p_batch.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID")
     p_batch.add_argument("--prompt", default=DEFAULT_PROMPT, help="Prompt version key")

@@ -294,29 +294,70 @@ def _descending_from(sf: int, info: dict) -> list[int]:
     return [f for f in factors if f <= sf] or [1]
 
 
+def _axis_tiles(
+    start: int, extent: int, tile: int, step: int, offset: int = 0
+) -> list[tuple[int, int]]:
+    """One axis of the grid as (origin, size) pairs, clipped to the region.
+
+    With `offset` 0 this is the plain grid: origins at `start + k*step`, the
+    last one clipped at the far edge.
+
+    With an offset the *lattice* is phase-shifted — origins at
+    `start + offset + k*step` — so every seam of the unshifted grid lands
+    inside a shifted tile. The tile that straddles `start` (lattice index -1)
+    is kept and clipped to the region rather than dropped, which is what makes
+    the shifted pass cover the same span as the unshifted one.
+
+    Until 2026-09-10 `ocr.py` implemented the offset by insetting the region
+    instead — `(rx + offset, rw - offset)` — which shortened the tiled extent
+    by `offset` and so silently dropped a whole row or column whenever the
+    shortened extent fell below a step boundary. On the 1882 gate sheet's
+    `main_map` crop that cost pass 2 four of its tiles (20 instead of 24) and
+    a quarter of its labels, because the leading `offset`-wide strip of the
+    crop was never read at all. See EVAL-BASELINE.md and test_grid_offset.py.
+    """
+    if extent <= 0 or tile <= 0 or step <= 0:
+        return []
+    end = start + extent
+    offset %= step  # a whole-step shift is the same lattice
+    origins = [start + offset - step] if offset else []
+    o = start + offset
+    while o < end:
+        origins.append(o)
+        o += step
+    out: list[tuple[int, int]] = []
+    for o in origins:
+        x = max(o, start)
+        w = min(o + tile, end) - x
+        if w > 0:
+            out.append((x, w))
+    return out
+
+
 def tile_grid(
     width: int,
     height: int,
     tile: int = 2048,
     overlap: int = 256,
     region: tuple[int, int, int, int] | None = None,
+    offset: int = 0,
 ) -> Generator[tuple[int, int, int, int], None, None]:
-    """Yield (x, y, w, h) tuples covering the full image or a sub-region with overlap."""
+    """Yield (x, y, w, h) tuples covering the full image or a sub-region with overlap.
+
+    `offset` phase-shifts the grid in both axes without shrinking what it
+    covers — the second pass of the two-pass recipe. See `_axis_tiles`.
+    """
     if region:
         rx, ry, rw, rh = region
     else:
         rx, ry, rw, rh = 0, 0, width, height
 
     step = tile - overlap
-    y = ry
-    while y < ry + rh:
-        x = rx
-        h = min(tile, (ry + rh) - y)
-        while x < rx + rw:
-            w = min(tile, (rx + rw) - x)
+    cols = _axis_tiles(rx, rw, tile, step, offset)
+    rows = _axis_tiles(ry, rh, tile, step, offset)
+    for y, h in rows:
+        for x, w in cols:
             yield x, y, w, h
-            x += step
-        y += step
 
 
 def get_iiif_base_from_supabase(map_id: str) -> str | None:
