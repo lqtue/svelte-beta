@@ -35,18 +35,83 @@ AREA_CATEGORIES = {
     "water_body",
     "legend_ref",
     "number",
-    "other",
 }
+
+# `other` used to be in that set, and is the category a row with no category at
+# all falls back to. Measured on the 1882 sheet's v1b run: 7 of 91 seeds were
+# `other`, and they supplied 4 of the 10 worst masks by SAM2's own iou —
+# including the two readings of a pencil shelfmark in the sheet margin, one of
+# which produced the largest polygon of the whole run at 153,116 px. A category
+# the OCR pass could not name is not evidence that an area is there.
 
 # Below this, the OCR pass was guessing; a bad prompt costs a whole mask.
 MIN_CONFIDENCE = 0.4
+
+
+def tiling_crop(triage: dict | None) -> list[float] | None:
+    """The rectangle worth reading on a sheet: `main_map`, else the neatline.
+
+    Python twin of `tilingCrop` in `src/lib/data/maps/triageTypes.ts`, and the
+    same precedence for the same reason — the neatline is the *printed border*,
+    so a legend or a street index printed inside it is inside the neatline too.
+    Kept in step with that file; `--self-check` pins the precedence.
+    """
+    if not triage:
+        return None
+    for r in triage.get("regions") or []:
+        if r.get("category") == "main_map" and len(r.get("bbox") or []) == 4:
+            return [float(v) for v in r["bbox"]]
+    neatline = triage.get("neatline")
+    if neatline and len(neatline) == 4:
+        return [float(v) for v in neatline]
+    return None
+
+
+def clip_seeds_to(seeds: list[dict], crop: list[float] | None) -> list[dict]:
+    """Drop seeds whose centroid falls outside `crop`. Pure.
+
+    Everything printed outside the main map is furniture — title block, legend,
+    scale bar, the printer's imprint, a pencil shelfmark — and a label read off
+    any of it is not a place. On the 1882 sheet this removes 4 of 91 seeds and
+    with them the three largest errors in the run.
+
+    Centroid rather than intersection on purpose, matching how `seeds_for_tile`
+    already assigns a straddling seed to exactly one owner.
+    """
+    if not crop:
+        return seeds
+    cx0, cy0, cw, ch = crop
+    kept = []
+    for s in seeds:
+        px, py = s["centroid"]
+        if cx0 <= px <= cx0 + cw and cy0 <= py <= cy0 + ch:
+            kept.append(s)
+    return kept
+
+
+def fetch_tiling_crop(map_id: str) -> list[float] | None:
+    """The saved crop for a map, or None when it has no triage yet."""
+    import requests
+
+    url = os.environ.get("PUBLIC_SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("PUBLIC_SUPABASE_ANON_KEY", "")
+    resp = requests.get(
+        f"{url}/rest/v1/maps",
+        params={"id": f"eq.{map_id}", "select": "triage"},
+        headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    rows = resp.json()
+    return tiling_crop(rows[0].get("triage") if rows else None)
 
 
 def load_seeds_for_map(map_id: str, ocr_run_id: str | None = None) -> list[dict]:
     """Fetch prompt-worthy extractions for a map as full-image px seeds.
 
     Rejected rows are excluded; a validated row's human corrections win over the
-    model's original text, because that is the name the polygon will carry.
+    model's original text, because that is the name the polygon will carry. Seeds
+    outside the sheet's `main_map` are dropped — see `clip_seeds_to`.
     """
     import requests
 
@@ -71,7 +136,16 @@ def load_seeds_for_map(map_id: str, ocr_run_id: str | None = None) -> list[dict]
         timeout=60,
     )
     resp.raise_for_status()
-    return rows_to_seeds(resp.json())
+    seeds = rows_to_seeds(resp.json())
+
+    crop = fetch_tiling_crop(map_id)
+    if crop:
+        before = len(seeds)
+        seeds = clip_seeds_to(seeds, crop)
+        if len(seeds) != before:
+            print(f"  Clipped to main_map {[int(v) for v in crop]}: "
+                  f"{before} → {len(seeds)} seeds")
+    return seeds
 
 
 def rows_to_seeds(rows: list[dict]) -> list[dict]:
@@ -182,6 +256,34 @@ def _self_check() -> None:
     # …and the surviving prompt is clipped to its owner's bounds.
     owner = (left or right)[0]
     assert owner["box"][2] <= 1024.0 + 1e-6, owner["box"]
+
+    # A row with no category is no longer prompt-worthy: `other` left the set.
+    assert rows_to_seeds([
+        {"id": "f", "text": "Ge_ B. 9", "confidence": 0.9, "status": "pending",
+         "global_x": 100, "global_y": 8500, "global_w": 200, "global_h": 60},
+    ]) == []
+
+    # tiling_crop precedence, kept in step with tilingCrop in triageTypes.ts:
+    # main_map wins over the neatline, and a neatline alone still counts.
+    assert tiling_crop(None) is None
+    assert tiling_crop({"neatline": [1, 2, 3, 4]}) == [1.0, 2.0, 3.0, 4.0]
+    assert tiling_crop({
+        "neatline": [1, 2, 3, 4],
+        "regions": [{"category": "title", "bbox": [9, 9, 9, 9]},
+                    {"category": "main_map", "bbox": [10, 20, 30, 40]}],
+    }) == [10.0, 20.0, 30.0, 40.0]
+    assert tiling_crop({"regions": [{"category": "legend", "bbox": [0, 0, 1, 1]}]}) is None
+
+    # Clipping is by centroid, and no crop means no filtering.
+    marginal = rows_to_seeds([
+        {"id": "g", "text": "In", "category": "building", "confidence": 0.9, "status": "pending",
+         "global_x": 500, "global_y": 500, "global_w": 40, "global_h": 20},
+        {"id": "h", "text": "Out", "category": "building", "confidence": 0.9, "status": "pending",
+         "global_x": 100, "global_y": 8500, "global_w": 40, "global_h": 20},
+    ])
+    crop = [459.0, 413.0, 11073.0, 7913.0]          # the 1882 sheet's own main_map
+    assert [s["extraction_id"] for s in clip_seeds_to(marginal, crop)] == ["g"]
+    assert clip_seeds_to(marginal, None) == marginal
 
     print("[ok] to_sam2_seeds self-check passed")
 

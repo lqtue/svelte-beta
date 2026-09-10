@@ -377,6 +377,42 @@ def global_dedup(polys: list[PolygonResult], iou_thresh: float = 0.3) -> list[Po
 
 # ── watershed post-processing ─────────────────────────────────────────────
 
+def _nearest_original(
+    coords: list[list[float]],
+    polys: list[PolygonResult],
+) -> PolygonResult | None:
+    """Which pre-watershed polygon a refined ring came from.
+
+    Cheap on purpose: the centroid of the refined ring against each original's
+    bounding box, falling back to the nearest centroid when it lands in none
+    (watershed boundaries sit a pixel or two outside the mask they came from).
+    A per-pair shapely intersection would be more exact and is not worth it at
+    ~100 polygons a sheet.
+    """
+    if not polys:
+        return None
+    cx = sum(c[0] for c in coords) / len(coords)
+    cy = sum(c[1] for c in coords) / len(coords)
+
+    inside: list[tuple[float, PolygonResult]] = []
+    for p in polys:
+        xs = [c[0] for c in p.coords]
+        ys = [c[1] for c in p.coords]
+        if min(xs) <= cx <= max(xs) and min(ys) <= cy <= max(ys):
+            inside.append((p.area, p))
+    if inside:
+        # Smallest containing box wins: a split fragment sits inside its own
+        # original and also inside anything larger that happens to span it.
+        return min(inside, key=lambda t: t[0])[1]
+
+    def dist2(p: PolygonResult) -> float:
+        px = sum(c[0] for c in p.coords) / len(p.coords)
+        py = sum(c[1] for c in p.coords) / len(p.coords)
+        return (px - cx) ** 2 + (py - cy) ** 2
+
+    return min(polys, key=dist2)
+
+
 def watershed_refine(
     polys: list[PolygonResult],
     region: tuple[int, int, int, int],
@@ -441,7 +477,24 @@ def watershed_refine(
                 continue
         except Exception:
             continue
-        refined.append(PolygonResult(coords=coords, area=real_area, iou=0.5))
+        # Carry the prompt through. Watershed rebuilds geometry from an edge map,
+        # so without this every polygon comes back with seed=None and iou=0.5 —
+        # which throws away the OCR label that is the entire point of prompted
+        # mode, and flattens `confidence` (written from iou by --write-supabase)
+        # to a constant. Measured before this line existed: 0 of 106 polygons
+        # carried a label and all 106 claimed 0.5.
+        #
+        # A refined polygon is attributed to whichever original it overlaps most,
+        # by centroid containment first and area overlap second. Watershed splits
+        # one mask into several, so several refined polygons may share a seed —
+        # correct, since a courtyard block split in two is still that building.
+        owner = _nearest_original(coords, polys)
+        refined.append(PolygonResult(
+            coords=coords,
+            area=real_area,
+            iou=owner.iou if owner else 0.5,
+            seed=owner.seed if owner else None,
+        ))
 
     if len(refined) < len(polys) * 0.5:
         print(f"  Watershed produced too few polygons ({len(refined)} vs {len(polys)}); keeping originals")
