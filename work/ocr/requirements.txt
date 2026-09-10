@@ -1,0 +1,31 @@
+# Python dependencies for work/ocr/ and work/worker/.
+#
+#   python3 -m venv work/ocr/.venv
+#   source work/ocr/.venv/bin/activate
+#   pip install -r work/ocr/requirements.txt
+#
+# This is NOT a `pip freeze` of the existing venv — that venv carries 241
+# packages (jupyter, geopandas, contextily) from interactive analysis, none of
+# which the pipeline imports. These eight are what the scripts actually use,
+# read off their import statements and pinned to the versions the venv that
+# produced EVAL-BASELINE.md was running.
+#
+# Not listed because they are not pip packages: `vips` and `rclone` (needed on
+# PATH before the worker will claim `tile_to_r2`) and the `tesseract` binary
+# behind pytesseract. `brew install vips rclone tesseract`.
+#
+# MapSAM2 (`seg`) is deliberately absent: torch and an upstream SAM2 clone
+# belong to whichever GPU machine runs that kind, not to this venv.
+
+google-genai==2.16.0
+numpy==2.5.1
+pillow==12.0.0
+python-dotenv==1.2.2
+requests==2.32.5
+scipy==1.17.1
+shapely==2.1.2
+
+# local_vision.py, which ocr.py imports at module level (ocr.py:64) — so this
+# is required, not optional. pytesseract itself is imported lazily inside the
+# function (local_vision.py:115), but the module is on the import path.
+pytesseract==0.3.13
