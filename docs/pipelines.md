@@ -245,12 +245,24 @@ colour test would beat a position rule tuned per sheet.
 
 | step | calls | yield | per call |
 |---|---|---|---|
-| street index, both margins in bands | 15 | 384 streets, each with a cell range | **25.6** |
+| street index, both margins in bands | 14 † | 384 streets, each with a cell range | **27.4** |
 | margin index, one group at a time | 16 | 156 entries + the number join | **9.8** |
 | map body, 2 passes + merge | 72 | 627 rows | 8.7 |
 | numeral pass (`seq-v1-idx`) | 36 | 114 numerals | 3.2 |
 | cell sweep, ×2 for the union | 36 | 45 numerals | 1.3 |
 | quadrant re-sweep (abandoned) | ~60 | 4 numerals | **0.07** |
+
+† 14 **billed**, not the 15 the tool prints. `ocr.py street-index` counted
+bands attempted, and a band whose crop and prompt are already in the
+model-response cache returns before the call is logged — so it is free, and it
+still yields its entries. Measured over
+`outputs/34d4edb2-*/runs/streetindex-20260910/calls.jsonl`: 28 logged calls
+across two passes of 14, split by a 127-second gap, against 15 bands per pass
+derived independently from the region heights in `street_index.json`
+(7853 px + 9221 px at `--band-height 1300 --overlap 150` gives 7 + 8). The
+counter is now called `n_bands`, which is what it always was. No cost path read
+it — `vma_worker.py` counts `calls.jsonl` lines — so nothing downstream was
+wrong, only the number a person reads off the terminal.
 
 So: margins before a second body pass, numerals twice and then stop, and hand
 the tail to `?mode=review` — a person clicks the last twelve in a couple of

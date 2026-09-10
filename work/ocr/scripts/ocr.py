@@ -3133,7 +3133,7 @@ def cmd_street_index(args: argparse.Namespace) -> None:
 
     merged: dict[tuple[str, str], dict] = {}
     failed: list[tuple[int, int, int]] = []
-    n_calls = 0
+    n_bands = 0
     for ri, (x, y, w, h) in enumerate(regions):
         y0 = y
         while y0 < y + h:
@@ -3156,7 +3156,11 @@ def cmd_street_index(args: argparse.Namespace) -> None:
                 print(f"  region {ri} band y={y0}: FAILED — {str(e)[:160]}")
                 failed.append((ri, y0, bh))
                 entries = []
-            n_calls += 1
+            # Bands attempted, not calls billed. A band whose crop and prompt are
+            # already in the model-response cache returns from `extract_labels`
+            # before `_log_call` runs, so it counts here and never reaches
+            # calls.jsonl. Measured 2026-09-10: 15 bands per pass, 14 billed.
+            n_bands += 1
             kept = 0
             for e in entries:
                 name = (e.get("name") or "").strip()
@@ -3190,10 +3194,13 @@ def cmd_street_index(args: argparse.Namespace) -> None:
     out_path.write_text(json.dumps({
         "map_id": map_label, "regions": [list(r) for r in regions],
         "model": args.model, "prompt": "street-index-v1",
-        "n_calls": n_calls, "n_entries": len(entries),
+        "n_bands": n_bands, "n_entries": len(entries),
         "failed_bands": [list(f) for f in failed], "entries": entries,
     }, indent=2, ensure_ascii=False))
-    print(f"\n{len(entries)} street entries from {n_calls} call(s) → {out_path}")
+    print(
+        f"\n{len(entries)} street entries from {n_bands} band(s) attempted "
+        f"→ {out_path}\n  calls.jsonl is what was billed; a cached band is free"
+    )
     if failed:
         print(f"  {len(failed)} band(s) FAILED and read nothing: {failed}")
         print("  Re-run the same --run-id to retry them; every band that did land is cached.")
