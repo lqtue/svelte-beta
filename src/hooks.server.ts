@@ -59,6 +59,37 @@ function legacyTarget(pathname: string): string | null {
 const CANONICAL_HOST = 'maparchive.vn';
 const PAGES_DEV_HOST = 'vmabeta.pages.dev';
 
+/**
+ * Security headers for everything this Worker renders.
+ *
+ * The `_headers` file at the project root carries the same list, and is not
+ * redundant: Cloudflare applies it only to files Pages serves directly — the
+ * fonts and `/_app/*` — while `_routes.json` sends every HTML page through
+ * this Worker instead. So `_headers` alone left exactly the pages that matter
+ * for clickjacking bare, which is how the first deploy of it shipped looking
+ * correct (the fonts carried the headers) while `/` carried nothing. Keep the
+ * two lists in step; between them they cover the whole site.
+ *
+ * The CSP is Report-Only on purpose. /explore reaches several origins for
+ * tiles and annotations, and an enforcing policy written before reading the
+ * reports would break the map. Tighten `connect-src`/`img-src` to the hosts
+ * that actually appear, then drop the `-Report-Only` suffix here and there.
+ *
+ * `X-Frame-Options: DENY` is safe: nothing in src/ renders an iframe, and the
+ * Allmaps Editor is opened in a new tab rather than embedded.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Permissions-Policy': 'geolocation=(self), camera=(), microphone=(), payment=()',
+  'Content-Security-Policy-Report-Only':
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self'; " +
+    "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+};
+
 export const handle: Handle = async ({ event, resolve }) => {
   if (event.url.hostname === PAGES_DEV_HOST) {
     const canonical = new URL(event.url);
@@ -132,6 +163,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Mark response as resolved to prevent late cookie setting
   responseResolved = true;
+
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(name, value);
+  }
 
   return response;
 };
