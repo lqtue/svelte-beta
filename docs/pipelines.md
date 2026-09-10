@@ -88,6 +88,8 @@ The system + task prompt go into an explicit Gemini context cache per (key, mode
 
 **Model.** `gemini_client.DEFAULT_MODEL` is `gemini-3.8-flash` ($0.75/$3.75 per 1M in/out) since 2026-09-04; it was `gemini-3-flash-preview`, which still answers but is absent from Google's pricing page — no published rate, no stated support window. `--model` overrides per run, an `ocr` job payload's `model` overrides per job (the worker passes it through), and `scripts/enqueue_ocr_all.mjs --model NAME` sets it for a whole batch. Measured on this corpus at 5,156 in / 1,810 out tokens per call and 30–60 calls per sheet, that is roughly $0.50 a map, or $0.06 on `gemini-2.5-flash-lite`. Rate limits are no longer published per model — read them at <https://aistudio.google.com/rate-limit>. `GEMINI_API_KEYS` (comma-separated) rotates keys when one hits its daily cap; `GEMINI_API_KEY` is the single-key fallback.
 
+**That $0.50-a-map figure predates the correction below (2026-09-10) and is understated.** "1,810 out tokens per call" is `output_tokens` — the visible-candidates field `gemini_client._log_call` writes (`getattr(usage, "candidates_token_count", …)`, `gemini_client.py:384`) — not what Gemini bills. Billed output is `total_tokens − input_tokens`, which also carries the model's thinking tokens, and on every run since measured directly it has come to 3.5–4× the visible figure (see *Cost*, below, and the same note in `work/ocr/EVAL-BASELINE.md`). The exact 49-call sample this line was measured from is no longer isolable on disk, so it is not recomputed here; scaling the visible-output term by ~4× puts the honest figure nearer **$1.4 a map**, not $0.50. The `gemini-2.5-flash-lite` figure carries the same defect and is not restated, for the same reason — it has never been measured directly.
+
 **Reading an R2-hosted map.** `fetch_crop` asks for an arbitrary region at an arbitrary scale; `worker/` renders nothing and serves only the tiles `vips dzsave` wrote, so every such request 404s and, until 2026-09-04, OCR failed on its first tile for all 39 georeferenced maps. `fetch_crop_level0` composes the region from the pyramid instead: scale factor from `scaleFactors` (degrading if the top one was advertised but never written), origin a multiple of `tile_size · sf`, region clipped to the image, and rendered `size = ceil(region_w / sf)` — a constant `256,` 404s on clipped edge tiles. `info.json` claims `profile: level2`; it is not, do not trust that field. `iiif_tiles.py --self-check` covers the addressing.
 
 **Overview resolution matters more than it looks.** `compute_tile_densities` measures local 8×8 std-dev, which at a heavy downscale reads dense city hatching as *smooth*. Measured on the 1882 Saigon cadastral, centre-tile vs edge-tile mean density was inverted at 600, 1024, 1513 and 1700px and only correct at 2048 — so `--auto-priority` on the old 1024px overview demoted the densest, most label-rich tiles. `OVERVIEW_WIDTH = 2048` in `ocr.py`; do not lower it. The companion colour/wash pass scored 0.000 on every tile of that sheet at every saturation gate, because its hue bands (60–260°) miss a warm-toned scan entirely — treat it as unmeasured.
@@ -278,6 +280,15 @@ writes each street's box as the union of its two cells, `notes` recording
 `grid=C9→C10`. A run of cells is not a point and the box says so; it is also
 not the *neatline*-wide guess a name with no reference gets.
 
+**~$0.03 was a guess, not a measurement, and it was low either way (2026-09-10
+correction).** `work/ocr/outputs/34d4edb2…/runs/streetindex-20260910/calls.jsonl`
+holds two full runs of this command (28 logged calls — one band per pass is
+served from the response cache and never reaches `calls.jsonl`, so 14 billed
+calls per 15-band pass, not 15). Costed straight off that log at $0.75/$3.75
+per Mtok in/out: **USD 0.24–0.27 billed** per pass (`total_tokens − input_tokens`,
+thinking included) against **USD 0.08** read the old way, off `output_tokens`
+alone. Cheap either way, but nearer a quarter than three cents.
+
 The one-group-at-a-time rule above still holds but does not bite here: the table
 is one column group, and the bands run across it. `TỪ`/`ĐẾN` arrive in separate
 schema fields, so there is no pairing to get wrong — the probe band matched the
@@ -348,8 +359,9 @@ work/ocr/.venv/bin/python work/ocr/scripts/eval.py index-agreement \
 ```
 
 Ground truth is the sheet's own `street-index-v1` rows — ~384 `name → cell-range`
-pairs read for ~$0.03, no human labelling. Two numbers come out, and both are
-things the corpus never had:
+pairs read for well under a dollar (~$0.25 billed, corrected — see the note
+under *The street index is the cheapest thing on the sheet*, above), no human
+labelling. Two numbers come out, and both are things the corpus never had:
 
 - **`name_recall`** — of the names the sheet says it prints, how many did the
   body pass read? This is the denominator a row count never was.
@@ -694,7 +706,9 @@ The shipped category taxonomy is whatever `work/ocr/scripts/prompt.py` and the r
 
 ## Cost
 
-Flash-tier vision is cheap enough that resolution, not budget, is the binding constraint: a full pass over one large map is cents, not dollars. Per-run token counts are recorded in each run's `run_config.json` — use those rather than any figure written down here, since both pricing and the default model change.
+Flash-tier vision is cheap enough that resolution, not budget, is the binding constraint: a full pass over one large map is cents to a couple of dollars, not tens of dollars. Per-run token counts are recorded in each run's `run_config.json` — use those rather than any figure written down here, since both pricing and the default model change.
+
+**Correction, 2026-09-10 — every cost figure on this corpus was understated by roughly 4×.** `output_tokens`, as `work/ocr/scripts/gemini_client.py` logs it (`_log_call`, line 384: `getattr(usage, "candidates_token_count", …)`), is the *visible* text a call returned. It is not what Gemini bills. Billed output is `total_tokens − input_tokens` — candidates plus thinking — and on every run measured directly so far that has come to 3.5–4× the visible figure (124k billed against 31k visible on one 1882 pass; 289k against 82k on the 1968 body run). Every cost figure in this file and in `work/ocr/EVAL-BASELINE.md` that predates this date was computed off `output_tokens` alone and should be assumed understated by roughly that factor unless it explicitly says it accounts for thinking tokens. The two measured, corrected anchors are the 1882 gate sheet's two-pass merge (**USD 0.945**, `EVAL-BASELINE.md` §*The recipe of record*) and the 1968 body pass (**USD 1.236**, corrected in place in the same file, §*The 1968 sheet reads a third of its own directory*) — both at the $0.75/$3.75/$0.075 (in/out/cached-read) rate `gemini-3.8-flash` bills at. This is a reporting fix, not a pricing change: nothing about what Gemini actually charges has moved, only what this repo wrote down about it. `gemini_client.py`'s own `DEFAULT_MODEL` comment repeats the old "$0.50 a map" claim; that file is not this note's to fix (see the model paragraph above for the correction), and neither is `docs/ROADMAP.md`'s copy of the same figure — flag both if you touch either.
 
 ## POC acceptance criteria (historical)
 

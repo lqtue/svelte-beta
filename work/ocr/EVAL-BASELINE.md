@@ -553,16 +553,29 @@ worth; reading the second would raise the denominator and lower `name_recall`.
 the old figure was 9 matched labels, this one is 151.
 
 **What the next pass should try, in order.** (1) Fewer metres per call:
-`--tile-size 800` is 1019 m and ~2× the calls (~$0.5); doc step 3 is measured
-on 1959 and untried here. (2) An **upsampled** render (`--tile-size 1120
---render-size 1680`) — this is *not* the resolution bump this file rejects,
-which was smaller tiles fragmenting long labels; it is the same tile with bigger
-glyphs, and nothing in the corpus has measured it. (3) Read the second
-`name_list` block so the denominator is the whole directory.
+`--tile-size 800` is 1019 m and ~2× the calls (~USD 2.5 at the corrected cost
+below; originally written as ~$0.5, doubled off the uncorrected actual). doc
+step 3 is measured on 1959 and untried here. (2) An **upsampled** render
+(`--tile-size 1120 --render-size 1680`) — this is *not* the resolution bump
+this file rejects, which was smaller tiles fragmenting long labels; it is the
+same tile with bigger glyphs, and nothing in the corpus has measured it. (3)
+Read the second `name_list` block so the denominator is the whole directory.
 
 **Cost:** estimated USD 0.37 before running (48 calls × 5984 in / 1607 cached /
-~2500 out at 0.30/0.075/2.50 per Mtok), actual **USD 0.271** — output came in at
-82k rather than the 120k budgeted.
+~2500 out at 0.30/0.075/2.50 per Mtok), actual **USD 0.271** — output came in
+at 82k rather than the 120k budgeted.
+
+**Both of those numbers are wrong, on two counts, corrected 2026-09-10** (see
+*Prices used* below): they price at $0.30/$2.50, a rate this file uses nowhere
+else, and they cost `output_tokens` (82,397 — visible text only) rather than
+what Gemini actually bills, `total_tokens − input_tokens`, which includes
+thinking. That figure is 288,613 for this run — **3.5× the visible one**.
+Recomputed straight from this run's own `calls.jsonl`, at the $0.75/$3.75
+input/output and $0.075 cached-read rate the rest of this file settles on:
+**actual USD 1.236** — 4.6× the number originally recorded. (At the original,
+non-standard $0.30/$2.50 rate but with the billed-output correction only, it
+is USD 0.786 — the rate and the token definition are two separate bugs, and
+this shows their sizes apart.)
 
 ## The recipe of record, re-run: free from cache, and two inert knobs (2026-09-10)
 
@@ -627,8 +640,10 @@ read (apidog.com/blog/gemini-3-8-flash-pricing, requesty.ai; both double on
 2027-01-01). Output is billed as `total_tokens − input_tokens`, i.e. **candidates
 plus thinking**: on this sheet thinking is ~4× the visible output (pass 1 emits
 31k visible and is billed for 124k), so a cost read off `output_tokens` alone
-understates a run by about four. The 1968 note above prices at 0.30/2.50 and
-counts visible output only; its figures and these are not comparable.
+understates a run by about four. The 1968 note above priced at 0.30/2.50 and
+counted visible output only, so it was not comparable to this section —
+corrected in place above (2026-09-10) to this same basis, and it moves from
+$0.271 to $1.236 once it is.
 
 **Not accepted.** `index-baselines.json` and every number above this section are
 untouched; nothing was written to `ocr_extractions`. Run dirs for the paid probes
