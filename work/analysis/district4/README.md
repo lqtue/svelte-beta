@@ -376,3 +376,9 @@ clean 4/3 downscale whose `source_url` already points at the larger copy) and
 the 1968 Huế 1:50,000 Sheet 6541 IV (we read a 0.9 MB JP2 at 1660×2147 where
 UTexas holds an 11.2 MB JPEG). Neither is an acquisition; the first is a
 re-mirror from a source already recorded. Full table in the audit report.
+
+**The 1863 one is done** (2026-09-10). R2 now mirrors Humazur's 6501×11195, the
+annotation's GCPs and mask were rescaled to match, and `ocr.py scale` reads
+**1.353 m/px** where it read 1.804 — the ratio's predicted figure exactly. The
+sheet stays on this list, since 1.353 is still above 1.1; it is 25% less severe
+and cost nothing. The 1968 Sheet 6541 IV case is still open.

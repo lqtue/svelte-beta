@@ -851,3 +851,40 @@ mechanism that made `street-index` report 15 calls when 14 were billed.
 `b532d3b9` is visible on disk here: `post0910-b`'s first tile is
 `0_0_1500_1500`, the lattice index -1 tile clipped to the region, which the old
 inset implementation dropped entirely.
+
+## 2026-09-10 — the 1863 Palanca Gutierrez sheet re-mirrored at full size
+
+Not an OCR run; a source fix, recorded here because it moves a number this file
+tracks. Map `876dc3c6-2709-4b80-bece-32ada0dfff76`.
+
+| | before | after |
+|---|---|---|
+| pyramid | 4876×8396 | **6501×11195** |
+| `ocr.py scale` | 1.804 m/px | **1.353 m/px** |
+| R2 objects | 901 / 9.3 MiB | 1542 / 17.1 MiB |
+| tile grid at `--tile-metres 1400` | — | 1042 px, 8×14 = 112 tiles, 1410 m/call |
+
+R2 had been mirroring a clean 75% downscale of a copy Humazur serves in full,
+and `source_url` had pointed at the full one all along. Humazur's
+`iiif-img/2984` answers `full/full/0/default.jpg` (10.2 MB) but **400s on
+`full/max/…`**, which is worth knowing before the next re-mirror: the usual
+fetch shape fails on this server.
+
+The order matters and is the reusable part. The rescaled annotation is prepared
+**first** — GCP `resourceCoords` and the `SvgSelector` mask multiplied by
+6501/4876 and 11195/8396, 1.333265 and 1.333373, which differ in the sixth
+decimal because the downscale was rounded rather than an exact three-quarters —
+then the pyramid is uploaded, then the annotation is upserted. Between those
+last two the sheet is live with a georeference 25% out of scale, so that window
+is one upload long and nothing else goes in it. `sources/<id>` was repointed to
+Humazur in the same pass, so a worker cache miss now proxies the large copy
+rather than IA's small one, and `rclone delete --min-age 30m` cleared the old
+pyramid's unreachable tiles afterwards.
+
+Safe here because the sheet carried no `ocr_extractions` and no
+`footprint_submissions`. On a sheet that carried either, both are in
+source-pixel space and would need the same two multipliers.
+
+Still above the 1.1 m/px line, so it stays on the coarse list — 25% less
+severe, at no cost, and the last row of that audit that could be closed without
+buying anything.
