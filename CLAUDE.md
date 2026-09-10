@@ -55,7 +55,7 @@ Never import a Node builtin bare (`import('path')`); the CF Functions bundle err
 
 Local ports are **54421** for the API and **54420** for the shadow DB, not the CLI defaults — 54321/54320 collide with another local project. `-x vector -x logflare` is needed under colima: those containers bind-mount `/var/run/docker.sock`, which colima cannot provide.
 
-Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` works directly; `supabase db pull` and `migration list` require a direct DB password — use the Dashboard SQL Editor or `db push` instead. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
+Supabase project ref `trioykjhhwrruwjsklfo` (Sydney) is already linked. `supabase db push` and `supabase migration list` both work directly (verified 2026-09-10 — `migration list` prints the local/remote table without a password prompt). `supabase db pull` still asks for a direct DB password; use the Dashboard SQL Editor or `db push` instead of pulling. Repair migrations with `supabase migration repair --status applied|reverted <id>`.
 
 **Adding a migration** — drop a new `supabase/migrations/NNN_*.sql` (incrementing from the current head, **078**), `supabase db push`, then regenerate types: `supabase gen types typescript --linked 2>/dev/null > src/lib/data/supabase/types.ts`. Run `npm run check` to catch fallout.
 
