@@ -92,6 +92,7 @@
     filterIds={list.map((m) => m.id)}
     activeIds={selectedMapId ? [selectedMapId] : []}
     {badges}
+    showTypes={false}
     showLabels={false}
     on:pick={handlePick}
   />

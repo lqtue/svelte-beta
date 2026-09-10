@@ -19,6 +19,10 @@
   /** id → short text drawn at the end of the row. The catalog rows carry no
    *  pass progress, so /scan supplies "OCR'd" / "12 pending" from its own list. */
   export let badges: Record<string, string> = {};
+  /** Draw the map_type chip when a row has no badge. /scan turns it off: that
+   *  column is "have I done this sheet yet?", and a type chip on the rows with
+   *  no pass yet reads as a status the sheet does not have. */
+  export let showTypes = true;
 
   const dispatch = createEventDispatcher<{
     pick: { map: any };
@@ -89,7 +93,7 @@
         <span class="type-cell">
           {#if badges[m.id]}
             <span class="badge-chip is-sm chip-green">{badges[m.id]}</span>
-          {:else if m.map_type}
+          {:else if showTypes && m.map_type}
             <span class="badge-chip is-sm type-chip" style={typeStyle(m.map_type)}
               >{m.map_type}</span
             >

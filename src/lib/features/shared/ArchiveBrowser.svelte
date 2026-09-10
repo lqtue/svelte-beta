@@ -39,6 +39,8 @@
   /** Passed through to the rows; see `ArchiveMapRows`. */
   export let activeIds: string[] | null = null;
   export let badges: Record<string, string> = {};
+  /** Forwarded to ArchiveMapRows — see its `showTypes`. */
+  export let showTypes = true;
   /** Label hits open /explore at a spot, which a /scan tool cannot do. */
   export let showLabels = true;
   /** An engine created by the caller, so several lists can share one filter
@@ -76,7 +78,7 @@
 {/if}
 
 {#if shownRows.length}
-  <ArchiveMapRows rows={shownRows} {activeIds} {badges} on:pick on:remove />
+  <ArchiveMapRows rows={shownRows} {activeIds} {badges} {showTypes} on:pick on:remove />
 {:else if !showLabels || !$labels.length}
   <p class="empty-state empty">No maps match those filters.</p>
 {/if}
