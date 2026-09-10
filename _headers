@@ -2,8 +2,18 @@
 # X-Frame-Options, so /catalog (which renders MapEditModal for staff) and
 # /admin could both be framed by any origin.
 #
+# This file belongs in the project root, not static/ — adapter-cloudflare
+# fails the build if it finds one under static/, because it writes its own
+# into the output directory and will not silently merge two sources.
+#
 # `frame-ancestors 'none'` is the modern X-Frame-Options; both are sent
 # because Safari still honours only the older header.
+#
+# The CSP is Report-Only on purpose. /explore loads OpenLayers, PMTiles and
+# Allmaps and reaches several origins for tiles and annotations; an enforcing
+# policy written blind would break the map. Read the reports, tighten
+# connect-src and img-src to the hosts that actually appear, then drop the
+# -Report-Only suffix.
 
 /*
   X-Frame-Options: DENY
