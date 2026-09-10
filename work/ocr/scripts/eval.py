@@ -165,6 +165,17 @@ def _print(kind: str, r: dict, iou: float) -> None:
     print(f"\n== {kind} eval @ IoU≥{iou} ==")
     print(f"  predictions: {r['n_pred']}   ground truth: {r['n_gt']}   matched: {r['tp']}")
     print(f"  precision {r['precision']}   recall {r['recall']}   f1 {r['f1']}   mean_iou {r['mean_iou']}")
+    n_unmatched = r["n_pred"] - r["tp"]
+    if n_unmatched:
+        # Worse than blind: on a partial GT, precision prices new coverage as
+        # harm. The 1882 GT is 85 street and institution names, so the margin
+        # content the grid-offset fix recovered — `REGISTRE DU CADASTRE`, the
+        # Boilloux imprint, 20 cadastral street numbers — enters here as false
+        # positives. Read precision as agreement with the GT's *scope*, and
+        # judge coverage by eye or against a GT that includes it.
+        print(f"  ({n_unmatched} predictions matched no GT box. On a GT that covers "
+              f"only part of the sheet's content, that is scope, not error — "
+              f"precision falls when a pass reads more than the GT knows about.)")
     if "char_acc" in r:
         print(f"  char_acc {r['char_acc']}")
     if r.get("category_acc") is not None:
@@ -243,10 +254,14 @@ def _cmd_index_agreement(args: argparse.Namespace) -> None:
     if prev:
         print("\n  vs baseline "
               f"({prev.get('recorded')}, run {prev.get('run_id') or 'all'}):")
-        for k in ("agreement", "name_recall"):
-            d = report[k] - prev.get(k, 0.0)
-            print(f"    {k:14} {prev.get(k, 0):.4f} → {report[k]:.4f}  "
-                  f"{'+' if d >= 0 else ''}{d:.4f}")
+        for k in ("agreement", "name_recall", "n_unlisted"):
+            d = report[k] - prev.get(k, 0)
+            if isinstance(report[k], int):
+                print(f"    {k:14} {prev.get(k, 0)} → {report[k]}  "
+                      f"{'+' if d >= 0 else ''}{d}")
+            else:
+                print(f"    {k:14} {prev.get(k, 0):.4f} → {report[k]:.4f}  "
+                      f"{'+' if d >= 0 else ''}{d:.4f}")
     elif not args.save:
         print("\n  no baseline recorded for this map — add --save to set one.")
 
@@ -279,7 +294,17 @@ def _print_index_agreement(map_id: str, run_id: str | None, r: dict,
           f"({r['n_names_found']}/{r['n_directory_names']} printed names read on the map)")
     print(f"  agreement   {r['agreement']:.4f} "
           f"({r['n_inside']}/{r['n_matched']} matched labels inside their stated range)")
-    print(f"  disagree {r['n_outside']}   not in the directory {r['n_unlisted']}")
+    print(f"  disagree {r['n_outside']}")
+    # Coverage, reported apart from name_recall on purpose. Twice in one day
+    # (2026-09-10) a change that genuinely widened what a pass read scored as
+    # worth nothing: the 1882 grid-offset fix recovered margin content a GT of
+    # 85 street names cannot contain, and the 1968 south band found 20 hamlet
+    # and canal names a printed street directory never lists. Both are real
+    # content the gate is structurally blind to, and both landed here, in the
+    # count of labels with no directory row. A rise in this number beside a flat
+    # name_recall is that case, not noise.
+    print(f"  coverage    {r['n_unlisted']} labels read that the directory does not list "
+          f"(hamlets, canals, margin text — real content this gate cannot score)")
     if r["misses"]:
         print("  labels outside their stated range:")
         for m in r["misses"][:20]:

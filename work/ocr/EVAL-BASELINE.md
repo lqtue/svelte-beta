@@ -920,3 +920,50 @@ Total for the sheet: G's 2.2544 plus this 0.7293 is **USD 2.98**, and 0.3270 →
 The merge is a plain union (`ocr.py merge`, three runs, 1439 labels → 990, 427
 seen by more than one pass), not a vote — the shifted second 800 pass that
 would make a vote meaningful is the next step, not this one.
+
+## 2026-09-10 — the coverage blind spot, made visible in both gates
+
+The one open methodological item from the round-two work, and it was the same
+finding twice in one day. Neither gate can score a coverage change:
+
+- the **1882** gate is 85 street and institution names, so the margin content
+  the `--grid-offset` fix recovered — `REGISTRE DU CADASTRE`, the Boilloux
+  imprint, five legend rows, 20 cadastral street numbers — is unscorable;
+- the **1968** gate is the printed street directory, so the 20 hamlet and canal
+  names the south band found are unscorable.
+
+Both times a real improvement measured as worth nothing. On the `ocr` gate it is
+worse than nothing: unmatched predictions are false positives, so **coverage
+scores as harm**. Run `post0910` reads 287 labels against that 85-name GT and
+prints `precision 0.2509`, which a reader takes for a run that is three-quarters
+wrong. It is a run that read three times as much sheet as the GT describes.
+
+The fix is reporting, not a new instrument, because the signal was already being
+computed and printed as an aside:
+
+- `index-agreement` prints `n_unlisted` as its own **`coverage`** line — labels
+  read that the directory does not list — and it now joins `agreement` and
+  `name_recall` in the `vs baseline` comparison. On the 1968 union that reads
+  `n_unlisted 5 → 290  +285`, which is the whole story the two recall numbers
+  could not tell.
+- `ocr` prints, whenever any prediction went unmatched, that a partial GT prices
+  new coverage as false positives — so precision there is agreement with the
+  GT's **scope**, not accuracy.
+
+A GT that includes non-directory content is still the real answer, and is still
+unwritten. Until then the numbers at least say which of them is blind.
+
+### `post0910` scored, with its caveats intact
+
+For the record, since the run existed for a week as seed rows with no score:
+
+    predictions 287   ground truth 85   matched 72
+    precision 0.2509  recall 0.8471  f1 0.3871  mean_iou 0.7441
+    char_acc 0.9799   text_recall@0.3 0.9059 (77/85)
+    category_acc 0.875   diacritic_recall 1.0 (34 marked GT labels)
+    rotation_mae 3.91°
+
+Read `precision` as scope, per above. The caveats already recorded against this
+run still stand: 16 of its 20 calls were served from the model-response cache,
+and three fixes moved underneath the recipe before it ran, so it is a new
+baseline rather than a reproduction of 0.945 / 75-of-85.
