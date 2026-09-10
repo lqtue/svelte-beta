@@ -552,9 +552,19 @@ digitisations of the same sheet.
 "5000x3790, Virtual Saigon/IRD, 2.80 m/px". At 5,000 px that is 14.0 km of
 ground, which is right for the Đô thành. The scan the OCR pipeline reads is
 much larger: the crop in `work/ocr/outputs/34d4edb2-*/runs/idx-20260910/run_config.json`
-is `1148,775,11704,9221`, so that image is at least 12,852 px wide, and at
-0.999 m/px it is ~12.8 km of the same city. 12852/5000 = 2.57 against
-2.80/0.999 = 2.80. Same ground, different pixel counts.
+is `1148,775,11704,9221`, which alone puts that image at 12,852 px wide or
+more. The exact figure is **14,000 x 10,773**, and this file already said so
+340 lines above -- "the 1959 sheet was re-OCR'd after its scan was replaced
+with a 14000x10773 one" -- with `scale.py`'s own self-check fitting
+`(0.999, 14000, 10773)` for it. The two figures reconcile exactly: 14,000 px
+at 0.999 m/px is 13,986 m, 5,000 px at 2.80 m/px is 14,000 m, and 14000/5000
+is 2.80 to the digit. The same 14 km of city, twice.
+
+**The answer was in this file the whole time, 340 lines from the question.**
+The paragraph this replaces asked whether one of two estimators was broken
+while a line further up recorded the scan replacement that explains both. A
+figure stated without the scan it was measured on cannot be checked even by a
+reader holding the evidence.
 
 `tests/mpp-parity.spec.ts` now pins the two estimators against one sheet's real
 GCPs: they agree to **0.24%**, and the residual is the degrees-to-metres
