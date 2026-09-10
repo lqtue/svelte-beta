@@ -118,6 +118,17 @@ export function ringArea(ring) {
   return Math.abs(a) / 2;
 }
 
+/** Sum of `ringArea` over several rings — the outer ring of each part of a
+ *  Polygon or MultiPolygon, kept separate on purpose. Concatenating rings
+ *  before running the shoelace formula (holes into their outer ring, or one
+ *  MultiPolygon part into another) turns the implicit closing edges between
+ *  them into a self-intersecting shape whose *signed* area can be anything,
+ *  including near zero when two parts happen to wind oppositely — summing
+ *  each ring's unsigned area separately cannot do that. */
+export function polygonArea(rings) {
+  return rings.reduce((sum, r) => sum + ringArea(r), 0);
+}
+
 /** Fraction of `aoi`'s area that falls inside `bbox`. 0 when they miss. */
 export function coverage(bbox, aoi) {
   if (!Array.isArray(bbox) || bbox.length !== 4) return 0;
@@ -225,6 +236,54 @@ function selftest() {
     'a degenerate ring has no area'
   );
 
+  // `polygonArea` is what stands between the AOI's real shape and the bug this
+  // replaces: `ringArea` given a single flattened concatenation of several
+  // rings (a MultiPolygon's parts, or an outer ring plus its holes), which
+  // treats the whole thing as one self-intersecting ring instead of several.
+  {
+    // Two square parts of a MultiPolygon, wound oppositely and far enough
+    // apart that concatenating them is not a no-op the way today's one-ring
+    // AOI happens to make it.
+    const partA = [
+      [0, 0],
+      [2, 0],
+      [2, 2],
+      [0, 2],
+    ]; // area 4
+    const partB = [
+      [10, 0],
+      [10, 3],
+      [13, 3],
+      [13, 0],
+    ]; // area 9, wound the other way
+    eq(polygonArea([partA, partB]), 13, 'MultiPolygon: rings summed, not concatenated');
+    const concatenated = ringArea([...partA, ...partB]);
+    if (Math.abs(concatenated - 13) < 1e-9) {
+      throw new Error('fixture no longer demonstrates the concatenation bug — pick other rings');
+    }
+
+    // A ring with a hole: outer-rings-only means the hole is dropped, not
+    // flattened in alongside the outer ring (which is what corrupts the area
+    // today — see the module-level comment above `outerRings`).
+    const outer = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+    ]; // area 100
+    const hole = [
+      [3, 3],
+      [3, 7],
+      [7, 7],
+      [7, 3],
+    ]; // area 16 — must not be subtracted or added in
+    eq(polygonArea([outer]), 100, 'polygon with a hole: outer ring only');
+    const flattenedWithHole = ringArea([...outer, ...hole]);
+    if (Math.abs(flattenedWithHole - 100) < 1e-9) {
+      throw new Error('fixture no longer demonstrates the hole-flattening bug — pick other rings');
+    }
+  }
+
   const pts = [
     [100, 200],
     [300, 500],
@@ -263,6 +322,12 @@ if (args.includes('--selftest')) {
 // of the district instead of the shape of its bounding box.
 const rawAoi = flag('aoi', 'district4');
 let ring = null;
+// One entry per polygon's outer ring — never flattened together with holes
+// or with each other. See `polygonArea` for why. `ring` stays the flat point
+// list for the two uses that only need an unordered bag of points (the bbox
+// below, and the pixel-space rect in `aoiInPixels`); `outerRings` is what
+// area gets computed from.
+let outerRings = null;
 let aoiBbox = null;
 const asPath = AREAS[rawAoi] ?? rawAoi;
 if (typeof asPath === 'string' && /\.(geo)?json$/i.test(asPath)) {
@@ -277,8 +342,12 @@ if (typeof asPath === 'string' && /\.(geo)?json$/i.test(asPath)) {
       : obj.type === 'FeatureCollection'
         ? obj.features[0].geometry
         : obj;
-  // Outer rings only; a study area's holes do not change its extent.
-  ring = (geom.type === 'MultiPolygon' ? geom.coordinates.flat(1) : geom.coordinates).flat(1);
+  // Outer rings only; a study area's holes do not change its extent, and for
+  // a metres-per-pixel ratio (not an exact area) dropping them rather than
+  // subtracting them is the simplest correct thing to do.
+  outerRings =
+    geom.type === 'MultiPolygon' ? geom.coordinates.map((poly) => poly[0]) : [geom.coordinates[0]];
+  ring = outerRings.flat(1);
   const lon = ring.map((p) => p[0]);
   const lat = ring.map((p) => p[1]);
   aoiBbox = [Math.min(...lon), Math.min(...lat), Math.max(...lon), Math.max(...lat)];
@@ -301,10 +370,11 @@ if (typeof asPath === 'string' && /\.(geo)?json$/i.test(asPath)) {
     [aoiBbox[2], aoiBbox[3]],
     [aoiBbox[0], aoiBbox[3]],
   ];
+  outerRings = [ring];
 }
 
 // The study area's true ground area — the polygon's, not its bounding box's.
-const aoiGroundArea = ringArea(ring) * M_PER_DEG_LON * M_PER_DEG_LAT;
+const aoiGroundArea = polygonArea(outerRings) * M_PER_DEG_LON * M_PER_DEG_LAT;
 
 const db = createClient(process.env.PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
   auth: { persistSession: false },
@@ -344,13 +414,17 @@ async function aoiInPixels(m, imgW, imgH) {
     const parsed = parseAnnotation(await res.json());
     if (!parsed.length) return { rect: null, why: 'annotation has no map' };
     const t = GcpTransformer.fromGeoreferencedMap(parsed[0]);
-    const pts = ring.map((p) => {
+    const toResource = (p) => {
       try {
         return t.transformToResource([p[0], p[1]]);
       } catch {
         return [NaN, NaN];
       }
-    });
+    };
+    // Transform each outer ring on its own — same reason `outerRings` is kept
+    // apart from a single flattened `ring` at the AOI-resolution step above.
+    const pxRings = outerRings.map((r) => r.map(toResource));
+    const pts = pxRings.flat(1);
     if (pts.some((p) => !Number.isFinite(p[0]) || !Number.isFinite(p[1]))) {
       return { rect: null, why: 'AOI does not transform' };
     }
@@ -359,7 +433,7 @@ async function aoiInPixels(m, imgW, imgH) {
     // skew-invariant, and it is measured over the study area rather than over
     // the whole sheet — the earlier bbox/width ratio was neither, and read
     // 0.33 m/px on the 1912 sheet where the truth is nearer 1.8.
-    const pxArea = ringArea(pts);
+    const pxArea = polygonArea(pxRings);
     const mpp = pxArea > 0 ? Math.sqrt(aoiGroundArea / pxArea) : null;
     const rect = pixelRect(pts, imgW, imgH, padPx);
     return { rect, mpp, why: rect ? null : 'AOI falls outside the sheet' };
