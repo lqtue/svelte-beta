@@ -1,0 +1,125 @@
+/**
+ * /changelog — the public version history.
+ *
+ * One column of releases, each a version mark beside its changes. The mark
+ * column is fixed-width on desktop so every version number lines up; below
+ * 700px it stacks and the numbers run inline with the date.
+ */
+
+.changelog-page .releases {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.changelog-page .release {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 2rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.changelog-page .release:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* The version mark */
+
+.changelog-page .release-mark {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.changelog-page .release-version {
+  font-family: var(--font-family-display);
+  font-weight: 800;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.changelog-page .release.is-current .release-version {
+  color: var(--color-blue);
+}
+
+.changelog-page .release-date {
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.changelog-page .release-now {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 2px;
+  background: var(--color-blue);
+  color: var(--color-on-accent);
+}
+
+/* The changes */
+
+.changelog-page .release-body h2,
+.changelog-page .release-body h3 {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-family-display);
+  font-size: 1.3rem;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+.changelog-page .release-body ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.changelog-page .release-body li {
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+/* The legacy block sits inside a card, with a smaller mark */
+
+.changelog-page .legacy-card .releases {
+  gap: 1.75rem;
+  margin-top: 1.75rem;
+}
+
+.changelog-page .legacy-card .release {
+  padding-bottom: 1.75rem;
+}
+
+.changelog-page .legacy-card .release-version {
+  font-size: 1.4rem;
+  color: var(--color-gray-500);
+}
+
+@media (max-width: 700px) {
+  .changelog-page .release {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .changelog-page .release-mark {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+  }
+  .changelog-page .release-version {
+    font-size: 1.6rem;
+  }
+}

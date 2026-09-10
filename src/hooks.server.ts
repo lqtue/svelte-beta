@@ -45,7 +45,27 @@ function legacyTarget(pathname: string): string | null {
   return null;
 }
 
+/**
+ * The archive answers on one name. Cloudflare Pages also publishes the project
+ * at `vmabeta.pages.dev`, which is a second address for the same site — two
+ * URLs a crawler can index, and one of them says `beta` in front of a public
+ * archive. Production hits there are sent to the real host, path and query
+ * kept.
+ *
+ * Only the bare production host. A preview deploy is
+ * `<hash>.vmabeta.pages.dev`, and those have to stay reachable to be any use,
+ * so the match is exact rather than a suffix.
+ */
+const CANONICAL_HOST = 'maparchive.vn';
+const PAGES_DEV_HOST = 'vmabeta.pages.dev';
+
 export const handle: Handle = async ({ event, resolve }) => {
+  if (event.url.hostname === PAGES_DEV_HOST) {
+    const canonical = new URL(event.url);
+    canonical.hostname = CANONICAL_HOST;
+    throw redirect(301, canonical.toString());
+  }
+
   const target = legacyTarget(event.url.pathname);
   if (target) throw redirect(301, withSearch(target, event.url.search));
 

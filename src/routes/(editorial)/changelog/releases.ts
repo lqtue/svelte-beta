@@ -1,0 +1,151 @@
+/**
+ * The public version history.
+ *
+ * This is the reader-facing half: what changed, in plain language, one entry
+ * per version. `CHANGELOG.md` at the repo root is the engineering half — the
+ * same versions with the migrations, the deploy failures and the bug detail.
+ * Add a release here and there together; nothing generates one from the other.
+ *
+ * `current: true` marks the version running now. Newest first.
+ */
+export interface Release {
+  version: string;
+  /** ISO date the version's work landed, or its first day. */
+  date: string;
+  /** What this version is, in a few words. */
+  headline: string;
+  /** Plain-language changes. Three to six is the useful length. */
+  changes: string[];
+  current?: boolean;
+  /** Set when the version lived in an earlier repository. */
+  legacy?: boolean;
+}
+
+export const releases: Release[] = [
+  {
+    version: '7.0',
+    date: '2026-09-01',
+    headline: 'Sixteen pages instead of twenty-three, and a front page that costs nothing',
+    current: true,
+    changes: [
+      'The archive is one place again. Every tool sits behind one Tools menu, the map is at /explore and scanned sheets at /scan, and switching what you are doing no longer reloads the map.',
+      'A dark theme, and one set of colours across the whole site — taken off the printed sheets themselves.',
+      'The front page opens with two photographs and a slider between them. The live map is further down, so a visitor who only wants to read does not pay for it.',
+      'The map viewer has two panels now: the archive on the left, the sheet you are looking at on the right. One search box drives both.',
+      'Reading the names off a sheet can finally be measured. A sheet that prints its own street directory is scored against it, so a change to the reader is judged on numbers rather than on how the output looks.',
+      'The basemap is ours, hosted by us, covering Hanoi to the Mekong — no third-party tile service, no API key.',
+    ],
+  },
+  {
+    version: '6.0',
+    date: '2026-08-02',
+    headline: 'A queue, a worker, and a codebase in layers',
+    changes: [
+      'Publishing a map now queues its own work — mirroring, tiling, warping — instead of someone running commands by hand.',
+      'The machines that read sheets hold no database password. They are given a key that can only talk to the archive.',
+      'One rule about what is visible: a sheet is draft, public or featured, and nothing else decides.',
+      'Stories submitted by contributors go into a review queue.',
+      'About 3,100 lines of dead code deleted, and the source split into layers a tool can check.',
+    ],
+  },
+  {
+    version: '5.2',
+    date: '2026-06-01',
+    headline: '/explore and /trip',
+    changes: [
+      'The map viewer became its own page, with a guided tour and a "what covers this spot" lookup.',
+      '/trip plays a story on the map — the page a printed QR code points at.',
+      'Catalogue search became one engine instead of three.',
+    ],
+  },
+  {
+    version: '5.1',
+    date: '2026-05-12',
+    headline: 'One layer stack, and a viewer that works on a phone',
+    changes: [
+      'Sheets stack like layers, each with its own opacity, and the stack survives a reload.',
+      'On a phone the viewer is a full-bleed map with three tabs at the bottom.',
+      'Sheets can be uploaded in batches, and Scout looks for candidates in other libraries.',
+      'Full-text search across the catalogue.',
+    ],
+  },
+  {
+    version: '5.0',
+    date: '2026-04-04',
+    headline: 'The catalogue, the tracing tools, and the first reading pipeline',
+    changes: [
+      'One catalogue for everything, with editing built into it for staff.',
+      'Footprints can be traced by hand — buildings, roads, waterways.',
+      'The first pipeline that reads the printed names off a sheet.',
+      'Scans are mirrored to our own storage, so the archive does not depend on someone else keeping a file online.',
+    ],
+  },
+  {
+    version: '4.1',
+    date: '2026-03-08',
+    headline: 'Blog, export, and the first attempt at automatic tracing',
+    changes: [
+      'An about page and a blog.',
+      'Anything traced can be exported as a data file.',
+      'A first go at tracing shapes automatically, later replaced.',
+    ],
+  },
+  {
+    version: '4.0',
+    date: '2026-02-08',
+    headline: 'Accounts, a database, and stories',
+    changes: [
+      'Sign-in, so contributions have an author and staff have tools.',
+      'The maps moved into a real database instead of a file in the repository.',
+      'Stories: a route across the map with stops and text, published for anyone to play.',
+      'Installable on a phone.',
+    ],
+  },
+  {
+    version: '3.4',
+    date: '2026-01-18',
+    headline: 'View modes',
+    changes: ['Side-by-side and lens comparison between an old sheet and the city now.'],
+  },
+  {
+    version: '3.3',
+    date: '2025-12-16',
+    headline: 'Undo, shareable links, and rotation',
+    changes: [
+      'Drawing on the map can be undone and redone.',
+      'A link carries the exact view it was copied at.',
+      'Sheets can be rotated to sit square with the paper.',
+    ],
+  },
+  {
+    version: '3.0',
+    date: '2025-10-27',
+    headline: 'Rebuilt from scratch',
+    changes: [
+      'The same project, written a second time — this time as a real application rather than one long HTML file.',
+    ],
+  },
+  {
+    version: '2.1',
+    date: '2025-06-17',
+    headline: 'A time slider',
+    legacy: true,
+    changes: ['The maps could be moved through by year, instead of picked from a list.'],
+  },
+  {
+    version: '2.0',
+    date: '2025-04-20',
+    headline: 'First stable public site',
+    legacy: true,
+    changes: ['A welcome screen, instructions, and a written narrative alongside the maps.'],
+  },
+  {
+    version: '1.0',
+    date: '2025-04-12',
+    headline: 'One page and a folder of scans',
+    legacy: true,
+    changes: [
+      'A single hand-written page showing scanned sheets of Saigon, published on GitHub Pages.',
+    ],
+  },
+];

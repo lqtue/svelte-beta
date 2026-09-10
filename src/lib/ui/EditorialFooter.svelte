@@ -12,8 +12,11 @@
       <a href="/contribute">Contribute</a>
       <a href="/about">About</a>
       <a href="/blog">Blog</a>
+      <a href="/changelog">Version history</a>
       <a href="/directory">All pages</a>
-      <a href="https://github.com/lqtue/svelte-beta" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/lqtue/vietnam-map-archive" target="_blank" rel="noopener"
+        >GitHub</a
+      >
     </div>
     <p>
       Built openly with

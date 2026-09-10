@@ -42,3 +42,19 @@ stayed green through all ten build failures.
 ## Blank page right after a deploy
 
 Expected, and self-heals. Pages serves the new HTML and `entry/app.<hash>.js` before every `_app/immutable/` chunk is reachable at the edge; individual chunks 404 for a minute or two. Because every `(app)` route sets `ssr = false`, one unreachable chunk is a fully blank document whose only symptom is `Failed to fetch dynamically imported module` (WebKit: `Importing a module script failed`). Wait and hard-reload before debugging; `curl -o /dev/null -w "%{http_code}"` against the chunk the console names will flip to 200. `scripts/check-bundle.mjs` guards against a genuinely inconsistent bundle at build time, which is a different failure.
+
+## One address
+
+Pages publishes the project at `vmabeta.pages.dev` as well as at the custom
+domain. That is two indexable URLs for one site, and one of them says `beta` in
+front of a public archive, so `src/hooks.server.ts` 301s the bare
+`vmabeta.pages.dev` to `maparchive.vn`, path and query kept.
+
+The match is the exact host, not a suffix: a preview deploy is
+`<hash>.vmabeta.pages.dev` and has to stay reachable to be worth anything.
+Static assets are served by Pages itself rather than by the Function, so they
+do not pass through the hook — only documents redirect, which is what a
+crawler and a reader follow.
+
+Turning the `.pages.dev` host off entirely is a dashboard setting and would
+work too; this keeps it in the repo, where it is visible.

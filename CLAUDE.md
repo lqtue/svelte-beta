@@ -14,6 +14,7 @@ Vietnam Map Archive (VMA) — a SvelteKit 5 app for exploring georeferenced hist
 - `docs/platform-design.md` — one workspace for VMA + HACW: what is shared (contracts, basemap, deploy, docs) and what stays per-app, with sequencing
 - `docs/digitalize-guide.md` — **operator guide** for `/scan?mode=triage`: propose-then-accept, what each layout category means, the ground-per-call target, and the failure modes that return plausible output while dropping data
 - `docs/api.md` — every server route, its auth class and its contract
+- `CHANGELOG.md` — version history, 1.0 (Apr 2025, one `index.html`) to **7.0** (current). The numbers continue the ones the commits already used, so the SvelteKit rewrite is 3.x; the number moves on a structural change, not a build. 6.0 and 7.0 in full, earlier versions summarised, and the three ancestor repos recorded at the foot. **Its public twin is `/changelog`**, whose source is `src/routes/(editorial)/changelog/releases.ts` — plain language, shorter, a different audience. Nothing generates one from the other: add a release to both.
 - `docs/deploy.md` — Cloudflare Pages: env in the dashboard, no root `wrangler.toml`, the blank-page-after-deploy effect
 - `docs/pipelines.md` — OCR + MapSAM2 command reference and design rationale. §*Getting more out of OCR* is the ranked list of what to do next and what not to re-attempt; `work/ocr/EVAL-BASELINE.md` is the measured gate behind it. `scripts/` holds the living operator scripts; `scripts/oneoff/` the backfills that have already run and stay only as a record.
 - `docs/admin-tooling.md` — MapEditModal, Bulk Upload, Scout, R2 worker, holding-institution model
@@ -375,3 +376,5 @@ Cloudflare Pages adapter, output `.svelte-kit/cloudflare`, deployed by `npm run 
 - **Secrets resolve at build time** via `$env/static/private`. `$env/dynamic/private` returns undefined in Pages Functions. So every environment that builds needs all three present, or the build fails on the first import. CI copies `.env.test` to `.env` before `check` and `build`.
 - Never import a Node builtin bare; use the `node:` prefix or the Functions bundle publishes nothing.
 - A blank page right after a deploy is edge propagation, not a bug. Wait, hard-reload, then debug.
+- **The repo is `lqtue/vietnam-map-archive`** (renamed from `svelte-beta`, Sept 2026; GitHub redirects the old URL and the local directory is still called `svelte-beta`). The Pages project is still `vmabeta`, because renaming it would change the deploy target and the `.pages.dev` host for nothing.
+- **`vmabeta.pages.dev` 301s to `maparchive.vn`** — `hooks.server.ts`, exact host match, so preview deploys at `<hash>.vmabeta.pages.dev` stay reachable. Two indexable addresses for one site, one of them saying `beta`, was the reason.

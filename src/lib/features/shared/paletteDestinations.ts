@@ -142,6 +142,14 @@ export const DESTINATIONS: Destination[] = [
     keywords: 'posts writing updates news journal',
   },
   {
+    href: '/changelog',
+    label: 'Version history',
+    hint: 'What changed, version by version',
+    group: 'Read',
+    role: 'anyone',
+    keywords: 'changelog releases versions history updates what changed new',
+  },
+  {
     href: '/directory',
     label: 'All pages',
     hint: 'Every page in the archive, in one list',

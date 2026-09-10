@@ -21,6 +21,7 @@ const STATIC_PATHS = [
   '/catalog',
   '/about',
   '/blog',
+  '/changelog',
   '/contribute',
   '/contribute/georef',
   '/directory',
