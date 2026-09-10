@@ -470,3 +470,166 @@ name→cell-range pairs of free ground truth, and needs no human labelling.
 this file is built on moved by zero; the one built out of the sheet moved by 4.5
 points. Baselines for both indexed sheets are in `work/ocr/index-baselines.json`,
 and the command prints the delta against them.
+
+## The 1968 sheet reads a third of its own directory — and the scan is why (2026-09-10)
+
+First body pass ever run on the 1968 Sài Gòn sheet (`3a446d85`), which the
+index metric had just measured at `name_recall` **0.0245** (9 of 367 printed
+street names). Candidate run `body-1968-20260910a`, scored from its run
+directory, **not upserted** — no `--db`, no `--save`.
+
+```
+ocr.py batch --map-id 3a446d85-25a8-4e81-9cfc-8de357c3a5df \
+  --crop 281,311,10015,9533 --tile-size 1120 --overlap 280 --render-size 1120 \
+  --prompt seq-v1 --min-confidence 0.5 --concurrency 3 --auto-priority
+```
+
+The tiling mirrors the 1959 recipe **in ground, not in pixels**. This sheet is
+**1.274 m/px** (least-squares affine over its 15 georeference GCPs, isotropic,
+north-up) against 1959's **0.997 m/px**, so 1120 px = 1427 m per tile against
+1959's 1404 px = 1400 m. 12 cols × 12 rows = 144 tiles → 48 calls of 4 frames.
+`--auto-priority` found 0 skip / 1 low-res: the `main_map` crop is inky
+throughout, so there is no margin to save on.
+
+| | 1959 single pass (`…1555-34d4edb2-a`) | **1968 single pass** | 1959 3-run merge |
+|---|---|---|---|
+| `name_recall` (±1 cell) | 0.7120 (267/375) | **0.3270 (120/367)** | 0.8000 (300/375) |
+| `agreement` ±1 cell | 0.9666 | **0.9603** (145/151) | 0.9439 |
+| `agreement` ±0 cells | — | **0.8212** (124/151) | 0.8679 |
+| street+hydrology labels | 464 | 279 | 883 |
+| distinct name cores (street+hydro) | — | **210** | — |
+| `diacritic_rate` (all preds) | — | **0.7869** (0.9462 over street+hydro) | — |
+| calls / in / cached / out | 36 / 205k / 58k / 87k | 48 / 274k / 77k / 82k | — |
+| wall clock | 31 min | 26 min | — |
+
+**+0.30 on the metric, and still half the 1959 rate at the same metres per
+call.** Both are one `seq-v1` pass at 1:1 render on a Vietnamese sheet, ~1400 m
+per tile, same model. The distinguishing variable is the scan: 1.274 vs
+0.997 m/px, and the sheet is itself a **photo-reduction** of 1:10,000 originals
+to 1:12,500 (`dc_description`), so the type is smaller on the paper *and*
+sampled more coarsely. The pass is already rendering 1:1 — there is nothing
+left to stop downsampling. `archive.org/details/1968-sg` holds exactly one
+image, and it is this one (10816×13523), so **a rescan, not a flag, is what
+buys the missing resolution.**
+
+**Recall is flat across the sheet**, which rules out the cheap explanations.
+By the directory's own FROM-row: F 0.19, G 0.22, H 0.46, I 0.42, J 0.21,
+K 0.38, L 0.29; by FROM-column 0.22–0.62 with no dead band. Not a bad crop, not
+a mis-set tile priority, not one unreadable quarter — a uniform ~⅓ read rate.
+So a second shifted pass buys what it bought on 1959 (+0.09 there, three passes)
+and not the missing 0.38.
+
+**The grid was suspected and is exonerated — the crop is what is short.**
+`triage.grid` puts 15 rows over `bbox [281, 338, 10123, 11819]`, reaching
+y = 12157, which is **2313 px below the bottom of `main_map` [281, 311, 10015,
+9533]**, and 13 directory boxes land past it. That looked like a mis-fitted
+grid. Re-deriving every directory box from its printed `grid=` citation under
+four hypotheses and rescoring the same 150 matched labels says otherwise:
+
+| grid hypothesis | cell | `agreement` ±1 | ±0 |
+|---|---|---|---|
+| **committed (15 rows A–O over 281,338,10123,11819)** | 779×788 | **0.9600** | **0.8267** |
+| 15 rows A–O over `main_map` | 770×636 | 0.2333 | 0.0667 |
+| 15 rows A–O over `main_map`, 12 cols | 835×636 | 0.2333 | 0.0733 |
+| 10 rows F–O over `main_map`, 12 cols | 835×953 | 0.0267 | 0.0067 |
+
+The committed grid wins by 0.73. So the sheet's reference grid genuinely
+continues into the lower margin band and **`main_map` is the region that stops
+early** — it covers 80.7% of the grid's y-extent. The cost this pass is small
+(4 directory names entirely below the crop, 9 straddling it), because rows L–O
+carry only 35 of 734 citations and sit at columns 2–6, but the layout job's
+`main_map` is understating this sheet's south-west corner and a later pass
+should crop to the grid's extent minus the two `name_list` blocks, not to
+`main_map`.
+
+**The denominator is partial, in the direction that flatters the score.** This
+sheet has **two** `name_list` regions — `[7571, 9871, 2745, 3262]` and
+`[4218, 9871, 3271, 3506]` — and `ocr street-index` (run `streetindex-1968`,
+regions at x 7571/8257/8943/9629) read only the first. 367 names is one block's
+worth; reading the second would raise the denominator and lower `name_recall`.
+
+**Not to be read as a regression:** `agreement` 1.0000 → 0.9603 in
+`index-baselines.json` is the partial-sample artefact this file warns about —
+the old figure was 9 matched labels, this one is 151.
+
+**What the next pass should try, in order.** (1) Fewer metres per call:
+`--tile-size 800` is 1019 m and ~2× the calls (~$0.5); doc step 3 is measured
+on 1959 and untried here. (2) An **upsampled** render (`--tile-size 1120
+--render-size 1680`) — this is *not* the resolution bump this file rejects,
+which was smaller tiles fragmenting long labels; it is the same tile with bigger
+glyphs, and nothing in the corpus has measured it. (3) Read the second
+`name_list` block so the denominator is the whole directory.
+
+**Cost:** estimated USD 0.37 before running (48 calls × 5984 in / 1607 cached /
+~2500 out at 0.30/0.075/2.50 per Mtok), actual **USD 0.271** — output came in at
+82k rather than the 120k budgeted.
+
+## The recipe of record, re-run: free from cache, and two inert knobs (2026-09-10)
+
+Re-ran the two-pass merge on the gate sheet at exactly the settings recorded
+above — `seq-v1`, `gemini-3.8-flash`, 2400/300/**1024**, `--min-confidence 0.4`,
+grid + `--grid-offset 1200`, vote-merged — with today's code, no `--db`, no
+`--save`. Runs `rr0910-a` / `rr0910-b` / `rr0910`.
+
+**18 of 18 calls came out of `outputs/.cache`.** The response cache keys on
+image bytes + composed prompt + model + schema version, and none of the four has
+moved since 2026-09-07, so re-running the recipe of record on this sheet costs
+**USD 0.00 and 40 seconds**. Worth knowing before anyone budgets a re-run: the
+expensive thing is changing the grid, not repeating the pass.
+
+| | baseline of record | re-run, same settings | fleet payload today |
+|---|---|---|---|
+| calls (fresh / cache-served) | 18 / 0 | **0 / 18** | 16 / 0 |
+| tiles | 54 | 54 | 44 |
+| wall clock | 12.5 min | 0.7 min | 13.2 min |
+| USD | 0.945 | **0.000** | 0.868 |
+| matched / 85 @ IoU 0.5 | 75 | **75** | 68 |
+| `text_recall@0.3` | 0.9059 | **0.9059** | 0.8588 |
+| `char_acc` | 0.9786 | **0.9786** | 0.9699 |
+| `mean_iou` | 0.7495 | **0.7495** | 0.7380 |
+| `category_acc` | 0.880 | **0.880** | 0.8676 |
+| rows | 337 | 348 | 281 |
+| **distinct name cores** | 233 | **247** | 243 |
+
+Every trustworthy metric is bit-identical; the 2026-09-10 dedupe fix shows up
+only as **+14 distinct name cores at the merge level (233 → 247, +6.0%)**, which
+is the same null-then-positive result the section above records for the single
+passes. `_label_core` + `_fold` is the count; rows are not.
+
+**`--render-size` above 1024 is inert, twice over.** One controlled pass, same
+grid, render 2400 instead of 1024 (`r2400-a`): input tokens **54,243 against
+54,339** — the API tokenises a 2400×2400 frame and a 1024×1024 frame to the same
+~1032 tokens, so the extra pixels never reach the model. Scores are a wash
+(matched 73 vs 71, `text_recall@0.3` 73 vs 75, `char_acc` 0.9758 vs 0.9814,
+distinct cores 217 vs 212) for 13% more wall clock. And separately: the tile PNG
+cache at `outputs/<map>/<x>_<y>_<w>_<h>_tile.png` **carries no render size in its
+key**, so on any sheet already tiled once, `--render-size` is silently ignored
+and the stored resolution is reused. `vma_worker.RENDER_FLOOR`'s "a stock 2400
+tile renders 1:1" therefore does nothing on this sheet, and nothing at all on any
+previously-tiled grid. Fix the cache key before claiming a render change shipped.
+
+**The fleet's own payload scores 7 labels below the recipe of record at the same
+money.** `enqueue_ocr_all.mjs` + `vma_worker.py` on this triaged sheet send
+`--crop 459,413,11073,7913` (the `main_map` region), `--auto-priority`,
+`--min-confidence 0.5` and render 2400 — 16 calls over 44 tiles for USD 0.868
+against 18 over 54 for USD 0.945. It reads **68/85**. Two of the four differences
+are measurably not the cause: `--min-confidence` 0.5 vs 0.4 changes nothing on
+this sheet (277 → 243 either way, re-deduped offline for free), and render is
+inert per above. What is left is **coverage**: only one GT label sits outside the
+`main_map` crop, but `--grid-offset` applied to a crop leaves pass 2 with 20
+tiles instead of 24, and the merge votes over 453 labels instead of 513. Ten GT
+labels drop and four appear — grid-seam churn, net −7. Cropping to `main_map`
+saves 8% of the money and 19% of the coverage on a sheet that is 80% main map.
+
+**Prices used:** Gemini 3.8 Flash introductory rates, in force through
+2026-12-31 — USD 0.75/Mtok input, 3.75/Mtok output, 0.075/Mtok context-cache
+read (apidog.com/blog/gemini-3-8-flash-pricing, requesty.ai; both double on
+2027-01-01). Output is billed as `total_tokens − input_tokens`, i.e. **candidates
+plus thinking**: on this sheet thinking is ~4× the visible output (pass 1 emits
+31k visible and is billed for 124k), so a cost read off `output_tokens` alone
+understates a run by about four. The 1968 note above prices at 0.30/2.50 and
+counts visible output only; its figures and these are not comparable.
+
+**Not accepted.** `index-baselines.json` and every number above this section are
+untouched; nothing was written to `ocr_extractions`. Run dirs for the paid probes
+are at `outputs/0e02b9d9…/runs/_fleet-probe-0910/`.
