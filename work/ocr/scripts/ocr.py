@@ -173,7 +173,28 @@ def clahe_prep(args: argparse.Namespace):
 def _tile_cache_path(tile_cache_dir: Path, tile_key: str, render: int) -> Path:
     """Where a tile rendered at `render` px lives. The render size is part of the
     name because a tile is not one image: the same crop at 1024 and at 2048 are
-    different pictures of it."""
+    different pictures of it.
+
+    `render` is the size the caller **asked IIIF for** — the number that went
+    into `fetch_crop(size=...)` — and never a dimension measured off the
+    returned image. Those are not the same quantity: `fetch_crop` defaults to
+    `fit=False`, so the IIIF size parameter is `{size},` — width only — and a
+    crop taller than it is wide comes back with width == size and height larger.
+    Naming it after `max(img.size)` stored such a tile under its *height*, while
+    every read site asked for it by the render size it had requested, so the
+    file could never be found again: the whole clipped right-hand column of a
+    tile grid, plus the bottom-right corner, was re-fetched on every run. Worse
+    than the wasted money, the re-fetched bytes are not the bytes the earlier
+    run cached (the level0 composition path moved under 2cf6dd02), so no two
+    runs on the same sheet were byte-comparable and every A/B this pipeline
+    exists to produce was quietly contaminated — the 1882 re-gate manufactured
+    a +1 label that way (`work/cleanup/F-1882-regate.md`).
+
+    The requested size is also the only key that cannot collide: given
+    `fit=False`, the crop's own w/h plus the requested width determine the
+    rendered image exactly, whereas two different requests on a tall crop can
+    land on the same `max(img.size)`.
+    """
     return tile_cache_dir / f"{tile_key}@{render}_tile.png"
 
 
@@ -194,7 +215,13 @@ def _cached_tile(tile_cache_dir: Path, tile_key: str, render: int) -> Image.Imag
     otherwise ignored — deliberately not renamed. Renaming would be tidier and
     is lossless, but these directories are shared with a running worker and with
     other sessions, and a cache that moves under a concurrent reader is a worse
-    problem than a few files with uninformative names.
+    problem than a few files with uninformative names. The same reasoning is why
+    the legacy test below still reads `max(img.size) == render` even though the
+    key it sits beside now means the *requested* width: loosening it to
+    `img.size[0] == render` would start serving pre-2cf6dd02 bytes for exactly
+    the tall edge tiles this fix is about, which is a change to the pixels the
+    model sees dressed up as a bug fix. It stays strictly as conservative as it
+    was; the tall tiles are re-fetched once more and then hit forever.
     """
     from PIL import Image as PILImage  # imported per-function, as elsewhere here
 
@@ -299,7 +326,9 @@ def cmd_run(args: argparse.Namespace) -> None:
         # Save JSON (in versioned run dir)
         json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2))
         # Tile image cached at map level (shared across runs)
-        tile_img_path = _tile_cache_path(tile_cache_dir, tile_key, max(image.size))
+        # Keyed by the size we asked IIIF for, not by a dimension of what came
+        # back — see _tile_cache_path.
+        tile_img_path = _tile_cache_path(tile_cache_dir, tile_key, render_size)
         if not tile_img_path.exists():
             image.save(tile_img_path)
 
@@ -397,6 +426,52 @@ def cmd_self_check(args: argparse.Namespace) -> None:
         assert "150" in str(e) and "337" in str(e), e
     else:
         raise AssertionError("a short write must raise")
+
+    # ── Row-sequence grouping: no group inside another one ────────────────
+    # `range(0, n, max_frames - 1)` emitted a trailing group that was a subset
+    # of the previous one whenever the row was one tile longer than a multiple
+    # of the step. On the 1882 sheet's 7-column rows that group is the 402 px
+    # right-edge sliver alone, rendered 1024x6113: it returned 0 extractions on
+    # all five calls it was paid for, and then wiped what the 4-frame call had
+    # read for that tile. `work/cleanup/F-1882-regate.md` measured the loss at
+    # 78 of 362 extractions (22%) on one pass.
+    seven = list(range(7))
+    assert group_row_frames(seven, 4) == [[0, 1, 2, 3], [3, 4, 5, 6]],         group_row_frames(seven, 4)
+    for n in range(1, 40):
+        for max_frames in (1, 2, 3, 4, 5, 8):
+            row = list(range(n))
+            groups = group_row_frames(row, max_frames)
+            assert groups, (n, max_frames)
+            # every tile is read
+            assert set().union(*(set(g) for g in groups)) == set(row), (n, max_frames)
+            for g in groups:
+                assert 1 <= len(g) <= max(1, max_frames), (n, max_frames, g)
+                assert g == sorted(g), g              # order is left→right
+            for earlier, later in zip(groups, groups[1:]):
+                assert not set(later) <= set(earlier),                     f"group {later} is inside {earlier} — a paid call that reads "                     f"nothing new (n={n}, max_frames={max_frames})"
+                assert not set(earlier) <= set(later), (earlier, later)
+                if max_frames >= 2 and len(groups) > 1:
+                    # the deliberate seam overlap, which is why row-sequence
+                    # mode can assemble a label printed across a tile boundary
+                    assert set(earlier) & set(later), (earlier, later)
+
+    # ── …and a later group never replaces a reading with an empty one ──────
+    a = {"text": "Rue Catinat", "bbox_px": [10, 20, 300, 40]}
+    b = {"text": "Quai de Donnai", "bbox_px": [500, 20, 300, 40]}
+    assert merge_group_extractions([a], []) == [a],         "an empty group wiped a tile the previous group had read"
+    assert merge_group_extractions([], [a]) == [a]
+    assert merge_group_extractions(None, []) == []
+    assert merge_group_extractions([a], [b]) == [a, b], "both readings were paid for"
+    # The same row read twice by two overlapping groups is one row.
+    assert merge_group_extractions([a], [dict(a)]) == [a]
+    # A different box for the same text is a different reading — dedup_items
+    # owns the fuzzy merge, downstream and across the whole sheet.
+    moved = {**a, "bbox_px": [12, 22, 300, 40]}
+    assert len(merge_group_extractions([a], [moved])) == 2
+    # Never mutate the caller's lists.
+    first = [a]
+    merge_group_extractions(first, [b])
+    assert first == [a], "merge_group_extractions mutated its input"
 
     # A retry decision must read a status code, not a substring of a number.
     from gemini_client import _has_status
@@ -757,17 +832,24 @@ def cmd_batch(args: argparse.Namespace) -> None:
         # This eliminates edge duplicates and allows cross-tile label assembly.
         max_frames = getattr(args, "max_row_frames", 4)
         raw_rows = group_tiles_by_row(tiles, args.tile_size, args.overlap)
-        # Split any row wider than max_frames into overlapping groups of max_frames
-        rows = []
-        for raw_row in raw_rows:
-            if len(raw_row) <= max_frames:
-                rows.append(raw_row)
-            else:
-                step = max(1, max_frames - 1)  # 1-tile overlap between groups
-                for i in range(0, len(raw_row), step):
-                    group = raw_row[i:i + max_frames]
-                    if group:
-                        rows.append(group)
+        # Split any row wider than max_frames into overlapping groups of
+        # max_frames, one tile of overlap and never a group inside another one.
+        rows = [group for raw_row in raw_rows
+                for group in group_row_frames(raw_row, max_frames)]
+
+        # What each group has already attributed to a tile *in this run*. The
+        # groups overlap by a tile, so two of them write the same tile_key, and
+        # the second must add to the first rather than replace it. Scoped to the
+        # run: a tile carried over from a previous run (`already_done`) is still
+        # overwritten, so resuming a run means the same thing it always did.
+        group_written: dict[str, list] = {}
+
+        def emit_tile(tile_key: str, result: dict) -> None:
+            result["extractions"] = merge_group_extractions(
+                group_written.get(tile_key), result.get("extractions", []))
+            group_written[tile_key] = result["extractions"]
+            (out_dir / f"{tile_key}.json").write_text(
+                json.dumps(result, ensure_ascii=False, indent=2))
 
         todo_set = set(todo)
         row_total = len(rows)
@@ -799,9 +881,12 @@ def cmd_batch(args: argparse.Namespace) -> None:
                         rs = low_res_render
                         img = _cached_tile(tile_cache_dir, tile_key, rs)
                     elif use_adaptive:
-                        img = (_cached_tile(tile_cache_dir, tile_key, 2048)
-                               or _cached_tile(tile_cache_dir, tile_key, 1024))
-                        rs = max(img.size) if img else None
+                        img, rs = None, None
+                        for candidate in (2048, 1024):
+                            img = _cached_tile(tile_cache_dir, tile_key, candidate)
+                            if img is not None:
+                                rs = candidate
+                                break
                         if rs is None:
                             preview = fetch_crop(iiif_base, x, y, w, h, size=512,
                                                  quality=iiif_quality)
@@ -812,7 +897,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                     if img is None:
                         img = fetch_crop(iiif_base, x, y, w, h, size=rs,
                                          local_image=local_image, quality=iiif_quality)
-                        img.save(_tile_cache_path(tile_cache_dir, tile_key, max(img.size)))
+                        img.save(_tile_cache_path(tile_cache_dir, tile_key, rs))
                     row_images.append(clahe(img) if clahe else img)
                     row_order.append(tile)
                 except Exception as e:
@@ -846,9 +931,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                         "render_w": 1000, "render_h": 1000,
                         "prompt": args.prompt, "model": args.model,
                     }
-                    tile_key = f"{x}_{y}_{w}_{h}"
-                    (out_dir / f"{tile_key}.json").write_text(
-                        json.dumps(result, ensure_ascii=False, indent=2))
+                    emit_tile(f"{x}_{y}_{w}_{h}", result)
                 except Exception as e:
                     print(f"ERROR {e}")
                     errors.append((f"{x}_{y}_{w}_{h}", str(e)))
@@ -873,8 +956,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                         per_tile[fi].append(ext)
 
                     for fi, (x, y, w, h) in enumerate(row_order):
-                        tile_key = f"{x}_{y}_{w}_{h}"
-                        tile_result = {
+                        emit_tile(f"{x}_{y}_{w}_{h}", {
                             "extractions": per_tile[fi],
                             "_meta": {
                                 "tile_x": x, "tile_y": y, "tile_w": w, "tile_h": h,
@@ -882,9 +964,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                                 "prompt": args.prompt, "model": args.model,
                                 "row_sequence": True,
                             },
-                        }
-                        (out_dir / f"{tile_key}.json").write_text(
-                            json.dumps(tile_result, ensure_ascii=False, indent=2))
+                        })
                 except Exception as e:
                     print(f"ERROR {e}")
                     for x, y, w, h in row_order:
@@ -908,7 +988,7 @@ def cmd_batch(args: argparse.Namespace) -> None:
                 if image is None:
                     image = fetch_crop(iiif_base, x, y, w, h, size=tile_rs,
                                        local_image=local_image, quality=iiif_quality)
-                    image.save(_tile_cache_path(tile_cache_dir, tile_key, max(image.size)))
+                    image.save(_tile_cache_path(tile_cache_dir, tile_key, tile_rs))
                 if clahe:
                     image = clahe(image)
 
@@ -1752,6 +1832,95 @@ def group_tiles_by_row(tiles, tile_size, overlap):
     return [sorted(row, key=lambda t: t[0]) for row in sorted(rows.values(), key=lambda r: r[0][1])]
 
 
+def group_row_frames(row, max_frames):
+    """Cut one grid row into the overlapping frame groups of a row-sequence call.
+
+    Consecutive groups share exactly one tile on purpose: that is what lets the
+    model assemble a label printed across a tile seam, which is the whole point
+    of row-sequence mode. What a group must never be is wholly contained in the
+    group before it — it costs a call, tells us nothing new, and (before the
+    write merged) its rows replaced the ones the earlier group had read for the
+    tiles they share.
+
+    `range(0, len(row), max_frames - 1)` did exactly that on any row whose
+    length is one more than a multiple of the step. A 7-tile row at
+    `max_frames=4` came out `[0:4] [3:7] [6:7]`: the third group is a single
+    tile already inside the second, and on the 1882 sheet that tile is the
+    402 px right-edge sliver rendered 1024x6113 — a degenerate frame that
+    returned 0 extractions on all five of the calls it was paid for, and then
+    wiped what the 4-frame call had attributed to it
+    (`work/cleanup/F-1882-regate.md`).
+
+    Here the window advances by `max_frames - 1` and stops as soon as it has
+    reached the end of the row, so every group ends strictly further right than
+    the one before it and no group can contain another. A short tail is a real
+    group with at least one tile the previous group never saw.
+    """
+    row = list(row)
+    n = len(row)
+    if n == 0:
+        return []
+    if max_frames < 2:
+        # Degenerate by request (`--max-row-frames 1`): one frame per call, and
+        # there is no overlap to preserve.
+        return [[t] for t in row]
+    if n <= max_frames:
+        return [row]
+    step = max_frames - 1
+    groups = []
+    start = 0
+    while True:
+        end = min(start + max_frames, n)
+        groups.append(row[start:end])
+        if end >= n:
+            return groups
+        start += step
+
+
+def _ext_identity(ext):
+    """What makes two readings of the same label the same row: its text and its
+    box, to the pixel. Deliberately not a fuzzy match — `dedup_items` owns that,
+    downstream and across the whole sheet."""
+    bbox = ext.get("bbox_px") or []
+    try:
+        box = tuple(round(float(v)) for v in bbox[:4])
+    except (TypeError, ValueError):
+        box = ()
+    return (str(ext.get("text", "")).strip().lower(), box)
+
+
+def merge_group_extractions(previous, new):
+    """Union two groups' readings of one shared tile, the earlier one first.
+
+    Row groups overlap by one tile, so a shared tile is read twice in two
+    different frame contexts, and both readings were paid for. The write used to
+    be an unconditional `write_text` per frame, so the later group replaced the
+    earlier group's rows for that tile — and when the later group was the empty
+    trailing sliver above, an empty list replaced a good reading. Replayed out
+    of `outputs/.cache` on the 1882 sheet: the model returned 362 extractions on
+    pass 2 and 284 reached disk, 78 of them (22%) discarded; pass 1 was 315 to
+    263.
+
+    Union rather than "keep the longer list", because neither frame context is
+    authoritative and near-identical boxes from overlapping frames are exactly
+    what `dedup_items` already merges for every other overlapping tile on the
+    sheet. Only a row identical in text *and* box is dropped, which is the one
+    case where the second reading adds nothing at all. An empty `new` is
+    therefore a no-op, which is the property that matters.
+    """
+    if not previous:
+        return list(new)
+    merged = list(previous)
+    seen = {_ext_identity(e) for e in merged}
+    for ext in new:
+        identity = _ext_identity(ext)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        merged.append(ext)
+    return merged
+
+
 def dedup_extractions(tile_results, iou_threshold=0.25):
     """Merge duplicate detections from overlapping tiles.
 
@@ -1868,7 +2037,7 @@ def cmd_stitch(args: argparse.Namespace) -> None:
                 rs = adaptive_render_size(preview)
                 print(f"    density={estimate_density(preview):.2f} → {rs}px", end=" ")
             img = fetch_crop(iiif_base, tx, ty, tw, th, size=rs, quality=iiif_quality)
-            img.save(_tile_cache_path(tile_cache_dir, tile_key, max(img.size)))
+            img.save(_tile_cache_path(tile_cache_dir, tile_key, rs))
             tile_images[tile_key] = img
         else:
             print(f"  No image for tile {tile_key} — skipping")
