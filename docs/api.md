@@ -15,7 +15,7 @@ Admin map CRUD:
 - `/api/admin/maps/[id]/sync-allmaps/` — POST: same, but re-reads from allmaps.org first ("Fetch latest from Allmaps" in MapEditHostingTab). Both share `$lib/server/annotationMirror.ts`, which writes **twice**: `annotations/{mapId}.json` (what the app reads) and `annotations/{mapId}/{ISO}.json` as history, since Storage has no versioning.
 - `/api/admin/maps/fetch-iiif-metadata/` — POST `{ manifestUrl }` → parsed IIIF metadata + Allmaps probe.
 - `/api/admin/maps/lookup-allmaps-id/` — POST `{ iiifImage }` → derive Allmaps image ID + probe.
-- `/api/admin/maps/sync-georef/` — POST: probe the Allmaps annotation server for every map with `allmaps_id` and `georef_done = false`, flip on hits. Idempotent; cron-safe. Returns `{ checked, flipped, ids }`.
+- `/api/admin/maps/sync-georef/` — POST: probe the Allmaps annotation server for every map with `allmaps_id` and `georef_done = false`, flip on hits. Idempotent; cron-safe. Returns `{ checked, flipped, ids }`. The flip itself enqueues `mirror_annotation` for an already-published map (mig 080's trigger), so no separate mirror call is needed.
 
 Pipeline:
 

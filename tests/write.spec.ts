@@ -589,6 +589,51 @@ test('publishing queues neither job when neither would accomplish anything', asy
   await admin.from('maps').delete().eq('id', draft!.id);
 });
 
+test('finishing the georeference of an already-published map queues the mirror', async () => {
+  // The sync-georef path (mig 080): a volunteer georeferences a map that is
+  // already public, so only `georef_done` moves. Under 058+064 the trigger
+  // returned early on an unchanged status and the mirror was never queued, so
+  // the map served its georeference from allmaps.org forever.
+  const { data: draft } = await admin
+    .from('maps')
+    .insert({
+      allmaps_id: `flip${Date.now()}`.slice(0, 16),
+      name: 'Georef-flip fixture',
+      status: 'draft',
+      georef_done: false,
+      // Off our host on purpose: publishing earns the tile job, which lets the
+      // assertions below prove the flip does *not* earn a second one.
+      iiif_image: 'https://example.invalid/iiif/georef-flip',
+    })
+    .select('id')
+    .single();
+
+  await admin.from('maps').update({ status: 'public' }).eq('id', draft!.id);
+
+  const { data: onPublish } = await admin
+    .from('pipeline_jobs')
+    .select('id, kind')
+    .eq('map_id', draft!.id);
+  expect(onPublish!.map((j) => j.kind)).toEqual(['tile_to_r2']); // not georeferenced yet
+
+  // Close the tile job out, so the one-live-job index cannot be what suppresses
+  // a re-queue — only the trigger's own publish-path gate can.
+  await admin.from('pipeline_jobs').update({ status: 'done' }).eq('id', onPublish![0].id);
+
+  await admin.from('maps').update({ georef_done: true }).eq('id', draft!.id);
+
+  const { data: afterFlip } = await admin
+    .from('pipeline_jobs')
+    .select('kind, status')
+    .eq('map_id', draft!.id);
+  expect(afterFlip!.filter((j) => j.status === 'queued').map((j) => j.kind)).toEqual([
+    'mirror_annotation',
+  ]);
+  expect(afterFlip!.filter((j) => j.kind === 'tile_to_r2')).toHaveLength(1); // tiles did not move
+
+  await admin.from('maps').delete().eq('id', draft!.id);
+});
+
 test('the server-side executor only takes the kinds it can run', async () => {
   const { data: job } = await admin
     .from('pipeline_jobs')
