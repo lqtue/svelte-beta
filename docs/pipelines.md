@@ -542,17 +542,40 @@ detail reaches the model is how much **ground** is inside the frame — which is
 why tile size is the lever this document has always said it is, and why no flag
 rescues a coarse scan.
 
-**And one number in this file is not settled.** § *Full resolution* above says
-the 1959 sheet is 2.80 m/px at source; the GCP fit says 0.999, and 0.999 is what
-the sheet's own extent implies (14,000 px across roughly 14 km of city). The two
-figures come from different methods — `collection_aoi.mjs` divides an AOI's
-ground area by its pixel area, which is local to that rectangle, while
-`scale.py` fits an affine over the whole sheet's control points — and they have
-never been compared on identical input. Until they are, treat the derived claims
-in that paragraph (the "6.5 m/px delivered", "cannot resolve a street name") as
-unverified, and do not delete either implementation on the strength of the
-other. A parity fixture pinning the two, in the shape of
-`tests/density-parity.spec.ts`, is the next thing this needs.
+**And the 1959 number is settled, 2026-09-10: both figures were right, for
+different scans.** § *Full resolution* above says the 1959 sheet is 2.80 m/px;
+`scale.py`'s GCP fit says 0.999. Neither estimator is wrong, and the 2.8x was
+never a disagreement about method — the two numbers describe two different
+digitisations of the same sheet.
+
+`work/analysis/district4/README.md` states the scan it measured: 1959 is
+"5000x3790, Virtual Saigon/IRD, 2.80 m/px". At 5,000 px that is 14.0 km of
+ground, which is right for the Đô thành. The scan the OCR pipeline reads is
+much larger: the crop in `work/ocr/outputs/34d4edb2-*/runs/idx-20260910/run_config.json`
+is `1148,775,11704,9221`, so that image is at least 12,852 px wide, and at
+0.999 m/px it is ~12.8 km of the same city. 12852/5000 = 2.57 against
+2.80/0.999 = 2.80. Same ground, different pixel counts.
+
+`tests/mpp-parity.spec.ts` now pins the two estimators against one sheet's real
+GCPs: they agree to **0.24%**, and the residual is the degrees-to-metres
+constants each carries rather than the method. They were never 2.8x apart on one
+annotation; they were compared across two scans, and nobody noticed because
+**neither figure said which scan it came from.** That is the fault worth fixing
+in prose: a metres-per-pixel figure needs the pixel dimensions of its scan
+written beside it, or it cannot be checked or compared later. This one survived
+in these docs for weeks.
+
+So the derived claims in § *Full resolution* — the "6.5 m/px delivered", the
+"cannot resolve a street name" — were true of the 5,000-px scan and are **stale,
+not wrong**. At 0.999 m/px the stock 2400/1024 ratio delivers about 2.34 m/px.
+`work/analysis/district4/README.md`'s resolution table, its "spend the saving on
+resolution" advice and its conclusion that 1959 needs "a new digitization, not a
+re-download — an acquisition question, not a pipeline one" are all downstream of
+the thin scan; for 1959 that acquisition question looks already answered by
+whatever supplied the larger one. That file has not been revised.
+
+Neither implementation was changed, and neither should be deleted on the
+strength of the other.
 
 Scripts: `ocr.py` (CLI), `gemini_client.py` (key rotation + retries), `iiif_tiles.py` (crop fetch, IA fallback, IIIF v2/v3 detection), `supabase_client.py` (direct REST), `prompt.py`, `local_vision.py`, `join_labels.py`, `eval.py` + `eval_metrics.py`, `cache.py`, `scale.py` (metres per pixel from the georeference; `python scale.py` self-checks). Self-checks, all offline: `python scale.py`, `python eval_metrics.py`, `python test_prompt_plumbing.py`, `python test_tile_cache.py`.
 
@@ -673,7 +696,7 @@ pass a — free in tokens, but counted by the merge as an independent voter, whi
 inflates `n_passes` and reverts the three-voter tie-break that took
 diacritic_recall from 0.864 to 0.955.
 
-**"Full resolution" is `tile_size / render_size`, and the default is not 1:1.** A tile is `--tile-size` source pixels rendered to `--render-size` before the model sees it, so what Gemini reads is the sheet's own ground resolution times that ratio. The stock 2400/1024 is a 2.34x downsample *on top of* the scan: on the 1959 Đô thành Sài Gòn sheet (2.80 m/px source) it delivers 6.5 m/px, which cannot resolve a street name. Until 2026-09-04 `vma_worker.py` did not pass `--render-size` at all, so **every queued OCR job ran at that ratio regardless of payload** — that was fixed on 2026-09-04, and since the 2026-09-08 audit the worker's own default is `max(tile_size, 1024)`, so a stock 2400 tile renders 1:1 without the payload saying anything. Nothing above 1:1 buys real detail; past it the scan is the ceiling. **And as of 2026-09-10, rather less than 1:1 buys anything either** — see the correction two paragraphs down before planning a render change. Rendering 1:1 costs tiles, which is what cropping to a study area pays for — see `work/analysis/district4/README.md` for the worked case.
+**"Full resolution" is `tile_size / render_size`, and the default is not 1:1.** A tile is `--tile-size` source pixels rendered to `--render-size` before the model sees it, so what Gemini reads is the sheet's own ground resolution times that ratio. The stock 2400/1024 is a 2.34x downsample *on top of* the scan: on a 2.80 m/px scan it delivers 6.5 m/px, which cannot resolve a street name (that figure was measured on the 5,000-px 1959 scan; the larger 1959 image now in the pipeline is 0.999 m/px, so the same ratio delivers about 2.34 — see the 2026-09-10 correction below, and note that a m/px figure without its scan's pixel size cannot be checked). Until 2026-09-04 `vma_worker.py` did not pass `--render-size` at all, so **every queued OCR job ran at that ratio regardless of payload** — that was fixed on 2026-09-04, and since the 2026-09-08 audit the worker's own default is `max(tile_size, 1024)`, so a stock 2400 tile renders 1:1 without the payload saying anything. Nothing above 1:1 buys real detail; past it the scan is the ceiling. **And as of 2026-09-10, rather less than 1:1 buys anything either** — see the correction two paragraphs down before planning a render change. Rendering 1:1 costs tiles, which is what cropping to a study area pays for — see `work/analysis/district4/README.md` for the worked case.
 
 **But resolution was the smaller half.** Measured on the 1959 Đô thành Sài Gòn sheet, same crop and same 1:1 rendering, changing only `--tile-size` and counting distinct labels that warp back inside the study area: 2048 px (5.7 km of ground per call) found 1; 1024 px (2.9 km) found 2; ~500 px (1.4 km) found 6, and 5 on a repeat. Five to six times the yield off an unchanged scan, and only the finest runs read `QUẬN 4` printed on the sheet. Across a whole six-sheet collection the same change gave **+19%**, not 5x — the gain appears only where the ground per call actually drops a lot, and repeats of one configuration differ by a label or two, so do not read a single run's small difference as a result. Rendering was ruled out separately — 1024 px rendered 1:1 and at 2x gave byte-identical output, so upsampling past the scan buys nothing. **What starves a read is one call covering too much ground, and a fixed pixel tile is a different amount of ground on every sheet** (2048 px is 1.7 km on the 1923 sheet, 5.7 km on the 1959 one). That is why coarse sheets look empty and get blamed on their scans. `ocr.py batch --tile-metres` (default 1400) sizes the tile per sheet from its own m/px, read from the sheet's georeference — see *Sizing a grid from the sheet's own scale* below. `scripts/collection_aoi.mjs --tile-metres` does the same thing for a collection sweep, by a different method, and the two do not yet agree; that is recorded below too. `enqueue_ocr_all.mjs` still takes a fixed `--tile-size`. Density steers spend: `--adaptive` renders dense tiles at 2048 and sparse ones at 1024, `--target-calls` scales the grid to a call budget. The digitalize Triage UI writes the same decisions as `--tile-overrides`.
 

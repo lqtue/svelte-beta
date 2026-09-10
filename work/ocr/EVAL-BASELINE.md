@@ -648,3 +648,24 @@ $0.271 to $1.236 once it is.
 **Not accepted.** `index-baselines.json` and every number above this section are
 untouched; nothing was written to `ocr_extractions`. Run dirs for the paid probes
 are at `outputs/0e02b9d9…/runs/_fleet-probe-0910/`.
+
+## 2026-09-10 — the 1882 grids behind 68/85 and 75/85 no longer exist
+
+Both scores above were measured before `b532d3b9`, which changed what
+`--grid-offset` does. They are still the record of what was run, and they are
+still comparable to each other, but neither can be reproduced now and neither
+should be quoted as the current state of the pipeline.
+
+The offset pass used to inset its region rather than phase-shift its lattice, so
+it never read the leading `offset`-wide strip of the sheet. That is what the
+68/85 measured: cropped to `main_map` the inset also crossed a step boundary and
+cost pass 2 four of its 24 tiles, and the vote saw 453 labels instead of 513.
+The 75/85 recipe ran uncropped, where the inset happened not to cross a
+boundary — so it kept its tile count and looked correct while still never
+reading its own leading strip.
+
+Both passes now cover their whole region: the crop goes 20 -> 30 tiles and the
+full sheet 24 -> 35. **The expectation is that a re-run beats 75/85, not that it
+reproduces it**, because the recipe of record was also losing area. Re-running
+the gate sheet is the next measurement, and the ~11 new tiles per pass are new
+geometry, so they are cache misses and it will not be free.

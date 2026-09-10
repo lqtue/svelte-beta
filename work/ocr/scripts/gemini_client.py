@@ -27,7 +27,12 @@ except ImportError:
 # is absent from Google's pricing page entirely, which is what a preview looks
 # like on its way out: no published rate, no stated support window. 3.8-flash is
 # the current Flash line at $0.75/$3.75 per 1M in/out — measured against this
-# corpus at ~30-60 calls per sheet, that is roughly $0.50 a map.
+# corpus at ~30-60 calls per sheet, that is roughly $0.85-1.65 a map.
+#
+# That was "$0.50 a map" until 2026-09-10, computed from the `output_tokens`
+# this module logs below. Billed output is `total_tokens - input_tokens` and
+# includes thinking, which on a measured run is 3.5x the logged field. The
+# 1968 body pass was 48 calls at $1.236.
 DEFAULT_MODEL = "gemini-3.8-flash"
 
 
