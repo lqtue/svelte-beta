@@ -22,6 +22,7 @@ import json
 import math
 import re
 import sys
+import unicodedata
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -1087,17 +1088,170 @@ def _lev_ratio(a: str, b: str) -> float:
     return SequenceMatcher(None, a, b).ratio()
 
 
+# The generic half of a place label, in both languages the corpus prints.
+# Ordered longest first: the two-word generics have to be tried before their
+# first word is taken on its own.
+_LABEL_PREFIXES = (
+    "cong truong", "công trường", "dai lo", "đại lộ", "quoc lo", "quốc lộ",
+    "huong lo", "hương lộ",
+    "duong", "đường", "ben", "bến", "rach", "rạch", "kinh", "song", "sông",
+    "cau", "cầu", "hem", "hẻm", "xom", "xóm", "ap", "ấp", "ngo", "ngõ",
+    "rue", "ruelle", "impasse", "passage", "allee", "allée", "avenue",
+    "boulevard", "bd", "quai", "chemin", "place", "cour", "hameau", "route",
+    "voie", "pont", "sentier",
+)
+
+
+def _label_core(text: str) -> str:
+    """The distinguishing part of a label: its name, with the generic prefix cut.
+
+    On a Vietnamese sheet the prefix is most of the string. "Đại Lộ Lê Lợi" and
+    "Đại Lộ Hàm Nghi" share two of their four words and eight of thirteen
+    characters — enough for `_text_similar`'s word test to call two different
+    boulevards one label. Comparing "lê lợi" against "hàm nghi" is what keeps
+    them apart.
+
+    Exactly one prefix comes off. Stripping every leading generic in a run
+    turns "Rạch Bến Nghé" into "Nghé" and throws away the name, because "Bến"
+    is a generic in its own right and part of this name in particular.
+    """
+    t = " ".join(text.lower().split())
+    if t in _LABEL_PREFIXES:
+        return ""  # nothing but a generic: it names no place at all
+    for p in _LABEL_PREFIXES:
+        if t.startswith(p + " "):
+            return t[len(p) + 1:]
+    return t
+
+
+def _fold(s: str) -> str:
+    """Lowercase, diacritics off, and both `đ` and the `ð` the model sometimes
+    returns for it down to `d`. Vietnamese names are two or three short
+    syllables, so one dropped tone mark costs a character-level ratio more
+    than the difference between two unrelated names does."""
+    s = s.lower().replace("đ", "d").replace("ð", "d")
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
+    )
+
+
+def _syl_match(x: str, y: str, fuzzy_threshold: float) -> bool:
+    """Do two folded syllables name the same thing?
+
+    Fuzzy only above four characters. Vietnamese syllables are two to five
+    letters, and at that length a character ratio says nothing: "do" against
+    "duc" scores 0.80, which would merge Đường Tự Do into Đường Tự Đức. Folding
+    has already absorbed the noise that fuzz is for — a dropped tone mark — so
+    below five characters the syllables simply have to agree.
+    """
+    if x == y:
+        return True
+    return min(len(x), len(y)) > 4 and _lev_ratio(x, y) >= fuzzy_threshold
+
+
+def _name_like(folded: str) -> bool:
+    """Is this folded text a name, rather than one syllable of one?
+
+    Two syllables, or a single one long enough to stand alone. "Trần", "Lâm" and
+    "Nghé" are not names; "Catinat" and "Chợ Lớn" are.
+    """
+    w = folded.split()
+    return len(w) > 1 or (len(w) == 1 and len(w[0]) >= 5)
+
+
+def _words_similar(a: str, b: str, fuzzy_threshold: float) -> bool:
+    """Same syllable count, and every syllable matches its counterpart.
+
+    Whole-string fuzzy matching cannot do this job: "lê lợi" and "lê lai" score
+    0.83 as strings — above any threshold that still joins one street read twice
+    — because they differ in three characters out of twelve. Positionally, the
+    second syllable is "loi" against "lai" and they are plainly two streets.
+    """
+    wa, wb = _fold(a).split(), _fold(b).split()
+    if not wa or len(wa) != len(wb):
+        return False
+    return all(_syl_match(x, y, fuzzy_threshold) for x, y in zip(wa, wb))
+
+
 def _text_similar(a: str, b: str, fuzzy_threshold: float = 0.75) -> bool:
-    """True if texts are duplicates: exact, substring, word-overlap, or fuzzy Levenshtein."""
+    """True if two labels are the same label read twice.
+
+    Three tests, in the order they stop being generous. Each is here because of
+    a way the 1959 Saigon sheet lost real streets: "Đại Lộ Lê Lợi" matched "Đại
+    Lộ Hàm Nghi" on shared words, "Đại Lộ Lê Lợi" matched "Đại Lộ Lê Lai" on
+    shared characters, and "Đường Tự Do" matched "Đường Tự Đức" on a fuzzy
+    three-letter syllable. Lê Lợi, Hàm Nghi, Công Lý and Phan Chu Trinh were all
+    deleted as duplicates of their neighbours, and the surviving row count still
+    looked right, which is why it went unnoticed.
+    """
     a, b = a.lower().strip(), b.lower().strip()
     if not a or not b:
         return False
-    if a == b or a in b or b in a:
+    fa, fb = _fold(a), _fold(b)
+    if fa == fb or fa.replace(" ", "") == fb.replace(" ", ""):
         return True
-    wa, wb = set(a.split()), set(b.split())
-    if wa and wb and len(wa & wb) / max(len(wa), len(wb)) >= 0.5:
+    # One read dropped the generic prefix. Tested on whole words and on the full
+    # strings, before the prefix is stripped: after stripping, "Rạch Bến Nghé"
+    # and "Rạch Thị Nghè" both end in "nghe" and one contains the other.
+    #
+    # Both sides have to be a name in their own right: two syllables or one long
+    # one (`_name_like`), and something left after the generic comes off. A bare
+    # "Trần" is inside every *Trần …* street and a bare "Đường" is inside every
+    # street on the sheet — and `dedup_items` and `ensemble_items` both cluster
+    # by union-find, so one such row chained 43 different streets into a single
+    # cluster whose winning text replaced all of them. That is how Lý Thái Tổ,
+    # Tổng Đốc Phương and Lê Đại Hành went missing. Assembling genuine fragments
+    # is `_spatial_join_fragments`' job, and it runs after this.
+    if (
+        _name_like(fa)
+        and _name_like(fb)
+        and _label_core(a)
+        and _label_core(b)
+        and (f" {fa} " in f" {fb} " or f" {fb} " in f" {fa} ")
+    ):
         return True
-    return _lev_ratio(a, b) >= fuzzy_threshold
+    ca, cb = _label_core(a), _label_core(b)
+    if ca and cb:
+        a, b = ca, cb
+        fa, fb = _fold(a), _fold(b)
+        if fa == fb:
+            return True
+    wa, wb = fa.split(), fb.split()
+    # Word overlap alone is not enough. Vietnamese street names are personal
+    # names, so sharing the family name ("nguyen hue" / "nguyen trai") clears
+    # 0.5 on its own, and for a two-syllable name 0.5 means exactly one syllable
+    # matched — coincidence, not similarity. So: two shared syllables at least,
+    # and the last one, which names the person or place, has to be among them.
+    sa, sb = set(wa), set(wb)
+    shared = len(sa & sb)
+    if (
+        shared >= 2
+        and shared / max(len(sa), len(sb)) >= 0.5
+        and _syl_match(wa[-1], wb[-1], fuzzy_threshold)
+    ):
+        return True
+    return _words_similar(a, b, fuzzy_threshold)
+
+
+# How far apart two boxes may sit and still be one label, as a multiple of the
+# text's own height. A calibration knob: the right value depends on the sheet's
+# scale and the scan resolution, neither of which the code can see. Measured on
+# the 1959 Saigon sheet, 2.5 → 6.0 changes the distinct names recovered by two
+# (492 → 490) and the row count by 12% — once `_text_similar` stopped merging
+# different streets, this threshold only decides how many rows one street keeps.
+_CLOSE_FACTOR = 4.0
+
+
+def _close_px(a, b) -> float:
+    """The proximity budget for two boxes carrying the same text, in source px.
+
+    Scaled to the *short* side of the boxes — a text label's height — not the
+    long one. Two reads of one street name sit within a line-height of each
+    other, while scaling by the length of a 600px street label bought a 900px
+    budget and swept up the next street over.
+    """
+    short = max(min(a[2], a[3]), min(b[2], b[3]))
+    return short * _CLOSE_FACTOR
 
 
 def _centroid_distance(a, b):
@@ -1160,7 +1314,7 @@ def _is_fragment_candidate(text: str) -> bool:
         w = words[0]
         if w in _FRENCH_CONNECTORS:
             return True
-        if w in _STREET_PREFIXES:
+        if w in _STREET_PREFIXES or w in _LABEL_PREFIXES:
             return True
         if len(w) <= 4:
             return True
@@ -1356,9 +1510,7 @@ def dedup_items(items, iou_threshold=0.25):
             # Spatial check: overlap (IoU) OR center-point proximity (relative to size)
             iou = _iou(bbox_i, bbox_j)
             dist = _centroid_distance(bbox_i, bbox_j)
-            # Threshold is 1.2x the largest dimension of the two boxes
-            max_dim = max(bbox_i[2], bbox_i[3], bbox_j[2], bbox_j[3])
-            is_close = dist < (max_dim * 1.5) # Increased threshold slightly for better catch
+            is_close = dist < _close_px(bbox_i, bbox_j)
 
             if iou >= iou_threshold or is_close:
                 # 0. Calculate textual substring overlap for prioritizing fragments
@@ -1815,7 +1967,7 @@ def ensemble_items(items: list[dict]) -> list[dict]:
             if not _text_similar(items[i]["text"], items[j]["text"]):
                 continue
             a, b = items[i]["global_bbox"], items[j]["global_bbox"]
-            if _iou(a, b) >= 0.25 or _centroid_distance(a, b) < 0.5 * max(a[2], a[3], b[2], b[3]):
+            if _iou(a, b) >= 0.25 or _centroid_distance(a, b) < _close_px(a, b):
                 parent[find(i)] = find(j)
 
     clusters: dict[int, list[dict]] = {}
@@ -2633,6 +2785,237 @@ def _write_legend_rows(map_id: str, run_id: str, region: tuple[int, int, int, in
     return upsert_ocr_extractions(map_id, run_id, rows)
 
 
+# Which OCR category a road-type word belongs to. The directory prints the
+# generic in its own column, so this is a lookup rather than a guess.
+_GENERIC_CATEGORY = {
+    "duong": "street", "dai lo": "street", "hem": "street", "ngo": "street",
+    "ben": "street", "cong truong": "street", "quoc lo": "street",
+    "huong lo": "street",
+    "rach": "hydrology", "kinh": "hydrology", "song": "hydrology",
+}
+
+
+def _cell_rect(grid: dict, ref: str) -> tuple[float, float, float, float] | None:
+    """The source-pixel rectangle one printed grid cell covers, or None.
+
+    The single-cell subset of `cellBox` in `src/lib/core/geo/mapGrid.ts`, which
+    is the authority: `tests/street-index-grid.spec.ts` pins the two against a
+    committed fixture so this copy cannot drift. A reference naming a label the
+    sheet does not print — this sheet's index says "J 2" twice and its rows stop
+    at I — returns None rather than a guess.
+    """
+    m = re.match(r"\s*([A-Za-z]+)\s*(\d+)\s*$", ref or "")
+    if not m:
+        return None
+    rows = [str(r).strip().upper() for r in grid.get("rows") or []]
+    cols = [str(c).strip().upper() for c in grid.get("columns") or []]
+    a, b = m.group(1).upper(), m.group(2)
+    if a not in rows or b not in cols:
+        return None
+    gx, gy, gw, gh = (float(v) for v in grid["bbox"])
+    cw, ch = gw / len(cols), gh / len(rows)
+    return (gx + cols.index(b) * cw, gy + rows.index(a) * ch, cw, ch)
+
+
+def _span_rect(grid: dict, ref_from: str, ref_to: str):
+    """The rectangle spanning a street's TỪ and ĐẾN cells.
+
+    A street index states where a street starts and where it ends, so the honest
+    footprint is the union of the two cells — wide when the street crosses the
+    sheet, one cell when it does not. Returns (rect, n_cells_resolved) so the
+    caller can tell a two-cell span from a one-cell fallback.
+    """
+    a, b = _cell_rect(grid, ref_from), _cell_rect(grid, ref_to)
+    got = [r for r in (a, b) if r]
+    if not got:
+        return None, 0
+    x0 = min(r[0] for r in got)
+    y0 = min(r[1] for r in got)
+    x1 = max(r[0] + r[2] for r in got)
+    y1 = max(r[1] + r[3] for r in got)
+    return (x0, y0, x1 - x0, y1 - y0), len(got)
+
+
+def cmd_street_index(args: argparse.Namespace) -> None:
+    """Read a printed street directory into rows positioned by the printed grid.
+
+    The directory is a tall narrow column — 798 x 7853 px on the 1959 Saigon
+    sheet — so it is read in horizontal bands: one call each, overlapping, so a
+    row split by a band edge is whole in the next one. Entries are merged on
+    (generic, name), which is what the table is keyed by.
+
+    Every row it yields carries a position, because the table states one. That
+    is the point of reading it: spotting a street label out on the map body
+    finds maybe half of them, while the index is complete by construction.
+    """
+    from gemini_client import extract_street_index
+
+    base, W, H = _resolve_base_and_dims(args)
+    local_image = getattr(args, "local_image", None)
+    regions = []
+    for spec in args.regions.split(";"):
+        try:
+            regions.append(tuple(int(v) for v in spec.split(",")))
+        except ValueError:
+            raise SystemExit(f"--regions entries must be x,y,w,h in source px (got {spec!r})")
+
+    map_label = args.map_id or "unknown"
+    out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
+    log_path = out_dir / "calls.jsonl"
+
+    merged: dict[tuple[str, str], dict] = {}
+    failed: list[tuple[int, int, int]] = []
+    n_calls = 0
+    for ri, (x, y, w, h) in enumerate(regions):
+        y0 = y
+        while y0 < y + h:
+            bh = min(args.band_height, y + h - y0)
+            # A tail no taller than the overlap was already read whole by the
+            # previous band. `<=`, not `<`: at exactly the overlap the step
+            # below is zero and the loop never ends.
+            if bh <= args.overlap:
+                break
+            crop = fetch_crop(base, x, y0, w, bh, size=args.render_size,
+                              local_image=local_image)
+            try:
+                entries = extract_street_index(crop, model=args.model,
+                                               log_path=log_path,
+                                               cache_dir=OUTPUTS_CACHE_DIR)
+            except Exception as e:
+                # Named loudly and counted: a band that comes back empty is
+                # thirty streets missing from a run that otherwise reports
+                # success.
+                print(f"  region {ri} band y={y0}: FAILED — {str(e)[:160]}")
+                failed.append((ri, y0, bh))
+                entries = []
+            n_calls += 1
+            kept = 0
+            for e in entries:
+                name = (e.get("name") or "").strip()
+                generic = (e.get("generic") or "").strip()
+                if not name:
+                    continue
+                key = (_fold(generic), _fold(name))
+                if key in merged:
+                    continue
+                merged[key] = {
+                    "generic": generic, "name": name,
+                    "from": (e.get("from") or "").strip().replace(" ", ""),
+                    "to": (e.get("to") or "").strip().replace(" ", ""),
+                    "region": ri, "band_y": y0,
+                }
+                kept += 1
+            print(f"  region {ri} band y={y0} h={bh}: {len(entries)} read, {kept} new "
+                  f"({len(merged)} total)")
+            y0 += max(bh - args.overlap, 1)
+
+    entries = sorted(merged.values(), key=lambda e: (_fold(e["name"]), _fold(e["generic"])))
+    out_path = out_dir / "street_index.json"
+    out_path.write_text(json.dumps({
+        "map_id": map_label, "regions": [list(r) for r in regions],
+        "model": args.model, "prompt": "street-index-v1",
+        "n_calls": n_calls, "n_entries": len(entries),
+        "failed_bands": [list(f) for f in failed], "entries": entries,
+    }, indent=2, ensure_ascii=False))
+    print(f"\n{len(entries)} street entries from {n_calls} call(s) → {out_path}")
+    if failed:
+        print(f"  {len(failed)} band(s) FAILED and read nothing: {failed}")
+        print("  Re-run the same --run-id to retry them; every band that did land is cached.")
+
+    if not getattr(args, "db", False) or map_label == "unknown":
+        return
+
+    from supabase_client import fetch_triage_grid
+    grid = fetch_triage_grid(map_label)
+    if not grid:
+        raise SystemExit("map has no triage.grid — run `ocr grid` first, or omit --db")
+    from supabase_client import upsert_ocr_extractions
+    rows, unplaced = [], []
+    for e in entries:
+        rect, got = _span_rect(grid, e["from"], e["to"])
+        if not rect:
+            unplaced.append(e)
+            continue
+        gx, gy, gw, gh = rect
+        label = f"{e['generic']} {e['name']}".strip()
+        note = (f"street index; grid={e['from']}\u2192{e['to']}; cells={got}"
+                + ("; one cell unresolved" if got == 1 and e["from"] != e["to"] else ""))
+        rows.append({
+            "tile_x": int(gx), "tile_y": int(gy), "tile_w": int(gw), "tile_h": int(gh),
+            "category": _GENERIC_CATEGORY.get(_fold(e["generic"]), "street"),
+            "text": label,
+            # Not a reading of the map body: the position is a cell span the
+            # index states, several hundred metres across. The row says so in
+            # `notes` and its box is that span rather than a false point.
+            "confidence": 0.75,
+            "global_x": gx, "global_y": gy, "global_w": gw, "global_h": gh,
+            "rotation_deg": 0, "notes": note,
+            "model": args.model, "prompt": "street-index-v1",
+        })
+    n = upsert_ocr_extractions(map_label, out_dir.name, rows)
+    print(f"[db] upserted {n} row(s); {len(unplaced)} entry/ies had no placeable cell")
+    for e in unplaced:
+        print(f"     {e['generic']} {e['name']} — {e['from']}\u2192{e['to']}")
+
+
+def cmd_street_index_fixture(args: argparse.Namespace) -> None:
+    """Write the grid-parity fixture that `tests/street-index-grid.spec.ts` reads.
+
+    `_cell_rect` here and `cellBox` in `src/lib/core/geo/mapGrid.ts` turn the
+    same printed reference into the same rectangle, in two languages. This dumps
+    what Python computes for every reference the sheet actually uses — both
+    directory columns and the numbered index — plus every corner of the grid, so
+    the TypeScript side has something to disagree with.
+    """
+    from supabase_client import fetch_triage_grid
+    grid = fetch_triage_grid(args.map_id)
+    if not grid:
+        raise SystemExit(f"map {args.map_id} has no triage.grid")
+
+    refs: set[str] = set()
+    # Every cell of the grid, so both axes' ends are covered whatever the sheet
+    # happens to reference.
+    for r in grid["rows"]:
+        for c in grid["columns"]:
+            refs.add(f"{r}{c}")
+    # Plus what the sheet's own tables say, including anything unplaceable.
+    runs_dir = OUTPUTS_DIR / args.map_id / "runs"
+    for path in sorted(runs_dir.glob("*/street_index.json")):
+        for e in json.loads(path.read_text()).get("entries", []):
+            refs.update(x for x in (e.get("from"), e.get("to")) if x)
+    for path in sorted(runs_dir.glob("*/index.json")) + sorted(runs_dir.glob("*/legend.json")):
+        for e in json.loads(path.read_text()).get("entries", []):
+            if e.get("grid"):
+                refs.add(str(e["grid"]).replace(" ", ""))
+
+    # `_cell_rect` reads one cell; `cellBox` also spans a run ("G H 10"), which
+    # only the browser needs — the street index puts its two cells in separate
+    # fields. So parity is asserted on single-cell references, and references
+    # naming a run go in `ts_only`, where the test pins the asymmetry instead of
+    # leaving it to be discovered.
+    single = re.compile(r"^[A-Za-z]+\s*\d+$")
+    cases, ts_only = [], []
+    for ref in sorted(refs):
+        if single.match(ref):
+            rect = _cell_rect(grid, ref)
+            cases.append({"ref": ref, "rect": list(rect) if rect else None})
+        else:
+            ts_only.append(ref)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
+        "_comment": ("Generated by `ocr street-index-fixture`. Python's _cell_rect against "
+                     "the TypeScript cellBox — see tests/street-index-grid.spec.ts."),
+        "map_id": args.map_id,
+        "grid": {"bbox": grid["bbox"], "rows": grid["rows"], "columns": grid["columns"]},
+        "cases": cases,
+        "ts_only": ts_only,
+    }, indent=2, ensure_ascii=False) + "\n")
+    n_null = sum(1 for c in cases if c["rect"] is None)
+    print(f"{len(cases)} single-cell references ({n_null} unplaceable), "
+          f"{len(ts_only)} multi-cell (TypeScript only) → {out}")
+
+
 def _run_legend_pass(iiif_base: str, img_w: int, img_h: int, cartouche,
                      local_image: str | None, map_id: str, run_id: str,
                      model: str, quality: str = "default") -> None:
@@ -2989,6 +3372,36 @@ def build_parser() -> argparse.ArgumentParser:
                        help="Upsert into ocr_extractions as category='legend_entry'")
     p_leg.add_argument("--run-id", help="Run identifier (default: timestamp)")
     p_leg.set_defaults(func=cmd_legend)
+
+    # street-index
+    p_si = sub.add_parser("street-index",
+                          help="Gemini: read a printed street directory (BẢNG CHỈ DẪN ĐƯỜNG PHỐ) "
+                               "into rows positioned by the sheet's own grid")
+    p_si.add_argument("--map-id", help="Supabase maps.id UUID")
+    p_si.add_argument("--iiif-base", help="IIIF image service base URL")
+    p_si.add_argument("--local-image", help="Local image file path (skips IIIF)")
+    p_si.add_argument("--regions", required=True,
+                      help="One or more directory columns as x,y,w,h in source px, ';'-separated")
+    p_si.add_argument("--band-height", type=int, default=1300,
+                      help="Source px per call. A tall column read in one call renders to "
+                           "unreadable text; ~30 rows per band keeps it legible (default 1300)")
+    p_si.add_argument("--overlap", type=int, default=150,
+                      help="Source px of band overlap, so a row split by a band edge is whole "
+                           "in the next one (default 150)")
+    p_si.add_argument("--render-size", type=int, default=1500,
+                      help="Rendered crop width (default 1500)")
+    p_si.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model")
+    p_si.add_argument("--db", action="store_true",
+                      help="Upsert into ocr_extractions, positioned on the T\u1eeb\u2192\u0110\u1ebfn cell span")
+    p_si.add_argument("--run-id", help="Run identifier (default: timestamp)")
+    p_si.set_defaults(func=cmd_street_index)
+
+    p_sif = sub.add_parser("street-index-fixture",
+                           help="Write tests/fixtures/street-index-grid.json — the Python/TS "
+                                "parity fixture for turning a grid reference into a rectangle")
+    p_sif.add_argument("--map-id", required=True)
+    p_sif.add_argument("--out", default="tests/fixtures/street-index-grid.json")
+    p_sif.set_defaults(func=cmd_street_index_fixture)
 
     return parser
 

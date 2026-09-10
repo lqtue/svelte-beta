@@ -411,3 +411,55 @@ shipped an unmeasured signal by the back door.
 these faults — the dead gate, the never-passed flag, the missing neatlines — were
 invisible in the code and obvious the moment someone counted rows. Two of the
 twelve were caught only by re-measuring a thing that already appeared to work.
+
+## The dedupe was deleting distinct streets — recall-neutral on this gate (2026-09-10)
+
+`_text_similar` decided two labels were one label read twice. Four false
+positives, each measured on the 1959 Saigon sheet (`34d4edb2`):
+
+| what matched | why |
+|---|---|
+| `Đại Lộ Lê Lợi` = `Đại Lộ Hàm Nghi` | shared prefix is 2 of 4 words, clearing the `≥ 0.5` word-overlap test |
+| `Đại Lộ Lê Lợi` = `Đại Lộ Lê Lai` | 0.92 as strings, 0.83 on the names — the prefix pads every ratio |
+| `Đường Tự Do` = `Đường Tự Đức` | `do` vs `duc` scores 0.80 as characters |
+| `Đường` = *every street on the sheet* | a bare generic is a whole-word substring of all of them, and both `dedup_items` and `ensemble_items` cluster by union-find, so **one such row chained 43 streets into a single cluster** whose winning text replaced all 43 |
+
+Fixed by comparing the prefix-stripped **name**, syllable by syllable, with fuzz
+only above four characters, two shared syllables required rather than a ratio,
+and the substring rule gated on both sides being name-like with a non-empty
+core. `work/ocr/scripts/test_dedup_labels.py` is the check: 16 pairs that must
+stay apart, 7 that must join. `_CLOSE_FACTOR` replaces `max_dim * 1.5` — the
+proximity budget now scales with the label's **height**, not its length, because
+a 600px street label was buying 900px and sweeping up the next street over.
+
+**On the 1959 sheet:** distinct name cores 456 → 607 (+33%), street rows 452 →
+795. Lê Lợi, Hàm Nghi, Công Lý, Phan Chu Trinh, Lý Thái Tổ, Tổng Đốc Phương and
+Lê Đại Hành were all absent and are all back.
+
+**On this gate sheet, re-deduped from cached tiles — no API calls:**
+
+| metric | `baseline` | `baseline` re-deduped | `seq-v1` | `seq-v1` re-deduped |
+|---|---|---|---|---|
+| recall | 0.5529 | **0.5529** | 0.8353 | **0.8353** |
+| char_acc | 0.9797 | **0.9797** | 0.9814 | **0.9814** |
+| mean_iou | 0.7194 | **0.7194** | 0.7503 | **0.7503** |
+| category_acc | 0.8936 | **0.8936** | 0.8732 | **0.8732** |
+| text_recall@0.3 | 0.5647 | **0.5647** | 0.8824 | **0.8824** |
+| predictions | 145 | 167 | 210 | 235 |
+| precision | 0.3241 | 0.2814 | 0.3381 | 0.3021 |
+
+Every trustworthy metric is **identical**; only the row count moves. `seq-v1`
+re-deduped still clears the step-3 target (recall ≥ 0.77, char_acc ≥ 0.98,
+mean_iou ≥ 0.72). The precision drop is the partial-GT artefact this file warns
+about at the top: the ground truth is 85 of the sheet's labels, so 25 extra
+correct rows are counted as 25 false positives. Do not read it as a regression,
+and do not tune against it.
+
+**The important result is the null one: this gate cannot see the bug it was
+asked about.** It is a French sheet, and `Rue Catinat` / `Rue Charner` survive
+character comparison where `Đại Lộ Lê Lợi` / `Đại Lộ Lê Lai` do not — Vietnamese
+street names are two or three short syllables that differ in one, and the generic
+is most of the string. 85 GT labels on one French sheet is the wrong instrument
+for a corpus that is mostly Vietnamese. See *Getting more out of OCR* in
+`docs/pipelines.md` for the cheap fix: a sheet's own printed street index is 384
+name→cell-range pairs of free ground truth, and needs no human labelling.

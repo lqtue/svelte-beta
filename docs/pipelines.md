@@ -63,7 +63,7 @@ python work/ocr/scripts/ocr.py clean \
   --map-id <uuid> --run-id <clean-run-id> --min-confidence 0.1 [--apply]
 ```
 
-Subcommands (12): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `merge`, `preview`, `list-models`, `detect-layout`, `numerals`, `legend`.
+Subcommands (15): `run`, `batch`, `scout`, `stitch`, `clean`, `dedup`, `merge`, `preview`, `list-models`, `detect-layout`, `grid`, `numerals`, `legend`, `street-index`, `street-index-fixture`.
 
 **Two passes, then agree (the default from the queue).** One `batch` reads 39 of the 43
 validated labels on the gate sheet; the misses are labels the model never returned, not
@@ -243,6 +243,7 @@ colour test would beat a position rule tuned per sheet.
 
 | step | calls | yield | per call |
 |---|---|---|---|
+| street index, both margins in bands | 15 | 384 streets, each with a cell range | **25.6** |
 | margin index, one group at a time | 16 | 156 entries + the number join | **9.8** |
 | map body, 2 passes + merge | 72 | 627 rows | 8.7 |
 | numeral pass (`seq-v1-idx`) | 36 | 114 numerals | 3.2 |
@@ -258,13 +259,133 @@ between steps, so a fleet run can spend a fixed budget per sheet instead of an
 unbounded one on whichever sheet someone is watching. `enqueue_ocr_all.mjs
 --max-calls N` sets it.
 
+**The street index is the cheapest thing on the sheet, and the only free check
+on everything else.** `BẢNG CHỈ DẪN ĐƯỜNG PHỐ` runs down both margins in two
+798px columns — a four-column table: the road-type word alone (`Đường`, `Đại
+Lộ`, `Bến`, `Rạch`, `Hẻm`), the name, then `TỪ` and `ĐẾN`, the grid cell the
+street starts in and the one it ends in. `ocr street-index` reads it in
+overlapping horizontal bands, ~27 rows per call:
+
+```bash
+work/ocr/.venv/bin/python work/ocr/scripts/ocr.py street-index \
+  --map-id <uuid> --run-id <name> \
+  --regions "350,2143,798,7853;12852,775,798,9221" [--db]
+```
+
+**15 calls, 384 entries, ~$0.03** — against the sheet's own claim of 384 named
+streets. Every row carries a position, because the table states one: `--db`
+writes each street's box as the union of its two cells, `notes` recording
+`grid=C9→C10`. A run of cells is not a point and the box says so; it is also
+not the *neatline*-wide guess a name with no reference gets.
+
+The one-group-at-a-time rule above still holds but does not bite here: the table
+is one column group, and the bands run across it. `TỪ`/`ĐẾN` arrive in separate
+schema fields, so there is no pairing to get wrong — the probe band matched the
+image on all 27 rows including the generic column.
+
+**Then the two readings check each other.** Of 372 body labels that match a
+directory row, **350 (94%) sit inside the cell range the index states** (±1
+cell, since a street is labelled somewhere along its length, not between its
+endpoints). Neither reading knows about the other, so that is a real
+measurement: it validates the body pass, the index pass and the grid at once,
+and the 22 that disagree are a review queue rather than a mystery. Read the
+margins **first** — this is the denominator every later pass wants.
+
+**Row `J` is the inset's grid, not a missing row.** Five directory rows and
+index entry `44` reference `J1`/`J2`; the sheet's printed rows stop at `I`.
+Refitting the row set against 373 observations settles it: `A…I` scores 310/373,
+`A…J` scores the same only with a grid 9920px tall — past the bottom of the map
+body. All six are on the southern waterfront (`Bến Mê Cóc`, `Bến Nguyễn Duy`,
+`Bến Phạm Thế Hiển`, `Bến Phú Định`, `Đường Rạch Cát`, `Chợ Rạch Cát`), which is
+what the inset at `[4634, 8747, 2338, 1249]` shows — a separate map continuing
+the lettering. `_cell_rect` returns nothing for them rather than guessing, and
+each is named in the run's output.
+
 **Left undone on that sheet**: 12 of 156 numerals unplaced, all in the dense
-`C8/C9/C10/D9` core except `44` (`Chợ Rạch Cát`), whose index cell reads `J2` —
-a row the grid does not have, so it probably refers to the sheet's own inset at
-`[4634, 8747, 2338, 1249]`, which is a separate map with its own grid. The
-street index (`BẢNG CHỈ DẪN ĐƯỜNG PHỐ`, two 798×~9000 columns, ~340 rows of
-name + TỪ/ĐẾN grid cells) is still unread; it is a name→grid-range gazetteer,
-not a number join, and wants the same one-group-at-a-time discipline.
+`C8/C9/C10/D9` core except `44`, above. Two directory rows are unplaceable and
+reported by name — `Đường Rạch Cát` (`J2`, the inset) and `Đường Lý Văn Phức`,
+whose cells came back blank.
+
+### Getting more out of OCR: what to do next, in order
+
+Where the effort pays, measured on this corpus rather than reasoned about. Read
+`work/ocr/EVAL-BASELINE.md` for the experiments themselves, including the
+rejected ones — this section is the forward-looking half.
+
+**1. Get a denominator before tuning anything.** The 1959 sheet's dedupe was
+deleting real streets for a week and nothing failed: it held 452 street rows and
+367 distinct names against the sheet's own printed claim of 384, which reads
+like a good result. The bug was found by asking a different question — *is Lê
+Lợi in the database?* — and it was not, nor Hàm Nghi, Công Lý or Phan Chu Trinh,
+the four most prominent streets on the sheet. A sheet that prints an index or a
+street directory tells you how many labels exist; read it **first**, and every
+later pass has a score instead of a row count.
+
+**2. Count distinct names, never rows.** Row count is the metric that hid the
+bug, because a wrong merge removes a name and a shattered cluster adds rows, and
+both move the total in directions that look fine. `_label_core` + `_fold` in
+`ocr.py` give the comparison key; the number to watch is distinct cores.
+
+**3. Ground per call is still the biggest single lever.** At the default 2400px
+tile the 1959 sheet was 5.7 km per call and returned ~1 usable label in the
+study area; `--tile-metres 1400` returned 627 rows from the same crop. Pass it
+on any sheet whose m/px you have not checked.
+
+**4. Build a per-sheet gate out of what the sheet already prints.** This is the
+cheapest unexploited thing in the pipeline. `work/ocr/EVAL-BASELINE.md`'s ground
+truth is 85 hand-validated labels on **one French sheet**, and it demonstrably
+cannot see a Vietnamese failure: re-deduping it after the fix above moved recall,
+char_acc, mean_iou and category_acc by exactly zero, while the same change
+recovered 33% more distinct names on the 1959 sheet. `Rue Catinat` and `Rue
+Charner` survive character comparison; `Đại Lộ Lê Lợi` and `Đại Lộ Lê Lai` do
+not.
+
+A printed street index fixes that for free. `ocr street-index` yields ~384
+`name → cell-range` pairs per sheet with no human labelling, and the check is
+already written: **of 372 body labels that matched a directory row, 350 (94%)
+fell inside the range the index states.** Two unrelated readings, so that single
+number scores the body pass, the index pass and the grid at once, and it is a
+regression metric — run it after any core-loop change and watch it move. Next
+step is to make it a subcommand (`eval.py index-agreement`) rather than a script
+in a scratchpad, and to record a per-sheet baseline for each indexed sheet.
+
+**5. Precision is uninterpretable while the ground truth is partial.** A correct
+prediction absent from GT counts as a false positive, so anything that raises
+recall lowers precision. Watch recall, `char_acc`, `mean_iou`, `text_recall@0.3`
+and the distinct-name count. Do not tune against precision, and do not read its
+drop as a regression.
+
+**6. `_CLOSE_FACTOR` is a per-sheet knob, and it is meant to be turned.** It is
+how far apart two boxes may sit and still be one label, in multiples of the
+text's height, and the right value depends on the sheet's scale and scan
+resolution — neither of which the code can see. On the 1959 sheet 2.5 → 6.0
+moves distinct names by two and row count by 12%; 4.0 is what is committed.
+Tune it by re-merging from cached tiles (free) and reading the distinct-name
+count, not the row count.
+
+**7. Then the things that need a model change, roughly by value:**
+
+- **`label_w` / `label_h` stay null** because the model returns an axis-aligned
+  box plus an angle, not an oriented box's own dimensions. The mig-076 columns
+  and the review UI's rotated handles are both waiting on a prompt that asks for
+  width-along-the-baseline. Nothing in the corpus can fill them today.
+- **The inset needs its own grid.** Six references on the 1959 sheet name a row
+  `J` its printed grid does not have; all six are on the southern waterfront,
+  which is what the inset at `[4634, 8747, 2338, 1249]` shows. `triage.grid` is
+  one grid per sheet, so an inset's references cannot be placed at all.
+  `SavedTriage` would need a grid per region.
+- **Colour separates the label classes** on an indexed sheet: index numerals are
+  bold black on a red fill, the reference grid is thin magenta with labels only
+  in the margins. `iiif_tiles.compute_tile_colours` already exists, and a colour
+  test beats a position rule tuned per sheet.
+- **Category confusions are concentrated**, not diffuse:
+  `building↔institution` is 6 of 9 errors on the gate sheet. A worked example
+  pair in the prompt is cheaper than anything structural.
+
+**8. Do not re-attempt** neighbour-window batching, the fragment join as a
+recall lever, or a resolution bump as a default. All three are measured
+regressions with the reasons written down in `work/ocr/EVAL-BASELINE.md`. Read
+it before touching the core loop.
 
 ### Design notes
 

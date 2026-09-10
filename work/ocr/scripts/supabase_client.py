@@ -373,6 +373,27 @@ def save_triage_grid(map_id: str, grid: dict[str, Any]) -> None:
     resp.raise_for_status()
 
 
+def fetch_triage_grid(map_id: str) -> dict[str, Any] | None:
+    """The sheet's printed reference grid out of maps.triage.grid, or None.
+
+    Read side of `save_triage_grid`. Service key only — the analysis commands
+    that need a grid are hand-run, not worker jobs, so there is no route for it.
+    """
+    url, key = _load_config()
+    resp = requests.get(
+        f"{url}/rest/v1/maps",
+        headers=_headers(key),
+        params={"id": f"eq.{map_id}", "select": "triage"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    rows = resp.json()
+    grid = ((rows[0].get("triage") or {}) if rows else {}).get("grid")
+    if not grid or not grid.get("bbox") or not grid.get("rows") or not grid.get("columns"):
+        return None
+    return grid
+
+
 def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:
     """No-op since migration 056.
 

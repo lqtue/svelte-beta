@@ -320,6 +320,19 @@ def extract_labels(
                 or "prepayment" in err_str.lower()
                 or ("RESOURCE_EXHAUSTED" in err_str and "429" not in err_str)
             )
+            # A spending cap is not a rate limit: waiting cannot clear it, and no
+            # other key on the same project will either. It arrives as a 429
+            # RESOURCE_EXHAUSTED, so without this it read as a per-minute limit
+            # and every call spent the full backoff ladder — about fourteen
+            # minutes each, a fleet of tiles quietly reporting "rate limited"
+            # for hours against a wall that needs a human at
+            # https://ai.studio/spend.
+            if "spending cap" in err_str.lower() or "spend cap" in err_str.lower():
+                raise RuntimeError(
+                    "Gemini project spending cap reached — raise it at "
+                    "https://ai.studio/spend, then re-run. Nothing was lost: "
+                    "every band already read is cached."
+                ) from e
             # Per-second or per-minute rate limit — back off and retry same key.
             is_rate = _has_status(err_str, "429") and not is_true_quota
             is_transient = _has_status(err_str, "503", "500") or "UNAVAILABLE" in err_str
@@ -553,6 +566,27 @@ _LEGEND_SCHEMA = {
 }
 
 
+_STREET_INDEX_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "entries": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "generic": {"type": "string"},
+                    "name": {"type": "string"},
+                    "from": {"type": "string"},
+                    "to": {"type": "string"},
+                },
+                "required": ["generic", "name", "from", "to"],
+            },
+        }
+    },
+    "required": ["entries"],
+}
+
+
 _GRID_SCHEMA = {
     "type": "object",
     "properties": {
@@ -611,6 +645,63 @@ def extract_grid(image: Image.Image, model: str = DEFAULT_MODEL) -> dict:
     )
     import json as _json
     return _json.loads(resp.text)
+
+
+_STREET_INDEX_PROMPT = (
+    "This is a printed street directory (BẢNG CHỈ DẪN ĐƯỜNG PHỐ) from a "
+    "Vietnamese map of Saigon. It is a four-column table, one row per street:\n"
+    "  1. the road-type word alone (Đường, Đại Lộ, Bến, Rạch, Hẻm, Kinh, Ngõ)\n"
+    "  2. the street name\n"
+    "  3. TỪ — the grid cell the street starts in: a letter then a number\n"
+    "  4. ĐẾN — the grid cell it ends in\n\n"
+    "Read EVERY row, top to bottom, including any partial row at the very top or "
+    "bottom of the image. Return generic, name, from, to.\n\n"
+    "Keep Vietnamese diacritics exactly as printed, and keep the two grid cells "
+    "in their own fields — do not merge them. The cells are printed in a lighter "
+    "ink than the names; read the letter and the number carefully and do not "
+    "infer either from the row above. A row whose two cells are the same is "
+    "normal. Give each cell as letter then number with no space, e.g. 'C10'."
+)
+
+_STREET_INDEX_SYSTEM = (
+    "You transcribe printed tables from historical maps. Return only what is "
+    "printed. Never invent a row to fill a gap and never carry a value down "
+    "from the row above: a blank is a blank."
+)
+
+
+def extract_street_index(image: Image.Image, model: str = DEFAULT_MODEL,
+                         log_path: Path | None = None,
+                         cache_dir: Path | None = None) -> list[dict]:
+    """Read a printed street directory as [{generic, name, from, to}].
+
+    Not the same table as `extract_legend`: a street directory has no numbers —
+    it is alphabetical, and each row states the grid cell where the street
+    starts and the one where it ends ("TỪ" / "ĐẾN"). That pair is a run of
+    cells, which locates a street far better than the single cell a numbered
+    legend gives, and the sheet prints it for every street it names.
+
+    `generic` is the road-type word from its own column (Đường, Đại Lộ, Bến,
+    Rạch, Hẻm, Kinh), kept apart from `name` so the caller can choose a category
+    without parsing it back out of the label.
+
+    Goes through `extract_labels` rather than calling the model directly, which
+    is what `extract_legend` does: that buys the 429 backoff, the key rotation,
+    the malformed-JSON retry, the token log and — reading a directory in a dozen
+    overlapping bands — the content cache, so a re-run of the same bands is
+    free. A raw call has none of it, and a rate limit mid-run drops a band of
+    thirty streets while the run still reports success.
+    """
+    data = extract_labels(
+        image,
+        system_prompt=_STREET_INDEX_SYSTEM,
+        user_prompt=_STREET_INDEX_PROMPT,
+        schema=_STREET_INDEX_SCHEMA,
+        model=model,
+        log_path=log_path,
+        cache_dir=cache_dir,
+    )
+    return data.get("entries", [])
 
 
 def extract_legend(image: Image.Image, model: str = DEFAULT_MODEL,
