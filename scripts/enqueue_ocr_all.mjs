@@ -3,7 +3,7 @@
 //
 //   node --env-file=.env scripts/enqueue_ocr_all.mjs [--dry] [--force] [--limit N]
 //                                                    [--untriaged] [--model NAME]
-//                                                    [--map <id|id-prefix>]
+//                                                    [--map <id|id-prefix>] [--max-calls N]
 //                                                    [--tile-metres M] [--single-pass]
 //
 // Label search (`/api/search?include=labels`, mig 065) is only as good as the
@@ -45,6 +45,13 @@ const model = modelIdx > -1 ? args[modelIdx + 1] : null;
 // one run by `ocr.py merge`. 41/43 against 39/43 for one pass on the gate sheet
 // (work/ocr/EVAL-BASELINE.md), for twice the tokens — cents. --single-pass opts out.
 const passes = args.includes('--single-pass') ? 1 : 2;
+// A ceiling on what one sheet may spend, checked by the worker between plan
+// steps and reported back in the job result. Measured on the 1959 sheet: the
+// two grid passes cost 72 calls at 26 extractions each, while a third,
+// finer sweep of the same ground returned 0.07 — so the budget is what stops
+// a fleet run from spending its afternoon on one sheet's last few labels.
+const mcIdx = args.indexOf('--max-calls');
+const maxCalls = mcIdx > -1 ? Number(args[mcIdx + 1]) : null;
 
 // Mirrors RENDER_FLOOR in work/worker/vma_worker.py. Only used to print the
 // ground-per-call figure below — the worker computes the value it actually
@@ -299,6 +306,7 @@ for (const m of todo) {
         ? { tile_overrides: t.tile_overrides }
         : {}),
       ...(model ? { model } : {}),
+      ...(maxCalls ? { max_calls: maxCalls } : {}),
       passes,
     },
   });

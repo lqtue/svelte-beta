@@ -47,6 +47,42 @@ _IN_FLIGHT: list[str] = []
 OCR_SCRIPT = REPO_ROOT / "work" / "ocr" / "scripts" / "ocr.py"
 
 
+OCR_OUTPUTS = REPO_ROOT / "work" / "ocr" / "outputs"
+
+
+def _spend(map_id: str, run_id: str | None) -> dict:
+    """What a run actually cost, read off the `calls.jsonl` each run already writes.
+
+    Every Gemini call appends a line with its tokens and how many extractions it
+    returned, so cost needs no new plumbing — only summing. Without this the job
+    row carried a returncode and a last line, so nothing downstream could see
+    that a pass spent sixty calls to find four labels: measured on the 1959
+    sheet, the margin index returned 9.8 rows per call and a quadrant re-sweep
+    of the same sheet returned 0.07.
+
+    The glob is a prefix because the two-pass recipe runs as `<run>-a`, `<run>-b`
+    and merges into `<run>`.
+    """
+    if not run_id:
+        return {}
+    calls = tokens = extractions = 0
+    for log in sorted(OCR_OUTPUTS.glob(f"{map_id}/runs/{run_id}*/calls.jsonl")):
+        for line in log.read_text().splitlines():
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # a half-written last line is not worth failing a job over
+            calls += 1
+            tokens += int(rec.get("total_tokens") or 0)
+            extractions += int(rec.get("n_extractions") or 0)
+    if not calls:
+        return {}
+    return {"calls": calls, "tokens": tokens, "extractions": extractions,
+            "per_call": round(extractions / calls, 2)}
+
+
 def _config() -> tuple[str, str]:
     try:
         from dotenv import load_dotenv
@@ -457,17 +493,33 @@ def _run_job(job: dict, python_bin: str) -> None:
             return
         if proc.returncode != 0:
             break
+        # Budget between steps, not inside them: the worker owns the plan, so
+        # this is where a two- or three-pass recipe can be cut short without
+        # threading a flag through ocr.py. Each step's own rows are already
+        # written, so stopping here keeps what was paid for.
+        budget = job["payload"].get("max_calls")
+        so_far = _spend(job["map_id"], job["payload"].get("run_id"))
+        if budget and so_far.get("calls", 0) >= int(budget) and step < len(plan):
+            finish(job["id"], "done", {"returncode": 0, "budget_stopped": True,
+                                       "steps_run": step, "steps_planned": len(plan),
+                                       **so_far})
+            print(f"[{kind}] {job['id']} stopped after step {step}/{len(plan)}: "
+                  f"{so_far['calls']} calls reached the {budget}-call budget")
+            return
 
     assert proc is not None
     if proc.returncode == 0:
         tail = proc.stdout.strip().splitlines()[-1:] or [""]
-        finish(job["id"], "done", {"returncode": 0, "last_line": tail[0][:500]})
+        finish(job["id"], "done", {"returncode": 0, "last_line": tail[0][:500],
+                                   **_spend(job["map_id"], job["payload"].get("run_id"))})
         print(f"[{kind}] {job['id']} done")
     else:
         # Keep the tail: the whole log would not fit a jsonb column comfortably,
         # and the last few lines are what actually says why it died.
         err = (proc.stderr or proc.stdout or "").strip()[-2000:]
-        finish(job["id"], "failed", {"returncode": proc.returncode}, err)
+        finish(job["id"], "failed",
+               {"returncode": proc.returncode, **_spend(job["map_id"], job["payload"].get("run_id"))},
+               err)
         print(f"[{kind}] {job['id']} FAILED rc={proc.returncode}\n{err[-500:]}")
 
 
@@ -533,6 +585,30 @@ def _self_check() -> None:
         return _two_pass_plan(job, "python")
 
     assert len(plan_for(2400, 3)) == 4, "coarse sheet: two grid passes, hi-res, merge"
+
+    # 6. What a run cost. The job row used to carry a returncode and a last line,
+    #    so a pass that spent sixty calls to find four labels looked exactly like
+    #    a cheap one. Asserted against a written log rather than a mock, because
+    #    the field names are gemini_client's to change.
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        mod_outputs = mod.OCR_OUTPUTS
+        try:
+            mod.OCR_OUTPUTS = Path(tmp)
+            run_dir = Path(tmp) / "map-1" / "runs" / "r7-a"
+            run_dir.mkdir(parents=True)
+            (run_dir / "calls.jsonl").write_text(
+                '{"total_tokens": 100, "n_extractions": 3}\n'
+                '{"total_tokens": 50, "n_extractions": 1}\n'
+                '\n'                      # a blank line is not a call
+                '{"total_tokens": 25,\n'  # nor is a half-written one
+            )
+            got = mod._spend("map-1", "r7")
+            assert got == {"calls": 2, "tokens": 150, "extractions": 4, "per_call": 2.0}, got
+            assert mod._spend("map-1", "nosuchrun") == {}, "a run with no log reports nothing"
+            assert mod._spend("map-1", None) == {}, "no run id, no spend"
+        finally:
+            mod.OCR_OUTPUTS = mod_outputs
     assert len(plan_for(1200, 3)) == 3, "tile already 1200: hi-res would duplicate pass a"
     assert len(plan_for(900, 3)) == 3, "tile finer than the hi-res grid: likewise"
     assert len(plan_for(2400, 2)) == 3, "two passes plus the merge"

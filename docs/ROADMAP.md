@@ -164,6 +164,22 @@ Label search → temporal fabric → period sources, on the existing jobs + HITL
 - ~~Dead theme switcher~~ — **done 2026-09-07**: `tokens.css` carries both faces via `light-dark()`, `NavBar` writes `data-theme`, `app.html` replays it before first paint, and `tests/theme.spec.ts` asserts the contrast of both. Narrowed 2026-09-08 from three states to two — the toggle is light ⇄ dark, and the OS is consulted only to seed a first visit.
 - ~~`scripts/tile_map.sh` → B4's `tile_to_r2` job~~ — **done**: `work/worker/vma_worker.py` claims the job and shells out to the script, so it is the job's implementation rather than something to retire. First real run 2026-09-01: 4,625 objects, 64.9 MB.
 
+### OCR setup — from the 1959 re-run (2026-09-10)
+
+Measured in `docs/pipelines.md` §"Reading a sheet's margins". Ordered by what
+it cost us this week, cheapest fix first.
+
+- **Default `--tile-metres 1400`** in `enqueue_ocr_all.mjs` and the Run OCR button. The 1959 sheet at the 2400px default was 5.7 km/call and found ~1 label; at 1.4 km it found 627 rows. The rule already only refines, never coarsens.
+- **Triage must record which image it was computed for.** Re-scanning the 1959 sheet emptied `maps.triage`; had it survived, the saved neatline was in the *old* scan's pixels and would have cropped the wrong ground while looking valid. Store `img_width`/`img_height` in the saved triage and add a `stale` state to `triageState()` (`src/lib/data/maps/triageTypes.ts` + the hand copy in `enqueue_ocr_all.mjs` + `tests/triage-state.spec.ts`).
+- **`/api/admin/status` should report the oldest queued job's age.** One `layout` job sat queued 24 h because no worker was up, and nothing on `?tab=status` said so.
+- **The `ocr` job should read the regions the layout pass found**, not just `main_map`. The margins were the best-value calls on the sheet (9.8 rows/call vs 8.7 for a body pass) and the pipeline never made them. `title` → metadata, `legend` → symbol key, `name_list` → the index.
+- **`--legend` fails silently.** Both 1959 passes carried it and it did nothing: it needs a scout cartouche, `--scout` is skipped when a neatline pins the crop, and it aims at the *title* block anyway. Make it fail the job.
+- **`ocr.py index --region`** — the working table reader as a subcommand: ruled columns found locally, one column group per call, contiguity invariant, refuse the write when it fails. Most city plans in the corpus carry a directory like this one's.
+- **Derive the grid from margin ticks, not from a 2048px overview.** `ocr.py grid` read 12 rows where the sheet has 9. With it correct, index entries whose numeral was never found can be placed at cell centre, and the grid arbitrates numeral collisions.
+- **Gate integer extraction per sheet** (`seq-v1-idx` vs `seq-v1`), decided by whether the layout pass found a numbered index — not by a person remembering. Classify bare integers as `legend_ref` by regex; the model ignored an `index_key` category in 114 of 114 cases.
+- **`merge` drops the label box.** 514 of the 1959 rows carry a non-zero `rotation_deg` but no `label_w`/`label_h`, so the review canvas only ever gets a point.
+- Done 2026-09-10: `pipeline_jobs.result` carries `calls`/`tokens`/`extractions`/`per_call`, and `payload.max_calls` stops a plan between steps (`enqueue_ocr_all.mjs --max-calls N`). A run that spends 60 calls to find 4 labels now says so in its own job row.
+
 ## Open, as of 2026-09-01
 
 - **Preview environment has no variables.** Production holds all five; Preview holds none, so every preview build fails at the first `$env/static/*` import. Dashboard only — `wrangler pages secret` has no environment flag in any current version.

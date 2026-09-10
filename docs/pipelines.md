@@ -181,6 +181,91 @@ python work/ocr/scripts/join_labels.py --self-check   # PIP + nesting assertions
 
 Point-in-polygon assignment of each `ocr_extractions` row to the `footprint_submissions` polygon it names, writing `ocr_extractions.footprint_id` (migration `050_ocr_footprint_link.sql`, `ON DELETE SET NULL`). Level-aware: a bare numeral routes to a `building`, a name routes to the enclosing block; ties break to the **smallest** containing polygon. Rejected extractions never link; `category_validated` (the human fix) wins over `category`.
 
+### Reading a sheet's margins: index, numerals, grid (measured 2026-09-10, 1959 Đô thành Sài Gòn)
+
+The 1959 sheet was re-OCR'd after its scan was replaced with a 14000×10773 one.
+Everything below is measured on that sheet, in one afternoon, and it changed
+what the pipeline should do first.
+
+**Ground per call is the lever, not the prompt.** At the default 2400px tile
+that sheet is 5.7 km per Gemini call and returned ~1 usable label in the study
+area; at `--tile-metres 1400` (a 1404px tile, rendered 1:1) the same crop
+returned 627 rows. Pass `--tile-metres 1400` on any sheet whose m/px is
+unknown — the rule only ever refines a tile, never coarsens it.
+
+**`seq-v1` suppresses bare integers, and on an indexed sheet that is most of
+the content.** "Do NOT extract bare integers inside plot areas" is right on the
+1882 cadastral (wall-to-wall parcel numbers, and the eval gate) and wrong here:
+`seq-v1` returned 11 numerals as leakage against its own instruction, filed
+under `other`; `seq-v1-idx` (same prompt, suppression lifted) returned 114.
+Choose per sheet — if the layout pass finds a numbered `name_list`, the sheet
+has an index. Do **not** edit `seq-v1`; it is the measured gate.
+
+**A printed table must never be shown to the model two column groups at a
+time.** Asked for `{n, name, grid}` on a wide crop it renumbers from the first
+number column it sees and pairs one group's names with the next group's
+numbers — 156 rows, no gaps, no conflicts, and wrong in the tail. Voting across
+overlapping windows does not fix it (it votes between two wrong bindings), and
+pairing by returned bboxes does not either (the boxes are not that precise).
+What works, and got 156/156:
+
+1. Find the ruled columns locally, no API: a full-height ink column is a rule,
+   and the repeating unit on this sheet is a ~537px name column plus three
+   ~63px columns (number, grid letter, grid digit).
+2. One call per column group.
+3. Refuse the write unless the group's numbers come back contiguous.
+
+**The printed index is an answer key.** It names every number that exists
+(1–156 here) and gives each a grid cell, so numeral recall has a real
+denominator and each miss has a place to look. The tile pass placed 104/156;
+cropping the claimed cell and asking for that one number — a lookup, not a
+search — took it to 144/156. Every hit is gated to the cell it was cropped
+from, so a misread cannot enter as a plausible point. Two identical runs of the
+same 18 cells returned 45 and 41 hits, so **run it twice and union**; a third,
+finer pass returned 0.07 labels/call and is not worth making.
+
+**Measure the grid, do not ask for it.** `ocr.py grid` read 12 rows `A…M` off a
+2048px overview; the sheet has 9, `A…I`, no `J`. The margin tick labels give it
+exactly — right-margin letters at y = 1345, 2350, 3351 … 9343, pitch ≈1000 —
+and those labels are the border-grid rows a numeral sweep would otherwise
+reject as furniture. Keep them. With the grid correct, an index entry whose
+numeral was never spotted can still be placed at cell centre (~1 km), and the
+grid arbitrates when one piece of ink is read as two different numbers: 14 such
+collisions were resolved by asking which number's claimed cell contains the
+point.
+
+**Colour separates the two classes on this sheet**: index numerals are bold
+black on a red building fill; the reference grid is thin magenta with labels
+only in the margins. `iiif_tiles.compute_tile_colours` already exists, and a
+colour test would beat a position rule tuned per sheet.
+
+**Cost against value, per call, all on the same sheet:**
+
+| step | calls | yield | per call |
+|---|---|---|---|
+| margin index, one group at a time | 16 | 156 entries + the number join | **9.8** |
+| map body, 2 passes + merge | 72 | 627 rows | 8.7 |
+| numeral pass (`seq-v1-idx`) | 36 | 114 numerals | 3.2 |
+| cell sweep, ×2 for the union | 36 | 45 numerals | 1.3 |
+| quadrant re-sweep (abandoned) | ~60 | 4 numerals | **0.07** |
+
+So: margins before a second body pass, numerals twice and then stop, and hand
+the tail to `?mode=review` — a person clicks the last twelve in a couple of
+minutes, and no render size beats that. `pipeline_jobs.result` now carries
+`calls`, `tokens`, `extractions` and `per_call` for every run (summed from the
+`calls.jsonl` each run already writes), and `payload.max_calls` stops a plan
+between steps, so a fleet run can spend a fixed budget per sheet instead of an
+unbounded one on whichever sheet someone is watching. `enqueue_ocr_all.mjs
+--max-calls N` sets it.
+
+**Left undone on that sheet**: 12 of 156 numerals unplaced, all in the dense
+`C8/C9/C10/D9` core except `44` (`Chợ Rạch Cát`), whose index cell reads `J2` —
+a row the grid does not have, so it probably refers to the sheet's own inset at
+`[4634, 8747, 2338, 1249]`, which is a separate map with its own grid. The
+street index (`BẢNG CHỈ DẪN ĐƯỜNG PHỐ`, two 798×~9000 columns, ~340 rows of
+name + TỪ/ĐẾN grid cells) is still unread; it is a name→grid-range gazetteer,
+not a number join, and wants the same one-group-at-a-time discipline.
+
 ### Design notes
 
 - Gemini bboxes are **0–1000 normalized space**; render with `img_dim / 1000`.

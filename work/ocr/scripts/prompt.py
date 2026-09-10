@@ -732,6 +732,37 @@ Return ONLY the JSON object. If no text is visible, return {"extractions": []}.
 """
 
 
+# ── Index-key variant ────────────────────────────────────────────────────────
+# seq-v1 suppresses bare integers ("Do NOT extract bare integers inside plot
+# areas"), which is right on a cadastral sheet — the 1882 gate sheet is wall to
+# wall parcel numbers — and wrong on a sheet whose numbers are keys into its own
+# printed directory. The 1959 Đô thành Sài Gòn plan carries a numbered
+# administrative index; seq-v1 returned 11 of its numbers across the whole
+# sheet, as leakage against instruction, filed under `other` and `legend`
+# because there was no class for them.
+#
+# A separate id on purpose: seq-v1 is the measured gate (EVAL-BASELINE.md) and
+# its ground truth is the sheet that wants integers dropped. Opt in per sheet.
+PROMPT_SEQ_V1_IDX = PROMPT_SEQ_V1.replace(
+    """Extract them when placed along a road centreline. Do NOT extract bare integers inside plot areas.""",
+    """Extract them when placed along a road centreline.
+
+**INDEX KEYS (this sheet has a numbered index):**
+Bare integers printed on the map are keys into the sheet's own printed directory, not noise. \
+Extract every one as category="index_key", with the bbox on the digits themselves. Include the \
+parentheses if printed ("(12)"). Do NOT extract the numbers along the border grid strips or the \
+scale bar.""",
+).replace(
+    """- **other**: Any other relevant text that does not fit the above""",
+    """- **index_key**: A bare integer keying into the sheet's printed directory
+- **other**: Any other relevant text that does not fit the above""",
+).replace(
+    """2. category: street | hydrology | place | building | institution | legend | title | other""",
+    """2. category: street | hydrology | place | building | institution | legend | title | index_key | other""",
+)
+assert "index_key" in PROMPT_SEQ_V1_IDX and "bare integers inside plot" not in PROMPT_SEQ_V1_IDX
+
+
 # ── Prompt registry (used by ocr.py --prompt flag) ───────────────────────────
 
 PROMPTS: dict[str, str] = {
@@ -744,6 +775,7 @@ PROMPTS: dict[str, str] = {
     "v7": PROMPT_V7,
     "v8": PROMPT_V8,
     "seq-v1": PROMPT_SEQ_V1,
+    "seq-v1-idx": PROMPT_SEQ_V1_IDX,
     "scout": PROMPT_SCOUT,
 }
 
