@@ -182,13 +182,20 @@
   const STATS = { snapshot: 'September 2026', labels: 958, labelsChecked: 43, footprints: 46 };
 
   /**
-   * The four things to type into an empty search box. Every one of them
-   * currently returns something — two OCR'd labels each for the Vietnamese
-   * names, a gazetteer place for Catinat, two sheets for the year — which is
-   * the whole point: a suggestion that returns nothing is worse than none.
-   * Re-check them when the corpus changes.
+   * The three things to type into an empty search box. Every one of them
+   * currently returns something — seven sheets for Hanoi, two OCR'd labels for
+   * Khánh Hội, several sheets for the year — which is the whole point: a
+   * suggestion that returns nothing is worse than none. Re-check them when the
+   * corpus changes.
+   *
+   * The spellings are load-bearing, and not consistently: map search runs on
+   * the `simple` tsvector config, so `Hanoi` hits the seven French and
+   * American sheets whose titles romanise it while `Hà Nội` finds only the one
+   * that does not — but `Ha Noi` spaced hits nothing at all. Labels do fold,
+   * so `Khánh Hội` and `Khanh Hoi` are equivalent; the accented form is here
+   * because it is what the sheet prints.
    */
-  const HERO_TRIES = ['Chợ Lớn', 'Bến Thành', 'Catinat', '1882'];
+  const HERO_TRIES = ['Hanoi', 'Khánh Hội', '1882'];
 
   /**
    * The key that opens the palette. Set in `onMount` rather than at init: the
