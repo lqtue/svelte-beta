@@ -126,37 +126,44 @@ export const posts: BlogPost[] = [
 <h2>The gate the sheets print themselves</h2>
 <p>The replacement was already on the paper. Many of these sheets print their own street directory in the margin: every street name, and the grid square it sits in. That is ground truth, written by the surveyors, and it costs about three cents to read.</p>
 <p>Two numbers come out of comparing it to what the body pass found. <strong>How many of the names the sheet says it prints did we actually read?</strong> And <strong>of those, how many sit in the square the index claims?</strong> The second is worth having because it is two unrelated readings of one sheet checking each other — it scores the body pass, the index pass and the printed grid at once.</p>
-<p>Same dedupe fix, seen by the new gate: names found rose from <strong>0.7493 to 0.7947</strong>. It saw what the old gate structurally could not.</p>
+<p>Same dedupe fix, seen by the new gate: names found rose from <strong>0.7493 to 0.7947</strong> — both a three-run vote merge, the highest-confidence score the gate produces for a sheet. It saw what the old gate structurally could not.</p>
 <p>Then we pointed it at a second sheet.</p>
 
 <figure>
   <div class="fig-plate">
-    <svg viewBox="0 0 700 250" role="img" aria-label="On the 1959 sheet, 298 of 375 printed street names were found. On the 1968 sheet, 9 of 367 were found.">
+    <svg viewBox="0 0 700 300" role="img" aria-label="On the 1959 sheet, a single pass found 267 of 375 printed street names. On the 1968 sheet, a first pass found 9 of 367; a finished pass found 120.">
       <text class="f-t f-lane" x="14" y="16">OF THE STREET NAMES A SHEET PRINTS, HOW MANY DID WE READ?</text>
 
       <text class="f-t f-title" x="14" y="46">1959 Đô thành Sài Gòn</text>
       <rect class="f-quiet" x="170" y="56" width="490" height="24" rx="2"></rect>
       <text class="f-t f-lab" x="163" y="72" text-anchor="end">printed</text>
       <text class="f-t f-sub" x="668" y="72" text-anchor="end">375</text>
-      <rect class="f-green" x="170" y="86" width="389" height="24" rx="2"></rect>
+      <rect class="f-green" x="170" y="86" width="349" height="24" rx="2"></rect>
       <text class="f-t f-lab" x="163" y="102" text-anchor="end">read</text>
-      <text class="f-t f-title f-green" x="567" y="103">298 · 79%</text>
+      <text class="f-t f-title f-green" x="527" y="103">267 · 71%</text>
+      <text class="f-t f-sub" x="170" y="120">single pass — the three-run vote merge for this sheet reads 79%</text>
 
-      <line class="f-hair" x1="14" y1="132" x2="686" y2="132"></line>
+      <line class="f-hair" x1="14" y1="140" x2="686" y2="140"></line>
 
-      <text class="f-t f-title" x="14" y="160">1968 Sài Gòn</text>
-      <rect class="f-quiet" x="170" y="170" width="480" height="24" rx="2"></rect>
-      <text class="f-t f-lab" x="163" y="186" text-anchor="end">printed</text>
-      <text class="f-t f-sub" x="658" y="186" text-anchor="end">367</text>
-      <rect class="f-red" x="170" y="200" width="12" height="24" rx="2"></rect>
-      <text class="f-t f-lab" x="163" y="216" text-anchor="end">read</text>
-      <text class="f-t f-title f-red" x="190" y="217">9 · 2.5%</text>
+      <text class="f-t f-title" x="14" y="168">1968 Sài Gòn</text>
+      <rect class="f-quiet" x="170" y="178" width="480" height="24" rx="2"></rect>
+      <text class="f-t f-lab" x="163" y="194" text-anchor="end">printed</text>
+      <text class="f-t f-sub" x="658" y="194" text-anchor="end">367</text>
+      <rect class="f-red" x="170" y="208" width="12" height="24" rx="2"></rect>
+      <text class="f-t f-lab" x="163" y="224" text-anchor="end">before</text>
+      <text class="f-t f-title f-red" x="190" y="225">9 · 2.5%</text>
+      <rect class="f-green" x="170" y="238" width="157" height="24" rx="2"></rect>
+      <text class="f-t f-lab" x="163" y="254" text-anchor="end">now</text>
+      <text class="f-t f-title f-green" x="335" y="255">120 · 32.7%</text>
 
-      <text class="f-t f-sub" x="14" y="243">Both sheets are published and georeferenced. Both have been in the archive for months.</text>
+      <text class="f-t f-sub" x="14" y="281">Both sheets are published and georeferenced. 1968's two bars are the same sheet, before and after this week's finished pass.</text>
     </svg>
   </div>
-  <figcaption><strong>The 1968 sheet has effectively never been read.</strong> It holds 14 body labels in total. That was a suspicion before this week; it is a number now, with a baseline recorded, so the next pass on it can be scored the moment it finishes.</figcaption>
+  <figcaption><strong>The 1968 sheet has gone from effectively unread to partly read.</strong> It held only 14 body labels before this week, which is why just 9 of 367 names turned up at all. 1959's bar here is its single-pass score, not the three-run merge quoted above — comparing sheets means comparing runs measured the same way.</figcaption>
 </figure>
+
+<p>A pass finished on the 1968 sheet this week. The first number — how many of the 367 printed names did we actually read — rose from 0.0245 to <strong>0.3270</strong>: 120 names, up from 9. The second number, whether a found name sits in the square the index claims, holds at <strong>0.9603</strong> at ±1 cell, on the 151 labels the two sources could be matched against. Recall is flat across the sheet too — 0.19–0.46 by row, 0.22–0.62 by column — which is worth a sentence on its own: it rules out a bad crop or a wrong tile priority as the explanation, since either would show up as a hole in one place, not a shortfall spread everywhere.</p>
+<p>Two caveats keep 0.327 from reading as better than it is. The region the tile grid actually crops to covers only 80.7% of the printed reference grid, so part of what the directory claims to index was never tiled in the first place. And the sheet prints two street-name blocks in its directory; only one has been read so far. The denominator this score is checked against is partial, and a partial denominator flatters whatever comes out of it.</p>
 
 <h2>Accuracy was never the problem</h2>
 <p>Of the labels the model does return, the quality is fine. Against the 85 hand-checked ones, running the sheet twice on offset tile grids and merging by vote reads:</p>
@@ -235,7 +242,7 @@ export const posts: BlogPost[] = [
 
       <rect class="f-green" x="20" y="86" width="11" height="11"></rect>
       <text class="f-t f-title" x="38" y="96">2 scored</text>
-      <text class="f-t f-sub" x="38" y="112">79% and 2.5%</text>
+      <text class="f-t f-sub" x="38" y="112">71% and 33%</text>
 
       <rect class="f-ochre" x="230" y="86" width="11" height="11"></rect>
       <text class="f-t f-title" x="248" y="96">5 one step away</text>
@@ -249,7 +256,7 @@ export const posts: BlogPost[] = [
   <figcaption><strong>The coverage gap.</strong> A sheet with no printed directory can still be read — it just cannot be graded without a person sitting down and checking labels by hand, which is exactly the cost the new gate was built to avoid.</figcaption>
 </figure>
 
-<p>So the work in front of us is not a better prompt. It is five index reads at three cents each, a body pass on a sheet that has a scoreboard and nothing on it, and a review queue that stands at 2 accepted rows out of 1,663 on the 1959 sheet.</p>
+<p>So the work in front of us is not a better prompt. It is five index reads at three cents each, the second street-name block and a wider main-map crop on the 1968 sheet, and a review queue that stands at 2 accepted rows out of 1,663 on the 1959 sheet.</p>
 
 <h2>Two things we got wrong along the way</h2>
 <p>The row count. It was the number we watched, and it is the number that hid the bug: a wrong merge removes a name while a shattered label adds rows, and both move the total in a direction that looks fine. The 1959 sheet held 452 street rows and 367 distinct names against a printed claim of 384 — a good-looking result with four of the city's main avenues missing from it. Count distinct names, never rows.</p>
