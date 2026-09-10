@@ -276,24 +276,61 @@ def _run_automatic(generator, tile_img: np.ndarray) -> list[PolygonResult]:
 
 
 def _run_prompted(predictor, tile_img: np.ndarray,
-                  seeds: list[dict]) -> list[PolygonResult]:
-    """Run prompted inference for each OCR seed bbox on one tile."""
+                  seeds: list[dict],
+                  prompt: str = "box",
+                  pick: str | None = None) -> list[PolygonResult]:
+    """Run prompted inference for each OCR seed on one tile.
+
+    `prompt` decides what SAM2 is asked with:
+
+      box        the label's text box (the original behaviour)
+      point      the label's centroid, one positive point
+      box+point  both, which anchors the point inside the box
+
+    Why this is a flag and not a constant. A box prompt asks SAM2 "what is
+    inside this rectangle", and the rectangle is a *label*, so the honest
+    answer is the lettering and the paper it sits on — not the building the
+    label names. Inspected on the 1882 sheet, the highest-confidence masks were
+    the ones that had simply redrawn their own prompt: in the 0.90-1.00 band the
+    median mask agreed with its seed box at IoU 0.87. A point prompt asks
+    "what is the thing at this spot" instead, which is the question we mean.
+
+    `pick` decides which of the three multimask outputs is kept, and it matters
+    more than it looks. SAM2 returns roughly sub-part / part / whole and scores
+    them by predicted IoU; for a box prompt the box-filling mask scores highest
+    almost by construction, so `argmax(score)` selects exactly the failure above
+    — and then that same score was being used downstream as a quality gate,
+    which made the gate circular. For a point prompt the three outputs are
+    genuinely different scales of the same thing and the largest is usually the
+    enclosing plot, so `largest` is the default there.
+
+    Defaults preserve the old behaviour for `box` and pick `largest` otherwise.
+    """
     import torch
     predictor.set_image(tile_img)
+    if pick is None:
+        pick = "score" if prompt == "box" else "largest"
 
     all_masks: list[np.ndarray] = []
     all_scores: list[float] = []
     all_seed_refs: list[dict] = []
 
     for seed in seeds:
-        box = np.array(seed["box"], dtype=np.float32)  # [x1, y1, x2, y2]
+        kwargs: dict = {"multimask_output": True}
+        if prompt in ("box", "box+point"):
+            kwargs["box"] = np.array(seed["box"], dtype=np.float32)  # [x1, y1, x2, y2]
+        if prompt in ("point", "box+point"):
+            px, py = seed["point"]
+            kwargs["point_coords"] = np.array([[px, py]], dtype=np.float32)
+            kwargs["point_labels"] = np.array([1], dtype=np.int32)   # 1 = foreground
+
         with torch.inference_mode():
-            masks, scores, _ = predictor.predict(
-                box=box,
-                multimask_output=True,
-            )
-        # Keep only the highest-scoring mask per seed
-        best = int(np.argmax(scores))
+            masks, scores, _ = predictor.predict(**kwargs)
+
+        if pick == "largest":
+            best = int(np.argmax([m.sum() for m in masks]))
+        else:
+            best = int(np.argmax(scores))
         all_masks.append(masks[best])
         all_scores.append(float(scores[best]))
         all_seed_refs.append(seed)
@@ -308,6 +345,8 @@ def infer_tile(
     seeds: list[dict] | None,
     mode: str,
     text_mask: np.ndarray | None = None,
+    prompt: str = "box",
+    pick: str | None = None,
 ) -> list[PolygonResult]:
     """
     Fetch one IIIF tile, run inference, return polygons in full-image pixel coords.
@@ -324,7 +363,7 @@ def infer_tile(
     if mode == "automatic":
         polys = _run_automatic(model, img_np)
     else:
-        polys = _run_prompted(model, img_np, seeds or [])
+        polys = _run_prompted(model, img_np, seeds or [], prompt=prompt, pick=pick)
 
     if not polys:
         return []
@@ -624,6 +663,8 @@ def parse_args() -> argparse.Namespace:
                    choices=["automatic", "prompted"],
                    help="automatic=grid-scan, prompted=OCR-seeded")
     p.add_argument("--ocr-run-id",  help="ocr_extractions run_id for seed bboxes (prompted mode)")
+    p.add_argument("--prior",       help="modern_prior.py blocks.geojson to prompt from as well as "
+                                         "(or instead of) OCR. Nameless, so its polygons carry no label")
     p.add_argument("--region",      help="x,y,w,h crop in full-image pixels (default: full image)")
     p.add_argument("--tile-size",   type=int, default=1024, help="Tile width/height in source pixels")
     p.add_argument("--overlap",     type=int, default=128,  help="Tile overlap in source pixels")
@@ -636,6 +677,10 @@ def parse_args() -> argparse.Namespace:
                    help="Mask out OCR text bboxes before SAM inference (literature: prevents text→edge confusion)")
     p.add_argument("--watershed",    action="store_true",
                    help="Apply Meyer Watershed post-processing for topology-guaranteed closed shapes")
+    p.add_argument("--prompt",       default="box", choices=["box", "point", "box+point"],
+                   help="what SAM2 is asked with: the label's text box, its centroid, or both")
+    p.add_argument("--pick",         default=None, choices=["score", "largest"],
+                   help="which multimask output to keep (default: score for box, largest otherwise)")
     p.add_argument("--self-check",   action="store_true",
                    help="Build the model on --device and run one frame of noise through it; "
                         "no weights, no network. Use this to qualify a new machine.")
@@ -742,16 +787,26 @@ def main() -> None:
     # ── load OCR seeds ─────────────────────────────────────────────────────────
     ocr_seeds_by_tile: dict[tuple, list[dict]] = {}
     if args.mode == "prompted":
-        if not args.ocr_run_id:
-            print("WARNING: prompted mode requires --ocr-run-id; falling back to automatic")
+        if not (args.ocr_run_id or args.prior):
+            print("WARNING: prompted mode requires --ocr-run-id or --prior; falling back to automatic")
             args.mode = "automatic"
         elif not _HAS_SEEDS:
             print("WARNING: to_sam2_seeds.py not found; falling back to automatic")
             args.mode = "automatic"
         else:
-            print(f"Loading OCR seeds for run '{args.ocr_run_id}'...")
-            from to_sam2_seeds import load_seeds_for_map
-            all_seeds = load_seeds_for_map(args.map_id, args.ocr_run_id)
+            all_seeds: list[dict] = []
+            if args.ocr_run_id:
+                print(f"Loading OCR seeds for run '{args.ocr_run_id}'...")
+                from to_sam2_seeds import load_seeds_for_map
+                all_seeds += load_seeds_for_map(args.map_id, args.ocr_run_id)
+            if args.prior:
+                # Nameless block prompts from modern_prior.py. They union with the
+                # OCR seeds rather than replacing them: OCR seeds carry a label and
+                # so name their polygon at birth, and a block that a label already
+                # sits on is worth prompting twice from two boxes, not once.
+                print(f"Loading prior seeds from {args.prior} ...")
+                from to_sam2_seeds import load_seeds_from_prior
+                all_seeds += load_seeds_from_prior(args.prior, args.map_id)
             for tile in tiles:
                 ocr_seeds_by_tile[tile] = seeds_for_tile(all_seeds, tile, render_size=RENDER_SIZE)
             total_seeds = sum(len(v) for v in ocr_seeds_by_tile.values())
@@ -784,7 +839,7 @@ def main() -> None:
         print(f"  Tile {i+1}/{len(tiles)}: ({tx},{ty},{tw},{th})  seeds={len(seeds)}", end=" ")
         try:
             polys = infer_tile(model, iiif_base, tile, seeds, args.mode,
-                               text_mask=text_mask)
+                               text_mask=text_mask, prompt=args.prompt, pick=args.pick)
             print(f"→ {len(polys)} polygons")
             all_polys.extend(polys)
         except Exception as e:

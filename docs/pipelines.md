@@ -622,13 +622,39 @@ python work/MapSAM2/inference_tiles_as_video.py \
   --tile-size 1024 --overlap 128 --text-mask --watershed \
   --out-json footprints.json --write-supabase
 
+# The 1882 cadastral, prompted from both seed sources. Generate the prior first
+# (free, local, no GPU): modern_prior.py --map-id <uuid> --blocks --out <dir>
+python work/MapSAM2/inference_tiles_as_video.py \
+  --map-id 0e02b9d9-9d40-4cca-8e41-8c8373d54d3b \
+  --checkpoint /path/to/mapsam2_lora.pth --lora --mapsam2-dir /content/MapSAM2 \
+  --mode prompted --ocr-run-id post0910 --prior <dir>/blocks.geojson \
+  --tile-size 1024 --overlap 128 --text-mask --watershed \
+  --out-json footprints.json --write-supabase
+
 # Evaluate (SODUCO F1=0.59 baseline)
 python work/MapSAM2/evaluate.py --predictions footprints.json --map-id <uuid> [--iou-thresholds 0.5,0.75]
 ```
 
-Key flags: `--mode automatic|prompted`, `--lora`, `--encoder vit_s`, `--mapsam2-dir` (path to the **upstream** MapSAM2 clone), `--text-mask` (erase OCR bbox regions), `--watershed` (Meyer post-processing), `--region x,y,w,h`, `--device cpu|cuda|mps`.
+Key flags: `--mode automatic|prompted`, `--lora`, `--encoder vit_s`, `--mapsam2-dir` (path to the **upstream** MapSAM2 clone), `--text-mask` (erase OCR bbox regions), `--watershed` (Meyer post-processing), `--region x,y,w,h`, `--device cpu|cuda|mps`, `--prior <blocks.geojson>`.
 
-Modes: `automatic` = SAM2AutomaticMaskGenerator grid-scan; `prompted` = SAM2ImagePredictor with OCR bbox seeds (requires `--ocr-run-id`; best with LoRA).
+Modes: `automatic` = SAM2AutomaticMaskGenerator grid-scan; `prompted` = SAM2ImagePredictor with box seeds, which need **`--ocr-run-id` or `--prior` or both** (best with LoRA).
+
+**Two seed sources, and on any sheet so far the second is the larger one.**
+`--ocr-run-id` seeds from `ocr_extractions`, area categories only, and those
+seeds carry their label so the polygon is named at birth. `--prior` seeds from
+`modern_prior.py --blocks` — 2023 buildings buffer-dissolved into blocks and
+warped into the sheet's own pixel grid — and those arrive nameless, so nothing
+downstream stamps a name on them. They **union**, they do not replace: a block a
+label already sits on is worth prompting from two boxes rather than one. Measured
+on the 1882 cadastral: run `post0910` yields **92** area seeds after clipping to
+`main_map`, the block prior **965** from 52,431 modern buildings.
+
+`load_seeds_from_prior` had existed since the module was written and had no
+caller until 2026-09-10; `--prior` is that caller. The **worker does not forward
+it** — `_seg_argv` builds its argv from a fixed list of payload keys, and a
+prior is a local file path belonging to the machine rather than to the job, the
+same reason `--tile-metres` is not forwarded either. A Colab seg run that wants
+a prior passes it by hand.
 
 Scripts: `inference_tiles_as_video.py` (orchestrator; `--write-supabase` also advances `map_pipeline_status` seg_queued → seg_done), `masks_to_polygons.py` (`mask_to_polygon`, `masks_to_polygons` IoU dedup, `shift_polygons`), `evaluate.py` (F1 + geometric quality vs `footprint_submissions` status=verified).
 
@@ -686,7 +712,7 @@ The paper uses a fine-tuned YOLO to produce instance-level bbox prompts, and sho
 - returns the **text** as well as the box — one call, two signals, so OCR and prompt generation are the same pass;
 - on a corpus of ~46 annotated Saigon footprints, a 10-shot YOLO is the weaker option.
 
-**Status: shipped.** `--mode prompted --ocr-run-id <run>` seeds SAM2 from `ocr_extractions` bboxes. `--text-mask` erases those regions from the image so label ink is not segmented as building.
+**Status: shipped.** `--mode prompted --ocr-run-id <run>` seeds SAM2 from `ocr_extractions` bboxes, and `--prior <blocks.geojson>` adds the modern block prior beside them. `--text-mask` erases those regions from the image so label ink is not segmented as building.
 
 The reverse direction closes the loop: once polygons exist, `join_labels.py` assigns each label to the polygon it names (migration 050). Bidirectional — labels prompt the segmenter, footprints then claim the labels.
 
