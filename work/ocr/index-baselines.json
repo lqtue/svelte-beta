@@ -1,0 +1,28 @@
+{
+  "34d4edb2-f7df-4c47-a65a-f6b471400396": {
+    "agreement": 0.9433962264150944,
+    "n_directory_names": 375,
+    "n_inside": 350,
+    "n_matched": 371,
+    "n_names_found": 298,
+    "n_outside": 21,
+    "n_unlisted": 507,
+    "name_recall": 0.7946666666666666,
+    "recorded": "2026-09-10",
+    "run_id": "2026-09-10T0930-34d4edb2",
+    "slack_cells": 1.0
+  },
+  "3a446d85-25a8-4e81-9cfc-8de357c3a5df": {
+    "agreement": 1.0,
+    "n_directory_names": 367,
+    "n_inside": 9,
+    "n_matched": 9,
+    "n_names_found": 9,
+    "n_outside": 0,
+    "n_unlisted": 5,
+    "name_recall": 0.02452316076294278,
+    "recorded": "2026-09-10",
+    "run_id": null,
+    "slack_cells": 1.0
+  }
+}

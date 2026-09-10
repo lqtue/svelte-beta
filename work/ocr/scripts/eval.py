@@ -14,6 +14,7 @@ Usage:
     python eval.py seg --map-id <uuid>                     # submitted vs verified
     python eval.py ocr --map-id <uuid> --pred-run-dir ../outputs/<map>/runs/<run>
     python eval.py ocr --pred-file p.json --gt-file g.json # offline, no DB
+    python eval.py index-agreement --map-id <uuid> [--save]  # body pass vs printed index
     # JSON file shape: OCR [{"bbox":[x,y,w,h],"text":"..."}], seg [{"polygon":[[x,y],...]}]
 
 Reads only. Prints a metrics report; exits 0 always (it's a measurement, not a gate).
@@ -26,7 +27,10 @@ import json
 import sys
 from pathlib import Path
 
-from eval_metrics import score_ocr, score_seg
+from eval_metrics import score_index_agreement, score_ocr, score_seg
+
+# What `ocr street-index` stamps on the rows it writes.
+INDEX_PROMPT = "street-index-v1"
 
 
 def _rest_get(path: str, params: dict[str, str]) -> list[dict]:
@@ -39,11 +43,25 @@ def _rest_get(path: str, params: dict[str, str]) -> list[dict]:
 
     url, key = _load_config()
     query = "&".join(f"{k}={v}" for k, v in params.items())
-    resp = requests.get(f"{url}/rest/v1/{path}?{query}",
-                        headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
-    if not resp.ok:
-        raise requests.HTTPError(f"{resp.status_code}: {resp.text[:300]}", response=resp)
-    return resp.json()
+    # Paged, because PostgREST caps a response at 1000 rows and says so nowhere
+    # in the body: an unpaged read of a busy sheet returns exactly 1000 and
+    # scores a partial run as if it were the whole thing. The 1959 sheet passed
+    # that mark in September 2026.
+    page, offset, out = 1000, 0, []
+    while True:
+        resp = requests.get(
+            f"{url}/rest/v1/{path}?{query}",
+            headers={"apikey": key, "Authorization": f"Bearer {key}",
+                     "Range-Unit": "items", "Range": f"{offset}-{offset + page - 1}"},
+            timeout=30,
+        )
+        if not resp.ok:
+            raise requests.HTTPError(f"{resp.status_code}: {resp.text[:300]}", response=resp)
+        rows = resp.json()
+        out += rows
+        if len(rows) < page:
+            return out
+        offset += page
 
 
 def _ocr_rows_to_items(rows: list[dict], use_validated_text: bool) -> list[dict]:
@@ -166,6 +184,110 @@ def _print(kind: str, r: dict, iou: float) -> None:
               f"unvalidated angle, not accuracy)")
 
 
+def _cmd_index_agreement(args: argparse.Namespace) -> None:
+    """Score a body OCR pass against the sheet's own printed street index."""
+    from labels import name_key
+    try:
+        from supabase_client import fetch_triage_grid
+    except (ImportError, ValueError):
+        from .supabase_client import fetch_triage_grid  # type: ignore
+
+    if not args.map_id:
+        raise SystemExit("Provide --map-id")
+    grid = fetch_triage_grid(args.map_id)
+    if not grid:
+        raise SystemExit(
+            f"map {args.map_id} has no triage.grid — the slack is measured in cells, "
+            f"so there is nothing to measure it in. Run `ocr grid` first."
+        )
+    cell = (grid["bbox"][2] / len(grid["columns"]), grid["bbox"][3] / len(grid["rows"]))
+
+    base = {"map_id": f"eq.{args.map_id}", "select": "*", "status": "neq.rejected"}
+    rows = _rest_get("ocr_extractions", base)
+    gt_rows = [r for r in rows if r.get("prompt") == INDEX_PROMPT]
+    if not gt_rows:
+        raise SystemExit(
+            f"no `{INDEX_PROMPT}` rows on this map — read its street directory first:\n"
+            f"  ocr.py street-index --map-id {args.map_id} --regions x,y,w,h[;...] --db"
+        )
+    def items(rs: list[dict]) -> list[dict]:
+        out = []
+        for r in rs:
+            gx, gy, gw, gh = r.get("global_x"), r.get("global_y"), r.get("global_w"), r.get("global_h")
+            if None in (gx, gy, gw, gh):
+                continue
+            out.append({"name": name_key(r.get("text_validated") or r.get("text") or ""),
+                        "bbox": (gx, gy, gw, gh)})
+        return out
+
+    if args.pred_run_dir:
+        # Same reason `ocr` takes one: a candidate run should not have to write
+        # into the shared table to be scored, and the printed index is in the DB
+        # regardless of where the predictions came from.
+        preds = [p for p in _run_dir_to_items(args.pred_run_dir)
+                 if p.get("category") in ("street", "hydrology")]
+        preds = [{"name": name_key(p["text"]), "bbox": p["bbox"]} for p in preds]
+    else:
+        preds = items([r for r in rows
+                       if r.get("prompt") != INDEX_PROMPT
+                       and r.get("category") in ("street", "hydrology")
+                       and (not args.run_id or r.get("run_id") == args.run_id)])
+
+    report = score_index_agreement(preds, items(gt_rows), cell,
+                                   slack_cells=args.slack_cells)
+    _print_index_agreement(args.map_id, args.pred_run_dir or args.run_id, report, cell)
+
+    path = Path(args.baseline_file)
+    saved = json.loads(path.read_text()) if path.exists() else {}
+    prev = saved.get(args.map_id)
+    if prev:
+        print("\n  vs baseline "
+              f"({prev.get('recorded')}, run {prev.get('run_id') or 'all'}):")
+        for k in ("agreement", "name_recall"):
+            d = report[k] - prev.get(k, 0.0)
+            print(f"    {k:14} {prev.get(k, 0):.4f} → {report[k]:.4f}  "
+                  f"{'+' if d >= 0 else ''}{d:.4f}")
+    elif not args.save:
+        print("\n  no baseline recorded for this map — add --save to set one.")
+
+    if args.save and args.pred_run_dir:
+        raise SystemExit("--save records a baseline for the map's own rows; drop --pred-run-dir")
+    if args.save:
+        saved[args.map_id] = {
+            "recorded": _today(), "run_id": args.run_id,
+            "slack_cells": args.slack_cells,
+            **{k: report[k] for k in ("agreement", "name_recall", "n_directory_names",
+                                      "n_matched", "n_inside", "n_outside",
+                                      "n_names_found", "n_unlisted")},
+        }
+        path.write_text(json.dumps(saved, indent=2, ensure_ascii=False, sort_keys=True) + "\n")
+        print(f"\n  baseline saved → {path}")
+
+
+def _today() -> str:
+    from datetime import date
+    return date.today().isoformat()
+
+
+def _print_index_agreement(map_id: str, run_id: str | None, r: dict,
+                           cell: tuple[float, float]) -> None:
+    print(f"\nIndex agreement — map {map_id}, run {run_id or '(all body runs)'}")
+    print(f"  directory: {r['n_directory_rows']} rows, {r['n_directory_names']} distinct names")
+    print(f"  body labels: {r['n_pred']} (street + hydrology)")
+    print(f"  cell {cell[0]:.0f}x{cell[1]:.0f} px, slack {r['slack_cells']} cell(s)")
+    print(f"  name_recall {r['name_recall']:.4f} "
+          f"({r['n_names_found']}/{r['n_directory_names']} printed names read on the map)")
+    print(f"  agreement   {r['agreement']:.4f} "
+          f"({r['n_inside']}/{r['n_matched']} matched labels inside their stated range)")
+    print(f"  disagree {r['n_outside']}   not in the directory {r['n_unlisted']}")
+    if r["misses"]:
+        print("  labels outside their stated range:")
+        for m in r["misses"][:20]:
+            print(f"    {m['name']:28} at {m['at']}  stated {m['stated']}")
+        if len(r["misses"]) > 20:
+            print(f"    … and {len(r['misses']) - 20} more")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Score OCR / seg runs against held-out ground truth.")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -190,6 +312,26 @@ def main() -> None:
     ps.add_argument("--pred-file")
     ps.add_argument("--gt-file")
     ps.set_defaults(func=_cmd_seg)
+
+    pi = sub.add_parser("index-agreement",
+                        help="Score a body OCR pass against the sheet's own printed street "
+                             "index — ground truth that costs no human labelling")
+    pi.add_argument("--map-id")
+    pi.add_argument("--run-id", help="Body run to score (default: every non-index run on the map)")
+    pi.add_argument("--pred-run-dir",
+                    help="Score a local run directory's all_extractions.json instead of DB "
+                         "rows. Ground truth still comes from the DB. Use it for a candidate "
+                         "prompt, or to score a run that has been superseded.")
+    pi.add_argument("--slack-cells", type=float, default=1.0,
+                    help="Inflate the stated cell range by this many cells on each side. "
+                         "A street is labelled somewhere along its length, not between its "
+                         "endpoints, and the printed cell is itself approximate (default 1.0)")
+    pi.add_argument("--baseline-file",
+                    default=str(Path(__file__).resolve().parents[1] / "index-baselines.json"),
+                    help="Per-sheet baselines to compare against (default work/ocr/index-baselines.json)")
+    pi.add_argument("--save", action="store_true",
+                    help="Record this run as the map's baseline")
+    pi.set_defaults(func=_cmd_index_agreement)
 
     args = p.parse_args()
     args.func(args)

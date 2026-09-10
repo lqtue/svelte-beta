@@ -60,6 +60,7 @@ from iiif_tiles import (
 from gemini_client import DEFAULT_MODEL, extract_labels, extract_labels_sequence, extract_legend, list_models
 from prompt import (DEFAULT_PROMPT, EXTRACTION_SCHEMA, PROMPTS, SYSTEM_PROMPT,
                     sequence_frame_rules)
+from labels import LABEL_PREFIXES, fold, label_core
 from local_vision import detect_legend_boxes, spot_numerals
 
 OUTPUTS_CACHE_DIR = Path(__file__).resolve().parents[1] / "outputs" / ".cache"
@@ -1088,51 +1089,13 @@ def _lev_ratio(a: str, b: str) -> float:
     return SequenceMatcher(None, a, b).ratio()
 
 
-# The generic half of a place label, in both languages the corpus prints.
-# Ordered longest first: the two-word generics have to be tried before their
-# first word is taken on its own.
-_LABEL_PREFIXES = (
-    "cong truong", "công trường", "dai lo", "đại lộ", "quoc lo", "quốc lộ",
-    "huong lo", "hương lộ",
-    "duong", "đường", "ben", "bến", "rach", "rạch", "kinh", "song", "sông",
-    "cau", "cầu", "hem", "hẻm", "xom", "xóm", "ap", "ấp", "ngo", "ngõ",
-    "rue", "ruelle", "impasse", "passage", "allee", "allée", "avenue",
-    "boulevard", "bd", "quai", "chemin", "place", "cour", "hameau", "route",
-    "voie", "pont", "sentier",
-)
-
-
-def _label_core(text: str) -> str:
-    """The distinguishing part of a label: its name, with the generic prefix cut.
-
-    On a Vietnamese sheet the prefix is most of the string. "Đại Lộ Lê Lợi" and
-    "Đại Lộ Hàm Nghi" share two of their four words and eight of thirteen
-    characters — enough for `_text_similar`'s word test to call two different
-    boulevards one label. Comparing "lê lợi" against "hàm nghi" is what keeps
-    them apart.
-
-    Exactly one prefix comes off. Stripping every leading generic in a run
-    turns "Rạch Bến Nghé" into "Nghé" and throws away the name, because "Bến"
-    is a generic in its own right and part of this name in particular.
-    """
-    t = " ".join(text.lower().split())
-    if t in _LABEL_PREFIXES:
-        return ""  # nothing but a generic: it names no place at all
-    for p in _LABEL_PREFIXES:
-        if t.startswith(p + " "):
-            return t[len(p) + 1:]
-    return t
-
-
-def _fold(s: str) -> str:
-    """Lowercase, diacritics off, and both `đ` and the `ð` the model sometimes
-    returns for it down to `d`. Vietnamese names are two or three short
-    syllables, so one dropped tone mark costs a character-level ratio more
-    than the difference between two unrelated names does."""
-    s = s.lower().replace("đ", "d").replace("ð", "d")
-    return "".join(
-        c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
-    )
+# Label normalisation lives in `labels.py`: `eval_metrics` needs the same
+# folding to score a body pass against a sheet's printed index, and it must not
+# have to import the Gemini SDK to get it. Aliased under the old names because
+# this module and its tests use them throughout.
+_LABEL_PREFIXES = LABEL_PREFIXES
+_label_core = label_core
+_fold = fold
 
 
 def _syl_match(x: str, y: str, fuzzy_threshold: float) -> bool:
@@ -2893,6 +2856,14 @@ def cmd_street_index(args: argparse.Namespace) -> None:
             for e in entries:
                 name = (e.get("name") or "").strip()
                 generic = (e.get("generic") or "").strip()
+                # A directory whose commonest road type is the default prints a
+                # dash for it and spells out only the exceptions — the 1968
+                # Saigon sheet does, where "—" is Đường. Taken literally it
+                # becomes part of the label ("— Bạch Đằng") and of the dedupe
+                # key, so it is dropped rather than mapped: which word the sheet
+                # means is the sheet's business, not this function's.
+                if generic in {"-", "\u2013", "\u2014", "\u2015", "--", "\u2026", "."}:
+                    generic = ""
                 if not name:
                     continue
                 key = (_fold(generic), _fold(name))

@@ -463,3 +463,10 @@ is most of the string. 85 GT labels on one French sheet is the wrong instrument
 for a corpus that is mostly Vietnamese. See *Getting more out of OCR* in
 `docs/pipelines.md` for the cheap fix: a sheet's own printed street index is 384
 name→cell-range pairs of free ground truth, and needs no human labelling.
+
+**And that instrument now exists**: `eval.py index-agreement`. Scored against the
+1959 sheet's own printed directory, the same dedupe change reads
+**`name_recall` 0.7493 → 0.7947** (281 → 298 of 375 printed names). The metric
+this file is built on moved by zero; the one built out of the sheet moved by 4.5
+points. Baselines for both indexed sheets are in `work/ocr/index-baselines.json`,
+and the command prints the delta against them.

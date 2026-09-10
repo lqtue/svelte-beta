@@ -340,14 +340,71 @@ recovered 33% more distinct names on the 1959 sheet. `Rue Catinat` and `Rue
 Charner` survive character comparison; `Đại Lộ Lê Lợi` and `Đại Lộ Lê Lai` do
 not.
 
-A printed street index fixes that for free. `ocr street-index` yields ~384
-`name → cell-range` pairs per sheet with no human labelling, and the check is
-already written: **of 372 body labels that matched a directory row, 350 (94%)
-fell inside the range the index states.** Two unrelated readings, so that single
-number scores the body pass, the index pass and the grid at once, and it is a
-regression metric — run it after any core-loop change and watch it move. Next
-step is to make it a subcommand (`eval.py index-agreement`) rather than a script
-in a scratchpad, and to record a per-sheet baseline for each indexed sheet.
+A printed street index fixes that for free:
+
+```bash
+work/ocr/.venv/bin/python work/ocr/scripts/eval.py index-agreement \
+  --map-id <uuid> [--run-id <body run>] [--slack-cells 1] [--save]
+```
+
+Ground truth is the sheet's own `street-index-v1` rows — ~384 `name → cell-range`
+pairs read for ~$0.03, no human labelling. Two numbers come out, and both are
+things the corpus never had:
+
+- **`name_recall`** — of the names the sheet says it prints, how many did the
+  body pass read? This is the denominator a row count never was.
+- **`agreement`** — of the body labels that match a directory row, how many sit
+  inside the range the index states? Two unrelated readings, so one number
+  scores the body pass, the index pass and the grid at once.
+
+Measured on the 1959 sheet, before and after the dedupe fix of 2026-09-10:
+
+| | before | after |
+|---|---|---|
+| `name_recall` | 0.7493 (281/375) | **0.7947** (298/375) |
+| `agreement` (±1 cell) | 0.9588 | 0.9434 |
+
+The French gate moved by exactly zero on that change; this saw it. Agreement
+dips slightly because 356 more body labels entered the comparison, fragments
+among them — which is why both numbers are tracked and neither alone is the
+score. `--slack-cells 0` asks the strict question (0.8679 on the same run);
+±1 cell is the default because a street is labelled somewhere along its length
+and the printed cell is itself approximate.
+
+`--save` writes `work/ocr/index-baselines.json`, and a later run prints the
+delta against it. `--pred-run-dir` scores a candidate run straight out of its
+output directory, so a prompt can be measured without writing into the shared
+table.
+
+**Baselines recorded** (`work/ocr/index-baselines.json`, 2026-09-10):
+
+| sheet | printed names | `name_recall` | `agreement` |
+|---|---|---|---|
+| 1959 Đô thành Sài Gòn | 375 | 0.7947 (298) | 0.9434 |
+| 1968 Sài Gòn | 367 | **0.0245 (9)** | 1.0000 (9/9) |
+
+The 1968 row is what the metric is for. That sheet holds **14** body labels
+against 367 printed street names, so it has effectively never been read — which
+was previously a hunch and is now a number, on a sheet already published and
+georeferenced. Its 9/9 agreement is a small sample, but it says the grid and the
+index are consistent, so a body pass can be scored the moment one runs.
+
+**Which sheets can have this:** 7 of the 39 published maps carry a `name_list`
+region, and 2 of those have a `triage.grid` — both are baselined above. The
+other five (1799, 1878 Saigon; 1942, 1951 Hanoi; 1968 Hanoi) need `ocr grid`
+first. Every sheet that gets a grid and an index read gains a permanent gate for
+nothing.
+
+**Table shape differs per sheet, and the layout is what to check.** 1959 prints
+one four-column group down each margin, so horizontal bands across the whole
+width are safe. 1968 prints the same `From`/`To` columns but as **four repeating
+groups side by side** — the arrangement the rule above says never to show the
+model at once — so it is read one group per call, which `--regions` already
+allows (four x-offsets, each banded vertically). Two details that sheet also
+needs: the window has to be wide enough to include the group's `To` digit, which
+sits at its right edge, and the sheet prints an **em-dash** for its commonest
+road type (`Đường`) and spells out only the exceptions. A dash generic is
+dropped rather than mapped — which word it stands for is the sheet's business.
 
 **5. Precision is uninterpretable while the ground truth is partial.** A correct
 prediction absent from GT counts as a false positive, so anything that raises

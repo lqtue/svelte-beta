@@ -212,6 +212,90 @@ def score_seg(preds: list[dict], gts: list[dict], iou_thresh: float = 0.5) -> di
     return out
 
 
+def score_index_agreement(
+    preds: list[dict], gts: list[dict], cell: tuple[float, float], slack_cells: float = 1.0
+) -> dict:
+    """Score a body OCR pass against the sheet's own printed street index.
+
+    Two unrelated readings of one sheet: a label spotted out on the map, and a
+    row in the printed directory stating the grid cell a street runs from and
+    the one it runs to. If the observed label falls inside the stated range,
+    both are probably right — and neither pass knows anything about the other,
+    so agreement is evidence rather than a tautology.
+
+    This is the only ground truth on this corpus that costs no human labelling.
+    `EVAL-BASELINE.md`'s 85 hand-validated labels sit on one French sheet and
+    cannot see a Vietnamese failure at all; a printed index is ~384 name→range
+    pairs per sheet, and it also supplies the denominator that a row count never
+    had — `name_recall` below is against what the sheet says exists, not against
+    what somebody found time to validate.
+
+    `preds`  — body labels: {name, bbox}. `bbox` is (x, y, w, h) in source px.
+    `gts`    — directory rows: {name, bbox}, the union of the TỪ and ĐẾN cells.
+    `cell`   — (w, h) of one grid cell in source px, the unit `slack_cells` is in.
+
+    A street is labelled *somewhere along* its length, not between its
+    endpoints, and the printed cell is itself approximate, so the stated range
+    is inflated by `slack_cells` on every side before the test. One cell is what
+    was measured on the 1959 sheet; 0 asks the stricter question.
+    """
+    cw, ch = cell
+    pad_x, pad_y = cw * slack_cells, ch * slack_cells
+
+    gt_by_name: dict[str, list[Box]] = {}
+    for g in gts:
+        if g.get("name"):
+            gt_by_name.setdefault(g["name"], []).append(tuple(g["bbox"]))  # type: ignore[arg-type]
+
+    inside = outside = 0
+    unlisted = 0
+    misses: list[dict] = []
+    seen_names: set[str] = set()
+    for p in preds:
+        name = p.get("name")
+        boxes = gt_by_name.get(name) if name else None
+        if not boxes:
+            unlisted += 1
+            continue
+        seen_names.add(name)
+        px, py, pw, ph = p["bbox"]
+        cx, cy = px + pw / 2, py + ph / 2
+        # Any of the rows carrying this name will do: a name printed twice in the
+        # directory (an Đường and a Hẻm of the same name) states two ranges, and
+        # the label belongs to whichever it falls in.
+        if any(
+            bx - pad_x <= cx <= bx + bw + pad_x and by - pad_y <= cy <= by + bh + pad_y
+            for bx, by, bw, bh in boxes
+        ):
+            inside += 1
+        else:
+            outside += 1
+            misses.append({"name": name, "at": (round(cx), round(cy)),
+                           "stated": [tuple(round(v) for v in b) for b in boxes]})
+
+    n_matched = inside + outside
+    return {
+        "n_directory_rows": len(gts),
+        "n_directory_names": len(gt_by_name),
+        "n_pred": len(preds),
+        # The headline: do the two readings agree about where a street is?
+        "n_matched": n_matched,
+        "n_inside": inside,
+        "n_outside": outside,
+        "agreement": (inside / n_matched) if n_matched else 0.0,
+        # The denominator the row count never had: of the names the sheet says
+        # it prints, how many did the body pass actually read?
+        "n_names_found": len(seen_names),
+        "name_recall": (len(seen_names) / len(gt_by_name)) if gt_by_name else 0.0,
+        # Body labels naming a street the directory does not list. Mostly a
+        # misread name, sometimes a feature the directory never covered
+        # (a place, a canal) — informative, not an error rate.
+        "n_unlisted": unlisted,
+        "slack_cells": slack_cells,
+        "misses": misses,
+    }
+
+
 def _self_check() -> None:
     # box_iou: identical → 1, disjoint → 0, half-overlap known value.
     assert box_iou((0, 0, 10, 10), (0, 0, 10, 10)) == 1.0
@@ -263,6 +347,39 @@ def _self_check() -> None:
     # score_seg: identical single polygon → P=R=1.
     ss = score_seg([{"polygon": sq}], [{"polygon": sq}])
     assert ss["precision"] == 1.0 and ss["recall"] == 1.0, ss
+
+    # score_index_agreement: one street read where its index row says, one read
+    # a long way off, one the directory never lists.
+    cell = (100.0, 100.0)
+    gt = [{"name": "le loi", "bbox": (0, 0, 200, 100)},
+          {"name": "ham nghi", "bbox": (0, 500, 100, 100)}]
+    pr = [{"name": "le loi", "bbox": (150, 40, 20, 10)},      # inside the stated run
+          {"name": "ham nghi", "bbox": (5000, 5000, 20, 10)},  # nowhere near
+          {"name": "cho lon", "bbox": (10, 10, 20, 10)}]       # not in the directory
+    ia = score_index_agreement(pr, gt, cell, slack_cells=1.0)
+    assert ia["n_matched"] == 2 and ia["n_inside"] == 1 and ia["n_outside"] == 1, ia
+    assert ia["agreement"] == 0.5, ia
+    assert ia["n_unlisted"] == 1, ia
+    # Both directory names were matched by some prediction, even the one that
+    # disagreed: name recall asks whether the pass read the name at all.
+    assert ia["n_names_found"] == 2 and ia["name_recall"] == 1.0, ia
+
+    # Slack is in cells and it bites: just outside the run, inside the pad.
+    edge = [{"name": "le loi", "bbox": (250, 40, 20, 10)}]
+    assert score_index_agreement(edge, gt, cell, slack_cells=1.0)["n_inside"] == 1
+    assert score_index_agreement(edge, gt, cell, slack_cells=0.0)["n_inside"] == 0
+
+    # A name the directory prints twice states two ranges; the label belongs to
+    # whichever it falls in, not to the first one listed.
+    twice = [{"name": "tan thanh", "bbox": (0, 0, 100, 100)},
+             {"name": "tan thanh", "bbox": (900, 900, 100, 100)}]
+    far = [{"name": "tan thanh", "bbox": (950, 950, 10, 10)}]
+    assert score_index_agreement(far, twice, cell, slack_cells=0.0)["n_inside"] == 1
+
+    # An empty name never matches: `label_core` returns "" for a bare generic,
+    # and an empty key must not collide with another empty one.
+    assert score_index_agreement(
+        [{"name": "", "bbox": (0, 0, 10, 10)}], gt, cell)["n_unlisted"] == 1
 
     print("[ok] eval_metrics self-check passed")
 
