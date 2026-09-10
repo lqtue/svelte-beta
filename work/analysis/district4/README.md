@@ -35,16 +35,37 @@ node --env-file=.env scripts/collection_aoi.mjs --aoi district4
 ```
 
 That ranks every georeferenced sheet by how well it *resolves* the district,
-and it is the list to trust over any typed from memory. Measured 2026-09-04:
+and it is the list to trust over any typed from memory. Measured 2026-09-04.
 
-| Year | Ground resolution over D4 | Covers | Sheet |
-|------|--------------------------|--------|-------|
-| 1882 | 0.34 m/px | 21% | Plan Cadastral de la ville de Saigon |
-| 1923 | 0.85 m/px | 56% | Saigon - Cholon |
-| 1968 | 1.27 m/px | 66% | Sài Gòn — Việt Nam City Maps 1:12,500 |
-| 1895 | 1.68 m/px | 100% | Plan des environs de Saïgon |
-| 1942 | 1.69 m/px | 95% | Plan de Saigon - Cho Lon |
-| 1959 | 2.80 m/px | 97% | Đô thành Sài Gòn |
+**A m/px figure is only checkable if the scan it was measured on is written
+next to it** — pixel dimensions, not just a name. This table went without that
+for months and it cost nothing until two different scans of the 1959 sheet
+produced two different, individually-correct numbers that looked like a
+contradiction. See the 2026-09-10 correction below the next table. The `Scan
+(px)` column here is added for the same reason; "not established" means this
+revision could not pin the figure down from anything on disk, not that no such
+scan exists.
+
+| Year | Ground resolution over D4 | Covers | Sheet | Scan (px) |
+|------|--------------------------|--------|-------|-----------|
+| 1882 | 0.34 m/px | 21% | Plan Cadastral de la ville de Saigon | not established from the repo |
+| 1923 | 0.85 m/px | 56% | Saigon - Cholon | not established from the repo |
+| 1968 | 1.27 m/px | 66% | Sài Gòn — Việt Nam City Maps 1:12,500 | not established from the repo |
+| 1895 | 1.68 m/px | 100% | Plan des environs de Saïgon | not established from the repo |
+| 1942 | 1.69 m/px | 95% | Plan de Saigon - Cho Lon | 7479×6314 (confirmed — its own layout job, run 2026-09-05, reports this `source_size`) |
+| 1959 | 2.80 m/px | 97% | Đô thành Sài Gòn | 5000×3790, Virtual Saigon/IRD — **superseded, see below** |
+
+**The 1959 row above is stale as of 2026-09-10.** It is what `collection_aoi.mjs`
+measured on 2026-09-04, against the 5,000×3790 scan. The scan the OCR pipeline
+reads today is 14,000×10,773 — nearly three times the pixel width, the same
+city at 0.999 m/px rather than 2.80 (`docs/pipelines.md`'s 2026-09-10 note;
+`scale.py`'s self-check fits `(0.999, 14000, 10773)` for this sheet, and
+`tests/mpp-parity.spec.ts` pins that GCP-fit estimator against
+`collection_aoi.mjs`'s own to 0.24% agreement). Nobody has re-run
+`collection_aoi.mjs` against the new scan, so the 97%-covers / 2.80-m/px pairing
+above is left as measured rather than guessed at — read it as "true of the
+5,000×3790 scan, measured 2026-09-04," not as this sheet's current standing.
+The full story, and what it changes below, is in the next section.
 
 Six sheets, 1882→1968. **1878 and 1898 are not in it**, though earlier notes
 listed both: their georeferences put them entirely north of the Bến Nghé canal,
@@ -88,17 +109,35 @@ source pixels rendered to `render_size` before the model sees it, so what
 reaches Gemini is the sheet's own m/px times `tile_size / render_size`. The
 stock 2400/1024 is a 2.34x downsample *on top of* the scan, which was putting
 the 1959 sheet in front of the model at 6.5 m/px and the 1942 at 4.0 — far too
-coarse for a street name. These jobs queue 2048/2048 instead: 1:1, the scan's
-own ceiling.
+coarse for a street name, on the scan each was measured on. (1959's 6.5 was
+never wrong, it just stopped being the pipeline's number — see the correction
+right after the table.) These jobs queue 2048/2048 instead: 1:1, the scan's own
+ceiling.
 
-| Year | Source | To the model, before | Now (1:1) |
-|------|--------|---------------------|-----------|
-| 1882 | 0.34 m/px | 0.80 | **0.34** |
-| 1923 | 0.85 m/px | 1.99 | **0.85** |
-| 1968 | 1.27 m/px | 2.97 | **1.27** |
-| 1895 | 1.68 m/px | 3.93 | **1.68** |
-| 1942 | 1.69 m/px | 3.95 | **1.69** |
-| 1959 | 2.80 m/px | 6.55 | **2.80** |
+| Year | Source | Scan (px) | To the model, before | Now (1:1) |
+|------|--------|-----------|----------------------|-----------|
+| 1882 | 0.34 m/px | not established | 0.80 | **0.34** |
+| 1923 | 0.85 m/px | not established | 1.99 | **0.85** |
+| 1968 | 1.27 m/px | not established | 2.97 | **1.27** |
+| 1895 | 1.68 m/px | not established | 3.93 | **1.68** |
+| 1942 | 1.69 m/px | 7479×6314 | 3.95 | **1.69** |
+| 1959 | 2.80 m/px † | 5000×3790 † | 6.55 † | **2.80** † |
+
+† **Superseded, 2026-09-10.** This whole row describes the 5,000×3790 scan
+`collection_aoi.mjs` measured on 2026-09-04. The OCR pipeline now reads a
+14,000×10,773 scan of the same sheet — `docs/pipelines.md`'s crop evidence
+(`work/ocr/outputs/34d4edb2-*/runs/idx-20260910/run_config.json`, a
+`1148,775,11704,9221` crop, which alone puts the image at ≥12,852 px wide) and
+`scale.py`'s GCP fit (0.999 m/px, asserted in its self-check) agree, and
+`tests/mpp-parity.spec.ts` pins the two estimators to 0.24% of each other on
+real control points. Both 2.80 and 0.999 were correct measurements; they were
+never comparable, because neither said which scan it was measuring — that is
+the fault, not the arithmetic. At the pipeline's current scan the same 2.34x
+downsample this section is about delivers **~2.34 m/px, not 6.5**, and the
+2048/2048 jobs this section recommends deliver **~0.999 m/px 1:1, not 2.80**.
+None of the other five rows are known to have changed; 1942's own layout job
+(2026-09-05) still reports 7479×6314, matching this table, though nothing
+newer than that exists in the repo to check against.
 
 `render_size` was not even reachable from a job payload until now — the worker
 hardcoded the default — so every queued OCR run to date was downsampled 2.34x
@@ -111,26 +150,49 @@ Past 1:1 the limit is the scan itself, and **re-mirroring cannot help**:
 institution's own maximum. `map_iiif_sources` has no rows for any of the six,
 so there is no second copy to compare either.
 
-The two thin scans are **1959** (5000x3790, Virtual Saigon/IRD, 2.80 m/px) and
-**1942** (7479x6314, BnF, 1.69 m/px); the other four are 12k-16k px. Raising
-those means a new digitization or a different holding copy, not a re-download —
-an acquisition question, not a pipeline one.
+**2026-09-10: this paragraph is only half true now, and it's the more
+consequential half that changed.** It used to name two thin scans, **1959**
+(5000x3790, Virtual Saigon/IRD, 2.80 m/px) and **1942** (7479x6314, BnF, 1.69
+m/px), and conclude that raising either meant "a new digitization or a
+different holding copy, not a re-download — an acquisition question, not a
+pipeline one." For 1959 that acquisition question turned out to already be
+answered: the OCR pipeline now reads a 14,000×10,773 scan of the same sheet
+(0.999 m/px — see the correction two sections up), so whatever supplied it,
+that already happened, and it is not still open. 1959 is no longer one of the
+thin scans.
+
+**1942 is the one confirmed thin scan left**, and only that: its own layout job
+(run 2026-09-05) still reports the same 7479×6314, and nothing later touches
+that map anywhere in the repo. That is not the same as confirming it *hasn't*
+changed since — it means there is nothing on disk newer than 2026-09-05 to
+check, the way there was for 1959. Whether 1942 gets the same upgrade 1959 did
+is unverified, not ruled out. The other four sheets are still believed to be
+12k-16k px, on the same footing as before (not independently re-checked here).
 
 The first run made that ceiling look closer than it is, and the diagnosis is
 worth carrying because it nearly cost a re-digitization.
 
-At 2048 px tiles the 1959 sheet (2.80 m/px) returned 5 labels and no street
-name, against 1942 (1.69 m/px) returning 21 with ten street names. The obvious
-reading was that 2.80 m/px is below the floor for street type and the scan
-needs replacing. That was wrong. Holding the crop and the 1:1 rendering fixed
-and changing only the tile, counting **distinct labels that warp back inside
-the district**:
+At 2048 px tiles the 1959 sheet (2.80 m/px on the 5,000×3790 scan this
+experiment ran against — since superseded, see above) returned 5 labels and no
+street name, against 1942 (1.69 m/px) returning 21 with ten street names. The
+obvious reading was that 2.80 m/px is below the floor for street type and the
+scan needs replacing. That was wrong. Holding the crop and the 1:1 rendering
+fixed and changing only the tile, counting **distinct labels that warp back
+inside the district**:
 
 | Tile | Ground per call | Distinct D4 labels |
 |------|----------------|--------------------|
 | 2048 px | 5.7 km | 1 |
 | 1024 px | 2.9 km | 2 |
 | ~500 px | 1.4 km | 6, and 5 on a repeat |
+
+(Ground-per-call above is `tile_px × 2.80 m/px` — i.e. computed against the
+5,000×3790 scan, because that is what existed when this was run. The pipeline
+now reads a finer scan of 1959, so a repeat today would start from a different
+ground-per-call at the same pixel tile size. That does not touch the finding —
+the point below is that ground per call is what starves a read, at whatever
+m/px produces it, which is exactly why `--tile-metres` sizes the tile from the
+sheet's own scale instead of a fixed pixel count.)
 
 Five to six times the yield off an unchanged scan, and only the finest runs
 found *QUẬN 4* — the district's own name, printed on the sheet. Rendering was
@@ -145,7 +207,9 @@ NGHÉ* against *Kinh Bến Nghé*) — so single-run differences of one or two m
 nothing, and the `category` a label is given is noisier still than its text.
 And a single sheet does not generalise: applied across the whole collection the
 same change gave **+19%**, not 5x, because the gain only appears where the
-ground per call actually drops a lot:
+ground per call actually drops a lot (the 1959 row again is `2048 px ×
+2.80 m/px`, the 5,000×3790 scan measured at the time, not the 14,000×10,773 one
+the pipeline reads now — see above):
 
 | Year | Ground/call before → after | D4 labels |
 |------|---------------------------|-----------|
@@ -169,10 +233,15 @@ m/px, which also makes sheets comparable to each other, which a time series
 needs anyway. 1400 m is a working default from thin evidence, not a tuned
 optimum.
 
-The honest remaining statement about scans: 1959 (5000x3790) and 1942
-(7479x6314) are still the two thin ones, and a better scan would still help.
-But that is a marginal gain, not the blocker it appeared to be, and nothing
-should be re-acquired before a sheet has been read at a sane tile size.
+The honest remaining statement about scans, updated 2026-09-10: **1942**
+(7479x6314) is the one confirmed thin sheet left, and a better scan of it would
+still help — though whether one is already sitting somewhere, the way it was
+for 1959, is not something this repo can currently answer, since nothing later
+than 2026-09-05 touches that map here. **1959 is no longer thin**: the pipeline
+now reads a 14,000×10,773 scan (0.999 m/px), not the 5,000×3790 one this
+section was originally measured against. Either way, a better scan is a
+marginal gain, not the blocker it appeared to be, and nothing should be
+re-acquired before a sheet has been read at a sane tile size.
 
 One expected artefact: a label falling in the 512 px tile overlap is extracted
 twice, once per tile. `ocr_extractions` is unique on
