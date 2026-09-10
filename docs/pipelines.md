@@ -48,7 +48,7 @@ source work/ocr/.venv/bin/activate
 # Single tile
 python work/ocr/scripts/ocr.py run \
   --map-id <uuid> --iiif-base <url> \
-  --crop x,y,w,h --render-size 2048 --prompt v8 \
+  --crop x,y,w,h --render-size 2048 \
   --run-id <name> --preview
 
 # Full-map macro scan (scout pass, no crop)
@@ -125,7 +125,7 @@ Default it on only if recall improves and precision does not fall — a pre-pass
 | --- | --- |
 | `ocr.py` | The CLI: `scout`, `batch`, `layout`, the local passes, `--db` writes. Everything below is a helper it imports |
 | `gemini_client.py` | Gemini wrapper: key rotation across `GEMINI_API_KEYS`, retries, model default |
-| `prompt.py` | Versioned prompts `v1`–`v8` + scout, the JSON schemas, and the canonical coordinate contract |
+| `prompt.py` | Versioned prompts `v1`–`v8`, `seq-v1`, `seq-v1-idx` + scout, the JSON schemas, and the canonical coordinate contract |
 | `iiif_tiles.py` | IIIF tile fetcher and grid utilities: scale levels, level0 addressing, colour pre-pass, CLAHE. `--self-check` |
 | `local_vision.py` | Offline passes with no API call (geometry, digits) that run free on the M-series |
 | `cache.py` | Disk cache for Gemini results keyed by SHA256(image + prompt + model + schema version) |
@@ -450,7 +450,7 @@ it before touching the core loop.
 - `ocr_extractions.global_x/y/w/h` already store full-image pixel coords.
 - Model: `DEFAULT_MODEL = "gemini-3.8-flash"` (`work/ocr/scripts/gemini_client.py`), overridable per-subcommand with `--model`. Key in `.env` as `GEMINI_API_KEY` / `GEMINI_API_KEYS` (comma-separated for rotation). `ocr.py list-models` enumerates what the key can actually reach.
 - Outputs versioned at `work/ocr/outputs/<map_id>/runs/<run_id>/` with `run_config.json` for reproducibility.
-- Prompts `v1`–`v8` + scout in `work/ocr/scripts/prompt.py`. **`DEFAULT_PROMPT = "v8"`** (high-recall, no confidence floor). V6 introduced a 0.5 confidence floor that crushed recall; v8 reverts it.
+- Prompts in `work/ocr/scripts/prompt.py`: `v1`–`v8`, `seq-v1`, `seq-v1-idx` and `scout`. **`DEFAULT_PROMPT = "seq-v1"`** since 2026-09-08 — see *Prompt* above for what it changed. This line claimed `v8` until 2026-09-10, two sections after the one that had it right, which is worth knowing because a stale default here is unfalsifiable from the outside: a run records the version it was handed, so a doc naming the wrong one just makes every run look deliberate. v8 was the high-recall revert of v6's 0.5 confidence floor, and it **failed the gate** on the row-sequence path (recall −0.14, `char_acc` −0.027) — do not restore it as the default. `prompt.py:786` is the value; `work/ocr/EVAL-BASELINE.md` is the measurement.
 - **The selected prompt only started reaching the row-sequence path on 2026-09-08.** `extract_labels_sequence()` carried a hardcoded fallback prompt naming an "1882 Saigon cadastral map" and `cmd_batch` passed no prompt, so the production default sent that fallback for every sheet — 1968 Vietnamese ones included — while each tile's `_meta` recorded `"prompt": "v8"`. The caller now composes `PROMPTS[<version>] + sequence_frame_rules(n)`, `user_prompt` has no default, and `test_prompt_plumbing.py` fails if either regresses. Every run before that date was v8 in name only; do not read `_meta.prompt` on an older run as evidence of which prompt was sent.
 - `clean` writes to `ocr_extractions` (correct target for the digitalize review UI); legacy `dedup` writes to `label_pins`.
 
