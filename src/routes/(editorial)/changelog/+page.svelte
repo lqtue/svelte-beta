@@ -52,10 +52,32 @@
                 <li>{change}</li>
               {/each}
             </ul>
+            {#if release.image}
+              <figure class="release-shot">
+                <img
+                  src={release.image.src}
+                  srcset="{release.image.src.replace('.webp', '-600.webp')} 600w, {release.image
+                    .src} 1200w"
+                  sizes="(max-width: 700px) 100vw, 640px"
+                  alt={release.image.alt}
+                  width="1200"
+                  height="750"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <figcaption>{release.image.caption}</figcaption>
+              </figure>
+            {/if}
           </div>
         </li>
       {/each}
     </ol>
+
+    <p class="shots-note">
+      Only two versions here carry a screenshot. The ones between them were never deployed anywhere
+      they could be photographed, and their code no longer runs against the archive as it is now — a
+      reconstruction would be a picture of something that never shipped.
+    </p>
 
     <section class="section-card legacy-card">
       <h2>Before the rewrite</h2>
@@ -80,6 +102,22 @@
                   <li>{change}</li>
                 {/each}
               </ul>
+              {#if release.image}
+                <figure class="release-shot">
+                  <img
+                    src={release.image.src}
+                    srcset="{release.image.src.replace('.webp', '-600.webp')} 600w, {release.image
+                      .src} 1200w"
+                    sizes="(max-width: 700px) 100vw, 640px"
+                    alt={release.image.alt}
+                    width="1200"
+                    height="750"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <figcaption>{release.image.caption}</figcaption>
+                </figure>
+              {/if}
             </div>
           </li>
         {/each}

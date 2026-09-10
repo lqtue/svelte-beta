@@ -19,6 +19,17 @@ export interface Release {
   current?: boolean;
   /** Set when the version lived in an earlier repository. */
   legacy?: boolean;
+  /**
+   * A real screenshot of that version running, or nothing.
+   *
+   * Only two versions have one, and that is not an omission to fill in later:
+   * 3.0 through 6.0 have no deployed instance, and their code against today's
+   * database renders error pages rather than that version's front page. A
+   * reconstruction would be a picture of something that never shipped. Both
+   * files come from `scripts/gen-changelog-shots.mjs`; `src` is the 1200px cut
+   * and the 600 beside it is offered as the small end of the srcset.
+   */
+  image?: { src: string; alt: string; caption: string };
 }
 
 export const releases: Release[] = [
@@ -27,6 +38,12 @@ export const releases: Release[] = [
     date: '2026-09-01',
     headline: 'Sixteen pages instead of twenty-three, and a front page that costs nothing',
     current: true,
+    image: {
+      src: '/images/changelog/changelog-7.0.webp',
+      alt: 'The archive\u2019s front page: a two-tier top bar, the 1882 Plan Cadastral of Saigon over satellite imagery, a search box, and the Today\u20131882 slider pushed to the 1882 end.',
+      caption:
+        'The front page with the header slider pushed to 1882. The same gesture the whole archive is about, working before any JavaScript has run.',
+    },
     changes: [
       'The archive is one place again. Every tool sits behind one Tools menu, the map is at /explore and scanned sheets at /scan, and switching what you are doing no longer reloads the map.',
       'A dark theme, and one set of colours across the whole site — taken off the printed sheets themselves.',
@@ -130,6 +147,12 @@ export const releases: Release[] = [
     date: '2025-06-17',
     headline: 'A time slider',
     legacy: true,
+    image: {
+      src: '/images/changelog/changelog-2.1.webp',
+      alt: 'The 2025 site in Vietnamese: a 1799 plan of Saigon floating over satellite imagery, with a row of years from 1799 to 1984 along the bottom as a slider.',
+      caption:
+        'The 2025 site, still published. The row of years along the foot is the version\u2019s one new idea, and the reason it earned a number.',
+    },
     changes: ['The maps could be moved through by year, instead of picked from a list.'],
   },
   {

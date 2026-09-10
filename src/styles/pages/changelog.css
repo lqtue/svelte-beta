@@ -123,3 +123,45 @@
     font-size: 1.6rem;
   }
 }
+
+/* The screenshots.
+ *
+ * Only two releases carry one — see the note on `Release.image`. The figure is
+ * sized by its own aspect ratio rather than by the loaded file, so a release
+ * with a picture does not jump when it arrives. Capped at 640px so a wide
+ * screen does not turn a screenshot into the page's subject. */
+
+.changelog-page .release-shot {
+  margin: 1.5rem 0 0;
+  max-width: 640px;
+}
+
+.changelog-page .release-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1200 / 750;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-gray-100);
+}
+
+.changelog-page .release-shot figcaption {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-gray-500);
+}
+
+/* Why most releases have no picture. Set as an aside rather than as body copy:
+ * it answers a question the reader will have, but it is not the history. */
+
+.changelog-page .shots-note {
+  margin: 2.5rem 0 0;
+  max-width: 62ch;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--color-gray-500);
+  border-left: 2px solid var(--color-border);
+  padding-left: 1rem;
+}
