@@ -807,3 +807,47 @@ sheet rather than filling a hole.
 tiles are detected as done), then consider `--grid-offset 400` and a vote
 merge. Do **not** re-run the south band, do **not** fold block 2 into this
 gate, and do not upsample the render.
+
+## 2026-09-10 — run `post0910`: the first 1882 rows written after the fixes
+
+Run id **`post0910`** on sheet `0e02b9d9-9d40-4cca-8e41-8c8373d54d3b`, executed
+by a peer session under its own approval, recipe of record **uncropped**
+(`seq-v1`, `gemini-3.8-flash`, 2400/300/1024, `--min-confidence 0.4`), two
+passes vote-merged, **287 rows upserted to `ocr_extractions`** and pipeline
+status set to `ocr_done`. Run dirs `runs/post0910{,-a,-b}`. This is the run the
+MapSAM2 side should seed from; the April/May v1b rows should not be used.
+
+| | tiles | calls | fresh | raw → unique |
+|---|---|---|---|---|
+| `post0910-a` (grid) | 30 | 10 | 0 | 315 → 233 |
+| `post0910-b` (`--grid-offset 1200`) | 35 | 10 | 4 | 387 → 261 |
+| merge | | | | 494 → **287** (196 seen by both passes) |
+
+**Billed cost USD 0.1967**, computed from `post0910-b/calls.jsonl`: 4 fresh
+calls, input 23,953 of which 6,428 cached, total 72,776, so billed output
+48,823 against the 19,725 the `output_tokens` field reports — 2.48x. The peer's
+estimate of "about USD 0.10" is USD 0.0919 on the old output-tokens basis, which
+is the arithmetic this file corrected earlier today; the two figures differ by
+the thinking tokens. `post0910-a` wrote no `calls.jsonl` at all because all ten
+of its calls were served from the model-response cache, which is the same
+mechanism that made `street-index` report 15 calls when 14 were billed.
+
+**Two caveats on using this as a measurement, as opposed to as seed rows.**
+
+1. **It is largely a replay.** 16 of the 20 calls came from the model-response
+   cache, inherited from `regate0910` earlier today. Only 4 calls are a fresh
+   read of the sheet. The rows are sound and that is what the seg side needs,
+   but `post0910` is not an independent sample of the model's behaviour and
+   should not be treated as one.
+2. **It is a new baseline, not a reproduction of 0.945 / 75-of-85.** Three
+   things moved underneath the recipe today: `b532d3b9` (the offset pass
+   phase-shifts the lattice, so pass b covers the full extent — 35 tiles where
+   the record had 24), `094c92fa` (row grouping stopped emitting a trailing
+   subset group whose empty result overwrote its neighbour, and the tile cache
+   started hitting at all), and `9357f30b` before them (the dedupe deleting
+   distinct streets). A polygon count diffed against the April/May set measures
+   those three fixes as much as anything else.
+
+`b532d3b9` is visible on disk here: `post0910-b`'s first tile is
+`0_0_1500_1500`, the lattice index -1 tile clipped to the region, which the old
+inset implementation dropped entirely.
