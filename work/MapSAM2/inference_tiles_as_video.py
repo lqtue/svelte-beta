@@ -59,14 +59,20 @@ except ImportError:
 # ── SAM2 helpers ──────────────────────────────────────────────────────────────
 
 def _sam2_config_path(encoder: str) -> str:
-    """Return the hydra config path for a SAM2 encoder name."""
+    """Return the hydra config path for a SAM2 encoder name.
+
+    The `configs/` prefix is required, not cosmetic: upstream `sam2/__init__.py`
+    calls `initialize_config_module("sam2")`, so hydra's search root is the
+    package itself and a name without it fails with `Cannot find primary config
+    'sam2.1/sam2.1_hiera_s.yaml'`.
+    """
     mapping = {
-        "vit_t": "sam2.1/sam2.1_hiera_t.yaml",
-        "vit_s": "sam2.1/sam2.1_hiera_s.yaml",
-        "vit_b": "sam2.1/sam2.1_hiera_b+.yaml",
-        "vit_l": "sam2.1/sam2.1_hiera_l.yaml",
+        "vit_t": "configs/sam2.1/sam2.1_hiera_t.yaml",
+        "vit_s": "configs/sam2.1/sam2.1_hiera_s.yaml",
+        "vit_b": "configs/sam2.1/sam2.1_hiera_b+.yaml",
+        "vit_l": "configs/sam2.1/sam2.1_hiera_l.yaml",
     }
-    return mapping.get(encoder, "sam2.1/sam2.1_hiera_s.yaml")
+    return mapping.get(encoder, "configs/sam2.1/sam2.1_hiera_s.yaml")
 
 
 def load_model_automatic(checkpoint: str, encoder: str = "vit_s", device: str = "cpu"):
@@ -86,7 +92,7 @@ def load_model_automatic(checkpoint: str, encoder: str = "vit_s", device: str = 
     )
 
 
-def load_model_predictor(checkpoint: str, encoder: str = "vit_s", device: str = "cpu",
+def load_model_predictor(checkpoint: str | None, encoder: str = "vit_s", device: str = "cpu",
                           lora: bool = False, mapsam2_dir: str | None = None):
     """Load SAM2ImagePredictor, optionally with LoRA weights."""
     import torch
@@ -99,11 +105,44 @@ def load_model_predictor(checkpoint: str, encoder: str = "vit_s", device: str = 
         # LoRA model: build base SAM2, then load MapSAM2 state dict which includes LoRA weights
         if mapsam2_dir not in sys.path:
             sys.path.insert(0, mapsam2_dir)
-        from sam_lora_image_encoder import LoRA_Sam
         sam_base = build_sam2(cfg, None, device=device)  # no base weights; LoRA ckpt has everything
-        model = LoRA_Sam(sam_base, r=4)
-        ckpt = torch.load(checkpoint, map_location=device, weights_only=True)
-        model.load_state_dict(ckpt)
+
+        # Upstream `sam2/__init__.py` and MapSAM2's `sam2_train/__init__.py` BOTH call
+        # hydra's initialize_config_module at import time, and the second one raises
+        # "GlobalHydra is already initialized". build_sam2 above has already resolved
+        # its config, so clearing the global here costs nothing and lets sam2_train
+        # register its own. Import after the clear, not at the top of the branch.
+        from hydra.core.global_hydra import GlobalHydra
+        GlobalHydra.instance().clear()
+        from sam_lora_image_encoder import LoRA_Sam
+
+        # LoRA_Sam builds its own nn.Linear layers, which land on the default device
+        # (cpu) however the model it wraps was built — so the first forward pass dies
+        # with "Tensor for argument weight is on cpu but expected on mps". Moving the
+        # wrapper, not the base, is what puts the two on one device.
+        model = LoRA_Sam(sam_base, r=4).to(device)
+        if checkpoint:  # None only from --self-check, which qualifies the machine
+            ckpt = torch.load(checkpoint, map_location=device, weights_only=True)
+            # MapSAM2's train_2d.py saves {'model': state_dict, 'parameter': args},
+            # not a bare state dict — `.load_state_dict(ckpt)` on the wrapper fails
+            # with 583 missing keys and two unexpected ones.
+            state = ckpt.get("model", ckpt) if isinstance(ckpt, dict) else ckpt
+            missing, unexpected = model.load_state_dict(state, strict=False)
+            # strict=False would also swallow a checkpoint for another architecture,
+            # so the tolerated gap is pinned. These three exist only in the video /
+            # memory-attention path, which SAM2ImagePredictor never enters, and are
+            # absent from checkpoints trained against MapSAM2's vendored sam2_train.
+            VIDEO_ONLY = {
+                "sam.no_obj_embed_spatial",
+                "sam.obj_ptr_tpos_proj.weight",
+                "sam.obj_ptr_tpos_proj.bias",
+            }
+            if set(missing) - VIDEO_ONLY or unexpected:
+                raise RuntimeError(
+                    f"checkpoint does not match the model: "
+                    f"missing={sorted(set(missing) - VIDEO_ONLY)[:5]} "
+                    f"unexpected={sorted(unexpected)[:5]}"
+                )
         model.eval()
         predictor = SAM2ImagePredictor(model.sam)
     else:
@@ -518,9 +557,9 @@ def write_to_supabase(
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="MapSAM2 full-map inference")
-    p.add_argument("--map-id",      required=True, help="maps.id UUID")
+    p.add_argument("--map-id", help="maps.id UUID")
     p.add_argument("--iiif-base",   help="IIIF image base URL (fetched from Supabase if omitted)")
-    p.add_argument("--checkpoint",  required=True, help="Path to SAM2 or MapSAM2 .pt/.pth checkpoint")
+    p.add_argument("--checkpoint", help="Path to SAM2 or MapSAM2 .pt/.pth checkpoint")
     p.add_argument("--encoder",     default="vit_s",
                    choices=["vit_t", "vit_s", "vit_b", "vit_l"],
                    help="SAM2 encoder variant (must match checkpoint)")
@@ -544,7 +583,42 @@ def parse_args() -> argparse.Namespace:
                    help="Mask out OCR text bboxes before SAM inference (literature: prevents text→edge confusion)")
     p.add_argument("--watershed",    action="store_true",
                    help="Apply Meyer Watershed post-processing for topology-guaranteed closed shapes")
+    p.add_argument("--self-check",   action="store_true",
+                   help="Build the model on --device and run one frame of noise through it; "
+                        "no weights, no network. Use this to qualify a new machine.")
     return p.parse_args()
+
+
+def self_check(device: str, encoder: str, mapsam2_dir: str | None) -> None:
+    """Qualify a machine without a checkpoint or a map.
+
+    Everything that has actually broken on this path is a wiring problem visible
+    with random pixels: the two hydra config modules colliding on import, and the
+    LoRA layers sitting on a different device from the model they wrap. A real run
+    costs IIIF fetches and a 90 MB checkpoint before it reaches either.
+    """
+    import numpy as _np
+    import torch as _torch
+
+    print(f"torch {_torch.__version__}  device={device}")
+    if device == "mps":
+        print(f"  mps available: {_torch.backends.mps.is_available()}")
+
+    t0 = time.time()
+    predictor = load_model_predictor(
+        checkpoint=None, encoder=encoder, device=device,
+        lora=bool(mapsam2_dir), mapsam2_dir=mapsam2_dir,
+    )
+    print(f"  model built in {time.time() - t0:.1f}s")
+
+    frame = (_np.random.rand(RENDER_SIZE, RENDER_SIZE, 3) * 255).astype(_np.uint8)
+    t0 = time.time()
+    predictor.set_image(frame)
+    masks, scores, _ = predictor.predict(
+        box=_np.array([[300, 300, 600, 600]]), multimask_output=False
+    )
+    print(f"  forward pass in {time.time() - t0:.1f}s -> mask {masks.shape}, score {float(scores[0]):.3f}")
+    print("self-check OK")
 
 
 def resolve_iiif_base(map_id: str) -> str:
@@ -567,7 +641,15 @@ def resolve_iiif_base(map_id: str) -> str:
 def main() -> None:
     args = parse_args()
 
+    if args.self_check:
+        self_check(args.device, args.encoder, args.mapsam2_dir if args.lora else None)
+        return
+
     # ── validate args ──────────────────────────────────────────────────────────
+    # Required for a real run, but not for --self-check, which returns above.
+    for req in ("map_id", "checkpoint"):
+        if not getattr(args, req):
+            raise SystemExit(f"--{req.replace('_', '-')} is required (or use --self-check)")
     if not os.path.exists(args.checkpoint):
         raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
     if args.overlap >= args.tile_size:

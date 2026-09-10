@@ -11,8 +11,17 @@ export type SegConfig = {
   useWatershed: boolean;
 };
 
+/**
+ * Colab defaults, because that is where a GPU is. `checkpointPath` is the LoRA
+ * checkpoint the April 2026 run actually wrote — `epoch_010.pth` under the
+ * cached dataset, in upstream MapSAM2's `logs/<exp>/Model/epoch_NN.pth` naming.
+ * It replaces `MyDrive/mapsam2_checkpoint.pth`, a path no file has ever been at,
+ * so the panel printed a command that could only fail on a missing file. A
+ * machine with the checkpoint somewhere else sets MAPSAM2_CHECKPOINT and lets
+ * the worker's own default fall away.
+ */
 export const DEFAULT_SEG_CONFIG: SegConfig = {
-  checkpointPath: '/content/drive/MyDrive/mapsam2_checkpoint.pth',
+  checkpointPath: '/content/drive/MyDrive/vma_mapsam2_cache/models/epoch_010.pth',
   mapsam2Dir: '/content/MapSAM2',
   encoder: 'vit_s',
   useTextMask: true,

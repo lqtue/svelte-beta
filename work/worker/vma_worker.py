@@ -361,8 +361,12 @@ def seg_argv(job: dict, python_bin: str) -> list[str]:
     """
     p = job["payload"]
     mapsam2_dir = p.get("mapsam2_dir") or os.environ.get("MAPSAM2_DIR", "/content/MapSAM2")
+    # The fallback is the checkpoint the April 2026 training run actually wrote,
+    # kept in step with DEFAULT_SEG_CONFIG in segCommand.ts. It used to be
+    # MyDrive/mapsam2_checkpoint.pth, which does not exist in the Drive it names.
     checkpoint = p.get("checkpoint") or os.environ.get(
-        "MAPSAM2_CHECKPOINT", "/content/drive/MyDrive/mapsam2_checkpoint.pth"
+        "MAPSAM2_CHECKPOINT",
+        "/content/drive/MyDrive/vma_mapsam2_cache/models/epoch_010.pth",
     )
     ocr_run_id = p.get("ocr_run_id")
 
