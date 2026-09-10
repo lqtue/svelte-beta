@@ -223,9 +223,22 @@ The archive is worth more with more sheets in it and more names read off them.
 
 ## Licence
 
-Not yet chosen, which by default means all rights reserved. If you want to reuse
-any of this, ask: **vietnamma.project@gmail.com**.
+**Code: [MIT](LICENSE). The archive's own data: [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/).**
 
-The maps themselves are a separate question — each sheet carries its own
-holding institution and rights, recorded per row and shown on its catalogue
-page.
+The code is permissive because the people who should be reusing it — libraries,
+universities, other archive projects — all have legal review, and a copyleft
+licence is the one that review rejects. The data carries an attribution
+requirement because it is the part that took two years: the georeferences, the
+names read off the sheets and checked by hand, the traced footprints, the
+gazetteer. Use it, commercially or not, modified or not; credit the Vietnam Map
+Archive Project and link back.
+
+**The scanned sheets are not ours to license.** Each one belongs to the
+institution holding the paper, under that institution's terms, recorded per
+sheet and shown on its catalogue page. Check there before reusing an image.
+
+The basemap is built from OpenStreetMap data (© OpenStreetMap contributors,
+ODbL); the satellite imagery is Esri's. [`LICENSE`](LICENSE) has all of it in
+full.
+
+Questions: **vietnamma.project@gmail.com**
