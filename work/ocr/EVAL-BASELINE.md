@@ -737,3 +737,73 @@ reported separately from `name_recall`.
 
 Both are being fixed separately. Until the first one is, **do not compare two
 runs on one sheet and attribute a one- or two-label difference to anything.**
+
+## 2026-09-10, later — the 1968 passes: the denominator was never partial
+
+Three steps, USD 2.2544 billed, nothing written to the database. The harness
+had to be rebuilt offline first, because `eval.py index-agreement` takes its
+ground truth from `ocr_extractions` and this run was forbidden to write:
+composing GT rows exactly as `cmd_street_index --db` does and calling the same
+`score_index_agreement` against the same `maps.triage.grid` reproduces the
+recorded figures bit for bit (369 entries, 367 names, 151 matched, 0.3270,
+0.9603, and every per-row value F 0.19 / G 0.22 / H 0.46 / I 0.42 / J 0.20 /
+K 0.38 / L 0.29). Everything below is therefore comparable to what is above.
+
+### The claim above about two `name_list` blocks is wrong — retracted
+
+The unread block `[4218, 9871, 3271, 3506]` **is not a second street
+directory.** Rendered, it is headed *GUIDE TO NUMBERED FEATURES · BẢNG CHỈ DẪN
+CÁC KIẾN-TRÚC*: 244 numbered institutions — hospitals, ministries, markets,
+schools, embassies — indexed by `Chỉ Số` and `Ô Vuông`. The street directory is
+the other block and it was read **whole**: its four printed column groups span
+x ≈ 7639–10246 against windows covering 7571–10449, its last row sits at
+y ≈ 12939 inside the read band, and the one empty band (region 3, y 12390) is
+correct rather than a failure, because group 4 is a short column ending at
+y ≈ 11919 (`Yersin`, `Yết Kiêu`, `Hẻm Cây Điệp`, `Tống Duy Tân`). An ink
+projection counts ≈356 printed rows against 369 entries read.
+
+**So `name_recall` 0.3270 stands, and 0.327 does not flatter anything.** The
+denominator was already complete. Folding block 2 in would make the figure
+*worse* founded, not more honest: predictions are filtered to
+`category in (street, hydrology)`, so 244 institution names would enter the
+denominator unmatchable and print ≈0.196 while nothing about the read had
+changed. Block 2 needs its own institution gate, not a place in this one.
+
+### What ground per call is worth, measured
+
+`--tile-size 800` against the 1120 baseline, scored over the same rectangle
+`281,311,10015,7400` and the same 189-name restricted denominator:
+
+| | tile 1120 (1427 m/call) | tile 800 (1019 m/call) |
+|---|---|---|
+| `name_recall` | 0.3651 (69/189) | **0.4180 (79/189)** |
+| `agreement` ±1 | 0.9500 | 0.9333 |
+| distinct name cores | 127 | **171** |
+
++10 printed names and +44 name cores (+35%) for USD 1.8364, about **USD 0.09
+per additional name**. Ground per call is confirmed as the lever on this sheet.
+The per-call rate is not flat — USD 0.0166 over the sparse north against USD
+0.0382 marginal in the city core — which is why the pass was stopped on a clean
+row boundary at 12 of 16 rows rather than breaching the ceiling; its 204 tile
+JSONs were assembled through the pipeline's own `_apply_conf_floors` +
+`dedup_extractions` tail.
+
+### The south band: the geometry claim holds, the value claim does not
+
+Run as an increment (`--crop 281,9844,3759,2416`) so nothing already paid for
+was re-read. `main_map` does stop early, exactly as measured above. It bought
+**+2 printed names** — 0.3270 to 0.3324 — for USD 0.4180, or **USD 0.21 a
+name, the worst value on this sheet**, because only 24 directory names have
+their FROM cell in rows L–O. It did add 20 hamlet and canal names the directory
+never lists: real content this gate cannot see, which is the same blind spot
+the 1882 re-gate ran into.
+
+**Best current read of the sheet**: the union of all three runs scores
+`name_recall` **0.3978 (146/367)**, `agreement` ±1 0.9377, distinct name cores
+210 → 292. Recall stayed flat across rows, so the finer tiles lifted the whole
+sheet rather than filling a hole.
+
+**Next, in order:** finish the 800 pass (24 calls, ~USD 0.9 — its 204 paid
+tiles are detected as done), then consider `--grid-offset 400` and a vote
+merge. Do **not** re-run the south band, do **not** fold block 2 into this
+gate, and do not upsample the render.
