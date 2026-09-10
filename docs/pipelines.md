@@ -135,6 +135,7 @@ Default it on only if recall improves and precision does not fall — a pre-pass
 | `join_labels.py` | Level-aware label ↔ footprint join (writes `footprint_id`). `--self-check` |
 | `dictionary.py` | Offline gazetteer of every name read so far → `outputs/dictionary.{json,md}`. `--self-check` |
 | `eval.py`, `eval_metrics.py` | The quality gate: score an OCR or seg run against reviewed ground truth. Baseline in `EVAL-BASELINE.md` |
+| `modern_prior.py` | 2023 geodata (HCMC buildings, OSM) warped into a sheet's own source-pixel grid: blocks, road centrelines + junctions, built fraction, survivors. Saigon-only sources; **not** a positive seed source as-is — read its docstring on the epoch gap. `--self-check` |
 | `backfill_full800.py` | One-off: store the `full/800,` derivative in R2 for every published map. `--self-check` |
 | `fix_info_scalefactors.py` | One-off: drop scale factors a stored `info.json` advertises but the pyramid does not hold. `--self-check` |
 
