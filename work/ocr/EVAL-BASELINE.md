@@ -1280,6 +1280,15 @@ the typical large plot slightly worse, because a plot that one dissolved block
 covered is now cut by an alley the 1882 surveyor did not draw. If a within-block
 merge ever lands, this is the number it should move.
 
+That is worth stating plainly, because it inverts where this thread started. The
+open item after the buffer prior was a within-block **split** — a dissolved
+modern block legitimately holds several 1882 buildings, `building` scored 0.160
+at cover 0.98, and the ink was found while the subdivision was not. On the road
+complement the failure has changed ends: the blocks are already finer than the
+plots, and the missing operation is a **merge** across alleys that postdate the
+sheet. Both may be needed at different scales, but nothing should be built on
+"split" as the standing answer without re-reading these two rows.
+
 **This particular comparison is the one clean row on this page.** Every other
 result here is measured against the 46 traces the LoRA trained on, which
 flatters any SAM2 row and makes "a better prior" unfalsifiable. Neither run
@@ -1289,6 +1298,14 @@ plots, and the corpus-level gate is still ~20 held-out traces on a second sheet.
 
 Counts are not comparable enough to worry about: 1,184 against 666 is 1.8x,
 under the 3x at which `seg_eval` warns about `cover`.
+
+**Both rows are scored against all 24 plots on the whole sheet, and must not be
+compared against a windowed run.** `--in-frame` only bites when a run records a
+crop per polygon; raw prior geometry records none, so it silently scores against
+everything. That is the right denominator for a whole-sheet prior and the wrong
+one for anything that looked at a window — the Gemini runs read 0.098 against
+all 24 and 0.254 against the 12 they covered. Re-score before putting a windowed
+run in this table.
 
 `--blocks` and `--blocks-from-roads` both write `blocks.geojson` so consumers
 (`to_sam2_seeds.py`, `--prior`) read one name; passing both is refused rather

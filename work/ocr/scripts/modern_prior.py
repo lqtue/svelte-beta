@@ -24,6 +24,13 @@ than footprints:
 
   --blocks           buildings buffer-dissolved into blocks. The street network
                      falls out as the gaps, and blocks are what persist.
+  --blocks-from-roads the same blocks built the other way up — the complement of
+                     the TASCO road-surface polygons, so a block edge is the
+                     kerb line the survey drew rather than a buffer distance
+                     somebody chose. On the 1882 sheet: 1,184 blocks against the
+                     8 m buffer's 666, land_plot IoU 0.262 vs 0.197 and cover
+                     0.87 vs 0.60. Both write blocks.geojson; pass --out to keep
+                     two. Prefer this one — see EVAL-BASELINE.
   --roads            OSM through-street centrelines plus their junctions.
                      Junctions are the alignment primitive; footways are
                      dropped (885 of them in the 1882 extent, 5 named).
@@ -67,6 +74,31 @@ from scale import MIN_GCP_CONDITION, gcps_from_annotation, metres_per_pixel
 # from either and need their own extracts before this is worth running on them.
 BUILDINGS_GPKG = Path("/Users/airm1/Desktop/tasco/hcmc/hcmc_buildings_3d.gpkg")
 OSM_GPKG = Path("/Users/airm1/Desktop/tasco/hcmc/saigon_osm.gpkg")
+
+# The TASCO topographic vector product, same ground as the buildings file
+# (106.408,10.376 → 107.034,11.135). It carries what neither of the two above
+# does: the road *surface* as polygons, 74,566 of them, plus river and lake
+# polygons. That makes a block derivable as the negative space of the street
+# network rather than as buildings grown until they touch, which is what
+# `blocks()` does and what BLOCK_BUFFER_M is apologising for.
+TASCO_GPKG = Path("/Users/airm1/Desktop/tasco/hcmc/vector_out/hcmc_vector.gpkg")
+
+# Road surface and water, the two things a block is not. `region_duongbos` is
+# the carriageway including the hẻm fabric; `region_duongbokhacs` is the other
+# paved ground beside it. Bridges (`region_caugiaothongs`) and tunnels
+# (`region_hamgiaothongs`) are deliberately out: a bridge deck over a river
+# would carve the water into two blocks that no sheet has ever drawn.
+ROAD_SURFACE_LAYERS = ("region_duongbos", "region_duongbokhacs")
+WATER_SURFACE_LAYERS = ("region_river", "region_lake")
+
+# What survives the complement as a block. Unlike BLOCK_BUFFER_M these two do
+# NOT move any block edge — every edge is fixed by the road network before the
+# filter runs. They only decide which of the resulting parts is a city block:
+# below the floor are noding slivers where two carriageway polygons fail to
+# quite meet, above the ceiling is paddy, marsh and the open ground between
+# villages, which is one polygon the size of a district and useless as a prompt.
+BLOCK_MIN_AREA_M2 = 500.0
+BLOCK_MAX_AREA_M2 = 200_000.0
 
 # Which OSM highway values count as a street. `service` is the hẻm fabric —
 # 1,344 ways in the 1882 extent and genuinely named 583 times — so it is in,
@@ -361,6 +393,64 @@ def blocks(building_px, metres_per_px: float, buffer_m: float = BLOCK_BUFFER_M):
     return shapely.buffer(merged, -grow, join_style="mitre")
 
 
+def load_road_surface(bbox, path: Path = TASCO_GPKG):
+    """Road-surface and water polygons in the box, as one geometry array each.
+
+    Returned separately rather than pre-unioned because the caller reports the
+    two counts apart — a sheet that comes back with no water read a box the
+    river does not enter, which is worth seeing, and a sheet with no roads at
+    all means the extent check above it fired and nobody looked.
+    """
+    roads = [g for layer in ROAD_SURFACE_LAYERS
+             for g in _read(path, layer, ["madoituong"], bbox)[0]]
+    water = [g for layer in WATER_SURFACE_LAYERS
+             for g in _read(path, layer, ["madoituong"], bbox)[0]]
+    return np.array(roads, object), np.array(water, object)
+
+
+def blocks_from_roads(
+    road_px,
+    water_px,
+    page,
+    metres_per_px: float,
+    min_area_m2: float = BLOCK_MIN_AREA_M2,
+    max_area_m2: float = BLOCK_MAX_AREA_M2,
+):
+    """City blocks as the negative space of the street network, in pixel space.
+
+    Returns (blocks, {reason: count}) so the caller can print what it dropped.
+    A block here has no buffer in it: its edges are the kerb lines the survey
+    drew, so the 4 m-versus-8 m question that makes `blocks()` unpinnable does
+    not arise. What does arise is that the complement of a road network is
+    everything that is not road — including the river, which is why water goes
+    into the same union, and including open country, which is what max_area_m2
+    is for.
+
+    ponytail: `difference` against the whole page in one call. Fine at one
+    sheet (1.3 s over a 3.3 km window, 1,783 road polygons); if a sheet ever
+    covers the full 74k it may want a grid. Measure before splitting it.
+    """
+    m2_per_px2 = metres_per_px**2
+    obstacles = [g for g in list(road_px) + list(water_px) if g is not None and not g.is_empty]
+    if not obstacles:
+        return [], {"no road surface in box": 1}
+
+    parts = shapely.get_parts(shapely.difference(page, shapely.union_all(obstacles)))
+    dropped: Counter[str] = Counter()
+    kept = []
+    for g in parts:
+        if g.is_empty:
+            continue
+        area_m2 = float(g.area) * m2_per_px2
+        if area_m2 < min_area_m2:
+            dropped["sliver"] += 1
+        elif area_m2 > max_area_m2:
+            dropped["open ground"] += 1
+        else:
+            kept.append(g)
+    return kept, dict(dropped)
+
+
 def junctions(street_px, tolerance_px: float = 1.0):
     """Points where three or more street ends meet, in pixel space.
 
@@ -585,6 +675,11 @@ def run(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
 
+    if args.blocks and args.blocks_from_roads:
+        print("--blocks and --blocks-from-roads both write blocks.geojson; "
+              "pick one, or give the second run its own --out", file=sys.stderr)
+        return 1
+
     out = Path(args.out) if args.out else Path(__file__).resolve().parents[1] / "outputs" / "prior" / args.map_id
 
     if args.blocks or args.built_fraction or args.survivors:
@@ -646,6 +741,24 @@ def run(args: argparse.Namespace) -> int:
             print(f"survivors  {len(feats)} of {len(geoms)} "
                   f"(area ≥ {SURVIVOR_MIN_AREA_M2:.0f} m², height ≤ {SURVIVOR_MAX_HEIGHT_M:.0f} m)")
             _write(out / "survivors.geojson", feats)
+
+    if args.blocks_from_roads:
+        lo, hi = (float(v) for v in args.block_area_m2.split(","))
+        roads, water = load_road_surface(bbox)
+        road_px, water_px = warp(roads, fit), warp(water, fit)
+        page = shapely.box(0, 0, width, height)
+        polys, dropped = blocks_from_roads(road_px, water_px, page, fit.metres_per_px, lo, hi)
+        print(f"\nroad surface {len(road_px)} polygons, water {len(water_px)}")
+        for reason, n in sorted(dropped.items()):
+            print(f"blocks     {n} dropped as {reason}")
+        print(f"blocks     {len(polys)} between {lo:.0f} and {hi:.0f} m\u00b2")
+        _write(
+            out / "blocks.geojson",
+            [_feature(g, {"area_px": round(float(g.area), 1),
+                          "area_m2": round(float(g.area) * fit.metres_per_px**2, 1)})
+             for g in polys],
+            {"source": "road-surface complement", "block_area_m2": [lo, hi]},
+        )
 
     if args.roads:
         geoms, cols = load_streets(bbox)
@@ -813,6 +926,38 @@ def _self_check() -> None:
     assert abs(grid.sum() - 0.1) < 1e-9, grid
     assert built_fraction(np.empty((0, 2)), [], 20, 20, 2, 1.0).sum() == 0.0
 
+    # Blocks as the road complement. A 100x100 page, one 4 px cross of road
+    # surface: four quadrants, each 48x48 px. At 1 m/px that is 2,304 m² a
+    # block, so the default 500 m² floor keeps all four.
+    page = shapely.box(0, 0, 100, 100)
+    cross = np.array([shapely.box(48, 0, 52, 100), shapely.box(0, 48, 100, 52)], object)
+    quads, dropped = blocks_from_roads(cross, np.array([], object), page, 1.0)
+    assert len(quads) == 4 and not dropped, (len(quads), dropped)
+    assert all(abs(g.area - 48 * 48) < 1e-6 for g in quads)
+
+    # The floor and the ceiling select, and never reshape: the same four parts
+    # come back whole or not at all.
+    _, only_slivers = blocks_from_roads(cross, np.array([], object), page, 1.0, min_area_m2=1e6)
+    assert only_slivers == {"sliver": 4}, only_slivers
+    _, only_open = blocks_from_roads(cross, np.array([], object), page, 1.0, max_area_m2=10.0)
+    assert only_open == {"open ground": 4}, only_open
+
+    # Water is an obstacle like a road: flooding one quadrant leaves three.
+    with_water = blocks_from_roads(
+        cross, np.array([shapely.box(0, 0, 48, 48)], object), page, 1.0
+    )[0]
+    assert len(with_water) == 3, len(with_water)
+
+    # metres_per_px scales the filter, not the geometry. At 0.1 m/px each
+    # quadrant is 23 m², under the floor, and every one of them is a sliver.
+    assert blocks_from_roads(cross, np.array([], object), page, 0.1)[1] == {"sliver": 4}
+
+    # No road surface in the box is not "one block the size of the page".
+    assert blocks_from_roads(np.array([], object), np.array([], object), page, 1.0) == (
+        [],
+        {"no road surface in box": 1},
+    )
+
     print("modern_prior self-check OK")
 
 
@@ -820,6 +965,11 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--map-id", help="maps.id UUID")
     p.add_argument("--blocks", action="store_true", help="buffer-dissolved building blocks")
+    p.add_argument("--blocks-from-roads", action="store_true",
+                   help="blocks as the complement of the road surface (no buffer)")
+    p.add_argument("--block-area-m2", metavar="MIN,MAX",
+                   default=f"{BLOCK_MIN_AREA_M2:.0f},{BLOCK_MAX_AREA_M2:.0f}",
+                   help="which complement parts count as a block (selects, never reshapes)")
     p.add_argument("--roads", action="store_true", help="OSM street centrelines + junctions")
     p.add_argument("--survivors", action="store_true", help="large, low-rise buildings only")
     p.add_argument("--built-fraction", type=int, metavar="N", help="N x N built-fraction grid")
@@ -837,8 +987,10 @@ def main() -> int:
         return sweep()
     if not args.map_id:
         p.error("--map-id is required unless --self-check")
-    if not (args.blocks or args.roads or args.survivors or args.built_fraction or args.gcps):
-        p.error("nothing to do — pass at least one of --blocks --roads --survivors --built-fraction")
+    if not (args.blocks or args.blocks_from_roads or args.roads or args.survivors
+            or args.built_fraction or args.gcps):
+        p.error("nothing to do — pass at least one of --blocks --blocks-from-roads "
+                "--roads --survivors --built-fraction")
     return run(args)
 
 

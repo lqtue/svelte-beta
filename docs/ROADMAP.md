@@ -15,7 +15,7 @@ The actionable list. Everything below it is the reference plan and the record; r
 
 Label search, the `/place/` hub pages, the gazetteer and `/api/press`'s spelling variants are each only as good as the share of the corpus with extractions. That share is **6 maps in 39** (1,544 extractions, of which 1,064 are the 1882 cadastral and 398 the 1968 sheet; the four District 4 crops contributed 5–35 each). Every Track E surface looks empty for the same single reason, and draining this queue is the one action that fixes all of them at once.
 
-Measured budget, from the 49 calls already logged in `work/ocr/outputs/*/runs/*/calls.jsonl` (5,156 input / 1,810 output tokens per call, 30–60 calls per map): **$31–63 for all 38 maps on `gemini-3.8-flash`** (this said $12–24 until 2026-09-10, when the per-call output was recomputed on the billed basis — `total_tokens − input_tokens`, thinking included, 3.5× the logged `output_tokens` field; the measured 1968 pass was 48 calls at $1.236), $1–3 on `gemini-2.5-flash-lite`, half either way through the Batch API. Cost is not the constraint. Unattended quality is, which is what 3a–3c are for.
+Measured budget, from the 49 calls already logged in `work/ocr/outputs/*/runs/*/calls.jsonl` (5,156 input / 1,810 output tokens per call, 30–60 calls per map): **$31–63 for all 38 maps on `gemini-3.8-flash`** (this said $12–24 until 2026-09-10, when the per-call output was recomputed on the billed basis — `total_tokens − input_tokens`, thinking included, 3.5× the logged `output_tokens` field; the measured 1968 pass was 48 calls at $1.236), $1–3 on `gemini-2.5-flash-lite`, half either way through the Batch API. Cost is not the constraint. Unattended quality is, which is what 3a–3c are for. **That same run is also the gate on the project's first paper** — `docs/journals/260912-postgrad-route.md` (dataset card + outline, 2026-09-12): the toponym-georeferencing measurement needs toponyms on all 39 sheets, not 6.
 
 - [x] 3a. **Model pinned — done 2026-09-04.** `gemini_client.DEFAULT_MODEL` is `gemini-3.8-flash`; `ocr_argv()` passes `--model` when the payload names one; `POST /api/admin/maps/[id]/ocr` and `enqueue_ocr_all.mjs --model NAME` both carry it. Verified against the local stack: a payload with `"model": "gemini-2.5-flash-lite"` produces `batch … --model gemini-2.5-flash-lite`, covered by a write smoke.
 - [x] 3t. **Triage is savable — done 2026-09-04.** Migration 069 adds `maps.triage`, and `/scan?mode=triage` gets a **Save triage** button beside Run OCR. localStorage stays the working draft; the saved copy is the deliberate assertion "this sheet is triaged", and it is the only one a server-side script can see. `enqueue_ocr_all.mjs` now queues **only** triaged sheets by default, spreading the saved neatline, tile size, overlap and per-tile grid into the payload unchanged — so a triaged sheet runs with `--crop` and no scout pass. `--untriaged` restores the old behaviour, `--dry` prints the split. Verified end to end on the local stack; write smoke covers the round-trip and the payload. It also turned up a pre-existing defect, now fixed: a PATCH whose every field the allow-list dropped answered 500, and now answers 400.
@@ -195,6 +195,27 @@ it cost us this week, cheapest fix first.
   anything. Route: read the graticule on three sheets, derive the grid, cross-check
   each against its printed neighbours, generate GCPs, gate on `modern_prior.py
   --sweep`. It would take the corpus from 40 usable sheets to **102**.
+
+- **Named institutions as control points (2026-09-11, a dozen-scale lead, not a
+  pipeline).** Asking Gemini for polygons on the 1882 sheet returned 28 of 100 shapes
+  carrying the sheet's own lettering — GRAND SEMINAIRE DES MISSIONS, COLLEGE D'ADRAN,
+  HÔPITAL MARITIME, POUDRIÈRE, CASERNES — a name bound to a shape with no OCR pass and
+  no join. An institution still standing on its 1863 plot is a far better control point
+  than a road junction, because junctions are interchangeable and a seminary is not,
+  and this is the only source of one anybody has found.
+
+  Checked against the modern POI layer in `hcmc_vector.gpkg` (21,552 named buildings):
+  GRAND SEMINAIRE → *Đại chủng viện Thánh Giuse* (same site, 1863), Notre-Dame → *nhà
+  thờ Đức Bà*, Jardin Botanique → *Thảo Cầm Viên Sài Gòn*. Adran, Ba Son and Dinh Độc
+  Lập matched nothing under those spellings.
+
+  **Do not oversell it.** Three confirmed survivors from one sheet's 28 names is a
+  dozen-scale signal city-wide, so it will never georeference a sheet alone — it is a
+  seed and a check on a fit somebody else made, and it is worth writing down mainly
+  because nothing else in the corpus produces a named point at all. Route, if taken:
+  run the Gemini seg pass on the georeferenced sheets, string-match its names against
+  `label_congtrinhs`, and hand the matches to `--sweep` as candidate points rather than
+  trusting them.
 
 - **Georeference repairs still open** (from the `modern_prior.py --sweep` audit,
   2026-09-11): five one-point GCP fixes; the 1880 *Plan annamite d'Hanoi* (802 px —
