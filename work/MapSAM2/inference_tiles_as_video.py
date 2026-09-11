@@ -48,9 +48,9 @@ if str(_OCR_SCRIPTS) not in sys.path:
 from iiif_tiles import fetch_crop, tile_grid, get_image_info
 from masks_to_polygons import masks_to_polygons, shift_polygons, PolygonResult
 
-# Optional: OCR seeds module (only needed when --ocr-run-id is set)
+# Optional: seeds module (only needed for prompted mode — --ocr-run-id, --prior)
 try:
-    from to_sam2_seeds import seeds_for_tile
+    from to_sam2_seeds import partition_seeds
     _HAS_SEEDS = True
 except ImportError:
     _HAS_SEEDS = False
@@ -807,10 +807,22 @@ def main() -> None:
                 print(f"Loading prior seeds from {args.prior} ...")
                 from to_sam2_seeds import load_seeds_from_prior
                 all_seeds += load_seeds_from_prior(args.prior, args.map_id)
-            for tile in tiles:
-                ocr_seeds_by_tile[tile] = seeds_for_tile(all_seeds, tile, render_size=RENDER_SIZE)
-            total_seeds = sum(len(v) for v in ocr_seeds_by_tile.values())
-            print(f"Seeds loaded: {total_seeds} across {len(tiles)} tiles")
+            # One owner per seed. Calling seeds_for_tile per tile instead gives
+            # every seed in an overlap band to both its neighbours and every
+            # corner seed to four — on the 1959 sheet that was 17,317 prompts
+            # for 13,037 seeds, a third of the GPU spent on masks the cross-tile
+            # dedup then throws away.
+            from to_sam2_seeds import partition_seeds
+            ocr_seeds_by_tile, seed_counts = partition_seeds(
+                all_seeds, tiles, render_size=RENDER_SIZE
+            )
+            loaded = len([t for t in ocr_seeds_by_tile.values() if t])
+            print(f"Seeds loaded: {seed_counts['placed']} across {loaded}/{len(tiles)} tiles")
+            if seed_counts["oversized"]:
+                print(f"  {seed_counts['oversized']} dropped: box fills its tile, "
+                      f"which prompts SAM2 with the whole crop and means nothing")
+            if seed_counts["unplaced"]:
+                print(f"  WARNING: {seed_counts['unplaced']} seeds fell outside every tile")
 
     # ── load model ────────────────────────────────────────────────────────────
     print(f"Loading model ({args.mode}, {'LoRA' if args.lora else 'base'})...")

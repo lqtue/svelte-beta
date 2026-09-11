@@ -83,10 +83,25 @@ STREET_CLASSES = (
     "service",
 )
 
-# A block is buildings grown until neighbours touch, then shrunk back. 4 m is
-# the width of the gap between two tube houses on the same block; anything
-# wider is a lane and should stay a gap.
-BLOCK_BUFFER_M = 4.0
+# A block is buildings grown until neighbours touch, then shrunk back. The gap
+# is the widest thing that should still count as *inside* a block rather than a
+# street between two.
+#
+# 4 m was the first guess — the gap between two tube houses on one block — and
+# it under-merges badly: on the 1959 sheet it returns 19,783 "blocks" of which
+# 3,225 are a single house. 8 m spans the narrow hẻm as well and returns 8,609,
+# halving both the total and the singletons, at the cost of 22 blocks too large
+# to fit a 1024 px tile (1 at 4 m). Since each block becomes one SAM2 box prompt,
+# that halving is GPU money.
+#
+# Beyond 8 m the merge starts eating streets: 12 m gives 59 oversized and 30 m
+# gives 1,453 blocks with a median width of 27 m, which is no longer a block —
+# it is whatever survived being swallowed.
+#
+# ponytail: one constant for the whole corpus. It is a per-sheet quantity really
+# (alley width varies by district and by era), so pass `buffer_m` explicitly if a
+# sheet comes back visibly over- or under-merged.
+BLOCK_BUFFER_M = 8.0
 
 # The survivor filter. A colonial-era structure that kept its plot is large and
 # low; the tube-house fabric that replaced everything else averages 103 m².
@@ -580,6 +595,18 @@ def run(args: argparse.Namespace) -> int:
         if args.blocks:
             merged = blocks(px, fit.metres_per_px)
             polys = [g for g in shapely.get_parts(merged) if not g.is_empty]
+            # The clip box is the bounding box of a *rotated* sheet, so its
+            # corners take in ground the scan does not cover — on the 1882
+            # cadastral, whose x-axis runs north, that is 59 blocks landing off
+            # the image entirely. Drop them here rather than leave every
+            # consumer to discover them: a seed outside every tile is a warning
+            # worth reading, and this would make it fire on every run.
+            page = shapely.box(0, 0, width, height)
+            inside = shapely.intersects(shapely.centroid(np.array(polys)), page)
+            dropped = int((~inside).sum())
+            polys = [g for g, keep in zip(polys, inside) if keep]
+            if dropped:
+                print(f"blocks     {dropped} outside the scan itself, dropped")
             print(f"blocks     {len(polys)} from {len(geoms)} buildings")
             _write(
                 out / "blocks.geojson",
@@ -747,15 +774,20 @@ def _self_check() -> None:
     assert without < 1e-6 < gain, (without, gain)
     assert all(r[2] > bad.rms_px / 2 for r in report[1:]), report
 
-    # Blocks: two squares four metres apart merge; twenty metres apart do not.
+    # Blocks: at a 4 m gap two squares 3 m apart merge and two 30 m apart do not.
+    # The buffer is named rather than defaulted, so this keeps testing the
+    # distances it describes even when BLOCK_BUFFER_M moves.
     near = shapely.box(0, 0, 10, 10), shapely.box(13, 0, 23, 10)
     far = shapely.box(0, 0, 10, 10), shapely.box(40, 0, 50, 10)
-    assert shapely.get_num_geometries(blocks(np.array(near), 1.0)) == 1
-    assert shapely.get_num_geometries(blocks(np.array(far), 1.0)) == 2
+    assert shapely.get_num_geometries(blocks(np.array(near), 1.0, buffer_m=4)) == 1
+    assert shapely.get_num_geometries(blocks(np.array(far), 1.0, buffer_m=4)) == 2
+
+    # The gap is what the buffer spans, so widening it merges the far pair too.
+    assert shapely.get_num_geometries(blocks(np.array(far), 1.0, buffer_m=40)) == 1
 
     # ...and the shrink puts the edge back on the building line, not out in the
     # street: one square in, one square out, same size.
-    solo = blocks(np.array([shapely.box(0, 0, 10, 10)]), 1.0)
+    solo = blocks(np.array([shapely.box(0, 0, 10, 10)]), 1.0, buffer_m=4)
     assert abs(solo.area - 100.0) < 1e-6, solo.area
 
     # Junctions: a plus sign built as four ways sharing the centre node.
