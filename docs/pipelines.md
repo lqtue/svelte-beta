@@ -647,7 +647,8 @@ warped into the sheet's own pixel grid — and those arrive nameless, so nothing
 downstream stamps a name on them. They **union**, they do not replace: a block a
 label already sits on is worth prompting from two boxes rather than one. Measured
 on the 1882 cadastral: run `post0910` yields **92** area seeds after clipping to
-`main_map`, the block prior **965** from 52,431 modern buildings.
+`main_map`, the block prior **965** from 52,431 modern buildings — that count is
+at `BLOCK_BUFFER_M = 4`, and it moves with that value, so read the ratio rather than the number.
 
 `load_seeds_from_prior` had existed since the module was written and had no
 caller until 2026-09-10; `--prior` is that caller. The **worker does not forward
