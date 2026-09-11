@@ -1017,57 +1017,58 @@ its 306 tiles, and 13 of the missing ones were real. A re-run on the fixed grid
 would read them; it is not queued, because the tiles it would add are the
 sheet's right-hand edge and the marginal apparatus rather than the street body.
 
-## 2026-09-11 — the first segmentation numbers, and why the pooled one is not a result
+## 2026-09-11 — the first segmentation numbers, and the pooling that hid them
 
-Recorded here because the session that measured them (`svelte-beta-8f`) was closed
-and its run outputs lived only in a scratchpad. **Not verified by anyone else, not
-reproduced, and nothing was written to Supabase.** Read this as a lab notebook page,
-not as a gate.
+Working record, nine run JSONs and the scoring script:
+`work/ocr/outputs/0e02b9d9-9d40-4cca-8e41-8c8373d54d3b/seg-review/blockprior-20260910/`
+(gitignored). **Unreproduced, and nothing was written to Supabase.** The map is the
+1882 Plan Cadastral, 12102x8982, 154 tiles of 1024, `epoch_010.pth`
+(SAM2.1 hiera_small + LoRA r=4) on MPS unless a row says otherwise.
 
-Ground truth is the only segmentation ground truth that exists: the **46 hand-traced
-polygons** on the 1882 cadastral (`0e02b9d9`), all `status=submitted`, all traced by
-the user. Two things make every number below softer than it looks. The LoRA
-checkpoint was **trained on these same polygons**, so any LoRA figure is flattered.
-And the 46 are not one kind of thing —
+Ground truth is the only segmentation ground truth that exists — the 46
+`footprint_submissions` rows on that sheet, the user's own traces. **They are also
+what the LoRA was fine-tuned on, so every LoRA figure here is a train-set score,
+flattered by an unknown amount.** A held-out trace set is the fix.
 
-    land_plot 24 · building 17 · waterway 2 · road 3
+    land_plot 24 · building 17 · road 3 · waterway 2
 
-— so a pooled mean mixes two granularities (a dissolved modern block corresponds to
-a *land_plot*; scored against a single building its IoU is capped by construction)
-and includes 5 linear features a box prompt cannot match at all. **The
-land_plot-only re-cut is the figure that would mean something, and it was never
-computed.**
+**The 5 linear rows do not belong in any mean.** A block box cannot score against a
+road centreline — measured, 0.042 — so pooling all 46 is what made the first reading
+say 0.194 where the areal figure is 0.212 and land_plot alone is **0.249**. Split by
+kind, best IoU per GT polygon:
 
-| prompt source | recall @IoU≥0.5 | mean best IoU | median | note |
-|---|---|---|---|---|
-| OCR label boxes | 3/46 | 0.097 | **0.00** | see below |
-| ditto, `--text-mask` | — | 0.062 | — | measured, worse |
-| `modern_prior --blocks` | 5/46 | 0.194 | 0.108 | union covers 91% of GT area, 41.6 s on MPS |
-| blocks with no SAM2 at all | — | 0.145 | — | so the segmenter does add something |
-| same blocks, stock SAM2.1 large | — | 0.157 | — | 120.6 s |
-| same blocks, stock SAM2.1 small | — | 0.137 | — | |
+| prompts | land_plot (24) | building (17) | areal (41) |
+|---|---|---|---|
+| SAM2 LoRA-s on 4 m blocks | **0.249** | 0.160 | 0.212 |
+| SAM2 stock-l on same | 0.198 | 0.132 | 0.170 |
+| those block boxes used raw | 0.161 | 0.093 | 0.133 |
+| raw blocks on disk at 8 m | 0.197 | 0.100 | 0.157 |
 
-**A label box prompts the lettering, not the thing it names.** 46% of returned masks
-score >0.7 IoU against their own prompt box — SAM2 is redrawing the rectangle it was
-handed. That is the median 0.00, and it is a property of the prompt, not of the
-model. There is a hard ceiling above it too: only **22 of the 46 plots contain an OCR
-label centroid**, so label prompting caps at 48% recall with a perfect segmenter.
+Label prompting, which this replaces, was only ever measured pooled over 46:
+OCR run `post0910` **0.089**, `v1b` 0.097, `--text-mask` 0.062, label *point* 0.116 —
+median 0.000 in every one of them.
 
-**A bigger backbone does not help.** LoRA-small (0.194) beats stock large (0.157) on
-identical prompts at a third of the time. Keep the LoRA.
+1. **The prompt was the fault, not the model.** A label bbox asks what is inside a
+   rectangle drawn around lettering, and SAM2 answers by redrawing it: median IoU
+   between a mask and its own prompt box 0.64–0.68, 46% above 0.7, half the masks
+   4–5 vertices. `--text-mask` is *worse* (0.062) because filling each label box with
+   flat paper tone creates a new rectangular object exactly where the prompt is.
+2. **Coverage was the ceiling.** Only 22 of the 46 GT polygons contain an OCR label
+   centroid, so label prompting could not exceed 48% recall whatever the model.
+   Block prompts remove it: median best IoU 0.000 → 0.165 on land_plot, and the union
+   of predictions covers 90% of a typical plot.
+3. **SAM2 earns its place** — 0.249 against 0.161 for the same boxes used raw, +55%.
+   It is snapping drifted modern geometry onto 1882 ink, which is the job.
+4. **A bigger stock backbone does not help.** LoRA-small 0.249 vs stock SAM2.1 large
+   0.198 at 3.7x the runtime (120.6 s vs 41.6 s). Keep the LoRA.
+5. **`building` is capped by granularity, not by the segmenter** (0.160, `cover`
+   0.98): a dissolved modern block legitimately holds several 1882 buildings. The ink
+   is found, the subdivision is not. Next piece of work is a **within-block split**,
+   and the signal for it is the OCR centroids *inside* a found block — useless as a
+   detector at 22/46, usable as a splitter.
 
-**Where the remaining error is:** the predictions are block-shaped and the ground
-truth is plot-shaped — best-match area ratio median **3.51**. The next question is
-the within-block split, and the one signal we have for it is the OCR centroids
-*inside* an already-found block: useless as a detector at 22/46, usable as a
-splitter, because the block supplies the extent the labels cannot.
-
-Two caveats on the inputs, both discovered after the fact:
-
-- `blocks.geojson` for this sheet **changed underneath the run** — 1,228 blocks at
-  `BLOCK_BUFFER_M = 4`, 666 after the regeneration at 8 m. Which file each pass read
-  is not recorded. Re-measure before quoting a block count beside an IoU.
-- the OCR seeds came from `post0910`, which vote-merged an 1882 `--grid-offset 1200`
-  pass predating `4ee1ab61`. Any pre-`4ee1ab61` offset run may be missing tiles it
-  never reports (§*The run lost 32 of its 306 tiles*), so treat its seed set as a
-  lower bound.
+Do not pin anything to these yet, for three reasons the record states itself: the
+0.249 is against the **4 m** dissolve (1,228 blocks) while the file on disk is now
+8 m (666), and at 8 m the raw blocks score a higher median per plot (0.173) on far
+less of it (`cover` 0.60 vs 0.92); everything is scored on the LoRA's training set;
+and `partition_seeds` landed after these runs, so every `n` moves on the next one.
