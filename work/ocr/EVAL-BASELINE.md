@@ -1137,8 +1137,46 @@ wiring into the pipeline, a run needs to be repeatable or explicitly voted over
 several passes — which is what the OCR side already does, and at the same cost
 multiplier.
 
+### Then the polygons were drawn on the sheet, and the reading above changes
+
+`render_seg.py` beside the run writes four blocks with all three sources
+overlaid (`seg_*.png`, gitignored). Two facts that no metric in this section
+reported, and they are decisive:
+
+- **Gemini did not subdivide.** 22 of the 37 answering calls returned exactly
+  **one** object — the block it was handed. Three returned 11-13. The hypothesis
+  this experiment was built to test, that a VLM does the within-block split a
+  box-prompted SAM2 cannot, is **not supported**.
+- **It is returning a quadrilateral, not a boundary.** Median **5 vertices** per
+  polygon against SAM2's 8, and on the page it is a rotated rectangle laid over
+  the block rather than anything following the printed line. SAM2's output, in
+  the same crops, visibly traces individual hatched buildings.
+
+So the IoU win is explained rather than impressive: the 12 `land_plot` traces
+are block-sized, and a good quadrilateral around a block scores well against
+them. Against `building` — the granularity that actually needs the split — it is
+0.056.
+
+**What Gemini did do, that nothing else in the pipeline does: it named the
+shapes.** 28 of the 100 polygons came back with the sheet's own text attached —
+`GRAND SEMINAIRE DES MISSIONS`, `COLLEGE D'ADRAN`, `HÔPITAL MARITIME`,
+`CASERNES`, `POUDRIÈRE` — read off the paper and bound to a polygon in one call,
+with no OCR pass, no seeding and no `join_labels` step to guess which extraction
+belongs to which mask.
+
+That is the result worth carrying. Not "Gemini replaces SAM2" — it draws a
+worse boundary and does not subdivide — but that **the naming half of Track C
+may not need a join at all**. The pipeline shape it suggests is Gemini for the
+name and the coarse extent, SAM2 for the boundary inside it.
+
 ### Not tested
 
 `--mode tiles`, the whole-sheet grid. The interesting question there is the
 density ceiling — how many parcels in one frame before the answer thins out —
 and it is the same question `--tile-metres` answers on the OCR side.
+
+Also untested, and now the more interesting one: whether asking for the parcels
+of **one block at a time at higher magnification** produces a subdivision. Every
+call here rendered its block to 1024 px wide whatever its size on the sheet, and
+a 1443 px block seen at 1024 is being asked for detail that was thrown away
+before the model saw it.
