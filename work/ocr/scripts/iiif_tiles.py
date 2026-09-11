@@ -329,8 +329,28 @@ def _axis_tiles(
     for o in origins:
         x = max(o, start)
         w = min(o + tile, end) - x
-        if w > 0:
-            out.append((x, w))
+        if w <= 0:
+            continue
+        # Drop a tile that adds no pixels its predecessor did not already have.
+        # `w > 0` alone kept a sliver, and on an offset grid the far edge makes
+        # one every time: the 1968 sheet's crop is 10015 wide, so a 600-step
+        # lattice phase-shifted by 400 puts its last origin 15 px from the end
+        # and yields a 15x800 column entirely inside the 615x800 one before it.
+        #
+        # It is not merely redundant, it is destructive. Gemini answers a 15 px
+        # strip with `400 INVALID_ARGUMENT: Unable to process input image`, and
+        # row-sequence packs four tiles into one call — so each sliver took its
+        # three real neighbours down with it. Measured on run
+        # `body-1968-20260910h-t800off`: 16 slivers, and 13 perfectly good
+        # 615-wide tiles lost as collateral, 32 of 306 tiles never read.
+        #
+        # Containment rather than a pixel floor, because containment is the
+        # exact statement of "this tile is worthless" and needs no threshold to
+        # argue about. A clipped far-edge tile that still reaches past its
+        # predecessor is kept, however narrow.
+        if out and x >= out[-1][0] and x + w <= out[-1][0] + out[-1][1]:
+            continue
+        out.append((x, w))
     return out
 
 

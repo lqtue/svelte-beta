@@ -134,5 +134,39 @@ assert _axis_tiles(0, -5, TILE, STEP, OFFSET) == []
 assert _axis_tiles(0, 100, TILE, STEP, OFFSET) == [(0, 100)], \
     "a region smaller than one tile is one clipped tile, offset or not"
 
+# ── 6. No tile is contained in the one before it ───────────────────────────
+# The offset lattice makes a sliver at the far edge whenever the region's width
+# is not a whole number of steps past the shift. `w > 0` kept them, and they do
+# not merely waste a call: Gemini answers a 15 px strip with `400
+# INVALID_ARGUMENT`, and row-sequence packs four tiles per call, so each sliver
+# failed its three real neighbours too.
+#
+# The 1968 Sài Gòn sheet is the measured case — run `body-1968-20260910h-t800off`
+# lost 32 of 306 tiles that way, 13 of them full 615-wide ones taken down as
+# collateral. Its crop is 10015 x 9533 at tile 800 / overlap 200 / offset 400.
+SHEET_1968, CROP_1968 = (10816, 13523), (281, 311, 10015, 9533)
+T68, O68, OFF68 = 800, 200, 400
+g68 = list(tile_grid(*SHEET_1968, tile=T68, overlap=O68,
+                     region=CROP_1968, offset=OFF68))
+assert len(g68) == 272, f"expected the sliver column and row gone: {len(g68)}"
+assert not [t for t in g68 if t[2] < 100 or t[3] < 200], \
+    [t for t in g68 if t[2] < 100 or t[3] < 200]
+
+for region in (None, CROP, (0, 0, *SHEET), (459, 413, 10500, 8400),
+               (1000, 1000, 2100, 2100), (0, 0, 900, 700)):
+  for offset in (0, 1, 700, OFFSET, 2099):
+    for axis_tiles in axes(region or (0, 0, *SHEET), offset):
+        for (a, wa), (b, wb) in zip(axis_tiles, axis_tiles[1:]):
+            assert not (b >= a and b + wb <= a + wa), \
+                f"tile {(b, wb)} is inside {(a, wa)} ({region}, {offset})"
+
+
+# Dropping them costs no ground: the offset pass still spans the whole region.
+assert spans([(x, w) for x, _, w, _ in g68]) == [(281, 10296)], spans(
+    [(x, w) for x, _, w, _ in g68])
+assert spans([(y, h) for _, y, _, h in g68]) == [(311, 9844)], spans(
+    [(y, h) for _, y, _, h in g68])
+
 print("test_grid_offset.py ok — "
-      f"1882 crop: pass 1 {len(pass1)} tiles, offset pass {len(pass2)} (was 20)")
+      f"1882 crop: pass 1 {len(pass1)} tiles, offset pass {len(pass2)} (was 20); "
+      f"1968 crop: offset pass {len(g68)} tiles (was 306, 32 of them unreadable)")

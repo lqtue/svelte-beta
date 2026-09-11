@@ -967,3 +967,52 @@ Read `precision` as scope, per above. The caveats already recorded against this
 run still stand: 16 of its 20 calls were served from the model-response cache,
 and three fixes moved underneath the recipe before it ran, so it is a new
 baseline rather than a reproduction of 0.945 / 75-of-85.
+
+## 2026-09-10 — 1968 `--grid-offset 400`, the four-way merge, and the sliver it exposed
+
+Run `body-1968-20260910h-t800off`, same crop and tiling as the aligned 800 pass,
+lattice phase-shifted 400 px. **86 calls, USD 2.7096**, 1184 raw → 770 unique.
+
+| over the whole sheet, 367 printed names | `name_recall` | `agreement` | coverage |
+|---|---|---|---|
+| `…910a`, tile 1120 | 0.3270 (120) | 0.9603 | — |
+| the aligned 800 pass | 0.4632 (170) | 0.9366 | 234 |
+| the offset 800 pass alone | 0.4278 (157) | 0.9450 | 256 |
+| three-way union | 0.4959 (182) | 0.9402 | 290 |
+| **four-way union, `_union-0910-4way`** | **0.5450 (200)** | 0.9326 | **380** |
+
+2209 labels → 1187 merged, 573 seen by more than one pass. The 1959 pattern held:
+a shifted pass plus a merge lifts the number, here 0.4959 → 0.5450, **+18 printed
+names for USD 2.71 — USD 0.15 a name**, the worst rate of the three steps and
+still worth having. Sheet total **USD 5.69**, 0.3270 → 0.5450.
+
+### The run lost 32 of its 306 tiles, and the reason is a one-line grid bug
+
+Every failure was an edge tile, in two groups: **16 slivers** 15 px wide, and
+**13 perfectly good 615 px columns taken down with them**, plus 3 short bottom
+strips.
+
+`_axis_tiles` kept any tile with `w > 0`. On an offset grid the far edge makes a
+sliver whenever the region's extent is not a whole number of steps past the
+shift: this crop is 10015 wide, so a 600-step lattice shifted by 400 puts its
+last origin 15 px from the end and yields a 15x800 column — **entirely inside the
+615x800 column before it**, so it could not contribute a pixel even in principle.
+
+It was not merely wasteful. Gemini answers a 15 px strip with `400
+INVALID_ARGUMENT: Unable to process input image`, and row-sequence packs four
+tiles into one call, so **each sliver failed its three real neighbours too**.
+That is the 13. A run can therefore lose good tiles at a rate set by how badly
+the region divides, and say nothing but a few 400s in a log nobody re-reads.
+
+Fixed by dropping a tile contained in its predecessor — containment rather than
+a pixel floor, because containment is the exact statement of "this tile is
+worthless" and needs no threshold to argue about. A narrow far-edge tile that
+still reaches past its predecessor is kept. On this crop: **306 → 272 tiles, no
+degenerates, and the covered span is unchanged** (281–10296 by 311–9844), the
+same tile count as the aligned pass. `test_grid_offset.py` pins the 1968 case
+and asserts the property over every region/offset pair it already exercised.
+
+**So 0.5450 is a floor, not a ceiling.** The offset pass scored it with 274 of
+its 306 tiles, and 13 of the missing ones were real. A re-run on the fixed grid
+would read them; it is not queued, because the tiles it would add are the
+sheet's right-hand edge and the marginal apparatus rather than the street body.
