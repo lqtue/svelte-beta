@@ -280,6 +280,23 @@ def extract_labels(
         "max_output_tokens": 65536,
     }
 
+    # `thinking=False` asks for the minimal level rather than a budget: the
+    # segmentation docs recommend it, and on a mask call thinking spends output
+    # tokens re-deriving a polygon it has already committed to. Left on by
+    # default, because every text path measured so far is better with it.
+    #
+    # ponytail: the cache key does not include this. Two runs of one tile that
+    # differ only here collide, so set it per run rather than to A/B it. Fold it
+    # into `schema_version` if that ever has to be an experiment.
+    if not thinking:
+        # "low", not the "minimal" the segmentation docs name: gemini-3.8-flash
+        # answers MINIMAL with `400 INVALID_ARGUMENT. Thinking level MINIMAL is
+        # not supported for this model`, so the doc's advice cannot be followed
+        # literally on the model this pipeline runs.
+        config_kwargs["thinking_config"] = genai_types.ThinkingConfig(
+            thinking_level="low"
+        )
+
     # Small stagger before every call to smooth per-second burst spikes.
     # Default 200ms; override with GEMINI_CALL_DELAY_S env var.
     call_delay = float(os.environ.get("GEMINI_CALL_DELAY_S", "0.2"))

@@ -1072,3 +1072,73 @@ Do not pin anything to these yet, for three reasons the record states itself: th
 8 m (666), and at 8 m the raw blocks score a higher median per plot (0.173) on far
 less of it (`cover` 0.60 vs 0.92); everything is scored on the LoRA's training set;
 and `partition_seeds` landed after these runs, so every `n` moves on the next one.
+
+## 2026-09-11 — Gemini as the segmenter, against SAM2 on the same plots
+
+`work/ocr/scripts/seg_gemini.py` asks Gemini for polygons instead of asking SAM2
+for masks, and `work/ocr/scripts/seg_eval.py` scores any run of either kind. The
+reason to try: SAM2 needs a box prompt per object, a GPU, a LoRA checkpoint and a
+mask-to-polygon step, and returns a nameless shape. Gemini returns `box_2d`, a
+`label` and a **polygon**, in the 0-1000 space `ocr.py` already parses.
+
+40 calls, one per city block, blocks chosen because they overlap a hand trace
+(`--near-gt`) — otherwise the biggest blocks on the sheet are scored against
+ground truth that is somewhere else. 37 returned something, 100 polygons. The
+whole experiment, including the false starts, was **79 calls / ~USD 2**, median
+10.0 s a call, on `gemini-3.8-flash` at `thinking_level=low`.
+
+Scored `--in-frame`, so the comparison is over the **12 land_plots and 2 buildings
+that were at least half inside a crop somebody actually called**. Scoring the
+whole sheet's 24 plots against a 40-block window measures the window, not the
+model — it halves every mean, which is how the first reading of this run came
+back at 0.098.
+
+| run | prompts | @.3 | mean | median | cover |
+|---|---|---|---|---|---|
+| **Gemini, one call per block** | 100 polys / 40 calls | **4** | **0.254** | **0.278** | 0.78 |
+| SAM2 LoRA on 4 m block boxes | 950 prompts, whole sheet | 3 | 0.184 | 0.144 | **0.97** |
+| SAM2 LoRA on OCR label boxes | 99 prompts, whole sheet | 4 | 0.237 | 0.222 | 0.30 |
+
+**Nobody clears IoU 0.5 on a single one of the 12.** That is the result. Gemini
+leads on mean and median IoU at its first attempt, with no GPU, no checkpoint and
+no prompt engineering, and it is the only one of the three that returns a name
+with the shape. SAM2 keeps coverage — 0.97 of a typical plot's area lands under
+*some* prediction — which says the block prior finds the ink and the models
+disagree about how to cut it.
+
+Read it as a reason to keep testing, not as a winner. n=12; the blocks were
+selected for overlapping traces; and the ground truth is still the 46 traces the
+LoRA trained on, which flatters the two SAM2 rows and not the Gemini one.
+
+### Two things the docs say that this model does not do
+
+Both were found by the scores being wrong, and both are silent failures — a
+polygon in the wrong place is still a valid polygon.
+
+- **`box_2d` is `[xmin, ymin, xmax, ymax]`**, not the documented
+  `[ymin, xmin, ymax, xmax]`. Over 240 real objects, mean IoU between a polygon's
+  own bounding box and its `box_2d` is **0.909** read x-first and **0.284**
+  read y-first.
+- **`mask` is normalized to the image**, not "inside the bounding box". Read as
+  box-relative, the same 100 polygons score 0.141 instead of 0.254 and cover 0.14
+  instead of 0.78.
+
+`seg_gemini.py` briefly had an `auto` that guessed between the two per object. It
+chose "box" for 107 of 139 objects — correctly, given it was comparing against a
+transposed box — and the wrong guess reads as a weak model rather than as a bug.
+Deleted. A heuristic that can hide a coordinate fault is worse than a flag.
+
+### The reliability problem
+
+Two calls on the same crop, same prompt, same model, minutes apart: **18 objects,
+then 1**. Across ten crops the two passes disagreed by a factor of two or more.
+SAM2 given the same box returns the same mask. Before any of this is worth
+wiring into the pipeline, a run needs to be repeatable or explicitly voted over
+several passes — which is what the OCR side already does, and at the same cost
+multiplier.
+
+### Not tested
+
+`--mode tiles`, the whole-sheet grid. The interesting question there is the
+density ceiling — how many parcels in one frame before the answer thins out —
+and it is the same question `--tile-metres` answers on the OCR side.
