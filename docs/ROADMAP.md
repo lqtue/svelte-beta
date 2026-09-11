@@ -185,6 +185,23 @@ it cost us this week, cheapest fix first.
 - **Preview environment has no variables.** Production holds all five; Preview holds none, so every preview build fails at the first `$env/static/*` import. Dashboard only — `wrangler pages secret` has no environment flag in any current version.
 - **62 drafts are ungeoreferenced.** All 101 maps are self-hosted (imagery on `iiif.maparchive.vn`, tiles in R2), and 39 have mirrored annotations. The remaining 62 need a human in `/contribute/georef`; publishing each one then enqueues its hosting jobs automatically. This is the last thing between the archive and owning the whole pipeline.
 
+  **A lead on doing 62 by machine rather than by hand (2026-09-11, unverified).** They
+  are Service Géographique de l'Indochine Tonkin sheets, and the series prints
+  everything a georeference needs: a graticule in **grades from the Paris meridian**
+  (`grades × 0.9 + 2.337229` = degrees east), each sheet's own number, and an
+  8-neighbour index diagram, on a series grid **7 columns** wide. Evidence is **one
+  sheet read by eye** — Cua Thai Binh 1905, `d2178fe7-c2fa-4ab7-9e48-eb62070ac980` —
+  whose latitude labels were too small to be sure of, so confirm those before building
+  anything. Route: read the graticule on three sheets, derive the grid, cross-check
+  each against its printed neighbours, generate GCPs, gate on `modern_prior.py
+  --sweep`. It would take the corpus from 40 usable sheets to **102**.
+
+- **Georeference repairs still open** (from the `modern_prior.py --sweep` audit,
+  2026-09-11): five one-point GCP fixes; the 1880 *Plan annamite d'Hanoi* (802 px —
+  needs redoing from scratch); the 1912 Saigon-Cholon (three near-collinear points in
+  one corner); and **12 sheets sitting on exactly 3 points**, whose residual is
+  therefore unmeasurable — a sheet can be wrong there and say nothing.
+
 ## Order
 A1–A4 → B1 → B2 → C0 → C1 → B3 → B4 → B5 → C2… ; B6/B7 interleave when a public/moderation need shows; A5 alongside B3 (RPCs are what make write tests cheap). D never blocks.
 
