@@ -1175,8 +1175,52 @@ name and the coarse extent, SAM2 for the boundary inside it.
 density ceiling — how many parcels in one frame before the answer thins out —
 and it is the same question `--tile-metres` answers on the OCR side.
 
-Also untested, and now the more interesting one: whether asking for the parcels
-of **one block at a time at higher magnification** produces a subdivision. Every
-call here rendered its block to 1024 px wide whatever its size on the sheet, and
-a 1443 px block seen at 1024 is being asked for detail that was thrown away
-before the model saw it.
+### The resolution confound, tested: it was not the explanation
+
+`--render 0` sends each block at its own width (capped 2048) instead of
+resampling every one to 1024. Same 40 blocks, same prompt, +40 calls / ~USD 1.
+
+| | 1024 px | native |
+|---|---|---|
+| land_plot mean / median | 0.254 / 0.278 | **0.282** / 0.274 |
+| land_plot @ IoU≥0.5 | 0 of 12 | **1** of 12 |
+| areal mean | 0.226 | **0.251** |
+| polygons | 100 | 123 |
+| calls returning exactly one object | 20 of 37 | 17 of 36 |
+| median vertices | 5 | **5** |
+
+Resolution is worth something — the first IoU≥0.5 on this sheet from any
+segmenter, and +0.03 mean — and it is **not** what was stopping the
+subdivision. Shown the detail, the model still answers half its blocks with a
+single object and still draws a five-vertex quadrilateral. That was the open
+question and it is now closed: Gemini declines to subdivide, rather than being
+unable to see what to subdivide.
+
+### Naming the other model's masks — the part that works
+
+`work/ocr/scripts/name_masks.py` gives each mask the name of the **smallest
+named polygon containing it** — `join_labels.py`'s rule, with Gemini's named
+quadrilaterals as the source instead of OCR extractions. Of the **213** SAM2
+masks inside the 40 called blocks, **61 (28.6%)** come out named:
+
+    13  CASERNE ET ATELIERS DE L'ARTILLERIE     5  ANCIEN CAMP DES INDIGÈNES
+    13  PYROTECHNIE                             4  SAINTE ENFANCE
+     9  CASERNES                                2  HÔPITAL MARITIME
+     7  POUDRIÈRE                               1  COLLÈGE CHASSELOUP LAUBAT
+
+This is a different question from the OCR route, not a better answer to the
+same one — and the two fail in opposite directions. The OCR-prompted run names
+**99 of 99** of its polygons, because each one *is* a label's box; what it
+cannot do is produce a polygon where no label centroid falls, which is 24 of
+the 46 traces on this sheet. Gemini reads the block's name off the ink and then
+that name propagates to every mask inside it, so `PYROTECHNIE` lands on 13
+separate buildings. For an arsenal that is arguably correct and for a mixed
+block it is arguably wrong; `MIN_INSIDE` is the knob and nothing has measured
+where it should sit.
+
+Neither is a georeference-grade fact yet. Both are cheap.
+
+### Still not tested
+
+`--mode tiles`, the whole-sheet grid, and its density ceiling — the same
+question `--tile-metres` answers on the OCR side.

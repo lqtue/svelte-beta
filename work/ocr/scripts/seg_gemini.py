@@ -291,7 +291,13 @@ def run(args: argparse.Namespace) -> int:
     spaces: dict[str, int] = {}
     empty = 0
     for i, (x, y, w, h) in enumerate(crops, 1):
-        img = fetch_crop(iiif_base, x, y, w, h, size=args.render)
+        # `--render 0` sends the block at its own size, capped. A block is
+        # whatever size it is on the sheet, and rendering every one to 1024 px
+        # asks a 1443 px block to subdivide detail that was resampled away
+        # before the model saw it — the same ground-per-call fault the OCR side
+        # spent a month on, one layer down.
+        size = min(w, args.render_cap) if args.render <= 0 else args.render
+        img = fetch_crop(iiif_base, x, y, w, h, size=size)
         result = extract_labels(
             image=img,
             system_prompt=SYSTEM_PROMPT,
@@ -419,7 +425,10 @@ def main() -> int:
     p.add_argument("--region", help="x,y,w,h in source px, for --mode tiles")
     p.add_argument("--tile", type=int, default=2048)
     p.add_argument("--overlap", type=int, default=256)
-    p.add_argument("--render", type=int, default=1024, help="px width sent to the model")
+    p.add_argument("--render", type=int, default=1024,
+                   help="px width sent to the model; 0 = the crop's own width")
+    p.add_argument("--render-cap", type=int, default=2048,
+                   help="ceiling for --render 0")
     p.add_argument("--pad", type=int, default=24, help="px around a block crop")
     p.add_argument("--limit", type=int, default=40, help="cap the number of calls")
     p.add_argument("--mask-space", default="image", choices=list(MASK_SPACES))

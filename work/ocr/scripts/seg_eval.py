@@ -23,6 +23,13 @@ move apart: a prior that returns fewer, fatter blocks can raise median IoU
 while covering far less of each plot, which is exactly what the 4 m → 8 m
 buffer change did.
 
+**`cover` is not normalised by prediction count and is not comparable between
+runs of very different size.** Enough predictions cover a sheet whatever they
+are: 950 polygons reaching 0.97 and 100 reaching 0.78 is not a 19-point gap in
+quality. The report prints a warning when the counts differ by more than 3x.
+Compare cover between runs of comparable `n`, or read it only as "did this run
+find the ink at all".
+
 Self-check (no network): python work/ocr/scripts/seg_eval.py --self-check
 """
 
@@ -138,6 +145,10 @@ def _report(groups: dict[str, list], runs: dict[str, list]) -> None:
             r = score(gt, preds)
             print(f"{run_name[:30]:30s}{len(preds):7d}{r['at50']:5d}{r['at30']:5d}"
                   f"{r['mean']:8.3f}{r['median']:8.3f}{r['cover']:7.2f}")
+        counts = [len(p) for p in runs.values() if p]
+        if counts and max(counts) > 3 * min(counts):
+            print(f"  ! prediction counts range {min(counts)}-{max(counts)}: "
+                  f"compare `cover` only between runs of similar n")
 
 
 def run(args: argparse.Namespace) -> int:
