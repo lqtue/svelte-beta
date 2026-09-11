@@ -251,7 +251,11 @@ def run(args: argparse.Namespace) -> int:
 
     out_dir = Path(args.out).parent
     out_dir.mkdir(parents=True, exist_ok=True)
-    cache_dir = out_dir / "cache"
+    # `--no-cache` is how a repeat pass gets a second opinion rather than the
+    # first one back. The model is not deterministic here — one crop returned
+    # 18 objects and then 1 — so a comparison between two settings is only
+    # readable against a repeat of one setting against itself.
+    cache_dir = None if args.no_cache else out_dir / "cache"
     log_path = out_dir / "calls.jsonl"
 
     if args.mode == "blocks":
@@ -427,6 +431,8 @@ def main() -> int:
     p.add_argument("--overlap", type=int, default=256)
     p.add_argument("--render", type=int, default=1024,
                    help="px width sent to the model; 0 = the crop's own width")
+    p.add_argument("--no-cache", action="store_true",
+                   help="re-ask the model instead of replaying a cached answer")
     p.add_argument("--render-cap", type=int, default=2048,
                    help="ceiling for --render 0")
     p.add_argument("--pad", type=int, default=24, help="px around a block crop")

@@ -1189,12 +1189,34 @@ resampling every one to 1024. Same 40 blocks, same prompt, +40 calls / ~USD 1.
 | calls returning exactly one object | 20 of 37 | 17 of 36 |
 | median vertices | 5 | **5** |
 
-Resolution is worth something — the first IoU≥0.5 on this sheet from any
-segmenter, and +0.03 mean — and it is **not** what was stopping the
-subdivision. Shown the detail, the model still answers half its blocks with a
-single object and still draws a five-vertex quadrilateral. That was the open
-question and it is now closed: Gemini declines to subdivide, rather than being
-unable to see what to subdivide.
+**Retracted, an hour later: the IoU half of that table is noise.** A reviewer in
+another session pointed out that this page already documents the model
+returning 18 objects and then 1 on identical repeat calls, so one pass a side
+at n=12 cannot separate a setting from a re-roll. Running the **1024 arm a
+second time** (`--no-cache`, so it asks again rather than replaying) settles it:
+
+| 1024, pass A | 1024, pass B | native |
+|---|---|---|
+| mean 0.254 · med 0.278 · @.5 **0** · cover 0.78 | mean **0.289** · med 0.280 · @.5 **1** · cover 0.91 | mean 0.282 · med 0.274 · @.5 **1** · cover 0.86 |
+
+One setting against itself moves **0.035** — more than the 0.028 the resolution
+change was credited with — and the second 1024 pass scores *above* native on
+mean and cover. "The first IoU≥0.5 any segmenter has scored on this sheet"
+turns out to be one polygon that the repeat 1024 pass also finds. **Resolution
+is unmeasured here, not established.** Anything that wants to claim it needs
+several passes a side, which on this sheet is about USD 1 each.
+
+What survives all three passes is the qualitative half, and it is the half the
+experiment was for: **median 5 vertices every time**, and 16-20 of ~36
+answering calls returning a single object. Gemini declines to subdivide a
+block, and it declines at every resolution tried. That is not a noise-scale
+effect and it is the answer to the question this run existed to ask.
+
+Also recorded because it will happen again: the repeat pass died mid-run on
+`httpx.ConnectError: [Errno 54] Connection reset by peer`. `gemini_client`
+retries 429s, 500s and 503s but not a transport error, so an unattended pass
+ends at whatever tile the network blipped on — the same fault `vma_worker.py`
+had and fixed in `5c`.
 
 ### Naming the other model's masks — the part that works
 
@@ -1224,3 +1246,56 @@ Neither is a georeference-grade fact yet. Both are cheap.
 
 `--mode tiles`, the whole-sheet grid, and its density ceiling — the same
 question `--tile-metres` answers on the OCR side.
+
+## 2026-09-11 — the block prior built from road surface instead of a buffer
+
+`modern_prior.py --blocks-from-roads`. The block prior up to now is buildings
+grown by `BLOCK_BUFFER_M` until they touch, and that constant is the reason
+nothing here could be pinned: at 4 m it gives 1,228 blocks and land_plot
+0.249, at 8 m it gives 666 and a higher median per plot on far less of it
+(cover 0.92 → 0.60). The buffer moves every block edge, so each setting is a
+different set of shapes and the two numbers are not two readings of one thing.
+
+`/Users/airm1/Desktop/tasco/hcmc/vector_out/hcmc_vector.gpkg` carries the road
+*surface* as 74,566 polygons, plus river and lake. A block is then the
+complement of the street network — edges are the kerb lines the survey drew,
+and there is no distance to choose. Two numbers remain, a floor and a ceiling
+on block area, but they only **select** among parts whose edges are already
+fixed: below 500 m² are noding slivers where two carriageway polygons fail to
+quite meet, above 200,000 m² is open country, one polygon the size of a
+district. On the 1882 sheet that is 1,457 slivers and 1 open-ground dropped,
+**1,184 blocks** kept.
+
+Both sets scored raw, no segmenter, against the same 46 traces:
+
+| | n | land_plot mean | median | cover | building mean | areal mean | areal @.3 |
+|---|---|---|---|---|---|---|---|
+| 8 m buffer-dissolve | 666 | 0.197 | **0.173** | 0.60 | 0.100 | 0.157 | 7 |
+| road-surface complement | 1,184 | **0.262** | 0.157 | **0.87** | **0.123** | **0.204** | **11** |
+
+**Read the median against the mean before calling this a win everywhere.**
+Mean, cover, @.3 and @.5 all rise, and the median land_plot IoU *falls*
+(0.173 → 0.157). Finer blocks fix the cases the buffer lost outright and make
+the typical large plot slightly worse, because a plot that one dissolved block
+covered is now cut by an alley the 1882 surveyor did not draw. If a within-block
+merge ever lands, this is the number it should move.
+
+**This particular comparison is the one clean row on this page.** Every other
+result here is measured against the 46 traces the LoRA trained on, which
+flatters any SAM2 row and makes "a better prior" unfalsifiable. Neither run
+above involves a model at all — they are raw geometry against hand traces — so
+the training-set objection does not reach them. It is still one sheet and 24
+plots, and the corpus-level gate is still ~20 held-out traces on a second sheet.
+
+Counts are not comparable enough to worry about: 1,184 against 666 is 1.8x,
+under the 3x at which `seg_eval` warns about `cover`.
+
+`--blocks` and `--blocks-from-roads` both write `blocks.geojson` so consumers
+(`to_sam2_seeds.py`, `--prior`) read one name; passing both is refused rather
+than letting the later branch win silently. Pass `--out` to keep two.
+
+### Not done
+
+SAM2 has not been re-run on these blocks. The 0.249 land_plot figure for
+LoRA-on-blocks is against the 4 m set, so the whole prompted arm wants
+re-measuring on this prior before any of it is compared to the Gemini runs.
