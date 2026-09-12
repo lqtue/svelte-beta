@@ -110,7 +110,7 @@
             >
               {#if m.thumbnail}
                 <img
-                  src={atWidth(m.thumbnail, 200)}
+                  src={atWidth(m.thumbnail, 400)}
                   alt=""
                   loading="lazy"
                   on:error={(e) => ((e.currentTarget as HTMLImageElement).src = m.thumbnail)}
