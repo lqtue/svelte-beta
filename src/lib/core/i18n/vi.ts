@@ -128,6 +128,15 @@ export const vi: Record<string, string> = {
   'What will you find?': 'Bạn sẽ tìm thấy gì?',
   'Most people come for one street and stay for the city. {N} sheets, 1791 to 1968.':
     'Khám phá {N} bản đồ từ năm 1791 đến 1968 của Sài Gòn và các vùng lân cận.',
+  "Crop a map's neatline, set tile priorities, and check the place names the OCR pass read off the sheet. Around 950 distinct names are waiting; 43 have been checked.":
+    'Cắt khung bản đồ, thiết lập mức độ ưu tiên và kiểm tra địa danh OCR. Khoảng 950 địa danh đang chờ xử lý; 43 đã hoàn thành.',
+  "Data is openly licensed (CC-BY / ODbL) and the code is public. Every sheet credits the institution holding the scan — the Bibliothèque nationale de France, Université Côte d'Azur, UT Austin, the Library of Congress and others — and links back to their record. None of that is a formal partnership. Any city with a map archive can fork the whole thing and run it locally; that is the point of building it this way.":
+    "Dữ liệu cấp phép mở (CC-BY / ODbL) và mã nguồn mở. Các bản scan ghi nhận bản quyền từ các thư viện gốc như Bibliothèque nationale de France, Đại học Côte d'Azur, UT Austin, Thư viện Quốc hội Hoa Kỳ và các đơn vị khác. Bất kỳ kho lưu trữ nào cũng có thể sao chép và triển khai độc lập.",
+  "Volunteers put those sheets on the ground they drew. Reading the names off them and tracing what they show is where the work goes next: the aim is to get the buildings and street names out of Vietnam's colonial-era maps and into open data, with a person checking the machine's work. The 1882 cadastral survey of Saigon is where it starts, and where most of the work so far sits. Everything published will be CC-BY / ODbL.":
+    'Các tình nguyện viên đang đưa bản đồ trở về đúng vị trí thực tế. Công việc tiếp theo là đọc tên địa danh và số hóa công trình từ bản đồ thời kỳ thuộc địa vào dữ liệu mở, với sự kiểm duyệt thủ công. Khởi đầu là bản đồ địa chính Sài Gòn năm 1882. Mọi dữ liệu xuất bản đều tuân theo giấy phép CC-BY / ODbL.',
+  "A featured sheet, whole. Pick another below, then open it in the viewer to lay it over today's city, or inspect the high-resolution IIIF scan up close. Each record links back to the library or collection that holds it.":
+    'Một bản đồ tiêu biểu. Chọn bản đồ bên dưới để xem chồng khớp lên thành phố hiện đại hoặc kiểm tra bản scan độ phân giải cao IIIF. Mỗi bản ghi liên kết trực tiếp đến thư viện lưu trữ gốc.',
+  "What's actually done →": 'Tiến độ thực tế →',
   'How this works': 'Cách thức hoạt động',
   'A scan of an 1882 survey, pinned to real coordinates, laid back over the ground it drew — then the plots traced off it and the names read off it. Drag the slider to move between the two cities.':
     'Bản scan khảo sát năm 1882 được ghim tọa độ thực, chồng khớp lên không gian thực tế; kèm theo các ô đất được số hóa và tên địa danh được trích xuất. Kéo thanh trượt để so sánh hai thời kỳ.',
@@ -259,10 +268,16 @@ export const vi: Record<string, string> = {
   'Switch between English and Tiếng Việt — translation is beta':
     'Chuyển đổi giữa Tiếng Anh và Tiếng Việt — bản dịch thử nghiệm',
   'Explore the archive': 'Khám phá kho lưu trữ',
+  "Browse VMA's historical maps of Vietnam — Saigon, Hanoi, Huế, Cambodia and beyond. Pick how you want to start.":
+    'Duyệt qua các bản đồ lịch sử của Sài Gòn, Hà Nội, Huế, Campuchia và nhiều nơi khác. Chọn cách bắt đầu.',
   'Use my location': 'Sử dụng vị trí của tôi',
   'Show all maps': 'Hiển thị tất cả bản đồ',
+  "VMA's archive doesn't yet hold a map covering your point. Browse the full archive for maps elsewhere, or suggest a source we should add.":
+    'Kho lưu trữ chưa có bản đồ bao phủ điểm này. Duyệt toàn bộ kho lưu trữ hoặc đề xuất nguồn bản đồ mới.',
   'Skip GPS — browse the whole archive and pick anywhere on Earth.':
     'Bỏ qua GPS — duyệt toàn bộ kho lưu trữ và chọn bất kỳ đâu.',
+  "Centre on where I'm standing and surface the maps that cover it.":
+    'Căn giữa vị trí hiện tại và hiển thị bản đồ phủ quanh khu vực.',
   'What happens when I share my location?': 'Điều gì xảy ra khi chia sẻ vị trí?',
   'Remember my choice on this device': 'Ghi nhớ lựa chọn trên thiết bị này',
   'No archival map here': 'Không có bản đồ lưu trữ tại đây',

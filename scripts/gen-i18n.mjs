@@ -12,6 +12,7 @@
  * Run after editing the markdown:  node scripts/gen-i18n.mjs
  */
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const SRC = 'work/copy/translate-vi.md';
 const OUT = 'src/lib/core/i18n/vi.ts';
@@ -45,4 +46,11 @@ fs.writeFileSync(
   OUT,
   `/**\n * Vietnamese strings, keyed by their English source.\n *\n * Generated from \`${SRC}\` by \`scripts/gen-i18n.mjs\`.\n * Edit the markdown and regenerate; do not hand-edit this file.\n */\nexport const vi: Record<string, string> = {\n${body}\n};\n`
 );
+// Prettier over the emitted file, because the repo lints it like any other
+// source. `esc()` always single-quotes, but `.prettierrc` sets singleQuote,
+// which flips a string holding an apostrophe to double quotes — so a dictionary
+// with one apostrophe in it fails `npm run lint` the moment it is regenerated.
+// That is the friction that let this file sit 48 entries behind the markdown.
+execFileSync('npx', ['prettier', '--write', OUT], { stdio: 'ignore' });
+
 console.log(pairs.size, 'entries →', OUT);

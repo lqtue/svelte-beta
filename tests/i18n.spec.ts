@@ -25,8 +25,13 @@ function usedKeys(): Map<string, string[]> {
   const keys = new Map<string, string[]>();
   for (const f of svelteFiles('src')) {
     const src = readFileSync(f, 'utf8');
-    for (const m of src.matchAll(/\$?\bt[r]?\(\s*'((?:[^'\\]|\\.)*)'/g)) {
-      const key = m[1].replace(/\\'/g, "'");
+    // Both quote styles. `.prettierrc` sets singleQuote, which makes Prettier
+    // flip a string to DOUBLE quotes when its content holds an apostrophe — so
+    // a single-quote-only regex is blind to exactly the strings most likely to
+    // be prose. Two of them sat translated-but-English on production because
+    // this extractor could not see the call sites and reported the keys unused.
+    for (const m of src.matchAll(/\$?\bt[r]?\(\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/g)) {
+      const key = m[1] !== undefined ? m[1].replace(/\\'/g, "'") : m[2].replace(/\\"/g, '"');
       if (!keys.has(key)) keys.set(key, []);
       keys.get(key)!.push(f);
     }
