@@ -13,7 +13,7 @@
   import type { MapListItem } from '$lib/data/maps/types';
   import { layersStore, toggleOverlayFor } from '$lib/map/stores/layersStore';
   import ArchiveMapRows from '$lib/features/shared/ArchiveMapRows.svelte';
-  import { atWidth } from '$lib/core/iiif/thumbUrl';
+  import { atWidth, stepDown } from '$lib/core/iiif/thumbUrl';
   import { sortRows, groupRows, type SortKey, type GroupKey } from './catalogTableModel';
   import DataTable, { type TableColumn } from '$lib/ui/DataTable.svelte';
 
@@ -111,7 +111,7 @@
                     src={atWidth(item.thumbnail, 200)}
                     alt=""
                     loading="lazy"
-                    on:error={(e) => ((e.currentTarget as HTMLImageElement).src = item.thumbnail!)}
+                    on:error={(e) => stepDown(e, item.thumbnail)}
                   />
                 {:else}
                   <div class="thumb-empty"></div>

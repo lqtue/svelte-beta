@@ -27,7 +27,7 @@
   import { createEventDispatcher } from 'svelte';
   import { layersStore, toggleOverlayFor } from '$lib/map/stores/layersStore';
   import DataTable, { type TableColumn } from '$lib/ui/DataTable.svelte';
-  import { atWidth } from '$lib/core/iiif/thumbUrl';
+  import { atWidth, stepDown } from '$lib/core/iiif/thumbUrl';
   import { applySort, type SortState } from '$lib/core/utils/tableSort';
 
   export let rows: any[] = [];
@@ -113,7 +113,7 @@
                   src={atWidth(m.thumbnail, 200)}
                   alt=""
                   loading="lazy"
-                  on:error={(e) => ((e.currentTarget as HTMLImageElement).src = m.thumbnail)}
+                  on:error={(e) => stepDown(e, m.thumbnail)}
                 />
               {:else}
                 <span class="no-thumb" aria-hidden="true">+</span>
