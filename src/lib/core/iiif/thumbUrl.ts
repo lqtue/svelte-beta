@@ -11,13 +11,6 @@
  * rail in a 40px one. Five 800s were 715 kB of front page for five thumbnails
  * (`FeaturedSheet`), and a 39-row list is worse.
  *
- * **Ask for 400, not less.** Our own R2 mirror is a worker over a pyramid whose
- * smallest level is 467px wide, and it 404s anything below that (1200 too, which
- * is between levels) — so a 200 for a 48px cell cost a failed request and then
- * the full 800 through the caller's `onerror` anyway. 400 is the smallest width
- * every source we hold will actually cut, which is why `FeaturedSheet` had
- * settled on it. Other hosts (archive.org, Gallica) cut anything.
- *
  * ponytail: regex over parsing the IIIF URL. The only failure it can cause is a
  * width the server will not cut, and every caller's <img> falls back to the
  * stored URL on error.

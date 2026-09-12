@@ -106,10 +106,9 @@
             >
               <td class="thumb-col">
                 {#if item.thumbnail}
-                  <!-- The cell is 96px; the stored column is 800. 400 rather than 200 —
-                       see `atWidth`: our own mirror will not cut below 467. -->
+                  <!-- The cell is 96px; the stored column is 800. -->
                   <img
-                    src={atWidth(item.thumbnail, 400)}
+                    src={atWidth(item.thumbnail, 200)}
                     alt=""
                     loading="lazy"
                     on:error={(e) => ((e.currentTarget as HTMLImageElement).src = item.thumbnail!)}
