@@ -82,6 +82,8 @@ export const vi: Record<string, string> = {
   'Search the archive': 'Tìm kiếm kho lưu trữ',
   'Search maps, places and pages…': 'Tìm kiếm bản đồ, địa điểm và trang…',
   'Search results': 'Kết quả tìm kiếm',
+  'Searching…': 'Đang tìm…',
+  'Type to search.': 'Nhập để tìm kiếm.',
   'On the map': 'Trên bản đồ',
   Place: 'Địa điểm',
   move: 'di chuyển',

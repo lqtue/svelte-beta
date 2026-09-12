@@ -35,6 +35,13 @@ import { placeKey } from '$lib/core/utils/placeKey';
 const MAX_UNWARPED_MAPS = 4;
 const LABEL_LIMIT = 60;
 const PLACE_LIMIT = 20;
+/**
+ * The same two for `fields=slim`. The command palette renders five of each, so
+ * the wide limits only bought a longer sort inside the RPC and a longer `id in
+ * (…)` for the map names — per keystroke-group.
+ */
+const SLIM_LABEL_LIMIT = 12;
+const SLIM_PLACE_LIMIT = 8;
 
 /** One gazetteer entry — `/api/search?include=places`. */
 export interface PlaceHit {
@@ -62,6 +69,18 @@ export interface LabelHit {
   lng: number | null;
   lat: number | null;
 }
+
+/** Everything a catalog card, the facet rail and the admin editor read. */
+const FULL_MAP_COLUMNS =
+  'id,name,location,map_type,dc_description,thumbnail,year,year_label,collection,source_type,status,bbox,extra_metadata,iiif_image,allmaps_id,annotation_url,georef_done,creator,holding_institution,original_title,dc_publisher,shelfmark,physical_description,rights,language,source_url';
+
+/**
+ * `fields=slim`: a title and a year, plus the five columns the facet filters
+ * read so the same filter code runs either way. `extra_metadata` and the long
+ * source fields are most of a map row and no slim caller renders one of them.
+ */
+const SLIM_MAP_COLUMNS =
+  'id,name,year,year_label,status,map_type,source_type,holding_institution,allmaps_id';
 
 // No pagination UI on the catalog/sidebar yet, so the page slice must be able
 // to hold the whole archive. Raw queries keep their own 2000-row safety ceiling.
@@ -116,8 +135,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   // `fields=slim` is the command palette: it shows a title and a year for six
   // rows and has no facet rail to feed, so Postgres can apply the limit instead
   // of us fetching up to 2000 rows per keystroke-group to tally facets nobody
-  // reads. (The column list stays whole — the PostgREST types parse that string
-  // literally, and the row count was the expensive half.)
+  // reads. It also cuts the column list down to what such a caller renders.
   const slim = url.searchParams.get('fields') === 'slim';
 
   const includeScout = (role === 'admin' || role === 'mod') && includeReq.includes('scout');
@@ -129,13 +147,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   // We fetch a broad set (search applied; facet filters NOT applied) so we can tally facets,
   // then apply facet filters in JS for the page slice. Catalog ceiling is ~10k rows so this
   // stays cheap; if maps ever grows past that we'd push facets server-side.
-  let mapsRows: Record<string, unknown>[] = [];
-  if (includeMaps) {
-    let qMaps = supabase
-      .from('maps')
-      .select(
-        'id,name,location,map_type,dc_description,thumbnail,year,year_label,collection,source_type,status,bbox,extra_metadata,iiif_image,allmaps_id,annotation_url,georef_done,creator,holding_institution,original_title,dc_publisher,shelfmark,physical_description,rights,language,source_url'
-      );
+  const loadMaps = async (): Promise<Record<string, unknown>[]> => {
+    if (!includeMaps) return [];
+    // The select string is read *literally* by PostgREST's types, so a ternary
+    // inside `select()` resolves to a ParserError. Pick the string first.
+    const columns: string = slim ? SLIM_MAP_COLUMNS : FULL_MAP_COLUMNS;
+    let qMaps = supabase.from('maps').select(columns);
     if (role !== 'admin' && role !== 'mod') {
       // Public users only see public/featured.
       qMaps = qMaps.in('status', ['public', 'featured']);
@@ -147,12 +164,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     qMaps = qMaps.limit(slim ? Math.min(limit + offset, MAX_LIMIT) : 2000);
     const { data, error: err } = await qMaps;
     if (err) dbError(err, 'Map search failed');
-    mapsRows = (data as Record<string, unknown>[]) || [];
-  }
+    return (data as unknown as Record<string, unknown>[]) || [];
+  };
 
   // ---------- SCOUT ----------
-  let scoutRows: Record<string, unknown>[] = [];
-  if (includeScout) {
+  const loadScout = async (): Promise<Record<string, unknown>[]> => {
+    if (!includeScout) return [];
     let qScout = supabase
       .from('scout_candidates')
       .select(
@@ -163,8 +180,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     qScout = qScout.limit(2000);
     const { data, error: err } = await qScout;
     if (err) dbError(err, 'Scout search failed');
-    scoutRows = (data as Record<string, unknown>[]) || [];
-  }
+    return (data as Record<string, unknown>[]) || [];
+  };
 
   // ---------- PLACES ----------
   // Match on `name_key` only, with the query folded through the *same* rule that
@@ -180,15 +197,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   //
   // `placeKey` strips every character PostgREST treats as syntax, so the
   // pattern needs no further escaping.
-  const places: PlaceHit[] = [];
   const placeNeedle = includePlaces ? placeKey(q) : '';
-  if (placeNeedle.length >= 2) {
+  const loadPlaces = async (): Promise<PlaceHit[]> => {
+    const places: PlaceHit[] = [];
+    if (placeNeedle.length < 2) return places;
     const { data, error: err } = await supabase
       .from('place_names')
       .select('name_key,name,mentions,first_year,last_year,lng,lat')
       .ilike('name_key', `%${placeNeedle}%`)
       .order('mentions', { ascending: false })
-      .limit(PLACE_LIMIT);
+      .limit(slim ? SLIM_PLACE_LIMIT : PLACE_LIMIT);
     if (err) dbError(err, 'Place search failed');
     for (const r of data ?? []) {
       if (!r.name_key || !r.name) continue;
@@ -202,17 +220,19 @@ export const GET: RequestHandler = async ({ locals, url }) => {
         lat: r.lat,
       });
     }
-  }
+    return places;
+  };
 
   // ---------- LABELS ----------
   // Fuzzy match on the OCR text, one row per (map, label). Draft maps are gated
   // in the RPC for public callers; staff see everything, like the maps block.
-  const labels: LabelHit[] = [];
-  if (includeLabels) {
+  const loadLabels = async (): Promise<LabelHit[]> => {
+    const labels: LabelHit[] = [];
+    if (!includeLabels) return labels;
     const { data: hits, error: err } = await supabase.rpc('search_labels', {
       p_q: q,
       p_public_only: role !== 'admin' && role !== 'mod',
-      p_limit: LABEL_LIMIT,
+      p_limit: slim ? SLIM_LABEL_LIMIT : LABEL_LIMIT,
     });
     if (err) dbError(err, 'Label search failed');
 
@@ -228,9 +248,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
       // that returned none need their annotation fetched, and only a few of
       // those — the rest list without coordinates rather than costing a
       // request each.
-      const unwarped = [
-        ...new Set((hits ?? []).filter((h) => h.lng === null).map((h) => h.map_id)),
-      ].slice(0, MAX_UNWARPED_MAPS);
+      // Not for a slim caller: that is the command palette, firing per
+      // keystroke-group, and it renders a hit with no coordinates perfectly
+      // well (the row opens the sheet instead of the spot). Paying four
+      // upstream annotation fetches inside a keystroke to place seven rows is
+      // the single most expensive thing this endpoint can do.
+      const unwarped = slim
+        ? []
+        : [...new Set((hits ?? []).filter((h) => h.lng === null).map((h) => h.map_id))].slice(
+            0,
+            MAX_UNWARPED_MAPS
+          );
       const transformers = new Map(
         await Promise.all(
           unwarped.map(async (id) => {
@@ -268,7 +296,18 @@ export const GET: RequestHandler = async ({ locals, url }) => {
         });
       }
     }
-  }
+    return labels;
+  };
+
+  // The four blocks above share nothing but the client, and each is a round
+  // trip to Sydney. Run sequentially they simply added up — measured at ~0.95s
+  // for the palette's maps+places+labels against ~0.45s for the slowest alone.
+  const [mapsRows, scoutRows, places, labels] = await Promise.all([
+    loadMaps(),
+    loadScout(),
+    loadPlaces(),
+    loadLabels(),
+  ]);
 
   // ---------- FACETS (pre-filter) ----------
   // Each facet group tallies against everything-except-the-current-dimension so that

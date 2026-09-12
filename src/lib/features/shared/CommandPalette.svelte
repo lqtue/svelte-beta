@@ -119,6 +119,23 @@
   /** The request that owns the results right now; older ones are aborted. */
   let searchCtrl: AbortController | null = null;
 
+  /**
+   * Answers already paid for, keyed by the query. A palette is backspaced
+   * through constantly — "catinat" → "catina" → "catin" is three round trips to
+   * Sydney for answers we had a moment ago. Bounded at 30 and thrown away with
+   * the tab; the archive does not change inside one visit.
+   */
+  type Answer = { maps: MapHit[]; places: PlaceRow[]; labels: LabelRow[] };
+  const cache = new Map<string, Answer>();
+  const CACHE_MAX = 30;
+
+  function apply(a: Answer) {
+    maps = a.maps;
+    places = a.places;
+    labels = a.labels;
+    searchError = '';
+  }
+
   const search = debounce(async (q: string) => {
     if (!q.trim()) {
       searchCtrl?.abort();
@@ -137,6 +154,13 @@
       request write to the UI. Same shape as LocationSearch.
     */
     searchCtrl?.abort();
+    const hit = cache.get(q.trim());
+    if (hit) {
+      searchCtrl = null;
+      apply(hit);
+      loading = false;
+      return;
+    }
     const ctrl = (searchCtrl = new AbortController());
     try {
       const res = await fetch(
@@ -145,10 +169,15 @@
       );
       if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();
-      maps = (data.maps ?? []).slice(0, 6);
-      places = (data.places ?? []).slice(0, 5);
-      labels = (data.labels ?? []).slice(0, 5);
-      searchError = '';
+      const answer: Answer = {
+        maps: (data.maps ?? []).slice(0, 6),
+        places: (data.places ?? []).slice(0, 5),
+        labels: (data.labels ?? []).slice(0, 5),
+      };
+      // Insertion order, so the oldest key is the first one `keys()` yields.
+      if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
+      cache.set(q.trim(), answer);
+      apply(answer);
     } catch (e: unknown) {
       // An abort is not a failure: a newer query took over and owns the UI.
       if ((e as { name?: string })?.name === 'AbortError') return;
@@ -296,11 +325,13 @@
     <!-- Arrow keys move a highlight while focus stays in the input, so without
          this the whole result list is silent to a screen reader. -->
     <p class="sr-only" aria-live="polite">
-      {rows.length
-        ? `${rows.length} result${rows.length === 1 ? '' : 's'}`
-        : query.trim()
-          ? 'No results'
-          : ''}
+      {loading
+        ? 'Searching…'
+        : rows.length
+          ? `${rows.length} result${rows.length === 1 ? '' : 's'}`
+          : query.trim()
+            ? 'No results'
+            : ''}
     </p>
 
     <div
@@ -311,8 +342,17 @@
       bind:this={listEl}
     >
       {#if !rows.length}
+        <!-- "Nothing matches" is a verdict, and while a request is in flight we
+             do not have one yet. Saying it anyway made every search look empty
+             for the first few hundred milliseconds. -->
         <p class="cp-empty">
-          {query.trim() ? `Nothing matches “${query.trim()}”.` : 'Type to search.'}
+          {#if loading}
+            {$t('Searching…')}
+          {:else if query.trim()}
+            {`Nothing matches “${query.trim()}”.`}
+          {:else}
+            {$t('Type to search.')}
+          {/if}
         </p>
       {:else}
         {#each rows as row, i (row.kind + row.href + i)}
