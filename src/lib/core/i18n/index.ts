@@ -87,3 +87,48 @@ export function splitHighlight(s: string): [string, string, string] {
   const m = /^([\s\S]*?)\*\*([\s\S]+?)\*\*([\s\S]*)$/.exec(s);
   return m ? [m[1], m[2], m[3]] : [s, '', ''];
 }
+
+/**
+ * The paths that exist in both languages, and so the paths that get a `/vi`
+ * twin, an `hreflang` pair and a sitemap entry each.
+ *
+ * Everything else — a map record, a place name, a blog post — is one document
+ * written in one language with only the chrome around it translated. A `/vi`
+ * twin of those would be the same page again, which is a duplicate to answer
+ * for rather than a translation to rank.
+ *
+ * `sitemap.xml` enumerates exactly this list, which is why it lives here
+ * rather than beside either caller.
+ */
+export const LOCALIZED_PATHS = [
+  '/',
+  '/catalog',
+  '/about',
+  '/blog',
+  '/changelog',
+  '/contribute',
+  '/contribute/georef',
+  '/directory',
+];
+
+/** `/vi/about` → `/about`, `/vi` → `/`. Any other path is returned unchanged. */
+export function stripLocale(pathname: string): string {
+  if (pathname === '/vi') return '/';
+  return pathname.startsWith('/vi/') ? pathname.slice(3) : pathname;
+}
+
+/** `/about` → `/vi/about`, `/` → `/vi`. Assumes the path carries no locale. */
+export function withLocale(pathname: string): string {
+  return pathname === '/' ? '/vi' : `/vi${pathname}`;
+}
+
+/**
+ * The locale a URL pins, or null when it pins none.
+ *
+ * A cookie cannot be the only answer: a crawler sends none, so before this
+ * existed every request from Google resolved to English and the Vietnamese
+ * half of the site had no address to index.
+ */
+export function localeFromPath(pathname: string): Locale | null {
+  return pathname === '/vi' || pathname.startsWith('/vi/') ? 'vi' : null;
+}

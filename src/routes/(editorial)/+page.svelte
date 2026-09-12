@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { SITE_ORIGIN } from '$lib/core/site';
+  import { jsonLd } from '$lib/core/utils/jsonLd';
   import { t } from '$lib/core/i18n';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
@@ -230,7 +232,23 @@
    * constant that has to be maintained in a second place.
    */
   $: shareImage = new URL(HERO_1882, $page.url).href;
-  $: canonical = new URL('/', $page.url).href;
+  /* `og:url` only — the canonical tag itself is the root layout's, which emits
+     one for every page. Two canonicals on a page is the same as none. The
+     pathname is `/` or `/vi`, and both are addresses a crawler should keep. */
+  $: canonical = SITE_ORIGIN + $page.url.pathname;
+
+  /* The archive as a thing search engines can name, rather than a page they
+     have to infer one from. No `SearchAction`: /catalog takes no `?q=`, and a
+     target that does not filter is a claim Google would be right to distrust. */
+  $: siteSchema = jsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Vietnam Map Archive',
+    alternateName: 'VMA',
+    url: SITE_ORIGIN,
+    inLanguage: ['en', 'vi'],
+    description: metaDescription,
+  });
 
   $: displayedMaps = filterCollection === 'featured' ? data.featured : favoriteMaps;
 
@@ -324,7 +342,6 @@
 <svelte:head>
   <title>{$t('Vietnam Map Archive — historical maps of Vietnam, open and georeferenced')}</title>
   <meta name="description" content={metaDescription} />
-  <link rel="canonical" href={canonical} />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Vietnam Map Archive" />
   <meta property="og:url" content={canonical} />
@@ -341,6 +358,11 @@
   <meta name="twitter:title" content="Vietnam Map Archive" />
   <meta name="twitter:description" content={metaDescription} />
   <meta name="twitter:image" content={shareImage} />
+  <!-- The only markup here is the <script> tag `jsonLd` writes; every value
+       inside it goes through JSON.stringify with `<` escaped, so nothing in
+       the payload can open a tag. -->
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html siteSchema}
 </svelte:head>
 
 <div class="page home-page">

@@ -13,19 +13,21 @@
 import type { RequestHandler } from './$types';
 import { adminClient } from '$lib/server/supabaseAdmin';
 import { keyToSlug } from '$lib/core/utils/placeKey';
+import { LOCALIZED_PATHS, withLocale } from '$lib/core/i18n';
+import { SITE_ORIGIN } from '$lib/core/site';
 import { posts } from '../(editorial)/blog/posts';
 
-/** Editorial pages worth indexing. The app tools are behind `ssr = false`. */
-const STATIC_PATHS = [
-  '/',
-  '/catalog',
-  '/about',
-  '/blog',
-  '/changelog',
-  '/contribute',
-  '/contribute/georef',
-  '/directory',
-];
+/**
+ * Editorial pages worth indexing — `LOCALIZED_PATHS`, which is the same list
+ * for the same reason: a page is worth indexing when it is a page rather than
+ * a record, and those are exactly the ones translated into Vietnamese. The app
+ * tools are behind `ssr = false` and appear in neither.
+ *
+ * Each is emitted twice, once per locale. Every other URL below is a single
+ * document in its own language — a map's title, a place's spellings, a post's
+ * prose — so a `/vi` twin of one would be the same page a second time.
+ */
+const STATIC_PATHS = LOCALIZED_PATHS;
 
 /** Long enough to be worth generating, short enough to follow a publish. */
 const CACHE_SECONDS = 3600;
@@ -33,7 +35,7 @@ const CACHE_SECONDS = 3600;
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export const GET: RequestHandler = async ({ url, setHeaders }) => {
+export const GET: RequestHandler = async ({ setHeaders }) => {
   const supabase = adminClient();
 
   const [{ data: maps }, { data: places }] = await Promise.all([
@@ -47,8 +49,11 @@ export const GET: RequestHandler = async ({ url, setHeaders }) => {
       .limit(5000),
   ]);
 
+  /* The pinned origin, not the request's: a preview deploy would otherwise
+     publish a sitemap of its own `<hash>.vmabeta.pages.dev` URLs, which is the
+     same competing-duplicate problem the canonical tags exist to close. */
   const entry = (path: string, lastmod?: string | null) =>
-    `  <url><loc>${esc(new URL(path, url.origin).href)}</loc>${
+    `  <url><loc>${esc(new URL(path, SITE_ORIGIN).href)}</loc>${
       lastmod ? `<lastmod>${esc(lastmod.slice(0, 10))}</lastmod>` : ''
     }</url>`;
 
@@ -56,6 +61,7 @@ export const GET: RequestHandler = async ({ url, setHeaders }) => {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...STATIC_PATHS.map((p) => entry(p)),
+    ...STATIC_PATHS.map((p) => entry(withLocale(p))),
     ...posts.map((p) => entry(`/blog/${p.slug}`, p.date)),
     ...(maps ?? []).map((m) => entry(`/catalog/${m.id}`, m.updated_at as string | null)),
     ...(places ?? [])

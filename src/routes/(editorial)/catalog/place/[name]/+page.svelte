@@ -11,6 +11,9 @@
   import { letteringClass } from '$lib/core/utils/mapLettering';
   import PressPanel from '$lib/features/explore/PressPanel.svelte';
   import type { PageData } from './$types';
+  import { page } from '$app/stores';
+  import { SITE_ORIGIN } from '$lib/core/site';
+  import { jsonLd } from '$lib/core/utils/jsonLd';
 
   export let data: PageData;
 
@@ -71,16 +74,60 @@
   $: description = `“${place.name}” appears on ${maps.length} historical map${
     maps.length === 1 ? '' : 's'
   } of ${where} in the Vietnam Map Archive${span ? `, ${span}` : ''}.`;
+  $: shareUrl = SITE_ORIGIN + $page.url.pathname;
+
+  /**
+   * A place, with its other spellings as `alternateName` — which is what the
+   * gazetteer's `variants` already are, so the one thing this page knows that
+   * no other source does is the thing schema.org has a field for. Coordinates
+   * are sent only when the gazetteer resolved them; a place with no geometry
+   * is still a place.
+   */
+  $: placeSchema = jsonLd(
+    Object.fromEntries(
+      Object.entries({
+        '@context': 'https://schema.org',
+        '@type': 'Place',
+        name: place.name,
+        alternateName: otherSpellings.length ? otherSpellings : undefined,
+        description,
+        url: shareUrl,
+        geo:
+          place.lat != null && place.lng != null
+            ? { '@type': 'GeoCoordinates', latitude: place.lat, longitude: place.lng }
+            : undefined,
+      }).filter(([, v]) => v !== undefined)
+    )
+  );
 </script>
 
 <svelte:head>
   <title>{place.name} — Vietnam Map Archive</title>
   <meta name="description" content={description} />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Vietnam Map Archive" />
+  <meta property="og:url" content={shareUrl} />
   <meta property="og:title" content={`${place.name} — Vietnam Map Archive`} />
   <meta property="og:description" content={description} />
+  <meta name="twitter:title" content={`${place.name} — Vietnam Map Archive`} />
+  <meta name="twitter:description" content={description} />
   {#if maps[0]?.thumbnail}
     <meta property="og:image" content={maps[0].thumbnail} />
+    <meta property="og:image:width" content="800" />
+    <meta property="og:image:alt" content={maps[0].name ?? place.name} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={maps[0].thumbnail} />
+  {:else}
+    <!-- Without an image there is no large card to fill, and a crawler handed
+         `summary_large_image` with nothing to put in it renders no card at
+         all — which is how this page shared, as a bare link. -->
+    <meta name="twitter:card" content="summary" />
   {/if}
+  <!-- The only markup here is the <script> tag `jsonLd` writes; every value
+       inside it goes through JSON.stringify with `<` escaped, so nothing in
+       the payload can open a tag. -->
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html placeSchema}
 </svelte:head>
 
 <div class="page">

@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { redirect, type Handle } from '@sveltejs/kit';
 import type { Database } from '$lib/data/supabase/types';
-import { LOCALE_COOKIE, isLocale } from '$lib/core/i18n';
+import { LOCALE_COOKIE, isLocale, localeFromPath } from '$lib/core/i18n';
+import { CANONICAL_HOST } from '$lib/core/site';
 
 /** Retired route paths → their replacements (301, query string preserved). */
 const LEGACY_REDIRECTS: Record<string, string> = {
@@ -57,7 +58,6 @@ function legacyTarget(pathname: string): string | null {
  * `<hash>.vmabeta.pages.dev`, and those have to stay reachable to be any use,
  * so the match is exact rather than a suffix.
  */
-const CANONICAL_HOST = 'maparchive.vn';
 const PAGES_DEV_HOST = 'vmabeta.pages.dev';
 
 /**
@@ -103,8 +103,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Read before anything renders, so a server-rendered page is already in the
   // reader's language rather than flipping after hydration.
+  //
+  // The path wins over the cookie: `/vi/about` is an address, and an address
+  // has to mean the same thing to every reader — including a crawler, which
+  // sends no cookie and so saw nothing but English until the prefix existed.
   const cookieLocale = event.cookies.get(LOCALE_COOKIE);
-  event.locals.locale = isLocale(cookieLocale) ? cookieLocale : 'en';
+  event.locals.locale =
+    localeFromPath(event.url.pathname) ?? (isLocale(cookieLocale) ? cookieLocale : 'en');
 
   /**
    * Track whether the response has been resolved to prevent

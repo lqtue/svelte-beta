@@ -8,7 +8,9 @@
   import { fetchUserRole } from '$lib/data/supabase/role';
   import CommandPalette from '$lib/features/shared/CommandPalette.svelte';
   import { openPalette, isPaletteShortcut, isTypingTarget } from '$lib/core/utils/commandPalette';
-  import { locale } from '$lib/core/i18n';
+  import { page } from '$app/stores';
+  import { locale, LOCALIZED_PATHS, stripLocale, withLocale } from '$lib/core/i18n';
+  import { SITE_ORIGIN } from '$lib/core/site';
 
   export let data;
 
@@ -16,6 +18,22 @@
   // line of the same tick, so there is no window for a concurrent request to
   // set it to something else. Reactive so a client-side nav keeps it current.
   $: locale.set(data.locale);
+
+  /**
+   * Canonical and hreflang for every page in both route groups, computed once
+   * here rather than re-typed into sixteen `<svelte:head>` blocks. Only `/`
+   * had a canonical before this, so every other URL was its own duplicate
+   * across `?tab=`, `?map=` and whatever tracking parameters a share added.
+   *
+   * The origin is pinned rather than taken from the request: a preview deploy
+   * would otherwise declare itself canonical for production's content.
+   */
+  $: path = stripLocale($page.url.pathname);
+  $: localized = LOCALIZED_PATHS.includes(path);
+  // A translated page's canonical is its own locale's address. On a page with
+  // no `/vi` twin the English URL is the only address there is, so a reader
+  // who set the cookie still gets Vietnamese chrome at the canonical URL.
+  $: canonical = SITE_ORIGIN + (localized && $locale === 'vi' ? withLocale(path) : path);
 
   const supabase = createSupabaseBrowserClient();
 
@@ -91,6 +109,12 @@
 
 <svelte:head>
   <link rel="icon" href={favicon} />
+  <link rel="canonical" href={canonical} />
+  {#if localized}
+    <link rel="alternate" hreflang="en" href={SITE_ORIGIN + path} />
+    <link rel="alternate" hreflang="vi" href={SITE_ORIGIN + withLocale(path)} />
+    <link rel="alternate" hreflang="x-default" href={SITE_ORIGIN + path} />
+  {/if}
 </svelte:head>
 
 <slot />

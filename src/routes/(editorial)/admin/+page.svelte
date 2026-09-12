@@ -31,6 +31,11 @@
   $: tabLabel = TABS.find((t) => t.key === tab)?.label ?? TABS[0].label;
 </script>
 
+<svelte:head>
+  <title>Admin — Vietnam Map Archive</title>
+  <meta name="robots" content="noindex" />
+</svelte:head>
+
 <div class="page admin-page">
   <PageHero eyebrow={tabLabel} title="Admin" />
 

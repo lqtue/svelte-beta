@@ -72,6 +72,7 @@
 
 <svelte:head>
   <title>Your profile — Vietnam Map Archive</title>
+  <meta name="robots" content="noindex" />
 </svelte:head>
 
 <div class="page profile-page">

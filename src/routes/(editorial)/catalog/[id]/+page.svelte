@@ -14,6 +14,9 @@
     ohmEditorUrl,
   } from '$lib/core/iiif/annotationUrl';
   import { placeHref } from '$lib/core/utils/placeKey';
+  import { page } from '$app/stores';
+  import { SITE_ORIGIN } from '$lib/core/site';
+  import { jsonLd } from '$lib/core/utils/jsonLd';
 
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { fetchUserRole, type UserRole } from '$lib/data/supabase/role';
@@ -59,6 +62,47 @@
     .map((t) => t.trim())
     .filter(Boolean);
   $: blurb = paragraphs[0];
+
+  $: shareUrl = SITE_ORIGIN + $page.url.pathname;
+
+  /**
+   * The record as schema.org sees it. A scanned sheet is a `Map`, and the
+   * fields a catalogue already keeps — who drew it, when, who holds it now,
+   * under what rights — are the ones that let a result carry more than a
+   * title. Every value is dropped when the column is null rather than sent as
+   * an empty string, which reads as a claim that the answer is "nothing".
+   */
+  $: mapSchema = jsonLd(
+    Object.fromEntries(
+      Object.entries({
+        '@context': 'https://schema.org',
+        '@type': 'Map',
+        name: map.name,
+        alternateName: map.original_title ?? undefined,
+        description: blurb,
+        url: shareUrl,
+        image: shareImage ?? undefined,
+        inLanguage: 'en',
+        dateCreated: map.year ? String(map.year) : undefined,
+        temporalCoverage: map.year_label ?? (map.year ? String(map.year) : undefined),
+        creator: map.creator ? { '@type': 'Organization', name: map.creator } : undefined,
+        publisher: map.dc_publisher
+          ? { '@type': 'Organization', name: map.dc_publisher }
+          : undefined,
+        holdingArchive: map.holding_institution
+          ? { '@type': 'ArchiveOrganization', name: map.holding_institution }
+          : undefined,
+        identifier: map.shelfmark ?? undefined,
+        license: map.rights ?? undefined,
+        contentLocation: map.location ? { '@type': 'Place', name: map.location } : undefined,
+        isPartOf: {
+          '@type': 'Collection',
+          name: 'Vietnam Map Archive',
+          url: `${SITE_ORIGIN}/catalog`,
+        },
+      }).filter(([, v]) => v !== undefined)
+    )
+  );
 
   // Tracing this sheet into OpenHistoricalMap needs the warped map as XYZ
   // tiles. Allmaps' tile server does the warping from the annotation we
@@ -111,17 +155,30 @@
   <title>{map.name} — Vietnam Map Archive</title>
   <meta name="description" content={blurb} />
   <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Vietnam Map Archive" />
+  <meta property="og:url" content={shareUrl} />
   <meta property="og:title" content={map.name} />
   <meta property="og:description" content={blurb} />
   {#if shareImage}
     <meta property="og:image" content={shareImage} />
+    <!-- The stored thumbnail is 800px on its long edge. Declaring it lets a
+         crawler build the large card without fetching the file first; without
+         the dimensions several of them fall back to the small one. -->
+    <meta property="og:image:width" content="800" />
+    <meta property="og:image:alt" content={map.name} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content={shareImage} />
+    <meta name="twitter:image:alt" content={map.name} />
   {:else}
     <meta name="twitter:card" content="summary" />
   {/if}
   <meta name="twitter:title" content={map.name} />
   <meta name="twitter:description" content={blurb} />
+  <!-- The only markup here is the <script> tag `jsonLd` writes; every value
+       inside it goes through JSON.stringify with `<` escaped, so nothing in
+       the payload can open a tag. -->
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html mapSchema}
 </svelte:head>
 
 <div class="page">

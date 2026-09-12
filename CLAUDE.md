@@ -179,6 +179,48 @@ of being torn down and rebuilt. **The tool is called Studio, and `?mode=annotate
 `/place/<name>`); `withSearch()` joins with `&` because half the targets already
 carry a `?mode=`.
 
+**`/vi/<path>` is the Vietnamese address of `<path>`** (Sept 2026). The locale
+came from a cookie and nothing else, which meant one URL served two languages —
+and a crawler sends no cookie, so every request from Google resolved to English
+and the whole Vietnamese side of the site had no address to index. `src/hooks.ts`
+is the one line that fixes it: `reroute` strips the prefix so `/vi/about`
+resolves to the `/about` route, and `hooks.server.ts` takes the path's locale
+over the cookie's — an address has to mean the same thing to every reader. It is
+universal, not server-only, or a client-side navigation would drop out of the
+locale the reader arrived in. There are **no `[[lang]]` route directories**; the
+route tree is untouched.
+
+**Only `LOCALIZED_PATHS` (`$lib/core/i18n`) gets a `/vi` twin** — the eight
+editorial pages, which is also exactly what `sitemap.xml` enumerates, so the two
+read one list. Those carry an `hreflang` trio (`en`, `vi`, `x-default`) and two
+sitemap entries each. Everything else — a map record, a place name, a blog post —
+is a single document in its own language with only the chrome around it
+translated, so a `/vi` twin would be the same page a second time: `/vi/catalog/<id>`
+still renders, and **canonicalises back to the English URL**. That is the whole
+duplicate-content story; do not add hreflang to a page with no real translation.
+
+**Canonical and hreflang are the root layout's, once, for every page** —
+`src/routes/+layout.svelte`, off `$page.url.pathname`. Only `/` had a canonical
+before, so every other URL was its own duplicate across `?tab=`, `?map=` and
+whatever a share appended. The origin is **pinned** (`SITE_ORIGIN` in
+`$lib/core/site.ts`, the host `hooks.server.ts` 301s to, and what `sitemap.xml`
+builds from too): taken from the request, a preview deploy at
+`<hash>.vmabeta.pages.dev` declares itself canonical for production's content.
+A page must not emit its own `<link rel="canonical">` — two is the same as none.
+
+**Structured data** is `jsonLd()` (`$lib/core/utils/jsonLd.ts`) — `WebSite` on
+`/`, `Map` on `/catalog/[id]`, `Place` on the gazetteer with the variant
+spellings as `alternateName`. It escapes `<`, which `JSON.stringify` does not:
+a map name containing `</script>` would otherwise close the tag and spill the
+graph into the document as markup. That escaping is why the three `{@html}`
+sites carry an eslint suppression rather than a rewrite. Null columns are
+dropped, never sent as `""`. No `SearchAction`: `/catalog` takes no `?q=`, and
+Google retired the sitelinks searchbox.
+
+`/profile`, `/login` and `/admin` carry `<meta name="robots" content="noindex">`
+— `robots.txt` allows everything, so a page that should not be indexed has to
+say so itself.
+
 - `(editorial)` — public pages with nav/footer: `/`, `/catalog`, `/catalog/[id]`, `/catalog/place/[name]`, `/about`, `/blog`, `/blog/[slug]`, `/directory`, `/screens`, `/profile`, `/login`, `/contribute`, `/contribute/georef`, `/admin`. There is no `/signup`.
 
 **/catalog is one column, top down** (Sept 2026). It was a 260px `FacetRail` of counted chips beside the results — a column that cost the table a third of the page and that nobody scrolled back up to touch, which is why the table hid its Type and Collection columns under 800px while a third of the width sat in a filter nobody had used. The rail is gone and **`FacetRail.svelte` is deleted**; the three facets are the same `<details class="sb-more">` disclosure /explore wears (`ArchiveFilters`, now with `showSearch` so the page's own `.sb-search.is-page` stays the only search box). The trade is honest and worth knowing: the chips were multi-select and carried counts, the selects are one value per facet and carry none — the three still combine.
