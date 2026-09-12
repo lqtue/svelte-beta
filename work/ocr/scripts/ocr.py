@@ -93,6 +93,27 @@ def parse_crop(s: str) -> tuple[int, int, int, int]:
     return tuple(parts)  # type: ignore[return-value]
 
 
+def parse_rects(s: str) -> list[tuple[int, int, int, int]]:
+    """';'-separated x,y,w,h rectangles in source px."""
+    return [parse_crop(part) for part in s.split(";") if part.strip()]
+
+
+def in_rects(rects: list[tuple[int, int, int, int]], bbox) -> bool:
+    """Is this read's centre inside one of the rectangles?
+
+    Used to drop what the tile pass finds inside a *printed* directory — the
+    numbered legend block, the street index. A tile sees "52  C 10  Marche
+    Central" and there is nothing in the picture to say that 52 is a line of a
+    table rather than a numeral stamped on the map: on the 1942 Saigon-Cho Lon
+    sheet that put the whole index column into `legend_ref`, numbers 1..99
+    claiming to be positions. Those blocks have their own structured passes
+    (`legend`, `street-index`), so the tile pass has nothing to add there.
+    """
+    x, y, w, h = bbox
+    cx, cy = x + w / 2, y + h / 2
+    return any(rx <= cx < rx + rw and ry <= cy < ry + rh for rx, ry, rw, rh in rects)
+
+
 def render_preview(
     image,
     extractions: list[dict],
@@ -1061,6 +1082,12 @@ def cmd_batch(args: argparse.Namespace) -> None:
         tr["extractions"] = _apply_conf_floors(tr["extractions"], global_min=min_conf)
 
     deduped = dedup_extractions(tile_results, iou_threshold=0.15)
+    excluded = parse_rects(getattr(args, "exclude", None) or "")
+    if excluded:
+        kept = [e for e in deduped if not in_rects(excluded, e["global_bbox"])]
+        print(f"  Printed-index regions: dropped {len(deduped) - len(kept)} read(s) "
+              f"inside {len(excluded)} region(s)")
+        deduped = kept
     raw_n = sum(len(tr["extractions"]) for tr in tile_results)
     confirmed_n = sum(1 for e in deduped if e.get("tier") == "confirmed")
     uncertain_n = sum(1 for e in deduped if e.get("tier") == "uncertain")
@@ -3654,6 +3681,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_batch.add_argument("--crop",
                          help="Manual neatline crop: x,y,w,h in source image pixels. "
                               "Overrides --scout and --smart-grid.")
+    p_batch.add_argument("--exclude",
+                         help="';'-separated x,y,w,h rectangles (source px) whose reads are "
+                              "discarded — the sheet's printed legend and street index, which "
+                              "the `legend` and `street-index` passes read properly.")
     p_batch.add_argument("--tile-overrides",
                          help='JSON object mapping tile keys (x_y_w_h) to "low_res" or "skip". '
                               'Example: \'{"390_295_2000_2000":"skip","2390_0_2000_2000":"low_res"}\'')

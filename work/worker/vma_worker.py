@@ -287,6 +287,11 @@ def _ocr_batch_argv(job: dict, python_bin: str, run_id: str, db: bool) -> list[s
     neatline = p.get("neatline")
     if neatline:
         argv += ["--crop", ",".join(str(n) for n in neatline)]
+    # The printed legend and street-index blocks, so the tile pass does not read
+    # a directory line as a numeral on the map body.
+    exclude = p.get("exclude") or []
+    if exclude:
+        argv += ["--exclude", ";".join(",".join(str(n) for n in r) for r in exclude)]
     if p.get("auto", True):
         if not neatline:
             argv.append("--scout")  # a drawn neatline already pins the crop
@@ -589,6 +594,15 @@ def _self_check() -> None:
         return _two_pass_plan(job, "python")
 
     assert len(plan_for(2400, 3)) == 4, "coarse sheet: two grid passes, hi-res, merge"
+
+    # 5b. The printed-index rectangles reach ocr.py, or every directory line on
+    #     the 1942 Saigon-Cho Lon sheet comes back as a numeral on the map body.
+    argv = _ocr_batch_argv({"id": "j", "map_id": "m",
+                            "payload": {"run_id": "r",
+                                        "exclude": [[8964, 7643, 5295, 2467],
+                                                    [4549, 8749, 2728, 3298]]}},
+                           "python", "r", db=False)
+    assert argv[argv.index("--exclude") + 1] == "8964,7643,5295,2467;4549,8749,2728,3298", argv
 
     # 6. What a run cost. The job row used to carry a returncode and a last line,
     #    so a pass that spent sixty calls to find four labels looked exactly like

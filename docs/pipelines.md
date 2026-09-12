@@ -218,6 +218,21 @@ What works, and got 156/156:
 2. One call per column group.
 3. Refuse the write unless the group's numbers come back contiguous.
 
+**Keep the tile pass out of the printed blocks.** The tile grid covers the
+whole crop, and on a sheet whose `main_map` region is its neatline the printed
+legend and street directory are inside it. A tile of a directory shows
+`52  C 10  Marché Central` and nothing in the picture says that 52 is a line of
+a table rather than a numeral stamped on a building, so the whole directory
+comes back as labels pinned to the margin: on the 1942 Saigon–Cho Lon sheet,
+**1535 of 4052 rows** — 719 streets, 630 institutions, and the index column's
+own 1…29 sitting in `legend_ref`. `ocr.py batch --exclude x,y,w,h;…` discards
+reads whose centre falls in those rectangles (`tests` → `work/ocr/scripts/test_exclude_printed.py`);
+`enqueue_ocr_all.mjs` fills it from every `legend` and `name_list` region the
+layout pass found, so a triaged sheet gets it for free. Nothing is lost — the
+`legend` and `street-index` passes read the same blocks as tables, with the grid
+cell each line names. `scripts/oneoff/reject_printed_index_reads.mjs` rejects
+the rows already written (dry run by default).
+
 **The printed index is an answer key.** It names every number that exists
 (1–156 here) and gives each a grid cell, so numeral recall has a real
 denominator and each miss has a place to look. The tile pass placed 104/156;

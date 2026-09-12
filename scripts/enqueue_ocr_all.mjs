@@ -149,6 +149,17 @@ const triageOf = (m) => {
 // neatline too. Mirrors `tilingCrop()` in src/lib/data/maps/triageTypes.ts —
 // this file is plain .mjs and cannot import the TS.
 const cropOf = cropOfTriage;
+
+// Blocks of printed *text about* the map rather than the map: the numbered
+// legend, the street directory. They are inside the crop whenever the layout
+// pass answered `main_map` with the neatline — which is what the 1942
+// Saigon–Cho Lon sheet does — and a tile of one reads as a page of numerals
+// stamped on nothing. The `legend` and `street-index` passes read these blocks
+// as tables, with the grid cell each line names, so the tile pass has nothing
+// to add here and everything to invent.
+const PRINTED_BLOCKS = new Set(['legend', 'name_list']);
+const excludeOf = (t) =>
+  (t?.regions ?? []).filter((r) => PRINTED_BLOCKS.has(r.category)).map((r) => r.bbox);
 const nTriaged = maps.filter(triageOf).length;
 const nProposed = maps.filter((m) => cropOf(m.triage) && !m.triage?.validated_at).length;
 const nNeedsCrop = maps.filter((m) => !cropOf(m.triage) && (m.triage?.regions ?? []).length).length;
@@ -302,6 +313,7 @@ for (const m of todo) {
       // `tile_overrides` from a person still wins, since ocr.py prefers it.
       auto_priority: true,
       ...(crop ? { neatline: crop } : {}),
+      ...(excludeOf(t).length ? { exclude: excludeOf(t) } : {}),
       ...(t?.tile_overrides && Object.keys(t.tile_overrides).length
         ? { tile_overrides: t.tile_overrides }
         : {}),
