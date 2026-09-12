@@ -149,12 +149,15 @@
     getRunId: () => ocrSidebar?.getRunId?.() ?? 'manual',
     reload: () => ocrSidebar?.load?.(),
     focusRow: (id, focusInput) => ocrSidebar?.focusRow?.(id, focusInput),
-    fitTo: (x, y, w, h) =>
-      map?.getView().fit(toOlExtent(x, y, w, h), { padding: [100, 100, 100, 100], duration: 400 }),
+    fitTo,
     panTo,
     setRowStatus: (id, status) => ocrSidebar?.setRowStatus?.(id, status),
   });
   $: selectedExtraction = $review.extractions.find((e) => e.id === $review.selectedId) ?? null;
+
+  function fitTo(x: number, y: number, w: number, h: number) {
+    map?.getView().fit(toOlExtent(x, y, w, h), { padding: [100, 100, 100, 100], duration: 400 });
+  }
 
   /**
    * Centres a bbox only when it is off screen, so clicking one never yanks the
@@ -442,6 +445,21 @@
     });
   }
 
+  /**
+   * The review sidebar picked a part of the sheet: frame it, and take the boxes
+   * down over a printed block. There the boxes are the crop each call covered,
+   * not the lines it read — one rectangle for fifty rows — so they hide the
+   * table the reviewer is there to read. Turning them back on is one click in
+   * the left rail, which is why this sets the toggle rather than overriding it.
+   */
+  function focusRegion(
+    e: CustomEvent<{ bbox: [number, number, number, number] | null; printed: boolean }>
+  ) {
+    const { bbox, printed } = e.detail;
+    showBoxes = !printed;
+    if (bbox) fitTo(...bbox);
+  }
+
   function setPhase(e: CustomEvent<{ phase: typeof phase }>) {
     phase = e.detail.phase;
     if (phase === 'segmentation') loadPipeline();
@@ -514,6 +532,7 @@
         on:filter={review.filter}
         on:zoomToExtraction={review.zoom}
         on:select={review.select}
+        on:regionFocus={focusRegion}
       />
     </svelte:fragment>
 

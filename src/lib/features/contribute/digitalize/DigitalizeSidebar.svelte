@@ -101,8 +101,10 @@
       bind:this={ocrSidebar}
       {mapId}
       {selectedId}
+      regions={triage.regions}
       on:loaded
       on:filter
+      on:regionFocus
       on:zoomToExtraction
       on:select
     />

@@ -133,3 +133,33 @@ export function entryForRow(
   const v = refValue(textOf(row));
   return v === null ? null : (entries.get(v) ?? null);
 }
+
+/**
+ * What the printed index says about itself: the run it spans, the numbers it is
+ * missing, the numbers it prints twice.
+ *
+ * The sheet numbers its legend 1..N with no gaps — that is what a printed index
+ * is — so any hole is a line the pass failed to read and any repeat is a line it
+ * read twice. On the 1942 Saigon–Cho Lon sheet the answer is `1..236, 22
+ * missing, none repeated`, which is the whole quality report for a block of 235
+ * rows and is invisible one row at a time.
+ */
+export type IndexGaps = { min: number; max: number; missing: number[]; repeated: number[] };
+
+export function indexGaps(rows: OcrExtraction[]): IndexGaps | null {
+  const ns: number[] = [];
+  for (const row of rows) {
+    if (categoryOf(row) !== 'legend_entry') continue;
+    const n = Number(/\bn=(\d+)/.exec(row.notes ?? '')?.[1]);
+    if (Number.isFinite(n)) ns.push(n);
+  }
+  if (!ns.length) return null;
+  const seen = new Map<number, number>();
+  for (const n of ns) seen.set(n, (seen.get(n) ?? 0) + 1);
+  const min = Math.min(...ns);
+  const max = Math.max(...ns);
+  const missing: number[] = [];
+  for (let n = min; n <= max; n++) if (!seen.has(n)) missing.push(n);
+  const repeated = [...seen.entries()].filter(([, k]) => k > 1).map(([n]) => n);
+  return { min, max, missing, repeated: repeated.sort((a, b) => a - b) };
+}

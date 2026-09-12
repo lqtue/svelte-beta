@@ -1,10 +1,28 @@
 <!--
   OcrFilterBar.svelte — the confidence floor + category chips above the OCR
-  review table. Filtering is client-side, so both values are bound straight
-  back to the sidebar rather than round-tripping through the API.
+  review table. Filtering is client-side, so every value is bound straight back
+  to the sidebar rather than round-tripping through the API.
+
+  The top row is the sheet's own layout — Map · Legend · Names · Title, read
+  off `maps.triage.regions`. That is the axis a reviewer actually works along:
+  checking the numbered legend is one job and checking street names is another,
+  and the OCR categories cut across both (the printed index alone contributed
+  719 `street` rows on the 1942 sheet, none of them marks on the map). Only the
+  parts a sheet has get a pill.
+
+  The categories are still there, folded into one `<details class="sb-more">` —
+  the same disclosure the /explore rail's facets use. They are the exception
+  now, not the first thing reached for.
 -->
 <script lang="ts">
   import { OCR_CATEGORIES, CAT_COLORS } from '../shared/constants';
+  import { createEventDispatcher } from 'svelte';
+  import { REGION_LABELS, type RegionKey } from './regionFilter';
+
+  // An event, not `bind:` — choosing a part moves the canvas, and a two-way
+  // binding gives the parent no moment to act on. It also fired on mount and on
+  // every `regions` change, which reset the left rail's OCR-boxes toggle.
+  const dispatch = createEventDispatcher<{ regionChange: { key: RegionKey | '' } }>();
 
   /** Minimum confidence, 0–1. */
   export let minConf = 0;
@@ -14,6 +32,17 @@
   export let suspectOnly = false;
   /** How many rows that is — the chip hides itself when there are none. */
   export let suspectCount = 0;
+  /** Rows per category in the loaded set. Empty means "show every chip". */
+  export let counts: Record<string, number> = {};
+  /** Parts of the sheet the loaded rows fall in, with their row counts. */
+  export let regions: { key: RegionKey; count: number }[] = [];
+  /** The selected part, '' for the whole sheet. Read-only — see `dispatch`. */
+  export let region: RegionKey | '' = '';
+
+  $: shownCats = Object.keys(counts).length
+    ? OCR_CATEGORIES.filter((cat) => counts[cat])
+    : OCR_CATEGORIES;
+  $: activeCats = shownCats.filter((cat) => categories.has(cat)).length;
 
   function toggle(cat: string) {
     if (categories.has(cat)) categories.delete(cat);
@@ -28,19 +57,27 @@
     <input type="range" min="0" max="1" step="0.05" bind:value={minConf} class="conf-slider" />
   </div>
   <div class="cat-toggles">
-    <div class="cat-bulk-actions">
+    {#if regions.length > 1}
       <button
         type="button"
-        class="bulk-link"
-        on:click={() => (categories = new Set(OCR_CATEGORIES))}
+        class="region-pill"
+        class:active={region === ''}
+        on:click={() => dispatch('regionChange', { key: '' })}
       >
-        All
+        Whole sheet
       </button>
-      <span class="bulk-sep">·</span>
-      <button type="button" class="bulk-link" on:click={() => (categories = new Set())}>
-        None
-      </button>
-    </div>
+      {#each regions as part (part.key)}
+        <button
+          type="button"
+          class="region-pill"
+          class:active={region === part.key}
+          on:click={() => dispatch('regionChange', { key: part.key })}
+        >
+          {REGION_LABELS[part.key]}
+          {part.count}
+        </button>
+      {/each}
+    {/if}
     {#if suspectCount > 0}
       <button
         type="button"
@@ -52,18 +89,33 @@
         suspect {suspectCount}
       </button>
     {/if}
-    {#each OCR_CATEGORIES as cat (cat)}
+  </div>
+  <details class="sb-more">
+    <summary
+      >Categories{#if activeCats < shownCats.length}
+        · {activeCats} of {shownCats.length}{/if}</summary
+    >
+    <div class="cat-toggles">
       <button
         type="button"
-        class="cat-chip"
-        class:active={categories.has(cat)}
-        on:click={() => toggle(cat)}
-        style="--cat-color: {CAT_COLORS[cat]}"
+        class="bulk-link"
+        on:click={() => (categories = new Set(OCR_CATEGORIES))}>All</button
       >
-        {cat}
-      </button>
-    {/each}
-  </div>
+      <button type="button" class="bulk-link" on:click={() => (categories = new Set())}>None</button
+      >
+      {#each shownCats as cat (cat)}
+        <button
+          type="button"
+          class="cat-chip"
+          class:active={categories.has(cat)}
+          on:click={() => toggle(cat)}
+          style:--cat-color={CAT_COLORS[cat]}
+        >
+          {cat}{counts[cat] ? ` ${counts[cat]}` : ''}
+        </button>
+      {/each}
+    </div>
+  </details>
 </div>
 
 <style>
@@ -98,14 +150,25 @@
     gap: 0.3rem;
     align-items: center;
   }
-  .cat-bulk-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-right: 0.4rem;
-    padding-right: 0.4rem;
-    border-right: 1px solid var(--color-gray-300);
-    line-height: 1;
+  /* The sheet's parts read as tabs over the table, not as more chips: they are
+     one choice, where the categories below are many. */
+  .region-pill {
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 0.1rem 0.35rem 0.2rem;
+    font-size: 0.7rem;
+    font-weight: var(--font-semibold);
+    color: var(--color-text);
+    opacity: 0.5;
+    cursor: pointer;
+  }
+  .region-pill:hover {
+    opacity: 0.85;
+  }
+  .region-pill.active {
+    opacity: 1;
+    border-bottom-color: var(--color-primary);
   }
   .bulk-link {
     background: none;
@@ -121,9 +184,8 @@
     opacity: 1;
     text-decoration: underline;
   }
-  .bulk-sep {
-    font-size: 0.65rem;
-    opacity: 0.3;
+  .bulk-link + .bulk-link {
+    margin-left: 0.35rem;
   }
   .cat-chip {
     border: 1.5px solid var(--cat-color);
@@ -144,7 +206,8 @@
   .cat-chip.active {
     opacity: 1;
     background: var(--cat-color);
-    color: var(--color-white);
+    /* Not --color-white: an accent fill carries the ink that flips with it. */
+    color: var(--color-on-accent);
   }
   /* Not a category — a verdict against the printed index, so it wears the
      warning tone rather than a swatch and sits before the categories. */

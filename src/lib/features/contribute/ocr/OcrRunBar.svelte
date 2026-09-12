@@ -1,62 +1,51 @@
 <!--
-  OcrRunBar.svelte — run picker + write actions for the OCR review table.
+  OcrRunBar.svelte — the write actions for the OCR review table. Nothing that
+  only *filters* belongs here: the run picker sat among these buttons until
+  Sept 2026, which is how "All runs" plus "Validate shown" came to mean
+  accepting two passes at once, one of them misregistered.
 
   Save flushes the pending inline text/category edits; the ⟲ button is the
   two-step "that batch was a mistake" escape hatch (the parent arms it and
   renders the confirmation notice); ↻ reloads.
+
+  Validate and Reject are a pair over one selection — the filters above decide
+  which rows, these two decide the verdict. Rejecting in bulk is what the
+  printed-index reads need and what previously took a script; giving it the
+  same selection as Validate is what makes it safe to reach for.
+
+  ⟲ prints what is still inside its window. The server RPC undoes 15 minutes of
+  *this reviewer's* validations, and after accepting a thousand rows that
+  window is the only thing between a bad batch and a re-run — so it is a
+  readout, not a tooltip.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import '$styles/components/shapes-table.css';
 
-  export let runs: string[] = [];
-  /** Two-way: '' means every run. */
-  export let runId = '';
   export let dirtyCount = 0;
-  /** Pending rows the current filters show — what "Validate shown" would accept. */
+  /** Pending rows the current filters show — what the two verdict buttons take. */
   export let pendingShown = 0;
+  /** Ms left in the server's 15-minute revert window, 0 when nothing is in it. */
+  export let revertMsLeft = 0;
   export let loading = false;
   /** True while the revert button is waiting for its confirming second click. */
   export let revertArmed = false;
 
   const dispatch = createEventDispatcher<{
-    change: void;
     save: void;
     validateShown: void;
+    rejectShown: void;
     revert: void;
     reload: void;
   }>();
+
+  /** m:ss, so the window reads as a clock rather than a number of seconds. */
+  $: countdown = revertMsLeft
+    ? `${Math.floor(revertMsLeft / 60000)}:${String(Math.floor((revertMsLeft % 60000) / 1000)).padStart(2, '0')}`
+    : '';
 </script>
 
 <div class="run-filter-bar">
-  {#if runs.length > 0}
-    <div class="dropdown-wrap run-select-wrap">
-      <select
-        class="cell-select run-select"
-        bind:value={runId}
-        on:change={() => dispatch('change')}
-        aria-label="Select run"
-      >
-        <option value="">All runs</option>
-        {#each runs as r (r)}
-          <option value={r}>{r}</option>
-        {/each}
-      </select>
-      <svg
-        class="dropdown-chevron"
-        width="10"
-        height="10"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"><polyline points="4 6 8 10 12 6" /></svg
-      >
-    </div>
-  {:else}
-    <span class="run-placeholder">No runs</span>
-  {/if}
   <button
     class="sb-btn is-primary is-sm"
     on:click={() => dispatch('save')}
@@ -72,6 +61,14 @@
     title="Validate every pending row the filters currently show. Undo with ⟲ within 15 minutes."
   >
     Validate shown{pendingShown > 0 ? ` (${pendingShown})` : ''}
+  </button>
+  <button
+    class="sb-btn is-danger is-sm"
+    on:click={() => dispatch('rejectShown')}
+    disabled={loading || pendingShown === 0}
+    title="Reject every pending row the filters currently show — the printed index read as map marks, a run that landed in the wrong place. Undo from the notice."
+  >
+    Reject shown{pendingShown > 0 ? ` (${pendingShown})` : ''}
   </button>
   <div class="run-bar-spacer"></div>
   <button
@@ -94,6 +91,7 @@
     >
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
     </svg>
+    {#if countdown}<span class="revert-window">{countdown}</span>{/if}
   </button>
   <button
     class="sb-btn is-icon"
@@ -126,20 +124,6 @@
     background: var(--color-bg);
     flex-shrink: 0;
   }
-  .run-select-wrap {
-    flex: 1;
-    min-width: 0;
-  }
-  .run-select {
-    width: 100%;
-    font-family: ui-monospace, monospace;
-    font-size: 0.68rem;
-  }
-  .run-placeholder {
-    font-size: 0.7rem;
-    opacity: 0.4;
-    flex: 1;
-  }
   .run-bar-spacer {
     flex: 1;
   }
@@ -148,5 +132,13 @@
      round in the bundle. */
   .revert-btn:not(.is-danger) {
     color: var(--color-error-600);
+  }
+  /* Sits inside the icon button, so the button grows into a glyph + clock
+     rather than a second control appearing beside it. */
+  .revert-window {
+    margin-left: 0.25rem;
+    font-size: 0.62rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--font-bold);
   }
 </style>

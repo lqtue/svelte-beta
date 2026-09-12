@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
   import { OCR_CATEGORIES, STATUS_COLORS } from '../shared/constants';
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import '$styles/layouts/tool-page.css';
   import '$styles/components/shapes-table.css';
   import OcrFilterBar from './OcrFilterBar.svelte';
@@ -30,17 +30,23 @@
     sortIcon as iconFor,
     applySort,
   } from '$lib/features/contribute/shared/tableSort';
-  import { legendEntries, suspectRefs, entryForRow } from './legendIndex';
+  import { legendEntries, suspectRefs, entryForRow, indexGaps } from './legendIndex';
+  import { regionOf, regionCounts, regionBox, isPrinted, type RegionKey } from './regionFilter';
+  import type { LayoutRegion } from '$lib/data/maps/triageTypes';
 
   const dispatch = createEventDispatcher<{
     zoomToExtraction: { globalX: number; globalY: number; globalW: number; globalH: number };
     loaded: { extractions: EditableOcrExtraction[] };
     filter: { extractions: EditableOcrExtraction[] };
     select: { id: string };
+    /** A part of the sheet was chosen — fit the canvas to it. */
+    regionFocus: { bbox: [number, number, number, number] | null; printed: boolean };
   }>();
 
   export let mapId: string;
   export let selectedId: string | null = null;
+  /** The sheet's layout, so rows can be reviewed one part at a time. */
+  export let regions: LayoutRegion[] = [];
 
   let extractions: EditableOcrExtraction[] = [];
   let loading = false;
@@ -51,10 +57,25 @@
 
   let filterStatus: '' | 'pending' | 'validated' | 'rejected' = '';
   let filterSearch = '';
+  /** What the box holds right now; `filterSearch` is what the table answers to. */
+  let searchInput = '';
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * One keystroke re-filters and re-sorts every loaded row, hands the result to
+   * the canvas, and walks 2000 OL features. Typing a street name is a dozen of
+   * those. 150 ms is below the pause between keystrokes and above the cost of
+   * the work, so it runs once per word rather than once per letter.
+   */
+  function onSearchInput() {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => (filterSearch = searchInput), 150);
+  }
   export let filterRunId = '';
   let filterMinConf = 0;
   let filterCategories = new Set<string>(OCR_CATEGORIES);
   let filterSuspectOnly = false;
+  let filterRegion: RegionKey | '' = '';
 
   /**
    * The sheet's own printed legend, used twice: to name the numeral in a row
@@ -88,6 +109,7 @@
       if (e.confidence < filterMinConf) return false;
       if (!filterCategories.has(e.category)) return false;
       if (filterSuspectOnly && !suspects.has(e.id)) return false;
+      if (filterRegion && regionOf(e, regions) !== filterRegion) return false;
       if (filterSearch.trim()) {
         const q = filterSearch.trim().toLowerCase();
         if (!e._editText.toLowerCase().includes(q) && !e._editCategory.includes(q)) return false;
@@ -103,26 +125,94 @@
   $: pendingShown = visible.filter((e) => e.status === 'pending').length;
 
   /**
-   * Validate every pending row the filters currently show. The confidence
-   * slider and category chips are the selection; sort by confidence, drag the
-   * floor up until the rows look right, accept the lot. One PUT, one RPC call.
-   * The 15-minute ⟲ is the undo, so a confirm() is enough here.
+   * Rows are rendered up to a cap, not all at once. Each one emits ~29 DOM
+   * nodes, so 2000 of them is ~58,000 — for a list nobody reads end to end.
+   * The filters are the navigation; this is only the tail being cut off it.
+   * The cap grows rather than resets, so stepping past it with `j` or clicking
+   * a far-down box on the canvas never hits a row that is not there (see
+   * `focusRow`).
    */
-  async function validateShown() {
+  const RENDER_STEP = 300;
+  let renderCap = RENDER_STEP;
+  $: shownRows = visible.slice(0, renderCap);
+
+  // What the loaded rows actually hold, so the chips are the sheet's own
+  // vocabulary rather than the whole one. Counted off `category`, which is what
+  // the chip filters on — not `_editCategory`, which is the unsaved edit.
+  $: categoryCounts = extractions.reduce<Record<string, number>>(
+    (acc, e) => ({ ...acc, [e.category]: (acc[e.category] ?? 0) + 1 }),
+    {}
+  );
+  $: regionTally = regionCounts(extractions, regions);
+
+  /**
+   * Choosing a part of the sheet fits the canvas to it. The printed blocks are
+   * the reason: a legend at whole-sheet zoom is unreadable, and the boxes over
+   * it are worse than useless — 235 rows of the 1942 index share **six**
+   * rectangles, because `_write_legend_rows` stamps every line of a band with
+   * the band's own crop. So the canvas becomes a photograph of the table and
+   * the rows beside it are the table, read together.
+   */
+  function pickRegion(e: CustomEvent<{ key: RegionKey | '' }>) {
+    filterRegion = e.detail.key;
+    dispatch('regionFocus', {
+      bbox: regionBox(filterRegion, regions),
+      printed: isPrinted(filterRegion),
+    });
+  }
+
+  /** The printed index's own report on itself — see `indexGaps`. */
+  $: gaps = indexGaps(extractions);
+
+  /**
+   * One verdict over every pending row the filters currently show. The
+   * confidence slider and the category chips are the selection; sort by
+   * confidence, drag the floor up until the rows look right, then accept or
+   * reject the lot. One PUT.
+   *
+   * Both verdicts remember their ids, because the server's ⟲ only undoes
+   * *validations* (`revert_recent_validations` matches on `validated_by`, and
+   * a rejected row carries none). Without that memory a mis-aimed reject of a
+   * thousand rows would have no undo at all — which is most of the reason the
+   * button did not exist before.
+   */
+  async function batchVerdict(status: 'validated' | 'rejected') {
     const ids = visible.filter((e) => e.status === 'pending').map((e) => e.id);
     if (!ids.length) return;
+    const verb = status === 'validated' ? 'Validate' : 'Reject';
     const floor = Math.round(filterMinConf * 100);
     if (
       !confirm(
-        `Validate ${ids.length} shown label${ids.length === 1 ? '' : 's'} (confidence ≥ ${floor}%)? Undo with ⟲ within 15 minutes.`
+        `${verb} ${ids.length} shown label${ids.length === 1 ? '' : 's'} (confidence ≥ ${floor}%)?`
       )
     )
       return;
     loading = true;
     error = '';
     try {
-      const count = await batchSetStatus(mapId, ids, 'validated');
-      notice = `Validated ${count} label${count === 1 ? '' : 's'}.`;
+      const count = await batchSetStatus(mapId, ids, status);
+      lastBatch = { ids, status, count };
+      if (status === 'validated') startRevertClock();
+      notice = `${status === 'validated' ? 'Validated' : 'Rejected'} ${count} label${count === 1 ? '' : 's'}.`;
+      await load();
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      loading = false;
+    }
+  }
+
+  /** The last batch verdict, kept only so the notice can offer one undo. */
+  let lastBatch: { ids: string[]; status: OcrStatus; count: number } | null = null;
+
+  async function undoBatch() {
+    if (!lastBatch) return;
+    loading = true;
+    error = '';
+    try {
+      const count = await batchSetStatus(mapId, lastBatch.ids, 'pending');
+      lastBatch = null;
+      notice = `Put ${count} label${count === 1 ? '' : 's'} back to pending.`;
       setTimeout(() => (notice = ''), 4000);
       await load();
     } catch (e: any) {
@@ -131,6 +221,34 @@
       loading = false;
     }
   }
+
+  // How much of the server's 15-minute revert window is left. Client-side and
+  // deliberately so: it is a readout of a batch this session made, and after a
+  // reload there is nothing honest to show. The interval runs only while a
+  // window is open, and is cleared when it lapses or the component goes.
+  const REVERT_WINDOW_MS = 15 * 60_000;
+  let validatedAt = 0;
+  let now = Date.now();
+  let clock: ReturnType<typeof setInterval> | null = null;
+  $: revertMsLeft = validatedAt ? Math.max(0, validatedAt + REVERT_WINDOW_MS - now) : 0;
+
+  /** Starts (or restarts) the countdown. The tick closes it out — `$:` derives
+   *  `revertMsLeft` and writes nothing, so there is no cycle to chase. */
+  function startRevertClock() {
+    validatedAt = now = Date.now();
+    if (clock) return;
+    clock = setInterval(() => {
+      now = Date.now();
+      if (now - validatedAt < REVERT_WINDOW_MS) return;
+      clearInterval(clock!);
+      clock = null;
+      validatedAt = 0;
+    }, 1000);
+  }
+  onDestroy(() => {
+    if (clock) clearInterval(clock);
+    if (searchTimer) clearTimeout(searchTimer);
+  });
 
   export async function load() {
     if (!mapId) return;
@@ -252,6 +370,11 @@
     if (filterStatus && extractions.find((e) => e.id === id)?.status !== filterStatus) {
       filterStatus = '';
     }
+    // A row past the render cap has no element to scroll to. Raise the cap to
+    // reach it, so `j`/`k` and a canvas click behave the same at row 50 and at
+    // row 1500.
+    const at = visible.findIndex((e) => e.id === id);
+    if (at >= renderCap) renderCap = at + RENDER_STEP;
     tick().then(() => {
       rowEls[id]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       if (!focusInput) return;
@@ -286,7 +409,8 @@
       <input
         type="text"
         placeholder="Filter text…"
-        bind:value={filterSearch}
+        bind:value={searchInput}
+        on:input={onSearchInput}
         class="shapes-search-input"
       />
     </div>
@@ -305,6 +429,19 @@
       <option value="validated">Validated ({statusCounts['validated'] ?? 0})</option>
       <option value="rejected">Rejected ({statusCounts['rejected'] ?? 0})</option>
     </select>
+    {#if availableRuns.length > 1}
+      <select
+        class="filter-type-select run-select"
+        bind:value={filterRunId}
+        on:change={load}
+        aria-label="Filter by run"
+      >
+        <option value="">All runs</option>
+        {#each availableRuns as r (r)}
+          <option value={r}>{r}</option>
+        {/each}
+      </select>
+    {/if}
     <span class="shapes-count"
       >{visible.length}{visible.length !== extractions.length ? `/${extractions.length}` : ''}</span
     >
@@ -315,18 +452,34 @@
     bind:categories={filterCategories}
     bind:suspectOnly={filterSuspectOnly}
     suspectCount={suspects.size}
+    counts={categoryCounts}
+    regions={regionTally}
+    region={filterRegion}
+    on:regionChange={pickRegion}
   />
 
+  {#if gaps && (filterRegion === '' || isPrinted(filterRegion))}
+    <div class="index-gaps">
+      <strong>{gaps.min}–{gaps.max}</strong>
+      · {gaps.missing.length} missing{#if gaps.missing.length}
+        <span class="gap-list">{gaps.missing.join(', ')}</span>
+      {/if}
+      · {gaps.repeated.length} repeated{#if gaps.repeated.length}
+        <span class="gap-list">{gaps.repeated.join(', ')}</span>
+      {/if}
+    </div>
+  {/if}
+
   <OcrRunBar
-    runs={availableRuns}
-    bind:runId={filterRunId}
     {dirtyCount}
     {pendingShown}
     {loading}
     {revertArmed}
+    {revertMsLeft}
     on:change={load}
     on:save={saveAllEdits}
-    on:validateShown={validateShown}
+    on:validateShown={() => batchVerdict('validated')}
+    on:rejectShown={() => batchVerdict('rejected')}
     on:revert={emergencyRevert}
     on:reload={load}
   />
@@ -336,7 +489,12 @@
       Revert the last 15 minutes of validations? Click ⟲ again to confirm.
     </div>
   {:else if notice}
-    <div class="ocr-notice">{notice}</div>
+    <div class="ocr-notice">
+      {notice}
+      {#if lastBatch}
+        <button type="button" class="notice-undo" on:click={undoBatch}>Undo</button>
+      {/if}
+    </div>
   {/if}
 
   {#if error}
@@ -365,7 +523,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each visible as ext (ext.id)}
+          {#each shownRows as ext (ext.id)}
             {@const entry = entryForRow(ext, legendMap)}
             {@const reasons = suspects.get(ext.id)}
             <tr
@@ -423,30 +581,41 @@
                   <span class="ref-flag">{reasons.join(' · ')}</span>
                 {/if}
               </td>
+              <!--
+                The dropdown is mounted for the selected row only. It is 15 of a
+                row's ~29 DOM nodes — the select, its wrapper, ten options and a
+                chevron — which on a full table was half the markup standing by
+                for an edit that most rows never get. Clicking a row selects it,
+                so the control is one click from wherever the eye already is.
+              -->
               <td class="col-cat">
-                <div class="dropdown-wrap">
-                  <select
-                    class="cell-select"
-                    bind:value={ext._editCategory}
-                    on:change={() => commitText(ext)}
-                    aria-label="Category"
-                  >
-                    {#each OCR_CATEGORIES as cat (cat)}
-                      <option value={cat}>{cat}</option>
-                    {/each}
-                  </select>
-                  <svg
-                    class="dropdown-chevron"
-                    width="10"
-                    height="10"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"><polyline points="4 6 8 10 12 6" /></svg
-                  >
-                </div>
+                {#if ext.id === selectedId}
+                  <div class="dropdown-wrap">
+                    <select
+                      class="cell-select"
+                      bind:value={ext._editCategory}
+                      on:change={() => commitText(ext)}
+                      aria-label="Category"
+                    >
+                      {#each OCR_CATEGORIES as cat (cat)}
+                        <option value={cat}>{cat}</option>
+                      {/each}
+                    </select>
+                    <svg
+                      class="dropdown-chevron"
+                      width="10"
+                      height="10"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"><polyline points="4 6 8 10 12 6" /></svg
+                    >
+                  </div>
+                {:else}
+                  <span class="cell-cat">{ext._editCategory}</span>
+                {/if}
               </td>
               <td class="col-conf">
                 <span class="conf-badge" style="opacity:{0.4 + ext.confidence * 0.6}">
@@ -498,6 +667,11 @@
           {/each}
         </tbody>
       </table>
+      {#if visible.length > shownRows.length}
+        <button type="button" class="render-more" on:click={() => (renderCap += RENDER_STEP)}>
+          Showing {shownRows.length} of {visible.length} — show {RENDER_STEP} more
+        </button>
+      {/if}
       {#if !extractions.length}
         <p class="empty-state table-empty">
           No extractions for this map. Push a run to DB first:<br />
@@ -532,6 +706,69 @@
     font-size: 0.72rem;
     border-bottom: var(--border-thin);
     flex-shrink: 0;
+  }
+  /* A link inside the notice plate, so it inherits the plate's ink instead of
+     introducing a second colour to a strip that is already a warning. */
+  /* The run picker is a filter, so it sits with the filters. It only appears
+     when a sheet has been read more than once — which is when choosing between
+     runs is a question at all. */
+  .run-select {
+    font-family: ui-monospace, monospace;
+    font-size: 0.66rem;
+    max-width: 11rem;
+  }
+  /* The printed index numbers itself 1..N with no gaps, so this one line is the
+     whole quality report for a block — which reading 235 rows never gives you.
+     The numbers wrap rather than scroll: a long list is itself the finding. */
+  .index-gaps {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.68rem;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border-bottom: var(--border-thin);
+    flex-shrink: 0;
+  }
+  .gap-list {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.65;
+  }
+  /* Reads as the select it becomes: same box, same inset, no border. */
+  .cell-cat {
+    display: block;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.68rem;
+    color: var(--color-text);
+    opacity: 0.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .render-more {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+    background: none;
+    border: 0;
+    border-top: var(--border-thin);
+    font: inherit;
+    font-size: 0.68rem;
+    color: var(--color-text);
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  .render-more:hover {
+    opacity: 1;
+  }
+  .notice-undo {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin-left: 0.4rem;
+    font: inherit;
+    font-weight: var(--font-bold);
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
   .shape-tr.status-validated td {
     background: var(--tone-green-wash);

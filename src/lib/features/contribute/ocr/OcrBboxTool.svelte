@@ -176,7 +176,37 @@
     });
   }
 
+  /**
+   * Everything `makeStyle` reads. Typing one character in the review filter
+   * moves `filteredIds`, which used to rebuild a Style, a Stroke, two Fills and
+   * a Text for all 2000 features and repaint the lot — per keystroke. Almost
+   * none of them actually change, so each feature remembers what it was drawn
+   * with and only the ones whose answer moved are restyled.
+   */
+  function styleKey(ext: OcrExtraction, selected: boolean): string {
+    const shown = filteredIds.size === 0 || filteredIds.has(ext.id);
+    return [
+      ext.category_validated ?? ext.category,
+      ext.status,
+      ext.text_validated ?? ext.text,
+      obbOf(ext).deg,
+      selected ? 1 : 0,
+      shown ? 1 : 0,
+      selectedId ? 1 : 0,
+      isolationMode ? 1 : 0,
+    ].join('|');
+  }
+
   // ── Sync rows → OL features ───────────────────────────────────────────────
+  //
+  // Every write here — `setStyle`, `set`, `setCoordinates` — fires a change on
+  // the feature, then on the source, then a repaint. The loop used to do all
+  // three for all 2000 features on every run, and it runs on every keystroke in
+  // the review filter (which moves `filteredIds`). So each write is now guarded
+  // by whether its input actually moved: the rows are immutable, so identity is
+  // the test for the data, and `styleKey` for the drawing.
+  const styleKeys = new Map<string, string>();
+
   function syncFeatures() {
     if (!labelSource) return;
     const seen = new Set<string>();
@@ -184,22 +214,30 @@
     for (const ext of extractions) {
       if (!(ext.global_w > 0) || !(ext.global_h > 0)) continue;
       seen.add(ext.id);
-      const ring = obbRing(obbOf(ext));
       let feat = labelSource.getFeatureById(ext.id);
       if (!feat) {
-        feat = new Feature({ geometry: new Polygon([ring]) });
+        feat = new Feature({ geometry: new Polygon([obbRing(obbOf(ext))]) });
         feat.setId(ext.id);
         feat.set('extractionId', ext.id);
+        feat.set('extraction', ext);
         labelSource.addFeature(feat);
-      } else {
-        (feat.getGeometry() as Polygon).setCoordinates([ring]);
+      } else if (feat.get('extraction') !== ext) {
+        (feat.getGeometry() as Polygon).setCoordinates([obbRing(obbOf(ext))]);
+        feat.set('extraction', ext);
       }
-      feat.set('extraction', ext);
-      feat.setStyle(makeStyle(ext, ext.id === selectedId));
+      const selected = ext.id === selectedId;
+      const key = styleKey(ext, selected);
+      if (styleKeys.get(ext.id) !== key) {
+        styleKeys.set(ext.id, key);
+        feat.setStyle(makeStyle(ext, selected));
+      }
     }
 
     for (const feat of labelSource.getFeatures()) {
-      if (!seen.has(feat.get('extractionId') as string)) labelSource.removeFeature(feat);
+      const id = feat.get('extractionId') as string;
+      if (seen.has(id)) continue;
+      labelSource.removeFeature(feat);
+      styleKeys.delete(id);
     }
   }
 
