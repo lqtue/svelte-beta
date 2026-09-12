@@ -164,7 +164,7 @@
       if (c instanceof Zoom) m.removeControl(c);
     }
 
-    sheet = createWarpedLayer(m, { zIndex: 10, name: 'hero-sheet' });
+    sheet = await createWarpedLayer(m, { zIndex: 10, name: 'hero-sheet' });
     try {
       await loadOverlayByUrl(sheet, m, source, 0);
     } catch {

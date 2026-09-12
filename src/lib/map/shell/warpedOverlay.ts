@@ -5,7 +5,7 @@
  * (shell, annotate, trip, lab) uses the same proven code.
  */
 
-import { WarpedMapLayer } from '@allmaps/openlayers';
+import type { WarpedMapLayer } from '@allmaps/openlayers';
 import { annotationUrlForSource } from '$lib/core/iiif/annotationUrl';
 import type Map from 'ol/Map';
 
@@ -14,11 +14,20 @@ import type Map from 'ol/Map';
 /**
  * Creates a WarpedMapLayer with the required OL polyfills
  * and attaches it to the map via setMap().
+ *
+ * The import is dynamic, and that is the only reason this is async.
+ * @allmaps/openlayers pulls @allmaps/render, /transform and proj4 behind it —
+ * about 180 kB gzipped, which is more than OpenLayers itself — and this is the
+ * single runtime import of it in the whole app (everything else takes the type
+ * only). Statically imported, every visitor to /explore paid for it before the
+ * basemap drew, whether or not they ever put a historical sheet on the map.
+ * Now it arrives with the first sheet.
  */
-export function createWarpedLayer(
+export async function createWarpedLayer(
   map: Map,
   opts: { zIndex?: number; name?: string } = {}
-): WarpedMapLayer {
+): Promise<WarpedMapLayer> {
+  const { WarpedMapLayer } = await import('@allmaps/openlayers');
   const layer = new WarpedMapLayer();
   layer.setZIndex(opts.zIndex ?? 10);
   layer.setProperties({ name: opts.name ?? 'allmaps-overlay' });

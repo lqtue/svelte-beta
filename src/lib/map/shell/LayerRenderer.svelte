@@ -65,7 +65,7 @@
     // Historical base: hide modern basemaps, ensure WarpedMapLayer exists, load if changed
     hideAllBasemaps(olMap);
     if (!baseWarped) {
-      baseWarped = createWarpedLayer(olMap, { zIndex: 5, name: 'allmaps-base' });
+      baseWarped = await createWarpedLayer(olMap, { zIndex: 5, name: 'allmaps-base' });
     }
     if (ref.allmapsId !== baseLoadedId) {
       baseLoadedId = ref.allmapsId;
@@ -104,7 +104,10 @@
       const z = 10 + (N - 1 - i); // topmost (i=0) → highest z
       let inst = overlayInstances.get(o.id);
       if (!inst) {
-        const layer = createWarpedLayer(olMap, { zIndex: z, name: `allmaps-overlay-${o.id}` });
+        const layer = await createWarpedLayer(olMap, {
+          zIndex: z,
+          name: `allmaps-overlay-${o.id}`,
+        });
         inst = { layer, loadedAllmapsId: null };
         overlayInstances.set(o.id, inst);
       } else {

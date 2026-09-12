@@ -85,7 +85,7 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
     // Create basemap layers
     basemapLayers = createBasemapLayers();
 
@@ -117,8 +117,14 @@
       });
     });
 
-    // Create warped layer for overlay
-    warpedLayer = createWarpedLayer(secondaryMap);
+    // Create warped layer for overlay. The @allmaps bundle is imported on
+    // demand, so this is a round trip; the pane may be torn down inside it.
+    const layer = await createWarpedLayer(secondaryMap);
+    if (!secondaryMap) {
+      destroyWarpedLayer(layer);
+      return;
+    }
+    warpedLayer = layer;
 
     // Load initial overlay if present
     if (activeAllmapsId) {
