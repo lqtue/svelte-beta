@@ -22,3 +22,18 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=()
   Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+
+# Cloudflare Pages serves everything under static/ with `max-age=0,
+# must-revalidate` by default, so on a repeat visit the browser spends a
+# round trip per file asking whether it changed. It never has.
+#
+# The twelve woff2 files are content-stable: a regenerated subset gets a new
+# name (see the fonts note in CLAUDE.md), so a year is safe.
+/fonts/*
+  Cache-Control: public, immutable, max-age=31536000
+
+# Images keep their filenames across a regeneration — `gen-hero-still.mjs`
+# overwrites hero-*.webp in place — so they get a day of silence and a week of
+# serving the old copy while the new one arrives, not a year of being stuck.
+/images/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
