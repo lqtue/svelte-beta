@@ -19,6 +19,7 @@ import {
   legendEntries,
   suspectRefs,
   entryForRow,
+  ambiguousNumbers,
 } from '../src/lib/features/contribute/ocr/legendIndex';
 import type { OcrExtraction } from '../src/lib/features/contribute/shared/types';
 
@@ -66,7 +67,7 @@ test('legendEntries strips the leading number and keeps the grid cell', () => {
     entry(37, 'Hôpital Grall', 'B10'),
     entry(3, 'Arsenal de la Marine', 'B10-11'),
   ]);
-  expect(e.get(37)).toEqual({ n: 37, name: 'Hôpital Grall', grid: 'B10' });
+  expect(e.get(37)).toEqual({ n: 37, name: 'Hôpital Grall', grid: 'B10', block: null });
   // A cell range stays verbatim — the paper says B10-11 and the reviewer reads it.
   expect(e.get(3)?.grid).toBe('B10-11');
   expect(e.get(3)?.name).toBe('Arsenal de la Marine');
@@ -157,4 +158,79 @@ test('entryForRow is the name the table shows beside a bare numeral', () => {
   // 22 is printed nowhere on this sheet: 21 Casino de Dakao, then 23 Casino de Saigon.
   expect(entryForRow(row({ id: 'b', text: '22' }), entries)).toBeNull();
   expect(entryForRow(row({ id: 'c', category: 'street', text: '37' }), entries)).toBeNull();
+});
+
+/**
+ * A sheet that prints its index twice.
+ *
+ * The 1942 Saigon–Cholon sheet carries two `legend` blocks. Read into one table
+ * they are one of two things and the numbers cannot say which: blocks that
+ * continue one sequence (1..99, then 100..236), where joining a numeral by its
+ * number is right; or two independent tables both numbering from 1, where the
+ * join hands one table's name to the other table's numerals and `legendEntries`
+ * — first writer wins — makes that invisible. The name is the evidence.
+ *
+ * `block=` in notes is written by `_write_legend_rows` in `ocr.py`, and only on
+ * a sheet with more than one block, so every single-block sheet in the corpus
+ * reads exactly as it did.
+ */
+const blockEntry = (n: number, name: string, block: number) =>
+  row({
+    id: `e${block}-${n}`,
+    category: 'legend_entry',
+    text: `${n}. ${name}`,
+    notes: `n=${n}; grid=; block=${block}`,
+  });
+
+test('two blocks continuing one sequence are not ambiguous', () => {
+  const rows = [
+    blockEntry(1, 'Hôpital Grall', 0),
+    blockEntry(99, 'Marché Central', 0),
+    blockEntry(100, 'Chùa Bà', 1),
+    blockEntry(236, 'Gare', 1),
+  ];
+  expect([...ambiguousNumbers(rows)]).toEqual([]);
+  expect(suspectRefs([...rows, row({ id: 'a', text: '100' })]).size).toBe(0);
+});
+
+test('two independent tables flag every numeral of a shared number', () => {
+  const rows = [
+    blockEntry(1, 'Hôpital Grall', 0),
+    blockEntry(52, 'Marché Central', 0),
+    blockEntry(1, 'Chùa Bà', 1),
+    blockEntry(52, 'Pagode', 1),
+  ];
+  expect([...ambiguousNumbers(rows)].sort((a, b) => a - b)).toEqual([1, 52]);
+  const s = suspectRefs([...rows, row({ id: 'a', text: '52' }), row({ id: 'b', text: '1' })]);
+  expect(s.get('a')).toEqual(['ambiguous-entry']);
+  expect(s.get('b')).toEqual(['ambiguous-entry']);
+});
+
+test('the same line read twice is not two tables', () => {
+  // Overlapping blocks, or a re-run: the reading differs in case and diacritics
+  // and means the same line. Folding is what keeps that out of the flag.
+  const rows = [blockEntry(52, 'Marché Central', 0), blockEntry(52, 'MARCHE  CENTRAL', 1)];
+  expect([...ambiguousNumbers(rows)]).toEqual([]);
+});
+
+test('a single-block sheet carries no block= and is never ambiguous', () => {
+  // Every sheet already in the corpus. The check must be inert on them.
+  const rows = [entry(1, 'Abattoir'), entry(2, 'Arsenal')];
+  expect([...ambiguousNumbers(rows)]).toEqual([]);
+  expect(legendEntries(rows).get(1)?.block).toBeNull();
+});
+
+test('legendEntries carries the block a name came from', () => {
+  const entries = legendEntries([blockEntry(52, 'Marché Central', 1)]);
+  expect(entries.get(52)).toEqual({ n: 52, name: 'Marché Central', grid: '', block: 1 });
+});
+
+test('ambiguity stacks with the other reasons rather than replacing them', () => {
+  const rows = [
+    blockEntry(52, 'Marché Central', 0),
+    blockEntry(52, 'Pagode', 1),
+    row({ id: 'a', text: '52', run_id: 'r1' }),
+    row({ id: 'b', text: '52', run_id: 'r1' }),
+  ];
+  expect(suspectRefs(rows).get('a')).toEqual(['duplicate', 'ambiguous-entry']);
 });

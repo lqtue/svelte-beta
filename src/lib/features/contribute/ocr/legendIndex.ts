@@ -20,6 +20,12 @@ export type LegendEntry = {
   name: string;
   /** The printed grid cell, "" when the directory does not give one. */
   grid: string;
+  /**
+   * Which printed block of the legend this line came from, or null on a sheet
+   * that prints only one. Written by `_write_legend_rows` in `ocr.py` as
+   * `block=0` in the notes, and only when the sheet has more than one block.
+   */
+  block: number | null;
 };
 
 /** A row's category, preferring a human correction over the model's guess. */
@@ -61,9 +67,62 @@ export function legendEntries(rows: OcrExtraction[]): Map<number, LegendEntry> {
     const name = textOf(row)
       .replace(/^\s*\(?\d{1,3}\)?[.\s-]*/, '')
       .trim();
+    const b = Number(/\bblock=(\d+)/.exec(row.notes ?? '')?.[1]);
     // First writer wins: a re-read of the same block should not silently
-    // replace an entry a person has already corrected.
-    if (!out.has(n)) out.set(n, { n, name, grid });
+    // replace an entry a person has already corrected. What that costs on a
+    // sheet printing two independent tables is `ambiguousNumbers` below.
+    if (!out.has(n)) out.set(n, { n, name, grid, block: Number.isFinite(b) ? b : null });
+  }
+  return out;
+}
+
+/** A legend name flattened enough that two readings of one line match. */
+function foldName(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * The numbers two printed blocks claim under different names.
+ *
+ * A sheet may print its legend in more than one block — the 1942 Saigon–Cholon
+ * sheet prints two — and the numbers are the only evidence of what that means.
+ * Either the blocks continue one sequence (1..99, then 100..236), and joining a
+ * map numeral by its number is exactly right; or they are independent tables
+ * both numbering from 1, and the join silently hands one table's name to the
+ * other table's numerals wherever they overlap. `legendEntries` keeps the first
+ * writer, so nothing downstream can see that happen.
+ *
+ * The test is the **name**, not the number: the same line read twice — two
+ * passes, or overlapping blocks — agrees with itself and is no collision.
+ * `legend_block_collisions` in `work/ocr/scripts/ocr.py` is the same check at
+ * write time, over the model's output rather than the stored rows.
+ */
+export function ambiguousNumbers(rows: OcrExtraction[]): Set<number> {
+  const byN = new Map<number, Map<number, string>>();
+  for (const row of rows) {
+    if (categoryOf(row) !== 'legend_entry') continue;
+    const n = Number(/\bn=(\d+)/.exec(row.notes ?? '')?.[1]);
+    const b = Number(/\bblock=(\d+)/.exec(row.notes ?? '')?.[1]);
+    if (!Number.isFinite(n) || !Number.isFinite(b)) continue;
+    const name = textOf(row)
+      .replace(/^\s*\(?\d{1,3}\)?[.\s-]*/, '')
+      .trim();
+    if (!byN.has(n)) byN.set(n, new Map());
+    // One block reads one line once; a repeat within a block is a re-run, and
+    // the first of those wins here for the same reason it does above.
+    const blocks = byN.get(n)!;
+    if (!blocks.has(b)) blocks.set(b, name);
+  }
+  const out = new Set<number>();
+  for (const [n, blocks] of byN) {
+    if (blocks.size < 2) continue;
+    if (new Set([...blocks.values()].map(foldName)).size > 1) out.add(n);
   }
   return out;
 }
@@ -93,15 +152,21 @@ export type SuspectReason =
   /** No printed entry carries this number — the sheet's own index says it cannot exist. */
   | 'no-entry'
   /** Another numeral on the sheet claims the same number. */
-  | 'duplicate';
+  | 'duplicate'
+  /**
+   * Two printed legend blocks give this number two different names, so the
+   * name beside this numeral is a coin toss. See `ambiguousNumbers`.
+   */
+  | 'ambiguous-entry';
 
 /**
  * Flag the numerals worth looking at first, keyed by row id.
  *
- * Three checks, all from the sheet's own printed index and none of them tuned:
- * a reference that is not a number, a number the index does not list, and a
- * number claimed twice. On the 1942 Saigon–Cholon sheet that is ~30 rows out of
- * 176, which is where a reviewer should start rather than at the top.
+ * Four checks, all from the sheet's own printed index and none of them tuned:
+ * a reference that is not a number, a number the index does not list, a number
+ * claimed twice, and a number two printed blocks name differently. On the 1942
+ * Saigon–Cholon sheet the first three are ~30 rows out of 176, which is where a
+ * reviewer should start rather than at the top.
  *
  * `no-entry` needs the index to have been read: with no `legend_entry` rows the
  * check is skipped entirely, or every numeral on a sheet whose legend nobody
@@ -114,6 +179,7 @@ export type SuspectReason =
  */
 export function suspectRefs(rows: OcrExtraction[]): Map<string, SuspectReason[]> {
   const entries = legendEntries(rows);
+  const ambiguous = ambiguousNumbers(rows);
   const refs = rows.filter((r) => categoryOf(r) === 'legend_ref');
 
   // Counted per run, not across the table. A sheet read twice has every numeral
@@ -136,6 +202,9 @@ export function suspectRefs(rows: OcrExtraction[]): Map<string, SuspectReason[]>
     else {
       if (entries.size > 0 && !entries.has(v)) reasons.push('no-entry');
       if ((seen.get(key(row, v)) ?? 0) > 1) reasons.push('duplicate');
+      // Not per run: this is two printed tables disagreeing, which is a
+      // property of the sheet and true of every numeral of that value.
+      if (ambiguous.has(v)) reasons.push('ambiguous-entry');
     }
     if (reasons.length) out.set(row.id, reasons);
   }

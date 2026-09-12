@@ -3246,9 +3246,50 @@ def legend_line_boxes(region: tuple[int, int, int, int],
     return [(x, int(y + i * pitch), w, max(1, int(pitch))) for i in range(n)]
 
 
+def _fold_name(s: str) -> str:
+    """A legend name flattened enough that two readings of one line match."""
+    return " ".join(_fold(s or "").split())
+
+
+def legend_block_collisions(blocks: list[dict]) -> list[dict]:
+    """Numbers claimed by two legend blocks under *different* names.
+
+    A sheet with two printed legend blocks is one of two things, and the numbers
+    are the only evidence. Either the blocks continue one sequence — 1..99 in
+    the first, 100..236 in the second — and merging by number is exactly right;
+    or they are independent tables both numbering from 1, and merging by number
+    silently puts one table's name on the other table's numerals wherever they
+    overlap. On the 1942 Saigon-Cho Lon sheet, with two `legend` blocks and map
+    numerals running past 170, that is not a hypothetical.
+
+    The test is the *name*, not the number: the same number read twice off the
+    same continued table (blocks that overlap, or a re-read) agrees with itself
+    and is no collision.
+    """
+    by_n: dict[int, dict[int, str]] = {}
+    for b in blocks:
+        for e in b["entries"]:
+            try:
+                n = int(e["n"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            by_n.setdefault(n, {})[b["block"]] = (e.get("name") or "").strip()
+    out = []
+    for n in sorted(by_n):
+        names = by_n[n]
+        if len(names) > 1 and len({_fold_name(v) for v in names.values()}) > 1:
+            out.append({"n": n, "names": names})
+    return out
+
+
 def _write_legend_rows(map_id: str, run_id: str, region: tuple[int, int, int, int],
-                       entries: list[dict], model: str) -> int:
+                       entries: list[dict], model: str, block: int | None = None) -> int:
     """Upsert extracted legend entries as category='legend_entry' rows.
+
+    `block` is the index of the printed block this line came from, written into
+    notes only when the sheet has more than one — so a single-block sheet's rows
+    are byte-identical to what they were, and a reviewer looking at a
+    two-table sheet can see which table a name is from.
 
     ponytail: ocr_extractions has no number/grid columns, so the number + grid
     live in `notes` (parseable "n=..; grid=..") and `text` carries "n. name" —
@@ -3261,6 +3302,8 @@ def _write_legend_rows(map_id: str, run_id: str, region: tuple[int, int, int, in
     rows = []
     for e, (ex, ey, ew, eh) in zip(entries, boxes):
         note = f"n={e['n']}; grid={e.get('grid','')}"
+        if block is not None:
+            note += f"; block={block}"
         if e.get("name_vn"): note += f"; vn={e['name_vn']}"
         if e.get("grid_disputed"): note += "; grid_disputed"
         rows.append({
@@ -3306,6 +3349,23 @@ def _cell_rect(grid: dict, ref: str) -> tuple[float, float, float, float] | None
     return (gx + cols.index(b) * cw, gy + rows.index(a) * ch, cw, ch)
 
 
+def _expand_ref(ref: str) -> list[str]:
+    """One printed reference into the single-cell references it names.
+
+    A directory writes a two-cell entry as one reference: "J 5,6" is J5 and J6,
+    and `cmd_street_index` has already stripped the space, so what arrives here
+    is "J5,6". `_cell_rect` takes one cell — deliberately, because it is pinned
+    against `cellBox` in the TypeScript — so the splitting happens out here.
+    Anything that is not a letter followed by a comma-separated run of numbers
+    is passed through unchanged and left for `_cell_rect` to reject.
+    """
+    m = re.match(r"\s*([A-Za-z]+)\s*(\d+(?:\s*,\s*\d+)+)\s*$", ref or "")
+    if not m:
+        return [ref]
+    letter = m.group(1)
+    return [f"{letter}{n.strip()}" for n in m.group(2).split(",")]
+
+
 def _span_rect(grid: dict, ref_from: str, ref_to: str):
     """The rectangle spanning a street's TỪ and ĐẾN cells.
 
@@ -3313,9 +3373,13 @@ def _span_rect(grid: dict, ref_from: str, ref_to: str):
     footprint is the union of the two cells — wide when the street crosses the
     sheet, one cell when it does not. Returns (rect, n_cells_resolved) so the
     caller can tell a two-cell span from a one-cell fallback.
+
+    Either end may itself name a run of cells ("J 5,6"), which is why the ends
+    go through `_expand_ref` first: taken literally that reference resolves to
+    nothing and the street is dropped from the run without a mark.
     """
-    a, b = _cell_rect(grid, ref_from), _cell_rect(grid, ref_to)
-    got = [r for r in (a, b) if r]
+    got = [r for ref in (ref_from, ref_to) for e in _expand_ref(ref)
+           if (r := _cell_rect(grid, e))]
     if not got:
         return None, 0
     x0 = min(r[0] for r in got)
@@ -3341,18 +3405,17 @@ def cmd_street_index(args: argparse.Namespace) -> None:
 
     base, W, H = _resolve_base_and_dims(args)
     local_image = getattr(args, "local_image", None)
-    regions = []
-    for spec in args.regions.split(";"):
-        try:
-            regions.append(tuple(int(v) for v in spec.split(",")))
-        except ValueError:
-            raise SystemExit(f"--regions entries must be x,y,w,h in source px (got {spec!r})")
+    # `legend` as well as `name_list`: on the 1942 Saigon-Cho Lon sheet the
+    # layout pass called both printed directories `legend`, and a sheet that has
+    # a real `name_list` region will match that first.
+    regions = _resolve_regions(args, ["name_list", "legend"], "--regions")
 
     map_label = args.map_id or "unknown"
     out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
     log_path = out_dir / "calls.jsonl"
 
     merged: dict[tuple[str, str], dict] = {}
+    conflicts: list[dict] = []
     failed: list[tuple[int, int, int]] = []
     n_bands = 0
     for ri, (x, y, w, h) in enumerate(regions):
@@ -3398,6 +3461,20 @@ def cmd_street_index(args: argparse.Namespace) -> None:
                     continue
                 key = (_fold(generic), _fold(name))
                 if key in merged:
+                    # First writer wins, as before — but a repeat that states a
+                    # *different* position is not a repeat. Two directories on
+                    # one sheet index two different areas, and keeping the first
+                    # silently places the street in the wrong one.
+                    prev = merged[key]
+                    cells = ((e.get("from") or "").strip().replace(" ", ""),
+                             (e.get("to") or "").strip().replace(" ", ""))
+                    if cells != (prev["from"], prev["to"]):
+                        conflicts.append({
+                            "name": f"{generic} {name}".strip(),
+                            "kept": {"region": prev["region"],
+                                     "cells": [prev["from"], prev["to"]]},
+                            "dropped": {"region": ri, "cells": list(cells)},
+                        })
                     continue
                 merged[key] = {
                     "generic": generic, "name": name,
@@ -3416,7 +3493,8 @@ def cmd_street_index(args: argparse.Namespace) -> None:
         "map_id": map_label, "regions": [list(r) for r in regions],
         "model": args.model, "prompt": "street-index-v1",
         "n_bands": n_bands, "n_entries": len(entries),
-        "failed_bands": [list(f) for f in failed], "entries": entries,
+        "failed_bands": [list(f) for f in failed],
+        "cell_conflicts": conflicts, "entries": entries,
     }, indent=2, ensure_ascii=False))
     print(
         f"\n{len(entries)} street entries from {n_bands} band(s) attempted "
@@ -3425,6 +3503,16 @@ def cmd_street_index(args: argparse.Namespace) -> None:
     if failed:
         print(f"  {len(failed)} band(s) FAILED and read nothing: {failed}")
         print("  Re-run the same --run-id to retry them; every band that did land is cached.")
+    if conflicts:
+        print(f"  {len(conflicts)} street(s) listed twice with DIFFERENT cells — the "
+              f"first reading was kept. Two directories indexing two areas is the "
+              f"case to check for:")
+        for c in conflicts[:20]:
+            print(f"     {c['name']}: kept region {c['kept']['region']} "
+                  f"{c['kept']['cells']}, dropped region {c['dropped']['region']} "
+                  f"{c['dropped']['cells']}")
+        if len(conflicts) > 20:
+            print(f"     … and {len(conflicts) - 20} more")
 
     if not getattr(args, "db", False) or map_label == "unknown":
         return
@@ -3440,10 +3528,16 @@ def cmd_street_index(args: argparse.Namespace) -> None:
         if not rect:
             unplaced.append(e)
             continue
+        # How many cells the two references name, against how many the grid
+        # could place. A street placed on half of what it states is a shorter
+        # street than the sheet prints, and the row has to say so.
+        want = len(_expand_ref(e["from"]))
+        if e["to"] and e["to"] != e["from"]:
+            want += len(_expand_ref(e["to"]))
         gx, gy, gw, gh = rect
         label = f"{e['generic']} {e['name']}".strip()
-        note = (f"street index; grid={e['from']}\u2192{e['to']}; cells={got}"
-                + ("; one cell unresolved" if got == 1 and e["from"] != e["to"] else ""))
+        note = (f"street index; grid={e['from']}\u2192{e['to']}; cells={got}/{want}"
+                + ("; some cells unresolved" if got < want else ""))
         rows.append({
             "tile_x": int(gx), "tile_y": int(gy), "tile_w": int(gw), "tile_h": int(gh),
             "category": _GENERIC_CATEGORY.get(_fold(e["generic"]), "street"),
@@ -3548,19 +3642,54 @@ def _run_legend_pass(iiif_base: str, img_w: int, img_h: int, cartouche,
     print(f"[legend] region={region} entries={len(entries)} upserted={n}")
 
 
+def _resolve_regions(args, categories: list[str], flag: str) -> list[tuple[int, int, int, int]]:
+    """The rectangles a printed-block pass should read.
+
+    `--regions` when given, otherwise the sheet's own layout regions of the
+    named categories. Typing them by hand is how the 1942 Saigon-Cho Lon sheet
+    got one of its two `legend` blocks read and the other silently skipped:
+    `--exclude` had both, so the tile pass dropped the numbers in block two and
+    no structured pass ever picked them up. The layout pass already knows where
+    both are.
+    """
+    raw = getattr(args, "regions", None)
+    if raw:
+        rects = parse_rects(raw)
+        if not rects:
+            raise SystemExit(f"{flag} parsed to no rectangles")
+        return rects
+    if not getattr(args, "map_id", None):
+        raise SystemExit(f"{flag} is required without --map-id")
+    from supabase_client import fetch_triage_regions
+    rects = fetch_triage_regions(args.map_id, categories)
+    if not rects:
+        raise SystemExit(
+            f"no {'/'.join(categories)} region on this sheet — run the layout pass, "
+            f"draw one in /scan?mode=prepare, or pass {flag}"
+        )
+    print(f"  {flag} from maps.triage.regions ({'/'.join(categories)}): {len(rects)} block(s)")
+    return rects
+
+
 def cmd_legend(args: argparse.Namespace) -> None:
-    """Gemini pass: read a numbered legend region into structured {n, name, grid}.
+    """Gemini pass: read a sheet's numbered legend into structured {n, name, grid}.
 
     Optionally cross-checks the grid cell across N models (--consensus) and flags
     entries where they disagree — those are the ~few cells worth a human glance.
+
+    **A sheet may print its legend in more than one block** — the 1942
+    Saigon-Cho Lon sheet prints two — so `--regions` is a list and every block
+    is read in the same run. Which blocks were read is written into each row's
+    notes (`block=0`), because the two cases downstream cannot be told apart
+    from the numbers alone: two blocks continuing one sequence (1..99, then
+    100..236) merge cleanly, while two independent tables both numbering from 1
+    collide, and a collision resolved by first-writer-wins puts the wrong name
+    on every numeral of that value out on the map. The run reports which one
+    this sheet is instead of guessing.
     """
     base, W, H = _resolve_base_and_dims(args)
     local_image = getattr(args, "local_image", None)
-    try:
-        x, y, w, h = (int(v) for v in args.region.split(","))
-    except (ValueError, AttributeError):
-        raise SystemExit("--region must be x,y,w,h in source pixels")
-    crop = fetch_crop(base, x, y, w, h, size=args.render_size, local_image=local_image)
+    regions = _resolve_regions(args, ["legend"], "--regions")
 
     models = [args.model]
     if args.consensus > 1:
@@ -3572,53 +3701,89 @@ def cmd_legend(args: argparse.Namespace) -> None:
     import collections
     def ngrid(s): return "".join((s or "").upper().split()).replace(",", "").replace("-", "")
 
-    runs = {}
-    for m in models:
-        try:
-            entries = extract_legend(crop, model=m, bilingual=args.bilingual)
-            runs[m] = {int(e["n"]): e for e in entries if str(e.get("n", "")).strip().lstrip("-").isdigit()}
-            print(f"  {m}: {len(runs[m])} entries")
-        except Exception as e:
-            print(f"  {m}: ERROR {str(e)[:100]}")
+    multi = len(regions) > 1
+    blocks: list[dict] = []
+    flagged: list[int] = []
+    for bi, (x, y, w, h) in enumerate(regions):
+        print(f"  block {bi}: region {(x, y, w, h)}")
+        crop = fetch_crop(base, x, y, w, h, size=args.render_size, local_image=local_image)
 
-    best = runs.get(args.model) or (next(iter(runs.values())) if runs else {})
-    flagged = []
-    out_entries = []
-    for n in sorted(best):
-        e = dict(best[n])
-        if len(runs) > 1:
-            present = [r[n] for r in runs.values() if n in r]
-            votes = collections.Counter(ngrid(r.get("grid")) for r in present)
-            top, cnt = votes.most_common(1)[0]
-            # Adopt the majority grid; flag only when there is NO majority
-            # (all models disagree) — those are the cells worth a human glance.
-            if cnt >= 2:
-                e["grid"] = next(r.get("grid") for r in present if ngrid(r.get("grid")) == top)
-            elif len(present) >= 2:
-                e["grid_disputed"] = True
-                e["grid_votes"] = dict(votes)
-                flagged.append(n)
-        out_entries.append(e)
+        runs = {}
+        for m in models:
+            try:
+                entries = extract_legend(crop, model=m, bilingual=args.bilingual)
+                runs[m] = {int(e["n"]): e for e in entries
+                           if str(e.get("n", "")).strip().lstrip("-").isdigit()}
+                print(f"    {m}: {len(runs[m])} entries")
+            except Exception as e:
+                # Named and counted, like a failed street-index band: a block
+                # that reads nothing is a whole table missing from a run that
+                # otherwise reports success.
+                print(f"    {m}: ERROR {str(e)[:100]}")
+
+        best = runs.get(args.model) or (next(iter(runs.values())) if runs else {})
+        out_entries = []
+        for n in sorted(best):
+            e = dict(best[n])
+            e["block"] = bi
+            if len(runs) > 1:
+                present = [r[n] for r in runs.values() if n in r]
+                votes = collections.Counter(ngrid(r.get("grid")) for r in present)
+                top, cnt = votes.most_common(1)[0]
+                # Adopt the majority grid; flag only when there is NO majority
+                # (all models disagree) — those are the cells worth a human glance.
+                if cnt >= 2:
+                    e["grid"] = next(r.get("grid") for r in present if ngrid(r.get("grid")) == top)
+                elif len(present) >= 2:
+                    e["grid_disputed"] = True
+                    e["grid_votes"] = dict(votes)
+                    flagged.append(n)
+            out_entries.append(e)
+        blocks.append({"block": bi, "region": [x, y, w, h], "models": list(runs),
+                       "entries": out_entries})
+
+    all_entries = [e for b in blocks for e in b["entries"]]
+    collisions = legend_block_collisions(blocks)
 
     map_label = args.map_id or "unknown"
     out_dir = make_run_dir(map_label, getattr(args, "run_id", None))
     out_path = out_dir / "legend.json"
     out_path.write_text(json.dumps({
         "map_id": map_label,
-        "region_source": [x, y, w, h],
-        "models": list(runs),
-        "n_entries": len(out_entries),
+        "regions": [b["region"] for b in blocks],
+        # Kept for the single-block readers that predate multi-block support.
+        "region_source": blocks[0]["region"] if blocks else None,
+        "models": sorted({m for b in blocks for m in b["models"]}),
+        "n_blocks": len(blocks),
+        "n_entries": len(all_entries),
         "grid_disputed": flagged,
-        "entries": out_entries,
+        "number_collisions": collisions,
+        "entries": all_entries,
     }, indent=2, ensure_ascii=False))
-    print(f"Extracted {len(out_entries)} legend entries "
-          f"({len(flagged)} grid-disputed: {flagged})" if flagged else
-          f"Extracted {len(out_entries)} legend entries (no grid disputes)")
+    print(f"\nExtracted {len(all_entries)} legend entries from {len(blocks)} block(s)"
+          + (f" ({len(flagged)} grid-disputed: {flagged})" if flagged else " (no grid disputes)"))
+    if collisions:
+        print(f"  {len(collisions)} number(s) claimed by more than one block with a "
+              f"DIFFERENT name — this sheet prints two independent tables, not one "
+              f"sequence split in two. A numeral on the map cannot be joined by "
+              f"number alone; review these before trusting the join:")
+        for c in collisions[:20]:
+            print(f"     n={c['n']}: " + " | ".join(f"block {b}: {nm}"
+                                                    for b, nm in c["names"].items()))
+        if len(collisions) > 20:
+            print(f"     … and {len(collisions) - 20} more")
+    elif multi:
+        print("  No number is claimed by two blocks with different names — the blocks "
+              "continue one sequence, so joining a map numeral by its number is safe.")
     print(f"→ {out_path}")
 
     if getattr(args, "db", False) and map_label != "unknown":
-        n = _write_legend_rows(map_label, out_dir.name, (x, y, w, h), out_entries, args.model)
-        print(f"[db] upserted {n} legend_entry row(s)")
+        total = 0
+        for b in blocks:
+            total += _write_legend_rows(map_label, out_dir.name, tuple(b["region"]),
+                                        b["entries"], args.model,
+                                        block=b["block"] if multi else None)
+        print(f"[db] upserted {total} legend_entry row(s)")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -3897,7 +4062,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_leg.add_argument("--map-id", help="Supabase maps.id UUID")
     p_leg.add_argument("--iiif-base", help="IIIF image service base URL")
     p_leg.add_argument("--local-image", help="Local image file path (skips IIIF)")
-    p_leg.add_argument("--region", required=True, help="Legend crop: x,y,w,h in source px")
+    p_leg.add_argument("--regions", "--region", dest="regions",
+                       help="Legend block(s) as x,y,w,h in source px, ';'-separated. "
+                            "Omit with --map-id to read every `legend` region the "
+                            "layout pass found — a sheet may print more than one.")
     p_leg.add_argument("--render-size", type=int, default=2600,
                        help="Rendered crop width — bigger helps tiny text (default 2600)")
     p_leg.add_argument("--model", default=DEFAULT_MODEL, help="Primary Gemini model")
@@ -3917,8 +4085,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_si.add_argument("--map-id", help="Supabase maps.id UUID")
     p_si.add_argument("--iiif-base", help="IIIF image service base URL")
     p_si.add_argument("--local-image", help="Local image file path (skips IIIF)")
-    p_si.add_argument("--regions", required=True,
-                      help="One or more directory columns as x,y,w,h in source px, ';'-separated")
+    p_si.add_argument("--regions",
+                      help="One or more directory columns as x,y,w,h in source px, "
+                           "';'-separated. Omit with --map-id to read every "
+                           "`name_list` (or `legend`) region the layout pass found.")
     p_si.add_argument("--band-height", type=int, default=1300,
                       help="Source px per call. A tall column read in one call renders to "
                            "unreadable text; ~30 rows per band keeps it legible (default 1300)")

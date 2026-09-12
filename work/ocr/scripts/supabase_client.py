@@ -394,6 +394,37 @@ def fetch_triage_grid(map_id: str) -> dict[str, Any] | None:
     return grid
 
 
+def fetch_triage_regions(map_id: str, categories: list[str]) -> list[tuple[int, int, int, int]]:
+    """The layout regions of the given categories, as source-pixel rectangles.
+
+    Read side of `save_triage_regions`. A sheet prints more than one of most
+    things — the 1942 Saigon-Cho Lon sheet has two `legend` blocks — so this
+    returns every match, in reading order (top to bottom, then left to right),
+    which is what makes a block index stable between runs.
+
+    Service key only, like `fetch_triage_grid`: the passes that need these are
+    hand-run, not worker jobs.
+    """
+    url, key = _load_config()
+    resp = requests.get(
+        f"{url}/rest/v1/maps",
+        headers=_headers(key),
+        params={"id": f"eq.{map_id}", "select": "triage"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    rows = resp.json()
+    regions = ((rows[0].get("triage") or {}) if rows else {}).get("regions") or []
+    out = []
+    for r in regions:
+        if r.get("category") not in categories:
+            continue
+        bb = r.get("bbox") or []
+        if len(bb) == 4:
+            out.append(tuple(int(v) for v in bb))
+    return sorted(out, key=lambda b: (b[1], b[0]))
+
+
 def update_pipeline_status(map_id: str, stage: str, **kwargs: Any) -> None:
     """No-op since migration 056.
 
