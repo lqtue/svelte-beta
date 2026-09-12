@@ -83,13 +83,16 @@ type edits in Validate are held until the verdict and sent with it.
 - `tableSort.ts` moved to `core` (four tables, four features, and a feature may not import another) and absorbed /catalog's second copy. It is decorate-sort-undecorate now: the value function runs **once per row** rather than once per comparison, which mattered because `OcrSidebar`'s parses a regex and ran ~22,000 times per keystroke on a 2000-row sheet.
 - Blanks sort last in **both** directions, and collation is `numeric` everywhere — `Rue 100` follows `Rue 11`. The contribute tables used to stringify a missing value, so an uncategorised row filed under "undefined", between `t` and `v`.
 - `tests/table-sort.spec.ts` caught the direction bug in the first version of the blank rule.
+- And then the **table itself**: `$lib/ui/DataTable.svelte`. Four tables each wrote the same fifteen lines — the scroll container, the `<table>` and its density, a `<thead><tr>` looping `SortHeader` with plain `<th>`s hand-written around it for the dot / thumbnail / actions columns, the `<tbody>`, an empty-state paragraph after it. Only the rows differed, and the rows are the point of each one, so they stay with their table and arrive through the default slot.
+- A blank column is a **column** now (`{ key: 'dot', label: '', srLabel: 'Status', sortable: false }`), not a `<th>` beside the loop, so a table's header is one list read in one place, order included. Anything under the table — an empty state, a "show 500 more" button — is the `after` slot, because the four disagreed about what belongs there.
+- The one catch, and it is documented in the component: a caller's scoped CSS reaches its own `<tr>`/`<td>` but not the `<table>`/`<thead>`/`<th>`, which are now `DataTable`'s. `CatalogTable` keeps a `.ct` wrapper it owns and six rules became `:global()` inside it.
 
 ### One tab strip instead of five
 
 - `$lib/ui/Tabs.svelte`. It replaced `ChunkyTabs`, `.admin-tabs`, `MapEditModal`'s `.tabs`, both rails' hand-written `.sb-rail-tabs`, and the `.phase-tabs` the /scan sidebars had invented for a slot the rails already owned.
 - Three of the five were already the same `.chip` in a flex row with a different gap. **Only one of the five said anything to a screen reader.**
 - Two tones, because `.chip` and `.sb-pill` are two design systems on purpose — what is shared is the markup, the API and the semantics. A row with an `href` makes the whole strip links with `aria-current`; without one it is a real `role="tablist"`.
-- `.shapes-search` folded into `.sb-search.is-compact` the same way: the same flex row, the same hairline, the same borderless input, a quarter-rem of padding apart, in the same design system.
+- `.shapes-search` folded into `.sb-search.is-compact` the same way: the same flex row, the same hairline, the same borderless input, a quarter-rem of padding apart, in the same design system. `.mo-search` — a modal class that had outlived its modal, worn last by `CatalogSidebarPanel` — went the same way, and `.sb-search` grew a third size, `.is-page`, for the full width of an editorial page. Four field designs, one left.
 
 ### The element vocabulary cut in half
 
@@ -99,6 +102,22 @@ type edits in Validate are held until the verdict and sent with it.
 - **Badges:** `.source-type-chip`, `.ocr-cat-chip` and `.essentials-pill` were each a one-file copy of `.badge-chip.is-sm` plus a tint.
 - **Cards: fourteen patterns → nine.** `.post-card`, `.subscribe-card`, `.sidebar-card` and `.profile-card` were `.section-card` re-typed in four files with a different padding. It takes `--card-pad` now, plus `.is-sm` for a column of them and `.is-link` when the whole card is a link.
 - `components/buttons.css` 335 → 228 lines; the stylesheets 7,429 → 7,208. The ledger of every retired name is in the header of `buttons.css`, and `tests/screens.spec.ts` fails if one comes back.
+
+### The catalog page, top down
+
+- **The 260px facet rail is gone and `FacetRail.svelte` is deleted.** It was a column of counted chips that cost the table a third of the page — which is why the table hid its Type and Collection columns under 800px while a filter nobody scrolled back up to touch sat in the space. All seven columns fit now.
+- The three facets are the `<details class="sb-more">` disclosure `/explore` already wore (`ArchiveFilters`, given a `showSearch` prop so the page's own field stays the only search box). Honest trade: the chips were multi-select and carried counts, the selects take one value per facet and carry none. The three still combine.
+- **List or grid**, a `Tabs` strip in the results toolbar, remembered in `vma-catalog-view-v1`. The grid is `MapCard` — the home page's card — so there is no second card component. Its `href` is nullable now: **null makes it a `<button>` that dispatches `open`** rather than an anchor, so a grid card opens the same detail drawer its table row does and a draft is not asked to link to a public page it has not got. `<svelte:element>` picks the tag.
+- The page's search field had been styled **twice** — a 2.5px pill in the route's `<style>` over `.catalog-page .chunky-input` in the layout sheet — and the scoped copy won every conflicting property, so what actually reached the screen from the second was a box-shadow *inside* the box. It is `.sb-search.is-page` now.
+- The dot-grid ground and the bordered `.state-panel` went with it: the same chrome the home page dropped in 7.0, still running on the one page that had not had the pass. A second, dead copy of the dot field sat in `components/catalog.css`, which `/catalog` does not even load.
+- Filtering from the field and then pressing **Reset** used to leave the page's own box showing a query the results had stopped answering to — the store is two-way now, guarded.
+
+### One archive list instead of three
+
+- `ArchiveMapRows` **is the catalog table with its columns reduced**: the same `DataTable`, header and row rules, minus the four a 380px rail cannot carry, and the thumbnail in place of the pick control. /explore, the /scan rail and the catalog's own sidebar all render it.
+- It had been a hand-built `<ul>` of bordered buttons, beside a *second* hand-built `<ul>` — `CatalogTableCompact`, **deleted** — doing the same job in the catalog sidebar with no two details alike: year 1rem extrabold against 0.82rem bold, title semibold-muted against regular-ink, the pick control a 32px circle against a `.btn.is-xs`. One knob is left, `rowAction`, for the one real difference: a tap means *add a layer* on /explore and /scan, *open the record* in the catalog.
+- **The picture of the sheet is the button.** A plus sign says a row can be added; the scan says which sheet is being added. Still a real `<button>` with `aria-pressed`.
+- Which meant a third caller for `atWidth()`, so it left `FeaturedSheet` for `$lib/core/iiif/thumbUrl.ts`. The stored `maps.thumbnail` is 800px wide; the rail draws it at 48 and the /catalog table at 96, and both had been fetching the full 800 for every row.
 
 ### /screens now has to be telling the truth
 
