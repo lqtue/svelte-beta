@@ -60,6 +60,31 @@ const placeKey = (s) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+// A map sets a river or a city name strung out along the feature it names —
+// "R I V I È R E", "A r r o y o" — and OCR reads that back one letter at a time.
+// Join a run of three or more single letters; a real word between two runs keeps
+// them apart, so "S A I G O N GON" stays two tokens rather than becoming one.
+// Letters only: "N ° 1" is not letter-spacing, and neither is "R. N. 1".
+const LETTER = /^\p{L}$/u;
+const despace = (line) => {
+  const out = [];
+  let run = [];
+  const flush = () => {
+    if (run.length >= 3) out.push(run.join(''));
+    else out.push(...run);
+    run = [];
+  };
+  for (const tok of line.split(' ')) {
+    if (LETTER.test(tok)) run.push(tok);
+    else {
+      flush();
+      if (tok) out.push(tok);
+    }
+  }
+  flush();
+  return out.filter(Boolean).join(' ');
+};
+
 // Trailing/leading whitespace only. Interior newlines are real: a multi-line
 // legend entry is one label, and joining its lines would change the text.
 const normalise = (s) =>
@@ -67,7 +92,10 @@ const normalise = (s) =>
     .normalize('NFC')
     .replace(/[ \t]+/g, ' ')
     .replace(/[ \t]*\n[ \t]*/g, '\n')
-    .trim();
+    .trim()
+    .split('\n')
+    .map(despace)
+    .join('\n');
 
 const box = (r) =>
   r.global_x == null
@@ -265,7 +293,18 @@ const GENERIC = new Set(
   (
     'rue r ruelle boulevard bd blvd quai avenue av route rte chemin impasse passage ' +
     'place pl cite arroyo rach kinh song duong vge village de du des la le les l d ' +
-    'et a au aux en no n st ste saint sainte'
+    'et a au aux en no n st ste saint sainte ' +
+    // The Vietnamese half of the same list, which was missing: bến (quay), kênh
+    // (canal), hẻm (lane), xóm / ấp (hamlet). The gazetteer was listing 'Bến' as
+    // a place for want of them. Only a label that is *nothing but* these is
+    // dropped, so 'Bến Vân Đồn' is untouched.
+    //
+    // 'canal', 'lộ' and 'cầu' were in this list for one run and are deliberately
+    // not: unlike 'rue' or 'đường', they also stand as the name itself. The rule
+    // dropped 'Route du Canal' — a real street, every word of it generic — and
+    // 'Lò', a kiln, which unaccents onto 'lộ'. Three bare 'Canal' rows are a
+    // cheaper thing to leave for a reviewer than a street that vanishes quietly.
+    'ben kenh hem xom ap'
   )
     .split(' ')
     .map((w) => placeKey(w))
@@ -366,16 +405,43 @@ const locatable = (r) => {
   return k !== null && (boxUsers.get(k) ?? 0) <= SHARED_BOX;
 };
 
+// Two labels on the same rectangle are one label read twice *only if the part
+// that names something* is near-identical. Measured on the whole text this pass
+// merged 'Đường Phan Tôn' into 'Đường Phan Ngữ' and 'Route Communale N° 10' into
+// 'N° 13': the shared street-type word is half the string, so it carried the
+// score on its own and two different streets scored as one. Two guards:
+//
+//   * compare the *core* — the name with its leading and trailing type words
+//     ("Rue", "Đường", "de", "N°") dropped. This is also what lets the real
+//     variants through, since "R. Vannier" and "Rue Vannier" have one core.
+//   * a number is not a typo of another number. If both carry digits and the
+//     digit runs differ, they are different labels whatever the letters say —
+//     that alone was 23 of the 124 merges, all of them wrong.
+const core = (r) => {
+  const w = words(r);
+  let i = 0;
+  let j = w.length;
+  while (i < j && GENERIC.has(w[i])) i++;
+  while (j > i && GENERIC.has(w[j - 1])) j--;
+  return w.slice(i, j).join(' ');
+};
+const numbers = (r) => (placeKey(normalise(label(r))).match(/[0-9]+/g) || []).join(' ');
+// 0.25, not the 0.34 this pass used to run at. Between the two sit thirteen
+// pairs, and they are not a wash: five are different streets ('Trần Doãn Khanh'
+// against 'Trần Tấn Phát', 'Nguyễn Kim' against 'Nguyễn Tiểu La'), the rest are
+// two readings of one. The costs are not symmetric either — a spare duplicate
+// costs a reviewer one click, while a wrongly merged row takes a real street
+// name out of the archive and says nothing. So the cut sits below them.
+const SIMILAR_MAX = 0.25;
+const sameLabelText = (a, b) =>
+  numbers(a) === numbers(b) && similar(core(a), core(b)) <= SIMILAR_MAX;
+
 const before = dups.length;
 for (const v of bySheet.values())
   collapse(
     cluster(
       v,
-      (a, b) =>
-        locatable(a) &&
-        locatable(b) &&
-        iou(box(a), box(b)) > 0.6 &&
-        similar(placeKey(normalise(label(a))), placeKey(normalise(label(b)))) <= 0.34
+      (a, b) => locatable(a) && locatable(b) && iou(box(a), box(b)) > 0.6 && sameLabelText(a, b)
     ).filter((c) => c.length <= 10),
     'same spot, near-identical text'
   );
@@ -444,7 +510,19 @@ for (const { r, text } of renames) {
     headers: H,
     body: JSON.stringify({ text }),
   });
-  if (!res.ok) throw new Error(`patch ${r.id}: ${await res.text()}`);
+  // 23505 is ocr_extractions_upsert_key (migration 077), which carries `text`:
+  // the repair turned this row into a byte-for-byte copy of another read of the
+  // same word in the same tile. That is the duplicate this script exists to
+  // collapse, so report it and leave the row for the next pass rather than
+  // aborting halfway through a corpus-wide write.
+  if (!res.ok) {
+    const body = await res.text();
+    if (res.status === 409 && body.includes('23505')) {
+      console.log(`  rename collided with an existing row, left alone: ${r.id} → ${text}`);
+      continue;
+    }
+    throw new Error(`patch ${r.id}: ${body}`);
+  }
 }
 await setStatus([...empty.map((r) => r.id), ...dups.map((d) => d.loser.id)], 'rejected');
 console.log(`applied. Undo: set_extraction_status('pending', …) with the ids in ${report}`);
