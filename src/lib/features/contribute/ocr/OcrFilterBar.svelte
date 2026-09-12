@@ -10,6 +10,10 @@
   export let minConf = 0;
   /** Categories currently shown. Mutated in place, then reassigned for reactivity. */
   export let categories: Set<string>;
+  /** Show only the numerals the printed legend contradicts. */
+  export let suspectOnly = false;
+  /** How many rows that is — the chip hides itself when there are none. */
+  export let suspectCount = 0;
 
   function toggle(cat: string) {
     if (categories.has(cat)) categories.delete(cat);
@@ -37,6 +41,17 @@
         None
       </button>
     </div>
+    {#if suspectCount > 0}
+      <button
+        type="button"
+        class="cat-chip suspect-chip"
+        class:active={suspectOnly}
+        on:click={() => (suspectOnly = !suspectOnly)}
+        title="Numerals the sheet's printed legend contradicts: not a number, a number the index does not list, or one claimed twice"
+      >
+        suspect {suspectCount}
+      </button>
+    {/if}
     {#each OCR_CATEGORIES as cat (cat)}
       <button
         type="button"
@@ -130,5 +145,16 @@
     opacity: 1;
     background: var(--cat-color);
     color: var(--color-white);
+  }
+  /* Not a category — a verdict against the printed index, so it wears the
+     warning tone rather than a swatch and sits before the categories. */
+  .suspect-chip {
+    border-color: var(--tone-red-ink);
+    color: var(--tone-red-ink);
+    margin-right: 0.3rem;
+  }
+  .suspect-chip.active {
+    background: var(--tone-red-ink);
+    color: var(--color-on-accent);
   }
 </style>

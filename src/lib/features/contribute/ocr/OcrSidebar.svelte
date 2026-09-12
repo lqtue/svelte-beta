@@ -30,6 +30,7 @@
     sortIcon as iconFor,
     applySort,
   } from '$lib/features/contribute/shared/tableSort';
+  import { legendEntries, suspectRefs, entryForRow } from './legendIndex';
 
   const dispatch = createEventDispatcher<{
     zoomToExtraction: { globalX: number; globalY: number; globalW: number; globalH: number };
@@ -53,6 +54,16 @@
   export let filterRunId = '';
   let filterMinConf = 0;
   let filterCategories = new Set<string>(OCR_CATEGORIES);
+  let filterSuspectOnly = false;
+
+  /**
+   * The sheet's own printed legend, used twice: to name the numeral in a row
+   * (a bare `37` is unreviewable — 37 and 87 look identical in the table), and
+   * to flag the numerals that contradict the index. Both derive from the rows
+   * already loaded, so neither costs a request.
+   */
+  $: legendMap = legendEntries(extractions);
+  $: suspects = suspectRefs(extractions);
 
   type SortKey = 'text' | 'category' | 'confidence';
   let sort: { key: SortKey; asc: boolean } = { key: 'confidence', asc: false };
@@ -76,6 +87,7 @@
       if (filterRunId && e.run_id !== filterRunId) return false;
       if (e.confidence < filterMinConf) return false;
       if (!filterCategories.has(e.category)) return false;
+      if (filterSuspectOnly && !suspects.has(e.id)) return false;
       if (filterSearch.trim()) {
         const q = filterSearch.trim().toLowerCase();
         if (!e._editText.toLowerCase().includes(q) && !e._editCategory.includes(q)) return false;
@@ -298,7 +310,12 @@
     >
   </div>
 
-  <OcrFilterBar bind:minConf={filterMinConf} bind:categories={filterCategories} />
+  <OcrFilterBar
+    bind:minConf={filterMinConf}
+    bind:categories={filterCategories}
+    bind:suspectOnly={filterSuspectOnly}
+    suspectCount={suspects.size}
+  />
 
   <OcrRunBar
     runs={availableRuns}
@@ -349,8 +366,11 @@
         </thead>
         <tbody>
           {#each visible as ext (ext.id)}
+            {@const entry = entryForRow(ext, legendMap)}
+            {@const reasons = suspects.get(ext.id)}
             <tr
               class="shape-tr status-{ext.status}"
+              class:row-suspect={reasons}
               class:row-selected={ext.id === selectedId}
               bind:this={rowEls[ext.id]}
               on:click={() => dispatch('select', { id: ext.id })}
@@ -392,6 +412,16 @@
                   }}
                   aria-label="Extraction text"
                 />
+                {#if entry}
+                  <span
+                    class="ref-name"
+                    title={entry.grid ? `printed grid ${entry.grid}` : undefined}
+                    >{entry.name}{entry.grid ? ` · ${entry.grid}` : ''}</span
+                  >
+                {/if}
+                {#if reasons}
+                  <span class="ref-flag">{reasons.join(' · ')}</span>
+                {/if}
               </td>
               <td class="col-cat">
                 <div class="dropdown-wrap">
@@ -537,6 +567,31 @@
   }
   .col-text {
     min-width: 80px;
+  }
+  /* What the numeral names, from the sheet's own printed legend. Sits under the
+     input rather than beside it: the column is ~90px and the names are long. */
+  .ref-name {
+    display: block;
+    font-size: 0.62rem;
+    color: var(--color-text);
+    opacity: 0.6;
+    padding-left: 0.3rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ref-flag {
+    display: inline-block;
+    margin: 0.1rem 0 0 0.3rem;
+    padding: 0 0.3rem;
+    border-radius: 0.6rem;
+    font-size: 0.58rem;
+    font-weight: var(--font-bold);
+    color: var(--tone-red-ink);
+    background: var(--tone-red-pale);
+  }
+  .shape-tr.row-suspect {
+    box-shadow: inset 2px 0 0 var(--tone-red-ink);
   }
   .col-cat {
     min-width: 70px;
