@@ -305,7 +305,7 @@
     </p>
     <button
       type="button"
-      class="btn btn-outline btn-sm"
+      class="btn is-sm"
       on:click={handleFetchManifestMeta}
       disabled={fetchingManifest || !map.iiif_manifest}
     >
@@ -345,7 +345,7 @@
               <div class="source-label-row">
                 <span class="source-label">{src.label || src.source_type || 'source'}</span>
                 {#if src.source_type}
-                  <span class="source-type-chip">{src.source_type}</span>
+                  <span class="badge-chip is-sm chip-gray">{src.source_type}</span>
                 {/if}
                 {#if src.is_primary}
                   <span class="primary-badge">★ PRIMARY</span>
@@ -357,11 +357,11 @@
             </div>
             <div class="source-actions">
               {#if !src.is_primary}
-                <button class="btn btn-outline btn-sm" on:click={() => handleSetPrimary(src.id)}>
+                <button class="btn is-sm" on:click={() => handleSetPrimary(src.id)}>
                   Set primary
                 </button>
               {/if}
-              <button class="btn btn-danger btn-sm" on:click={() => handleDeleteSource(src.id)}>
+              <button class="btn is-danger is-sm" on:click={() => handleDeleteSource(src.id)}>
                 Remove
               </button>
             </div>
@@ -371,10 +371,7 @@
         {/each}
       </div>
 
-      <button
-        class="btn btn-outline btn-sm add-source-toggle"
-        on:click={() => (showAddSource = !showAddSource)}
-      >
+      <button class="btn is-sm add-source-toggle" on:click={() => (showAddSource = !showAddSource)}>
         {showAddSource ? '− Hide form' : '+ Add source'}
       </button>
 
@@ -393,7 +390,7 @@
                   class="form-input mono"
                   placeholder="https://…/manifest.json"
                 />
-                <button class="btn btn-outline" on:click={handleFetchMeta} disabled={fetchingMeta}>
+                <button class="btn" on:click={handleFetchMeta} disabled={fetchingMeta}>
                   {fetchingMeta ? '…' : 'Fetch'}
                 </button>
               </div>
@@ -430,7 +427,7 @@
             </label>
           </div>
           <button
-            class="btn btn-primary"
+            class="btn is-primary"
             on:click={handleAddSource}
             disabled={addingSource || !newIiifImage}
           >
@@ -469,11 +466,11 @@
         </p>
       {/if}
     {/if}
-    <button class="action-btn" on:click={handleMirrorToR2} disabled={mirrorLoading || !allmaps_id}>
+    <button class="btn is-lg" on:click={handleMirrorToR2} disabled={mirrorLoading || !allmaps_id}>
       {mirrorLoading ? 'Mirroring…' : isMirrored ? 'Re-mirror to R2' : 'Mirror to R2'}
     </button>
     <button
-      class="action-btn"
+      class="btn is-lg"
       on:click={handleSyncAllmaps}
       disabled={mirrorLoading || !allmaps_id}
       title="Re-read the annotation from allmaps.org after editing the georeference there. The current copy is kept as history."
@@ -496,7 +493,7 @@
         />
         <button
           type="button"
-          class="btn btn-outline btn-sm"
+          class="btn is-sm"
           on:click={handleLookupAllmapsId}
           disabled={lookingUpAllmaps || !map.iiif_image}
         >
@@ -518,7 +515,7 @@
       />
     </label>
     <div class="georef-links">
-      <a href={annotationUrl} target="_blank" class="btn" class:disabled={!annotationUrl}>
+      <a href={annotationUrl} target="_blank" class="btn" class:is-disabled={!annotationUrl}>
         View Annotation ↗
       </a>
       <a
@@ -527,7 +524,7 @@
           : undefined}
         target="_blank"
         class="btn"
-        class:disabled={!editorAllmapsUrl}
+        class:is-disabled={!editorAllmapsUrl}
       >
         Open in Allmaps Editor ↗
       </a>
@@ -537,7 +534,7 @@
   <!-- ── Image Upload ───────────────────────────────────────── -->
   <div class="hosting-subsection">
     <div class="subsection-heading">Image Upload (Internet Archive)</div>
-    <label class="btn upload-btn" class:disabled={uploading}>
+    <label class="btn is-upload" class:is-disabled={uploading}>
       {uploading ? 'Uploading...' : 'Upload Image to IA'}
       <input
         type="file"
@@ -572,3 +569,11 @@
     </div>
   {/if}
 </div>
+
+<style>
+  /* Placement only — the face is `.btn`. It was `.upload-btn` in
+     admin-modals.css, a global name for two lines of local layout. */
+  .is-upload {
+    align-self: flex-start;
+  }
+</style>

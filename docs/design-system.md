@@ -78,7 +78,7 @@ Use `800` for page and section titles, `700` for nav and sub-headings, `500` for
 | `--shadow-solid-xs` | `2px 2px 0` | Chips, dense controls |
 | `--shadow-solid-hover` | `8px 8px 0` | Hover lift only — never on a static element |
 
-**Buttons carry no shadow** (Sept 2026). `.btn` / `.chip` / `.action-btn` / `.pill-btn`, `.ctrl-btn`, `.back-link`, `ChunkyTabs` and the catalog's tag chips are flat; `--btn-shadow` is the opt-in for a caller that wants one back. Two things had been leaning on it and were replaced rather than deleted: **hover** was a 2px lift, which only read as a lift against the shadow it uncovered, and is now `filter: brightness(0.95)` — it works on every colour variant without an override fight over `background`; and **`:focus-visible`** *was* the hover shadow, so it had to become a real `outline`, or keyboard focus would have gone invisible. Cards, plates and non-interactive chips (`.section-card`, `.hero-sub`, `.label-chip`, `.badge-chip`) keep theirs — the offset plate is still the house gesture, just not on things you press.
+**Buttons carry no shadow** (Sept 2026). `.btn` and `.chip` (and so every tab, every icon button and everything that used to be `.action-btn` or `.pill-btn`), `.back-link` and the catalog's tag chips are flat; `--btn-shadow` is the opt-in for a caller that wants one back. Two things had been leaning on it and were replaced rather than deleted: **hover** was a 2px lift, which only read as a lift against the shadow it uncovered, and is now `filter: brightness(0.95)` — it works on every colour variant without an override fight over `background`; and **`:focus-visible`** *was* the hover shadow, so it had to become a real `outline`, or keyboard focus would have gone invisible. Cards, plates and non-interactive chips (`.section-card`, `.hero-sub`, `.label-chip`, `.badge-chip`) keep theirs — the offset plate is still the house gesture, just not on things you press.
 | `--radius-sm / md / lg / pill` | `8px / 16px / 24px / 999px` | Tags · cards, inputs · feature cards · buttons, chips |
 
 Aliases `--shadow-sm/md/lg` map onto the solid set.
@@ -96,15 +96,15 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 | `tokens.css` | `global.css` | every custom property |
 | `global.css` | root layout | entry point |
 | **components/** | | shared widgets |
-| `buttons.css` | `global.css` | **every button**: the `.chip` / `.action-btn` / `.pill-btn` / `.btn` pill family, `.tool-btn`, `.ctrl-btn`, `.cmp-btn` |
+| `buttons.css` | `global.css` | **every button**: `.btn` and `.chip`, plus the one `is-*` modifier vocabulary they share with `.sb-btn` |
 | `feedback.css` | `global.css` | `.spinner` (the only one) and `.empty-state` (+ `.is-block`, `.error`) — one placeholder line for loading, empty and failed |
-| `table.css` | `global.css` | `.data-table` and its two densities |
+| `table.css` | `global.css` | `.data-table`, its three densities, and the sortable header (`.th-sort` + `.sort-ind`) that `$lib/ui/SortHeader.svelte` renders |
 | `nav-buttons.css` | `global.css` | nav-bar button chrome |
-| `editorial.css` | `global.css` | `.page`, `.editorial-main`, hero, `.section-card`, `.stat-tile`, the chips, footer, nav |
+| `editorial.css` | `global.css` | `.page`, `.editorial-main`, hero, `.section-card` (+ `.is-sm` / `.is-link`), `.stat-tile`, the badges, footer, nav |
 | `lettering.css` | `global.css` | `.lettering-hydronym` / `.lettering-area` — how a printed sheet sets its own names, paired with `core/utils/mapLettering.ts` |
 | `modal.css` | `global.css` | generic modal scaffolding |
 | `sidebar.css` | `global.css` + `SidebarCard` | sidebar card frame |
-| `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome only — the `.btn` family moved to `buttons.css` in Sept 2026, because six components outside the modals used it without importing it |
+| `admin-modals.css` | `MapEditModal`, `NeatlineEditor` | admin modal chrome only — the `.btn` family moved to `buttons.css` in Sept 2026, and so did its three private badges and its `.close-btn` |
 | `catalog.css` | `CatalogGrid`, `CatalogCard`, `/catalog` | map card grid |
 | `shapes-table.css` | `OcrSidebar`, `OcrRunBar`, `TraceSidebar` | the toolbar and cell editors around that table |
 | `auth-gate.css` | `AuthGate`, `StudioMode`, `CreateMode` | signed-out gate — the card only; its button is a `.chip` |
@@ -129,11 +129,20 @@ All stylesheets live in `src/styles/` and are reached via the `$styles` alias. `
 
 `ToolLayout` also reads `1400px` in JS for `isCompact`. CSS custom properties do not work inside `@media`, so these are literals on purpose — `--bp-*` tokens existed until Sept 2026, matched nothing and were deleted.
 
-**One button.** Three shapes.
+**Two button names, because there are two things.**
 
-*Pill* — four names, `.action-btn` (large CTA), `.chip` (default), `.pill-btn` (lighter chrome), `.btn` (admin and dialogs) — share one base rule in `buttons.css` and differ only in the six `--btn-*` properties each sets. They are kept as separate names because ~60 files use them and a rename would be a diff nobody could review; prefer `.chip` in new markup. *Dense* — `.tool-btn`, the small flat square for toolbars inside the IIIF tools. *Icon* — `.ctrl-btn`, the 48px round map control, and `.cmp-btn`, the 22px round row toggle.
+- **`.btn`** — an action. "Save", "Open the map viewer", "Delete".
+- **`.chip`** — a choice. A tab, a facet, a filter; `.is-on` when picked.
 
-One lives outside `buttons.css` on purpose: `.sb-btn` (`sidebar.css`, because it runs on the `--sb-*` token scope), with `.is-primary/.is-on/.is-success/.is-danger/.is-ghost/.is-block/.is-sm/.is-icon` for its variants. `.tool-run-btn` and `.tool-ghost-btn` were a third home in `tool-sidebar.css` until Sept 2026, when their last caller moved to `.sb-btn` and that sheet was deleted. **Everything else is in `buttons.css`.** If a component needs a button that is nearly a `.chip`, add the class and override the `--btn-*` properties in the component — do not rebuild the shape. Before Sept 2026 the `.btn` family lived in `admin-modals.css`, which six of its eleven users never imported; `.auth-gate-btn`, the login page's `.auth-btn`, and two copies of `.cmp-btn` were each a hand-rebuilt pill until they were folded in.
+Both are the same pill and differ only in the six `--btn-*` properties each sets.
+
+**One modifier vocabulary, and it is the sidebar's**: sizes `.is-xs` `.is-sm` `.is-lg`, tones `.is-primary` `.is-danger` `.is-success` `.is-ghost`, states `.is-on` `.is-block` `.is-icon` `.is-disabled`. `.sb-btn` and `.sb-pill` (`sidebar.css`, because they run on the `--sb-*` token scope) use the same words, so the two scopes are one thing to learn. `.is-icon` is round at three sizes — 48px the floating map control, `.is-sm` a card's action corner, `.is-xs` a row toggle in a table.
+
+This was **twenty-seven selectors across nine families** until Sept 2026, with four tones each spelled three ways (`.btn-primary` · `.chip.primary` · `.action-btn.primary-btn`), which is what made "check every button" a job nobody could finish. What went, and why none of it was a design rather than a context: `.action-btn` was a size, `.pill-btn` was lighter chrome and nothing else, `.btn-outline` was already the default, `.tool-btn` was `.sb-btn.is-sm` in a bar that runs on `--sb-*` anyway, and `.ctrl-btn` / `.btn-icon-edit` / `.btn-icon-delete` / `.cmp-btn` were one round shape at three sizes. The full ledger is the header of `buttons.css`; `tests/screens.spec.ts` fails if a retired name reappears.
+
+**Everything else is in `buttons.css`.** If a component needs a button that is nearly a `.btn`, add the class and override the `--btn-*` properties in the component — do not rebuild the shape.
+
+**One card.** `.section-card` (`editorial.css`), padded by `--card-pad`, with `.is-sm` for a column of them (smaller radius, lighter shadow) and `.is-link` when the whole card is a link and should lift. Four page-locked cards — `.post-card`, `.subscribe-card`, `.sidebar-card`, `.profile-card` — were this rule re-typed in four files with a different padding until Sept 2026; what is left in those pages is only what is genuinely theirs, a gap, a dashed edge, a tighter `--card-pad`. /screens lists the whole card inventory and `tests/screens.spec.ts` checks that every row in it still exists.
 
 **Never redefine a global button class in a component `<style>` block.** Svelte's scoping means the local rule silently wins, so nothing looks broken while `.btn primary` means two different things in two files. `ExploreSheet`, `TripComplete` and `TripPlayback` each did this until Sept 2026.
 
@@ -178,7 +187,7 @@ so any page or feature may use them.
 
 The shared editorial **classes** live in `src/styles/components/editorial.css` and are global. Use them without redefining the CSS.
 
-`.top-nav` `.nav-logo` `.nav-links` `.nav-link` `.nav-auth` · `.editorial-hero` `.hero-inner` `.label-chip` `.text-highlight` · `.editorial-main` `.section-card` `.section-card-header` `.section-title` `.section-title-sm` `.section-desc` · `.badge-chip` with `.chip-blue` / `.chip-green` / `.chip-yellow` · `.action-btn` `.pill-btn` · `.editorial-footer`.
+`.top-nav` `.nav-logo` `.nav-links` `.nav-link` `.nav-auth` · `.editorial-hero` `.hero-inner` `.label-chip` `.text-highlight` · `.editorial-main` `.section-card` `.section-card-header` `.section-title` `.section-title-sm` `.section-desc` · `.badge-chip` (`.is-sm` for a table row) with `.chip-blue` / `.chip-green` / `.chip-yellow` / `.chip-gray` · `.btn` `.chip` · `.editorial-footer`.
 
 `.icon-blob` and its five `color-*` fills were **deleted** in Sept 2026 — a 72–80px organic blob holding a pictorial emoji, and the single most templated thing on the site. Do not reintroduce it or anything shaped like it.
 

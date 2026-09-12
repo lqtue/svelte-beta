@@ -1,7 +1,11 @@
 /**
- * segCommand.ts — builds the MapSAM2 inference command the Segmentation panel
- * hands to Colab. Pure string assembly; no I/O.
+ * segCommand.ts — builds the MapSAM2 inference command the Segment tab hands to
+ * Colab, and remembers the knobs that went into it.
+ *
+ * localStorage key: `digitalize-seg-<mapId>`. Kept under that name — it is what
+ * every operator's browser already holds, and a rename would lose their paths.
  */
+import { readJson, writeJson } from '$lib/core/utils/persistence/storage';
 
 export type SegConfig = {
   checkpointPath: string;
@@ -55,4 +59,24 @@ export function buildSegCommand(
   ]
     .filter(Boolean)
     .join(' \\\n');
+}
+
+const segKey = (mapId: string) => `digitalize-seg-${mapId}`;
+
+/** `base` with any stored MapSAM2 config applied over it. */
+export function loadSegConfig(mapId: string, base: SegConfig = DEFAULT_SEG_CONFIG): SegConfig {
+  const data = readJson<Partial<SegConfig> | null>(segKey(mapId), null);
+  if (!data) return { ...base };
+  return {
+    ...base,
+    ...(data.checkpointPath ? { checkpointPath: data.checkpointPath } : {}),
+    ...(data.mapsam2Dir ? { mapsam2Dir: data.mapsam2Dir } : {}),
+    ...(data.encoder ? { encoder: data.encoder } : {}),
+    ...(typeof data.useTextMask === 'boolean' ? { useTextMask: data.useTextMask } : {}),
+    ...(typeof data.useWatershed === 'boolean' ? { useWatershed: data.useWatershed } : {}),
+  };
+}
+
+export function saveSegConfig(mapId: string, cfg: SegConfig): void {
+  writeJson(segKey(mapId), cfg);
 }

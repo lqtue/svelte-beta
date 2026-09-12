@@ -2,7 +2,7 @@
   /admin?tab=bulk — bulk map insert grid + generated tiling script.
   Layout and position only: `.section-card` / `.section-title-sm` /
   `.section-desc` come from editorial.css, `.empty-state` from feedback.css,
-  `.btn*` and `.pill-btn` from buttons.css, `.data-table` from table.css.
+  `.btn` and its `is-*` modifiers from buttons.css, `.data-table` from table.css.
   What is left stays scoped under .admin-bulk-page, because `.grid`, `.field`
   and the bare `textarea` rule would otherwise leak site-wide.
 
@@ -123,7 +123,7 @@
 .admin-bulk-page .status-cell .bad {
   color: var(--color-error-600);
 }
-/* The row-remove ✕ is a `.btn.btn-xs.btn-ghost`; only the danger ink on hover
+/* The row-remove ✕ is a `.btn.is-xs.is-ghost`; only the danger ink on hover
    is local, because there is no ghost-danger variant. */
 .admin-bulk-page .status-cell + td .btn:hover {
   color: var(--color-error-600);

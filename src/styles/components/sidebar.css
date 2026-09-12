@@ -228,7 +228,7 @@
   letter-spacing: 0.07em;
   color: var(--sb-text-meta);
 }
-/* The ordinal badge on a numbered step's label — the four /scan?mode=triage
+/* The ordinal badge on a numbered step's label — the four /scan?mode=prepare
    steps. It sits inside `.sb-section-label`, so it deliberately does not reset
    the label's uppercase/letter-spacing, only its size, weight and ink. */
 .sb-step {
@@ -390,7 +390,10 @@
 /* The search bar a rail wears at its crown. It was two designs until Sept
    2026 — `ArchiveFilters`' own scoped `.search` on the left rail and
    `.mo-search.is-compact` (a modal class) on the right — so the two rails sat
-   side by side at visibly different heights, with and without a shadow. */
+   side by side at visibly different heights, with and without a shadow.
+   `/catalog`'s field was a fourth (a 2.5px pill in the route's own <style>)
+   until it took `.is-page` below: the archive's search bar and the map view's
+   are the same object, and the only thing a page-width one needs is scale. */
 .sb-search {
   display: flex;
   align-items: center;
@@ -418,6 +421,47 @@
   font-size: 1.05rem;
   color: var(--sb-text-meta);
   cursor: pointer;
+}
+/* The magnifier, wherever the field carries one. */
+.sb-search svg {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+/* Compact modifier — a dense table toolbar, where the field shares its row with
+   a status select and a count and so has to give way to them. It was
+   `.shapes-search` in shapes-table.css until Sept 2026: the same flex row, the
+   same hairline, the same borderless input, in the same design system, a
+   quarter-rem of padding apart. Named like `.sb-pill.is-compact`, which is the
+   same relationship. */
+.sb-search.is-compact {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  box-shadow: none;
+}
+.sb-search.is-compact .sb-search-input {
+  font-size: 0.75rem;
+}
+
+/* Page scale — a bar that runs the width of an editorial page (`/catalog`).
+   Same border, radius, parts and palette as the rail's; only the padding, the
+   type and the drop grow, and the drop grows to the one the table under it
+   already casts (`.data-table.is-card`). */
+.sb-search.is-page {
+  gap: 0.85rem;
+  padding: 0.8rem var(--space-4);
+  box-shadow: var(--shadow-solid-xs);
+}
+.sb-search.is-page .sb-search-input {
+  font-size: 1.05rem;
+  font-weight: var(--font-medium);
+}
+/* Pressed in, rather than lifted: the shadow shrinks as the field takes the
+   offset. Same gesture as `.btn:active`. */
+.sb-search.is-page:focus-within {
+  box-shadow: 1px 1px 0 var(--shadow-ink);
+  transform: translate(1px, 1px);
 }
 
 /* `.sb-input` is sized for one full-width field. This is the size a row of

@@ -6,6 +6,7 @@
   /explore at the spot. Server-rendered so it reads without JavaScript.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import PageHero from '$lib/ui/PageHero.svelte';
   import { letteringClass } from '$lib/core/utils/mapLettering';
   import PressPanel from '$lib/features/explore/PressPanel.svelte';
@@ -91,7 +92,7 @@
 
   <main class="editorial-main place">
     <p class="facts">
-      {#if span}<span><strong>{span}</strong> attested</span>{/if}
+      {#if span}<span><strong>{span}</strong> {$t('attested')}</span>{/if}
       <span><strong>{maps.length}</strong> map{maps.length === 1 ? '' : 's'}</span>
       <span><strong>{place.mentions}</strong> mention{place.mentions === 1 ? '' : 's'}</span>
       {#if place.category}<span>{place.category}</span>{/if}
@@ -119,7 +120,7 @@
       />
     </section>
 
-    <h2>On these maps</h2>
+    <h2>{$t('On these maps')}</h2>
     {#if place.geom_rmse != null}
       <!-- Sits with the grid, not above it: the cards are what drop the pin, so
          this is a caption for them rather than a footnote to a lead button. -->
@@ -154,7 +155,7 @@
           <a
             class="card-meta"
             href={`/catalog/${m.id}`}
-            aria-label="Details for {m.name ?? 'this sheet'}">Sheet details</a
+            aria-label="Details for {m.name ?? 'this sheet'}">{$t('Sheet details')}</a
           >
         </li>
       {/each}

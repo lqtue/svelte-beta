@@ -11,6 +11,7 @@
   /map/<id> — which is itself one link deep inside a drawer.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import type { LabelHit } from './catalogSearch';
   import { CAT_COLORS } from '$lib/features/contribute/shared/constants';
@@ -30,7 +31,7 @@
 
 {#if hits.length}
   <section class="label-hits" aria-label="Labels found on maps">
-    <h3 class="title">On the map <span class="n">{hits.length}</span></h3>
+    <h3 class="title">{$t('On the map')} <span class="n">{hits.length}</span></h3>
     <ul>
       {#each hits as h (h.id)}
         {@const place = placeHrefFor(h.text, h.category)}
@@ -53,7 +54,9 @@
             <span class="map">{h.year ?? '—'} · {h.map_name ?? 'Untitled'}</span>
           </svelte:element>
           {#if place}
-            <a class="place-link" href={place} title="Every map that names {h.text}">Place</a>
+            <a class="place-link" href={place} title="Every map that names {h.text}"
+              >{$t('Place')}</a
+            >
           {/if}
         </li>
       {/each}

@@ -290,7 +290,7 @@
                 </td>
                 <td
                   ><button
-                    class="btn btn-xs btn-ghost"
+                    class="btn is-xs is-ghost"
                     on:click={() => removeRow(i)}
                     aria-label="Remove row">✕</button
                   ></td
@@ -302,10 +302,10 @@
       </div>
 
       <div class="row-actions">
-        <button class="pill-btn" on:click={addRow}>+ Add row</button>
-        <button class="pill-btn" on:click={clearAll}>Clear all</button>
+        <button class="btn" on:click={addRow}>+ Add row</button>
+        <button class="btn" on:click={clearAll}>Clear all</button>
         <span class="grow"></span>
-        <button class="action-btn primary-btn" on:click={createBatch} disabled={creating}>
+        <button class="btn is-lg is-primary" on:click={createBatch} disabled={creating}>
           {creating ? 'Creating…' : `Create ${rows.length} map row${rows.length === 1 ? '' : 's'}`}
         </button>
       </div>
@@ -323,10 +323,8 @@
           URLs and thumbnails on the new map rows.
         </p>
         <div class="script-actions">
-          <button class="pill-btn" on:click={copyScript}>Copy script</button>
-          <button class="pill-btn" on:click={backfillCreated}
-            >Backfill thumbnails (after tiling)</button
-          >
+          <button class="btn" on:click={copyScript}>Copy script</button>
+          <button class="btn" on:click={backfillCreated}>Backfill thumbnails (after tiling)</button>
         </div>
         <pre class="script">{resultScript}</pre>
       </section>

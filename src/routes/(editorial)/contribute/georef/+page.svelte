@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { t, splitHighlight } from '$lib/core/i18n';
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import PageHero from '$lib/ui/PageHero.svelte';
   import { fetchUserRole } from '$lib/data/supabase/role';
+
+  $: heroTitle = splitHighlight($t('Pin a map **to the world.**'));
   import {
     allmapsEditorUrl,
     fetchGeorefQueue,
@@ -56,8 +59,8 @@
       ><a href="/contribute" class="chip-back">← Contribute</a></svelte:fragment
     >
     <svelte:fragment slot="title">
-      Pin a map<br />
-      <span class="text-highlight">to the world.</span>
+      {heroTitle[0]}{#if heroTitle[1]}<br /><span class="text-highlight">{heroTitle[1]}</span
+        >{/if}{heroTitle[2]}
     </svelte:fragment>
   </PageHero>
 
@@ -65,18 +68,20 @@
     <section class="section-card how-to-card">
       <div class="section-card-header">
         <div>
-          <h2 class="section-title-sm">How it works</h2>
+          <h2 class="section-title-sm">{$t('How it works')}</h2>
         </div>
       </div>
       <ol class="steps-list">
-        <li>Pick a map below and hit <strong>Open in Allmaps</strong>.</li>
+        <li>Pick a map below and hit <strong>{$t('Open in Allmaps')}</strong>.</li>
         <li>
-          Drop at least 3 ground control points — match a spot on the map to the same spot on the
-          modern world.
+          {$t(
+            'Drop at least 3 ground control points — match a spot on the map to the same spot on the modern world.'
+          )}
         </li>
         <li>
-          Save in Allmaps. Nothing to send back: the archive checks Allmaps for finished maps and
-          marks them georeferenced by itself.
+          {$t(
+            'Save in Allmaps. Nothing to send back: the archive checks Allmaps for finished maps and marks them georeferenced by itself.'
+          )}
         </li>
       </ol>
     </section>
@@ -84,16 +89,16 @@
     {#if loading}
       <section class="state-card">
         <div class="spinner"></div>
-        <span>Loading maps…</span>
+        <span>{$t('Loading maps…')}</span>
       </section>
     {:else}
       <section class="section-card">
         <h2 class="section-label">
-          Needs georeferencing <span class="count-badge">{pending.length}</span>
+          {$t('Needs georeferencing')} <span class="count-badge">{pending.length}</span>
         </h2>
         {#if pending.length === 0}
           <p class="empty-state">
-            Every map is georeferenced. Check back later — new ones land every few weeks.
+            {$t('Every map is georeferenced. Check back later — new ones land every few weeks.')}
           </p>
         {:else}
           <ul class="map-list">
@@ -104,7 +109,7 @@
                   {#if map.year}<span class="map-year">{map.year}</span>{/if}
                 </div>
                 <a class="chip" href={allmapsEditorUrl(map)} target="_blank" rel="noopener">
-                  Open in Allmaps
+                  {$t('Open in Allmaps')}
                 </a>
               </li>
             {/each}
@@ -115,8 +120,8 @@
       {#if canFix}
         <section class="section-card">
           <h2 class="section-label">
-            Fix an existing georeference <span class="count-badge chip-green">{fixable.length}</span
-            >
+            {$t('Fix an existing georeference')}
+            <span class="count-badge chip-green">{fixable.length}</span>
           </h2>
           <p class="fix-help">
             Reopens the map's control points in Allmaps so you correct them rather than start over.
@@ -125,12 +130,12 @@
           <input
             class="fix-search"
             type="search"
-            placeholder="Find by name or year…"
+            placeholder={$t('Find by name or year…')}
             bind:value={fixSearch}
             aria-label="Find a georeferenced map"
           />
           {#if fixShown.length === 0}
-            <p class="empty-state">No georeferenced map matches.</p>
+            <p class="empty-state">{$t('No georeferenced map matches.')}</p>
           {:else}
             <ul class="map-list done-list">
               {#each fixShown as map (map.id)}
@@ -142,13 +147,13 @@
                   </div>
                   {#if map.editorUrl}
                     <a class="chip" href={map.editorUrl} target="_blank" rel="noopener">
-                      Fix in Allmaps
+                      {$t('Fix in Allmaps')}
                     </a>
                   {:else}
                     <span
                       class="badge-chip is-sm"
                       title="R2-only source and no manifest: the editor has nothing to open"
-                      >no source</span
+                      >{$t('no source')}</span
                     >
                   {/if}
                 </li>

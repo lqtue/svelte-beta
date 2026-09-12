@@ -1,51 +1,78 @@
 <!--
-  ArchiveMapRows.svelte — the tap-to-toggle map row list. Both /explore browse
-  modes (GPS coverage and the full archive browser) use it, and so does the
-  /scan left rail.
+  ArchiveMapRows.svelte — the archive list, everywhere it is not the full
+  /catalog page: both /explore browse modes (GPS coverage and the full archive
+  browser), the /scan left rail, and /catalog's own compact sidebar.
 
-  On /explore a row is "on" when the map is in the layer stack, and tapping an
-  on row removes it. A /scan tool has no layer stack — it has one open sheet —
-  so it passes `activeIds` and gets a radio: the open sheet ticks, and tapping
-  it again is a no-op rather than a remove nothing can undo.
+  It is **the catalog table with its columns reduced** — the same `DataTable`,
+  the same header, the same row rules, dropping the four columns a 380px rail
+  cannot carry (Area, Collection, Status) and making the thumbnail the pick
+  control: the picture of the sheet *is* the button that puts it on the map. Until Sept 2026 it was a hand-built `<ul>`
+  of bordered buttons, and `CatalogTableCompact` was a *second* hand-built
+  `<ul>` beside it: same data, same sidebar job, and no two details alike —
+  year 1rem extrabold against 0.82rem bold, title semibold-muted against
+  regular-ink, the pick control a 32px circle against a `.btn.is-xs`.
+
+  Two row actions, because the two callers mean different things by a tap:
+
+    toggle  (default)  the row is a layer — tapping adds the sheet to the map,
+                       tapping an "on" row removes it. /explore and /scan.
+    open               the row is a record — tapping opens it, and the layer
+                       toggle is the separate button in the pick column.
+
+  `activeIds` switches `toggle` from the /explore layer stack to a caller's own
+  selection, which makes it a radio: a /scan tool has one open sheet, so
+  tapping it again is a no-op rather than a remove nothing can undo.
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { layersStore } from '$lib/map/stores/layersStore';
+  import { layersStore, toggleOverlayFor } from '$lib/map/stores/layersStore';
+  import DataTable, { type TableColumn } from '$lib/ui/DataTable.svelte';
+  import { atWidth } from '$lib/core/iiif/thumbUrl';
+  import { applySort, type SortState } from '$lib/core/utils/tableSort';
 
   export let rows: any[] = [];
   /** Ids to draw as "on". Null (the default) means the /explore layer stack,
    *  and restores tap-again-to-remove. */
   export let activeIds: string[] | null = null;
-  /** id → short text drawn at the end of the row. The catalog rows carry no
+  /** id → short text drawn where the type chip goes. The catalog rows carry no
    *  pass progress, so /scan supplies "OCR'd" / "12 pending" from its own list. */
   export let badges: Record<string, string> = {};
   /** Draw the map_type chip when a row has no badge. /scan turns it off: that
    *  column is "have I done this sheet yet?", and a type chip on the rows with
    *  no pass yet reads as a status the sheet does not have. */
   export let showTypes = true;
+  /** What a tap on the row body means — see the header. */
+  export let rowAction: 'toggle' | 'open' = 'toggle';
+  /** `open` mode only: the row drawn as the current one. */
+  export let activeId: string | null = null;
+  /** `open` mode only: draw the overlay toggle. Off where there is no map to
+   *  add a sheet to — /catalog's own sidebar on a page without one. */
+  export let showLayerActions = true;
 
   const dispatch = createEventDispatcher<{
     pick: { map: any };
     remove: { mapId: string };
+    open: any;
   }>();
 
   $: stackedIds = new Set(activeIds ?? $layersStore.overlays.map((o) => o.ref.mapId));
 
-  // Stable colour per map_type so the type chip is scannable. Hashes the
-  // string to a hue (golden-angle stepped to keep adjacent types distinct).
-  function hueFor(t: string | undefined): number {
-    if (!t) return 50;
-    let h = 0;
-    for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
-    return Math.abs(h * 137) % 360;
-  }
-  function typeStyle(t: string | undefined): string {
-    if (!t) return '';
-    const h = hueFor(t);
-    return `background: hsl(${h} 70% 88%); border-color: hsl(${h} 45% 30%); color: hsl(${h} 50% 22%);`;
-  }
+  // Year first, which is how the archive is read. The header is the catalog's,
+  // so the reader can re-order a long list without leaving the rail.
+  let sort: SortState<string> = { key: 'year', asc: true };
+  $: sorted = applySort(rows, sort, (m: any, key) =>
+    key === 'year' ? (m.year ?? null) : key === 'type' ? (m.map_type ?? null) : (m.name ?? null)
+  );
+
+  const columns = [
+    { key: 'pick', label: '', klass: 'col-pick', srLabel: 'Sheet', sortable: false },
+    { key: 'year', label: 'Year', klass: 'col-year num' },
+    { key: 'name', label: 'Title', klass: 'col-name' },
+    { key: 'type', label: 'Type', klass: 'col-type' },
+  ] satisfies TableColumn[];
 
   function onRowClick(map: any) {
+    if (rowAction === 'open') return dispatch('open', map);
     if (activeIds) {
       if (!stackedIds.has(map.id)) dispatch('pick', { map });
       return;
@@ -55,131 +82,178 @@
   }
 </script>
 
-<ul class="rows">
-  {#each rows as m (m.id)}
-    {@const on = stackedIds.has(m.id)}
-    <li>
-      <button type="button" class="row" class:is-on={on} on:click={() => onRowClick(m)}>
-        <span class="tick" aria-hidden="true" class:on>
-          {#if on}
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+<div class="amr">
+  <DataTable {columns} klass="is-dense" bind:sort>
+    {#each sorted as m (m.id)}
+      {@const on = stackedIds.has(m.id)}
+      {@const scout = m._table === 'scout'}
+      <tr
+        class:is-on={on}
+        class:is-active={rowAction === 'open' && m.id === activeId}
+        class:is-scout={scout}
+        on:click={() => onRowClick(m)}
+      >
+        <td class="col-pick">
+          {#if rowAction === 'toggle' || (showLayerActions && !scout && m.georef_done)}
+            <!-- The real control: the `<tr>` click is a pointer convenience, so
+                 the keyboard and a screen reader get this instead. The picture
+                 of the sheet *is* the button — a plus sign says a row can be
+                 added, the scan says which sheet is being added. -->
+            <button
+              type="button"
+              class="pick"
+              class:on
+              on:click|stopPropagation={() =>
+                rowAction === 'toggle' ? onRowClick(m) : toggleOverlayFor(m)}
+              aria-pressed={on}
+              aria-label={on ? `Remove ${m.name}` : `Add ${m.name} to the map`}
             >
-              <path d="M5 12.5l5 5L20 7" />
-            </svg>
-          {:else}
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-            >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
+              {#if m.thumbnail}
+                <img
+                  src={atWidth(m.thumbnail, 200)}
+                  alt=""
+                  loading="lazy"
+                  on:error={(e) => ((e.currentTarget as HTMLImageElement).src = m.thumbnail)}
+                />
+              {:else}
+                <span class="no-thumb" aria-hidden="true">+</span>
+              {/if}
+              <!-- Over the sheet rather than beside it: the tint alone reads as
+                   a hover on a list you are dragging a finger down. -->
+              {#if on}<span class="on-mark" aria-hidden="true">✓</span>{/if}
+            </button>
           {/if}
-        </span>
-        <span class="year-cell">{m.year ?? '—'}</span>
-        <span class="name">{m.name}</span>
-        <span class="type-cell">
+        </td>
+        <td class="col-year num">{m.year ?? '—'}</td>
+        <td class="col-name">
+          <span class="title">{m.name || '—'}</span>
+          <!-- The creator line is the catalog sidebar's: a rail beside a map
+               wants as many sheets on screen as will fit. -->
+          {#if rowAction === 'open' && m.creator}<span class="sub">{m.creator}</span>{/if}
+        </td>
+        <td class="col-type">
           {#if badges[m.id]}
             <span class="badge-chip is-sm chip-green">{badges[m.id]}</span>
           {:else if showTypes && m.map_type}
-            <span class="badge-chip is-sm type-chip" style={typeStyle(m.map_type)}
-              >{m.map_type}</span
-            >
+            <span class="type-chip">{m.map_type}</span>
           {/if}
-        </span>
-      </button>
-    </li>
-  {/each}
-</ul>
+        </td>
+      </tr>
+    {/each}
+  </DataTable>
+</div>
 
 <style>
-  .rows {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
+  /* `:global` because the cells' geometry has to reach the `<th>`s, which are
+     `SortHeader`'s and `DataTable`'s. `.amr` keeps it inside this list. */
+  .amr :global(.col-pick) {
+    width: 1%;
+    padding-left: 0.35rem;
+    padding-right: 0;
   }
-  .row {
-    display: grid;
-    grid-template-columns: 32px 3rem 1fr auto;
-    align-items: center;
-    gap: var(--space-2);
-    width: 100%;
-    min-height: 52px;
-    text-align: left;
-    padding: 0.55rem;
-    background: var(--sb-bg);
-    border: var(--sb-border);
-    border-radius: var(--sb-radius-sm);
-    font-family: inherit;
-    cursor: pointer;
+  .amr :global(.col-year) {
+    width: 1%;
+    white-space: nowrap;
   }
-  .row:active {
-    background: var(--sb-row-active);
-  }
-  .row.is-on {
-    background: var(--sb-success-bg);
-  }
-
-  .tick {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--sb-card-bg);
-    border: var(--sb-border);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--sb-text);
-    flex-shrink: 0;
-  }
-  .tick.on {
-    background: var(--sb-success);
-    color: var(--color-white);
-    border-color: var(--sb-success-dark);
-  }
-
-  .year-cell {
-    font-size: 0.82rem;
-    font-weight: var(--font-bold);
-    color: var(--sb-accent);
-    font-variant-numeric: tabular-nums;
+  /* `width: 1%` + `nowrap` is shrink-to-fit in a table: the three narrow
+     columns take what they need and the title keeps the rest, which in a 300px
+     rail is the difference between two words and a readable line. */
+  .amr :global(.col-type) {
+    width: 1%;
+    white-space: nowrap;
     text-align: right;
   }
-  .name {
-    font-size: 0.85rem;
-    line-height: 1.3;
-    color: var(--sb-text);
+
+  tr {
+    cursor: pointer;
+  }
+  .is-on td {
+    background: var(--sb-success-bg);
+  }
+  .is-scout td {
+    background: var(--sb-scout-bg);
+  }
+  .is-active td {
+    background: var(--sb-accent-yellow);
+  }
+
+  /* The scan itself, at the size the /catalog table draws it. 4:3 because a
+     sheet is landscape more often than not and a ragged column of heights is
+     harder to scan than a cropped one. */
+  .pick {
+    position: relative;
+    display: block;
+    width: 48px;
+    height: 36px;
+    padding: 0;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--sb-radius-sm);
+    background: var(--sb-thumb-bg);
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .pick img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .no-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--sb-text-meta);
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+  .pick.on {
+    border-color: var(--sb-success-dark);
+  }
+  .on-mark {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--sb-success) 72%, transparent);
+    color: var(--color-white);
+    font-size: 0.95rem;
+    font-weight: var(--font-bold);
+    line-height: 1;
+  }
+
+  .col-year {
+    font-weight: var(--font-bold);
+    color: var(--sb-accent);
+  }
+  .col-name {
+    min-width: 0;
+  }
+  .title {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-width: 0;
+    line-height: 1.3;
   }
-  .type-cell {
-    display: flex;
-    justify-content: flex-end;
-    min-width: 0;
+  .sub {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--sb-text-muted);
   }
-  /* The shape is the shared badge; the tone is not, because it is computed
-     per map_type at runtime (see `typeStyle`) and lands as an inline style.
-     Casing is all that is left to say. */
+  /* The catalog's Type cell, minus the click: there it adds a facet, and a rail
+     has its own facet row above the list. */
   .type-chip {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    font-size: 0.68rem;
     text-transform: capitalize;
+    white-space: nowrap;
+    color: var(--sb-text-meta);
   }
 </style>

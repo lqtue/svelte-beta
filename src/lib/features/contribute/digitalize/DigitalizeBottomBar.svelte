@@ -1,6 +1,6 @@
 <!--
-  DigitalizeBottomBar.svelte — the toolbar under the /scan?mode=triage
-  canvas. Triage gets a hint only; the review phases add the draw and focus
+  DigitalizeBottomBar.svelte — the toolbar under the /scan?mode=prepare and
+  ?mode=text canvas. Prepare gets a hint only; Text adds the draw and focus
   toggles. Purely presentational: every action is an event.
 
   It carried a panel toggle until the rails were split. With a left rail and a
@@ -12,7 +12,7 @@
   import { createEventDispatcher } from 'svelte';
   import '$styles/layouts/tool-page.css';
 
-  export let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
+  export let mode: 'prepare' | 'text' = 'prepare';
   export let drawMode = false;
   export let isolationMode = false;
   /** Current canvas rotation, signed degrees. 0 hides the reset button. */
@@ -27,7 +27,7 @@
 </script>
 
 <footer class="bottom-bar">
-  {#if phase === 'triage'}
+  {#if mode === 'prepare'}
     <div class="bar-hint">Drag the amber box · click a tile to set its priority</div>
   {:else}
     <div class="bar-hint">
@@ -38,8 +38,8 @@
     <div class="bar-divider"></div>
     <button
       type="button"
-      class="tool-btn"
-      class:active={drawMode}
+      class="sb-btn is-sm"
+      class:is-on={drawMode}
       on:click={() => dispatch('toggleDraw')}
     >
       <svg
@@ -59,8 +59,8 @@
     <div class="bar-divider"></div>
     <button
       type="button"
-      class="tool-btn"
-      class:active={isolationMode}
+      class="sb-btn is-sm"
+      class:is-on={isolationMode}
       on:click={() => dispatch('toggleIsolation')}
     >
       <svg
@@ -80,7 +80,7 @@
   <div class="bar-divider"></div>
   <button
     type="button"
-    class="tool-btn icon-only"
+    class="sb-btn is-sm icon-only"
     on:click={() => dispatch('rotate', { deg: -90 })}
     title="Rotate left 90° (Shift+R) · [ and ] turn 5°"
     aria-label="Rotate left"
@@ -100,7 +100,7 @@
   </button>
   <button
     type="button"
-    class="tool-btn icon-only"
+    class="sb-btn is-sm icon-only"
     on:click={() => dispatch('rotate', { deg: 90 })}
     title="Rotate right 90° (R) · [ and ] turn 5°"
     aria-label="Rotate right"
@@ -121,7 +121,7 @@
   {#if rotationDeg !== 0}
     <button
       type="button"
-      class="tool-btn"
+      class="sb-btn is-sm"
       on:click={() => dispatch('resetRotation')}
       title="Back to upright (0)"
     >

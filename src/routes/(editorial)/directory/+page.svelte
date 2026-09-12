@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { t, splitHighlight } from '$lib/core/i18n';
   import { onMount } from 'svelte';
 
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { fetchUserRole } from '$lib/data/supabase/role';
   import PageHero from '$lib/ui/PageHero.svelte';
+
+  $: heroTitle = splitHighlight($t('All the pages, **one list.**'));
   import {
     DESTINATION_GROUPS,
     DESTINATIONS,
@@ -43,7 +46,8 @@
     sub="Every page in the archive, in one list. The same list ⌘K searches — so if you would rather type than click, press it from anywhere."
   >
     <svelte:fragment slot="title">
-      All the pages,<br /><span class="text-highlight">one list.</span>
+      {heroTitle[0]}{#if heroTitle[1]}<br /><span class="text-highlight">{heroTitle[1]}</span
+        >{/if}{heroTitle[2]}
     </svelte:fragment>
   </PageHero>
 
@@ -72,7 +76,7 @@
         {hiddenCount}
         {hiddenCount === 1 ? 'page is' : 'pages are'} not listed because this account cannot open
         {hiddenCount === 1 ? 'it' : 'them'}.
-        {#if !session?.user}<a href="/login">Sign in</a> to see the contribution tools.{/if}
+        {#if !session?.user}<a href="/login">{$t('Sign in')}</a> to see the contribution tools.{/if}
       </p>
     {/if}
   </main>

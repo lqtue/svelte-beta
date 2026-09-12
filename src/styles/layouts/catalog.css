@@ -17,41 +17,16 @@
 /* ========================================
    PAGE ROOT
    ======================================== */
-/* Height and the mount fade come from `.page` (components/editorial.css);
-   the dot field is this page's own. */
-.catalog-page {
-  background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
-  background-size: 32px 32px;
-  background-position: 0 0;
-}
+/* No page-root rule. Height and the mount fade are `.page`'s
+   (components/editorial.css). The dot field that used to be here went with the
+   same pass that took it off the home page — see layouts/home.css: a page whose
+   ground is a texture can never have anything sit *on* it, only in front of it.
+   ======================================== */
 
-.catalog-page .search-box {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.catalog-page .chunky-input {
-  width: 100%;
-  min-width: 320px;
-  padding: 0.75rem 1rem 0.75rem 3rem;
-  font-family: var(--font-family-display);
-  font-size: 1rem;
-  font-weight: 700;
-  border: var(--border-thick);
-  border-radius: var(--radius-pill);
-  background: var(--color-white);
-  color: var(--color-text);
-  outline: none;
-  box-shadow: 2px 2px 0px var(--shadow-ink);
-  transition: all 0.2s ease;
-}
-
-.catalog-page .chunky-input:focus {
-  transform: translate(-2px, -2px);
-  box-shadow: 4px 4px 0px var(--shadow-ink);
-  background: var(--color-bg);
-}
+/* No search-box rule. `/catalog`'s field is one flex row styled in the route's
+   own <style> — it was styled twice, and the scoped copy won every conflicting
+   property, so what survived from here was a box-shadow inside the box.
+   ======================================== */
 
 /* ========================================
    CONTENT & CONTROLS BOX
@@ -97,15 +72,10 @@
 /* ========================================
    STATES
    ======================================== */
-.catalog-page .state-panel {
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-lg);
-  padding: 5rem 2rem;
-  text-align: center;
-  box-shadow: var(--shadow-solid);
-  margin-top: 2rem;
-}
+/* No panel. The centred block and its padding are `.empty-state.is-block`
+   (components/feedback.css); the border, radius and 6px drop that used to be
+   drawn around them are the chrome the home page dropped in the same pass.
+   ======================================== */
 
 .catalog-page .state-title {
   font-family: var(--font-family-display);
@@ -124,66 +94,22 @@
 /* ========================================
    BUTTONS
    ======================================== */
-/* None here. This page carried its own `.action-btn` — the pre-flat chrome,
-   with a 4px lift on hover — plus a blue `.primary-btn`, so the one hero CTA
+/* None here. This page carried its own page-CTA pill — the pre-flat chrome,
+   with a 4px lift on hover — plus a blue lead face, so the one hero CTA
    in the archive that reads "Submit a map" was a different object from the
    same CTA on / and /about. components/buttons.css paints both.
    ======================================== */
 
 /* ========================================
-   GRID VIEW
-   (Map card styles live in MapCard.svelte's scoped <style>)
+   GRID VIEW · BADGES · RESPONSIVE
    ======================================== */
-.catalog-page .catalog-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 2rem;
-}
-
-/* Badges used by the list view (grid view uses MapCard's scoped styles) */
-.catalog-page .badge {
-  font-family: var(--font-family-display);
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 0.25rem 0.6rem;
-  background: var(--color-white);
-  border: var(--border-thin);
-  border-radius: var(--radius-sm);
-  box-shadow: 2px 2px 0px var(--shadow-ink);
-}
-
-.catalog-page .year-badge {
-  background: var(--color-green);
-  color: var(--color-on-accent);
-}
-
-.catalog-page .source-badge {
-  background: var(--color-orange);
-  color: var(--color-on-accent);
-}
-
-/* ========================================
-   RESPONSIVE
+/* None of the three live here any more. The grid is `.cus-grid`, scoped inside
+   `CatalogUnifiedSearch`, because the cards it lays out are `MapCard`s that
+   carry their own border and drop. The three badge rules were a second face for
+   `.badge-chip` that nothing on the page had worn since the card view was
+   rebuilt. The media query resized a `.top-bar` and a `.chunky-input` that no
+   longer exist, and the grid, which is now scoped with the rest of it.
    ======================================== */
-@media (max-width: 768px) {
-  .catalog-page .top-bar {
-    padding: 1rem;
-  }
-
-  .catalog-page .search-box,
-  .catalog-page .chunky-input {
-    width: 100%;
-  }
-
-  .catalog-page .content {
-    padding: 1rem;
-  }
-
-  .catalog-page .catalog-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1.5rem;
-  }
-}
 
 /* Admin edit error (catalog page, MapEditModal load failure) */
 .edit-error {

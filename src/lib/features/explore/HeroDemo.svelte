@@ -21,6 +21,7 @@
   with the lead, for loading, and one at the real viewport edge, for playing.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { isMeteredConnection } from '$lib/core/utils/connection';
@@ -96,11 +97,11 @@
      gap inside); everything below it here is this section's own. -->
 <section class="home-section hero-demo" id="how-it-works">
   <div class="hero-demo-head">
-    <h2 class="feature-title">How this works</h2>
+    <h2 class="feature-title">{$t('How this works')}</h2>
     <p class="feature-description">
-      A scan of an 1882 survey, pinned to real coordinates, laid back over the ground it drew — then
-      the plots traced off it and the names read off it. Drag the slider to move between the two
-      cities.
+      {$t(
+        'A scan of an 1882 survey, pinned to real coordinates, laid back over the ground it drew — then the plots traced off it and the names read off it. Drag the slider to move between the two cities.'
+      )}
     </p>
   </div>
 
@@ -115,7 +116,9 @@
       src={still}
       srcset={stillSrcset}
       sizes="100vw"
-      alt="The 1882 cadastral survey of Saigon laid over the modern city around the Charner canal"
+      alt={$t(
+        'The 1882 cadastral survey of Saigon laid over the modern city around the Charner canal'
+      )}
       width="1600"
       height="900"
       loading="lazy"
@@ -133,7 +136,7 @@
 
     {#if settled}
       <label class="hero-fade" transition:fade={{ duration: 400 }}>
-        <span>Today</span>
+        <span>{$t('Today')}</span>
         <input
           type="range"
           min="0"
@@ -141,7 +144,7 @@
           step="0.01"
           value={overlayOpacity ?? 0.88}
           on:input={(e) => (overlayOpacity = Number(e.currentTarget.value))}
-          aria-label="How much of the 1882 sheet to show"
+          aria-label={$t('How much of the 1882 sheet to show')}
         />
         <span>1882</span>
       </label>
@@ -149,7 +152,7 @@
   </div>
 
   <p>
-    <a href="/explore?map={mapId}" class="text-link">Open this sheet in the viewer</a>
+    <a href="/explore?map={mapId}" class="text-link">{$t('Open this sheet in the viewer')}</a>
   </p>
 </section>
 

@@ -8,8 +8,14 @@
   import { fetchUserRole } from '$lib/data/supabase/role';
   import CommandPalette from '$lib/features/shared/CommandPalette.svelte';
   import { openPalette, isPaletteShortcut, isTypingTarget } from '$lib/core/utils/commandPalette';
+  import { locale } from '$lib/core/i18n';
 
   export let data;
+
+  // Synchronous, at init: the SSR render reads the store on the very next
+  // line of the same tick, so there is no window for a concurrent request to
+  // set it to something else. Reactive so a client-side nav keeps it current.
+  $: locale.set(data.locale);
 
   const supabase = createSupabaseBrowserClient();
 

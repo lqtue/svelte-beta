@@ -2,8 +2,11 @@
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem } from '$lib/data/maps/types';
   export let map: MapListItem;
-  /** Full href for the card link. Caller builds it (home page adds &city=, catalog doesn't). */
-  export let href: string;
+  /** Full href for the card link. Caller builds it (home page adds &city=, catalog doesn't).
+   *  Null makes the card a `<button>` that dispatches `open` instead — /catalog's
+   *  grid opens the same detail drawer its table rows do, and a draft has no
+   *  public page to link to. */
+  export let href: string | null = null;
   /** Preloaded thumbnail URL; undefined shows the placeholder pattern. */
   export let thumbnail: string | undefined = undefined;
   /** Whether the heart button appears at all (only when a session exists). */
@@ -12,7 +15,7 @@
   export let isFavorited: boolean = false;
   /** Show the collection/source badge (catalog uses it; home page omits it). */
   export let showSourceBadge: boolean = false;
-  const dispatch = createEventDispatcher<{ toggleFavorite: string }>();
+  const dispatch = createEventDispatcher<{ toggleFavorite: string; open: MapListItem }>();
 
   function handleImageError(e: Event) {
     (e.target as HTMLImageElement).style.display = 'none';
@@ -34,7 +37,17 @@
 </script>
 
 <div class="map-card-wrapper">
-  <a {href} class="map-card">
+  <!-- One card, two elements: a link where there is somewhere to go, a button
+       where the click is an action on this page. Neither is the other wearing
+       the wrong role. -->
+  <svelte:element
+    this={href ? 'a' : 'button'}
+    href={href || undefined}
+    type={href ? undefined : 'button'}
+    role={href ? undefined : 'button'}
+    class="map-card"
+    on:click={() => !href && dispatch('open', map)}
+  >
     <div class="map-thumbnail">
       {#if thumbnail}
         <img src={thumbnail} alt={map.name} loading="lazy" on:error={handleImageError} />
@@ -56,11 +69,11 @@
         <span class="map-city">{map.location}</span>
       {/if}
     </div>
-  </a>
+  </svelte:element>
 
   {#if showFavorite}
     <button
-      class="ctrl-btn fav-btn"
+      class="btn is-icon fav-btn"
       on:click|stopPropagation={() => dispatch('toggleFavorite', map.id)}
       aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
     >
@@ -76,6 +89,11 @@
 
   .map-card {
     display: flex;
+    width: 100%;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
     flex-direction: column;
     background: var(--color-white);
     border: var(--border-thick);
@@ -160,7 +178,7 @@
     margin-top: auto;
   }
 
-  /* Placement and size only — the round face, border and hover are `.ctrl-btn`.
+  /* Placement and size only — the round face, border and hover are `.btn.is-icon`.
      It hangs off the card's corner and is 44px, not the 48px map control. */
   .fav-btn {
     position: absolute;

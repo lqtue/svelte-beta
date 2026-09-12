@@ -14,6 +14,7 @@
       "this sheet" action strip is TopSheetActions, in the right rail.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import { layersStore } from '$lib/map/stores/layersStore';
   import type { ViewMode } from '$lib/map/types';
@@ -55,7 +56,7 @@
 
 <div class="lsp">
   {#if state.overlays.length > 0}
-    <div class="lsp-sub">Tap a name to zoom · drag for opacity · eye hides a layer</div>
+    <div class="lsp-sub">{$t('Tap a name to zoom · drag for opacity · eye hides a layer')}</div>
   {/if}
 
   {#if state.overlays.length === 0}
@@ -63,7 +64,7 @@
       Nothing stacked yet. Open <strong>Browse</strong> and tap <strong>+</strong> on a map to add it.
     </div>
   {:else if rows.length === 0}
-    <div class="sb-empty">No stacked map matches those filters.</div>
+    <div class="sb-empty">{$t('No stacked map matches those filters.')}</div>
   {:else}
     <ul class="lsp-list">
       {#each rows as { o, i } (o.id)}
@@ -75,7 +76,7 @@
               on:click={() => moveUp(i)}
               disabled={i === 0}
               aria-label="Move layer up"
-              title="Move up">▲</button
+              title={$t('Move up')}>▲</button
             >
             <button
               type="button"
@@ -83,7 +84,7 @@
               on:click={() => moveDown(i)}
               disabled={i === state.overlays.length - 1}
               aria-label="Move layer down"
-              title="Move down">▼</button
+              title={$t('Move down')}>▼</button
             >
           </div>
 
@@ -143,7 +144,7 @@
                 class="sb-btn is-icon lsp-x"
                 on:click={() => layersStore.removeOverlay(o.id)}
                 aria-label="Remove layer"
-                title="Remove">×</button
+                title={$t('Remove')}>×</button
               >
             </div>
 
@@ -155,7 +156,7 @@
                 max="1"
                 step="0.05"
                 value={o.opacity}
-                aria-label="Opacity"
+                aria-label={$t('Opacity')}
                 on:input={(e) => layersStore.setOpacity(o.id, Number(e.currentTarget.value))}
               />
               <span class="lsp-pct">{Math.round(o.opacity * 100)}%</span>

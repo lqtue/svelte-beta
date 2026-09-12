@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { getSupabaseContext } from '$lib/data/supabase/context';
 
   const { supabase, session } = getSupabaseContext();
@@ -32,14 +33,14 @@
   <!-- The card is the whole page, so it is the main landmark. There is no
        PageHero here on purpose: a sign-in card wants no masthead above it. -->
   <main class="auth-card">
-    <h1 class="auth-title">Sign in</h1>
+    <h1 class="auth-title">{$t('Sign in')}</h1>
 
     {#if error}
       <div class="auth-error">{error}</div>
     {/if}
 
     <div class="auth-options">
-      <button class="action-btn auth-btn" on:click={loginWithGoogle} disabled={loading}>
+      <button class="btn is-lg auth-btn" on:click={loginWithGoogle} disabled={loading}>
         <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
           <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -58,13 +59,14 @@
             fill="#EA4335"
           />
         </svg>
-        <span>Continue with Google</span>
+        <span>{$t('Continue with Google')}</span>
       </button>
     </div>
 
     <p class="auth-notice">
-      Signing in lets you save favorites and contribute to the archive. Everything you add is
-      released as open data under CC-BY.
+      {$t(
+        'Signing in lets you save favorites and contribute to the archive. Everything you add is released as open data under CC-BY.'
+      )}
     </p>
   </main>
 </div>
@@ -122,7 +124,7 @@
     gap: 1rem;
   }
 
-  /* `.action-btn` (buttons.css) is already the page-CTA size. Only the
+  /* `.btn.is-lg` (buttons.css) is already the page-CTA size. Only the
      layout it cannot know about is local: this one fills the card. */
   .auth-btn {
     width: 100%;

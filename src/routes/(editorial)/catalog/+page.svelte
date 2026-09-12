@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, splitHighlight } from '$lib/core/i18n';
   import { onMount } from 'svelte';
   import { getSupabaseContext } from '$lib/data/supabase/context';
   import { fetchUserRole } from '$lib/data/supabase/role';
@@ -8,6 +9,8 @@
   import { fetchMapRow } from '$lib/data/maps/service';
   import type { MapRow } from '$lib/data/admin/adminApi';
   import '$styles/layouts/catalog.css';
+
+  $: heroTitle = splitHighlight($t('The **Archive.**'));
 
   const { supabase, session } = getSupabaseContext();
 
@@ -54,17 +57,21 @@
     eyebrow="Collection"
     sub="Every historical map in the archive — georeferenced, searchable, and linked back to the library or collection that holds the scan."
   >
-    <svelte:fragment slot="title">The <span class="text-highlight">Archive.</span></svelte:fragment>
+    <svelte:fragment slot="title"
+      >{heroTitle[0]}{#if heroTitle[1]}<br /><span class="text-highlight">{heroTitle[1]}</span
+        >{/if}{heroTitle[2]}</svelte:fragment
+    >
     <div slot="actions">
-      <a class="action-btn primary-btn" href={contributeHref}>Submit a map</a>
+      <a class="btn is-lg is-primary" href={contributeHref}>{$t('Submit a map')}</a>
     </div>
   </PageHero>
 
   <main class="content">
-    <div class="search-box full">
+    <label class="sb-search is-page">
       <svg
-        class="search-icon"
         viewBox="0 0 24 24"
+        width="20"
+        height="20"
         fill="none"
         stroke="currentColor"
         stroke-width="2.5"
@@ -76,12 +83,20 @@
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
       <input
-        type="text"
-        placeholder="Search by title, creator, year, or description…"
+        class="sb-search-input"
+        type="search"
+        placeholder={$t('Search by title, creator, year, or description…')}
         bind:value={searchQuery}
-        class="chunky-input"
       />
-    </div>
+      {#if searchQuery}
+        <button
+          type="button"
+          class="sb-search-clear"
+          on:click={() => (searchQuery = '')}
+          aria-label={$t('Clear')}>×</button
+        >
+      {/if}
+    </label>
 
     <CatalogUnifiedSearch
       bind:this={searchRef}
@@ -102,6 +117,9 @@
 </div>
 
 <style>
+  /* The search field itself is `.sb-search.is-page` (components/sidebar.css) —
+     the same bar both /explore rails wear, one size up. It was 40 lines of a
+     fourth design here. */
   .content {
     display: flex;
     flex-direction: column;
@@ -109,42 +127,5 @@
     padding: 1.25rem;
     max-width: 1400px;
     margin: 0 auto;
-  }
-  .search-box.full {
-    display: flex;
-    align-items: center;
-    padding: 0.85rem var(--space-6);
-    background: var(--color-white);
-    border: 2.5px solid var(--color-border);
-    border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-solid-sm);
-    transition:
-      box-shadow 0.1s,
-      transform 0.1s;
-  }
-  .search-box.full:focus-within {
-    box-shadow: var(--shadow-solid-xs);
-    transform: translate(2px, 2px);
-  }
-  .search-icon {
-    flex-shrink: 0;
-    width: 22px;
-    height: 22px;
-    color: var(--color-text);
-    margin-right: 0.85rem;
-  }
-  .search-box .chunky-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font: inherit;
-    font-family: var(--font-family-base);
-    font-size: 1.05rem;
-    font-weight: var(--font-medium);
-    padding: 0.15rem 0;
-  }
-  .search-box .chunky-input::placeholder {
-    color: var(--color-gray-400);
   }
 </style>

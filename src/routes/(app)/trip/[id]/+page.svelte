@@ -12,6 +12,7 @@
   opt in at the end.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
   import { page } from '$app/stores';
@@ -232,11 +233,11 @@
   {#if loading}
     <div class="state">
       <div class="spinner" aria-hidden="true"></div>
-      <p>Loading your trip…</p>
+      <p>{$t('Loading your trip…')}</p>
     </div>
   {:else if error || !story}
     <div class="state">
-      <h2>Trip unavailable</h2>
+      <h2>{$t('Trip unavailable')}</h2>
       <p>{error ?? 'This story could not be loaded.'}</p>
       <button type="button" class="back-btn" on:click={() => goto('/explore')}
         >← Back to maps</button

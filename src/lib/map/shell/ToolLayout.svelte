@@ -166,7 +166,7 @@
       <div class="top-controls">
         <button
           type="button"
-          class="ctrl-btn"
+          class="btn is-icon"
           on:click={() => (sidebarCollapsed = false)}
           title="Show panel"
         >
@@ -189,7 +189,7 @@
       <div class="right-controls">
         <button
           type="button"
-          class="ctrl-btn"
+          class="btn is-icon"
           on:click={() => (rightSidebarCollapsed = false)}
           title="Show editor"
         >

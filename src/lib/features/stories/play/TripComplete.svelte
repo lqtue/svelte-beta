@@ -2,6 +2,7 @@
   TripComplete.svelte — Celebration body shown at end of the trip.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import type { Story } from '$lib/features/stories/shared/types';
 
@@ -44,36 +45,36 @@
 </script>
 
 <div class="complete" data-testid="trip-complete">
-  <h2>You made it.</h2>
+  <h2>{$t('You made it.')}</h2>
   <p class="subtitle">{story.title}</p>
 
   <div class="stats">
     <div class="stat-tile is-sm">
       <span class="value">{stopsVisited}</span>
-      <span class="label">stops</span>
+      <span class="label">{$t('stops')}</span>
     </div>
     <div class="stat-tile is-sm">
       <span class="value">{distanceLabel}</span>
-      <span class="label">walked</span>
+      <span class="label">{$t('walked')}</span>
     </div>
     <div class="stat-tile is-sm">
       <span class="value">{elapsedMinutes}</span>
-      <span class="label">minutes</span>
+      <span class="label">{$t('minutes')}</span>
     </div>
   </div>
 
   {#if canSaveProgress}
     <button type="button" class="save-row" on:click={() => dispatch('save')}>
       <span>
-        <strong>Save your trip</strong><br />
-        <small>Log in to keep this on your profile.</small>
+        <strong>{$t('Save your trip')}</strong><br />
+        <small>{$t('Log in to keep this on your profile.')}</small>
       </span>
     </button>
   {/if}
 
   <div class="actions">
-    <button type="button" class="btn btn-primary" on:click={handleShare}>Share</button>
-    <button type="button" class="btn btn-outline" on:click={() => dispatch('done')}>Done</button>
+    <button type="button" class="btn is-primary" on:click={handleShare}>{$t('Share')}</button>
+    <button type="button" class="btn" on:click={() => dispatch('done')}>Done</button>
   </div>
 </div>
 

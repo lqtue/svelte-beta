@@ -69,14 +69,14 @@
   font-weight: var(--font-extrabold);
 }
 
-.about-page a:not(.action-btn) {
+.about-page a:not(.btn) {
   color: var(--color-primary);
   font-weight: 700;
   text-decoration: underline;
   text-decoration-thickness: 2px;
 }
 
-.about-page .action-btn {
+.about-page .btn.is-lg {
   margin-top: 1.75rem;
 }
 

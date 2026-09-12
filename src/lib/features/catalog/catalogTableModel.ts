@@ -1,12 +1,18 @@
 /**
- * catalogTableModel.ts — sort / group / label logic shared by CatalogTable
- * (full) and CatalogTableCompact (year + name rows).
+ * catalogTableModel.ts — which column holds what, and the grouping, for
+ * CatalogTable (full) and ArchiveMapRows (the same table, four columns fewer).
+ *
+ * The sorting itself is `$lib/core/utils/tableSort.ts`, shared with every other
+ * `.data-table`. This file carried its own copy until Sept 2026 — a `cmp`, a
+ * `sortRows`, a `nextSort` and a `SortDir` of `'asc' | 'desc'` where the shared
+ * one has a boolean. The behaviour was the same bar one thing worth keeping:
+ * `numeric` collation, which is now what every table gets.
  */
 import { statusOf } from '$lib/features/shared/catalogSearch';
+import { applySort, type SortState } from '$lib/core/utils/tableSort';
 
 export type SortKey = 'name' | 'year' | 'location' | 'map_type' | 'collection' | 'status';
 export type GroupKey = 'none' | SortKey;
-export type SortDir = 'asc' | 'desc';
 
 export interface TableGroup<T> {
   label: string | null;
@@ -16,15 +22,7 @@ export interface TableGroup<T> {
 /** Display casing for the shared status rule; sort/group keys read this. */
 const STATUS_LABEL = { scout: 'Scout', map: 'Map', image: 'Image' } as const;
 
-function cmp(a: unknown, b: unknown): number {
-  if (a == null && b == null) return 0;
-  if (a == null) return 1;
-  if (b == null) return -1;
-  if (typeof a === 'number' && typeof b === 'number') return a - b;
-  return String(a).localeCompare(String(b), undefined, { numeric: true });
-}
-
-export function keyOf(item: any, k: SortKey | GroupKey): any {
+export function keyOf(item: any, k: SortKey | GroupKey): string | number | null {
   if (k === 'name') return item.name;
   if (k === 'year') return item.year;
   if (k === 'location') return item.location;
@@ -34,11 +32,8 @@ export function keyOf(item: any, k: SortKey | GroupKey): any {
   return null;
 }
 
-export function sortRows<T>(items: T[], sortKey: SortKey, sortDir: SortDir): T[] {
-  return [...items].sort((a, b) => {
-    const r = cmp(keyOf(a, sortKey), keyOf(b, sortKey));
-    return sortDir === 'asc' ? r : -r;
-  });
+export function sortRows<T>(items: T[], sort: SortState<SortKey>): T[] {
+  return applySort(items, sort, keyOf);
 }
 
 export function groupRows<T>(sorted: T[], groupBy: GroupKey): TableGroup<T>[] {
@@ -51,15 +46,4 @@ export function groupRows<T>(sorted: T[], groupBy: GroupKey): TableGroup<T>[] {
     m.get(key)!.push(r);
   }
   return [...m.entries()].map(([label, rows]) => ({ label, rows }));
-}
-
-/** Next sort state for a header click — same key toggles direction. */
-export function nextSort(
-  current: { key: SortKey; dir: SortDir },
-  clicked: SortKey
-): { key: SortKey; dir: SortDir } {
-  if (current.key === clicked) {
-    return { key: clicked, dir: current.dir === 'asc' ? 'desc' : 'asc' };
-  }
-  return { key: clicked, dir: 'asc' };
 }

@@ -1,5 +1,5 @@
 /**
- * layoutJob.ts — the layout pass of /scan?mode=triage.
+ * layoutJob.ts — the layout pass of /scan?mode=prepare.
  *
  * "Detect" asks the model what the sheet is made of. It is a job and not a
  * route because the Gemini key lives on the worker, so the client enqueues and

@@ -68,6 +68,24 @@ export function legendEntries(rows: OcrExtraction[]): Map<number, LegendEntry> {
   return out;
 }
 
+/**
+ * The printed-table facts a row carries, or null when it carries none.
+ *
+ * Both kinds of printed block put their position in `notes`, because
+ * `ocr_extractions` has no column for a grid cell: the legend writes
+ * `n=37; grid=B10` and the street index `street index; grid=K6→K8; cells=2`.
+ * So a row out of either block can be shown as the line of a table it is —
+ * name, cell, number — instead of as text with a confidence beside it.
+ */
+export type PrintedLine = { n: number | null; grid: string };
+
+export function printedLine(row: OcrExtraction): PrintedLine | null {
+  const grid = (/\bgrid=([^;]*)/.exec(row.notes ?? '')?.[1] ?? '').trim();
+  if (!grid) return null;
+  const n = Number(/\bn=(\d+)/.exec(row.notes ?? '')?.[1]);
+  return { n: Number.isFinite(n) ? n : null, grid };
+}
+
 /** What is wrong with a numeral, in the order a reviewer would want to see it. */
 export type SuspectReason =
   /** The text is not a bare number, so it is not a legend reference at all. */

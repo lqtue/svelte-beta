@@ -8,6 +8,7 @@
   render the same ArchiveMapRows — tap to add, tap again to remove.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import type { ResolvedMap } from './spatialLookup';
   import type { CatalogSearchController } from '$lib/features/shared/catalogSearch';
   import ArchiveMapRows from '$lib/features/shared/ArchiveMapRows.svelte';
@@ -57,16 +58,14 @@
 <div class="ebp" class:is-expanded={expanded}>
   <div class="head">
     <strong class="title">
-      {#if expanded}
-        Browse the archive
-      {:else if matches.length}
-        {matches.length} map{matches.length === 1 ? '' : 's'} cover this spot
-      {:else}
-        No archival map here
-      {/if}
+      {#if expanded}{$t('Browse the archive')}{:else if matches.length}
+        {matches.length === 1
+          ? $t('1 map covers this spot')
+          : $t('{N} maps cover this spot', { N: matches.length })}
+      {:else}{$t('No archival map here')}{/if}
     </strong>
     {#if !expanded && matches.length}
-      <span class="hint">Tap a row to add it as a layer · tap again to remove.</span>
+      <span class="hint">{$t('Tap a row to add it as a layer · tap again to remove.')}</span>
     {/if}
   </div>
 
@@ -84,11 +83,9 @@
   {/if}
 
   <button type="button" class="browse-toggle" on:click={() => (expanded = !expanded)}>
-    {#if expanded}
-      ← Back to maps at this location
-    {:else}
-      Browse the full archive →
-    {/if}
+    {#if expanded}{$t('← Back to maps at this location')}{:else}{$t(
+        'Browse the full archive →'
+      )}{/if}
   </button>
 </div>
 

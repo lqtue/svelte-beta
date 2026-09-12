@@ -4,6 +4,7 @@
   Tool-specific authoring lives in each mode's right pane.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import type { ViewMode } from '$lib/map/types';
   import type { MapListItem } from '$lib/data/maps/types';
@@ -37,7 +38,7 @@
 
 <aside class="panel">
   <div class="sb-bar">
-    <span class="sb-bar-title">Map viewer</span>
+    <span class="sb-bar-title">{$t('Map viewer')}</span>
     <button
       type="button"
       class="sb-btn is-icon is-ghost"
@@ -59,7 +60,7 @@
     </button>
   </div>
 
-  <SidebarCard title="My layers" grow={3}>
+  <SidebarCard title={$t('My layers')} grow={3}>
     <LayerStackPanel
       {viewMode}
       {mapList}
@@ -77,7 +78,7 @@
     />
   </SidebarCard>
 
-  <SidebarCard title="Browse the archive" grow={5}>
+  <SidebarCard title={$t('Browse the archive')} grow={5}>
     <CatalogSidebarPanel
       {role}
       activeId={selectedMap?.id ?? null}

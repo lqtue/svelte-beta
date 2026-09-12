@@ -31,18 +31,18 @@ test('a signed-out visitor is offered only public pages', () => {
   expect(hrefs).toContain('/explore');
   expect(hrefs).toContain('/contribute');
   expect(hrefs).not.toContain('/profile');
-  expect(hrefs).not.toContain('/scan?mode=review');
+  expect(hrefs).not.toContain('/scan?mode=shapes&tab=validate');
   expect(hrefs).not.toContain('/admin?tab=status');
 });
 
 test('each role adds the tier below it and nothing above', () => {
   const member = destinationsFor('user', true).map((d) => d.href);
   expect(member).toContain('/explore?mode=story');
-  expect(member).toContain('/scan?mode=trace');
-  expect(member).not.toContain('/scan?mode=review');
+  expect(member).toContain('/scan?mode=shapes');
+  expect(member).not.toContain('/scan?mode=shapes&tab=validate');
 
   const mod = destinationsFor('mod', true).map((d) => d.href);
-  expect(mod).toContain('/scan?mode=review');
+  expect(mod).toContain('/scan?mode=shapes&tab=validate');
   expect(mod).toContain('/admin?tab=status');
   expect(mod).not.toContain('/admin?tab=bulk');
 
@@ -77,7 +77,7 @@ test('a label prefix beats a keyword match', () => {
 test('the words people actually type reach the right tool', () => {
   const all = destinationsFor('admin', true);
   const first = (q: string) => matchDestinations(all, q)[0]?.href;
-  expect(first('ocr')).toBe('/scan?mode=triage');
+  expect(first('ocr')).toBe('/scan?mode=text');
   expect(first('annotate')).toBe('/explore?mode=studio');
   expect(first('story')).toBe('/explore?mode=story');
   expect(first('allmaps')).toBe('/contribute/georef');

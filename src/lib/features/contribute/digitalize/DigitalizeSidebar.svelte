@@ -1,27 +1,28 @@
 <!--
-  DigitalizeSidebar.svelte — the whole /scan?mode=triage left panel:
-  the phase-appropriate body plus the phase tabs in the footer.
+  DigitalizeSidebar.svelte — the right panel of /scan?mode=prepare and
+  ?mode=text: the steps in one, the review table in the other.
 
   One component and one instance for both viewports: the page fills ToolLayout's
-  `sidebar` slot, and ToolLayout renders it in the desktop rail or the mobile
-  drawer, never both. `compact` (the slot prop) is the drawer variant — it
-  shortens the OCR tab label and trims the Segmentation panel to its badge and
-  command. So the `bind:ocrSidebar` handle the page keeps is never contested.
+  `right-sidebar` slot, and ToolLayout renders it in the desktop rail or the
+  mobile drawer, never both. `compact` (the slot prop) is the drawer variant. So
+  the `bind:ocrSidebar` handle the page keeps is never contested.
+
+  The mode switcher is the left rail's footer, not this panel's: it belongs to
+  the page frame, beside the sheet list that also does not change with the mode.
+  This panel's footer carries the four reading jobs instead — Names · Index ·
+  Numbers · Other, each badged with how many rows it holds. See `ocr/jobs.ts`.
 -->
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import OcrSidebar from '$lib/features/contribute/ocr/OcrSidebar.svelte';
   import ToolSidebarShell from '$lib/features/contribute/shared/ToolSidebarShell.svelte';
   import EmptyPanel from '$lib/features/contribute/shared/EmptyPanel.svelte';
   import TriageSidebar from './TriageSidebar.svelte';
-  import SegSidebar from './SegSidebar.svelte';
-  import PhaseTabs from './PhaseTabs.svelte';
-  import type { SegConfig } from './segCommand';
+  import Tabs from '$lib/ui/Tabs.svelte';
+  import { JOBS, type JobKey } from '$lib/features/contribute/ocr/jobs';
   import type { TriageState } from './triagePrefs';
   import type { SavedTriage } from '$lib/data/maps/triageTypes';
-  import type { PipelineStatus } from '$lib/features/contribute/pipelineApi';
 
-  export let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
+  export let mode: 'prepare' | 'text' = 'prepare';
   export let mapId: string | null = null;
   export let imgWidth = 0;
   export let imgHeight = 0;
@@ -38,16 +39,13 @@
   export let detectingLayout = false;
   export let layoutError = '';
   export let layoutJob: { status: string; error?: string | null } | null = null;
-  /** Run status for the Triage panel. */
+  /** Run status for the Prepare panel. */
   export let run: {
     running: boolean;
     error: string;
     queuedJobId: string | null;
     runs: Record<string, { n: number; categories: Record<string, number> }>;
   };
-  export let pipeline: { status: PipelineStatus | null; loading: boolean; error: string };
-  /** Two-way: the MapSAM2 command config the page persists. */
-  export let segConfig: SegConfig;
   export let selectedId: string | null = null;
   export let compact = false;
   /** Bound by the page so it can call `load()` / `focusRow()` on the table. */
@@ -55,16 +53,26 @@
 
   export let onCollapse: (() => void) | null = null;
 
-  const dispatch = createEventDispatcher<{ phaseChange: { phase: typeof phase } }>();
+  /** Which reading job is open, and how many rows each holds. */
+  let job: JobKey = 'names';
+  let counts: Record<JobKey, number> = { names: 0, index: 0, numbers: 0, other: 0 };
+  $: jobTabs = JOBS.map((j) => ({
+    key: j.key,
+    label: counts[j.key] ? `${j.label} ${counts[j.key]}` : j.label,
+  }));
 </script>
 
-<ToolSidebarShell title="Triage" {onCollapse}>
+<ToolSidebarShell
+  title={mode === 'text' ? 'Text' : 'Prepare'}
+  {onCollapse}
+  showFooter={mode === 'text' && !!mapId}
+>
   {#if !mapId}
     <EmptyPanel
       message={compact ? 'Select a map first.' : 'Pick a map to start.'}
       showIcon={!compact}
     />
-  {:else if phase === 'triage'}
+  {:else if mode === 'prepare'}
     <TriageSidebar
       {imgWidth}
       {imgHeight}
@@ -96,36 +104,29 @@
       on:selectRegion
       on:loadRun
     />
-  {:else if phase === 'ocr'}
+  {:else}
     <OcrSidebar
       bind:this={ocrSidebar}
       {mapId}
       {selectedId}
+      {job}
       regions={triage.regions}
+      on:counts={(e) => (counts = e.detail)}
       on:loaded
       on:filter
       on:regionFocus
       on:zoomToExtraction
       on:select
     />
-  {:else}
-    <SegSidebar
-      {mapId}
-      status={pipeline.status}
-      loading={pipeline.loading}
-      error={pipeline.error}
-      bind:config={segConfig}
-      {compact}
-      on:advance
-      on:refresh
-    />
   {/if}
 
   <svelte:fragment slot="footer">
-    <PhaseTabs
-      {phase}
-      ocrLabel={compact ? 'OCR' : 'OCR Review'}
-      on:change={(e) => dispatch('phaseChange', e.detail)}
+    <Tabs
+      tone="rail"
+      label="Reading jobs"
+      tabs={jobTabs}
+      active={job}
+      on:change={(e) => (job = e.detail.key as JobKey)}
     />
   </svelte:fragment>
 </ToolSidebarShell>

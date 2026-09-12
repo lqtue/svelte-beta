@@ -4,6 +4,7 @@
   "Places" suggestion list (Nominatim) above the table.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import CatalogUnifiedSearch from '../CatalogUnifiedSearch.svelte';
   import LocationSearch from '$lib/ui/LocationSearch.svelte';
@@ -32,9 +33,10 @@
 
 <div class="csp">
   <div class="csp-sticky">
-    <label class="mo-search">
+    <label class="sb-search">
       <svg
-        class="mo-search-icon"
+        width="16"
+        height="16"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -47,17 +49,17 @@
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
       <input
-        class="mo-search-input"
+        class="sb-search-input"
         type="text"
-        placeholder="Search maps…"
+        placeholder={$t('Search maps…')}
         bind:value={searchQuery}
       />
       {#if searchQuery}
         <button
           type="button"
-          class="mo-search-clear"
+          class="sb-search-clear"
           on:click={() => (searchQuery = '')}
-          aria-label="Clear">×</button
+          aria-label={$t('Clear')}>×</button
         >
       {/if}
     </label>

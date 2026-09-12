@@ -3,6 +3,7 @@
   The map renders behind; this sheet introduces the walk and offers Start.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import type { Story } from '$lib/features/stories/shared/types';
 
@@ -18,15 +19,15 @@
 <div class="intro-scrim" role="dialog" aria-modal="true" aria-labelledby="trip-intro-title">
   <div class="intro-sheet">
     <div class="drag-grip" aria-hidden="true"></div>
-    <div class="intro-eyebrow">Walking trip</div>
+    <div class="intro-eyebrow">{$t('Walking trip')}</div>
     <h1 id="trip-intro-title">{story.title}</h1>
 
     <div class="meta-row">
-      <span class="badge-chip is-sm"><strong>{stops}</strong> stops</span>
+      <span class="badge-chip is-sm"><strong>{stops}</strong> {$t('stops')}</span>
       {#if estimatedMinutes > 0}
-        <span class="badge-chip is-sm">~{estimatedMinutes} min</span>
+        <span class="badge-chip is-sm">~{estimatedMinutes} {$t('min')}</span>
       {/if}
-      <span class="badge-chip is-sm chip-yellow">On foot</span>
+      <span class="badge-chip is-sm chip-yellow">{$t('On foot')}</span>
     </div>
 
     {#if story.description}
@@ -34,21 +35,19 @@
     {/if}
 
     <ul class="tips">
-      <li>Allow location so we can guide you between stops.</li>
-      <li>Some stops have small questions — look around to find them.</li>
-      <li>Old maps fade in as you walk through them.</li>
+      <li>{$t('Allow location so we can guide you between stops.')}</li>
+      <li>{$t('Some stops have small questions — look around to find them.')}</li>
+      <li>{$t('Old maps fade in as you walk through them.')}</li>
     </ul>
 
     <div class="cta-row">
       {#if hasProgress}
-        <button type="button" class="btn btn-primary" on:click={() => dispatch('resume')}>
+        <button type="button" class="btn is-primary" on:click={() => dispatch('resume')}>
           Resume trip →
         </button>
-        <button type="button" class="btn btn-outline" on:click={() => dispatch('start')}>
-          Restart
-        </button>
+        <button type="button" class="btn" on:click={() => dispatch('start')}> Restart </button>
       {:else}
-        <button type="button" class="btn btn-primary" on:click={() => dispatch('start')}>
+        <button type="button" class="btn is-primary" on:click={() => dispatch('start')}>
           Start walking →
         </button>
       {/if}

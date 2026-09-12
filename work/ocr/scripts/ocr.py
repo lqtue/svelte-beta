@@ -3222,6 +3222,30 @@ def cmd_numerals(args: argparse.Namespace) -> None:
         print(f"[db] upserted {n} legend_ref row(s)")
 
 
+def legend_line_boxes(region: tuple[int, int, int, int],
+                      n: int) -> list[tuple[int, int, int, int]]:
+    """One rectangle per printed line of a legend column, top to bottom.
+
+    A `--region` here is one column of the printed directory, read in one call,
+    and the entries come back in printed order — so the lines are the column
+    divided by how many there are. Without this every row of a column carried
+    the column's own crop: on the 1942 sheet, 235 rows sharing **six**
+    rectangles, one of them standing for 52 lines. That is not a bounding box of
+    anything, and it makes a legend row impossible to zoom to, drag, or review
+    against its own ink.
+
+    Falls back to the whole region when the split would be a guess: fewer than
+    three lines, or a pitch outside what a printed line can be. An even pitch
+    down one column is the assumption, and it is the only shape the legend pass
+    is ever handed.
+    """
+    x, y, w, h = region
+    pitch = h / n if n else 0
+    if n < 3 or pitch < 8 or pitch > h / 2:
+        return [(x, y, w, h)] * n
+    return [(x, int(y + i * pitch), w, max(1, int(pitch))) for i in range(n)]
+
+
 def _write_legend_rows(map_id: str, run_id: str, region: tuple[int, int, int, int],
                        entries: list[dict], model: str) -> int:
     """Upsert extracted legend entries as category='legend_entry' rows.
@@ -3233,8 +3257,9 @@ def _write_legend_rows(map_id: str, run_id: str, region: tuple[int, int, int, in
     """
     from supabase_client import upsert_ocr_extractions
     x, y, w, h = region
+    boxes = legend_line_boxes(region, len(entries))
     rows = []
-    for e in entries:
+    for e, (ex, ey, ew, eh) in zip(entries, boxes):
         note = f"n={e['n']}; grid={e.get('grid','')}"
         if e.get("name_vn"): note += f"; vn={e['name_vn']}"
         if e.get("grid_disputed"): note += "; grid_disputed"
@@ -3242,7 +3267,7 @@ def _write_legend_rows(map_id: str, run_id: str, region: tuple[int, int, int, in
             "tile_x": x, "tile_y": y, "tile_w": w, "tile_h": h,
             "category": "legend_entry", "text": f"{e['n']}. {e['name']}",
             "confidence": 0.9,
-            "global_x": x, "global_y": y, "global_w": w, "global_h": h,
+            "global_x": ex, "global_y": ey, "global_w": ew, "global_h": eh,
             "rotation_deg": 0, "notes": note,
             "model": model, "prompt": "legend-v1",
         })

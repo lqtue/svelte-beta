@@ -8,6 +8,7 @@
     .data-table.is-card    a table that is its own card — /catalog
     .table-wrap            the scroll container (a table never scrolls the page)
     .table-empty           the "nothing here" row-replacement
+    .th-sort               the button inside a sortable header
     .sort-ind              the two-caret sort indicator
 
   Density is nine custom properties, not nine rulesets, so a new density is a
@@ -40,11 +41,37 @@
   user-select: none;
 }
 
+/* The header's control is a `<button>` (see `$lib/ui/SortHeader.svelte`), so it
+   is full-bleed and wears the `<th>`'s own type rather than the browser's. The
+   `<th>` keeps its padding; the button takes it over, so the whole cell is the
+   hit area it always looked like. */
 .data-table th.sortable {
+  padding: 0;
+}
+.data-table th.sortable .th-sort {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--table-head-pad, 0.5rem 0.6rem);
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  text-align: inherit;
   cursor: pointer;
 }
-.data-table th.sortable:hover {
+.data-table th.sortable.num .th-sort {
+  justify-content: flex-end;
+}
+.data-table th.sortable .th-sort:hover {
   background: var(--table-head-hover, var(--color-gray-300));
+}
+/* Keyboard focus has to be visible on a control that looks like a label. */
+.data-table th.sortable .th-sort:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -2px;
 }
 
 .data-table tbody td {
@@ -87,7 +114,7 @@
   color: var(--color-text);
   opacity: 0.5;
 }
-.data-table.is-dense th.sortable:hover {
+.data-table.is-dense th.sortable .th-sort:hover {
   background: none;
   opacity: 0.9;
   color: var(--color-primary);
@@ -130,10 +157,14 @@
   text-align: center;
 }
 
+/* Both carets always drawn, one lit: the header keeps its width when the
+   direction flips. `margin-left: auto` pushes it to the cell's far edge in the
+   flex button, which is where a sort indicator is looked for. */
 .sort-ind {
+  margin-left: auto;
+  padding-left: 0.35rem;
   display: inline-flex;
   flex-direction: column;
-  margin-left: 0.35rem;
   line-height: 0.75;
   font-size: 0.55rem;
   vertical-align: middle;

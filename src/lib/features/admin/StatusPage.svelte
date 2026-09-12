@@ -5,7 +5,7 @@
   import '$styles/pages/admin-status.css';
 
   /*
-    The archive's own review queue. /scan?mode=review lets a person check what
+    The archive's own review queue. /scan?mode=shapes&tab=validate lets a person check what
     the machine did to a map; this page lets a person check what the machine did
     to the archive. Every number here was previously reachable only by running
     SQL by hand.
@@ -138,7 +138,7 @@
             tone: m.triaged === 0 ? 'bad' : m.triaged < m.georeferenced ? 'warn' : 'good',
             next:
               m.triaged < m.georeferenced
-                ? 'Open a proposed sheet at /scan?mode=triage, check the border it suggests, and press Save triage. That is the acceptance.'
+                ? 'Open a proposed sheet at /scan?mode=prepare, check the border it suggests, and press Save triage. That is the acceptance.'
                 : undefined,
           },
           {
@@ -147,7 +147,7 @@
             detail:
               'The AI has already worked out the border on these. Each one needs a person to glance at it and accept — that is the whole remaining step.',
             tone: m.proposed > 0 ? 'warn' : 'good',
-            next: m.proposed > 0 ? 'Work through them at /scan?mode=triage.' : undefined,
+            next: m.proposed > 0 ? 'Work through them at /scan?mode=prepare.' : undefined,
           },
           {
             label: 'Sheets the AI has mapped out',
@@ -228,7 +228,8 @@
           {
             label: 'Waiting for review',
             value: num(f.awaitingReview),
-            detail: 'Shapes a person needs to approve or reject, in /scan?mode=review.',
+            detail:
+              'Shapes a person needs to approve or reject, in /scan?mode=shapes&tab=validate.',
             tone: f.awaitingReview > 0 ? 'warn' : 'good',
           },
         ],

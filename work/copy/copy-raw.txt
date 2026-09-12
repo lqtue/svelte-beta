@@ -1,0 +1,1653 @@
+
+===== src/lib/core/geo/geolocation.ts =====
+Geolocation not supported
+
+===== src/lib/data/maps/footprintTypes.ts =====
+Abattoir Municipal
+
+===== src/lib/data/maps/triageTypes.ts =====
+Title block
+
+===== src/lib/features/admin/BulkUploadPage.svelte =====
+[attr] e.g. Service Géographique de l
+[attr] /Users/you/maps/20 Ha Noi 1903.jpg&#10;/Users/you/maps/31 Hai Phong 1904.jpg
+[attr] /abs/path/to/file.jpg
+[attr] Remove row
+Bulk Upload — Admin
+← Catalog
+Bulk Map Upload
+Insert many maps at once. Tiling still runs locally — this page gives you the script.
+Checking access…
+Admin only.
+1. Defaults
+Default collection
+2. Maps
+Paste from a spreadsheet (one row per line, tab- or comma-separated: path, name, year, collection, map_type, location) — or just paste a list of paths and we'll auto-parse name/year from the filename.
+Local path
+Name
+Year
+Collection
+Map type
+Location
+Status
++ Add row
+Clear all
+{creating ? 'Creating…' : `Create $ map row$`}
+3. Run this locally to tile + upload
+Save as tile_batch.sh in your svelte-beta repo root,
+chmod +x , then run. After tiling, click the backfill button below to set IIIF URLs and thumbnails on the new map rows.
+Copy script
+Backfill thumbnails (after tiling)
+
+===== src/lib/features/admin/GeorefSyncPanel.svelte =====
+Sync georef status
+Probe the Allmaps annotation server for every map with an allmaps_id but
+georef_done = false . Volunteers who finish georef in the Allmaps Editor become visible to /scan?mode=prepare after this runs. Idempotent.
+
+===== src/lib/features/admin/MapEditAboutTab.svelte =====
+[attr] Full original map title
+[attr] e.g. 1890
+[attr] e.g. 1882 or 1882–1885
+[attr] Cartographer or author
+[attr] e.g. Service Géographique de l
+[attr] e.g. Saigon, Hanoi, Hue
+[attr] e.g. Saigon and surroundings
+[attr] cadastre, urban planning, colonial
+[attr] Brief description of what this map shows, who made it, and why it matters.
+[attr] e.g. 67 × 57 cm, colour lithograph
+[attr] e.g. français, English
+[attr] Field name
+[attr] Value
+Title & date
+Display name *
+Original title as printed on the map
+Year numeric, single year
+Date range or fuzzy
+Authorship
+Creator cartographer / surveyor
+Publisher
+What it shows
+Location city / region
+Map type
+— unknown —
+Cadastral
+Topographic
+City Plan
+Panorama
+Other
+Coverage geographic extent
+Subjects keywords, comma-separated
+Description
+Summary
+Physical & language
+Physical description size, medium
+Language
+Custom fields e.g. sheet_number
+(extraPairs = [...extraPairs, ])}>+ Add field
+
+===== src/lib/features/admin/MapEditHostingTab.svelte =====
+[attr] https://…/manifest.json
+[attr] https://…/iiif/ark:…/f1
+[attr] e.g. BnF Gallica
+[attr] Re-read the annotation from allmaps.org after editing the georeference there. The current copy is kept as history.
+[attr] 16-char hex (auto-derived from IIIF URL)
+[attr] https://…/annotations/<map-id>.json (set automatically by Mirror to R2)
+Auto-fill metadata from manifest
+Fetches the map's IIIF manifest and fills empty Metadata fields (title, creator, date, shelfmark, rights, language, source URL, holding institution). Existing values are never overwritten.
+Set the IIIF manifest URL on this map first.
+Image Sources
+⚠ maps.iiif_image points to R2 but no R2 source row exists — click "Mirror to R2" below to re-sync.
+Loading sources…
+★ PRIMARY
+No IIIF sources yet.
+(showAddSource = !showAddSource)}>
+Manifest URL
+IIIF Image Service URL *
+Label
+Source Type
+bnf
+efeo
+rumsey
+other
+R2 / Tiling
+Mirrored
+Not mirrored
+Clones the Allmaps annotation to Supabase Storage and sets iiif.maparchive.vn as the primary tile source. After clicking, run the printed CLI command to upload tiles.
+Annotation saved. Run this to upload tiles:
+Source:
+Georeference
+Allmaps ID *
+Annotation URL override — optional, used when self-hosting via R2
+.json (set automatically by Mirror to R2)" />
+View Annotation ↗
+Open in Allmaps Editor ↗
+Image Upload (Internet Archive)
+Thumbnail:
+Ground Control Points
+Place GCPs to refine the georeferencing for this self-hosted map.
+
+===== src/lib/features/admin/MapEditModal.svelte =====
+[attr] Essential fields filled
+[attr] Close
+[attr] Flag for community help
+[attr] Higher = surfaced first in tools
+[attr] Map fields
+Edit Map
+Status:
+Draft
+Public
+Featured
+⚠ Help needed
+Priority
+
+===== src/lib/features/admin/MapEditPipelineTab.svelte =====
+[attr] Building, Temple, Market...
+[attr] 1 | Abattoir Municipal&#10;2 | Treasury&#10;3 | Post Office
+[attr] Particulier, Communal, Militaire...
+[attr] e.g. 20260417T120000
+[attr] 390,295,11239,8143
+[attr] work/ocr/outputs/…/runs/…
+[attr] Filter by run_id…
+[attr] Validate all pending items with confidence ≥ 0.7
+[attr] confidence
+[attr] Mark as validated ground truth
+[attr] Reject (false positive)
+Workflow stage
+Quick flags for downstream tooling. Catalog visibility (status, featured, public) lives in the header bar above.
+Georef done (available in Label Studio)
+Legend done (pin legend validated)
+Label Studio Config
+Pin Legend Mode
+Simple (comma-separated)
+Transcription list (Number | Name)
+Trace Categories (comma-separated)
+Used to classify traced footprints in Label Studio
+OCR Pipeline
+Loading extraction counts…
+No extractions stored yet for this map.
+items
+Min confidence
+0–1; threshold for pin insertion
+Run ID (optional)
+Neatline crop (x,y,w,h)
+Paste coords from neatline tool. Crops the tile grid to map content.
+Target API calls
+Auto-scales tile size
+Prior run dir (optional)
+Skip tiles that had 0 extractions in a previous run
+Refresh
+All statuses
+Pending ()
+Validated ()
+Rejected ()
+Reload
+Loading…
+No extractions match the current filter. Push a run to DB first using ocr.py batch --db .
+shown. Edit text/category inline, then click ✓ to validate or ✗ to reject.
+
+===== src/lib/features/admin/MapEditSourceTab.svelte =====
+[attr] e.g. Bibliothèque nationale de France
+[attr] e.g. Département Cartes et plans
+[attr] e.g. GE D-10312
+[attr] e.g. vma-map-1882-saigon
+[attr] https://gallica.bnf.fr/ark:…
+[attr] e.g. Public domain, CC BY-SA 4.0
+Provenance
+Source type holding institution
+— unknown —
+BnF Gallica
+Internet Archive
+EFEO
+Gallica
+David Rumsey
+Self-hosted
+Other
+Holding institution where the original lives
+Collection sub-collection at the holder
+Identifier shelfmark / call number
+IA identifier Internet Archive item
+Source URL canonical record at the institution
+Rights license / copyright
+
+===== src/lib/features/admin/NeatlineEditor.svelte =====
+[attr] Zoom in
+[attr] Zoom out
+[attr] Reset zoom
+[attr] Map preview
+Loading annotation…
+Failed to load:
+(view = )} title="Reset zoom">↺ Reset
+Scroll to zoom · Drag background to pan
+1} bind:this= on:wheel= on:pointerdown= on:pointermove= on:pointerup= on:pointercancel= >
+Corner
+Pixel X
+Pixel Y
+Longitude
+Latitude
+Datum correction (Indian → WGS84)
+If GCP coordinates were read from the map's printed graticule (Indochina / UTM 48 grid), they are in the map's original datum — not WGS84 — and will be offset ~200–500 m. US Army AMS/Series-L maps of southern Vietnam (including Hà Tiên area) use Indian 1960, Everest Modified
+— select that preset and apply to shift all four GCP geo-coordinates to WGS84.
+Source datum
+Apply correction
+✓ Coordinates updated — review then save
+
+===== src/lib/features/admin/ScoutCard.svelte =====
+[attr] No IIIF manifest or image URL — ingest will refuse it
+{ (e.target as HTMLImageElement).src = placeholderThumb(candidate); }} />
+no image
+
+===== src/lib/features/admin/ScoutDecision.svelte =====
+[attr] or type a reason…
+— why?
+(optional)
+Confirm
+Cancel
+
+===== src/lib/features/admin/ScoutPage.svelte =====
+[attr] Saigon, 1882…
+[attr] View
+[attr] reason for the batch (optional)…
+Scout · VMA Admin
+Scout Review
+External map candidates discovered via Gallica, Humazur, Rumsey, LoC and the AGS Library.
+Approve → bulk-ingest as draft maps.
+Keyboard:
+j / k move · a approve · r reject ·
+x select · u revert
+Checking access…
+Admin access required.
+Status
+Pending
+Approved
+Rejected
+Ingested
+All
+Source
+— all —
+Category
+Search title
+Reset
+{ if ((page + 1) * pageSize = total}>Next →
+selected
+Select page
+Clear
+Ingest selected as draft maps
+Loading…
+No candidates match these filters.
+
+===== src/lib/features/admin/ScoutTable.svelte =====
+[attr] No IIIF manifest or image URL — ingest will refuse it
+no image
+No candidates match these filters.
+
+===== src/lib/features/admin/StatusPage.svelte =====
+System status · VMA Admin
+System status in plain words.
+What the archive actually holds right now, what is stuck, and what would unstick it.
+Checking access…
+Admin access required.
+Last checked
+Could not load:
+Reading the archive…
+Biggest blocker
+Next
+What failed
+The most recent failures, newest first. The message is whatever the worker reported.
+Map
+
+===== src/lib/features/admin/StoryReviewPanel.svelte =====
+Loading stories…
+Queue's clear — no stories waiting on review.
+point · · updated
+
+===== src/lib/features/admin/neatlineDatum.ts =====
+Indian 1960 — EPSG:4131 · US Army AMS maps, southern Vietnam (Everest Mod.)
+Indian 1960 — EPSG:4131 · Con Son Island variant (EPSG transform 1053)
+Indian 1975 — EPSG:4240 (Thailand / northern Indochina, Everest 1830 orig.)
+Indian 1954 — EPSG:4239 (alternative SE-Asia fit, Everest 1830 orig.)
+Pulkovo 1942 / Gauss-Krüger (Soviet-era Vietnamese maps, Krassowsky)
+
+===== src/lib/features/annotate/AnnotateAnimationPanel.svelte =====
+[attr] Camera transition into this keyframe (ms)
+[attr] Hold after arriving (ms)
+[attr] Overlay transition: cut = instant, fade = tween opacity
+[attr] Move up
+[attr] Move down
+[attr] Apply this keyframe instantly
+[attr] Delete keyframe
+hold
+Make a flythrough.
+Set up the map — pick an overlay, set its opacity, frame the camera — then press + Keyframe below.
+Add at least two keyframes (different overlays or viewports), then press ▶ Play to glide between them.
+
+===== src/lib/features/annotate/AnnotateAnnotationInspector.svelte =====
+[attr] Annotation name
+[attr] Optional notes
+Name
+Details
+Colour
+Select an annotation to edit its name, notes, and colour.
+
+===== src/lib/features/annotate/AnnotateAnnotationList.svelte =====
+[attr] Annotations
+[attr] Import features from OpenStreetMap via Overpass
+Import
+Draw on the map:
+Click Point , Line , or Polygon
+Then click on the map to draw
+Or Import a GeoJSON file
+
+===== src/lib/features/annotate/AnnotateMode.svelte =====
+[attr] Sign in to annotate
+My Annotations.
+feature
+{item.mapId ? `Map: $...` : 'No map selected'}
+(sidebarCollapsed = true)} on:zoomToOverlay= on:pickMap= on:pickLocation= on:changeViewMode= />
+
+===== src/lib/features/annotate/AnnotateOverpassController.svelte =====
+Drag the rectangle corners to resize · drag inside to move
+{pickerBbox ? `$, $ → $, $` : '—'}
+Cancel
+Use this bbox
+{ if (!fetching) { open = false; preview = null; } }} on:pickOnMap= on:useViewport= on:pickBbox= on:previewLocation= on:submit= on:addResult= on:discardResult= />
+
+===== src/lib/features/annotate/AnnotateOverpassDialog.svelte =====
+[attr] Close
+[attr] way[&quot;historic&quot;];
+[attr] e.g. District 1, Hue, Cholon…
+Import from OpenStreetMap
+Layer
+Overpass QL (statement body only)
+Bbox is applied globally — write only the filter statements.
+Bbox (S, W → N, E)
+Or search a place
+Preview on map:
+feature
+
+===== src/lib/features/annotate/AnnotateProjectHeader.svelte =====
+[attr] Project title
+
+===== src/lib/features/annotate/AnnotateRightPane.svelte =====
+[attr] Back to library
+[attr] Back to my projects
+[attr] Editor mode
+[attr] Collapse panel
+[attr] Hide editor
+(mode = 'annotate')}>Annotate
+(mode = 'animate')}>Animate
+
+===== src/lib/features/catalog/CatalogDetailDrawer.svelte =====
+[attr] Map details
+[attr] Close
+Map
+Image
+✏️ Studio
+Share page
+↗ Open source
+
+===== src/lib/features/catalog/CatalogTable.svelte =====
+[attr] Thumbnail
+[attr] Available on map
+[attr] Static image only
+Group by
+None
+Year
+Area
+Type
+Collection
+Status
+and /place/ only linked to each other, so the whole server-rendered half of the site had no entry.
+scout
+Map
+Image
+
+===== src/lib/features/catalog/CatalogTableCompact.svelte =====
+as the full view with columns hidden by `nth-child` display:none and reordered with flex `order`. It is a different layout, so it is now a different component.
+
+===== src/lib/features/catalog/CatalogUnifiedSearch.svelte =====
+Show maps of
+All areas
+Type
+All types
+in archive ·
+in scout queue
+Include scout queue
+Nothing matches.
+Try another keyword, or clear a filter and start over.
+(pickMode ? dispatch('pick', e.detail) : (openedItem = e.detail))} on:facet= />
+(openedItem = null)} on:edit= />
+
+===== src/lib/features/catalog/FeaturedSheet.svelte =====
+No scan preview for this sheet yet.
+Open in the viewer
+Record
+View at ↗
+(selectedId = m.id)} >
+
+===== src/lib/features/catalog/shared/CatalogSidebarPanel.svelte =====
+[attr] Search maps…
+[attr] Clear
+(searchQuery = '')} aria-label="Clear">×
+
+===== src/lib/features/contribute/digitalize/DigitalizeBottomBar.svelte =====
+[attr] Rotate left 90° (Shift+R) · [ and ] turn 5°
+[attr] Rotate left
+[attr] Rotate right 90° (R) · [ and ] turn 5°
+[attr] Rotate right
+[attr] Back to upright (0)
+Drag the amber box · click a tile to set its priority
+{drawMode ? 'Drag a rectangle to add a bbox · Esc to cancel' : 'Click a bbox to edit · j/k next · v validate'}
+Add bbox
+
+===== src/lib/features/contribute/digitalize/DigitalizePage.svelte =====
+{currentMap ? `$ — $` : modeTitle} — Vietnam Map Archive
+(sidebarCollapsed = true)} on:select= on:error= on:toggle= />
+(rightSidebarCollapsed = true)}
+(triage.neatline = e.detail)} on:tileOverridesChange= />
+(triage.regions = e.detail)} />
+Select a map to begin digitalization.
+Couldn't load the map list:
+Browse catalog →
+Loading map…
+
+===== src/lib/features/contribute/digitalize/DigitalizeSidebar.svelte =====
+[attr] Reading jobs
+(counts = e.detail)} on:loaded on:filter on:regionFocus on:zoomToExtraction on:select />
+(job = e.detail.key as JobKey)} />
+
+===== src/lib/features/contribute/digitalize/TriageCropStep.svelte =====
+2 Crop
+Full image
+This crop is the layout pass's main map region, adopted automatically — nobody drew it. Check it against the sheet.
+Coordinates
+× px sheet. Paste x,y,w,h from another tool.
+Neatline exceeds image bounds.
+Drag the amber rectangle on the canvas to adjust.
+
+===== src/lib/features/contribute/digitalize/TriageLayoutStep.svelte =====
+[attr] model confidence
+[attr] Remove this region
+1 Layout
+What the sheet is made of. A worker asks the model once, at low resolution; the answer lands here for you to correct. Dashed edges are its proposal, solid ones yours.
+Layout job — nothing happens until a worker claims it.
+Layout job failed:
+Add region
+Add one by hand
+
+===== src/lib/features/contribute/digitalize/TriageRunStep.svelte =====
+[attr] auto-generated
+4 Run OCR
+Run options
+Run ID
+Min confidence
+Queued as job
+. A worker has to claim it:
+python work/worker/vma_worker.py --kinds ocr
+Queueing…
+Run OCR
+Queues a job — a worker runs it and the stage flips to ocr_done.
+Existing runs
+items
+
+===== src/lib/features/contribute/digitalize/TriageSidebar.svelte =====
+Accepted{acceptedOn ? ` $` : ''} — the batch script will take this sheet.
+{savedTriage ? 'Proposed by the layout pass. Nothing is queued until you accept it.' : 'Not saved. This triage lives only in this browser.'}
+Saving…
+Accept triage
+Update saved triage
+Save triage
+
+===== src/lib/features/contribute/digitalize/TriageTilesStep.svelte =====
+low-res -> skip); this panel is the legend and the count.
+Cut verbatim out of TriageSidebar.svelte. The tile count and the three priority tallies are local — nothing outside this step read them.
+3 Tiles
+Suggest
+Size · overlap
+Size
+Overlap
+Priority — click tiles on the map
+Normal
+full res
+Low-res
+px · title, legend
+Skip
+empty / border
+
+===== src/lib/features/contribute/inspect/InspectPage.svelte =====
+Same frame as every other /scan mode: `ScanLeftRail` on the left (which sheet, and how far to dim it), `ImageShell` in the middle. No right sidebar — a read-only viewer has no mode work to put there.
+It supplies its own map list rather than letting the rail load one:
+`fetchLabelMaps` filters to `georef_done`, and an ungeoreferenced scan is exactly the thing an inspector is looking at.
+{currentMap ? `$ — scan` : 'Image viewer'} — Vietnam Map Archive
+(sidebarCollapsed = true)} on:select= >
+Open on map
+Studio
+Pick a map to inspect its scan.
+Couldn't load the map list:
+Browse the catalog →
+
+===== src/lib/features/contribute/ocr/BboxPanel.svelte =====
+[attr] Label text…
+[attr] Drag the round handle to turn the label · , and . nudge 1° · click to reset
+[attr] Deselect
+
+===== src/lib/features/contribute/ocr/OcrBboxTool.svelte =====
+Each label is one rotated rectangle — an `Obb` (`$lib/core/geo/rectUtils`):
+centre, length along the text, thickness across it, and the angle. That rectangle is what gets drawn, hit-tested and edited; there is no axis-aligned outer box on screen any more. `global_*` is the box *around* it and is recomputed on every write (`obbToRow`), which is why turning a label no longer resizes it and why 45 degrees is no longer a blind spot.
+Coordinates are image pixels, y-down; OL is y-up (ol_y = -image_y) and every flip goes through rectUtils.
+Interactions, on the selected label only:
+click → select drag body → move the centre drag corner → resize along the label's own axes, opposite corner anchored drag knob → turn about the centre Each dispatches `edit` with the columns to write; the parent owns the PATCH.
+
+===== src/lib/features/contribute/ocr/OcrFilterBar.svelte =====
+[attr] Numerals the sheet
+`, the same disclosure the /explore rail's facets use. `hint` is the open job's own one-liner, so the bar says what is being checked rather than leaving it to the tab label.
+Conf ≥ %
+(suspectOnly = !suspectOnly)} title="Numerals the sheet's printed legend contradicts: not a number, a number the index does not list, or one claimed twice" > suspect
+Categories{#if activeCats
+(categories = new Set(OCR_CATEGORIES))}>All
+
+===== src/lib/features/contribute/ocr/OcrRow.svelte =====
+[attr] Double-click to zoom
+[attr] saving…
+[attr] Text…
+[attr] Extraction text
+[attr] Category
+{entry.grid ? ` · $` : ''}
+
+===== src/lib/features/contribute/ocr/OcrRunBar.svelte =====
+[attr] Save all pending text/category edits
+[attr] Validate every pending row the filters currently show. Undo with ⟲ within 15 minutes.
+[attr] Reject every pending row the filters currently show — the printed index read as map marks, a run that landed in the wrong place. Undo from the notice.
+[attr] Reload
+
+===== src/lib/features/contribute/ocr/OcrSidebar.svelte =====
+[attr] Filter text…
+[attr] Filter by status
+[attr] Filter by run
+[attr] Status
+[attr] Text
+[attr] Cell
+[attr] Cat
+[attr] Conf
+[attr] Verdict
+Pending ()
+Validated ()
+Rejected ()
+All runs
+· missing
+· repeated
+Revert the last 15 minutes of validations? Click ⟲ again to confirm.
+Undo
+Loading…
+(renderCap += RENDER_STEP)}> Showing of — show more
+No extractions for this map. Push a run to DB first:
+ocr.py batch --map-id … --db
+{jobTotal ? 'No rows match the filters — try the confidence floor or the categories.' : `Nothing on this sheet for $.`}
+Click row to select · double-click to zoom · j / k next/prev ·
+v validate · x reject · e edit text ·
+turn label · r turn sheet
+
+===== src/lib/features/contribute/ocr/jobs.ts =====
+Names
+Names printed on the map — streets, places, water, institutions.
+Index
+Numbers
+Numerals on the map, against the index that explains them.
+Other
+Title block, scale bar, stamp — and anything on the map that is none of the above.
+
+===== src/lib/features/contribute/ocr/regionFilter.ts =====
+Title
+
+===== src/lib/features/contribute/review/ReviewSidebar.svelte =====
+Progress
+All done for this map.
+
+===== src/lib/features/contribute/review/ReviewTool.svelte =====
+Orange = needs review · yellow = selected (and zoomed to) · green vertices = the Modify handles, which are only attached to the selected polygon.
+Dispatches:
+select edit — after a vertex drag, in IIIF pixel space -->
+Needs review
+Selected
+Drag to edit
+
+===== src/lib/features/contribute/shared/ScanLeftRail.svelte =====
+[attr] Map
+[attr] Browse the archive
+[attr] My layers
+[attr] Scan modes
+Scan
+
+===== src/lib/features/contribute/shared/ToolMapPicker.svelte =====
+m.id)} activeIds=
+showTypes= showLabels= on:pick= />
+
+===== src/lib/features/contribute/shared/ToolPanelHeader.svelte =====
+[attr] Collapse panel
+[attr] Hide panel
+
+===== src/lib/features/contribute/shared/ToolSidebarShell.svelte =====
+` + ToolPanelHeader wrapper every contribute tool sidebar repeats (once per viewport, per page).
+Slots:
+default — panel body footer — optional sticky footer (e.g. the /scan mode switcher)
+`showFooter` is for a caller whose footer content is itself conditional:
+`$$slots.footer` is true as soon as the slot is passed, so an `` inside it would leave an empty bar with a border on it.
+
+===== src/lib/features/contribute/trace/SegSidebar.svelte =====
+[attr] Colab command
+[attr] /content/drive/MyDrive/…
+[attr] /content/MapSAM2
+Stage
+Ready. Run the Colab command below, then come back here.
+Finish OCR review first. The segmentation step needs validated toponyms to run.
+Command config
+Checkpoint
+MapSAM2 dir
+Encoder
+vit_t (tiny)
+vit_s (small)
+vit_b (base)
+vit_l (large)
+Text mask
+Watershed
+Run:
+Started:
+Finished:
+
+===== src/lib/features/contribute/trace/ShapesPage.svelte =====
+[attr] Shapes
+[attr] Shape tabs
+[attr] Polygon — for buildings and closed shapes
+[attr] Line — for roads and waterways
+[attr] Select and edit a shape
+{currentMap ? `$ — Shapes` : 'Shapes'} — Vietnam Map Archive
+(sidebarCollapsed = true)} on:select= on:loaded= on:error= on:toggle= />
+(rightSidebarCollapsed = true)}>
+Browse the catalog →
+Loading map…
+(traceTool = 'polygon')} title="Polygon — for buildings and closed shapes" >
+Polygon
+(traceTool = 'line')} title="Line — for roads and waterways" >
+Line
+(traceTool = 'edit')} title="Select and edit a shape" >
+Edit
+
+===== src/lib/features/contribute/trace/TraceSidebar.svelte =====
+[attr] Filter by name…
+[attr] Filter by type
+[attr] Name…
+[attr] Shape name
+[attr] Feature type
+[attr] Category
+[attr] Confirm delete
+[attr] Cancel
+[attr] Remove shape
+[attr] Delete
+All types
+— Type —
+Other
+— Category —
+No shapes match the current filter.
+Enter or double-click to finish · Ctrl+Z undo · Esc cancel
+Click shape to select · drag vertices to edit · Delete to remove
+
+===== src/lib/features/contribute/trace/TraceTool.svelte =====
+Modes:
+'trace' — Draw interaction (polygon or line) using drawSource as staging area.
+Emits drawPolygon when the shape is complete.
+'select' — Select+Modify on the footprintLayer. Delete key removes selected footprints that belong to myUserId. Emits modifyFootprint on drag.
+Dispatches:
+drawPolygon modifyFootprint removeFootprint -->
+Drawing &nbsp;·&nbsp; Enter or double-click to finish &nbsp;·&nbsp; Ctrl+Z
+undo &nbsp;·&nbsp; Esc cancel
+Click to start drawing a
+Click a shape to select · drag vertices to edit · Delete to remove
+
+===== src/lib/features/explore/ExploreBrowsePanel.svelte =====
+Browse the archive
+map cover this spot
+No archival map here
+Tap a row to add it as a layer · tap again to remove.
+(expanded = !expanded)}>
+← Back to maps at this location
+Browse the full archive →
+
+===== src/lib/features/explore/ExplorePage.svelte =====
+Explore — Vietnam Map Archive
+(sidebarCollapsed = true)} />
+(pressFor = null)} />
+
+===== src/lib/features/explore/ExplorePrivacyNotice.svelte =====
+Explore the archive
+Browse VMA's historical maps of Vietnam — Saigon, Hanoi, Huế, Cambodia and beyond. Pick how you want to start.
+Use my location
+Centre on where I'm standing and surface the maps that cover it.
+Show all maps
+Skip GPS — browse the whole archive and pick anywhere on Earth.
+What happens when I share my location?
+What:
+approximate device location, only while this tab is open.
+Where:
+stays on your device — never sent to a server.
+Stop anytime:
+switch off GPS on in the Controls panel, or revoke the permission in your browser.
+Remember my choice on this device
+
+===== src/lib/features/explore/ExploreRightSidebar.svelte =====
+[attr] Collapse panel
+[attr] Hide panel
+[attr] Sheet panes
+[attr] Show numbered legend references on the map
+This sheet
+(tab = e.detail.key as Tab)} />
+Add a map layer to see its details.
+Holding library
+Add a map layer to read its legend.
+Reading the legend…
+This sheet has no numbered legend.
+
+===== src/lib/features/explore/ExploreSheet.svelte =====
+No archival map of this exact spot — yet.
+VMA's archive doesn't yet hold a map covering your point. Browse the full archive for maps elsewhere, or suggest a source we should add.
+Suggest a map here
+
+===== src/lib/features/explore/ExploreSidebar.svelte =====
+[attr] Collapse panel
+[attr] Hide panel
+[attr] Archive panes
+Explore
+
+===== src/lib/features/explore/FootprintsLayer.svelte =====
+` — approved polygons only, already warped server-side — and renders them coloured by feature type.
+Turning it on for two sheets from different decades is the point: the difference between them *is* the urban change.
+
+===== src/lib/features/explore/HeroDemo.svelte =====
+[attr] The 1882 cadastral survey of Saigon laid over the modern city around the Charner canal
+[attr] How much of the 1882 sheet to show
+How this works
+A scan of an 1882 survey, pinned to real coordinates, laid back over the ground it drew — then the plots traced off it and the names read off it. Drag the slider to move between the two cities.
+Today
+(overlayOpacity = Number(e.currentTarget.value))} aria-label="How much of the 1882 sheet to show" />
+Open this sheet in the viewer
+
+===== src/lib/features/explore/HeroMap.svelte =====
+= 2 ? [mapId] : []} status="submitted" featureCollection= />
+
+===== src/lib/features/explore/PressPanel.svelte =====
+[attr] Press clippings
+[attr] Close
+In the press
+Searching the newspapers…
+Nothing found&nbsp;— .
+
+===== src/lib/features/shared/ArchiveBrowser.svelte =====
+map
+No maps match those filters.
+
+===== src/lib/features/shared/ArchiveFilters.svelte =====
+[attr] Search maps…
+[attr] Clear
+[attr] Filter by area
+[attr] Filter by map type
+[attr] Filter by period
+` rather than three dropdowns abreast: at a 300px rail's width three selects each got a third of a line and read as three abbreviations. They stay three separate controls — area AND type AND period still combine — the disclosure just folds them out of the way, and its summary carries how many are set.
+Filters ·
+All areas
+All types
+All periods
+Reset filters
+
+===== src/lib/features/shared/CommandPalette.svelte =====
+[attr] Close search
+[attr] Search the archive
+[attr] Search maps, places and pages…
+[attr] Search maps, places and pages
+[attr] Search results
+On maps OCR'd labels, which open /explore at the spot
+Arrow keys move, Enter opens, Escape closes. Results are one flat list so the keyboard never has to know about the group headings.
+0} aria-controls="cp-results" aria-activedescendant={rows.length ? `cp-row-$` : undefined} />
+esc
+↓ move
+↵ open
+K anywhere
+
+===== src/lib/features/shared/LabelHits.svelte =====
+[attr] Labels found on maps
+&at= , .
+A label in one of the gazetteer's five categories also gets a link to its /place/ page. Those pages are server-rendered so search engines index them, and until Sept 2026 the only link to one anywhere in the app sat on /map/ — which is itself one link deep inside a drawer.
+On the map
+Place
+
+===== src/lib/features/shared/LayerControlsPanel.svelte =====
+[attr] Clear
+[attr] Show numbered legend references on the map
+Display
+Base
+URL
+
+===== src/lib/features/shared/LayerStackPanel.svelte =====
+[attr] Move layer up
+[attr] Move up
+[attr] Move layer down
+[attr] Move down
+[attr] Remove layer
+[attr] Remove
+[attr] Opacity
+Tap a name to zoom · drag for opacity · eye hides a layer
+Nothing stacked yet. Open Browse and tap + on a map to add it.
+No stacked map matches those filters.
+{#each rows as (o.id)}
+
+===== src/lib/features/shared/MapViewerSidebar.svelte =====
+[attr] Collapse panel
+[attr] Hide panel
+[attr] My layers
+[attr] Controls
+[attr] Browse the archive
+Map viewer
+
+===== src/lib/features/shared/PlaceSearchBar.svelte =====
+[attr] Clear
+(query = '')} aria-label="Clear" >×
+
+===== src/lib/features/shared/SidebarCard.svelte =====
+0 ? `$ 1 0` : '0 0 auto'};" >
+
+===== src/lib/features/shared/TopSheetActions.svelte =====
+[attr] Traced footprints
+Scan
+Studio
+Share
+
+===== src/lib/features/shared/catalogSearch.ts =====
+Pre-colonial (≤1858)
+Early colonial (1859–1887)
+French Indochina (1888–1939)
+War years (1940–1954)
+Republic era (1955–1975)
+Reunification+ (1976–)
+
+===== src/lib/features/shared/paletteDestinations.ts =====
+Catalog
+Every map, faceted
+Map viewer
+Overlay historical maps on the city
+Scan inspector
+Read one sheet at full resolution
+Story Builder
+Author a guided walk
+Studio
+Annotate and animate
+Contribute
+The three jobs, and which suits you
+Georeference a map
+Pin a scan to the world
+Prepare a sheet
+Set the crop, then queue the reading
+Check the text
+Names, index, numbers
+Draw shapes
+Buildings, roads, and what the model drew
+Review queue
+Approve the shapes waiting
+About
+What the project is
+Blog
+Research and build notes
+Version history
+What changed, version by version
+All pages
+Every page in the archive, in one list
+Your profile
+Account, favourites, staff pages
+System status
+What the archive holds, what is stuck
+Story queue
+Approve what contributors submitted
+Bulk upload
+Add sheets in a batch
+Scout
+Candidate maps from other collections
+Design system
+Every token and component
+
+===== src/lib/features/stories/editor/ChallengeConfig.svelte =====
+[attr] What is this building?
+[attr] Expected answer
+Question
+Answer
+Trigger radius (meters)
+
+===== src/lib/features/stories/editor/CreateMode.svelte =====
+[attr] Sign in to build a story
+[attr] Walk this story on mobile
+for playback. A banner explains the limit.
+Your stories.
+Editing is desktop-only.
+Tap a story here to play it. To author or edit one, open VMA on a laptop.
+point
+Walk
+(sidebarCollapsed = true)} on:zoomToOverlay= on:pickMap= on:pickLocation= on:changeViewMode= />
+
+===== src/lib/features/stories/editor/CreateRightPane.svelte =====
+[attr] Back to library
+[attr] Back to my stories
+[attr] Collapse panel
+[attr] Hide editor
+[attr] Points
+[attr] Deselect point
+Story editor
+Pick a point in the list to edit its title, description, challenge, and pinned layer.
+
+===== src/lib/features/stories/editor/PointInspector.svelte =====
+[attr] Edit point
+[attr] Point title
+[attr] What should the reader notice here?
+[attr] Optional hint
+[attr] Pinned historical layer
+Title
+Description (shown on arrival)
+Hint (shown before arrival)
+Challenge
+Position
+Pinned historical layer
+Add a historical overlay from the left sidebar to pin one here.
+— none —
+(not loaded)
+
+===== src/lib/features/stories/editor/StoryHeaderPanel.svelte =====
+[attr] Story title
+[attr] Saves as you type
+Saved
+
+===== src/lib/features/stories/editor/StoryPointsPanel.svelte =====
+[attr] Move up
+[attr] Move down
+[attr] Remove point
+New points pin to
+No historical layer active — point uses base map.
+Points ·
+Tap Place point , then click the map to add your first stop.
+{ dispatch('selectPoint', ); dispatch('zoomToPoint', ); }} >
+
+===== src/lib/features/stories/editor/saigonSeed.ts =====
+Notre-Dame Cathedral
+Neo-Romanesque cathedral built 1877–1880 with bricks shipped from Marseille.
+Central Post Office
+Opened 1891 in the French Indochina style next to the cathedral.
+Independence Palace
+Rebuilt 1962–1966 on the site of the former Norodom Palace.
+Saigon Opera House
+Beaux-Arts theatre opened 1900 on the former Rue Catinat.
+Bến Thành Market
+Iconic four-gate covered market relocated here in 1914.
+
+===== src/lib/features/stories/play/TripComplete.svelte =====
+You made it.
+stops
+walked
+minutes
+Save your trip
+Log in to keep this on your profile.
+Share
+
+===== src/lib/features/stories/play/TripIntro.svelte =====
+Walking trip
+stops
+~ min
+On foot
+Allow location so we can guide you between stops.
+Some stops have small questions — look around to find them.
+Old maps fade in as you walk through them.
+
+===== src/lib/features/stories/play/TripItinerary.svelte =====
+[attr] All stops
+Itinerary
+now
+
+===== src/lib/features/stories/play/TripPlayback.svelte =====
+[attr] Trip player
+[attr] Your answer
+Trip complete
+= 30 ? 'Walk to this stop' : 'You’re here'} >
+Finding GPS…
+Look around:
+Question
+Submit
+Not quite — try again.
+Reach
+Walk within m and you'll check in automatically.
+Correct!
+The answer was “”.
+Visited.
+{#if currentIndex
+← Prev
+Mark visited
+{currentIndex
+
+===== src/lib/features/stories/shared/StoryPlayback.svelte =====
+[attr] Close preview
+[attr] Close
+[attr] Walk this story on mobile
+[attr] Your answer
+Walk
+Story complete
+You visited all points in this story.
+Hint:
+Question
+Submit
+Not quite — try again.
+Reach
+Walk within m of this point. Tap Mark visited to simulate arrival in preview.
+Mark visited
+✓ Visited
+
+===== src/lib/map/constants.ts =====
+Quần đảo Hoàng Sa\n(Việt Nam)
+Quần đảo Trường Sa\n(Việt Nam)
+Streets
+Esri Satellite
+Custom URL
+
+===== src/lib/map/shell/ImageShell.svelte =====
+Loading IIIF image…
+No image selected
+
+===== src/lib/map/shell/MapModeOverlays.svelte =====
+[attr] Lens size
+
+===== src/lib/map/shell/MapWorkspace.svelte =====
+[attr] Toggle panel
+(sidebarCollapsed = !sidebarCollapsed)} title="Toggle panel" >
+
+===== src/lib/map/shell/MobileDrawerStack.svelte =====
+(openDrawer = 'none')} role="presentation">
+
+===== src/lib/map/shell/ToolLayout.svelte =====
+[attr] Show panel
+[attr] Show editor
+(sidebarCollapsed = false)} title="Show panel" >
+(rightSidebarCollapsed = false)} title="Show editor" >
+
+===== src/lib/server/annotationMirror.ts =====
+Cloudflare R2
+
+===== src/lib/ui/AuthGate.svelte =====
+Continue with Google
+
+===== src/lib/ui/DataTable.svelte =====
+` and its density, a `
+` looping `SortHeader` over a column list with plain ` `s hand written around it for the dot / thumbnail / actions columns, a ` `, and an empty-state paragraph after the table. Only the rows differed — and the rows are the whole point of each one, which is why they stay with their table and arrive here through the default slot.
+What that bought: the a11y (`scope`, the accessible name on a blank header, `aria-sort` via `SortHeader`) is written once, and a new table is a column array plus its ` `s.
+Nothing matches.
+
+===== src/lib/ui/EditorialFooter.svelte =====
+Home
+Catalog
+Map viewer
+Inspect a scan
+Contribute
+About
+Blog
+Version history
+All pages
+GitHub
+Built openly with
+Allmaps ,
+SvelteKit .
+vietnamma.project@gmail.com
+
+===== src/lib/ui/FacetRail.svelte =====
+Period
+
+===== src/lib/ui/InlineRename.svelte =====
+[attr] Double-click to rename
+so it is focusable and keyboard-operable without an ARIA role override.
+
+===== src/lib/ui/LibraryGrid.svelte =====
+[attr] Rename
+[attr] Delete
+Loading…
+(dialogOpen = false)} />
+
+===== src/lib/ui/LocationSearch.svelte =====
+Places
+
+===== src/lib/ui/NameDialog.svelte =====
+[attr] Close
+[attr] Give it a title
+[attr] Add a description (optional)
+Title
+Description
+Save
+
+===== src/lib/ui/NavBar.svelte =====
+[attr] Tools
+[attr] Your profile
+[attr] Open menu
+[attr] Navigation
+[attr] Close menu
+VMA
+Catalog
+About
+Blog
+Map viewer
+Inspect a scan
+Story Builder
+Studio
+Contribute
+Georeference
+Prepare a sheet
+Check the text
+Draw shapes
+Review queue
+Admin console
+Design system
+All pages →
+Search
+Open the map
+Sign in
+(drawerOpen = !drawerOpen)} >
+Tools
+Where to start
+Staff
+Everything
+All pages
+Your profile
+
+===== src/lib/ui/PageHero.svelte =====
+[attr] Vietnam Map Archive
+for stroke effect sub — subtitle / description paragraph (optional) badges — array of badge chips to show below sub (optional)
+Usage:
+Vietnam Map Archive
+If the "title" slot is provided it takes precedence over the title prop.
+Slot "actions" renders below sub/badges (for CTA buttons).
+
+===== src/lib/ui/SnapSheet.svelte =====
+{ // Don't toggle when the click came from a header button.
+
+===== src/lib/ui/SortHeader.svelte =====
+[attr] Text
+` with `on:click` is not a control, it is a label someone attached a handler to.
+So the header is a real ` ` inside the ` `: Tab reaches it, Enter and Space work, focus is visible, and `aria-sort` on the ` ` is what tells a screen reader which column the table is ordered by and which way. The button is full-bleed and inherits the header's own type (`.th-sort` in table.css), so it looks exactly like the ` ` it replaced.
+The indicator is the two-caret `.sort-ind` /catalog already had, now the one everywhere: both carets are always drawn and one lights up, so the header does not change width when the direction flips — a text arrow appearing on click nudged every column to its right.
+Pairs with `$lib/core/utils/tableSort.ts`.
+Usage:
+
+===== src/lib/ui/Tabs.svelte =====
+[attr] Scan modes
+(tab = e.detail.key)} />
+
+===== src/routes/(app)/trip/[id]/+page.svelte =====
+— Vietnam Map Archive
+Loading your trip…
+Trip unavailable
+(gpsError = e.detail.message)} />
+0} on:start= on:resume= />
+{ gpsActive = !gpsActive; gpsError = null; }} aria-label= title= >
+
+===== src/routes/(editorial)/+page.svelte =====
+[attr] The 1882 cadastral survey of Saigon laid over the modern city, fading between the two
+[attr] How much of the 1882 sheet to show
+[attr] Which sheets
+Vietnam Map Archive — historical maps of Vietnam, open and georeferenced
+Imagery © Esri, Maxar, Earthstar Geographics · Sheet: Plan Cadastral de Saïgon, 1882
+Vietnam
+Map Archive
+sheets of Saigon, Huế and Hanoi — 1791 to 1968 — laid back over the ground they drew.
+Try openPaletteWith(term)}> {i
+Today
+(heroTouched = true)} on:keydown= aria-label="How much of the 1882 sheet to show" />
+The Catalog
+A featured sheet, whole. Pick another below, then open it in the viewer to lay it over today's city, or inspect the high-resolution IIIF scan up close. Each record links back to the library or collection that holds it.
+(filterCollection = e.detail.key as typeof filterCollection)} />
+Opening the archive…
+No favorites yet.
+Heart any map and it lands here, on every device you sign in from.
+Nothing here yet.
+No maps match this view — try another tab or the catalog.
+Browse the catalog
+Inspect a scan
+Open the map
+Tools Beta
+Build something on top of the archive — a scrollytelling story across historical layers, or your own points, lines and shapes on a sheet.
+Story Builder
+Walk readers through a place, one layer at a time
+Studio
+Draw on any map and save it as a set
+Contribute
+The archive is built by volunteers, and there are not many of us yet. Your name stays on what you submit, and all of it is meant to be released openly.
+Prepare a sheet
+Crop a neatline, check the toponyms the pipeline pulled
+Trace buildings
+Outline buildings, roads and waterways
+Georeference
+Pin a scan to real coordinates in the Allmaps Editor
+About the project
+Volunteers put those sheets on the ground they drew. Reading the names off them and tracing what they show is where the work goes next: the aim is to get the buildings and street names out of Vietnam's colonial-era maps and into open data, with a person checking the machine's work. The 1882 cadastral survey of Saigon is where it starts, and where most of the work so far sits. Everything published will be CC-BY / ODbL.
+What's actually done →
+Where things stand
+The OCR pass has read distinct place names off six sheets, of which have been checked by a person — so that queue has barely started.
+building outlines have been traced on the 1882 cadastral survey, and none are approved yet. The last written update was in May.
+All updates →
+What will you find?
+Most people come for one street and stay for the city. sheets, 1791 to 1968.
+
+===== src/routes/(editorial)/about/+page.svelte =====
+About — Vietnam Map Archive
+Old maps of Vietnam,
+put back in place.
+Where this stands
+Counted from the database when this page loaded.
+sheets placed on the map — , to
+more georeferenced but not published, so nobody outside the project sees them yet
+place names read off the sheets by the OCR pass — checked by a person
+building and street shapes traced by hand — approved, so there is no dataset to download yet
+What you can do today
+Four things work, and they work in an ordinary browser. No account is needed for the first one.
+Browse the sheets and lay any of them over the modern city in
+the viewer .
+Trace a building — the same skill as tracing on OpenStreetMap.
+Check what the OCR read , one label at a time.
+Place a sheet that has no coordinates yet, in Allmaps Editor.
+What is not built
+The plan is larger than the archive. Written out so nobody has to guess which parts exist.
+No published dataset.
+Nothing traced has been reviewed and released. That is the next thing, and it needs people rather than code.
+No building histories.
+Who built a place, who owned it, what replaced it — there is no database for any of that, only a design.
+No 3D.
+Heights and roof shapes would come from two rare painted views of the city and a published reconstruction method. Nothing has been run.
+Barely any contributors.
+Single figures, and the review queues are nearly empty because almost nobody has filled them.
+No funding.
+No institution behind it, no grant won. The work is unpaid.
+How it is kept
+Data is openly licensed (CC-BY / ODbL) and the code is public. Every sheet credits the institution holding the scan — the Bibliothèque nationale de France, Université Côte d'Azur, UT Austin, the Library of Congress and others — and links back to their record. None of that is a formal partnership. Any city with a map archive can fork the whole thing and run it locally; that is the point of building it this way.
+Get in touch
+Tracing, checking labels, reading French or older Vietnamese romanization, or a grant that might fit — all welcome, and a slow reply is likelier than a fast one. Saigoneer wrote about the project in January 2026. The blog has the working notes, including the posts that turned out to be wrong.
+vietnamma.project@gmail.com
+
+===== src/routes/(editorial)/admin/+page.svelte =====
+[attr] Admin
+[attr] Admin sections
+({ ...t, href: `/admin?tab=$` }))} active= />
+
+===== src/routes/(editorial)/blog/+page.svelte =====
+[attr] Updates from the archive
+Blog — Vietnam Map Archive
+Latest
+Earlier posts
+No newsletter
+Everything's here. Bookmark this page, or check
+About for live project progress. If you'd rather be pinged when something big lands, email
+vietnamma.project@gmail.com
+and we'll add you to a short, infrequent announcement list.
+
+===== src/routes/(editorial)/blog/[slug]/+page.svelte =====
+— Vietnam Map Archive
+← All posts
+Since this was written
+Want to help?
+Every traced building, tagged photo, and cited source is permanently attributed in the archive.
+Start contributing
+Read the project overview
+About the project
+Vietnam Map Archive puts historical maps of Vietnam on real coordinates and reads what is printed on them. Saigon in the colonial period is where the deep work starts.
+Project overview
+More posts
+Get in touch
+Funder, researcher, volunteer, or just curious?
+vietnamma.project@gmail.com
+
+===== src/routes/(editorial)/blog/posts.ts =====
+The Gate That Could Not Read Vietnamese, and the One Printed on the Sheet Itself
+Sixteen Pages, One Palette, and an OCR Change That Failed Its Own Test
+Searching Inside the Sheets, and Asking the Model What a Sheet Is Made Of
+Our Own Basemap, After Two Tile Servers Said No
+3,194 Lines Deleted, a Job Queue, and a Rule the Linter Enforces
+Nine Faults in the OCR Pipeline, and a Gate So the Next Change Is Measured
+A Front Door for the Maps, and a URL for a Printed QR Code
+Rebuilding the Map Viewer Around a Single Concept: the Layer Stack
+September 2026 — the route in this post, <code>/view</code>, is now <code>/explore</code>: a later merge folded twenty-three pages into sixteen and turned modes into query params. The layer stack itself is unchanged and is what /explore still renders.
+Scouting 3,373 Maps: Building a Discovery Pipeline for Vietnam Cartography
+September 2026 — the queue holds 985 candidates today, not 3,373: dedup and rejection pruned it. The 758 high-score bucket was never curated in an afternoon or otherwise. What actually came out of the scout is one batch of 62 Tonkin sheets, and those are still unpublished drafts. The page moved from /admin/scout to /admin?tab=scout.
+Ingested: 62 Tonkin Topographic Sheets (1903–1927)
+September 2026 — all 62 sheets are georeferenced now, but every one is still <code>draft</code>, so none of them is visible to a reader who is not signed in. Nothing in this batch has been published, OCR-ed or traced, and the toponym layer for northern Vietnam described at the end of this post does not exist.
+Platform Notes: Universal IIIF, Gemini OCR, and the MapShell Refactor
+September 2026 — three corrections. The OCR pass is called “Project Scout” here; a month later we shipped an unrelated map-discovery tool also called Scout, and the name in this post is the confusing one. The tile-speed figure was an impression from clicking around, not a benchmark. And the Label tool listed under MapShell was retired in the route merge.
+Platform Notes: Retiring a Pipeline and Rebuilding the Data Foundation
+Buildings as Ground Control: A New Method for Vectorizing Colonial Maps
+September 2026 — most of this did not ship as described. The colour-profile SAM pipeline was deleted from the repository; footprint segmentation now runs on a fine-tuned SAM2 fork, on Colab. The building-to-building matching — Hu moments, RANSAC, an automatic georeference of the 1898 sheet — was never built, and there is no 1880–1900 change dataset. The 91 city blocks below came from one 1,200 px crop and remain the whole of the result. Every one of the 46 footprints in the archive today was traced by hand.
+September 2026 — no tier system was ever built: there are no Photo Hunter or Cartographer roles, and no photogrammetry mission has run on any of the five landmarks. The 500+ L7014 sheets are georeferenced and served from Internet Archive, but were never ingested into this catalog, which holds 39 published sheets. The knowledge graph is still a design document. This was also the only monthly digest.
+Dissecting Space: The Six-Layer Method Behind the Archive
+September 2026 — the four contribution tiers in this post do not exist and no data or model weights have been published to Hugging Face. The L5 knowledge graph has no schema and no API in the codebase; “CRUD API in development” was optimistic. The height-uncertainty figures (±3 m → ±1.5 m) are what we expected from reading the method, not anything measured. L1 vectorization now means a fine-tuned SAM2 fork run on Colab, and it has produced no reviewed footprints yet.
+How GCP Propagation Georeferences a Whole Map Series
+September 2026 — this describes the L7014 batch, which is served from Internet Archive and was never ingested into this catalog: none of the 39 published sheets here is an L7014 sheet. The under-1% error figure compares propagated annotations against our own seed georeferences, not against independent ground truth, so it measures internal consistency rather than accuracy. The pipeline code was deleted in April 2026.
+September 2026 — the Photo Hunter tier was never built, and there is still no way to attach a photograph or a memory to a place. What a newcomer can actually do today: trace footprints at /scan?mode=trace, check what the OCR read at /scan?mode=triage, or place a sheet at /contribute/georef.
+
+===== src/routes/(editorial)/catalog/+page.svelte =====
+[attr] Search by title, creator, year, or description…
+[attr] Clear
+Catalog — Vietnam Map Archive
+The Archive.
+Submit a map
+(searchQuery = '')} aria-label="Clear">×
+(editingMap = null)} />
+
+===== src/routes/(editorial)/catalog/[id]/+page.svelte =====
+— Vietnam Map Archive
+Browse the archive
+View the original at
+Trace this sheet in OpenHistoricalMap
+The sheet is served as warped map tiles, so it can sit under the OpenHistoricalMap editor while you draw. The button opens the editor with it already set as the background; if the editor does not pick it up, add it by hand under Background → Custom with this URL.
+Open in OpenHistoricalMap
+Fix georeference in Allmaps
+No IIIF manifest or original image source on this map, so the Allmaps Editor has nothing to open. Add one in the catalog edit modal first.
+This map renders from our own mirrored annotation, so an edit in Allmaps will not show here until someone runs Fetch latest from Allmaps in the catalog edit modal.
+Places named on this sheet
+Read by optical character recognition from the sheet itself, then corrected by hand where a reviewer has reached it.
+
+===== src/routes/(editorial)/catalog/place/[name]/+page.svelte =====
+— everything the archive holds about one place name.
+A landing page, not a tool: the sheets that name it, the span of years it is attested, the other spellings it was written with, and one link into /explore at the spot. Server-rendered so it reads without JavaScript.
+— Vietnam Map Archive
+attested
+map
+mention
+Also written
+On these maps
+Position is warped through each sheet's own georeference, whose control points sit about m from where they claim to be on the least accurate of these maps.
+Treat the spot as a neighbourhood, not a doorstep.
+Sheet details
+
+===== src/routes/(editorial)/changelog/+page.svelte =====
+Version history — Vietnam Map Archive
+Every version,
+and what it changed.
+Running now
+Only two versions here carry a screenshot. The ones between them were never deployed anywhere they could be photographed, and their code no longer runs against the archive as it is now — a reconstruction would be a picture of something that never shipped.
+Before the rewrite
+The first version was one hand-written page of scans, published in April 2025 and still online. Those versions live in
+their own repository ; the numbering here continues from them.
+
+===== src/routes/(editorial)/changelog/releases.ts =====
+The front page with the header slider pushed to 1882. The same gesture the whole archive is about, working before any JavaScript has run.
+The 2025 site, still published. The row of years along the foot is the version\u2019s one new idea, and the reason it earned a number.
+
+===== src/routes/(editorial)/contribute/+page.svelte =====
+Contribute — Vietnam Map Archive
+Build the archive
+together.
+Prepare a sheet
+Crop a map's neatline, set tile priorities, and check the place names the OCR pass read off the sheet. Around 950 distinct names are waiting; 43 have been checked.
+Start preparing
+Trace buildings
+Outline buildings, roads, and waterways on a georeferenced map. 46 shapes have been traced so far, all on the 1882 cadastral survey.
+Open the tracer
+Georeference a map
+Place ground control points in the Allmaps Editor to anchor a historical map to real-world coordinates.
+See what needs georef
+Review footprints
+Approve or reject building traces from volunteers and the SAM2 pipeline. Nothing is approved yet. Mods and admins only.
+Open the review queue
+Catalog metadata
+Complete bibliographic records: titles, shelfmarks, creators, dates, rights, and physical descriptions.
+Edit the catalog
+
+===== src/routes/(editorial)/contribute/georef/+page.svelte =====
+[attr] Find by name or year…
+[attr] Find a georeferenced map
+[attr] R2-only source and no manifest: the editor has nothing to open
+Georeference a map — Vietnam Map Archive
+← Contribute
+Pin a map
+to the world.
+How it works
+Pick a map below and hit Open in Allmaps .
+Drop at least 3 ground control points — match a spot on the map to the same spot on the modern world.
+Save in Allmaps. Nothing to send back: the archive checks Allmaps for finished maps and marks them georeferenced by itself.
+Loading maps…
+Needs georeferencing
+Every map is georeferenced. Check back later — new ones land every few weeks.
+Open in Allmaps
+Fix an existing georeference
+Reopens the map's control points in Allmaps so you correct them rather than start over.
+Same button as the share page, without having to know the map's id.
+No georeferenced map matches.
+draft
+Fix in Allmaps
+no source
+
+===== src/routes/(editorial)/directory/+page.svelte =====
+All pages — Vietnam Map Archive
+All the pages,
+one list.
+not listed because this account cannot open .
+Sign in to see the contribution tools.
+
+===== src/routes/(editorial)/login/+page.svelte =====
+Sign in — Vietnam Map Archive
+Sign in
+Continue with Google
+Signing in lets you save favorites and contribute to the archive. Everything you add is released as open data under CC-BY.
+
+===== src/routes/(editorial)/profile/+page.svelte =====
+Your profile — Vietnam Map Archive
+Your profile.
+Sign out
+Your contributions
+Counting…
+Pins placed
+Buildings traced
+Staff tools
+Pages only staff can open. Start at System status — it says what the archive holds and what is currently blocked.
+System status
+Design system
+Review queue
+Scout review
+Bulk upload
+Preferences
+Language
+Switch between English and Tiếng Việt — translation is beta
+
+===== src/routes/(editorial)/screens/+page.svelte =====
+[attr] Design system sections
+[attr] Zoom in
+[attr] Edit
+[attr] Add to comparison
+[attr] Remove from comparison
+[attr] Tone demo
+[attr] Tone demo, rail
+[attr] Search a place…
+[attr] Filter text…
+[attr] Search by title, creator, year…
+[attr] Title
+[attr] Year
+[attr] Plan Cadastral, 1882
+[attr] Plan de Cholon, 1893
+[attr] Story title
+[attr] Menu
+Screens — VMA Design System
+Screens
+one page, whole system.
+(tab = e.detail.key)} />
+Colour
+Never hardcode one. A hex literal in a component &lt;style&gt; block is a bug.
+Type
+Google Sans where the reader's machine has it, otherwise
+Be Vietnam Pro for headings, nav, badges, labels and buttons and
+Inter for body text. Hero titles use
+Saigon · Chợ Lớn · 1882
+Page shell
+Every (editorial) route roots at
+&lt;div class="page x-page"&gt; , then PageHero , then
+&lt;main class="editorial-main"&gt; .
+.page carries the mount fade as a CSS animation with both fill and a
+prefers-reduced-motion guard — it used to be a mounted boolean flipped in onMount and read as class:mounted , which is a round trip through JS for something the first frame already does, on a page that server-renders.
+Six routes carried that boolean and four carried an identical copy of the CSS.
+.editorial-main caps the measure at 1100px.
+.editorial-main.is-wide opens it to 1400 for a dense table —
+Surface
+Borders, shadows and radii. The shadow is always solid, never blurred.
+--border-thin
+2px
+Inline labels, dividers
+--border-thick
+3px
+Cards, nav, structural
+Buttons
+Two names, because there are two things , and one modifier vocabulary — the same words .sb-btn and .sb-pill use in the sidebar scope, so there is one set to learn. In September 2026 this was
+twenty-seven selectors across nine families , with four tones spelled three different ways; it is eleven now. Everything else was a context, not a design.
+.btn — an action
+Default
+.is-primary
+.is-success
+.is-danger
+.is-ghost
+disabled
+.is-lg — a page CTA
+default
+.is-sm
+.is-xs
+.chip — a choice
+A tab, a facet, a filter. It fills yellow under the cursor because it is a thing you are about to pick rather than a thing you are about to do, and
+.is-on is the one that is picked — the same word as
+.sb-pill.is-on .
+.is-on
+.is-icon — round, three sizes
+48px is the floating map control, 28px a card's action corner, 22px a row toggle in a table. They were .ctrl-btn , .btn-icon-edit /
+.btn-icon-delete and .cmp-btn , three private families for one shape at three sizes.
+Loading and empty states
+One spinner for the whole app, in components/feedback.css . Size and colour tune through --spinner-size , --spinner-thickness ,
+--spinner-track and --spinner-ink — a variant is three declarations, never a second @keyframes .
+&nbsp;Running…
+.empty-state
+One class, two faces. Inline by default — it sits under a list inside a card.
+.is-block is the standalone face, for when it stands in the space the list would have filled; .error is the failed one. It was three classes ( .state-msg , a second .empty-state in
+layouts/tool-page.css , and a third inside OcrSidebar ) until Sept 2026.
+No results.
+Nothing here yet — try another tab or the catalog.
+Couldn't reach the archive.
+Chips and badges
+.badge-chip plus one tone. Six tones exist; there is no purple.
+.chip-yellow is a filled yellow and keeps dark ink in both themes —
+.chip-white is the paper face it used to paint, which is why four components carried a private yellow tint until Sept 2026.
+Label chip
+Blue
+Green
+Yellow
+Orange
+Red
+Gray
+White
+.badge-chip.is-sm — inside a table row
+The dense face: base font, no offset shadow. A display-size chip in a table row reaches into the row below. Four components had a private copy of this.
+Gallica
+Cadastral
+.stat-tile
+Maps
+3.2 km
+Distance
+Stops
+Text highlight
+.text-highlight belongs on one or two words of a hero title — never in body text.
+Vietnam across time.
+Components
+Everything in src/lib/ui/ , rendered from fixtures. These import nothing from
+features/ , map/ or data/ , so any page may use them.
+PageHero
+The hero on every editorial page. You are looking at one above.
+Tabs
+The one tab strip. Two tones because there are two design systems, not because there are two components:
+page is the editorial .chip ,
+rail the sidebar .sb-pill . Pass a row an
+aria-current ; without one it is a real
+(demoPageTab = e.detail.key)} />
+(demoRailTab = e.detail.key)} />
+.sb-search
+Not a component — the one search field, in
+components/sidebar.css . Both /explore rails, both /scan rails, the two table toolbars and /catalog wear it. Two sizes past the default:
+.is-compact is the toolbar, where the field shares a row with a status select, and .is-page the full width of an editorial page. It was four designs — two of them a quarter-rem apart — until September 2026.
+SortHeader
+A sortable column header for any .data-table . A real
+&lt;button&gt; in the &lt;th&gt; with
+aria-sort on the cell, so it is reachable from the keyboard — the four hand-rolled versions it replaced were not. Both carets always draw, one lit, so the header keeps its width when the direction flips. Sort state is
+$lib/core/utils/tableSort.ts .
+(demoSort = )} />
+Plan Cadastral
+Plan de Saigon
+PaletteSearchField
+The search box that opens the command palette. One field, three places — the home hero, the nav and the palette itself — so the thing a reader types into is the same object everywhere.
+CatalogGrid
+The responsive grid CatalogCard and MapCard sit in. A wrapper with a slot and nothing else — it exists so the column rule is written once.
+MapCard
+A map in a listing. Optional favourite and source badge.
+CatalogCard
+Generic listing card with thumb, meta, description and action slots.
+A fixture, not a real record.
+LibraryGrid
+Project and story libraries. Items need only id and title.
+FacetRail
+Faceted filter column with counts.
+InlineRename
+Click the title to edit it in place. This one is live.
+NameDialog
+Naming flow. Live — the button really opens it.
+(dialogOpen = true)}>Open dialog
+(dialogOpen = false)} on:submit= />
+NavDropdown
+Nav menu disclosure. Takes a default slot of links.
+First link
+Second link
+LocationSearch
+Nominatim place lookup. Live — typing here really queries OpenStreetMap.
+AuthGate
+Signed-out gate for the annotate and story modes. Not rendered here — its button starts a real Google sign-in.
+SnapSheet
+Mobile bottom sheet. Not rendered here — it is fixed-position and would cover the page.
+NavBar ·
+EditorialFooter
+Mounted once by the editorial layout. Top and bottom of this page.
+Cards
+distinct card patterns exist.
+are reusable; are locked to a single page and cannot be used anywhere else. Almost all of them are the same object — a white box with a thick border and a solid shadow.
+Check this list before writing another.
+Reusable — reach for these
+.section-card
+The editorial default. Thick border, large radius, solid shadow. Padding is
+--card-pad , so a caller that wants a tighter one sets a property rather than declaring a fifth card.
+.section-card.is-sm
+The column size: smaller radius, lighter shadow. The blog grid, a post's sidebar and the subscribe nudge were three separate cards that were each this one.
+Class
+File
+Used by
+Locked to one page — the duplication
+Scoped under
+Status tones
+The .status-row variants from /admin?tab=status . Colour never carries meaning alone — the sentence on the card says the same thing.
+Good
+Working as intended.
+Warning
+2 of 39
+Partly done; needs attention but not blocked.
+Blocked
+0 of 39
+Nothing works here yet.
+Next What would unblock it.
+Neutral
+A count with no judgement attached.
+
+===== src/routes/api/admin/maps/[id]/ocr/apply/+server.ts =====
+No extractions found above threshold
+All extractions already applied
+
+===== src/routes/api/export/footprints/+server.ts =====
+Vietnam Map Archive — Building Footprints (segmentation training)
+
+===== src/routes/api/search/+server.ts =====
+Pre-colonial (≤1858)
+Early colonial (1859–1887)
+French Indochina (1888–1939)
+War years (1940–1954)
+Republic era (1955–1975)
+Reunification+ (1976–)

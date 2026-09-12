@@ -290,7 +290,7 @@
             placeholder="Saigon, 1882…"
           />
         </label>
-        <button class="btn btn-sm btn-outline" on:click={resetFilters}>Reset</button>
+        <button class="btn is-sm" on:click={resetFilters}>Reset</button>
         <span class="spacer"></span>
         <div class="sb-pill-row view-toggle" role="group" aria-label="View">
           <button
@@ -313,7 +313,7 @@
           Math.ceil(total / pageSize)
         )}
         <button
-          class="btn btn-xs"
+          class="btn is-xs"
           on:click={() => {
             if (page > 0) {
               page--;
@@ -323,7 +323,7 @@
           disabled={page === 0}>← Prev</button
         >
         <button
-          class="btn btn-xs"
+          class="btn is-xs"
           on:click={() => {
             if ((page + 1) * pageSize < total) {
               page++;
@@ -337,8 +337,8 @@
 
     <section class="sb-card bulk-bar">
       <strong>{selected.size}</strong> selected
-      <button class="btn btn-xs" on:click={selectAll}>Select page</button>
-      <button class="btn btn-xs btn-ghost" on:click={clearSelection}>Clear</button>
+      <button class="btn is-xs" on:click={selectAll}>Select page</button>
+      <button class="btn is-xs is-ghost" on:click={clearSelection}>Clear</button>
       <input
         class="sb-input bulk-note"
         type="text"
@@ -348,17 +348,17 @@
       />
       <span class="spacer"></span>
       <button
-        class="btn btn-sm btn-success"
+        class="btn is-sm is-success"
         on:click={() => bulkSetStatus('approved')}
         disabled={!selected.size}>Approve selected</button
       >
       <button
-        class="btn btn-sm btn-danger"
+        class="btn is-sm is-danger"
         on:click={() => bulkSetStatus('rejected')}
         disabled={!selected.size}>Reject selected</button
       >
       {#if filterStatus === 'approved'}
-        <button class="btn btn-sm btn-primary" on:click={bulkIngest} disabled={!selected.size}
+        <button class="btn is-sm is-primary" on:click={bulkIngest} disabled={!selected.size}
           >Ingest selected as draft maps</button
         >
       {/if}

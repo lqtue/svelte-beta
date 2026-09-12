@@ -113,12 +113,11 @@
     gap: 0.5rem;
   }
 
-  .ctrl-btn {
-    width: 36px;
-    height: 36px;
+  .is-icon {
+    --btn-size: 36px;
   }
 
-  .ctrl-btn svg {
+  .is-icon svg {
     width: 15px;
     height: 15px;
   }

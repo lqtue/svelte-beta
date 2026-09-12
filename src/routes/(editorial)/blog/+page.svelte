@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { posts, CATEGORY_LABELS, CATEGORY_COLORS } from './posts';
   import PageHero from '$lib/ui/PageHero.svelte';
   import '$styles/pages/blog.css';
@@ -30,7 +31,7 @@
 <div class="page blog-page">
   <PageHero
     eyebrow="Field notes"
-    title="Updates from the archive"
+    title={$t('Updates from the archive')}
     sub="Research notes and updates, written when there is something worth reporting rather than on a schedule — so the gaps are real. No newsletter; everything lives here."
   />
 
@@ -43,7 +44,7 @@
             {CATEGORY_LABELS[latestPost.category]}
           </span>
           <span class="post-date">{formatDate(latestPost.date)}</span>
-          <span class="latest-tag">Latest</span>
+          <span class="latest-tag">{$t('Latest')}</span>
         </div>
         <h2 class="featured-title">{latestPost.title}</h2>
         <p class="featured-excerpt">{latestPost.excerpt}</p>
@@ -53,10 +54,10 @@
     <!-- OLDER POSTS -->
     {#if olderPosts.length > 0}
       <div class="posts-section">
-        <h2 class="section-title">Earlier posts</h2>
+        <h2 class="section-title">{$t('Earlier posts')}</h2>
         <div class="posts-grid">
           {#each olderPosts as post (post.slug)}
-            <a href="/blog/{post.slug}" class="post-card">
+            <a href="/blog/{post.slug}" class="section-card is-sm is-link post-card">
               <div class="post-meta">
                 <span class="cat-chip" style="background: {CATEGORY_COLORS[post.category]}">
                   {CATEGORY_LABELS[post.category]}
@@ -72,13 +73,13 @@
     {/if}
 
     <!-- SUBSCRIBE NUDGE -->
-    <div class="subscribe-card">
+    <div class="section-card is-sm subscribe-card">
       <div class="subscribe-text">
-        <h3>No newsletter</h3>
+        <h3>{$t('No newsletter')}</h3>
         <p>
           Everything's here. Bookmark this page, or check
-          <a href="/about">About</a> for live project progress. If you'd rather be pinged when
-          something big lands, email
+          <a href="/about">{$t('About')}</a> for live project progress. If you'd rather be pinged
+          when something big lands, email
           <a href="mailto:vietnamma.project@gmail.com">vietnamma.project@gmail.com</a>
           and we'll add you to a short, infrequent announcement list.
         </p>

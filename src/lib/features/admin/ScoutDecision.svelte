@@ -90,7 +90,7 @@
     </span>
     <div class="sd-presets">
       {#each presets as reason (reason)}
-        <button type="button" class="btn btn-xs" on:click={() => pick(reason)}>{reason}</button>
+        <button type="button" class="btn is-xs" on:click={() => pick(reason)}>{reason}</button>
       {/each}
     </div>
     <input
@@ -104,18 +104,18 @@
     <div class="sd-ask-actions">
       <button
         type="button"
-        class="btn btn-xs {asking === 'rejected' ? 'btn-danger' : 'btn-success'}"
+        class="btn is-xs {asking === 'rejected' ? 'is-danger' : 'is-success'}"
         on:click={commit}>Confirm</button
       >
-      <button type="button" class="btn btn-xs btn-ghost" on:click={cancel}>Cancel</button>
+      <button type="button" class="btn is-xs is-ghost" on:click={cancel}>Cancel</button>
     </div>
   </div>
 {:else if status === 'pending'}
   <div class="sd-actions">
-    <button type="button" class="btn btn-xs btn-success" on:click={() => ask('approved')}>
+    <button type="button" class="btn is-xs is-success" on:click={() => ask('approved')}>
       Approve
     </button>
-    <button type="button" class="btn btn-xs btn-danger" on:click={() => ask('rejected')}>
+    <button type="button" class="btn is-xs is-danger" on:click={() => ask('rejected')}>
       Reject
     </button>
   </div>
@@ -125,7 +125,7 @@
     {#if status !== 'ingested'}
       <button
         type="button"
-        class="btn btn-xs btn-ghost"
+        class="btn is-xs is-ghost"
         on:click={() => dispatch('decide', { status: 'pending', note: null })}
       >
         ↺ Revert

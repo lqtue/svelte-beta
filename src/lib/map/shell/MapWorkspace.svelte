@@ -171,7 +171,7 @@
     {#if isMobile}
       <button
         type="button"
-        class="ctrl-btn"
+        class="btn is-icon"
         on:click={() => (sidebarCollapsed = !sidebarCollapsed)}
         title="Toggle panel"
       >

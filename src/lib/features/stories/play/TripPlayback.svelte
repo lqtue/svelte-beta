@@ -9,6 +9,7 @@
   GPS position is available.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import type { Story, StoryProgress } from '$lib/features/stories/shared/types';
   import { haversineDistance } from '$lib/core/geo/geo';
@@ -106,7 +107,7 @@
   <svelte:fragment slot="head">
     {#if isFinished}
       <div class="head-line">
-        <strong class="head-title">Trip complete</strong>
+        <strong class="head-title">{$t('Trip complete')}</strong>
       </div>
     {:else}
       <div class="head-line">
@@ -126,7 +127,7 @@
                 <span class="comp">{distInfo.label}</span>
               </span>
             {:else}
-              <span class="badge-chip is-sm dist-chip is-muted">Finding GPS…</span>
+              <span class="badge-chip is-sm dist-chip is-muted">{$t('Finding GPS…')}</span>
             {/if}
             <span class="counter">{completedIds.size} / {total}</span>
           </div>
@@ -153,28 +154,28 @@
     {/if}
 
     {#if currentPoint.hint && !completedIds.has(currentPoint.id)}
-      <p class="hint"><strong>Look around:</strong> {currentPoint.hint}</p>
+      <p class="hint"><strong>{$t('Look around:')}</strong> {currentPoint.hint}</p>
     {/if}
 
     {#if currentPoint.challenge?.type === 'question' && !isCurrentVisited}
       <div class="challenge">
-        <span class="challenge-label">Question</span>
+        <span class="challenge-label">{$t('Question')}</span>
         <p class="question">{currentPoint.challenge.question || '(no question set)'}</p>
         <form class="answer-row" on:submit|preventDefault={submitAnswer}>
           <input
             class="answer-input"
             type="text"
             bind:value={answerDraft}
-            placeholder="Your answer"
-            aria-label="Your answer"
+            placeholder={$t('Your answer')}
+            aria-label={$t('Your answer')}
             autocomplete="off"
             autocapitalize="off"
             spellcheck="false"
           />
-          <button type="submit" class="btn btn-primary">Submit</button>
+          <button type="submit" class="btn is-primary">{$t('Submit')}</button>
         </form>
         {#if answerStatus === 'wrong'}
-          <p class="answer-wrong">Not quite — try again.</p>
+          <p class="answer-wrong">{$t('Not quite — try again.')}</p>
         {/if}
       </div>
     {:else if currentPoint.challenge?.type === 'reach' && !isCurrentVisited}
@@ -192,15 +193,17 @@
         <div class="status-banner is-correct" role="status">
           <span class="status-icon">✓</span>
           <div>
-            <strong>Correct!</strong>
-            <span class="status-sub">The answer was “{currentPoint.challenge.answer}”.</span>
+            <strong>{$t('Correct!')}</strong>
+            <span class="status-sub"
+              >{$t('The answer was "{answer}".', { answer: currentPoint.challenge?.answer })}</span
+            >
           </div>
         </div>
       {:else}
         <div class="status-banner is-visited" role="status">
           <span class="status-icon">✓</span>
           <div>
-            <strong>Visited.</strong>
+            <strong>{$t('Visited.')}</strong>
             <span class="status-sub">
               {#if currentIndex < total - 1}Tap Next to continue.{:else}Tap Next to finish.{/if}
             </span>
@@ -211,13 +214,15 @@
 
     <div class="actions">
       <button type="button" class="btn" disabled={currentIndex <= 0} on:click={goPrev}
-        >← Prev</button
+        >{$t('← Prev')}</button
       >
 
       {#if !isCurrentVisited}
-        <button type="button" class="btn btn-primary" on:click={markVisited}>Mark visited</button>
+        <button type="button" class="btn is-primary" on:click={markVisited}
+          >{$t('Mark visited')}</button
+        >
       {:else}
-        <button type="button" class="btn btn-primary" on:click={goNext}>
+        <button type="button" class="btn is-primary" on:click={goNext}>
           {currentIndex < total - 1 ? 'Next →' : 'Finish →'}
         </button>
       {/if}
@@ -420,7 +425,7 @@
     flex: 1;
     --btn-pad: 0.7rem 0.6rem;
   }
-  .actions .btn-primary {
+  .actions .is-primary {
     flex: 1.4;
   }
 </style>

@@ -1,5 +1,5 @@
 <!--
-  TriageRunStep.svelte — step 4 of /scan?mode=triage, plus the run history
+  TriageRunStep.svelte — step 4 of /scan?mode=prepare, plus the run history
   underneath it. "Run OCR" only ever *enqueues* a pipeline_jobs row; nothing
   happens until a worker claims it, which is what the caption says.
 

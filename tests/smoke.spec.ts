@@ -168,7 +168,9 @@ test('picking a map writes ?map= and tallies the open', async ({ page }) => {
   // Welcome chooser gates the browse panel; take the "show everything" branch.
   await page.locator('button.choice:not(.primary)').click();
 
-  const row = page.locator('.ebp ul.rows button.row').first();
+  // The browse rows are `ArchiveMapRows` — the catalog table with four columns
+  // dropped (Sept 2026), so a row is a `<tr>`, not the `<button>` it was.
+  const row = page.locator('.ebp .amr tbody tr').first();
   await expect(row).toBeVisible({ timeout: 20_000 });
   await row.click();
 
@@ -183,7 +185,7 @@ test('picking a map writes ?map= and tallies the open', async ({ page }) => {
 });
 
 test('the IIIF tool pages mount their ImageShell', async ({ page }) => {
-  for (const route of ['/scan', '/scan?mode=trace', '/scan?mode=triage']) {
+  for (const route of ['/scan', '/scan?mode=shapes', '/scan?mode=prepare', '/scan?mode=text']) {
     await page.goto(route);
     await expect(page.locator('.tool-page')).toBeVisible();
 
@@ -200,6 +202,23 @@ test('the IIIF tool pages mount their ImageShell', async ({ page }) => {
   }
 });
 
+test('the old /scan mode names still open the mode they became', async ({ page }) => {
+  // `MODE_ALIASES`, not redirects: these spellings are in bookmarks and in the
+  // links /admin?tab=status prints. An unknown mode falls through to inspect,
+  // which is public — so a broken alias would look like it worked.
+  for (const [alias, title] of [
+    ['triage', 'Prepare'],
+    ['prepare', 'Prepare'],
+    ['text', 'Text'],
+    ['trace', 'Shapes'],
+    ['shapes', 'Shapes'],
+    ['review', 'Shapes'],
+  ]) {
+    await page.goto(`/scan?mode=${alias}`);
+    await expect(page).toHaveTitle(new RegExp(`^${title} — Vietnam Map Archive$`));
+  }
+});
+
 test('auth-gated and legacy routes redirect', async ({ page }) => {
   await page.goto('/profile');
   await expect(page).toHaveURL(/\/login$/);
@@ -212,9 +231,10 @@ test('auth-gated and legacy routes redirect', async ({ page }) => {
     ['/annotate', '/explore?mode=studio'],
     ['/studio', '/explore?mode=studio'],
     ['/create', '/explore?mode=story'],
-    ['/contribute/label', '/scan?mode=triage'],
-    ['/contribute/digitalize', '/scan?mode=triage'],
-    ['/contribute/trace', '/scan?mode=trace'],
+    ['/contribute/label', '/scan?mode=prepare'],
+    ['/contribute/digitalize', '/scan?mode=prepare'],
+    ['/contribute/trace', '/scan?mode=shapes'],
+    ['/contribute/review', '/scan?mode=shapes&tab=validate'],
     ['/image', '/scan'],
     ['/admin/bulk', '/admin?tab=bulk'],
     ['/admin/status', '/admin?tab=status'],

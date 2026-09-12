@@ -1,20 +1,27 @@
 <!--
-  /scan?mode=triage — Unified map digitization workflow.
+  /scan?mode=prepare and ?mode=text — the two halves of getting words off a
+  sheet, on one ImageShell canvas.
 
-  Three phases share one ImageShell canvas:
+  Prepare — five steps: ask the model what the sheet is made of (Layout), set
+            the neatline, size the tile grid and per-tile priority, save the
+            triage to `maps.triage`, then queue an OCR batch.
+            Operator guide: docs/digitalize-guide.md.
+  Text    — validate / reject / redraw what came back (OcrBboxTool + OcrSidebar).
 
-  Triage       — five steps: ask the model what the sheet is made of (Layout),
-                 set the neatline, size the tile grid and per-tile priority,
-                 save the triage to `maps.triage`, then queue an OCR batch.
-                 Operator guide: docs/digitalize-guide.md.
-  OCR Review   — validate / reject / redraw OCR bboxes (OcrBboxTool + OcrSidebar).
-  Segmentation — pipeline stage readout + the MapSAM2 command to run in Colab.
+  **One component for both modes on purpose.** The dispatcher mounts this file
+  for either, so moving between them is a prop change, not a remount: the OL
+  map, the IIIF tile source and the open sheet all stay warm. Two page
+  components would rebuild the canvas every time an operator checked their crop.
+
+  They were `?mode=triage`'s first two phases. The third, Segmentation, is part
+  of `?mode=shapes` now — it was never about words.
 
   This file is layout: state lives in `$lib/features/contribute/digitalize/*` and
   `$lib/features/contribute/ocr/ocrReviewController.ts`.
 -->
 <script lang="ts">
   import { tick, onDestroy } from 'svelte';
+  import { goto } from '$app/navigation';
   import OlMap from 'ol/Map';
   import ToolLayout from '$lib/map/shell/ToolLayout.svelte';
   import ImageShell from '$lib/map/shell/ImageShell.svelte';
@@ -33,16 +40,10 @@
     type OcrRunSummary,
   } from '$lib/features/contribute/digitalize/ocrRunApi';
   import {
-    DEFAULT_SEG_CONFIG,
-    type SegConfig,
-  } from '$lib/features/contribute/digitalize/segCommand';
-  import {
     defaultTriageState,
-    loadSegConfig,
     loadTriageState,
     applyStoredTriage,
     toStoredTriage,
-    saveSegConfig,
     saveTriageState,
     saveTriageToServer,
     type TriageState,
@@ -53,16 +54,13 @@
   import ScanLeftRail from '$lib/features/contribute/shared/ScanLeftRail.svelte';
   import { suggestTriage as computeTriageProposal } from '$lib/features/contribute/digitalize/suggestTriage';
   import { createLayoutJob } from '$lib/features/contribute/digitalize/layoutJob';
-  import {
-    fetchPipelineStatus,
-    advancePipelineStage,
-    type PipelineStatus,
-    type HumanStage,
-  } from '$lib/features/contribute/pipelineApi';
   import { resolveMapIiifInfoUrl } from '$lib/features/contribute/shared/iiifSource';
   import { toOlExtent } from '$lib/core/geo/rectUtils';
   import { containsExtent, getCenter } from 'ol/extent';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';
+
+  /** Which of the two this is. The dispatcher keeps one instance across a change. */
+  export let mode: 'prepare' | 'text' = 'prepare';
 
   // ── Shared ────────────────────────────────────────────────────────────────────
   let currentMap: LabelMapInfo | null = null;
@@ -75,7 +73,6 @@
   let sidebarCollapsed = false;
   let rightSidebarCollapsed = false;
   let isMobile = false;
-  let phase: 'triage' | 'ocr' | 'segmentation' = 'triage';
 
   // ── Canvas layers ─────────────────────────────────────────────────────────────
   // What is drawn over the scan, owned by the left rail rather than by whichever
@@ -87,9 +84,9 @@
   let showBoxes = true;
   let imageOpacity = 1;
 
-  /** The rail lists the layers that exist in the phase you are in. */
+  /** The rail lists the layers that exist in the mode you are in. */
   $: railLayers =
-    phase === 'triage'
+    mode === 'prepare'
       ? [
           {
             id: 'regions',
@@ -100,9 +97,7 @@
           { id: 'neatline', label: 'Neatline', on: showNeatline, color: INK.yellow },
           { id: 'tiles', label: 'Tile grid', on: showTiles, color: INK.slate },
         ]
-      : phase === 'ocr'
-        ? [{ id: 'boxes', label: 'OCR boxes', on: showBoxes, color: INK.blue }]
-        : [];
+      : [{ id: 'boxes', label: 'Text boxes', on: showBoxes, color: INK.blue }];
 
   function toggleLayer(e: CustomEvent<{ id: string; on: boolean }>) {
     const { id, on } = e.detail;
@@ -112,7 +107,7 @@
     else if (id === 'boxes') showBoxes = on;
   }
 
-  // ── Phase state ───────────────────────────────────────────────────────────────
+  // ── Mode state ────────────────────────────────────────────────────────────────
   let triage: TriageState = defaultTriageState();
   let run: {
     running: boolean;
@@ -120,11 +115,6 @@
     queuedJobId: string | null;
     runs: Record<string, OcrRunSummary>;
   } = { running: false, error: '', queuedJobId: null, runs: {} };
-  let pipeline: { status: PipelineStatus | null; loading: boolean; error: string } = {
-    status: null,
-    loading: false,
-    error: '',
-  };
   /** `maps.triage` for the selected map: what the enqueue script would use.
    *  Widened past `StoredTriage` because the row also carries the acceptance
    *  stamps the sidebar reads (`validated_at`, `neatline_src`). */
@@ -138,8 +128,6 @@
   let selectedRegion: number | null = null;
   const layout = createLayoutJob((regions) => (triage.regions = regions));
   onDestroy(layout.stop);
-
-  let segConfig: SegConfig = { ...DEFAULT_SEG_CONFIG };
 
   // ── OCR review ────────────────────────────────────────────────────────────────
   let ocrSidebar: OcrSidebar | undefined;
@@ -206,7 +194,7 @@
   /**
    * Review runs off the canvas, so the keys have to work with focus on the page:
    * j/k walk the rows the sidebar shows, v/x set a status and advance, e drops
-   * into the text field, Esc comes back out. Rotation keys work in every phase.
+   * into the text field, Esc comes back out. Rotation keys work in both modes.
    */
   function onKeydown(e: KeyboardEvent) {
     const el = e.target as HTMLElement | null;
@@ -233,7 +221,7 @@
       case '0':
         return handled(e, resetRotation);
     }
-    if (phase !== 'ocr') return;
+    if (mode !== 'text') return;
     switch (e.key) {
       case 'j':
       case 'ArrowDown':
@@ -292,9 +280,8 @@
   }
 
   $: if (currentMap?.id) saveTriageState(currentMap.id, triage);
-  $: if (currentMap?.id) saveSegConfig(currentMap.id, segConfig);
 
-  // ── Map + pipeline loading ────────────────────────────────────────────────────
+  // ── Map loading ───────────────────────────────────────────────────────────────
   async function selectMap(m: LabelMapInfo) {
     if (currentMap?.id === m.id) return;
     currentMap = m;
@@ -303,7 +290,6 @@
     imgHeight = 0;
     review.reset();
     run = { ...run, error: '', runs: {} };
-    pipeline = { status: null, loading: false, error: '' };
     // new map: the grid-key watcher must not wipe the restored tileOverrides
     prevGridKey = '';
     savedTriage = m.triage;
@@ -316,11 +302,9 @@
     triage = savedTriage
       ? applyStoredTriage(savedTriage, { ...triage, neatline: null, runId: '' })
       : loadTriageState(m.id, { ...triage, neatline: null, runId: '' });
-    segConfig = loadSegConfig(m.id, segConfig);
 
     iiifInfoUrl = await resolveMapIiifInfoUrl(currentMap);
     await refreshRuns();
-    await loadPipeline();
   }
 
   async function refreshRuns() {
@@ -328,29 +312,17 @@
     const runs = await fetchOcrRuns(currentMap.id);
     if (!runs) return;
     run.runs = runs;
-    // Anything already extracted means the useful phase is review, not triage.
-    if (Object.keys(runs).length > 0) phase = 'ocr';
+    // Anything already extracted means the useful mode is Text, not Prepare.
+    // A navigation rather than a flag, and the instance survives it, so the
+    // sheet, the canvas and the zoom are all still there on the other side.
+    if (Object.keys(runs).length > 0 && mode === 'prepare') toText();
   }
 
-  async function loadPipeline() {
-    if (!currentMap?.id) return;
-    pipeline = { ...pipeline, loading: true, error: '' };
-    try {
-      pipeline.status = await fetchPipelineStatus(currentMap.id);
-    } catch (e: any) {
-      pipeline.error = e.message;
-    } finally {
-      pipeline.loading = false;
-    }
-  }
+  $: modeTitle = mode === 'text' ? 'Text' : 'Prepare';
 
-  async function advanceStage(stage: HumanStage) {
-    if (!currentMap?.id) return;
-    try {
-      pipeline.status = await advancePipelineStage(currentMap.id, stage);
-    } catch (e: any) {
-      pipeline.error = e.message;
-    }
+  /** Same route, same instance: only the `?mode=` changes. */
+  function toText() {
+    goto('/scan?mode=text', { replaceState: true, noScroll: true, keepFocus: true });
   }
 
   // ── Triage actions ────────────────────────────────────────────────────────────
@@ -427,7 +399,7 @@
         tile_overrides: Object.keys(triage.tileOverrides).length ? triage.tileOverrides : undefined,
       });
       // Queued, not finished: a worker picks it up, so stay on Triage and let
-      // the pipeline panel report progress rather than opening an empty review.
+      // the run history report progress rather than opening an empty review.
       run.queuedJobId = jobId;
       await refreshRuns();
     } catch (e: any) {
@@ -438,7 +410,7 @@
   }
 
   function loadRun(e: CustomEvent<{ runId: string }>) {
-    phase = 'ocr';
+    toText();
     tick().then(() => {
       if (ocrSidebar) ocrSidebar.filterRunId = e.detail.runId;
       ocrSidebar?.load?.();
@@ -459,17 +431,11 @@
     showBoxes = !printed;
     if (bbox) fitTo(...bbox);
   }
-
-  function setPhase(e: CustomEvent<{ phase: typeof phase }>) {
-    phase = e.detail.phase;
-    if (phase === 'segmentation') loadPipeline();
-  }
 </script>
 
 <svelte:window on:keydown={onKeydown} />
 <svelte:head>
-  <title
-    >{currentMap ? `${currentMap.name} — OCR & Triage` : 'OCR & Triage'} — Vietnam Map Archive</title
+  <title>{currentMap ? `${currentMap.name} — ${modeTitle}` : modeTitle} — Vietnam Map Archive</title
   >
 </svelte:head>
 
@@ -484,6 +450,7 @@
     <!-- Left: which sheet, and what is drawn on it. Same in every mode. -->
     <svelte:fragment slot="sidebar">
       <ScanLeftRail
+        {mode}
         selectedMapId={currentMap?.id ?? null}
         layers={railLayers}
         bind:imageOpacity
@@ -498,18 +465,15 @@
     <svelte:fragment slot="right-sidebar">
       <DigitalizeSidebar
         compact={false}
-        {phase}
+        {mode}
         mapId={currentMap?.id ?? null}
         {imgWidth}
         {imgHeight}
         bind:triage
         {run}
-        {pipeline}
-        bind:segConfig
         bind:ocrSidebar
         selectedId={$review.selectedId}
         onCollapse={() => (rightSidebarCollapsed = true)}
-        on:phaseChange={setPhase}
         {savedTriage}
         {savingTriage}
         {saveTriageError}
@@ -526,8 +490,6 @@
         on:regionsChange={(e) => (triage.regions = e.detail)}
         on:selectRegion={(e) => (selectedRegion = e.detail)}
         on:loadRun={loadRun}
-        on:advance={(e) => advanceStage(e.detail.stage)}
-        on:refresh={loadPipeline}
         on:loaded={review.loaded}
         on:filter={review.filter}
         on:zoomToExtraction={review.zoom}
@@ -539,7 +501,7 @@
     <!-- Canvas stage -->
     {#if currentMap && iiifInfoUrl}
       <ImageShell {iiifInfoUrl} {imageOpacity} bind:imgWidth bind:imgHeight bind:map>
-        {#if phase === 'triage'}
+        {#if mode === 'prepare'}
           <TriageTool
             {imgWidth}
             {imgHeight}
@@ -575,11 +537,11 @@
         {/if}
       </ImageShell>
 
-      {#if phase !== 'triage' && $review.error}
+      {#if mode === 'text' && $review.error}
         <div class="ocr-error-toast">{$review.error}</div>
       {/if}
 
-      {#if phase === 'ocr' && selectedExtraction}
+      {#if mode === 'text' && selectedExtraction}
         <BboxPanel
           bind:this={bboxPanel}
           extraction={selectedExtraction}
@@ -619,7 +581,7 @@
 
   {#if currentMap}
     <DigitalizeBottomBar
-      {phase}
+      {mode}
       drawMode={$review.drawMode}
       isolationMode={$review.isolationMode}
       {rotationDeg}

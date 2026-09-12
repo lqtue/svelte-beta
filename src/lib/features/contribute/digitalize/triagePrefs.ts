@@ -1,9 +1,8 @@
 /**
- * triagePrefs.ts — per-map localStorage for the /scan?mode=triage page.
+ * triagePrefs.ts — per-map localStorage for the /scan?mode=prepare page.
  *
  * Two independent records, both keyed by map id:
  *   digitalize-triage-<mapId>  neatline + tile grid + per-tile overrides
- *   digitalize-seg-<mapId>     MapSAM2 command configuration
  *
  * Keys and stored shapes are deliberately unchanged from the inline version so
  * existing per-map state survives this refactor. (They predate the `vma-*-v1`
@@ -19,7 +18,6 @@
 
 import { readJson, writeJson } from '$lib/core/utils/persistence/storage';
 import type { TileOverrides } from './tileParams';
-import { DEFAULT_SEG_CONFIG, type SegConfig } from './segCommand';
 import type { StoredTriage } from '$lib/data/maps/types';
 import type { LayoutRegion } from '$lib/data/maps/triageTypes';
 
@@ -83,7 +81,6 @@ export function applyStoredTriage(
 }
 
 const triageKey = (mapId: string) => `digitalize-triage-${mapId}`;
-const segKey = (mapId: string) => `digitalize-seg-${mapId}`;
 
 /** `base` with any well-formed stored fields applied over it. */
 export function loadTriageState(mapId: string, base: TriageState): TriageState {
@@ -123,22 +120,4 @@ export async function saveTriageToServer(mapId: string, state: TriageState): Pro
     const body = await res.json().catch(() => ({}));
     throw new Error(body.message ?? res.statusText);
   }
-}
-
-/** `base` with any stored MapSAM2 config applied over it. */
-export function loadSegConfig(mapId: string, base: SegConfig = DEFAULT_SEG_CONFIG): SegConfig {
-  const data = readJson<Partial<SegConfig> | null>(segKey(mapId), null);
-  if (!data) return { ...base };
-  return {
-    ...base,
-    ...(data.checkpointPath ? { checkpointPath: data.checkpointPath } : {}),
-    ...(data.mapsam2Dir ? { mapsam2Dir: data.mapsam2Dir } : {}),
-    ...(data.encoder ? { encoder: data.encoder } : {}),
-    ...(typeof data.useTextMask === 'boolean' ? { useTextMask: data.useTextMask } : {}),
-    ...(typeof data.useWatershed === 'boolean' ? { useWatershed: data.useWatershed } : {}),
-  };
-}
-
-export function saveSegConfig(mapId: string, cfg: SegConfig): void {
-  writeJson(segKey(mapId), cfg);
 }

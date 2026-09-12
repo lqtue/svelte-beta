@@ -4,6 +4,7 @@
   rest of the app.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import '$styles/components/auth-gate.css';
   import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -56,7 +57,7 @@
           fill="#EA4335"
         />
       </svg>
-      Continue with Google
+      {$t('Continue with Google')}
     </button>
   </div>
 </div>

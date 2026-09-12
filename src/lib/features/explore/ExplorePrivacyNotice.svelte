@@ -13,6 +13,7 @@
   straight to their previously chosen mode.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher, onMount } from 'svelte';
   import { browser } from '$app/environment';
   import { readText, writeText } from '$lib/core/utils/persistence/storage';
@@ -58,30 +59,31 @@
 {#if visible}
   <div class="backdrop" role="presentation"></div>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-    <h2 id="welcome-title">Explore the archive</h2>
+    <h2 id="welcome-title">{$t('Explore the archive')}</h2>
     <p class="lede">
-      Browse VMA's historical maps of Vietnam — Saigon, Hanoi, Huế, Cambodia and beyond. Pick how
-      you want to start.
+      {$t(
+        "Browse VMA's historical maps of Vietnam — Saigon, Hanoi, Huế, Cambodia and beyond. Pick how you want to start."
+      )}
     </p>
 
     <div class="choices">
       <button type="button" class="choice primary" on:click={chooseLocation}>
         <span class="choice-body">
-          <strong>Use my location</strong>
-          <span>Centre on where I'm standing and surface the maps that cover it.</span>
+          <strong>{$t('Use my location')}</strong>
+          <span>{$t("Centre on where I'm standing and surface the maps that cover it.")}</span>
         </span>
       </button>
 
       <button type="button" class="choice" on:click={chooseAll}>
         <span class="choice-body">
-          <strong>Show all maps</strong>
-          <span>Skip GPS — browse the whole archive and pick anywhere on Earth.</span>
+          <strong>{$t('Show all maps')}</strong>
+          <span>{$t('Skip GPS — browse the whole archive and pick anywhere on Earth.')}</span>
         </span>
       </button>
     </div>
 
     <details class="privacy">
-      <summary>What happens when I share my location?</summary>
+      <summary>{$t('What happens when I share my location?')}</summary>
       <ul>
         <li><strong>What:</strong> approximate device location, only while this tab is open.</li>
         <li><strong>Where:</strong> stays on your device — never sent to a server.</li>
@@ -94,7 +96,7 @@
 
     <label class="ack-row">
       <input type="checkbox" bind:checked={dontShowAgain} />
-      <span>Remember my choice on this device</span>
+      <span>{$t('Remember my choice on this device')}</span>
     </label>
   </div>
 {/if}

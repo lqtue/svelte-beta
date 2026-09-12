@@ -12,6 +12,7 @@
       instead, so the Control tab would have shown a second.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import { layersStore } from '$lib/map/stores/layersStore';
   import type { ViewMode } from '$lib/map/types';
@@ -82,7 +83,7 @@
 
 <div class="mcp">
   <div class="mcp-row">
-    <span class="mcp-leader">Display</span>
+    <span class="mcp-leader">{$t('Display')}</span>
     <div class="sb-pill-row mcp-grow">
       {#each DISPLAY_MODES as m (m.mode)}
         <button
@@ -124,7 +125,8 @@
         on:keydown={(e) => e.key === 'Enter' && applyCustomUrl()}
       />
       {#if customUrl}
-        <button type="button" class="sb-btn is-sm" on:click={clearCustomUrl} title="Clear">×</button
+        <button type="button" class="sb-btn is-sm" on:click={clearCustomUrl} title={$t('Clear')}
+          >×</button
         >
       {/if}
     </div>
@@ -136,7 +138,7 @@
       class="sb-btn is-sm mcp-legend"
       class:is-on={showLegendPoints}
       on:click={() => dispatch('toggleLegendPoints')}
-      title="Show numbered legend references on the map"
+      title={$t('Show numbered legend references on the map')}
     >
       <span class="mcp-legend-dot">№</span>
       <span>{showLegendPoints ? 'Legend points on' : 'Legend points'}</span>

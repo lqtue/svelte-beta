@@ -9,6 +9,7 @@
   prints no name of its own.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
 
   const dispatch = createEventDispatcher<{ toggleVectors: { mapId: string } }>();
@@ -29,10 +30,10 @@
       aria-pressed={vectorsOn}
       title="Traced footprints">⬡ Traced</button
     >
-    <a class="sb-btn is-sm" href="/scan?map={mapId}">Scan</a>
+    <a class="sb-btn is-sm" href="/scan?map={mapId}">{$t('Scan')}</a>
     <a class="sb-btn is-sm" href="/explore?mode=studio&map={mapId}">Studio</a>
     {#if published}
-      <a class="sb-btn is-sm" href="/catalog/{mapId}">Share</a>
+      <a class="sb-btn is-sm" href="/catalog/{mapId}">{$t('Share')}</a>
     {/if}
   </div>
 {/if}

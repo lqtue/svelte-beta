@@ -79,21 +79,21 @@
         </div>
         <div class="story-actions">
           <button
-            class="btn btn-sm"
+            class="btn is-sm"
             disabled={busyId === story.id}
             on:click={() => decide(story.id, 'approved')}
           >
             Approve
           </button>
           <button
-            class="btn btn-sm"
+            class="btn is-sm"
             disabled={busyId === story.id}
             on:click={() => decide(story.id, 'draft')}
           >
             Send back
           </button>
           <button
-            class="btn btn-sm btn-danger"
+            class="btn is-sm is-danger"
             disabled={busyId === story.id}
             on:click={() => decide(story.id, 'rejected')}
           >

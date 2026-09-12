@@ -3,22 +3,19 @@
   Click a column header to sort (toggle direction). Use the "Group by" dropdown
   to collapse rows by Year / Area / Type / Source.
 
-  `compact` delegates to CatalogTableCompact — a genuinely different layout
-  (Year + Name rows for sidebars), not this table with columns hidden.
+  `compact` delegates to `ArchiveMapRows` — this same table with four columns
+  dropped, which is what a 380px rail can carry. It was `CatalogTableCompact`,
+  a hand-built `<ul>`, until Sept 2026.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem } from '$lib/data/maps/types';
   import { layersStore, toggleOverlayFor } from '$lib/map/stores/layersStore';
-  import CatalogTableCompact from './CatalogTableCompact.svelte';
-  import {
-    sortRows,
-    groupRows,
-    nextSort,
-    type SortKey,
-    type GroupKey,
-    type SortDir,
-  } from './catalogTableModel';
+  import ArchiveMapRows from '$lib/features/shared/ArchiveMapRows.svelte';
+  import { atWidth } from '$lib/core/iiif/thumbUrl';
+  import { sortRows, groupRows, type SortKey, type GroupKey } from './catalogTableModel';
+  import DataTable, { type TableColumn } from '$lib/ui/DataTable.svelte';
 
   export let items: MapListItem[] = [];
   export let compact: boolean = false;
@@ -30,15 +27,20 @@
 
   $: overlayMapIds = new Set($layersStore.overlays.map((o) => o.ref.mapId));
 
-  let sortKey: SortKey = 'year';
-  let sortDir: SortDir = 'asc';
+  let sort = { key: 'year' as SortKey, asc: true };
   let groupBy: GroupKey = 'none';
 
-  function setSort(k: SortKey) {
-    ({ key: sortKey, dir: sortDir } = nextSort({ key: sortKey, dir: sortDir }, k));
-  }
+  const COLUMNS: TableColumn[] = [
+    { key: 'thumb', label: '', klass: 'thumb-col', srLabel: 'Thumbnail', sortable: false },
+    { key: 'name', label: 'Title' },
+    { key: 'year', label: 'Year', klass: 'num' },
+    { key: 'location', label: 'Area' },
+    { key: 'map_type', label: 'Type' },
+    { key: 'collection', label: 'Collection' },
+    { key: 'status', label: 'Status', klass: 'status-col' },
+  ];
 
-  $: sorted = sortRows(items, sortKey, sortDir);
+  $: sorted = sortRows(items, sort);
   $: groups = groupRows(sorted, groupBy);
 
   let collapsed = new Set<string>();
@@ -59,75 +61,30 @@
 </script>
 
 {#if compact}
-  <CatalogTableCompact items={sorted} {activeId} {showLayerActions} on:open />
+  <ArchiveMapRows rows={sorted} rowAction="open" {activeId} showTypes={showLayerActions} on:open />
 {:else}
   <div class="ct-toolbar">
     <label class="group-pick">
-      Group by
+      {$t('Group by')}
       <select bind:value={groupBy}>
-        <option value="none">None</option>
-        <option value="year">Year</option>
+        <option value="none">{$t('None')}</option>
+        <option value="year">{$t('Year')}</option>
         <option value="location">Area</option>
-        <option value="map_type">Type</option>
-        <option value="collection">Collection</option>
-        <option value="status">Status</option>
+        <option value="map_type">{$t('Type')}</option>
+        <option value="collection">{$t('Collection')}</option>
+        <option value="status">{$t('Status')}</option>
       </select>
     </label>
   </div>
 
-  <table class="ct data-table is-card">
-    <thead>
-      <tr>
-        <th class="thumb-col"></th>
-        <th class="sortable" on:click={() => setSort('name')}
-          >Title<span class="sort-ind"
-            ><span class:on={sortKey === 'name' && sortDir === 'asc'}>▲</span><span
-              class:on={sortKey === 'name' && sortDir === 'desc'}>▼</span
-            ></span
-          ></th
-        >
-        <th class="sortable num" on:click={() => setSort('year')}
-          >Year<span class="sort-ind"
-            ><span class:on={sortKey === 'year' && sortDir === 'asc'}>▲</span><span
-              class:on={sortKey === 'year' && sortDir === 'desc'}>▼</span
-            ></span
-          ></th
-        >
-        <th class="sortable" on:click={() => setSort('location')}
-          >Area<span class="sort-ind"
-            ><span class:on={sortKey === 'location' && sortDir === 'asc'}>▲</span><span
-              class:on={sortKey === 'location' && sortDir === 'desc'}>▼</span
-            ></span
-          ></th
-        >
-        <th class="sortable" on:click={() => setSort('map_type')}
-          >Type<span class="sort-ind"
-            ><span class:on={sortKey === 'map_type' && sortDir === 'asc'}>▲</span><span
-              class:on={sortKey === 'map_type' && sortDir === 'desc'}>▼</span
-            ></span
-          ></th
-        >
-        <th class="sortable" on:click={() => setSort('collection')}
-          >Collection<span class="sort-ind"
-            ><span class:on={sortKey === 'collection' && sortDir === 'asc'}>▲</span><span
-              class:on={sortKey === 'collection' && sortDir === 'desc'}>▼</span
-            ></span
-          ></th
-        >
-        <th class="sortable status-col" on:click={() => setSort('status')}
-          >Status<span class="sort-ind"
-            ><span class:on={sortKey === 'status' && sortDir === 'asc'}>▲</span><span
-              class:on={sortKey === 'status' && sortDir === 'desc'}>▼</span
-            ></span
-          ></th
-        >
-      </tr>
-    </thead>
-    <tbody>
+  <!-- The `.ct` wrapper is this component's own element, so its scoped CSS can
+       still reach the `<table>`, `<thead>` and `<th>`s that are DataTable's. -->
+  <div class="ct">
+    <DataTable columns={COLUMNS} klass="is-card" bind:sort>
       {#each groups as g (g.label)}
         {#if g.label !== null}
           <tr class="group-row" on:click={() => toggleGroup(g.label)}>
-            <td colspan="7">
+            <td colspan={COLUMNS.length}>
               <span class="caret">{collapsed.has(g.label) ? '▸' : '▾'}</span>
               <strong>{g.label}</strong>
               <span class="group-count">{g.rows.length}</span>
@@ -149,7 +106,13 @@
             >
               <td class="thumb-col">
                 {#if item.thumbnail}
-                  <img src={item.thumbnail} alt="" loading="lazy" />
+                  <!-- The cell is 96px; the stored column is 800. -->
+                  <img
+                    src={atWidth(item.thumbnail, 200)}
+                    alt=""
+                    loading="lazy"
+                    on:error={(e) => ((e.currentTarget as HTMLImageElement).src = item.thumbnail!)}
+                  />
                 {:else}
                   <div class="thumb-empty"></div>
                 {/if}
@@ -158,12 +121,12 @@
                 <div class="title-row">
                   {#if shareHref}
                     <!--
-                      A real link, not a span: the row's on:click still opens the
-                      drawer (a plain click is swallowed here and bubbles), but a
-                      crawler, a middle-click and ⌘-click now all reach the share
-                      page. /map/<id> and /place/<slug> only linked to each other,
-                      so the whole server-rendered half of the site had no entry.
-                    -->
+                    A real link, not a span: the row's on:click still opens the
+                    drawer (a plain click is swallowed here and bubbles), but a
+                    crawler, a middle-click and ⌘-click now all reach the share
+                    page. /map/<id> and /place/<slug> only linked to each other,
+                    so the whole server-rendered half of the site had no entry.
+                  -->
                     <a
                       class="title-link"
                       href={shareHref}
@@ -178,8 +141,8 @@
                   {#if showLayerActions && !isScout && (item as any).georef_done}
                     <button
                       type="button"
-                      class="cmp-btn"
-                      class:on={isOverlay}
+                      class="btn is-icon is-xs"
+                      class:is-on={isOverlay}
                       on:click|stopPropagation={() => toggleOverlayFor(item)}
                       title={isOverlay ? 'Remove overlay' : 'Add as overlay'}
                       aria-label={isOverlay ? 'Remove overlay' : 'Add as overlay'}
@@ -221,17 +184,21 @@
                 {#if isScout}
                   <span class="badge-chip is-sm scout">scout</span>
                 {:else if (item as any).georef_done}
-                  <span class="badge-chip is-sm status-map" title="Available on map">Map</span>
+                  <span class="badge-chip is-sm status-map" title={$t('Available on map')}
+                    >{$t('Map')}</span
+                  >
                 {:else}
-                  <span class="badge-chip is-sm chip-gray" title="Static image only">Image</span>
+                  <span class="badge-chip is-sm chip-gray" title={$t('Static image only')}
+                    >{$t('Image')}</span
+                  >
                 {/if}
               </td>
             </tr>
           {/each}
         {/if}
       {/each}
-    </tbody>
-  </table>
+    </DataTable>
+  </div>
 {/if}
 
 <style>
@@ -258,7 +225,7 @@
   }
   /* Shape, header, row rules and the sort indicator come from
      `.data-table.is-card` in components/table.css. */
-  .ct tbody tr {
+  .ct :global(tbody tr) {
     cursor: pointer;
   }
   .ct .title-link {
@@ -268,7 +235,7 @@
     /* An anchor now; keep the row-hover underline as the only one. */
     text-decoration: none;
   }
-  .ct tbody tr:hover .title-link {
+  .ct :global(tbody tr:hover .title-link) {
     text-decoration: underline;
   }
   /* Not `.chip.ghost`: this is a dense inline affordance inside a table cell,
@@ -291,12 +258,12 @@
     color: var(--sb-text-meta);
     font-size: 0.85rem;
   }
-  .ct .thumb-col {
+  .ct :global(.thumb-col) {
     width: 96px;
     padding: var(--space-2) 0.6rem;
   }
-  .ct .thumb-col img,
-  .ct .thumb-col .thumb-empty {
+  .ct :global(.thumb-col img),
+  .ct :global(.thumb-col .thumb-empty) {
     width: 84px;
     height: 64px;
     object-fit: cover;
@@ -310,7 +277,10 @@
     color: var(--sb-text-soft);
     margin-top: 0.2rem;
   }
-  .ct .status-col {
+  /* `:global` because the header cell is `SortHeader`'s and the table's own
+     elements are `DataTable`'s; a column's geometry has to reach both halves of
+     it. The `.ct` wrapper is this component's, so it keeps them from leaking. */
+  .ct :global(.status-col) {
     width: 90px;
     text-align: right;
     white-space: nowrap;
@@ -369,11 +339,11 @@
     text-decoration: underline;
   }
   @media (max-width: 800px) {
-    .ct th:nth-child(5),
+    .ct :global(th:nth-child(5)),
     .ct td:nth-child(5) {
       display: none;
     }
-    .ct th:nth-child(6),
+    .ct :global(th:nth-child(6)),
     .ct td:nth-child(6) {
       display: none;
     }

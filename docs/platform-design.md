@@ -95,7 +95,7 @@ So step 2 of §6 leads with `context.schema.json`, and `story.schema.json` follo
 | MR ≤ 15 files / ≤ 1500 lines / ≤ 1 contract change | `map-data-operations.md:547-551` | PR rule for the platform repo |
 | Non-goals recorded **with reopen conditions** | `map-data-operations.md:26-27,555-578` | §6 below |
 | Decision register + retraction table + kill conditions; measurement beats spec | `tasco/MATH-AND-DECISIONS.md:13-14,463-499,630-647` | `docs/decisions.md` (§5) |
-| Reuse the one approval surface; never a second review UI | `mapops-indexing-tasking-prd.md:33,76` | `/scan?mode=review` is the only moderation queue, tab per kind |
+| Reuse the one approval surface; never a second review UI | `mapops-indexing-tasking-prd.md:33,76` | `/scan?mode=shapes&tab=validate` is the only moderation queue, tab per kind |
 | Protected **random audit core** so targeted review cannot self-confirm | `collection-system-plan.md:370`, `MATH-AND-DECISIONS.md:334-345` | 5 % of validated OCR/footprints re-queued blind (E2 HITL) |
 | QA at edit time is the cheapest cell and the one most skipped | `collection-system-plan.md:280-291` | Category enums + required fields enforced in the API, before sampled QC |
 | Log predictions **before** collecting; score with a proper rule | `collection-system-plan.md:448-479` | C5 eval: freeze the 20-tile set and the metric before the next seg run |
@@ -188,7 +188,7 @@ Reopen any row when a second consumer appears (e.g. an archive "field mode" that
 | 4 | `git subtree add` HACW → `apps/event`; pnpm workspace; root lanes; CF Pages root dir per app | — | step 3 (so the import carries a real shared dependency, not a hope) |
 | 5 | Archive moves root → `apps/archive`; CF Pages root dir change; repo rename | — | step 4, one PR, nothing else in it |
 | 6 | Docs three-layer split; `docs/AGENTS.md`; CLAUDE.md → adapter; `decisions.md` seeded | both apps' docs | step 4 |
-| 7 | Random audit core (5 % blind re-review) in `/scan?mode=review`; QA enums in API | E2 HITL volume | when a second reviewer exists |
+| 7 | Random audit core (5 % blind re-review) in `/scan?mode=shapes&tab=validate`; QA enums in API | E2 HITL volume | when a second reviewer exists |
 
 **Non-goals, with reopen conditions**
 - Shared UI package — reopen when a third app needs `LocationSearch`/`MapCard`-class components.

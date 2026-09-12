@@ -1,5 +1,5 @@
 <!--
-  TriageLayoutStep.svelte — step 1 of /scan?mode=triage: what the sheet is made
+  TriageLayoutStep.svelte — step 1 of /scan?mode=prepare: what the sheet is made
   of. A `layout` job proposes one region per part of the sheet; a person
   corrects the categories, the count and (by dragging on the canvas) the boxes.
 

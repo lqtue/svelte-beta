@@ -4,6 +4,7 @@
   walk keeps its reveal.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import type { StoryPoint } from '$lib/features/stories/shared/types';
 
   export let points: StoryPoint[] = [];
@@ -11,8 +12,8 @@
   export let completedIds: Set<string> = new Set();
 </script>
 
-<div class="itinerary" aria-label="All stops">
-  <h3>Itinerary</h3>
+<div class="itinerary" aria-label={$t('All stops')}>
+  <h3>{$t('Itinerary')}</h3>
   <ol>
     {#each points as pt, i (pt.id)}
       {@const done = completedIds.has(pt.id)}
@@ -25,7 +26,7 @@
         <span class="li-title">
           {#if revealed}{pt.title}{:else}Stop {i + 1} · ???{/if}
         </span>
-        {#if isCur}<span class="badge-chip is-sm chip-blue li-tag">now</span>{/if}
+        {#if isCur}<span class="badge-chip is-sm chip-blue li-tag">{$t('now')}</span>{/if}
       </li>
     {/each}
   </ol>

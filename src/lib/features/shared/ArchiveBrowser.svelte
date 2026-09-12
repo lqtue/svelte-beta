@@ -16,6 +16,7 @@
   layer stack off one bar — passes `search` and `showFilters={false}`.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher, onMount } from 'svelte';
   import {
     createCatalogSearch,
@@ -34,7 +35,7 @@
    *  where an ungeoreferenced scan is exactly what is being looked at.
    *  Ignored when `search` is supplied — the engine already carries it. */
   export let requireGeoref = true;
-  /** When set, only these ids are offered — the /scan?mode=review queue. */
+  /** When set, only these ids are offered — the /scan?mode=shapes&tab=validate queue. */
   export let filterIds: string[] | null = null;
   /** Passed through to the rows; see `ArchiveMapRows`. */
   export let activeIds: string[] | null = null;
@@ -80,7 +81,7 @@
 {#if shownRows.length}
   <ArchiveMapRows rows={shownRows} {activeIds} {badges} {showTypes} on:pick on:remove />
 {:else if !showLabels || !$labels.length}
-  <p class="empty-state empty">No maps match those filters.</p>
+  <p class="empty-state empty">{$t('No maps match those filters.')}</p>
 {/if}
 
 <style>

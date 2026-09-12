@@ -34,10 +34,25 @@ export interface Release {
 
 export const releases: Release[] = [
   {
+    version: '7.1',
+    date: '2026-09-12',
+    headline: 'The volunteer tools, named after the work',
+    current: true,
+    changes: [
+      'The tools for working on a scanned sheet are called what they do: Prepare a sheet, Check the text, Draw shapes. No more "triage" and "OCR".',
+      'Checking the text is now four jobs you can pick between — the names on the map, the printed index, the numbers, and everything else — each showing how many rows are left. Clear all four and the sheet is done.',
+      'Checking the printed legend or the name list frames the table on screen and reads it as a table, in the order the paper prints it.',
+      'Drawing shapes, handing a sheet to the model, and checking what it drew are one page with three tabs instead of three separate pages.',
+      'Every table in the archive sorts the same way and can be sorted from the keyboard. Blank cells stay at the bottom whichever way a column points.',
+      'Tabs look and behave the same everywhere, and can be used from the keyboard. There were five different sets of them.',
+      'Buttons, badges and cards were drawn nine different ways across the site; now there is one of each, in a few sizes. Nothing looks different — there is just far less of it to keep in step.',
+      'Every old link still works.',
+    ],
+  },
+  {
     version: '7.0',
     date: '2026-09-01',
     headline: 'Sixteen pages instead of twenty-three, and a front page that costs nothing',
-    current: true,
     image: {
       src: '/images/changelog/changelog-7.0.webp',
       alt: 'The archive\u2019s front page: a two-tier top bar, the 1882 Plan Cadastral of Saigon over satellite imagery, a search box, and the Today\u20131882 slider pushed to the 1882 end.',

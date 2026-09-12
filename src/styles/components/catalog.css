@@ -93,7 +93,7 @@
   padding: 0.5rem 0;
 }
 
-/* Shared search-box + hero bits (used by /catalog and PageHero) */
+/* Hero bits (PageHero) */
 .hero-content {
   max-width: 600px;
   margin: 0 auto;
@@ -109,25 +109,7 @@
   justify-content: center;
 }
 
-.search-box {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 0.75rem;
-  color: var(--color-text);
-  pointer-events: none;
-  opacity: 0.5;
-}
-
-.catalog-page {
-  min-height: 100vh;
-  background-color: var(--color-bg);
-  background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
-  background-size: 32px 32px;
-  color: var(--color-text);
-  font-family: var(--font-family-base);
-}
+/* No `.search-box`, `.search-icon` or `.catalog-page` rules. This file is
+   loaded by CatalogCard/CatalogGrid, which /catalog does not render — so the
+   page-root and search-field copies here reached nothing, while leaking two
+   unscoped selectors into every page that does mount a card. */

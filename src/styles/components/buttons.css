@@ -1,39 +1,49 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   The button system. Every button definition in the app lives here, except
-   `.sb-btn` (sidebar.css — it runs on the `--sb-*` token scope, not this one).
-   There were two more in tool-sidebar.css until Sept 2026, when that sheet's
-   last speaker moved to `.sb-*` and the sheet was deleted.
+   The button system.
 
-   Three shapes, because three is what the app actually uses:
+   **Two names, because there are two things**, and every other distinction
+   that used to exist here was a context rather than a design:
 
-     PILL     display face, pill radius, hard offset shadow, lifts on hover.
-              The button. Four historical names share one base below:
+     .btn    an action  — "Save", "Open the map viewer", "Delete"
+     .chip   a choice   — a tab, a facet, a filter. `.is-on` when chosen.
 
-                .action-btn   large  — page CTAs        (editorial.css → here)
-                .chip         medium — the default
-                .pill-btn     medium, lighter chrome    (editorial.css → here)
-                .btn          medium, squarer chrome    (admin + dialogs)
+   Both are the same pill. They differ in the six `--btn-*` properties below
+   and nothing else, so the shape is defined once and a look change is a
+   one-line edit.
 
-     DENSE    `.tool-btn` — small, square, flat. Toolbar chrome inside the
-              IIIF tools, where a pill would eat the bar.
+   **One modifier vocabulary**, and it is the one `.sb-btn` / `.sb-pill`
+   already use in sidebar.css, so the two scopes are one thing to learn:
 
-     ICON     `.ctrl-btn` — 48px round. The floating map controls.
-              `.cmp-btn`  — 22px round. The add-to-comparison toggle in a
-                            catalog row; it was defined identically in both
-                            catalog tables until Sept 2026.
+     sizes    .is-xs  .is-sm  .is-lg
+     tones    .is-primary  .is-danger  .is-success  .is-ghost
+     states   .is-on  .is-block  .is-icon
 
-   The four pill names are kept rather than collapsed into one because ~60
-   files use them and a rename would be a diff nobody could review. They now
-   differ only in the six `--btn-*` properties each one sets, so the shape is
-   defined once and a look change is a one-line edit. Prefer `.chip` in new
-   markup. Every variant is rendered on /screens.
+   Sept 2026 — what this replaced, and why none of it was necessary:
+
+     .action-btn        a size            → .btn.is-lg
+     .pill-btn          lighter chrome    → .btn (nothing else set it apart)
+     .btn-outline       white on text     → the default already was that
+     .ctrl-btn          48px round        → .btn.is-icon
+     .cmp-btn           22px round        → .btn.is-icon.is-xs
+     .tool-btn          dense toolbar     → .sb-btn.is-sm (the tool bars run
+                                             on the `--sb-*` scope anyway)
+     .btn-icon-edit/-delete               → .btn.is-icon.is-sm.is-ghost
+     .btn-primary · .chip.primary · .action-btn.primary-btn   → .is-primary
+     .btn-danger  · .chip.danger                              → .is-danger
+     .btn-success · .chip.add                                 → .is-success
+     .btn-ghost   · .chip.ghost                               → .is-ghost
+     .btn-sm / .btn-xs                                        → .is-sm / .is-xs
+     .chip.active                                             → .is-on
+
+   Twenty-seven selectors became eleven. Four tones each had three spellings,
+   which is what made "check every button" a job nobody could finish. Every
+   variant is rendered on /screens, and `tests/screens.spec.ts` fails if a
+   retired name comes back.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Pill: the shared shape ──────────────────────────────────────────────── */
-.chip,
-.action-btn,
-.pill-btn,
-.btn {
+/* ── The pill ────────────────────────────────────────────────────────────── */
+.btn,
+.chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -45,8 +55,8 @@
   line-height: 1.2;
 
   padding: var(--btn-pad, 0.5rem 1rem);
-  background: var(--color-white);
-  color: var(--color-text);
+  background: var(--btn-bg, var(--color-white));
+  color: var(--btn-ink, var(--color-text));
 
   border: var(--btn-border, var(--border-thick));
   border-radius: var(--radius-pill);
@@ -59,15 +69,13 @@
   white-space: nowrap;
   flex-shrink: 0;
   transition:
-    transform 0.1s,
+    filter 0.1s,
     box-shadow 0.1s,
     background-color 0.1s;
 }
 
-.chip:hover:not(:disabled),
-.action-btn:hover:not(:disabled),
-.pill-btn:hover:not(:disabled),
-.btn:hover:not(:disabled) {
+.btn:hover:not(:disabled),
+.chip:hover:not(:disabled) {
   /* Brightness, not a lift: the lift only read as a lift against the shadow
      it uncovered, and brightness works on every colour variant without an
      override fight over `background`. */
@@ -76,63 +84,52 @@
   text-decoration: none;
 }
 
-.chip:active:not(:disabled),
-.action-btn:active:not(:disabled),
-.pill-btn:active:not(:disabled),
-.btn:active:not(:disabled) {
+.btn:active:not(:disabled),
+.chip:active:not(:disabled) {
   filter: brightness(0.9);
+}
+
+.btn:disabled,
+.chip:disabled,
+.btn[aria-disabled='true'],
+.chip[aria-disabled='true'],
+/* A <label> or an <a> dressed as a button has no `:disabled` to answer to, so
+   those two carry the state as a class. */
+.btn.is-disabled,
+.chip.is-disabled {
+  opacity: var(--btn-disabled-opacity, 0.6);
+  cursor: not-allowed;
+  box-shadow: none;
+  pointer-events: none;
 }
 
 .chip:disabled,
 .chip[aria-disabled='true'],
-.action-btn:disabled,
-.pill-btn:disabled,
-.btn:disabled {
-  opacity: var(--btn-disabled-opacity, 0.6);
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
-}
-
-.chip:disabled,
-.chip[aria-disabled='true'] {
+.chip.is-disabled {
   background: var(--color-gray-100);
 }
 
-/* A <label> or an <a> dressed as a button has no `:disabled` to answer to, so
-   those two carry the state as a class. */
-.chip.disabled,
-.action-btn.disabled,
-.pill-btn.disabled,
-.btn.disabled {
-  opacity: var(--btn-disabled-opacity, 0.6);
-  pointer-events: none;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.chip:focus-visible,
-.action-btn:focus-visible,
-.pill-btn:focus-visible,
-.btn:focus-visible {
+.btn:focus-visible,
+.chip:focus-visible {
   /* The focus ring was the hover shadow; with the shadows gone it has to be a
      real outline, or keyboard focus becomes invisible. */
   outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
-/* ── Pill: the four sizes ────────────────────────────────────────────────── */
+/* ── The two faces ───────────────────────────────────────────────────────── */
 
-/* Large page CTA — "Open the map viewer". */
-.action-btn {
-  --btn-text: 1rem;
-  --btn-weight: var(--font-extrabold);
-  --btn-pad: 0.875rem 1.75rem;
-  justify-content: flex-start;
-  width: max-content;
+/* An action. Squarer chrome, the reading face — it is usually next to prose or
+   inside a form, and the display face shouted over both. */
+.btn {
+  --btn-font: var(--font-family-base);
+  --btn-border: var(--border-thin);
+  --btn-pad: 0.6rem 1.2rem;
+  --btn-disabled-opacity: 0.5;
 }
 
-/* Default. */
+/* A choice. The display face, and it fills yellow under the cursor because it
+   is a thing you are about to pick rather than a thing you are about to do. */
 .chip {
   min-height: 2.5rem;
 }
@@ -141,195 +138,91 @@
   color: var(--color-text-on-yellow);
 }
 
-/* Lighter chrome — nav sign-in, small utilities. */
-.pill-btn {
-  --btn-border: var(--border-thin);
-  --btn-shadow: var(--shadow-solid-xs);
-  --btn-shadow-hover: var(--shadow-solid-sm);
+/* ── Sizes ───────────────────────────────────────────────────────────────── */
+.is-lg {
+  --btn-text: 1rem;
+  --btn-weight: var(--font-extrabold);
+  --btn-pad: 0.875rem 1.75rem;
+}
+.is-sm {
+  --btn-text: var(--text-xs);
+  --btn-pad: 0.25rem 0.6rem;
+}
+.is-xs {
+  --btn-text: 0.72rem;
+  --btn-pad: 0.15rem 0.4rem;
+}
+.chip.is-sm,
+.chip.is-xs {
+  min-height: 0;
 }
 
-/* The squarer sibling, for admin surfaces and dialogs. Lived in
-   admin-modals.css until Sept 2026, where six components outside the modals
-   used it without importing it and only rendered because MapEditModal
-   happened to have loaded first. */
-.btn {
-  --btn-font: var(--font-family-base);
-  --btn-border: var(--border-thin);
-  /* Tighter than the rest on purpose: .btn-xs sits inside table rows, where a
-     4px hover shadow would reach into the row below. */
-  --btn-shadow: 1px 1px 0 var(--color-border);
-  --btn-shadow-hover: 2px 2px 0 var(--color-border);
-  --btn-lift: -1px;
-  --btn-pad: 0.6rem 1.2rem;
-  --btn-disabled-opacity: 0.5;
+/* ── Tones ───────────────────────────────────────────────────────────────── */
+.is-primary {
+  --btn-bg: var(--color-blue);
+  --btn-ink: var(--color-on-accent);
+  --btn-border: var(--border-thick);
 }
-
-.btn-sm {
-  padding: 0.25rem 0.6rem !important;
-  font-size: var(--text-xs) !important;
-}
-
-.btn-xs {
-  padding: 0.15rem 0.4rem !important;
-  font-size: 0.72rem !important;
-  line-height: 1.2 !important;
-}
-
-/* ── Pill: variants ─────────────────────────────────────────────────────────
-   Each variant answers to whichever name its markup already uses. */
-
-.chip.primary,
-.action-btn.primary-btn,
-.btn-primary {
-  background: var(--color-blue);
-  color: var(--color-on-accent);
-}
-.chip.primary:hover:not(:disabled) {
+.chip.is-primary:hover:not(:disabled) {
   background: var(--color-primary-700);
   color: var(--color-on-accent);
 }
-.btn-primary {
-  border: var(--border-thick);
+.is-danger {
+  --btn-bg: var(--color-primary);
+  --btn-ink: var(--color-on-accent);
 }
-/* The home and about heroes carry the archive's red on their lead CTA. */
-.action-btn.primary-btn {
-  background: var(--color-primary);
-  color: var(--color-on-accent);
+.is-success {
+  --btn-bg: var(--color-green);
+  --btn-ink: var(--color-on-accent);
 }
-
-.action-btn.secondary-btn,
-.btn-outline {
-  background: var(--color-white);
-  color: var(--color-text);
+.is-ghost {
+  --btn-bg: transparent;
+  --btn-border: 1px solid transparent;
+  --btn-shadow: none;
 }
-
-.chip.add,
-.btn-success {
-  background: var(--color-green);
-  color: var(--color-on-accent);
-}
-
-.chip.danger,
-.btn-danger {
-  background: var(--color-primary);
-  color: var(--color-on-accent);
-}
-
-.chip.ghost,
-.btn-ghost {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-.chip.ghost:hover:not(:disabled) {
-  background: var(--color-gray-100);
-  box-shadow: none;
-  transform: none;
-  text-decoration: underline;
-}
-.btn-ghost {
-  color: var(--color-text);
+.btn.is-ghost {
   opacity: 0.7;
 }
-.btn-ghost:hover:not(:disabled) {
+.btn.is-ghost:hover:not(:disabled) {
   opacity: 1;
   background: var(--color-bg);
 }
+.chip.is-ghost:hover:not(:disabled) {
+  background: var(--color-gray-100);
+  text-decoration: underline;
+}
 
-.chip.active {
-  background: var(--color-text);
-  color: var(--color-white);
+/* The picked one. Same word, same look as `.sb-pill.is-on` and `.sb-btn.is-on`. */
+.is-on {
+  --btn-bg: var(--color-text);
+  --btn-ink: var(--color-white);
+}
+.chip.is-on {
   box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.2);
 }
-
-/* ── Dense: toolbar chrome inside the IIIF tools ─────────────────────────── */
-.tool-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.7rem;
-  border: var(--border-thin);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-family-base);
-  font-size: 0.78rem;
-  font-weight: var(--font-semibold);
-  cursor: pointer;
-  transition: all 0.1s;
-}
-.tool-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-}
-.tool-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-.tool-btn.active {
-  background: var(--color-blue);
-  color: var(--color-on-accent);
-  border-color: var(--color-blue);
-}
-.tool-btn span {
-  white-space: nowrap;
-}
-
-/* ── Icon: the floating map controls ─────────────────────────────────────── */
-.ctrl-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: var(--border-thick);
-  background: var(--color-white);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.1s;
-}
-.ctrl-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-}
-.ctrl-btn:active {
-  filter: brightness(0.9);
-}
-.ctrl-btn.active {
-  background: var(--color-blue);
-  color: var(--color-on-accent);
-}
-
-/* ── Icon: the 22px row toggle ───────────────────────────────────────────────
-   Sits inside a `.data-table` cell, so it carries no shadow and no lift —
-   either would reach into the row below. `.on` is the pressed state. */
-.cmp-btn {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: var(--color-white);
-  color: var(--color-text);
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  font: inherit;
-  font-family: var(--font-family-base);
-  font-size: 0.9rem;
-  font-weight: var(--font-extrabold);
-  line-height: 1;
-  cursor: pointer;
-}
-.cmp-btn:hover {
-  background: var(--sb-accent-yellow);
-}
-.cmp-btn.on {
+.chip.is-on:hover:not(:disabled) {
   background: var(--color-text);
   color: var(--color-white);
-  font-size: 0.75rem;
+}
+
+/* ── Shapes ──────────────────────────────────────────────────────────────── */
+/* Round, and square by default at 48px — the floating map controls. `.is-sm`
+   and `.is-xs` take it down to the row toggle in a catalog table, which is why
+   the size is a var rather than three rules. */
+.is-icon {
+  --btn-size: 48px;
+  width: var(--btn-size);
+  height: var(--btn-size);
+  padding: 0;
+  border-radius: 50%;
+}
+.is-icon.is-sm {
+  --btn-size: 28px;
+}
+.is-icon.is-xs {
+  --btn-size: 22px;
+  font-weight: var(--font-extrabold);
+}
+.is-block {
+  width: 100%;
 }

@@ -8,8 +8,13 @@
     role          — 'user' | 'mod' | 'admin' (controls scout toggle visibility)
 -->
 <script lang="ts">
-  import FacetRail from '$lib/ui/FacetRail.svelte';
+  import { t } from '$lib/core/i18n';
+  import ArchiveFilters from '$lib/features/shared/ArchiveFilters.svelte';
   import CatalogTable from '$lib/features/catalog/CatalogTable.svelte';
+  import MapCard from '$lib/ui/MapCard.svelte';
+  import Tabs from '$lib/ui/Tabs.svelte';
+  import { atWidth } from '$lib/core/iiif/thumbUrl';
+  import { readJson, writeJson } from '$lib/core/utils/persistence/storage';
   import CatalogDetailDrawer from '$lib/features/catalog/CatalogDetailDrawer.svelte';
   import LabelHits from '$lib/features/shared/LabelHits.svelte';
   import { createEventDispatcher, onMount } from 'svelte';
@@ -19,7 +24,7 @@
   export let role: 'user' | 'mod' | 'admin' = 'user';
   /** When true, row clicks dispatch `pick` instead of opening the detail drawer. */
   export let pickMode: boolean = false;
-  /** Compact layout: facet rail collapses to a chip strip, table loses extra cols. Suitable for narrow sidebars. */
+  /** Compact layout: no toolbar, no view switch, the table loses its extra columns. Suitable for narrow sidebars. */
   export let compact: boolean = false;
   /** Highlight this row as the currently-active map. */
   export let activeId: string | null = null;
@@ -47,15 +52,31 @@
     setSingle,
   } = search;
 
-  // Mirror the parent's search box into the engine's query store. This is the
-  // one `$:` here that writes: `searchQuery` is a prop owned by the parent's
-  // text box and the engine's `query` is an external sink that never writes
-  // back, so there is no state to derive and no loop to close.
+  // Mirror the parent's search box into the engine's query store.
   $: query.set(searchQuery);
 
-  onMount(() => search.start());
+  onMount(() => {
+    search.start();
+    // ...and back, because the store is no longer a sink: `ArchiveFilters`'
+    // Reset clears it, and without this the page's own field would keep showing
+    // a query the results had already stopped answering to. The guard is what
+    // stops the pair above and below from ringing.
+    return query.subscribe((v) => {
+      if (v !== searchQuery) searchQuery = v;
+    });
+  });
 
   let openedItem: any | null = null;
+
+  /* List or grid. Two words of state, but the reader who wants pictures wants
+     them every visit, so it is remembered. */
+  const VIEW_KEY = 'vma-catalog-view-v1';
+  $: VIEWS = [
+    { key: 'list', label: $t('List') },
+    { key: 'grid', label: $t('Grid') },
+  ];
+  let view: string = readJson<string>(VIEW_KEY, 'list');
+  $: writeJson(VIEW_KEY, view);
 
   // ── Admin edit: the page owns MapEditModal (catalog UI must not import admin) ──
   /** Re-run the current query (call after an admin edit lands). */
@@ -78,78 +99,62 @@
   $: activeTypes = $selected.type ?? [];
 </script>
 
-<div class="v2-layout" class:compact>
+<div class="cus" class:compact>
+  <!-- The three facets are the same disclosure /explore wears: a page with a
+       left rail of chips put its filters in a column nobody scrolled back up
+       to, and the rail cost the results a third of the page's width. -->
+  <ArchiveFilters {search} showSearch={false} />
+
   {#if !compact}
-    <FacetRail
-      facets={$facets}
-      periods={$periods}
-      bind:selected={$selected}
-      showScoutFacets={$includeScout}
-    />
-  {/if}
-  <div class="v2-results">
-    {#if compact && ($areaChoices.length > 0 || $typeChoices.length > 0)}
-      <div class="v2-selects">
-        {#if $areaChoices.length > 0}
-          <label class="v2-select">
-            <span class="v2-select-label">Show maps of</span>
-            <select
-              value={activeAreas[0] ?? ''}
-              on:change={(e) => {
-                const v = (e.currentTarget as HTMLSelectElement).value;
-                setSingle('area', v);
-              }}
-            >
-              <option value="">All areas</option>
-              {#each $areaChoices as a (a)}
-                <option value={a}>{a}</option>
-              {/each}
-            </select>
-          </label>
-        {/if}
-        {#if $typeChoices.length > 0}
-          <label class="v2-select">
-            <span class="v2-select-label">Type</span>
-            <select
-              value={activeTypes[0] ?? ''}
-              on:change={(e) => {
-                const v = (e.currentTarget as HTMLSelectElement).value;
-                setSingle('type', v);
-              }}
-            >
-              <option value="">All types</option>
-              {#each $typeChoices as t (t)}
-                <option value={t}>{t}</option>
-              {/each}
-            </select>
-          </label>
-        {/if}
-      </div>
-    {/if}
-    {#if !compact}
-      <div class="v2-toolbar">
-        <span class="v2-count">
-          <strong>{$total.maps}</strong> in archive
-          {#if $includeScout}· <strong>{$total.scout}</strong> in scout queue{/if}
-          {#if $loading}<span class="v2-loading">…</span>{/if}
-        </span>
+    <div class="v2-toolbar">
+      <span class="v2-count">
+        {#if $includeScout}{$t('{N} in archive · {M} in scout queue', {
+            N: $total.maps,
+            M: $total.scout,
+          })}{:else}{$t('{N} in archive', { N: $total.maps })}{/if}
+        {#if $loading}<span class="v2-loading">…</span>{/if}
+      </span>
+      <div class="v2-tools">
         {#if role === 'admin' || role === 'mod'}
           <label class="v2-scout-toggle">
-            <input type="checkbox" bind:checked={$includeScout} />
-            Include scout queue
-          </label>
+            <input type="checkbox" bind:checked={$includeScout} />{$t('Include scout queue')}</label
+          >
         {/if}
+        <Tabs
+          tabs={VIEWS}
+          active={view}
+          label={$t('Catalog view')}
+          on:change={(e) => (view = e.detail.key)}
+        />
       </div>
-    {/if}
-    <LabelHits hits={$labels} />
-    {#if $results.length === 0 && $labels.length === 0 && !$loading}
-      <!-- `state-panel`/`state-desc` carry no rule here any more; they are the
-           hooks layouts/catalog.css uses to give /catalog its white card. -->
-      <div class="empty-state is-block state-panel">
-        <h2 class="state-title">Nothing matches.</h2>
-        <p class="state-desc">Try another keyword, or clear a filter and start over.</p>
+    </div>
+  {/if}
+
+  <LabelHits hits={$labels} />
+  {#if $results.length === 0 && $labels.length === 0 && !$loading}
+    <!-- `state-title`/`state-desc` carry no rule here; they are the hooks
+         layouts/catalog.css uses for the two type sizes. The `state-panel`
+         card around them is gone — see that file. -->
+    <div class="empty-state is-block">
+      <h2 class="state-title">{$t('Nothing matches.')}</h2>
+      <p class="state-desc">{$t('Try another keyword, or clear a filter and start over.')}</p>
+    </div>
+  {:else if $results.length}
+    {#if view === 'grid' && !compact}
+      <!-- A card opens the same drawer a row does, so it carries no `href`:
+           the grid is the list in another shape, not a different destination. -->
+      <div class="cus-grid">
+        {#each $results as item (item.id)}
+          <MapCard
+            map={item as any}
+            href={null}
+            thumbnail={atWidth(item.thumbnail, 400)}
+            showSourceBadge
+            on:open={(e) => (pickMode ? dispatch('pick', e.detail) : (openedItem = e.detail))}
+          />
+        {/each}
       </div>
-    {:else if $results.length}
+    {:else}
       <CatalogTable
         items={$results as any}
         {compact}
@@ -159,7 +164,7 @@
         on:facet={handleRowFacet}
       />
     {/if}
-  </div>
+  {/if}
 </div>
 
 {#if !pickMode}
@@ -172,29 +177,28 @@
 {/if}
 
 <style>
-  .v2-layout {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 1.25rem;
-    align-items: start;
-  }
-  .v2-layout.compact {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-  }
-  .v2-layout.compact .v2-toolbar {
-    font-size: 0.78rem;
-    padding: 0.35rem 0.55rem;
-  }
-  .v2-results {
+  /* Top down, one column: filters, then what they filtered. The page was a
+     260px facet rail beside the results until Sept 2026 — a column of chips
+     that cost the table a third of the page and that nobody scrolled back up
+     to touch. The facets are the `.sb-more` disclosure /explore already had. */
+  .cus {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
+  .cus.compact {
+    gap: 0.5rem;
+  }
+  .cus.compact .v2-toolbar {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.55rem;
   }
   .v2-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
     padding: 0.5rem 0.75rem;
     background: var(--color-white);
     border: 1.5px solid var(--color-border);
@@ -202,8 +206,10 @@
     font-family: var(--font-family-base);
     font-size: 0.85rem;
   }
-  .v2-count strong {
-    font-weight: var(--font-extrabold);
+  .v2-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
   }
   .v2-loading {
     margin-left: 0.4rem;
@@ -216,40 +222,14 @@
     font-weight: var(--font-bold);
     cursor: pointer;
   }
-  .v2-selects {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    font-family: var(--font-family-base);
-  }
-  .v2-select {
-    flex: 1 1 140px;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-  .v2-select-label {
-    font-family: var(--font-family-display);
-    font-size: 0.62rem;
-    font-weight: var(--font-extrabold);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--sb-text-meta);
-  }
-  .v2-select select {
-    width: 100%;
-    min-height: 38px;
-    padding: 0.35rem 0.55rem;
-    background: var(--color-white);
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--sb-radius-sm);
-    font: inherit;
-    font-family: var(--font-family-base);
-    font-size: 0.85rem;
-    font-weight: var(--font-bold);
-    color: var(--color-text);
-    cursor: pointer;
+
+  /* `MapCard` carries its own 3px border and 4px drop, so the track is sized
+     for the card rather than the card padded to fill a track. */
+  .cus-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.5rem;
+    padding: 0.25rem 0;
   }
 
   /* The heading keeps its display face; the muted body and the centred block
@@ -260,10 +240,5 @@
     font-size: 1.1rem;
     color: var(--color-text);
     margin: 0.5rem 0;
-  }
-  @media (max-width: 900px) {
-    .v2-layout {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

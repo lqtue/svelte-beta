@@ -23,6 +23,20 @@ export function openPaletteWith(seed: string): void {
   paletteOpen.set(true);
 }
 
+/**
+ * True while a page is showing a search field of its own.
+ *
+ * The home page's hero carries the same field the nav button opens, which put
+ * two entry points to one palette on screen at once — the nav's 700px above its
+ * twin, both captioned ⌘K. The hero's field claims this while it is in view and
+ * gives it back when it scrolls away, so the nav picks the job up exactly where
+ * the page stops doing it.
+ *
+ * A store in `core` for the same reason `paletteOpen` is one: `ui/NavBar` reads
+ * it and the layering rule bars `ui` from importing a route or a feature.
+ */
+export const pageOwnsSearch = writable(false);
+
 /** Zero-argument on purpose: it is used directly as an `on:click` handler. */
 export const openPalette = () => openPaletteWith('');
 export const closePalette = () => paletteOpen.set(false);

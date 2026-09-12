@@ -93,7 +93,7 @@ query anon → draft label absent, typo'd query still hits.
 
 **What exists.** `footprint_submissions.pixel_polygon` + `feature_type`; SAM2 writer fixed
 (C0); `join` job; `/api/export/footprints?format=geojson` **already warps** px→geo via the
-same transformer. `/scan?mode=review` is the HITL.
+same transformer. `/scan?mode=shapes&tab=validate` is the HITL.
 
 **What is missing, in build order.**
 
@@ -155,7 +155,7 @@ compact "In the press, ±10 y" list in the sidebar. /explore only; the SSR share
 not call Gallica per request.
 
 **Later, when someone asks.** Pinning a clipping to a map/point = a `sources` table with
-`status/submitted_by/reviewed_by`, moderated in `/scan?mode=review` like stories.
+`status/submitted_by/reviewed_by`, moderated in `/scan?mode=shapes&tab=validate` like stories.
 *Annuaire* ingestion (merchants by street → L5 POI) is its own project; note only.
 
 **Check.** Unit-level: the query builder emits the expected CQL for a two-word
@@ -192,7 +192,7 @@ Start only after E2 shows stable, reviewed fabric on ≥ 3 maps.
 ## Cross-cutting
 
 - **HITL surfaces already exist** for everything E1–E3 write: OCR → `OcrSidebar`;
-  footprints → `/scan?mode=review`. No new review screens.
+  footprints → `/scan?mode=shapes&tab=validate`. No new review screens.
 - **Every write is a job or an RPC** (Track B rule). New job kinds: none. New RPC:
   `search_labels`. New migration: 065.
 - **Visibility.** Labels and footprints inherit the map's gate: anon sees `public/featured`

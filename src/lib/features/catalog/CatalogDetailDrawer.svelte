@@ -4,6 +4,7 @@
   Open by setting `item`; close fires `close` event (parent should null out the binding).
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 
   export let item: any | null = null;
@@ -62,7 +63,7 @@
   <div class="drawer" role="dialog" aria-label="Map details">
     <header class="drawer-head">
       <h2 class="drawer-title">{item.name}</h2>
-      <button class="ctrl-btn close-btn" on:click={close} aria-label="Close">×</button>
+      <button class="btn is-icon dr-close" on:click={close} aria-label={$t('Close')}>×</button>
     </header>
 
     {#if item.thumbnail}
@@ -99,10 +100,10 @@
         >
       {/if}
       {#if canMap}
-        <a class="chip primary act" href="/explore?map={item.id}">Map</a>
+        <a class="chip is-primary act" href="/explore?map={item.id}">{$t('Map')}</a>
       {/if}
       {#if canImage}
-        <a class="chip act" href="/scan?map={item.id}">Image</a>
+        <a class="chip act" href="/scan?map={item.id}">{$t('Image')}</a>
       {/if}
       {#if canAnnotate}
         <a class="chip act" href="/explore?mode=studio&map={item.id}">✏️ Studio</a>
@@ -112,7 +113,7 @@
       {/if}
       {#if isScout && (item._scout?.source_url || item._scout?.manifest_url)}
         <a
-          class="chip primary act"
+          class="chip is-primary act"
           href={item._scout.source_url || item._scout.manifest_url}
           target="_blank"
           rel="noopener">↗ Open source</a
@@ -165,9 +166,9 @@
     font-size: 1.1rem;
     line-height: 1.25;
   }
-  /* Size only — the round face and hover are `.ctrl-btn`. 32px, not the 48px
+  /* Size only — the round face and hover are `.btn.is-icon`. 32px, not the 48px
      map control: it sits on the drawer's header line beside the title. */
-  .close-btn {
+  .dr-close {
     flex-shrink: 0;
     width: 32px;
     height: 32px;

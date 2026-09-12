@@ -220,40 +220,36 @@
    return something turn the blank box into a demonstration. */
 /* A list, so a screen reader counts the suggestions. Flex already lays them in
    a row; the reset is only there because it is a `<ul>` now. */
+/* One line, not a row of pills. Their job is to say what the field takes — a
+   place, a name off a sheet, a year — and three bordered targets said it with
+   the weight of three more controls, beside a field that is already the
+   largest thing in the column. The words are still buttons: same click, same
+   keyboard, same palette. */
 .home-page .hero-tries {
   pointer-events: auto;
   margin: 0.7rem 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: baseline;
-  gap: 0.4rem;
   font-family: var(--font-family-base);
   font-size: 0.85rem;
-}
-
-.home-page .hero-tries-label {
   color: color-mix(in srgb, var(--color-text) 65%, transparent);
 }
 
 .home-page .hero-try {
-  padding: 0.15rem 0.55rem;
+  padding: 0;
   background: none;
-  border: var(--border-thin);
-  border-radius: var(--radius-pill);
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: 600;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
   color: var(--color-text);
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--color-text) 35%, transparent);
+  transition: text-decoration-color 0.15s ease;
 }
 
 .home-page .hero-try:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
+  text-decoration-color: currentColor;
 }
 
 /* The opacity slider. No plate: it lives in the masthead column, on the same
@@ -410,8 +406,8 @@
   font-weight: 400;
 }
 
-/* No `.action-btn` rule here: this page re-declared the whole pill — shape,
-   chrome, brightness hover and the red `.primary-btn` face — on top of the one
+/* No pill rule here: this page re-declared the whole thing — shape, chrome,
+   brightness hover and the red lead-CTA face — on top of the one
    in components/buttons.css, which already paints all of it. */
 
 /* States. The placeholder itself — padding, centring and the muted ink — is
@@ -631,7 +627,7 @@
   .home-page .footer-links-group {
     justify-content: space-between;
   }
-  .home-page .action-btn {
+  .home-page .is-lg {
     width: 100%;
   }
 }

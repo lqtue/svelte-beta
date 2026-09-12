@@ -9,8 +9,9 @@
   Tools ▾:  Map viewer /explore | Inspect a scan /scan
             Story Builder /explore?mode=story | Studio /explore?mode=studio
             ── Contribute /contribute | Georeference /contribute/georef
-               OCR & Triage /scan?mode=triage | Trace buildings /scan?mode=trace
-            ── Review queue /scan?mode=review (mod) | Admin /admin (mod)
+               Prepare a sheet /scan?mode=prepare | Check the text /scan?mode=text
+               Shapes /scan?mode=shapes
+            ── Admin /admin (mod)
                Design system /screens (admin)
             ── All pages /directory
 
@@ -24,17 +25,18 @@
 
   Mobile (<=640px): hamburger → bottom-anchored drawer with flat link list.
 
-  Styles use editorial.css globals (.top-nav, .nav-logo, .nav-links, .nav-link, .pill-btn).
+  Styles use editorial.css globals (.top-nav, .nav-logo, .nav-links, .nav-link) and `.btn`.
   Dropdown + drawer styles live here (scoped).
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { onMount } from 'svelte';
 
   import type { ClientSession } from '$lib/data/supabase/context';
 
   import NavDropdown from './NavDropdown.svelte';
   import { page } from '$app/stores';
-  import { openPalette } from '$lib/core/utils/commandPalette';
+  import { openPalette, pageOwnsSearch } from '$lib/core/utils/commandPalette';
   import { theme, setTheme, nextTheme, themeLabel } from '$lib/core/utils/theme';
 
   // ui/ is domain-free (layering rule): the layout that mounts NavBar passes
@@ -42,11 +44,27 @@
   export let session: ClientSession | null = null;
   export let role: string | null = null;
 
-  let isVietnamese = false;
   let drawerOpen = false;
   /** ⌘K on a Mac, Ctrl K everywhere else. Corrected after hydration, not at
       init: a server-rendered text node is reused as it stands. */
   let paletteKey = '⌘K';
+
+  /**
+   * Two things the front page does better than the bar does, so the bar stops
+   * doing them there:
+   *
+   * `$pageOwnsSearch` — the hero carries the same field this button opens.
+   * While that field is on screen there is no reason to offer a second one;
+   * the moment it scrolls away this takes the job back.
+   *
+   * `quietCta` — "Open the map" is the only red thing on the front page, which
+   * means the loudest element on screen is chrome rather than content, and it
+   * outranks both the wordmark and the title. The hero *is* the map, and its
+   * slider is the gesture the page exists to show. Everywhere else the red is
+   * right: the reader is reading, and the map is the thing to go and do.
+   */
+  $: isHome = $page.url.pathname === '/';
+  $: quietCta = isHome;
 
   function closeDrawer() {
     drawerOpen = false;
@@ -57,7 +75,6 @@
   }
 
   onMount(() => {
-    isVietnamese = document.cookie.includes('googtrans=/en/vi');
     if (!/mac/i.test(navigator.platform ?? '')) paletteKey = 'Ctrl K';
     // app.html already put the attribute on <html>; this only re-syncs the
     // store with what it wrote, in case this is a fresh document.
@@ -99,28 +116,43 @@
 
   <!-- Desktop links: what you read stays in the bar -->
   <div class="nav-links">
-    <a href="/catalog" class="nav-link" class:active={activeCatalog}>Catalog</a>
-    <a href="/about" class="nav-link" class:active={activeAbout}>About</a>
-    <a href="/blog" class="nav-link" class:active={activeBlog}>Blog</a>
+    <a href="/catalog" class="nav-link" class:active={activeCatalog}>{$t('Catalog')}</a>
+    <a href="/about" class="nav-link" class:active={activeAbout}>{$t('About')}</a>
+    <a href="/blog" class="nav-link" class:active={activeBlog}>{$t('Blog')}</a>
 
     <NavDropdown label="Tools" active={activeTools}>
-      <a href="/explore" class="dropdown-item" on:click={closeDrawer}>Map viewer</a>
-      <a href="/scan" class="dropdown-item" on:click={closeDrawer}>Inspect a scan</a>
-      <a href="/explore?mode=story" class="dropdown-item" on:click={closeDrawer}>Story Builder</a>
+      <a href="/explore" class="dropdown-item" on:click={closeDrawer}>{$t('Map viewer')}</a>
+      <a href="/scan" class="dropdown-item" on:click={closeDrawer}>{$t('Inspect a scan')}</a>
+      <a href="/explore?mode=story" class="dropdown-item" on:click={closeDrawer}
+        >{$t('Story Builder')}</a
+      >
       <a href="/explore?mode=studio" class="dropdown-item" on:click={closeDrawer}>Studio</a>
 
       <span class="dropdown-rule" role="separator"></span>
-      <a href="/contribute" class="dropdown-item" on:click={closeDrawer}>Contribute</a>
-      <a href="/contribute/georef" class="dropdown-item" on:click={closeDrawer}>Georeference</a>
-      <a href="/scan?mode=triage" class="dropdown-item" on:click={closeDrawer}>OCR &amp; Triage</a>
-      <a href="/scan?mode=trace" class="dropdown-item" on:click={closeDrawer}>Trace buildings</a>
+      <a href="/contribute" class="dropdown-item" on:click={closeDrawer}>{$t('Contribute')}</a>
+      <a href="/contribute/georef" class="dropdown-item" on:click={closeDrawer}
+        >{$t('Georeference')}</a
+      >
+      <a href="/scan?mode=prepare" class="dropdown-item" on:click={closeDrawer}
+        >{$t('Prepare a sheet')}</a
+      >
+      <a href="/scan?mode=text" class="dropdown-item" on:click={closeDrawer}
+        >{$t('Check the text')}</a
+      >
+      <a href="/scan?mode=shapes" class="dropdown-item" on:click={closeDrawer}
+        >{$t('Draw shapes')}</a
+      >
 
       {#if isStaff}
         <span class="dropdown-rule" role="separator"></span>
-        <a href="/scan?mode=review" class="dropdown-item" on:click={closeDrawer}>Review queue</a>
-        <a href="/admin?tab=status" class="dropdown-item" on:click={closeDrawer}>Admin console</a>
+        <a href="/scan?mode=shapes&amp;tab=validate" class="dropdown-item" on:click={closeDrawer}>
+          {$t('Review queue')}
+        </a>
+        <a href="/admin?tab=status" class="dropdown-item" on:click={closeDrawer}
+          >{$t('Admin console')}</a
+        >
         {#if role === 'admin'}
-          <a href="/screens" class="dropdown-item" on:click={closeDrawer}>Design system</a>
+          <a href="/screens" class="dropdown-item" on:click={closeDrawer}>{$t('Design system')}</a>
         {/if}
       {/if}
 
@@ -131,7 +163,15 @@
 
   <!-- Auth + utils -->
   <div class="nav-auth">
-    <button type="button" class="nav-search" on:click={openPalette} title="Search ({paletteKey})">
+    <button
+      type="button"
+      class="nav-search"
+      class:is-hidden={$pageOwnsSearch}
+      on:click={openPalette}
+      title="Search ({paletteKey})"
+      tabindex={$pageOwnsSearch ? -1 : 0}
+      aria-hidden={$pageOwnsSearch}
+    >
       <svg
         width="16"
         height="16"
@@ -144,7 +184,7 @@
       >
         <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
       </svg>
-      <span class="nav-search-label">Search</span>
+      <span class="nav-search-label">{$t('Search')}</span>
       <kbd class="nav-search-kbd">{paletteKey}</kbd>
     </button>
     <button
@@ -190,9 +230,9 @@
     </button>
     <!-- The one action the whole site is for. It is inside `Tools ▾` as well,
          but a menu is somewhere to look and this is somewhere to click. -->
-    <a href="/explore" class="chip nav-cta">Open the map</a>
+    <a href="/explore" class="chip nav-cta" class:is-quiet={quietCta}>{$t('Open the map')}</a>
     {#if session}
-      <a href="/profile" class="avatar-pill" title="Your profile">
+      <a href="/profile" class="avatar-pill" title={$t('Your profile')}>
         {#if avatarUrl}
           <img src={avatarUrl} alt={displayName} class="avatar-img" />
         {:else}
@@ -200,7 +240,11 @@
         {/if}
       </a>
     {:else}
-      <a href="/login" class="pill-btn signin-link">Sign in</a>
+      <!-- Ghost, not another outlined pill: with the front page's CTA quiet the
+           two sat side by side as twins and neither read as the action. Signing
+           in is a utility — it belongs with the theme toggle, not with "open
+           the map". -->
+      <a href="/login" class="btn is-ghost signin-link">{$t('Sign in')}</a>
     {/if}
   </div>
 
@@ -208,7 +252,7 @@
   <button
     class="hamburger"
     type="button"
-    aria-label="Open menu"
+    aria-label={$t('Open menu')}
     aria-expanded={drawerOpen}
     on:click={() => (drawerOpen = !drawerOpen)}
   >
@@ -219,10 +263,15 @@
 <!-- ─── Mobile drawer ────────────────────────────────────────────── -->
 {#if drawerOpen}
   <div class="drawer-overlay" role="presentation" on:click={closeDrawer}></div>
-  <div class="drawer" role="dialog" aria-modal="true" aria-label="Navigation">
+  <div class="drawer" role="dialog" aria-modal="true" aria-label={$t('Navigation')}>
     <div class="drawer-header">
       <span class="nav-logo">VMA</span>
-      <button class="drawer-close" type="button" aria-label="Close menu" on:click={closeDrawer}>
+      <button
+        class="drawer-close"
+        type="button"
+        aria-label={$t('Close menu')}
+        on:click={closeDrawer}
+      >
         <svg
           width="20"
           height="20"
@@ -238,40 +287,52 @@
     </div>
 
     <nav class="drawer-nav">
-      <a href="/catalog" class="drawer-link" on:click={closeDrawer}>Catalog</a>
-      <a href="/about" class="drawer-link" on:click={closeDrawer}>About</a>
-      <a href="/blog" class="drawer-link" on:click={closeDrawer}>Blog</a>
+      <a href="/catalog" class="drawer-link" on:click={closeDrawer}>{$t('Catalog')}</a>
+      <a href="/about" class="drawer-link" on:click={closeDrawer}>{$t('About')}</a>
+      <a href="/blog" class="drawer-link" on:click={closeDrawer}>{$t('Blog')}</a>
 
-      <p class="drawer-section-label">Tools</p>
-      <a href="/explore" class="drawer-link" on:click={closeDrawer}>Map viewer</a>
-      <a href="/scan" class="drawer-link" on:click={closeDrawer}>Inspect a scan</a>
-      <a href="/explore?mode=story" class="drawer-link" on:click={closeDrawer}>Story Builder</a>
+      <p class="drawer-section-label">{$t('Tools')}</p>
+      <a href="/explore" class="drawer-link" on:click={closeDrawer}>{$t('Map viewer')}</a>
+      <a href="/scan" class="drawer-link" on:click={closeDrawer}>{$t('Inspect a scan')}</a>
+      <a href="/explore?mode=story" class="drawer-link" on:click={closeDrawer}
+        >{$t('Story Builder')}</a
+      >
       <a href="/explore?mode=studio" class="drawer-link" on:click={closeDrawer}>Studio</a>
 
-      <p class="drawer-section-label">Contribute</p>
-      <a href="/contribute" class="drawer-link" on:click={closeDrawer}>Where to start</a>
-      <a href="/contribute/georef" class="drawer-link" on:click={closeDrawer}>Georeference</a>
-      <a href="/scan?mode=triage" class="drawer-link" on:click={closeDrawer}>OCR &amp; Triage</a>
-      <a href="/scan?mode=trace" class="drawer-link" on:click={closeDrawer}>Trace buildings</a>
+      <p class="drawer-section-label">{$t('Contribute')}</p>
+      <a href="/contribute" class="drawer-link" on:click={closeDrawer}>{$t('Where to start')}</a>
+      <a href="/contribute/georef" class="drawer-link" on:click={closeDrawer}
+        >{$t('Georeference')}</a
+      >
+      <a href="/scan?mode=prepare" class="drawer-link" on:click={closeDrawer}
+        >{$t('Prepare a sheet')}</a
+      >
+      <a href="/scan?mode=text" class="drawer-link" on:click={closeDrawer}>{$t('Check the text')}</a
+      >
+      <a href="/scan?mode=shapes" class="drawer-link" on:click={closeDrawer}>{$t('Draw shapes')}</a>
 
       {#if isStaff}
-        <p class="drawer-section-label">Staff</p>
-        <a href="/scan?mode=review" class="drawer-link" on:click={closeDrawer}>Review queue</a>
-        <a href="/admin?tab=status" class="drawer-link" on:click={closeDrawer}>Admin console</a>
+        <p class="drawer-section-label">{$t('Staff')}</p>
+        <a href="/scan?mode=shapes&amp;tab=validate" class="drawer-link" on:click={closeDrawer}>
+          {$t('Review queue')}
+        </a>
+        <a href="/admin?tab=status" class="drawer-link" on:click={closeDrawer}
+          >{$t('Admin console')}</a
+        >
         {#if role === 'admin'}
-          <a href="/screens" class="drawer-link" on:click={closeDrawer}>Design system</a>
+          <a href="/screens" class="drawer-link" on:click={closeDrawer}>{$t('Design system')}</a>
         {/if}
       {/if}
 
-      <p class="drawer-section-label">Everything</p>
-      <a href="/directory" class="drawer-link" on:click={closeDrawer}>All pages</a>
+      <p class="drawer-section-label">{$t('Everything')}</p>
+      <a href="/directory" class="drawer-link" on:click={closeDrawer}>{$t('All pages')}</a>
     </nav>
 
     <div class="drawer-footer">
       {#if session}
-        <a href="/profile" class="drawer-link" on:click={closeDrawer}>Your profile</a>
+        <a href="/profile" class="drawer-link" on:click={closeDrawer}>{$t('Your profile')}</a>
       {:else}
-        <a href="/login" class="pill-btn signin-link" on:click={closeDrawer}>Sign in</a>
+        <a href="/login" class="btn signin-link" on:click={closeDrawer}>{$t('Sign in')}</a>
       {/if}
     </div>
   </div>
@@ -280,6 +341,14 @@
 <style>
   /* Search opener. Reads as a field on desktop so people look for it there,
      and collapses to the icon before the nav links start wrapping. */
+  /* Not `display: none`: the bar would reflow as the reader scrolled past the
+     hero field and everything to its left would jump. It keeps its box and
+     stops being visible or reachable. */
+  .nav-search.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .nav-search {
     display: inline-flex;
     align-items: center;
@@ -385,9 +454,9 @@
   }
 
   /* ── Auth controls ── */
+  /* `.is-ghost` supplies the face; only the link reset is local. */
   .signin-link {
     text-decoration: none;
-    background: var(--color-white);
   }
 
   .avatar-pill {

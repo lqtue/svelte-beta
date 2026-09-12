@@ -8,6 +8,7 @@
   way out: suggest a map, or jump back to Saigon (which has dense coverage).
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
 
   export let userLocation: [number, number] | null = null;
@@ -20,13 +21,14 @@
 </script>
 
 <div class="card">
-  <strong class="title">No archival map of this exact spot — yet.</strong>
+  <strong class="title">{$t('No archival map of this exact spot — yet.')}</strong>
   <p class="hint">
-    VMA's archive doesn't yet hold a map covering your point. Browse the full archive for maps
-    elsewhere, or suggest a source we should add.
+    {$t(
+      "VMA's archive doesn't yet hold a map covering your point. Browse the full archive for maps elsewhere, or suggest a source we should add."
+    )}
   </p>
   <div class="actions">
-    <a class="sb-btn is-primary" href={scoutHref}>Suggest a map here</a>
+    <a class="sb-btn is-primary" href={scoutHref}>{$t('Suggest a map here')}</a>
     <button type="button" class="sb-btn" on:click={() => dispatch('jumpToSaigon')}>
       Jump to Saigon
     </button>

@@ -7,6 +7,7 @@
   slots so each tool keeps its own copy.
 -->
 <script lang="ts" generics="T extends { id: string; title: string }">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import '$styles/components/library.css';
   import PageHero from './PageHero.svelte';
@@ -79,7 +80,7 @@
     <svelte:fragment slot="title"><slot name="title" /></svelte:fragment>
     <div slot="actions">
       {#if showCreate}
-        <button type="button" class="action-btn primary-btn" on:click={openCreate}
+        <button type="button" class="btn is-lg is-primary" on:click={openCreate}
           >{createLabel}</button
         >
       {/if}
@@ -92,7 +93,7 @@
     {#if loading}
       <div class="empty-state is-block library-loading">
         <div class="spinner"></div>
-        <span>Loading…</span>
+        <span>{$t('Loading…')}</span>
       </div>
     {:else if items.length === 0}
       <div class="empty-state is-block library-empty">
@@ -113,7 +114,7 @@
         <h2 class="empty-title">{emptyTitle}</h2>
         <p class="empty-text">{emptyText}</p>
         {#if showCreate}
-          <button type="button" class="action-btn primary-btn" on:click={openCreate}>
+          <button type="button" class="btn is-lg is-primary" on:click={openCreate}>
             <svg
               width="18"
               height="18"
@@ -143,7 +144,7 @@
               {#if showItemActions}
                 <button
                   type="button"
-                  class="btn-icon-edit"
+                  class="btn is-icon is-sm is-ghost is-edit"
                   title="Rename"
                   on:click|stopPropagation={() => openRename(item)}
                 >
@@ -162,8 +163,8 @@
                 </button>
                 <button
                   type="button"
-                  class="btn-icon-delete"
-                  title="Delete"
+                  class="btn is-icon is-sm is-ghost is-delete"
+                  title={$t('Delete')}
                   on:click|stopPropagation={() => confirmRemove(item)}
                 >
                   <svg

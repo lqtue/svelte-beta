@@ -83,11 +83,11 @@ The group in parentheses is the SvelteKit layout group, not part of the URL. Bot
 | `/explore?mode=story` | (app) | `CreateMode.svelte` | auth |
 | `/trip/[id]` | (app) | `+page.svelte` + `TripPlayback` | none |
 | `/scan` | (app) | `+page.svelte` + `ImageShell` | none |
-| `/scan?mode=triage` | (app) | `+page.svelte` + `TriageTool` / `OcrBboxTool` / `SegSidebar` | auth |
-| `/scan?mode=trace` | (app) | `+page.svelte` + `TraceTool` | auth |
-| `/scan?mode=review` | (app) | `+page.svelte` + `ReviewPage` | mod/admin |
+| `/scan?mode=prepare` | (app) | `+page.svelte` + `DigitalizePage` + `TriageTool` | auth |
+| `/scan?mode=text` | (app) | `+page.svelte` + `DigitalizePage` + `OcrBboxTool` | auth |
+| `/scan?mode=shapes` | (app) | `+page.svelte` + `ShapesPage` + `TraceTool` / `SegSidebar` / `ReviewTool` | auth; Validate is mod/admin |
 
-Every route is in one of the two groups — `/scan?mode=review` moved into `(app)` in Aug 2026.
+Every route is in one of the two groups — the footprint review moved into `(app)` in Aug 2026, and became `?mode=shapes&tab=validate` in Sept.
 
 **Redirects** are a table, not stub pages. `LEGACY_REDIRECTS` in `src/hooks.server.ts` issues a 301 with the query string preserved:
 
@@ -95,9 +95,9 @@ Every route is in one of the two groups — `/scan?mode=review` moved into `(app
 - `/annotate`, `/studio` → `/explore?mode=annotate`
 - `/create` → `/explore?mode=story`
 - `/image` → `/scan`
-- `/contribute/label`, `/contribute/digitalize` → `/scan?mode=triage`
-- `/contribute/trace` → `/scan?mode=trace`
-- `/contribute/review` → `/scan?mode=review`
+- `/contribute/label`, `/contribute/digitalize` → `/scan?mode=prepare`
+- `/contribute/trace` → `/scan?mode=shapes`
+- `/contribute/review` → `/scan?mode=shapes&tab=validate`
 - `/admin/bulk|scout|status` → `/admin?tab=…`
 
 `LEGACY_PREFIXES` handles the two that carry an id rather than a fixed name:
@@ -142,7 +142,7 @@ The shared classes (`.editorial-hero`, `.editorial-main`, `.section-card`, `.lab
 
 ### IIIF-canvas tool
 
-`/scan`, `/scan?mode=triage`, `/scan?mode=trace`, `/scan?mode=review`, plus `NeatlineEditor` inside the admin modal.
+`/scan`, `/scan?mode=prepare`, `/scan?mode=text`, `/scan?mode=shapes`, plus `NeatlineEditor` inside the admin modal.
 
 These use `ImageShell` (static image extent, pixel coordinates) and the shared sidebar frame `ToolSidebarShell` + `ToolMapPicker`. They do **not** use MapShell or the global map stores. CSS: `src/styles/layouts/tool-page.css` + `src/styles/components/sidebar.css` — one sidebar vocabulary, `.sb-*`. `components/tool-sidebar.css` held a second one (`.tool-*`) until Sept 2026; its last speaker was `TriageSidebar` and the sheet is gone.
 

@@ -1,10 +1,13 @@
 <!--
-  SegSidebar.svelte — the Segmentation phase panel of /scan?mode=triage.
+  SegSidebar.svelte — the Segment tab of /scan?mode=shapes.
 
   Shows the pipeline stage, the gate to the next stage, the MapSAM2 command
   configuration, and the Colab command itself. Segmentation runs on a GPU
   elsewhere, so this panel is a launcher and a status readout — it never
   starts anything itself.
+
+  It sat in `?mode=triage` beside the OCR steps until Sept 2026, which put the
+  machine that draws shapes in the mode that reads words.
 
   `compact` is the mobile drawer variant: stage badge + command only.
 -->
@@ -62,7 +65,9 @@
         <p class="seg-hint">Ready. Run the Colab command below, then come back here.</p>
       {/if}
     {:else if stage === 'seg_done' || stage === 'seg_reviewed'}
-      <a class="sb-btn is-block" href="/scan?mode=review&map={mapId}"> Review footprints &rarr; </a>
+      <a class="sb-btn is-block" href="/scan?mode=shapes&tab=validate&map={mapId}">
+        Review footprints &rarr;
+      </a>
     {:else if stage === 'idle'}
       <p class="seg-hint">
         Finish OCR review first. The segmentation step needs validated toponyms to run.

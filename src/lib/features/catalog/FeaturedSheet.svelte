@@ -8,6 +8,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { MapListItem } from '$lib/data/maps/types';
+  import { atWidth } from '$lib/core/iiif/thumbUrl';
 
   export let maps: MapListItem[] = [];
   /** IIIF thumbnail URLs the page already resolved, keyed by map id. */
@@ -23,17 +24,6 @@
 
   function smallSrc(m: MapListItem): string | undefined {
     return thumbnails.get(m.id) ?? m.thumbnail ?? undefined;
-  }
-
-  /**
-   * The same IIIF image at a chosen width. Both URL shapes we hold
-   * (`/full/,400/` from the annotation, `/full/800,/` from the DB column) end in
-   * the same three segments, so swapping the size is a string edit.
-   * ponytail: regex over parsing the IIIF URL; the <img> falls back to the
-   * stored one on error, which is the only failure this can cause.
-   */
-  function atWidth(src: string | undefined, width: number): string | undefined {
-    return src?.replace(/\/full\/[^/]+\/(\d+)\/(\w+)\.(\w+)$/, `/full/${width},/$1/$2.$3`);
   }
 
   /** The plate: the one image on the page worth its own request. */
@@ -127,7 +117,7 @@
         <p class="fs-desc" class:fs-desc-stand-in={!selected.dc_description}>{blurb}</p>
 
         <div class="fs-actions">
-          <a class="chip primary" href="/explore?map={selected.id}">Open in the viewer</a>
+          <a class="chip is-primary" href="/explore?map={selected.id}">Open in the viewer</a>
           <a class="chip" href="/catalog/{selected.id}">Record</a>
           {#if selected.source_url}
             <a
@@ -400,7 +390,7 @@
     font-weight: var(--font-semibold);
   }
 
-  /* Not `.cmp-btn`: its `.on` fills the button, and a favourite here reads as
+  /* Not the row toggle: its `.is-on` fills the button, and a favourite here reads as
      a filled heart glyph on the same white face. */
   .fs-fav {
     position: absolute;

@@ -13,7 +13,8 @@ import type { ClientSession } from '$lib/data/supabase/context';
  */
 export const load: LayoutServerLoad = async ({ locals }) => {
   const { session, user } = await locals.safeGetSession();
-  if (!session || !user) return { session: null, user: null };
+  const locale = locals.locale;
+  if (!session || !user) return { session: null, user: null, locale };
   const client: ClientSession = { expires_at: session.expires_at, user };
-  return { session: client, user };
+  return { session: client, user, locale };
 };

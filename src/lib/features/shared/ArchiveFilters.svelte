@@ -18,11 +18,15 @@
   folds them out of the way, and its summary carries how many are set.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import type { CatalogSearchController } from '$lib/features/shared/catalogSearch';
 
   /** The search engine this bar drives. Created by the caller, because the
    *  point of the component is that several lists can share one. */
   export let search: CatalogSearchController;
+  /** Draw the search box. /catalog turns it off: its own field is the page's
+   *  `.sb-search.is-page`, at the top of the page above everything. */
+  export let showSearch = true;
 
   const { query, areaChoices, typeChoices, periodChoices, selected } = search;
 
@@ -41,30 +45,37 @@
 </script>
 
 <div class="filters">
-  <label class="sb-search">
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.5"
-      stroke-linecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-    <input class="sb-search-input" type="search" placeholder="Search maps…" bind:value={$query} />
-    {#if $query}
-      <button
-        type="button"
-        class="sb-search-clear"
-        on:click={() => query.set('')}
-        aria-label="Clear">×</button
+  {#if showSearch}
+    <label class="sb-search">
+      <svg
+        viewBox="0 0 24 24"
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        aria-hidden="true"
       >
-    {/if}
-  </label>
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input
+        class="sb-search-input"
+        type="search"
+        placeholder={$t('Search maps…')}
+        bind:value={$query}
+      />
+      {#if $query}
+        <button
+          type="button"
+          class="sb-search-clear"
+          on:click={() => query.set('')}
+          aria-label={$t('Clear')}>×</button
+        >
+      {/if}
+    </label>
+  {/if}
   <details class="sb-more">
     <summary
       >Filters{#if activeFacets}
@@ -77,7 +88,7 @@
           on:change={(e) => search.setSingle('area', (e.currentTarget as HTMLSelectElement).value)}
           aria-label="Filter by area"
         >
-          <option value="">All areas</option>
+          <option value="">{$t('All areas')}</option>
           {#each $areaChoices as a (a)}
             <option value={a}>{a}</option>
           {/each}
@@ -89,7 +100,7 @@
           on:change={(e) => search.setSingle('type', (e.currentTarget as HTMLSelectElement).value)}
           aria-label="Filter by map type"
         >
-          <option value="">All types</option>
+          <option value="">{$t('All types')}</option>
           {#each $typeChoices as t (t)}
             <option value={t}>{t}</option>
           {/each}
@@ -102,9 +113,9 @@
             search.setSingle('period', (e.currentTarget as HTMLSelectElement).value)}
           aria-label="Filter by period"
         >
-          <option value="">All periods</option>
+          <option value="">{$t('All periods')}</option>
           {#each $periodChoices as p (p.key)}
-            <option value={p.key}>{p.label}</option>
+            <option value={p.key}>{$t(p.label)}</option>
           {/each}
         </select>
       {/if}
@@ -114,7 +125,7 @@
 
 {#if hasFilters}
   <div class="reset-row">
-    <button type="button" class="reset" on:click={resetFilters}>Reset filters</button>
+    <button type="button" class="reset" on:click={resetFilters}>{$t('Reset filters')}</button>
   </div>
 {/if}
 
@@ -131,8 +142,12 @@
     flex-wrap: wrap;
     padding-top: 0.3rem;
   }
+  /* `max-width` because the same three controls now sit on a 1280px page as
+     well as in a 300px rail: without it each one grew to 400px of chrome around
+     two words. The 110px basis is still what makes them wrap in the rail. */
   .dropdowns select {
     flex: 1 1 110px;
+    max-width: 240px;
     padding: 0.35rem 0.45rem;
     font-family: inherit;
     font-size: 0.82rem;

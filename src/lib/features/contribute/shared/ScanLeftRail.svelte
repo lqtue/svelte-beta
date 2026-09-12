@@ -16,6 +16,11 @@
   rule set. There is no draggable splitter here: the layers card is two or three
   rows, so there is nothing to trade height with.
 
+  `mode` puts the mode switcher in the rail's footer, one place for all three
+  staff modes. Left unset — which is how `?mode=inspect` mounts it — there is no
+  switcher: inspect is the public read-only mode and the other three want a
+  session, so an anonymous reader is not offered three doors that ask for one.
+
   Slots:
     default — extra cards under Layers, for a mode with left-rail content of
               its own. Wrap it in a `SidebarCard` to match the two above.
@@ -24,6 +29,7 @@
   import { createEventDispatcher } from 'svelte';
   import ToolSidebarShell from './ToolSidebarShell.svelte';
   import ToolMapPicker from './ToolMapPicker.svelte';
+  import Tabs from '$lib/ui/Tabs.svelte';
   import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
   import type { LabelMapInfo } from '$lib/data/supabase/footprints';
   import '$styles/layouts/tool-page.css';
@@ -40,6 +46,14 @@
    *  grid becomes readable over dense ink. */
   export let imageOpacity = 1;
   export let onCollapse: (() => void) | null = null;
+  /** Which /scan mode is open, for the footer switcher. '' hides it. */
+  export let mode: 'prepare' | 'text' | 'shapes' | '' = '';
+
+  const SCAN_MODES = [
+    { key: 'prepare', label: 'Prepare', href: '/scan?mode=prepare' },
+    { key: 'text', label: 'Text', href: '/scan?mode=text' },
+    { key: 'shapes', label: 'Shapes', href: '/scan?mode=shapes' },
+  ];
 
   const dispatch = createEventDispatcher<{
     select: { map: LabelMapInfo };
@@ -49,7 +63,7 @@
   }>();
 </script>
 
-<ToolSidebarShell title="Map" {onCollapse}>
+<ToolSidebarShell title="Map" {onCollapse} showFooter={!!mode}>
   <div class="rail-cards">
     <SidebarCard title="Browse the archive" grow={1} flush={true}>
       <ToolMapPicker {selectedMapId} {maps} {requireGeoref} on:select on:loaded on:error />
@@ -86,6 +100,10 @@
          `SidebarCard` if you want one. -->
     <slot />
   </div>
+
+  <svelte:fragment slot="footer">
+    <Tabs tone="rail" label="Scan modes" tabs={SCAN_MODES} active={mode} />
+  </svelte:fragment>
 </ToolSidebarShell>
 
 <style>

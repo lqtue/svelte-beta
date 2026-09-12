@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import type { PageData } from './$types';
@@ -8,9 +9,9 @@
   import { loadFavorites, resolveThumbnails } from '$lib/features/catalog/homeCatalog';
   import FeaturedSheet from '$lib/features/catalog/FeaturedSheet.svelte';
   import HeroDemo from '$lib/features/explore/HeroDemo.svelte';
-  import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
+  import Tabs from '$lib/ui/Tabs.svelte';
   import PaletteSearchField from '$lib/ui/PaletteSearchField.svelte';
-  import { openPaletteWith } from '$lib/core/utils/commandPalette';
+  import { openPaletteWith, pageOwnsSearch } from '$lib/core/utils/commandPalette';
   import { tweenValue } from '$lib/core/utils/tween';
   import '$styles/layouts/home.css';
 
@@ -286,6 +287,32 @@
 
   onMount(loadReaderData);
   onMount(sweepHeroSlider);
+
+  /**
+   * The hero's field and the nav's Search button open the same palette, and for
+   * the height of the masthead both were on screen at once, 700px apart, both
+   * captioned ⌘K. This claims the job while the hero's field is in view and
+   * hands it back the moment it scrolls off, so there is one entry point at
+   * any given scroll position rather than two.
+   *
+   * An observer rather than a scroll handler: the question is literally "is
+   * this element visible", the browser answers it without a listener running
+   * on every frame, and it stays right if the masthead's height changes.
+   */
+  let heroSearch: HTMLElement | undefined;
+  onMount(() => {
+    if (!heroSearch || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => pageOwnsSearch.set(e.isIntersecting), {
+      // The field has to be properly gone, not merely clipped at the top edge,
+      // or the two swap back and forth while the reader scrolls through it.
+      threshold: 0.6,
+    });
+    io.observe(heroSearch);
+    return () => {
+      io.disconnect();
+      pageOwnsSearch.set(false);
+    };
+  });
   onMount(() => {
     if (!/mac/i.test(navigator.platform ?? '')) paletteKey = 'Ctrl K';
   });
@@ -295,7 +322,7 @@
      URL people actually paste — the root — rendered as a bare link everywhere,
      while `/catalog/[id]` posted a proper card. Same tags, same shape. -->
 <svelte:head>
-  <title>Vietnam Map Archive — historical maps of Vietnam, open and georeferenced</title>
+  <title>{$t('Vietnam Map Archive — historical maps of Vietnam, open and georeferenced')}</title>
   <meta name="description" content={metaDescription} />
   <link rel="canonical" href={canonical} />
   <meta property="og:type" content="website" />
@@ -330,7 +357,9 @@
     <div
       class="hero-stills"
       role="img"
-      aria-label="The 1882 cadastral survey of Saigon laid over the modern city, fading between the two"
+      aria-label={$t(
+        'The 1882 cadastral survey of Saigon laid over the modern city, fading between the two'
+      )}
     >
       <img
         class="hero-still"
@@ -361,31 +390,39 @@
          credit has to be too. The live map below gets OL's own attribution
          control; a still image has no such thing. -->
     <p class="hero-credit">
-      Imagery © Esri, Maxar, Earthstar Geographics · Sheet: Plan Cadastral de Saïgon, 1882
+      {$t('Imagery © Esri, Maxar, Earthstar Geographics · Sheet: Plan Cadastral de Saïgon, 1882')}
     </p>
     <div class="hero-content on-ink-plate">
       <h1 class="hero-title">
         Vietnam<br /><span class="text-highlight">Map Archive</span>
       </h1>
       <p class="hero-subtitle">
-        {mapCount} sheets of Saigon, Huế and Hanoi — 1791 to 1968 — laid back over the ground they drew.
+        {$t(
+          '{N} sheets of Saigon, Huế and Hanoi — 1791 to 1968 — laid back over the ground they drew.',
+          {
+            N: mapCount,
+          }
+        )}
       </p>
       <!-- The field is a paper plate sitting on the masthead's dark ground, so
            `on-light-plate` inside the component keeps it off the paper ink. -->
-      <PaletteSearchField kbd={paletteKey} />
+      <div bind:this={heroSearch}>
+        <PaletteSearchField kbd={paletteKey} />
+      </div>
 
-      <!-- A list, not a paragraph: four buttons in a row are four items, and a
-           screen reader should be able to say how many there are. -->
-      <ul class="hero-tries" aria-label="Searches to try">
-        <li class="hero-tries-label" aria-hidden="true">Try</li>
-        {#each HERO_TRIES as term (term)}
-          <li>
-            <button type="button" class="hero-try" on:click={() => openPaletteWith(term)}>
-              {term}
-            </button>
-          </li>
-        {/each}
-      </ul>
+      <!-- One sentence, not three pills. Their job is to say what the field
+           takes — a place, a name off a sheet, a year — and three pill-shaped
+           targets said it with the weight of three more controls, next to a
+           field that is already the largest thing in the column. Still three
+           buttons for a screen reader and for the keyboard; they just stopped
+           looking like the page's main event. -->
+      <p class="hero-tries">
+        Try {#each HERO_TRIES as term, i (term)}<button
+            type="button"
+            class="hero-try"
+            on:click={() => openPaletteWith(term)}>{term}</button
+          >{i < HERO_TRIES.length - 2 ? ', ' : i === HERO_TRIES.length - 2 ? ' or ' : ''}{/each}
+      </p>
 
       <!-- The archive's whole gesture in one control: drag from today back to
            1882. It is in the column, not on a plate over the map, so it shares
@@ -393,7 +430,7 @@
            a matching `clamp()`. Two images and an opacity — no map, no
            JavaScript beyond the bind. -->
       <label class="hero-fade">
-        <span>Today</span>
+        <span>{$t('Today')}</span>
         <input
           type="range"
           min="0"
@@ -402,7 +439,7 @@
           bind:value={heroSheet}
           on:pointerdown={() => (heroTouched = true)}
           on:keydown={() => (heroTouched = true)}
-          aria-label="How much of the 1882 sheet to show"
+          aria-label={$t('How much of the 1882 sheet to show')}
         />
         <span>1882</span>
       </label>
@@ -414,24 +451,25 @@
     <section class="home-section" id="catalog">
       <div class="section-head">
         <div class="section-head-text">
-          <h2 class="feature-title">The Catalog</h2>
+          <h2 class="feature-title">{$t('The Catalog')}</h2>
           <p class="feature-description">
-            A featured sheet, whole. Pick another below, then open it in the viewer to lay it over
-            today's city, or inspect the high-resolution IIIF scan up close. Each record links back
-            to the library or collection that holds it.
+            {$t(
+              "A featured sheet, whole. Pick another below, then open it in the viewer to lay it over today's city, or inspect the high-resolution IIIF scan up close. Each record links back to the library or collection that holds it."
+            )}
           </p>
         </div>
         <!-- Only a signed-in reader has favorites, and the tab used to be there
              for everyone else too — a second tab whose whole content was a note
              saying to sign in. -->
         {#if session}
-          <ChunkyTabs
+          <Tabs
+            label={$t('Which sheets')}
             tabs={[
-              { value: 'featured', label: 'Featured' },
-              { value: 'favorites', label: 'Favorites' },
+              { key: 'featured', label: 'Featured' },
+              { key: 'favorites', label: 'Favorites' },
             ]}
             active={filterCollection}
-            on:change={(e) => (filterCollection = e.detail as typeof filterCollection)}
+            on:change={(e) => (filterCollection = e.detail.key as typeof filterCollection)}
           />
         {/if}
       </div>
@@ -439,11 +477,11 @@
       <!-- No loading state for the featured set: it is in the HTML. Favorites
            are the only thing this page still waits for. -->
       {#if filterCollection === 'favorites' && loadingFavorites}
-        <p class="empty-state is-block">Opening the archive…</p>
+        <p class="empty-state is-block">{$t('Opening the archive…')}</p>
       {:else if filterCollection === 'favorites' && displayedMaps.length === 0}
         <div class="empty-state is-block">
-          <h3>No favorites yet.</h3>
-          <p>Heart any map and it lands here, on every device you sign in from.</p>
+          <h3>{$t('No favorites yet.')}</h3>
+          <p>{$t('Heart any map and it lands here, on every device you sign in from.')}</p>
         </div>
       {:else if displayedMaps.length > 0}
         <FeaturedSheet
@@ -455,17 +493,17 @@
         />
       {:else}
         <div class="empty-state is-block">
-          <h3>Nothing here yet.</h3>
-          <p>No maps match this view — try another tab or the catalog.</p>
+          <h3>{$t('Nothing here yet.')}</h3>
+          <p>{$t('No maps match this view — try another tab or the catalog.')}</p>
         </div>
       {/if}
 
       <div class="action-footer">
         <div class="footer-links-group">
-          <a href="/catalog" class="text-link">Browse the catalog</a>
-          <a href="/scan" class="text-link">Inspect a scan</a>
+          <a href="/catalog" class="text-link">{$t('Browse the catalog')}</a>
+          <a href="/scan" class="text-link">{$t('Inspect a scan')}</a>
         </div>
-        <a href="/explore" class="action-btn primary-btn">Open the map</a>
+        <a href="/explore" class="btn is-lg is-primary">{$t('Open the map')}</a>
       </div>
     </section>
 
@@ -488,78 +526,87 @@
     <div class="home-band">
       <section class="band-col" id="tools">
         <h2 class="band-title">
-          Tools <span class="fun-badge">Beta</span>
+          {$t('Tools')} <span class="fun-badge">Beta</span>
         </h2>
         <p class="band-desc">
-          Build something on top of the archive — a scrollytelling story across historical layers,
-          or your own points, lines and shapes on a sheet.
+          {$t(
+            'Build something on top of the archive — a scrollytelling story across historical layers, or your own points, lines and shapes on a sheet.'
+          )}
         </p>
         <div class="micro-links">
           <a href="/explore?mode=story" class="micro-link-card">
             <span class="mlc-body">
-              <span class="mlc-title">Story Builder</span>
-              <span class="mlc-desc">Walk readers through a place, one layer at a time</span>
+              <span class="mlc-title">{$t('Story Builder')}</span>
+              <span class="mlc-desc">{$t('Walk readers through a place, one layer at a time')}</span
+              >
             </span>
           </a>
           <a href="/explore?mode=studio" class="micro-link-card">
             <span class="mlc-body">
               <span class="mlc-title">Studio</span>
-              <span class="mlc-desc">Draw on any map and save it as a set</span>
+              <span class="mlc-desc">{$t('Draw on any map and save it as a set')}</span>
             </span>
           </a>
         </div>
       </section>
 
       <section class="band-col" id="contribute">
-        <h2 class="band-title">Contribute</h2>
+        <h2 class="band-title">{$t('Contribute')}</h2>
         <p class="band-desc">
-          The archive is built by volunteers, and there are not many of us yet. Your name stays on
-          what you submit, and all of it is meant to be released openly.
+          {$t(
+            'The archive is built by volunteers, and there are not many of us yet. Your name stays on what you submit, and all of it is meant to be released openly.'
+          )}
         </p>
         <div class="micro-links">
-          <a href="/scan?mode=triage" class="micro-link-card">
+          <a href="/scan?mode=prepare" class="micro-link-card">
             <span class="mlc-body">
-              <span class="mlc-title">OCR &amp; Triage</span>
-              <span class="mlc-desc">Crop a neatline, check the toponyms the pipeline pulled</span>
+              <span class="mlc-title">{$t('Prepare a sheet')}</span>
+              <span class="mlc-desc"
+                >{$t('Crop a neatline, check the toponyms the pipeline pulled')}</span
+              >
             </span>
           </a>
-          <a href="/scan?mode=trace" class="micro-link-card">
+          <a href="/scan?mode=shapes" class="micro-link-card">
             <span class="mlc-body">
-              <span class="mlc-title">Trace buildings</span>
-              <span class="mlc-desc">Outline buildings, roads and waterways</span>
+              <span class="mlc-title">{$t('Trace buildings')}</span>
+              <span class="mlc-desc">{$t('Outline buildings, roads and waterways')}</span>
             </span>
           </a>
           <a href="/contribute/georef" class="micro-link-card">
             <span class="mlc-body">
-              <span class="mlc-title">Georeference</span>
-              <span class="mlc-desc">Pin a scan to real coordinates in the Allmaps Editor</span>
+              <span class="mlc-title">{$t('Georeference')}</span>
+              <span class="mlc-desc"
+                >{$t('Pin a scan to real coordinates in the Allmaps Editor')}</span
+              >
             </span>
           </a>
         </div>
       </section>
 
       <section class="band-col">
-        <h2 class="band-title">About the project</h2>
+        <h2 class="band-title">{$t('About the project')}</h2>
         <p class="band-desc">
-          Volunteers put those sheets on the ground they drew. Reading the names off them and
-          tracing what they show is where the work goes next: the aim is to get the buildings and
-          street names out of Vietnam's colonial-era maps and into open data, with a person checking
-          the machine's work. The 1882 cadastral survey of Saigon is where it starts, and where most
-          of the work so far sits. Everything published will be CC-BY / ODbL.
+          {$t(
+            "Volunteers put those sheets on the ground they drew. Reading the names off them and tracing what they show is where the work goes next: the aim is to get the buildings and street names out of Vietnam's colonial-era maps and into open data, with a person checking the machine's work. The 1882 cadastral survey of Saigon is where it starts, and where most of the work so far sits. Everything published will be CC-BY / ODbL."
+          )}
         </p>
-        <a href="/about" class="info-link">What's actually done →</a>
+        <a href="/about" class="info-link">{$t("What's actually done →")}</a>
       </section>
 
       <section class="band-col">
-        <h2 class="band-title">Where things stand</h2>
+        <h2 class="band-title">{$t('Where things stand')}</h2>
         <p class="band-note">{STATS.snapshot}</p>
         <p class="band-desc">
-          The OCR pass has read {STATS.labels} distinct place names off six sheets, of which
-          {STATS.labelsChecked} have been checked by a person — so that queue has barely started.
-          {STATS.footprints} building outlines have been traced on the 1882 cadastral survey, and none
-          are approved yet. The last written update was in May.
+          {$t(
+            'The OCR pass has read {N} distinct place names off six sheets, {M} of which have been checked by a person — so that queue has barely started.',
+            { N: STATS.labels, M: STATS.labelsChecked }
+          )}
+          {$t(
+            '{N} building outlines have been traced on the 1882 cadastral survey, and none are approved yet. The last written update was in May.',
+            { N: STATS.footprints }
+          )}
         </p>
-        <a href="/blog" class="info-link">All updates →</a>
+        <a href="/blog" class="info-link">{$t('All updates →')}</a>
       </section>
     </div>
 
@@ -567,12 +614,14 @@
          The reader who got this far is the likeliest to act, and until now the
          page handed them a footer. Same field as the hero, same one CTA. -->
     <section class="home-cta">
-      <h2 class="home-cta-title">What will you find?</h2>
+      <h2 class="home-cta-title">{$t('What will you find?')}</h2>
       <p class="home-cta-sub">
-        Most people come for one street and stay for the city. {mapCount} sheets, 1791 to 1968.
+        {$t('Most people come for one street and stay for the city. {N} sheets, 1791 to 1968.', {
+          N: mapCount,
+        })}
       </p>
       <PaletteSearchField variant="home-cta-search" />
-      <a href="/explore" class="action-btn home-cta-btn on-light-plate">Open the map</a>
+      <a href="/explore" class="btn is-lg home-cta-btn on-light-plate">{$t('Open the map')}</a>
     </section>
   </main>
 </div>

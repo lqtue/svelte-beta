@@ -26,6 +26,7 @@
   belonged to no tab.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import type { ViewMode } from '$lib/map/types';
   import type { MapListItem } from '$lib/data/maps/types';
@@ -33,6 +34,7 @@
   import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
   import TopSheetActions from '$lib/features/shared/TopSheetActions.svelte';
   import PlaceSearchBar from '$lib/features/shared/PlaceSearchBar.svelte';
+  import Tabs from '$lib/ui/Tabs.svelte';
   import { LABEL_ZOOM } from '$lib/features/explore/exploreUrl';
 
   const dispatch = createEventDispatcher<{
@@ -139,7 +141,7 @@
 
 <aside class="sb-rail is-right" data-tour="controls">
   <div class="sb-bar">
-    <span class="sb-bar-title">This sheet</span>
+    <span class="sb-bar-title">{$t('This sheet')}</span>
     <button
       type="button"
       class="sb-btn is-icon is-ghost"
@@ -186,24 +188,21 @@
     </button>
   </div>
 
-  <div class="sb-pill-row sb-rail-tabs" role="tablist">
-    {#each TABS as t (t.key)}
-      <button
-        type="button"
-        class="sb-pill is-compact"
-        class:is-on={tab === t.key}
-        role="tab"
-        aria-selected={tab === t.key}
-        on:click={() => (tab = t.key)}>{t.label}</button
-      >
-    {/each}
+  <div class="sb-rail-tabs">
+    <Tabs
+      tone="rail"
+      label="Sheet panes"
+      tabs={TABS}
+      active={tab}
+      on:change={(e) => (tab = e.detail.key as Tab)}
+    />
   </div>
 
   <div class="sb-rail-body">
     <SidebarCard grow={1} flush={true} padded={tab !== 'control'}>
       {#if tab === 'info'}
         {#if !map}
-          <p class="sb-empty">Add a map layer to see its details.</p>
+          <p class="sb-empty">{$t('Add a map layer to see its details.')}</p>
         {:else}
           <h3 class="if-name">{map.name}</h3>
           <TopSheetActions
@@ -226,25 +225,25 @@
               <!-- No catalogue-page link here: that is TopSheetActions' Share,
                    a few rows up the same tab. -->
               <a class="sb-btn is-sm" href={map.source_url} target="_blank" rel="noopener">
-                Holding library
+                {$t('Holding library')}
               </a>
             </div>
           {/if}
         {/if}
       {:else if tab === 'legend'}
         {#if !mapId}
-          <p class="sb-empty">Add a map layer to read its legend.</p>
+          <p class="sb-empty">{$t('Add a map layer to read its legend.')}</p>
         {:else if legendLoading}
-          <p class="sb-empty">Reading the legend…</p>
+          <p class="sb-empty">{$t('Reading the legend…')}</p>
         {:else if legendRows.length === 0}
-          <p class="sb-empty">This sheet has no numbered legend.</p>
+          <p class="sb-empty">{$t('This sheet has no numbered legend.')}</p>
         {:else}
           <button
             type="button"
             class="sb-btn is-sm is-block"
             class:is-on={showLegendPoints}
             on:click={() => dispatch('toggleLegendPoints')}
-            title="Show numbered legend references on the map"
+            title={$t('Show numbered legend references on the map')}
           >
             {showLegendPoints ? 'Legend points on' : 'Show legend points'}
           </button>

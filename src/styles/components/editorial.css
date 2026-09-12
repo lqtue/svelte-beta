@@ -63,13 +63,21 @@
 .nav-cta {
   min-height: 2.1rem;
   font-size: 0.85rem;
-  /* The archive's red, same as the lead CTA on the home and about heroes —
-     `.chip.primary` is blue, which would make three colours of "the one
-     action" on a single page. */
-  background: var(--color-primary);
-  color: var(--color-on-accent);
 }
-.nav-cta:hover:not(:disabled) {
+
+/* The archive's red, same as the lead CTA on the home and about heroes —
+   `.chip.is-primary` is blue, which would make three colours of "the one
+   action" on a single page.
+
+   `.is-quiet` takes it off on the front page, which is why the red is written
+   as the exception rather than as the rule with an override on top: there the
+   hero *is* the map and its slider is the gesture the page exists to show, so
+   a red pill in the bar was the loudest thing on screen and it was chrome —
+   it outranked the wordmark and the title both. Quiet, it falls back to the
+   plain `.chip` face, which is still the first control after the links and
+   still says what it does. */
+.nav-cta:not(.is-quiet),
+.nav-cta:not(.is-quiet):hover:not(:disabled) {
   background: var(--color-primary);
   color: var(--color-on-accent);
 }
@@ -313,11 +321,39 @@
 /* ----------------------------------------
    SECTION CARD — white card with thick border + shadow
    ---------------------------------------- */
+/* The card. Two sizes, and they are the only two the app was actually using:
+   the large editorial one and a smaller one for a column of them (the blog
+   grid, a post's sidebar, the subscribe nudge). Four page-locked cards —
+   `.post-card`, `.subscribe-card`, `.sidebar-card` and `.profile-card` — were
+   this rule re-typed with a different padding, in four files, in Sept 2026.
+
+   `--card-pad` is the knob, so a caller that wants 1.5rem sets one property
+   instead of declaring a fifth card. */
 .section-card {
   background: var(--color-white);
   border: var(--border-thick);
   border-radius: var(--radius-lg);
-  padding: 2.5rem;
+  padding: var(--card-pad, 2.5rem);
+  box-shadow: var(--shadow-solid);
+}
+/* The column size: smaller radius, lighter shadow. */
+.section-card.is-sm {
+  --card-pad: 2rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-solid-sm);
+}
+/* A card that lifts because the whole of it is a link. */
+.section-card.is-link {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.section-card.is-link:hover {
+  transform: translate(-3px, -3px);
   box-shadow: var(--shadow-solid);
 }
 .section-card-header {

@@ -377,7 +377,7 @@
           </select>
         </label>
         <div class="datum-actions">
-          <button class="btn btn-outline" on:click={applyDatumCorrection}>Apply correction</button>
+          <button class="btn" on:click={applyDatumCorrection}>Apply correction</button>
           {#if datumApplied}
             <span class="datum-ok">✓ Coordinates updated — review then save</span>
           {/if}
@@ -389,7 +389,7 @@
       {#if saveMsg}
         <span class="save-msg" class:save-error={saveMsg.startsWith('Error')}>{saveMsg}</span>
       {/if}
-      <button class="btn btn-primary" on:click={handleSave} disabled={saving}>
+      <button class="btn is-primary" on:click={handleSave} disabled={saving}>
         {saving ? 'Saving…' : 'Save GCPs'}
       </button>
     </div>

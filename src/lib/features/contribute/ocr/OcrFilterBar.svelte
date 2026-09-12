@@ -1,28 +1,17 @@
 <!--
-  OcrFilterBar.svelte — the confidence floor + category chips above the OCR
+  OcrFilterBar.svelte — the confidence floor + category chips above the text
   review table. Filtering is client-side, so every value is bound straight back
   to the sidebar rather than round-tripping through the API.
 
-  The top row is the sheet's own layout — Map · Legend · Names · Title, read
-  off `maps.triage.regions`. That is the axis a reviewer actually works along:
-  checking the numbered legend is one job and checking street names is another,
-  and the OCR categories cut across both (the printed index alone contributed
-  719 `street` rows on the 1942 sheet, none of them marks on the map). Only the
-  parts a sheet has get a pill.
-
-  The categories are still there, folded into one `<details class="sb-more">` —
-  the same disclosure the /explore rail's facets use. They are the exception
-  now, not the first thing reached for.
+  The axis a reviewer works along is the **job** (Names · Index · Numbers ·
+  Other), and those are the tabs at the foot of the panel — see `jobs.ts`. This
+  bar is what refines one job: the confidence floor, the suspect chip, and the
+  categories folded into one `<details class="sb-more">`, the same disclosure
+  the /explore rail's facets use. `hint` is the open job's own one-liner, so the
+  bar says what is being checked rather than leaving it to the tab label.
 -->
 <script lang="ts">
   import { OCR_CATEGORIES, CAT_COLORS } from '../shared/constants';
-  import { createEventDispatcher } from 'svelte';
-  import { REGION_LABELS, type RegionKey } from './regionFilter';
-
-  // An event, not `bind:` — choosing a part moves the canvas, and a two-way
-  // binding gives the parent no moment to act on. It also fired on mount and on
-  // every `regions` change, which reset the left rail's OCR-boxes toggle.
-  const dispatch = createEventDispatcher<{ regionChange: { key: RegionKey | '' } }>();
 
   /** Minimum confidence, 0–1. */
   export let minConf = 0;
@@ -34,10 +23,8 @@
   export let suspectCount = 0;
   /** Rows per category in the loaded set. Empty means "show every chip". */
   export let counts: Record<string, number> = {};
-  /** Parts of the sheet the loaded rows fall in, with their row counts. */
-  export let regions: { key: RegionKey; count: number }[] = [];
-  /** The selected part, '' for the whole sheet. Read-only — see `dispatch`. */
-  export let region: RegionKey | '' = '';
+  /** What the open job asks the reviewer to check. */
+  export let hint = '';
 
   $: shownCats = Object.keys(counts).length
     ? OCR_CATEGORIES.filter((cat) => counts[cat])
@@ -56,28 +43,10 @@
     <span class="filter-label">Conf ≥ {(minConf * 100).toFixed(0)}%</span>
     <input type="range" min="0" max="1" step="0.05" bind:value={minConf} class="conf-slider" />
   </div>
+  {#if hint}
+    <p class="job-hint">{hint}</p>
+  {/if}
   <div class="cat-toggles">
-    {#if regions.length > 1}
-      <button
-        type="button"
-        class="region-pill"
-        class:active={region === ''}
-        on:click={() => dispatch('regionChange', { key: '' })}
-      >
-        Whole sheet
-      </button>
-      {#each regions as part (part.key)}
-        <button
-          type="button"
-          class="region-pill"
-          class:active={region === part.key}
-          on:click={() => dispatch('regionChange', { key: part.key })}
-        >
-          {REGION_LABELS[part.key]}
-          {part.count}
-        </button>
-      {/each}
-    {/if}
     {#if suspectCount > 0}
       <button
         type="button"
@@ -119,6 +88,14 @@
 </div>
 
 <style>
+  /* Type and spacing only; the ink is the panel's. */
+  .job-hint {
+    margin: 0;
+    font-size: 0.7rem;
+    line-height: 1.35;
+    color: var(--sb-text-meta);
+  }
+
   .ocr-filters {
     padding: 0.6rem 0.75rem;
     background: var(--color-white);
@@ -152,24 +129,6 @@
   }
   /* The sheet's parts read as tabs over the table, not as more chips: they are
      one choice, where the categories below are many. */
-  .region-pill {
-    background: none;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    padding: 0.1rem 0.35rem 0.2rem;
-    font-size: 0.7rem;
-    font-weight: var(--font-semibold);
-    color: var(--color-text);
-    opacity: 0.5;
-    cursor: pointer;
-  }
-  .region-pill:hover {
-    opacity: 0.85;
-  }
-  .region-pill.active {
-    opacity: 1;
-    border-bottom-color: var(--color-primary);
-  }
   .bulk-link {
     background: none;
     border: none;

@@ -11,6 +11,7 @@
   one `ArchiveFilters` wears on the left rail, so the two crowns match.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
   import LocationSearch from '$lib/ui/LocationSearch.svelte';
 
@@ -51,8 +52,11 @@
       bind:value={query}
     />
     {#if query}
-      <button type="button" class="sb-search-clear" on:click={() => (query = '')} aria-label="Clear"
-        >×</button
+      <button
+        type="button"
+        class="sb-search-clear"
+        on:click={() => (query = '')}
+        aria-label={$t('Clear')}>×</button
       >
     {/if}
   </label>

@@ -5,9 +5,14 @@
   interactive lives one click away in /explore?map=<id>.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import PageHero from '$lib/ui/PageHero.svelte';
   import { onMount } from 'svelte';
-  import { allmapsTileUrl, allmapsEditorSourceUrl } from '$lib/core/iiif/annotationUrl';
+  import {
+    allmapsTileUrl,
+    allmapsEditorSourceUrl,
+    ohmEditorUrl,
+  } from '$lib/core/iiif/annotationUrl';
   import { placeHref } from '$lib/core/utils/placeKey';
 
   import { getSupabaseContext } from '$lib/data/supabase/context';
@@ -61,13 +66,7 @@
   $: tileSource = map.annotation_url ?? map.allmaps_id;
   $: tileUrl = map.georef_done && tileSource ? allmapsTileUrl(tileSource) : null;
   $: bbox = (map.bbox ?? null) as number[] | null;
-  $: ohmUrl =
-    tileUrl &&
-    'https://www.openhistoricalmap.org/edit#background=custom:' +
-      tileUrl +
-      (bbox?.length === 4
-        ? `&map=${Math.max(10, Math.min(18, Math.round(Math.log2(360 / Math.max(bbox[2] - bbox[0], 1e-4)))))}/${((bbox[1] + bbox[3]) / 2).toFixed(5)}/${((bbox[0] + bbox[2]) / 2).toFixed(5)}`
-        : '');
+  $: ohmUrl = tileUrl && ohmEditorUrl(tileUrl, bbox);
 
   // Reopening a published sheet's control points. Staff only: an edit in the
   // Allmaps Editor lands on annotations.allmaps.org, which is what every map
@@ -141,34 +140,36 @@
       <!-- A map that has not been georeferenced cannot be laid on the world, but it
          is still a scanned map we host: /scan opens it in the IIIF viewer. The
          label already said "viewer"; only the destination was missing. -->
-      <a class="pill-btn" href={map.georef_done ? `/explore?map=${map.id}` : `/scan?map=${map.id}`}>
+      <a class="btn" href={map.georef_done ? `/explore?map=${map.id}` : `/scan?map=${map.id}`}>
         {map.georef_done ? 'Open on the map' : 'Open in the viewer'}
       </a>
-      <a class="pill-btn" href="/catalog">Browse the archive</a>
+      <a class="btn" href="/catalog">{$t('Browse the archive')}</a>
       {#if map.source_url}
-        <a class="pill-btn" href={map.source_url} target="_blank" rel="noopener noreferrer">
-          View the original at {map.holding_institution ?? sourceHost}
+        <a class="btn" href={map.source_url} target="_blank" rel="noopener noreferrer">
+          {$t('View the original at {institution}', {
+            institution: map.holding_institution ?? sourceHost,
+          })}
         </a>
       {/if}
     </div>
 
     {#if tileUrl}
       <section class="share-trace">
-        <h2>Trace this sheet in OpenHistoricalMap</h2>
+        <h2>{$t('Trace this sheet in OpenHistoricalMap')}</h2>
         <p>
-          The sheet is served as warped map tiles, so it can sit under the OpenHistoricalMap editor
-          while you draw. The button opens the editor with it already set as the background; if the
-          editor does not pick it up, add it by hand under Background → Custom with this URL.
+          {$t(
+            'The sheet is served as warped map tiles, so it can sit under the OpenHistoricalMap editor while you draw. The button opens the editor with it already set as the background; if the editor does not pick it up, add it by hand under Background → Custom with this URL.'
+          )}
         </p>
         <div class="share-actions">
-          <a class="pill-btn" href={ohmUrl} target="_blank" rel="noopener"
-            >Open in OpenHistoricalMap</a
+          <a class="btn" href={ohmUrl} target="_blank" rel="noopener"
+            >{$t('Open in OpenHistoricalMap')}</a
           >
-          <button class="pill-btn" type="button" on:click={copyTileUrl}>
+          <button class="btn" type="button" on:click={copyTileUrl}>
             {copied ? 'Copied' : 'Copy tile URL'}
           </button>
           {#if canFixGeoref && editorUrl}
-            <a class="pill-btn" href={editorUrl} target="_blank" rel="noopener">
+            <a class="btn" href={editorUrl} target="_blank" rel="noopener">
               Fix georeference in Allmaps
             </a>
           {/if}
@@ -191,15 +192,16 @@
 
     {#if places.length}
       <section class="share-places">
-        <h2>Places named on this sheet</h2>
+        <h2>{$t('Places named on this sheet')}</h2>
         <ul>
           {#each places as p (p.name_key)}
             <li><a href={placeHref(p.name_key)}>{p.name}</a></li>
           {/each}
         </ul>
         <p class="share-places-note">
-          Read by optical character recognition from the sheet itself, then corrected by hand where
-          a reviewer has reached it.
+          {$t(
+            'Read by optical character recognition from the sheet itself, then corrected by hand where a reviewer has reached it.'
+          )}
         </p>
       </section>
     {/if}

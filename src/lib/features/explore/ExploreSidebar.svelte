@@ -22,11 +22,13 @@
   two were identical scoped copies until they drifted into two heights.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher, onMount } from 'svelte';
   import type { ViewMode } from '$lib/map/types';
   import type { MapListItem } from '$lib/data/maps/types';
   import { layersStore } from '$lib/map/stores/layersStore';
   import ArchiveFilters from '$lib/features/shared/ArchiveFilters.svelte';
+  import Tabs from '$lib/ui/Tabs.svelte';
   import LayerStackPanel from '$lib/features/shared/LayerStackPanel.svelte';
   import SidebarCard from '$lib/features/shared/SidebarCard.svelte';
   import ExploreBrowsePanel from './ExploreBrowsePanel.svelte';
@@ -56,9 +58,20 @@
     { key: 'all', label: 'All' },
     { key: 'picked', label: 'Picked' },
   ];
+  // Labels are translated at render, not at definition: the array is a const
+  // and the locale can change under it.
+  $: localisedTabs = TABS.map((row) => ({ ...row, label: $t(row.label) }));
   /** Which tab is showing. Bound by the page so the product tour can point at
    *  the pane its step describes. */
   export let tab: Tab = 'all';
+
+  /** Picked carries the size of the stack; a count reads better on the tab than
+   *  in the pane, because it is the reason to go there. */
+  $: tabsWithCount = localisedTabs.map((row) =>
+    row.key === 'picked' && stackedMapIds.length
+      ? { ...row, label: `${row.label} ${stackedMapIds.length}` }
+      : row
+  );
 
   /**
    * Arriving with sheets already on the map — a share link's `?map=`, or the
@@ -140,21 +153,14 @@
     <ArchiveFilters {search} />
   </div>
 
-  <div class="sb-pill-row sb-rail-tabs" role="tablist">
-    {#each TABS as t (t.key)}
-      <button
-        type="button"
-        class="sb-pill is-compact"
-        class:is-on={tab === t.key}
-        role="tab"
-        aria-selected={tab === t.key}
-        on:click={() => chooseTab(t.key)}
-      >
-        {t.label}{#if t.key === 'picked' && stackedMapIds.length}<span class="tab-count"
-            >&nbsp;{stackedMapIds.length}</span
-          >{/if}
-      </button>
-    {/each}
+  <div class="sb-rail-tabs">
+    <Tabs
+      tone="rail"
+      label="Archive panes"
+      tabs={tabsWithCount}
+      active={tab}
+      on:change={(e) => chooseTab(e.detail.key as Tab)}
+    />
   </div>
 
   <div class="sb-rail-body" data-tour={tab === 'all' ? 'browse' : 'layers'}>
@@ -184,7 +190,4 @@
 <style>
   /* The count rides the pill's own ink in both states, so it needs no colour
      of its own — only steady digit widths. */
-  .tab-count {
-    font-variant-numeric: tabular-nums;
-  }
 </style>

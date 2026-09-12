@@ -14,7 +14,7 @@
 
 <button
   type="button"
-  class="tool-btn sidebar-toggle"
+  class="sb-btn is-sm sidebar-toggle"
   on:click={onClick}
   title={collapsed ? `Show ${labelShow.toLowerCase()}` : 'Hide'}
 >

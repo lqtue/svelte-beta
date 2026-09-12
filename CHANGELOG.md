@@ -12,8 +12,8 @@ match. So the hand-drawn HTML app keeps **1.x–2.x**, the SvelteKit rewrite kee
 **3.x**, and everything after that continues from `v3.3` — the last number
 anyone wrote down.
 
-Versions 6.0 and 7.0 are written out in full, because that is the architecture
-that exists today. Everything earlier is summarised; the detail is in `git log`,
+Versions 6.0, 7.0 and 7.1 are written out in full, because that is the
+architecture that exists today. Everything earlier is summarised; the detail is in `git log`,
 and most of it has been replaced.
 
 The plain-language version of this file is published at
@@ -24,6 +24,7 @@ Raw history: `git log --reverse --format='%ad %s' --date=short`.
 
 | Version | Date | In one line |
 |---|---|---|
+| [7.1](#71--september-2026) | Sept 2026 | The scan tools renamed after what they do, and split by the job in front of you |
 | [7.0](#70--september-2026) | Sept 2026 | Sixteen pages instead of twenty-three, one design system with dark mode, a front page that costs nothing, and OCR that can measure itself |
 | [6.0](#60--august-2026) | Aug 2026 | A job queue and a worker, layered source, status transitions inside Postgres |
 | [5.2](#52--june-2026) | Jun 2026 | `/explore` and `/trip` |
@@ -40,9 +41,81 @@ Raw history: `git log --reverse --format='%ad %s' --date=short`.
 
 ---
 
+## 7.1 — September 2026
+
+**Current.** `/scan` re-cut around the work rather than around the machinery
+that does it. No migration, no new dependency; the whole change is which
+component a URL mounts and what the panels are called.
+
+### Modes named after the work
+
+- `?mode=triage` → **`?mode=prepare`**: the layout pass, the neatline, the tile grid, save, queue.
+- The OCR review left it and became **`?mode=text`** in its own right.
+- `?mode=trace` and `?mode=review` → **`?mode=shapes`**, with `?tab=draw|segment|validate`.
+- Old spellings are **aliases in the dispatcher**, not redirects — `triage`, `ocr`, `trace` and `review` all still land where they now live. An unknown mode falls through to `inspect`, which is public, so an un-aliased old link would have looked like it worked; `tests/smoke.spec.ts` asserts all six spellings.
+- The switcher is the left rail's footer, beside the sheet list — the one part of the page that does not change with the mode. `digitalize/PhaseTabs.svelte` became `shared/SidebarTabs.svelte`, links or buttons depending on the row.
+
+### Prepare and Text are one component
+
+`DigitalizePage.svelte` is mounted for both, from one `{#if}` covering the pair,
+so moving between them is a prop change rather than a remount: the OL map, the
+IIIF tile source and the open sheet stay warm. Two page components would have
+rebuilt the canvas every time an operator checked their crop.
+
+### The text review is four jobs, not ten categories
+
+- **Names · Index · Numbers · Other** (`ocr/jobs.ts`), tabs at the foot of the panel, each badged with its row count.
+- The OCR category cuts across all four: the 1942 sheet's printed index alone contributed 719 `street` and 630 `institution` rows, none of them marks on the map, all in the same chip as the street names being checked. The category chips survive as a refinement *inside* a job.
+- The four **partition** the loaded rows, which is what makes the counts a promise that clearing all four clears the sheet. `tests/ocr-jobs.spec.ts` holds the partition, not the four rules — a row matching two jobs is reviewed twice and one matching none is never seen, and neither looks like an error anywhere.
+- Picking a job reframes the canvas on the part it reads and, over a printed block, takes the boxes down: there one rectangle covers fifty rows, so the boxes hide the table the reviewer is there to read.
+
+### Shapes is one loop instead of three pages
+
+Draw by hand, hand the rest to MapSAM2, check what it drew — one sheet, one
+canvas, three tabs. `TracePage.svelte` and `ReviewPage.svelte` are gone;
+`trace/traceData.ts` and `review/reviewQueue.ts` hold the writes. Geometry and
+type edits in Validate are held until the verdict and sent with it.
+
+### One table module instead of four
+
+- Every sortable column header is `$lib/ui/SortHeader.svelte` — a real `<button>` in the `<th>`, with `aria-sort` on the cell. None of the four hand-rolled versions was reachable from a keyboard and none said anything to a screen reader.
+- One indicator: both carets drawn, one lit, so a header keeps its width when the direction flips. /catalog had written five lines of that markup per column; the other three concatenated a text arrow into the header string.
+- `tableSort.ts` moved to `core` (four tables, four features, and a feature may not import another) and absorbed /catalog's second copy. It is decorate-sort-undecorate now: the value function runs **once per row** rather than once per comparison, which mattered because `OcrSidebar`'s parses a regex and ran ~22,000 times per keystroke on a 2000-row sheet.
+- Blanks sort last in **both** directions, and collation is `numeric` everywhere — `Rue 100` follows `Rue 11`. The contribute tables used to stringify a missing value, so an uncategorised row filed under "undefined", between `t` and `v`.
+- `tests/table-sort.spec.ts` caught the direction bug in the first version of the blank rule.
+
+### One tab strip instead of five
+
+- `$lib/ui/Tabs.svelte`. It replaced `ChunkyTabs`, `.admin-tabs`, `MapEditModal`'s `.tabs`, both rails' hand-written `.sb-rail-tabs`, and the `.phase-tabs` the /scan sidebars had invented for a slot the rails already owned.
+- Three of the five were already the same `.chip` in a flex row with a different gap. **Only one of the five said anything to a screen reader.**
+- Two tones, because `.chip` and `.sb-pill` are two design systems on purpose — what is shared is the markup, the API and the semantics. A row with an `href` makes the whole strip links with `aria-current`; without one it is a real `role="tablist"`.
+- `.shapes-search` folded into `.sb-search.is-compact` the same way: the same flex row, the same hairline, the same borderless input, a quarter-rem of padding apart, in the same design system.
+
+### The element vocabulary cut in half
+
+- **Buttons: twenty-seven selectors across nine families → eleven.** `.btn` is an action, `.chip` is a choice, and they share one modifier vocabulary with the sidebar's `.sb-btn` / `.sb-pill`: `.is-xs/.is-sm/.is-lg`, `.is-primary/.is-danger/.is-success/.is-ghost`, `.is-on/.is-block/.is-icon/.is-disabled`.
+- Four tones had been spelled three ways each — `.btn-primary` · `.chip.primary` · `.action-btn.primary-btn` — which is what made "check every button" a job nobody could finish.
+- None of what went was a design: `.action-btn` was a size, `.pill-btn` was lighter chrome and nothing else, `.btn-outline` was already the default, `.tool-btn` was `.sb-btn.is-sm` in a bar already running on `--sb-*`, and `.ctrl-btn` / `.btn-icon-edit` / `.btn-icon-delete` / `.cmp-btn` were one round shape at three sizes.
+- **Badges:** `.source-type-chip`, `.ocr-cat-chip` and `.essentials-pill` were each a one-file copy of `.badge-chip.is-sm` plus a tint.
+- **Cards: fourteen patterns → nine.** `.post-card`, `.subscribe-card`, `.sidebar-card` and `.profile-card` were `.section-card` re-typed in four files with a different padding. It takes `--card-pad` now, plus `.is-sm` for a column of them and `.is-link` when the whole card is a link.
+- `components/buttons.css` 335 → 228 lines; the stylesheets 7,429 → 7,208. The ledger of every retired name is in the header of `buttons.css`, and `tests/screens.spec.ts` fails if one comes back.
+
+### /screens now has to be telling the truth
+
+- It claimed "everything in `src/lib/ui/`" while rendering **ten of seventeen**, and its card blurb counted "twenty … four … sixteen" over a list of seven and seven. A reference nobody can trust is worse than none, because it is consulted and then believed — and while it was wrong, five tab strips were built.
+- `tests/screens.spec.ts` reads the source and fails when a `ui/` component is not named on the page, when the card inventory names a selector its file no longer has, or when a retired element class comes back.
+- The counts derive from the arrays. `Tabs` (both tones), `SortHeader`, `PaletteSearchField`, `CatalogGrid` and `.sb-search` (both sizes) are on the page; `NavBar` and `EditorialFooter` are named separately rather than sharing one row.
+
+### Two files came apart
+
+- `OcrSidebar.svelte` 928 → 673: the row is `OcrRow.svelte`, and the column geometry moved to `shapes-table.css` where the `<th>`s can reach it too.
+- Story review left `/scan` for `/admin?tab=stories`. A story has no sheet and no canvas; it had been riding inside a pixel-coordinate tool it shared nothing with.
+
+---
+
 ## 7.0 — September 2026
 
-**Current.** The month the surfaces were consolidated and the reading pipeline
+The month the surfaces were consolidated and the reading pipeline
 got a way to measure itself. 157 commits.
 
 ### The route merge — twenty-three pages became sixteen

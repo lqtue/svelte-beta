@@ -1,11 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import PageHero from '$lib/ui/PageHero.svelte';
-  import ChunkyTabs from '$lib/ui/ChunkyTabs.svelte';
+  import Tabs from '$lib/ui/Tabs.svelte';
   import CatalogCard from '$lib/ui/CatalogCard.svelte';
+  import CatalogGrid from '$lib/ui/CatalogGrid.svelte';
+  import PaletteSearchField from '$lib/ui/PaletteSearchField.svelte';
+  import SortHeader from '$lib/ui/SortHeader.svelte';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import MapCard from '$lib/ui/MapCard.svelte';
   import LibraryGrid from '$lib/ui/LibraryGrid.svelte';
-  import FacetRail from '$lib/ui/FacetRail.svelte';
   import InlineRename from '$lib/ui/InlineRename.svelte';
   import NameDialog from '$lib/ui/NameDialog.svelte';
   import NavDropdown from '$lib/ui/NavDropdown.svelte';
@@ -41,11 +44,6 @@
     { id: '1', title: 'Cholon waterways' },
     { id: '2', title: 'District 4, 1878–1968' },
   ];
-
-  const demoFacets = {
-    map_type: { cadastral: 12, topographic: 7, city_plan: 3 },
-    collection: { EFEO: 9, Gallica: 6 },
-  };
 
   // ── interactive demo state ────────────────────────────────────────────────
   let tab = 'tokens';
@@ -119,7 +117,17 @@
     page is supposed to prevent. Grep before you add a row.
   */
   const CARDS_GLOBAL = [
-    ['.section-card', 'components/editorial.css', 'Every editorial page'],
+    ['.section-card', 'components/editorial.css', 'The card. `--card-pad` sets its padding'],
+    [
+      '.section-card.is-sm',
+      'components/editorial.css',
+      'The column size — blog grid, post sidebar',
+    ],
+    [
+      '.section-card.is-link',
+      'components/editorial.css',
+      'When the whole card is a link; it lifts',
+    ],
     [
       '.stat-tile',
       'components/editorial.css',
@@ -132,22 +140,36 @@
     ['.data-table.is-card', 'components/table.css', 'A table that reads as a card'],
   ];
 
+  /*
+    Four names left this list in Sept 2026 — `.post-card`, `.subscribe-card`,
+    `.sidebar-card` and `.profile-card` — because all four were `.section-card`
+    re-typed in a different file with a different padding. They are that card
+    now, and what stayed behind is only what is genuinely theirs: a gap, a
+    dashed edge, a tighter `--card-pad`.
+  */
   const CARDS_SCOPED = [
     ['.micro-link-card', 'layouts/home.css', '.home-page'],
     ['.card', 'pages/admin-scout.css', '.scout-page'],
-    ['.sidebar-card', 'pages/blog-post.css', '.blog-post-page'],
-    ['.post-card', 'pages/blog.css', '.blog-page'],
-    ['.subscribe-card', 'pages/blog.css', '.blog-page'],
-    ['.profile-card', 'pages/profile.css', '.profile-page'],
     ['.status-row', 'pages/admin-status.css', 'global — /admin?tab=status'],
   ];
 
   const TABS = [
-    { value: 'tokens', label: 'Tokens' },
-    { value: 'parts', label: 'Parts' },
-    { value: 'components', label: 'Components' },
-    { value: 'cards', label: 'Cards' },
+    { key: 'tokens', label: 'Tokens' },
+    { key: 'parts', label: 'Parts' },
+    { key: 'components', label: 'Components' },
+    { key: 'cards', label: 'Cards' },
   ];
+
+  /** Demo state for the two `Tabs` tones in the gallery. */
+  let demoTone: 'page' | 'rail' = 'page';
+  let demoPageTab = 'one';
+  let demoRailTab = 'one';
+  const DEMO_TABS = [
+    { key: 'one', label: 'One' },
+    { key: 'two', label: 'Two' },
+    { key: 'three', label: 'Three' },
+  ];
+  let demoSort = { key: 'year', asc: true };
 </script>
 
 <svelte:head>
@@ -168,7 +190,12 @@
 
   <main class="editorial-main">
     <div class="sc-nav">
-      <ChunkyTabs tabs={TABS} active={tab} on:change={(e) => (tab = e.detail)} />
+      <Tabs
+        label="Design system sections"
+        tabs={TABS}
+        active={tab}
+        on:change={(e) => (tab = e.detail.key)}
+      />
     </div>
 
     <!-- ─────────────────────────────────────────────── TOKENS ── -->
@@ -271,40 +298,57 @@
       <section class="sc-section">
         <h2 class="sc-h2">Buttons</h2>
         <p class="sc-blurb">
-          Global classes from <code>components/buttons.css</code> and
-          <code>components/editorial.css</code>. Both action buttons lift on hover.
+          <strong>Two names, because there are two things</strong>, and one modifier vocabulary —
+          the same words <code>.sb-btn</code> and <code>.sb-pill</code> use in the sidebar scope, so
+          there is one set to learn. In September 2026 this was
+          <strong>twenty-seven selectors across nine families</strong>, with four tones spelled
+          three different ways; it is eleven now. Everything else was a context, not a design.
+        </p>
+
+        <h3 class="sc-h3">.btn — an action</h3>
+        <div class="sc-row">
+          <button class="btn">Default</button>
+          <button class="btn is-primary">.is-primary</button>
+          <button class="btn is-success">.is-success</button>
+          <button class="btn is-danger">.is-danger</button>
+          <button class="btn is-ghost">.is-ghost</button>
+          <button class="btn is-primary" disabled>disabled</button>
+        </div>
+        <div class="sc-row">
+          <button class="btn is-lg is-primary">.is-lg — a page CTA</button>
+          <button class="btn">default</button>
+          <button class="btn is-sm">.is-sm</button>
+          <button class="btn is-xs">.is-xs</button>
+        </div>
+
+        <h3 class="sc-h3">.chip — a choice</h3>
+        <p class="sc-blurb">
+          A tab, a facet, a filter. It fills yellow under the cursor because it is a thing you are
+          about to pick rather than a thing you are about to do, and
+          <code>.is-on</code> is the one that is picked — the same word as
+          <code>.sb-pill.is-on</code>.
         </p>
         <div class="sc-row">
-          <button class="action-btn primary-btn">Primary action</button>
-          <button class="action-btn secondary-btn">Secondary action</button>
-          <button class="pill-btn">Pill button</button>
-          <button class="action-btn primary-btn" disabled>Disabled</button>
-        </div>
-        <h3 class="sc-h3">.chip — the pill button</h3>
-        <div class="sc-row">
           <button class="chip">Default</button>
-          <button class="chip primary">Primary</button>
-          <button class="chip add">Add</button>
-          <button class="chip danger">Danger</button>
-          <button class="chip ghost">Ghost</button>
-          <button class="chip active">Active</button>
-          <button class="chip" disabled>Disabled</button>
+          <button class="chip is-on">.is-on</button>
+          <button class="chip is-primary">.is-primary</button>
+          <button class="chip is-ghost">.is-ghost</button>
+          <button class="chip is-sm">.is-sm</button>
+          <button class="chip" disabled>disabled</button>
         </div>
-        <h3 class="sc-h3">.btn — the squarer sibling, for admin and dialogs</h3>
+
+        <h3 class="sc-h3">.is-icon — round, three sizes</h3>
+        <p class="sc-blurb">
+          48px is the floating map control, 28px a card's action corner, 22px a row toggle in a
+          table. They were <code>.ctrl-btn</code>, <code>.btn-icon-edit</code> /
+          <code>.btn-icon-delete</code> and <code>.cmp-btn</code>, three private families for one
+          shape at three sizes.
+        </p>
         <div class="sc-row">
-          <button class="btn btn-primary">Primary</button>
-          <button class="btn btn-outline">Outline</button>
-          <button class="btn btn-success">Success</button>
-          <button class="btn btn-danger">Danger</button>
-          <button class="btn btn-ghost">Ghost</button>
-          <button class="btn btn-outline btn-sm">Small</button>
-          <button class="btn btn-outline btn-xs">Extra small</button>
-          <button class="btn btn-primary" disabled>Disabled</button>
-        </div>
-        <h3 class="sc-h3">.cmp-btn — the 22px row toggle</h3>
-        <div class="sc-row">
-          <button class="cmp-btn" aria-label="Add to comparison">+</button>
-          <button class="cmp-btn on" aria-label="Remove from comparison">✓</button>
+          <button class="btn is-icon" aria-label="Zoom in">+</button>
+          <button class="btn is-icon is-sm" aria-label="Edit">✎</button>
+          <button class="btn is-icon is-xs" aria-label="Add to comparison">+</button>
+          <button class="btn is-icon is-xs is-on" aria-label="Remove from comparison">✓</button>
         </div>
       </section>
 
@@ -321,8 +365,7 @@
           <span class="spinner" style="--spinner-size: 14px; --spinner-thickness: 2.5px"></span>
           <span class="spinner" style="--spinner-size: 40px; --spinner-ink: var(--color-primary)"
           ></span>
-          <button class="btn btn-primary"><span class="spinner on-ink"></span>&nbsp;Running…</button
-          >
+          <button class="btn is-primary"><span class="spinner on-ink"></span>&nbsp;Running…</button>
         </div>
         <h3 class="sc-h3">.empty-state</h3>
         <p class="sc-blurb">
@@ -414,17 +457,190 @@
 
         <div class="sc-item">
           <div class="sc-item-head">
-            <code class="sc-code">ChunkyTabs</code>
-            <span class="sc-role">Tab strip. Use instead of buttons that toggle a variable.</span>
+            <code class="sc-code">Tabs</code>
+            <span class="sc-role">
+              The one tab strip. Two tones because there are two design systems, not because there
+              are two components: <code>page</code> is the editorial <code>.chip</code>,
+              <code>rail</code> the sidebar <code>.sb-pill</code>. Pass a row an
+              <code>href</code> and the whole strip becomes links with
+              <code>aria-current</code>; without one it is a real
+              <code>role="tablist"</code>. There were five of these in September 2026.
+            </span>
+          </div>
+          <div class="sc-stage sc-stage-col">
+            <Tabs
+              label="Tone demo"
+              tabs={DEMO_TABS}
+              active={demoPageTab}
+              on:change={(e) => (demoPageTab = e.detail.key)}
+            />
+            <div class="sc-rail-box">
+              <Tabs
+                tone="rail"
+                label="Tone demo, rail"
+                tabs={DEMO_TABS}
+                active={demoRailTab}
+                on:change={(e) => (demoRailTab = e.detail.key)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="sc-item">
+          <div class="sc-item-head">
+            <code class="sc-code">.sb-search</code>
+            <span class="sc-role">
+              Not a component — the one search field, in
+              <code>components/sidebar.css</code>. Both /explore rails, both /scan rails, the two
+              table toolbars and /catalog wear it. Two sizes past the default:
+              <code>.is-compact</code> is the toolbar, where the field shares a row with a status
+              select, and <code>.is-page</code> the full width of an editorial page. It was four designs
+              — two of them a quarter-rem apart — until September 2026.
+            </span>
+          </div>
+          <div class="sc-stage sc-stage-col">
+            <div class="sc-rail-box">
+              <div class="sb-search">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  ><circle cx="7" cy="7" r="5" /><path d="M15 15l-3.5-3.5" /></svg
+                >
+                <input class="sb-search-input" placeholder="Search a place…" />
+              </div>
+            </div>
+            <div class="sc-rail-box">
+              <div class="sb-search is-compact">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  ><circle cx="7" cy="7" r="5" /><path d="M15 15l-3.5-3.5" /></svg
+                >
+                <input class="sb-search-input" placeholder="Filter text…" />
+              </div>
+            </div>
+            <div class="sb-search is-page">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                ><circle cx="7" cy="7" r="5" /><path d="M15 15l-3.5-3.5" /></svg
+              >
+              <input class="sb-search-input" placeholder="Search by title, creator, year…" />
+            </div>
+          </div>
+        </div>
+
+        <div class="sc-item">
+          <div class="sc-item-head">
+            <code class="sc-code">SortHeader</code>
+            <span class="sc-role">
+              A sortable column header for any <code>.data-table</code>. A real
+              <code>&lt;button&gt;</code> in the <code>&lt;th&gt;</code> with
+              <code>aria-sort</code> on the cell, so it is reachable from the keyboard — the four
+              hand-rolled versions it replaced were not. Both carets always draw, one lit, so the
+              header keeps its width when the direction flips. Sort state is
+              <code>$lib/core/utils/tableSort.ts</code>.
+            </span>
           </div>
           <div class="sc-stage">
-            <ChunkyTabs
-              tabs={[
-                { value: 'a', label: 'First' },
-                { value: 'b', label: 'Second' },
+            <table class="data-table is-dense">
+              <thead>
+                <tr>
+                  <SortHeader
+                    label="Title"
+                    key="name"
+                    sort={demoSort}
+                    on:sort={(e) => (demoSort = { key: e.detail.key, asc: !demoSort.asc })}
+                  />
+                  <SortHeader
+                    label="Year"
+                    key="year"
+                    klass="num"
+                    sort={demoSort}
+                    on:sort={(e) => (demoSort = { key: e.detail.key, asc: !demoSort.asc })}
+                  />
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Plan Cadastral</td><td class="num">1882</td></tr>
+                <tr><td>Plan de Saigon</td><td class="num">1799</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sc-item">
+          <div class="sc-item-head">
+            <code class="sc-code">DataTable</code>
+            <span class="sc-role">
+              The scaffolding the four tables repeated: the scroll container, the
+              <code>&lt;table&gt;</code> and its density, the header built from a column list, and
+              the <code>&lt;tbody&gt;</code>. Rows are the caller's — they arrive through the
+              default slot, because the rows are the only part that ever differed. A blank column (a
+              dot, a thumbnail, an actions cell) is a column with
+              <code>sortable: false</code> and an <code>srLabel</code>, so a table's header is one
+              list in one place. Anything under the table — an empty state, a paging button — is the
+              <code>after</code> slot.
+            </span>
+          </div>
+          <div class="sc-stage">
+            <DataTable
+              columns={[
+                { key: 'dot', label: '', srLabel: 'Status', sortable: false },
+                { key: 'name', label: 'Title' },
+                { key: 'year', label: 'Year', klass: 'num' },
               ]}
-              active="a"
-            />
+              klass="is-dense"
+              bind:sort={demoSort}
+            >
+              <tr><td>●</td><td>Plan Cadastral</td><td class="num">1882</td></tr>
+              <tr><td>●</td><td>Plan de Saigon</td><td class="num">1799</td></tr>
+            </DataTable>
+          </div>
+        </div>
+
+        <div class="sc-item">
+          <div class="sc-item-head">
+            <code class="sc-code">PaletteSearchField</code>
+            <span class="sc-role">
+              The search box that opens the command palette. One field, three places — the home
+              hero, the nav and the palette itself — so the thing a reader types into is the same
+              object everywhere.
+            </span>
+          </div>
+          <div class="sc-stage">
+            <PaletteSearchField kbd="⌘K" />
+          </div>
+        </div>
+
+        <div class="sc-item">
+          <div class="sc-item-head">
+            <code class="sc-code">CatalogGrid</code>
+            <span class="sc-role">
+              The responsive grid <code>CatalogCard</code> and <code>MapCard</code> sit in. A wrapper
+              with a slot and nothing else — it exists so the column rule is written once.
+            </span>
+          </div>
+          <div class="sc-stage">
+            <CatalogGrid>
+              <CatalogCard title="Plan Cadastral, 1882" href="#" />
+              <CatalogCard title="Plan de Cholon, 1893" href="#" />
+            </CatalogGrid>
           </div>
         </div>
 
@@ -473,16 +689,6 @@
 
         <div class="sc-item">
           <div class="sc-item-head">
-            <code class="sc-code">FacetRail</code>
-            <span class="sc-role">Faceted filter column with counts.</span>
-          </div>
-          <div class="sc-stage sc-stage-narrow">
-            <FacetRail facets={demoFacets} selected={{}} />
-          </div>
-        </div>
-
-        <div class="sc-item">
-          <div class="sc-item-head">
             <code class="sc-code">InlineRename</code>
             <span class="sc-role">Click the title to edit it in place. This one is live.</span>
           </div>
@@ -497,7 +703,7 @@
             <span class="sc-role">Naming flow. Live — the button really opens it.</span>
           </div>
           <div class="sc-stage">
-            <button class="pill-btn" on:click={() => (dialogOpen = true)}>Open dialog</button>
+            <button class="btn" on:click={() => (dialogOpen = true)}>Open dialog</button>
             <NameDialog
               bind:open={dialogOpen}
               heading="Name this story"
@@ -555,7 +761,8 @@
 
         <div class="sc-item">
           <div class="sc-item-head">
-            <code class="sc-code">NavBar · EditorialFooter</code>
+            <code class="sc-code">NavBar</code> ·
+            <code class="sc-code">EditorialFooter</code>
             <span class="sc-role">
               Mounted once by the editorial layout. Top and bottom of this page.
             </span>
@@ -568,20 +775,32 @@
     {#if tab === 'cards'}
       <section class="sc-section">
         <h2 class="sc-h2">Cards</h2>
+        <!-- Counted off the two tables rather than written out: the prose said
+             "twenty … four … sixteen" against a list of seven and seven, which is
+             the same drift the tables themselves are here to prevent. -->
         <p class="sc-blurb">
-          Twenty distinct card patterns exist. Four are reusable; sixteen are locked to a single
-          page and cannot be used anywhere else. Almost all of them are the same object — a white
-          box with a thick border and a solid shadow. <strong
-            >Check this list before writing a twenty-first.</strong
-          >
+          {CARDS_GLOBAL.length + CARDS_SCOPED.length} distinct card patterns exist.
+          {CARDS_GLOBAL.length} are reusable; {CARDS_SCOPED.length} are locked to a single page and cannot
+          be used anywhere else. Almost all of them are the same object — a white box with a thick border
+          and a solid shadow.
+          <strong>Check this list before writing another.</strong>
         </p>
 
         <h3 class="sc-h3">Reusable — reach for these</h3>
-        <div class="sc-stage">
+        <div class="sc-stage sc-stage-col">
           <div class="section-card">
             <h4 class="section-title-sm">.section-card</h4>
             <p class="section-desc">
-              The editorial default. Thick border, large radius, solid shadow.
+              The editorial default. Thick border, large radius, solid shadow. Padding is
+              <code>--card-pad</code>, so a caller that wants a tighter one sets a property rather
+              than declaring a fifth card.
+            </p>
+          </div>
+          <div class="section-card is-sm">
+            <h4 class="section-title-sm">.section-card.is-sm</h4>
+            <p class="section-desc">
+              The column size: smaller radius, lighter shadow. The blog grid, a post's sidebar and
+              the subscribe nudge were three separate cards that were each this one.
             </p>
           </div>
         </div>

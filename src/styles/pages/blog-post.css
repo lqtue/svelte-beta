@@ -185,12 +185,11 @@ body {
   top: 5rem;
 }
 
-.blog-post-page .sidebar-card {
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-md);
-  padding: 1.5rem;
-  box-shadow: var(--shadow-solid-sm);
+/* `.section-card.is-sm` (editorial.css), at the sidebar's tighter padding. The
+   `.is-sm` is carried here too: it sets `--card-pad` at the same specificity,
+   and a tie goes to whichever sheet the bundler happened to put last. */
+.blog-post-page .sidebar-card.is-sm {
+  --card-pad: 1.5rem;
 }
 
 .blog-post-page .sidebar-title {

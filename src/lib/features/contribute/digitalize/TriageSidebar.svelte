@@ -1,5 +1,5 @@
 <!--
-  TriageSidebar.svelte — Left panel for the Triage phase of /scan?mode=triage.
+  TriageSidebar.svelte — Left panel for the Triage phase of /scan?mode=prepare.
 
   The verdict plate (accept / update the saved triage) plus the four steps,
   each its own component: Layout · Crop · Tiles · Run OCR. This file keeps only

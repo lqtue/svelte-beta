@@ -1,5 +1,5 @@
 <!--
-  TriageCropStep.svelte — step 2 of /scan?mode=triage: which rectangle of the
+  TriageCropStep.svelte — step 2 of /scan?mode=prepare: which rectangle of the
   scan gets tiled. Usually adopted from the layout pass's `main_map` region or
   dragged on the canvas; the coordinates are here for the pixel-exact case.
 

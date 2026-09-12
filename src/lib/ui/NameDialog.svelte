@@ -3,6 +3,7 @@
   Neo-brutalist styling using design tokens.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
 
   const dispatch = createEventDispatcher<{
@@ -57,13 +58,13 @@
           type="button"
           class="sb-btn is-icon is-ghost"
           on:click={() => dispatch('close')}
-          aria-label="Close">×</button
+          aria-label={$t('Close')}>×</button
         >
       </header>
 
       <div class="mo-dialog-body">
         <label class="mo-field">
-          <span class="mo-field-label">Title</span>
+          <span class="mo-field-label">{$t('Title')}</span>
           <input
             class="sb-input"
             type="text"
@@ -75,7 +76,7 @@
 
         {#if showDescription}
           <label class="mo-field">
-            <span class="mo-field-label">Description</span>
+            <span class="mo-field-label">{$t('Description')}</span>
             <textarea
               class="sb-textarea"
               rows="2"
@@ -87,10 +88,10 @@
 
       <footer class="mo-dialog-foot">
         <button type="button" class="sb-btn is-ghost" on:click={() => dispatch('close')}>
-          Cancel
+          {$t('Cancel')}
         </button>
         <button type="button" class="sb-btn is-on" on:click={handleSubmit} disabled={!value.trim()}>
-          Save
+          {$t('Save')}
         </button>
       </footer>
     </div>

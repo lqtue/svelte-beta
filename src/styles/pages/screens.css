@@ -182,6 +182,27 @@
   max-width: 420px;
 }
 
+/* Two variants of one component, stacked so the difference is the only thing
+   between them. */
+.screens-page .sc-stage-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The sidebar palette (`--sb-*`) is set by a rail, and this page is not one, so
+   a `rail`-tone component needs somewhere to stand that provides it. Same
+   reason the `.sb-card` row in the card table says "needs --sb-* from a
+   parent". */
+.screens-page .sc-rail-box {
+  --sb-card-bg: var(--color-white);
+  max-width: 320px;
+  padding: var(--space-3);
+  background: var(--sb-panel-bg, var(--color-bg));
+  border: var(--border-thin);
+  border-radius: var(--radius-sm);
+}
+
 /* ── tables ──────────────────────────────────────────────────────────────── */
 
 .screens-page .sc-table {

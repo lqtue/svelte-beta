@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { redirect, type Handle } from '@sveltejs/kit';
 import type { Database } from '$lib/data/supabase/types';
+import { LOCALE_COOKIE, isLocale } from '$lib/core/i18n';
 
 /** Retired route paths → their replacements (301, query string preserved). */
 const LEGACY_REDIRECTS: Record<string, string> = {
@@ -10,10 +11,10 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/studio': '/explore?mode=studio',
   '/create': '/explore?mode=story',
   '/image': '/scan',
-  '/contribute/label': '/scan?mode=triage',
-  '/contribute/digitalize': '/scan?mode=triage',
-  '/contribute/trace': '/scan?mode=trace',
-  '/contribute/review': '/scan?mode=review',
+  '/contribute/label': '/scan?mode=prepare',
+  '/contribute/digitalize': '/scan?mode=prepare',
+  '/contribute/trace': '/scan?mode=shapes',
+  '/contribute/review': '/scan?mode=shapes&tab=validate',
   '/admin/bulk': '/admin?tab=bulk',
   '/admin/scout': '/admin?tab=scout',
   '/admin/status': '/admin?tab=status',
@@ -100,6 +101,11 @@ export const handle: Handle = async ({ event, resolve }) => {
   const target = legacyTarget(event.url.pathname);
   if (target) throw redirect(301, withSearch(target, event.url.search));
 
+  // Read before anything renders, so a server-rendered page is already in the
+  // reader's language rather than flipping after hydration.
+  const cookieLocale = event.cookies.get(LOCALE_COOKIE);
+  event.locals.locale = isLocale(cookieLocale) ? cookieLocale : 'en';
+
   /**
    * Track whether the response has been resolved to prevent
    * Supabase from setting cookies after the response is sent.
@@ -159,6 +165,8 @@ export const handle: Handle = async ({ event, resolve }) => {
     filterSerializedResponseHeaders(name) {
       return name === 'content-range' || name === 'x-supabase-api-version';
     },
+    // `<html lang>` in app.html is a placeholder the server fills in.
+    transformPageChunk: ({ html }) => html.replace('%vma.lang%', event.locals.locale),
   });
 
   // Mark response as resolved to prevent late cookie setting

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import type { PageData } from './$types';
   import { CATEGORY_LABELS, CATEGORY_COLORS, posts } from '../posts';
   import '$styles/pages/blog-post.css';
@@ -31,7 +32,7 @@
     <!-- ARTICLE -->
     <article class="article">
       <header class="article-header">
-        <a href="/blog" class="back-link">← All posts</a>
+        <a href="/blog" class="back-link">{$t('← All posts')}</a>
         <div class="article-meta">
           <span class="cat-chip" style="background: {CATEGORY_COLORS[post.category]}">
             {CATEGORY_LABELS[post.category]}
@@ -45,7 +46,7 @@
 
       {#if post.note}
         <aside class="article-note">
-          <span class="note-label">Since this was written</span>
+          <span class="note-label">{$t('Since this was written')}</span>
           <!-- Same trust boundary as post.content below: a committed module. -->
           <!-- eslint-disable-next-line svelte/no-at-html-tags -->
           <p>{@html post.note}</p>
@@ -62,14 +63,15 @@
 
       <footer class="article-footer">
         <div class="footer-cta">
-          <h3>Want to help?</h3>
+          <h3>{$t('Want to help?')}</h3>
           <p>
-            Every traced building, tagged photo, and cited source is permanently attributed in the
-            archive.
+            {$t(
+              'Every traced building, tagged photo, and cited source is permanently attributed in the archive.'
+            )}
           </p>
           <div class="footer-cta-links">
-            <a href="/contribute" class="action-btn primary-btn">Start contributing</a>
-            <a href="/about" class="action-btn secondary-btn">Read the project overview</a>
+            <a href="/contribute" class="btn is-lg is-primary">{$t('Start contributing')}</a>
+            <a href="/about" class="btn is-lg">{$t('Read the project overview')}</a>
           </div>
         </div>
       </footer>
@@ -77,18 +79,19 @@
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
-      <div class="sidebar-card">
-        <h3 class="sidebar-title">About the project</h3>
+      <div class="section-card is-sm sidebar-card">
+        <h3 class="sidebar-title">{$t('About the project')}</h3>
         <p class="sidebar-text">
-          Vietnam Map Archive puts historical maps of Vietnam on real coordinates and reads what is
-          printed on them. Saigon in the colonial period is where the deep work starts.
+          {$t(
+            'Vietnam Map Archive puts historical maps of Vietnam on real coordinates and reads what is printed on them. Saigon in the colonial period is where the deep work starts.'
+          )}
         </p>
-        <a href="/about" class="sidebar-link">Project overview</a>
+        <a href="/about" class="sidebar-link">{$t('Project overview')}</a>
       </div>
 
       {#if otherPosts.length > 0}
-        <div class="sidebar-card">
-          <h3 class="sidebar-title">More posts</h3>
+        <div class="section-card is-sm sidebar-card">
+          <h3 class="sidebar-title">{$t('More posts')}</h3>
           <div class="other-posts">
             {#each otherPosts as p (p.slug)}
               <a href="/blog/{p.slug}" class="other-post">
@@ -103,9 +106,9 @@
         </div>
       {/if}
 
-      <div class="sidebar-card sidebar-contact">
-        <h3 class="sidebar-title">Get in touch</h3>
-        <p class="sidebar-text">Funder, researcher, volunteer, or just curious?</p>
+      <div class="section-card is-sm sidebar-card sidebar-contact">
+        <h3 class="sidebar-title">{$t('Get in touch')}</h3>
+        <p class="sidebar-text">{$t('Funder, researcher, volunteer, or just curious?')}</p>
         <a href="mailto:vietnamma.project@gmail.com" class="sidebar-link">
           vietnamma.project@gmail.com
         </a>

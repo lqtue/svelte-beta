@@ -6,7 +6,7 @@ import {
   isPrinted,
   type RegionKey,
 } from '../src/lib/features/contribute/ocr/regionFilter';
-import { indexGaps } from '../src/lib/features/contribute/ocr/legendIndex';
+import { indexGaps, printedLine } from '../src/lib/features/contribute/ocr/legendIndex';
 import type { LayoutRegion } from '../src/lib/data/maps/triageTypes';
 import type { OcrExtraction } from '../src/lib/features/contribute/shared/types';
 
@@ -116,4 +116,33 @@ test('the printed index reports its own holes and repeats', () => {
   expect(
     indexGaps([{ id: 'x', category: 'street', text: 'Rue', notes: null } as OcrExtraction])
   ).toBeNull();
+});
+
+/**
+ * Both printed blocks put their position in `notes`, because `ocr_extractions`
+ * has no column for a grid cell — the legend writes `n=37; grid=B10` and the
+ * street index `street index; grid=K6→K8; cells=2`. Reading both back is what
+ * lets the review table show either as the table it is, ordered the way the
+ * paper orders it: the legend by number, the street index alphabetically.
+ *
+ * The notes here are copied from real rows on the 1942 and 1968 sheets.
+ */
+test('a printed row reports its cell, and its number when the paper prints one', () => {
+  const withNotes = (notes: string | null) => ({ id: 'r', notes }) as OcrExtraction;
+
+  expect(printedLine(withNotes('n=37; grid=B10'))).toEqual({ n: 37, grid: 'B10' });
+  expect(printedLine(withNotes('n=232; grid=J1; vn=Sở Cảnh Sát'))).toEqual({ n: 232, grid: 'J1' });
+
+  // The street index numbers nothing — it is alphabetical — so `n` is null and
+  // the row still places itself.
+  expect(printedLine(withNotes('street index; grid=K6→K8; cells=2'))).toEqual({
+    n: null,
+    grid: 'K6→K8',
+  });
+
+  // A directory line the pass could not place carries no grid, and is not a
+  // printed line as far as the table is concerned.
+  expect(printedLine(withNotes('n=12; grid='))).toBeNull();
+  expect(printedLine(withNotes('index key'))).toBeNull();
+  expect(printedLine(withNotes(null))).toBeNull();
 });

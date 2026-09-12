@@ -10,6 +10,7 @@
   whatever the reader was doing, and it should be dismissible in one tap.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { createEventDispatcher } from 'svelte';
 
   /** The place name to search for. Null closes the panel. */
@@ -79,23 +80,28 @@
   <aside class="press" class:inline aria-label="Press clippings">
     <header>
       <div class="head">
-        <h3>In the press</h3>
+        <h3>{$t('In the press')}</h3>
         <p class="sub">
           “{q}”{#if year}, {year - window_}–{year + window_}{/if}
         </p>
       </div>
       {#if !inline}
-        <button type="button" class="close" on:click={() => dispatch('close')} aria-label="Close"
-          >×</button
+        <button
+          type="button"
+          class="close"
+          on:click={() => dispatch('close')}
+          aria-label={$t('Close')}>×</button
         >
       {/if}
     </header>
 
     {#if loading}
-      <p class="state">Searching the newspapers…</p>
+      <p class="state">{$t('Searching the newspapers…')}</p>
     {:else if items.length === 0}
       <p class="state">
-        Nothing found{#if reason}&nbsp;— {reason}{/if}.
+        {#if reason}{$t('Nothing found — {query}.', { query: reason })}{:else}{$t(
+            'Nothing found.'
+          )}{/if}
       </p>
     {:else}
       <ul>

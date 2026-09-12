@@ -163,7 +163,7 @@
   box-shadow: 1px 1px 0 var(--shadow-ink);
 }
 /* The one badge that has to be noticed: this candidate cannot be ingested.
-   It stays a white badge marked by the red ink it borrows from `.btn-danger`
+   It stays a white badge marked by the red ink it borrows from `.is-danger`
    rather than taking `.chip-red`'s solid fill — the flag sits in a row of
    quiet metadata badges, and a filled red there reads as an error state for
    the whole row rather than a note on one field. */

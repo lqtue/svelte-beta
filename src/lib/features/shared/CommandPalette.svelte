@@ -15,6 +15,7 @@
   the keyboard never has to know about the group headings.
 -->
 <script lang="ts">
+  import { t } from '$lib/core/i18n';
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { get } from 'svelte/store';
@@ -255,7 +256,7 @@
 
 {#if $paletteOpen}
   <button type="button" class="cp-scrim" aria-label="Close search" on:click={dismiss}></button>
-  <div class="cp" role="dialog" aria-modal="true" aria-label="Search the archive">
+  <div class="cp" role="dialog" aria-modal="true" aria-label={$t('Search the archive')}>
     <div class="cp-field">
       <svg
         class="cp-icon"
@@ -276,7 +277,7 @@
         on:input={onInput}
         on:keydown={onKeydown}
         type="text"
-        placeholder="Search maps, places and pages…"
+        placeholder={$t('Search maps, places and pages…')}
         aria-label="Search maps, places and pages"
         autocomplete="off"
         spellcheck="false"
@@ -306,7 +307,7 @@
       class="cp-list"
       id="cp-results"
       role="listbox"
-      aria-label="Search results"
+      aria-label={$t('Search results')}
       bind:this={listEl}
     >
       {#if !rows.length}
@@ -345,8 +346,8 @@
     </div>
 
     <div class="cp-foot">
-      <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
-      <span><kbd>↵</kbd> open</span>
+      <span><kbd>↑</kbd><kbd>↓</kbd> {$t('move')}</span>
+      <span><kbd>↵</kbd> {$t('open')}</span>
       <span><kbd>{mac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd> anywhere</span>
     </div>
   </div>

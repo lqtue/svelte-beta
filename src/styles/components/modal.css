@@ -19,9 +19,6 @@
 
   Search inputs and result lists
   ──────────────────────────────
-    .mo-search          pill-shaped icon + input bar (reusable in sidebars too)
-      .mo-search-input   the actual <input>
-      .mo-search-icon    svg slot, sits left of input
     .mo-results         vertical list of result rows
       .mo-result         row button — title + sub
         .mo-result-title primary text
@@ -118,63 +115,9 @@
   color: var(--sb-text-meta);
 }
 
-/* ── Search input (pill with icon) ────────────────────────────── */
-.mo-search {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.7rem;
-  background: var(--sb-card-bg);
-  border: var(--sb-border);
-  border-radius: var(--sb-radius-pill);
-  min-height: 36px;
-}
-.mo-search:focus-within {
-  background: var(--sb-accent-yellow);
-}
-.mo-search-icon {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  color: var(--sb-text);
-}
-.mo-search-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: var(--sb-font-base);
-  font-size: 0.85rem;
-  color: var(--sb-text);
-}
-.mo-search-input::placeholder {
-  color: var(--sb-text-muted);
-}
-.mo-search-clear {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: var(--sb-text-meta);
-  font-size: 1rem;
-  line-height: 1;
-  padding: 0;
-}
-.mo-search-clear:hover {
-  color: var(--sb-text);
-}
-
-/* Compact variant for use inside narrow toolbars / sidebars. */
-.mo-search.is-compact {
-  min-height: 28px;
-  padding: 0.25rem 0.55rem;
-}
-.mo-search.is-compact .mo-search-input {
-  font-size: 0.78rem;
-}
+/* No search bar here. `.mo-search` was a second field design that outlived its
+   modal — its last wearer, CatalogSidebarPanel, wears `.sb-search`
+   (components/sidebar.css) like every other search bar in the app. */
 
 /* ── Result lists ─────────────────────────────────────────────── */
 .mo-results-label {

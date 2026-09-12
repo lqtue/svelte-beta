@@ -159,25 +159,10 @@ body {
   gap: 1.5rem;
 }
 
+/* The card is `.section-card.is-sm.is-link` (editorial.css); the gap between
+   its lines is the only thing left that is this page's. */
 .blog-page .post-card {
-  display: flex;
-  flex-direction: column;
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-md);
-  padding: 2rem;
-  box-shadow: var(--shadow-solid-sm);
-  text-decoration: none;
-  color: inherit;
-  transition:
-    transform 0.15s,
-    box-shadow 0.15s;
   gap: 0.75rem;
-}
-
-.blog-page .post-card:hover {
-  transform: translate(-3px, -3px);
-  box-shadow: var(--shadow-solid);
 }
 
 .blog-page .post-meta {
@@ -205,15 +190,12 @@ body {
 }
 
 /* SUBSCRIBE NUDGE */
+/* `.section-card.is-sm` plus the dashed edge that marks it as a nudge rather
+   than a post. */
 .blog-page .subscribe-card {
   display: flex;
   gap: 1.5rem;
   align-items: flex-start;
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-md);
-  padding: 2rem;
-  box-shadow: var(--shadow-solid-sm);
   border-style: dashed;
 }
 

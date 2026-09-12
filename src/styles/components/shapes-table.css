@@ -33,30 +33,9 @@
   background: var(--color-white);
   flex-shrink: 0;
 }
-.shapes-search {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex: 1;
-  min-width: 0;
-  background: var(--color-bg);
-  border: var(--border-thin);
-  border-radius: var(--radius-sm);
-  padding: 0.3rem 0.5rem;
-}
-.shapes-search svg {
-  flex-shrink: 0;
-  opacity: 0.5;
-}
-.shapes-search-input {
-  border: none;
-  background: none;
-  outline: none;
-  font-family: var(--font-family-base);
-  font-size: 0.75rem;
-  width: 100%;
-  color: var(--color-text);
-}
+/* The search field is `.sb-search.is-compact` (sidebar.css) — the rails' field
+   at table-toolbar size. This file used to carry a `.shapes-search` that was
+   the same object a quarter-rem apart. */
 .filter-type-select {
   font-family: var(--font-family-base);
   font-size: 0.7rem;
@@ -86,6 +65,23 @@
   text-align: center;
   padding-left: 0.5rem;
 }
+.col-text {
+  min-width: 80px;
+}
+.col-cat {
+  min-width: 70px;
+}
+.col-conf {
+  width: 38px;
+  text-align: right;
+}
+.col-actions {
+  width: 48px;
+  text-align: right;
+  white-space: nowrap;
+  padding-right: 0.5rem;
+}
+
 .dot {
   display: inline-block;
   width: 10px;

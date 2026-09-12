@@ -1,7 +1,7 @@
 <!--
   BboxPanel.svelte — the floating editor for the selected OCR bbox.
 
-  Sits above the bottom bar of /scan?mode=triage while a bbox is selected:
+  Sits above the bottom bar of /scan?mode=text while a bbox is selected:
   text, category, confidence, validate / reject / deselect. Owns the edit
   buffer; the parent only hears about it on `save`.
 -->
@@ -68,7 +68,7 @@
   <div class="bbox-panel-actions">
     <span class="bbox-panel-conf">{((extraction.confidence ?? 0) * 100).toFixed(0)}%</span>
     <button
-      class="tool-btn"
+      class="sb-btn is-sm"
       on:click={() => dispatch('rotate', { deg: 0 })}
       disabled={angle === 0}
       title="Drag the round handle to turn the label · , and . nudge 1° · click to reset"
@@ -76,8 +76,8 @@
       {angle}°
     </button>
     <button
-      class="tool-btn validate"
-      class:active={extraction.status === 'validated'}
+      class="sb-btn is-sm validate"
+      class:is-on={extraction.status === 'validated'}
       disabled={saving}
       on:click={() => save(extraction.status === 'validated' ? 'pending' : 'validated')}
       title={extraction.status === 'validated' ? 'Unvalidate' : 'Validate'}
@@ -95,8 +95,8 @@
       {extraction.status === 'validated' ? 'Validated' : 'Validate'}
     </button>
     <button
-      class="tool-btn reject"
-      class:active={extraction.status === 'rejected'}
+      class="sb-btn is-sm reject"
+      class:is-on={extraction.status === 'rejected'}
       disabled={saving}
       on:click={() => save(extraction.status === 'rejected' ? 'pending' : 'rejected')}
       title={extraction.status === 'rejected' ? 'Unreject' : 'Reject'}
@@ -193,18 +193,18 @@
     opacity: 0.45;
     margin-right: 0.2rem;
   }
-  /* The buttons are `.tool-btn` (buttons.css). Only the two tones are local:
-     validate and reject answer in green and red rather than `.tool-btn`'s
-     yellow hover and blue `.active`, and the two-class selectors outrank both.
-     The disabled face is `.tool-btn`'s own, in buttons.css. */
-  .tool-btn.validate:hover,
-  .tool-btn.validate.active {
+  /* The buttons are `.sb-btn.is-sm` (sidebar.css). Only the two tones are
+     local: validate and reject answer in green and red rather than the shared
+     yellow hover and `.is-on`, and the two-class selectors outrank both. The
+     disabled face is the shared one. */
+  .sb-btn.validate:hover,
+  .sb-btn.validate.is-on {
     background: var(--tone-green-pale);
     color: var(--tone-green-ink);
     border-color: var(--tone-green-ink);
   }
-  .tool-btn.reject:hover,
-  .tool-btn.reject.active {
+  .sb-btn.reject:hover,
+  .sb-btn.reject.is-on {
     background: var(--tone-red-pale);
     color: var(--tone-red-ink);
     border-color: var(--tone-red-ink);

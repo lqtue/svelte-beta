@@ -4,7 +4,11 @@
 
   Slots:
     default — panel body
-    footer  — optional sticky footer (e.g. the digitalize phase tabs)
+    footer  — optional sticky footer (e.g. the /scan mode switcher)
+
+  `showFooter` is for a caller whose footer content is itself conditional:
+  `$$slots.footer` is true as soon as the slot is passed, so an `{#if}` inside
+  it would leave an empty bar with a border on it.
 -->
 <script lang="ts">
   import ToolPanelHeader from './ToolPanelHeader.svelte';
@@ -12,12 +16,13 @@
 
   export let title: string = '';
   export let onCollapse: (() => void) | null = null;
+  export let showFooter = true;
 </script>
 
 <aside class="panel">
   <ToolPanelHeader {title} {onCollapse} />
   <slot />
-  {#if $$slots.footer}
+  {#if $$slots.footer && showFooter}
     <div class="panel-footer">
       <slot name="footer" />
     </div>

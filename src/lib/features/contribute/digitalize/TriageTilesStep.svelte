@@ -1,5 +1,5 @@
 <!--
-  TriageTilesStep.svelte — step 3 of /scan?mode=triage: how the crop is cut
+  TriageTilesStep.svelte — step 3 of /scan?mode=prepare: how the crop is cut
   into OCR calls, and what each tile costs. Priorities are clicked on the
   canvas (normal -> low-res -> skip); this panel is the legend and the count.
 

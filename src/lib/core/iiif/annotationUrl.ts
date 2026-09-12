@@ -64,3 +64,27 @@ export function allmapsEditorSourceUrl(
     return `https://annotations.allmaps.org/images/${map.allmaps_id}`;
   return '';
 }
+
+/**
+ * The OpenHistoricalMap editor, opened with a warped sheet already set as its
+ * background.
+ *
+ * The value has to be percent-encoded. iD reads its own hash with
+ * `pair.split('=')` and keeps the pair only when that yields exactly two
+ * parts — a raw tile template carries `?url=` and so yields three, and the
+ * parameter is dropped without a word: the editor opens on Bing with the sheet
+ * nowhere. Encoding is what iD itself does when it rewrites the hash, and it
+ * decodes once on read.
+ */
+export function ohmEditorUrl(tileUrl: string, bbox?: number[] | null): string {
+  const hash = [`background=custom:${encodeURIComponent(tileUrl)}`];
+  if (bbox?.length === 4) {
+    const [minLon, minLat, maxLon, maxLat] = bbox;
+    const span = Math.max(maxLon - minLon, 1e-4);
+    const zoom = Math.max(10, Math.min(18, Math.round(Math.log2(360 / span))));
+    hash.push(
+      `map=${zoom}/${((minLat + maxLat) / 2).toFixed(5)}/${((minLon + maxLon) / 2).toFixed(5)}`
+    );
+  }
+  return `https://www.openhistoricalmap.org/edit#${hash.join('&')}`;
+}

@@ -65,27 +65,8 @@
   text-transform: uppercase;
 }
 
-.close-btn {
-  background: var(--color-white);
-  border: var(--border-thin);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  color: var(--color-text);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.1s;
-  box-shadow: 1px 1px 0px var(--shadow-ink);
-}
-
-.close-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-text-on-yellow);
-  transform: translate(-1px, -1px);
-  box-shadow: 2px 2px 0px var(--shadow-ink);
-}
+/* The modal's ✕ is `.btn.is-icon.is-sm` (buttons.css); it was a private 32px
+   round button with its own border, shadow and lift. */
 
 .tabs {
   display: flex;
@@ -190,10 +171,6 @@
 }
 
 /* The IA file picker is a <label>, so it wears `.btn` and starts the column. */
-.upload-btn {
-  align-self: flex-start;
-}
-
 .upload-status {
   font-family: var(--font-family-base);
   font-size: 0.85rem;
@@ -412,16 +389,8 @@ code.detail-value {
   font-weight: 600;
   font-size: 0.875rem;
 }
-.source-type-chip {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 0.1rem 0.35rem;
-  border-radius: 3px;
-  background: var(--color-gray-300);
-  color: var(--color-gray-500);
-  letter-spacing: 0.04em;
-}
+/* Three private badges lived here, each a one-file copy of `.badge-chip.is-sm`
+   plus a tone. They are that now — see the ledger in buttons.css. */
 .primary-badge {
   display: inline-flex;
   align-items: center;
@@ -526,14 +495,6 @@ code.detail-value {
   display: flex;
   gap: 0.35rem;
   flex-wrap: wrap;
-}
-.ocr-cat-chip {
-  padding: 0.1rem 0.45rem;
-  border-radius: 9999px;
-  background: color-mix(in srgb, var(--color-blue) 15%, var(--color-white));
-  color: color-mix(in srgb, var(--color-blue) 70%, var(--color-text));
-  font-size: 0.72rem;
-  font-weight: 600;
 }
 .ocr-controls {
   display: flex;
@@ -705,23 +666,6 @@ code.detail-value {
   color: var(--color-gray-500);
   margin-top: 0.4rem;
   font-family: ui-monospace, monospace;
-}
-
-.essentials-pill {
-  display: inline-block;
-  margin-left: 0.65rem;
-  padding: 0.18rem 0.65rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  background: var(--color-gray-100);
-  color: var(--color-gray-500);
-  border: 1.5px solid var(--color-text);
-  border-radius: 12px;
-  vertical-align: middle;
-}
-.essentials-pill.full {
-  background: color-mix(in srgb, var(--color-green) 18%, var(--color-white));
-  color: var(--color-green);
 }
 
 .quick-bar {

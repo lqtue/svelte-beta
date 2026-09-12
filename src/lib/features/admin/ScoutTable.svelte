@@ -15,6 +15,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import ScoutDecision, { type Verdict } from '$lib/features/admin/ScoutDecision.svelte';
+  import DataTable, { type TableColumn } from '$lib/ui/DataTable.svelte';
   import { hasImageSource, type ScoutCandidate } from '$lib/features/admin/ScoutCard.svelte';
 
   export let rows: ScoutCandidate[] = [];
@@ -31,15 +32,19 @@
     decide: { id: string; status: Verdict; note: string | null };
   }>();
 
-  const COLUMNS = [
+  const COLUMNS: TableColumn[] = [
+    { key: 'check', label: '', klass: 'col-check', srLabel: 'Select', sortable: false },
+    { key: 'thumb', label: '', klass: 'col-thumb', srLabel: 'Preview', sortable: false },
     { key: 'year', label: 'Year' },
     { key: 'title', label: 'Title' },
     { key: 'source', label: 'Source' },
     { key: 'category', label: 'Type' },
     { key: 'holding_institution', label: 'Held by' },
+    { key: 'decide', label: 'Decision', klass: 'col-decide', sortable: false },
   ];
 
-  const arrow = (key: string) => (orderBy !== key ? '' : orderDir === 'asc' ? ' ↑' : ' ↓');
+  // The sort state is the server's two props, in the shape `SortHeader` reads.
+  $: sort = { key: orderBy, asc: orderDir === 'asc' };
 
   /** Keeps the j/k cursor in view without the page needing a row reference. */
   function cursor(node: HTMLElement, isCursor: boolean) {
@@ -49,73 +54,65 @@
   }
 </script>
 
-<div class="table-wrap">
-  <table class="data-table is-dense scout-table">
-    <thead>
-      <tr>
-        <th class="col-check" aria-label="Select"></th>
-        <th class="col-thumb" aria-label="Preview"></th>
-        {#each COLUMNS as col (col.key)}
-          <th class="sortable" on:click={() => dispatch('sort', col.key)}>
-            {col.label}{arrow(col.key)}
-          </th>
-        {/each}
-        <th class="col-decide">Decision</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each rows as c, i (c.id)}
-        <tr
-          class:is-selected={selected.has(c.id)}
-          class:is-cursor={i === focusIdx}
-          use:cursor={i === focusIdx}
-        >
-          <td class="col-check">
-            <input
-              type="checkbox"
-              checked={selected.has(c.id)}
-              on:change={() => dispatch('toggle', c.id)}
-              aria-label="Select {c.title}"
-            />
-          </td>
-          <td class="col-thumb">
-            {#if c.thumbnail}
-              <a href={c.source_url || c.manifest_url || '#'} target="_blank" rel="noopener">
-                <img src={c.thumbnail} alt="" loading="lazy" />
-              </a>
-            {/if}
-          </td>
-          <td class="num">{c.year ?? '—'}</td>
-          <td class="col-title">
-            <a href={c.source_url || c.manifest_url || '#'} target="_blank" rel="noopener">
-              {c.title}
-            </a>
-            {#if !hasImageSource(c)}
-              <span
-                class="badge-chip chip-white is-flag"
-                title="No IIIF manifest or image URL — ingest will refuse it">no image</span
-              >
-            {/if}
-            {#if c.review_note}<em class="row-note" title={c.review_note}>“{c.review_note}”</em
-              >{/if}
-          </td>
-          <td>{c.source}</td>
-          <td>{c.category || '—'}</td>
-          <td class="col-holder" title={c.holding_institution || ''}>
-            {c.holding_institution || '—'}
-          </td>
-          <td class="col-decide">
-            <ScoutDecision
-              status={c.status}
-              note={null}
-              on:decide={(e) => dispatch('decide', { id: c.id, ...e.detail })}
-            />
-          </td>
-        </tr>
-      {/each}
-    </tbody>
-  </table>
-  {#if !rows.length}
-    <p class="table-empty">No candidates match these filters.</p>
-  {/if}
-</div>
+<!-- `sort` is passed, not bound: the order is the server's, so the click has to
+     go back out as an event rather than re-order the 60 rows on this page. -->
+<DataTable
+  columns={COLUMNS}
+  klass="is-dense scout-table"
+  {sort}
+  on:sort={(e) => dispatch('sort', e.detail.key)}
+>
+  {#each rows as c, i (c.id)}
+    <tr
+      class:is-selected={selected.has(c.id)}
+      class:is-cursor={i === focusIdx}
+      use:cursor={i === focusIdx}
+    >
+      <td class="col-check">
+        <input
+          type="checkbox"
+          checked={selected.has(c.id)}
+          on:change={() => dispatch('toggle', c.id)}
+          aria-label="Select {c.title}"
+        />
+      </td>
+      <td class="col-thumb">
+        {#if c.thumbnail}
+          <a href={c.source_url || c.manifest_url || '#'} target="_blank" rel="noopener">
+            <img src={c.thumbnail} alt="" loading="lazy" />
+          </a>
+        {/if}
+      </td>
+      <td class="num">{c.year ?? '—'}</td>
+      <td class="col-title">
+        <a href={c.source_url || c.manifest_url || '#'} target="_blank" rel="noopener">
+          {c.title}
+        </a>
+        {#if !hasImageSource(c)}
+          <span
+            class="badge-chip chip-white is-flag"
+            title="No IIIF manifest or image URL — ingest will refuse it">no image</span
+          >
+        {/if}
+        {#if c.review_note}<em class="row-note" title={c.review_note}>“{c.review_note}”</em>{/if}
+      </td>
+      <td>{c.source}</td>
+      <td>{c.category || '—'}</td>
+      <td class="col-holder" title={c.holding_institution || ''}>
+        {c.holding_institution || '—'}
+      </td>
+      <td class="col-decide">
+        <ScoutDecision
+          status={c.status}
+          note={null}
+          on:decide={(e) => dispatch('decide', { id: c.id, ...e.detail })}
+        />
+      </td>
+    </tr>
+  {/each}
+  <svelte:fragment slot="after">
+    {#if !rows.length}
+      <p class="table-empty">No candidates match these filters.</p>
+    {/if}
+  </svelte:fragment>
+</DataTable>

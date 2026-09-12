@@ -272,7 +272,7 @@
               <span class="ocr-run-n">{info.n} items</span>
               <div class="ocr-cats">
                 {#each Object.entries(info.categories) as [cat, n] (cat)}
-                  <span class="ocr-cat-chip">{cat}: {n}</span>
+                  <span class="badge-chip is-sm chip-blue">{cat}: {n}</span>
                 {/each}
               </div>
             </div>
@@ -330,19 +330,19 @@
         </label>
       </div>
       <div class="ocr-actions">
-        <button class="btn btn-outline" on:click={handleRunOcr} disabled={ocrRunning}>
+        <button class="btn" on:click={handleRunOcr} disabled={ocrRunning}>
           {ocrRunning ? 'Starting…' : 'Run OCR Batch'}
         </button>
         <button
-          class="btn btn-primary"
+          class="btn is-primary"
           on:click={handleApplyOcr}
           disabled={ocrApplying || (ocrStatus?.total === 0 && !ocrRunId)}
         >
           {ocrApplying ? 'Applying…' : 'Apply to Label Pins'}
         </button>
-        <button class="btn btn-ghost" on:click={loadOcrStatus}>Refresh</button>
+        <button class="btn is-ghost" on:click={loadOcrStatus}>Refresh</button>
         <button
-          class="btn btn-ghost"
+          class="btn is-ghost"
           on:click={() => {
             reviewOpen = !reviewOpen;
             if (reviewOpen) loadReview();
@@ -375,11 +375,11 @@
               />
             </div>
             <div class="ocr-review-actions">
-              <button class="btn btn-sm btn-outline" on:click={loadReview} disabled={reviewLoading}
+              <button class="btn is-sm" on:click={loadReview} disabled={reviewLoading}
                 >Reload</button
               >
               <button
-                class="btn btn-sm btn-primary"
+                class="btn is-sm is-primary"
                 on:click={batchValidateAll}
                 disabled={batchValidating}
                 title="Validate all pending items with confidence ≥ 0.7"
@@ -430,13 +430,13 @@
                   <span class="ocr-review-run mono">{ext.run_id}</span>
                   <div class="ocr-review-btns">
                     <button
-                      class="btn btn-xs btn-success"
+                      class="btn is-xs is-success"
                       on:click={() => saveReview(ext, 'validated')}
                       disabled={ext._saving}
                       title="Mark as validated ground truth">✓</button
                     >
                     <button
-                      class="btn btn-xs btn-danger"
+                      class="btn is-xs is-danger"
                       on:click={() => saveReview(ext, 'rejected')}
                       disabled={ext._saving}
                       title="Reject (false positive)">✗</button

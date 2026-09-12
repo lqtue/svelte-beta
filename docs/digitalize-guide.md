@@ -1,6 +1,6 @@
-# Digitalize: reading a sheet
+# Reading a sheet
 
-An operator guide to `/scan?mode=triage` — the page where a scanned map becomes searchable text pinned to real ground.
+An operator guide to `/scan?mode=prepare` and `?mode=text` — where a scanned map becomes searchable text pinned to real ground.
 
 Audience: whoever is working through the corpus, one sheet at a time. It assumes no knowledge of the codebase. For the architecture behind it see [`system-guidelines.md`](system-guidelines.md); for the command-line side see [`pipelines.md`](pipelines.md).
 
@@ -31,17 +31,31 @@ The reason is the Gemini API key. It lives on your machine and deliberately **ne
 
 **Checkpoint.** The worker prints a line per poll. `queue empty` means it asked and there was nothing — which is now trustworthy; before September 2026 it also printed that when the network was down.
 
-## The three tabs
+## The two modes
 
-All three share one image viewer, so you keep the same pan and zoom as you move between them.
+They share one image viewer, so you keep the same pan and zoom moving between them. The switcher is at the foot of the left rail, under the sheet list.
 
-| Tab | Question it answers |
+| Mode | Question it answers |
 |-----|--------------------|
-| **Triage** | What on this sheet should be read, and how finely? |
-| **OCR Review** | Did the model read it correctly? |
-| **Segmentation** | Hand off to MapSAM2 for building footprints |
+| **Prepare** (`?mode=prepare`) | What on this sheet should be read, and how finely? |
+| **Text** (`?mode=text`) | Did the model read it correctly? |
 
-Pick a sheet from the floating map picker. It badges each map **Triaged** and **OCR'd**, which is how you find your place across a long session.
+Segmentation — handing the sheet to MapSAM2 for building footprints — is **not here**. It moved to `/scan?mode=shapes` in September 2026, with the tracing and the footprint review, because it is about shapes rather than words.
+
+Pick a sheet from the left rail. It badges each map **Triaged** and **OCR'd**, which is how you find your place across a long session.
+
+### The four reading jobs
+
+`?mode=text` is four tabs at the foot of the panel, each badged with how many rows it holds. They divide the sheet's rows between them with nothing left over, so clearing all four clears the sheet.
+
+| Job | What you are checking |
+|-----|----------------------|
+| **Names** | The names printed on the terrain: streets, places, water, institutions. |
+| **Index** | The sheet's own printed tables — the numbered legend and the name list. The canvas frames the table; the rows beside it *are* the table, in the order the paper prints them. |
+| **Numbers** | The numerals on the map, against the index that explains them. The **suspect** chip is what the index contradicts. |
+| **Other** | Title block, scale bar, stamp, anything that fell off the sheet. |
+
+This replaced a row of category chips. A category cuts across all four jobs: the 1942 sheet's printed index alone contributed 719 `street` rows and 630 `institution` rows, none of them marks on the map, all of them sitting in the same chip as the street names you were trying to check.
 
 ---
 
@@ -150,11 +164,13 @@ Queues the job and returns. Watch the worker's terminal, or come back later.
 
 ---
 
-## OCR Review, the second tab
+## Text, the second mode
 
-The table lists every extraction — text, category, confidence. Click a row and its box highlights on the scan; click a box and the row focuses. Edit text or category inline; it saves when you click away. Draw a box the model missed with draw mode (`Escape` cancels a draw in progress). Validate or reject in bulk from the run bar.
+Pick a job from the tabs at the foot of the panel; the table lists that job's rows — text, category, confidence, or for the Index job the printed cell and number. Click a row and its box highlights on the scan; click a box and the row focuses. Edit text or category inline; it saves when you click away. Draw a box the model missed with draw mode (`Escape` cancels a draw in progress). Validate or reject in bulk from the run bar.
 
-You will need this tab. Two things to expect:
+Choosing a job also frames the canvas on the part of the sheet that job reads, and over a printed block it takes the boxes down — there the boxes are the crop each call covered, not the lines it read (235 rows of the 1942 index share six rectangles), so they hide the table you are there to read. The left rail turns them back on.
+
+You will need this mode. Two things to expect:
 
 **The `category` field is noisier than the text.** The same sheet run twice disagreed mostly on classification, and on transcription variants — `KINH BẾN NGHÉ` vs `Kinh Bến Nghé`. Do not read a single run's small difference as a result.
 
@@ -164,7 +180,7 @@ When the sheet is right, mark it **reviewed** — one of the three stages a pers
 
 ## The pipeline stages
 
-The bottom bar shows where the sheet is:
+`/scan?mode=shapes` → **Segment** shows where the sheet is:
 
 ```
 idle → ocr_queued → ocr_done → reviewed → seg_queued → seg_done → seg_reviewed → exported
@@ -228,7 +244,7 @@ layout pass. The whole-corpus order is therefore:
 node --env-file=.env scripts/enqueue_layout_all.mjs
 python work/worker/vma_worker.py --worker $(hostname)   # drains it
 
-# 2. Accept them at /scan?mode=triage — the only manual step
+# 2. Accept them at /scan?mode=prepare — the only manual step
 
 # 3. Queue the reading
 node --env-file=.env scripts/enqueue_ocr_all.mjs --tile-metres 1400

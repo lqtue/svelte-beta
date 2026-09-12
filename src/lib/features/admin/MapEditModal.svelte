@@ -13,6 +13,7 @@
   import MapEditSourceTab from './MapEditSourceTab.svelte';
   import MapEditHostingTab from './MapEditHostingTab.svelte';
   import MapEditPipelineTab from './MapEditPipelineTab.svelte';
+  import Tabs from '$lib/ui/Tabs.svelte';
   import { toMapEditPayload, labelConfigToForm } from '$lib/data/admin/mapEditPayload';
 
   export let map: MapRow;
@@ -73,7 +74,21 @@
   let deleting = false;
   let error = '';
   let successMsg = '';
-  let activeTab: 'about' | 'source' | 'hosting' | 'pipeline' = 'about';
+  type EditTab = 'about' | 'source' | 'hosting' | 'pipeline';
+  let activeTab: EditTab = 'about';
+
+  const EDIT_TABS = [
+    { key: 'about', label: 'About' },
+    { key: 'source', label: 'Source' },
+    { key: 'hosting', label: 'Hosting & Georef' },
+    { key: 'pipeline', label: 'Pipeline' },
+  ];
+
+  /** Pipeline is the one tab with a cost, so it loads when it is opened. */
+  function pickTab(key: string) {
+    activeTab = key as EditTab;
+    if (activeTab === 'pipeline' && map.iiif_image) pipelineTab?.loadOcrStatus();
+  }
   let pipelineTab: MapEditPipelineTab | null = null;
 
   // Essentials — the fields that must be filled for a clean catalog listing.
@@ -185,14 +200,17 @@
       <h2 class="modal-title">
         Edit Map
         <span
-          class="essentials-pill"
-          class:full={essentialsFilled === ESSENTIAL_KEYS.length}
+          class="badge-chip is-sm"
+          class:chip-green={essentialsFilled === ESSENTIAL_KEYS.length}
+          class:chip-gray={essentialsFilled !== ESSENTIAL_KEYS.length}
           title="Essential fields filled"
         >
           {essentialsFilled}/{ESSENTIAL_KEYS.length}
         </span>
       </h2>
-      <button class="close-btn" on:click={() => dispatch('close')} aria-label="Close">✕</button>
+      <button class="btn is-icon is-sm" on:click={() => dispatch('close')} aria-label="Close"
+        >✕</button
+      >
     </div>
 
     <!-- Sticky toggle bar — always visible across tabs -->
@@ -216,29 +234,12 @@
     </div>
 
     <div class="tabs">
-      <button
-        class="chip"
-        class:active={activeTab === 'about'}
-        on:click={() => (activeTab = 'about')}>About</button
-      >
-      <button
-        class="chip"
-        class:active={activeTab === 'source'}
-        on:click={() => (activeTab = 'source')}>Source</button
-      >
-      <button
-        class="chip"
-        class:active={activeTab === 'hosting'}
-        on:click={() => (activeTab = 'hosting')}>Hosting &amp; Georef</button
-      >
-      <button
-        class="chip"
-        class:active={activeTab === 'pipeline'}
-        on:click={() => {
-          activeTab = 'pipeline';
-          if (map.iiif_image) pipelineTab?.loadOcrStatus();
-        }}>Pipeline</button
-      >
+      <Tabs
+        label="Map fields"
+        tabs={EDIT_TABS}
+        active={activeTab}
+        on:change={(e) => pickTab(e.detail.key)}
+      />
     </div>
 
     <div class="modal-body">
@@ -309,12 +310,12 @@
     </div>
 
     <div class="modal-footer">
-      <button class="btn btn-danger" on:click={handleDelete} disabled={deleting}>
+      <button class="btn is-danger" on:click={handleDelete} disabled={deleting}>
         {deleting ? 'Deleting...' : 'Delete'}
       </button>
       <div class="footer-right">
-        <button class="btn btn-outline" on:click={() => dispatch('close')}>Cancel</button>
-        <button class="btn btn-primary" on:click={handleSave} disabled={saving}>
+        <button class="btn" on:click={() => dispatch('close')}>Cancel</button>
+        <button class="btn is-primary" on:click={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>

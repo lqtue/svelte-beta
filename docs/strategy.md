@@ -43,19 +43,19 @@ Verified against the tree, August 2026.
 | Story authoring + GPS playback (`/explore?mode=story`, `/trip/[id]`) | ✅ | |
 | IIIF inspector (`/scan`) | ✅ | |
 | OCR pipeline: Gemini Flash → `ocr_extractions` | ✅ | `work/ocr/` |
-| OCR triage + human review UI (`/scan?mode=triage`) | ✅ | Neatline, tile grid, bbox review |
+| OCR triage + human review UI (`/scan?mode=prepare`) | ✅ | Neatline, tile grid, bbox review |
 | MapSAM2 footprint segmentation → `footprint_submissions` | ✅ | `work/MapSAM2/` (fine-tuned SAM2, LoRA) |
-| Footprint tracing (`/scan?mode=trace`) and HITL review (`/scan?mode=review`) | ✅ | |
+| Footprint tracing (`/scan?mode=shapes`) and HITL review (`/scan?mode=shapes&tab=validate`) | ✅ | |
 | Georeferencing hand-off to Allmaps (`/contribute/georef`) | ✅ | |
 | Admin map CRUD, bulk upload, external-source scout | ✅ | Inline in `/catalog` (role `admin`/`mod`), plus `/admin?tab=bulk`, `/admin?tab=scout` |
 | Full-text search over corpus + scout candidates | ✅ | `/api/search` |
 | Featured in Saigoneer (January 2026) | ✅ | Credibility |
 
-**Route surface.** Editorial (public, nav + footer): `/`, `/catalog`, `/about`, `/blog`, `/profile`, `/login`, `/contribute`, `/contribute/georef`, `/admin?tab=bulk`, `/admin?tab=scout`. Full-screen tools: `/explore`, `/explore?mode=annotate`, `/explore?mode=story`, `/trip/[id]`, `/scan`, `/scan?mode=triage`, `/scan?mode=trace`, `/scan?mode=review`.
+**Route surface.** Editorial (public, nav + footer): `/`, `/catalog`, `/about`, `/blog`, `/profile`, `/login`, `/contribute`, `/contribute/georef`, `/admin?tab=bulk`, `/admin?tab=scout`. Full-screen tools: `/explore`, `/explore?mode=annotate`, `/explore?mode=story`, `/trip/[id]`, `/scan`, `/scan?mode=prepare`, `/scan?mode=shapes`, `/scan?mode=shapes&tab=validate`.
 
 **Not built, despite appearing in older drafts:**
 - **Knowledge graph.** No entity/relation/source schema exists in any migration (head: 051). The KG is a Phase 2 target, not a shipped component. Earlier docs cited migration numbers for it; those numbers are long since taken by shipped work.
-- **Label Studio.** Retired. The crowdsourced-extraction flow is now `/scan?mode=triage` — triage plus OCR review — and `/scan?mode=trace`.
+- **Label Studio.** Retired. The crowdsourced-extraction flow is now `/scan?mode=prepare` — triage plus OCR review — and `/scan?mode=shapes`.
 - **Admin pipeline dashboard.** There is no dashboard component and no pipeline API surface beyond per-map stage endpoints. Admin work happens inline in `/catalog` and in the two dedicated admin pages.
 - **3D / LoD2 / 4D timeline.** Phase 3. No code.
 

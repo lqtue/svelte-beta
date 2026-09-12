@@ -1,11 +1,10 @@
 /* No page-root rule: `.page` (components/editorial.css) carries the height
    and the mount fade. */
 
+/* `.section-card` (editorial.css) with no padding of its own — this one is a
+   header strip over a body, and each supplies its own. */
 .profile-page .profile-card {
-  background: var(--color-white);
-  border: var(--border-thick);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-solid);
+  --card-pad: 0;
   overflow: hidden;
   max-width: 800px;
   margin: 0 auto;
@@ -171,6 +170,6 @@
   gap: var(--space-3);
 }
 
-.staff-links .pill-btn {
+.staff-links .btn {
   text-decoration: none;
 }
